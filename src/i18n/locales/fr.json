@@ -6,6 +6,29 @@
             "subtitle":"Créez des inspections, attribuez des actions, gérez les sites, les utilisateurs, les groupes – tout cela depuis une plateforme intelligente conçue pour vos équipes de première ligne.",
             "btnStart":"Commencer",
             "btnDemo":"Réservez démo"
+        },
+        "heroFeatures": {
+            "title1": "Conçu pour les équipes modernes qui",
+            "title2": "gagnent en efficacité",
+            "description": "Notre plateforme permet aux équipes de travailler de manière plus sûre, plus rapide et mieux organisée. Que vous gériez plusieurs sites, inspectiez des équipements, attribuiez des tâches ou collaboriez entre équipes — nos outils digitaux centralisent tout dans un tableau de bord intuitif et une application mobile.",
+            "features": [
+                {
+                    "title": "Simple et intuitif pour toutes les équipes",
+                    "description": "Une prise en main rapide, sans formation complexe"
+                },
+                {
+                    "title": "Pensé pour le mobile",
+                    "description": "Travaillez efficacement, où que vous soyez"
+                },
+                {
+                    "title": "Données en temps réel",
+                    "description": "Accédez instantanément aux informations clés"
+                },
+                {
+                    "title": "Sécurisé et 100 % cloud",
+                    "description": "Une infrastructure fiable, conçue pour les entreprises"
+                }
+            ]
         }
     },
     "auth": {
@@ -34,3 +57,4 @@
     }
     
 }
+    

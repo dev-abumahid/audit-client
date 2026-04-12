@@ -6,7 +6,30 @@
             "subtitle":"Create inspections, assign actions, manage sites, users, groups—everything from one smart platform designed for your frontline workforce.",
             "btnStart":"Get Started",
             "btnDemo":"Book a Demo"
-        }
+        },
+         "heroFeatures":{
+            "title1":"Built for Modern Teams Who",
+            "title2":"Work Smarter",
+            "description":"Our platform helps teams run safer, faster and more organized operations. Whether you're managing multiple sites, inspecting equipment, assigning tasks, or collaborating across teams—our digital tools bring everything into one simple dashboard and mobile app.",
+            "features":[
+                {
+                    "title":"Easy to use for all teams",
+                    "description":"Intuitive interface designed for everyone"
+                },
+                {
+                    "title":"Mobile-first workflows",
+                    "description":"Work seamlessly on any device"
+                },
+                {
+                    "title":"Real-time insights",
+                    "description":"Data at your fingertips, instantly"
+                },
+                {
+                    "title":"Secure & cloud-based",
+                    "description":"Enterprise-grade security & reliability"
+                }
+            ]
+    }
     },
     "auth":{
         "signUp":{
@@ -32,4 +55,5 @@
             "hintText":"Don't have an account?"
         }
     }
+   
 }

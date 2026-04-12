@@ -23,7 +23,7 @@ const HeroSection = () => {
   return (
     <>
       {/* Use theme colors instead of hard-coded dark values */}
-      <div className="border-b border-border bg-background py-6 md:py-10 lg:py-12">
+      <div className="bg-background py-6 md:py-10 lg:py-12">
         <div className="container mx-auto px-4 md:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl text-center">
             {/* Heading - Use foreground + primary color from theme */}
