@@ -1,6 +1,7 @@
 import { X } from "lucide-react"
 import React from "react"
 import { useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 
 interface SignInFormData {
   email: string
@@ -20,6 +21,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
   onSignUpClick,
   onForgotPasswordClick,
 }) => {
+  const { t } = useTranslation()
   const {
     register,
     handleSubmit,
@@ -68,18 +70,11 @@ const SignInModal: React.FC<SignInModalProps> = ({
 
         {/* Modal Header */}
         <div className="px-6 pt-6 pb-1 text-center">
-          <div className="mb-2">
-            <h1 className="text-xl font-bold">
-              <span className="text-primary">L</span>
-              <span className="text-foreground">ogo</span>
-            </h1>
-          </div>
-
           <h2 className="mb-1 text-lg font-semibold text-foreground">
-            Welcome Back 👋
+            {t("auth.signIn.title")}
           </h2>
           <p className="mb-6 text-xs text-muted-foreground">
-            Sign in to your account
+            {t("auth.signIn.subTitle")}
           </p>
         </div>
 
@@ -92,21 +87,21 @@ const SignInModal: React.FC<SignInModalProps> = ({
                 htmlFor="email"
                 className="mb-1.5 block text-xs font-medium text-muted-foreground"
               >
-                Email / Phone Number
+                {t("auth.signUp.email")}
               </label>
               <input
                 id="email"
                 type="text"
                 {...register("email", {
-                  required: "Email or phone number is required",
+                  required: "Email is required",
                 })}
-                placeholder="Enter email or phone number"
+                placeholder="example@email.com"
                 className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
                 disabled={isSubmitting}
               />
               {errors.email && (
                 <p className="mt-1 text-xs text-destructive">
-                  {errors.email.message}
+                  {t("auth.signUp.emailReqText")}
                 </p>
               )}
             </div>
@@ -117,7 +112,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
                 htmlFor="password"
                 className="mb-1.5 block text-xs font-medium text-muted-foreground"
               >
-                Password
+                {t("auth.signUp.password")}
               </label>
               <input
                 id="password"
@@ -125,13 +120,13 @@ const SignInModal: React.FC<SignInModalProps> = ({
                 {...register("password", {
                   required: "Password is required",
                 })}
-                placeholder="Enter password"
+                placeholder="********"
                 className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
                 disabled={isSubmitting}
               />
               {errors.password && (
                 <p className="mt-1 text-xs text-destructive">
-                  {errors.password.message}
+                  {t("auth.signUp.passwordReqText")}
                 </p>
               )}
             </div>
@@ -144,7 +139,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
                 className="text-xs text-muted-foreground transition-colors hover:text-primary hover:underline"
                 disabled={isSubmitting}
               >
-                Forgot Password?
+                {t("auth.signIn.btnForgotPassword")}
               </button>
             </div>
 
@@ -160,14 +155,14 @@ const SignInModal: React.FC<SignInModalProps> = ({
                   Signing In...
                 </>
               ) : (
-                "Sign In"
+                t("auth.signIn.btnSignIn")
               )}
             </button>
 
             {/* Sign Up Link */}
             <div className="border-t border-border pt-4">
               <p className="text-center text-xs text-muted-foreground">
-                Don't have an account?{" "}
+                {t("auth.signIn.hintText")}{" "}
                 <button
                   type="button"
                   onClick={() => {
@@ -177,7 +172,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
                   className="font-medium text-primary hover:underline focus:outline-none"
                   disabled={isSubmitting}
                 >
-                  Sign Up
+                  {t("auth.signUp.btnSignUp")}
                 </button>
               </p>
             </div>

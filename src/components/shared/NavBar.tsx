@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react"
 import React, { useState } from "react"
 import { Link } from "react-router"
 import SignUpModal from "../../pages/auth/SignUpModal"
+import { ModeToggle } from "../mode-toggle"
 import LanguageSwitcher from "./LanguageSwitcher"
 
 const NavBar: React.FC = () => {
@@ -57,6 +58,7 @@ const NavBar: React.FC = () => {
 
             {/* Desktop Navigation */}
             <div className="hidden items-center gap-4 lg:flex">
+              <ModeToggle />
               <LanguageSwitcher />
 
               <button
