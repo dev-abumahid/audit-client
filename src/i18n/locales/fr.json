@@ -29,6 +29,37 @@
                     "description": "Une infrastructure fiable, conçue pour les entreprises"
                 }
             ]
+        },
+        "featureSection": {
+            "title1": "Tout ce dont vous avez besoin sur",
+            "title2": "une seule plateforme",
+            "description": "Des fonctionnalités puissantes conçues pour optimiser vos opérations et améliorer votre productivité",
+            "features": [
+                {
+                    "title": "Créez et personnalisez des modèles dynamiques",
+                    "description": "Concevez des modèles d’inspection adaptés à vos processus — checklists, formulaires, audits de sécurité, contrôles qualité, et bien plus. Dupliquez, modifiez et partagez-les instantanément avec votre équipe."
+                },
+                {
+                    "title": "Réalisez des inspections partout, à tout moment",
+                    "description": "Effectuez vos inspections directement depuis votre application mobile ou votre tableau de bord. Ajoutez photos, notes et évaluations, puis générez des rapports instantanément en un clic."
+                },
+                {
+                    "title": "Assignez des actions et suivez leur progression",
+                    "description": "Un problème détecté ? Assignez-le immédiatement à la bonne personne. Suivez les statuts, les échéances et les progrès pour ne rien laisser passer."
+                },
+                {
+                    "title": "Gérez les utilisateurs avec des contrôles avancés",
+                    "description": "Invitez vos collaborateurs et attribuez des rôles selon leurs responsabilités. Contrôlez précisément qui peut voir, modifier ou gérer chaque aspect de vos opérations."
+                },
+                {
+                    "title": "Organisez vos activités par site",
+                    "description": "Gérez inspections, incidents, utilisateurs et activités par emplacement. Idéal pour les entreprises avec plusieurs sites, agences ou chantiers."
+                },
+                {
+                    "title": "Collaborez efficacement en équipe",
+                    "description": "Créez des groupes personnalisés pour fluidifier la communication et les — maintenance, sécurité, qualité, prestataires, et plus encore."
+                }
+            ]
         }
     },
     "auth": {

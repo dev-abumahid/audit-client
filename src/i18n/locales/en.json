@@ -7,7 +7,7 @@
             "btnStart":"Get Started",
             "btnDemo":"Book a Demo"
         },
-         "heroFeatures":{
+        "heroFeatures":{
             "title1":"Built for Modern Teams Who",
             "title2":"Work Smarter",
             "description":"Our platform helps teams run safer, faster and more organized operations. Whether you're managing multiple sites, inspecting equipment, assigning tasks, or collaborating across teams—our digital tools bring everything into one simple dashboard and mobile app.",
@@ -29,7 +29,38 @@
                     "description":"Enterprise-grade security & reliability"
                 }
             ]
-    }
+        },
+        "featureSection": {
+            "title1": "Everything You Need in",
+            "title2": "One Platform",
+            "description": "Powerful features designed to streamline your operations and boost productivity",
+            "features": [
+                {
+                    "title": "Create & Customize Dynamic Templates",
+                    "description": "Build inspection templates that fit your workflow—checklists, forms, safety audits, quality checks, and more. Duplicate, edit, and share them instantly with your team."
+                },
+                {
+                    "title": "Conduct Inspections Anytime, Anywhere",
+                    "description": "Perform inspections directly from your mobile app or dashboard. Capture photos, notes, and ratings, then generate instant reports in one click."
+                },
+                {
+                    "title": "Assign Actions & Track Progress",
+                    "description": "Found an issue? Assign it to the right person instantly. Track status, deadlines, and completion to ensure nothing is missed."
+                },
+                {
+                    "title": "Manage Users With Smart Controls",
+                    "description": "Invite team members and assign roles based on responsibilities. Control exactly who can view, edit, or manage each part of your operations."
+                },
+                {
+                    "title": "Organize Everything by Location",
+                    "description": "Manage inspections, issues, users, and activities by site. Ideal for businesses with multiple branches, stores, or job sites."
+                },
+                {
+                    "title": "Collaborate Seamlessly With Teams",
+                    "description": "Create custom groups to streamline communication and workflows—maintenance, safety, quality teams, contractors, and more."
+                }
+            ]
+        }
     },
     "auth":{
         "signUp":{

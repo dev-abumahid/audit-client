@@ -28,7 +28,7 @@ const HeroFeatures: React.FC = () => {
   ]
 
   return (
-    <section className="border-b border-border bg-background px-4 py-8 sm:px-6 sm:py-10 md:py-12 lg:px-8 lg:py-16">
+    <section className="bg-background px-4 py-8 sm:px-6 sm:py-10 md:py-12 lg:px-8 lg:py-16">
       <div className="mx-auto max-w-7xl">
         {/* Section Header */}
         <div className="mb-12 text-center sm:mb-16 lg:mb-20">

@@ -1,3 +1,4 @@
+import FeaturesSection from "./components/FeaturesSection"
 import HeroFeatures from "./components/HeroFeatures"
 import HeroSection from "./components/HeroSection"
 
@@ -6,7 +7,7 @@ export default function Home() {
     <div>
       <HeroSection />
       <HeroFeatures />
-      {/* <FeaturesSection /> */}
+      <FeaturesSection />
       {/* <TestimonialsSection /> */}
       {/* <FAQSection /> */}
       {/* <AllPricing /> */}
