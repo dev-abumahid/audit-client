@@ -1,0 +1,35 @@
+{
+    "home":{
+        "hero":{
+            "title1":"Digitize Your Workplace Inspections &",
+            "title2":"Operations Simple, Fast, Reliable",
+            "subtitle":"Create inspections, assign actions, manage sites, users, groups—everything from one smart platform designed for your frontline workforce.",
+            "btnStart":"Get Started",
+            "btnDemo":"Book a Demo"
+        }
+    },
+    "auth":{
+        "signUp":{
+            "title":"Get Started with Us",
+            "subTitle":"Create your account to get started",
+            "organizationName":"Organization Name",
+            "userName":"Username",
+            "email":"Email",
+            "password":"Password",
+            "btnSignUp":"Sign Up",
+            "btnClear":"Clear",
+            "hintText":"Already Signed up?",
+            "organizationNameReqText":"Organization name is required",
+            "userNameReqText":"Username is required",
+            "emailReqText":"Email is required",
+            "passwordReqText":"Password is required"
+        },
+        "signIn":{
+            "title":"Welcome Back",
+            "subTitle":"Sign in to your account",
+            "btnForgotPassword":"Forgot Password?",
+            "btnSignIn":"Sign In",
+            "hintText":"Don't have an account?"
+        }
+    }
+}

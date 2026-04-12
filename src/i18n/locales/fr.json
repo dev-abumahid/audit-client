@@ -1,0 +1,36 @@
+{
+    "home":{
+        "hero":{
+            "title1":"Numérisez vos inspections de lieu de travail &",
+            "title2":"Opérations simples, rapides et fiables",
+            "subtitle":"Créez des inspections, attribuez des actions, gérez les sites, les utilisateurs, les groupes – tout cela depuis une plateforme intelligente conçue pour vos équipes de première ligne.",
+            "btnStart":"Commencer",
+            "btnDemo":"Réservez démo"
+        }
+    },
+    "auth": {
+        "signUp": {
+            "title": "Créer un compte",
+            "subTitle": "Créez votre compte pour commencer",
+            "organizationName": "Nom de l’organisation",
+            "userName": "Nom d’utilisateur",
+            "email": "Adresse e-mail",
+            "password": "Mot de passe",
+            "btnSignUp": "S’inscrire",
+            "btnClear": "Réinitialiser",
+            "hintText": "Vous avez déjà un compte ?",
+            "organizationNameReqText":"Se requiere el nombre de la organización.",
+            "userNameReqText":"Se requiere nombre de usuario.",
+            "emailReqText":"Se requiere correo electrónico",
+            "passwordReqText":"Se requiere contraseña"
+        },
+        "signIn": {
+            "title": "Connexion",
+            "subTitle": "Connectez-vous à votre compte",
+            "btnForgotPassword": "Mot de passe oublié ?",
+            "btnSignIn": "Se connecter",
+            "hintText": "Vous n’avez pas de compte ?"
+        }
+    }
+    
+}
