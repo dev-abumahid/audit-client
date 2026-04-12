@@ -60,6 +60,27 @@
                     "description": "Créez des groupes personnalisés pour fluidifier la communication et les — maintenance, sécurité, qualité, prestataires, et plus encore."
                 }
             ]
+        },
+        "testimonials": {
+            "title1": "Adopté par des équipes qui",
+            "title2": "misent sur la fiabilité",
+            "reviews": [
+                {
+                    "quote": "Cette plateforme a rendu nos inspections trois fois plus rapides. Notre équipe apprécie sa simplicité d’utilisation.",
+                    "name": "Responsable des opérations",
+                    "position": "Entreprise industrielle"
+                },
+                {
+                    "quote": "L’attribution instantanée des actions a résolu nos problèmes de suivi. Un système remarquable !",
+                    "name": "Responsable sécurité",
+                    "position": "Entreprise de construction"
+                },
+                {
+                    "quote": "La gestion de plusieurs sites n’a jamais été aussi organisée. Je recommande vivement.",
+                    "name": "Coordinateur de site",
+                    "position": "Chaîne de distribution"
+                }
+            ]
         }
     },
     "auth": {

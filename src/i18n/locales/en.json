@@ -60,6 +60,27 @@
                     "description": "Create custom groups to streamline communication and workflows—maintenance, safety, quality teams, contractors, and more."
                 }
             ]
+        },
+        "testimonials":{
+            "title1":"Trusted by Teams Who",
+            "title2":"Value Reliability",
+            "reviews":[
+                {
+                    "quote":"This platform made our inspections 3× faster. Our team loves how easy it is to use.",
+                    "name":"Operations Manager",
+                    "position":"Manufacturing Corp"
+                },
+                {
+                    "quote":"Assigning actions instantly solved our follow-up problems. Brilliant system!",
+                    "name":"Safety Supervisor",
+                    "position":"Construction Ltd"
+                },
+                {
+                    "quote":"Managing multiple sites has never been this organized. Highly recommended.",
+                    "name":"Site Coordinator",
+                    "position":"Retail Chain"
+                }
+            ]
         }
     },
     "auth":{
