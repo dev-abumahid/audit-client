@@ -33,7 +33,7 @@ const TestimonialsSection: React.FC = () => {
   ]
 
   return (
-    <section className="border-b border-border bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+    <section className="bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-12 text-center sm:mb-16">

@@ -81,6 +81,33 @@
                     "position":"Retail Chain"
                 }
             ]
+        },
+        "faq":{
+            "title1":"Frequently Asked",
+            "title2":"Questions",
+            "description":"Everything you need to know about our platform",
+            "questions": [
+                {
+                    "question": "Is the platform available on both mobile and web?",
+                    "answer": "Yes, you can access the dashboard on the web and perform inspections from both web and mobile apps."
+                },
+                {
+                    "question": "Can I customize my own templates?",
+                    "answer": "Yes, you can create and customize templates to match your workflow. Build checklists, forms, safety audits, and more."
+                },
+                {
+                    "question": "How does user and role management work?",
+                    "answer": "You can invite team members and assign roles with specific permissions. Control who can view, edit, or manage different parts of your operations."
+                },
+                {
+                    "question": "Do you offer a free trial?",
+                    "answer": "Yes, we offer a free trial so you can explore all features and see how the platform fits your team before committing."
+                },
+                {
+                    "question": "Do you support multiple sites?",
+                    "answer": "Absolutely. Organize inspections, users, and activities by location—perfect for companies with multiple branches or job sites."
+                }
+            ]
         }
     },
     "auth":{

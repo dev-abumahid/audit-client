@@ -81,6 +81,33 @@
                     "position": "Chaîne de distribution"
                 }
             ]
+        },
+        "faq": {
+            "title1": "Questions fréquemment",
+            "title2": "posées",
+            "description": "Tout ce que vous devez savoir sur notre plateforme",
+            "questions": [
+                {
+                    "question": "La plateforme est-elle доступible sur mobile et sur le web ?",
+                    "answer": "Oui, vous pouvez accéder au tableau de bord via le web et réaliser des inspections depuis le web ou l’application mobile."
+                },
+                {
+                    "question": "Puis-je personnaliser mes propres modèles ?",
+                    "answer": "Oui, vous pouvez créer et personnaliser des modèles adaptés à vos besoins. Créez des checklists, formulaires, audits de sécurité, et bien plus."
+                },
+                {
+                    "question": "Comment fonctionne la gestion des utilisateurs et des rôles ?",
+                    "answer": "Invitez vos collaborateurs et attribuez-leur des rôles avec des permissions spécifiques. Vous contrôlez qui peut voir, modifier ou gérer chaque partie de vos opérations."
+                },
+                {
+                    "question": "Proposez-vous un essai gratuit ?",
+                    "answer": "Oui, un essai gratuit est disponible pour vous permettre de découvrir toutes les fonctionnalités avant de vous engager."
+                },
+                {
+                    "question": "Prenez-vous en charge plusieurs sites ?",
+                    "answer": "Absolument. Organisez inspections, utilisateurs et activités par site — idéal pour les entreprises avec plusieurs agences ou chantiers."
+                }
+            ]
         }
     },
     "auth": {
