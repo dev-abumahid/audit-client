@@ -1,7 +1,3 @@
-// =============================================
-// AEXA — Domain Types
-// =============================================
-
 export interface Organization {
   id: string;
   user_id: string;

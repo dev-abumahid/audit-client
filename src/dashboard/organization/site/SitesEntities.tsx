@@ -25,63 +25,9 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import type { SiteForm } from "./type"
+import { DUMMY_SITES } from "@/data/site"
 
-const DUMMY_SITES: Site[] = [
-  {
-    id: "site_001",
-    organization_id: "org_123",
-    user_id: "user_456",
-    name: "Dhaka Manufacturing Plant",
-    location: "Dhaka",
-    country: "Bangladesh",
-    activity: "Manufacturing",
-    revenue: 12500000,
-    employees_count: 350,
-    site_type: "Factory",
-    risk_level: "medium",
-    is_active: true,
-    ai_generated: false,
-    is_edited: true,
-    custom_fields: {
-      energy_source: "Grid",
-      shift_pattern: "24/7",
-    },
-    lat: 23.8103,
-    lng: 90.4125,
-    certifications: ["ISO 9001", "ISO 14001"],
-    is_headquarters: false,
-    revenue_contribution: 0.35,
-    created_at: "2025-01-15T10:00:00Z",
-    updated_at: "2025-03-10T14:30:00Z",
-  },
-  {
-    id: "site_002",
-    organization_id: "org_123",
-    user_id: "user_789",
-    name: "Paris Headquarters",
-    location: "Paris",
-    country: "France",
-    activity: "Corporate",
-    revenue: 45000000,
-    employees_count: 120,
-    site_type: "Head Office",
-    risk_level: "low",
-    is_active: true,
-    ai_generated: true,
-    is_edited: false,
-    custom_fields: {
-      building_type: "Office",
-      floors: 8,
-    },
-    lat: 48.8566,
-    lng: 2.3522,
-    certifications: ["ISO 27001"],
-    is_headquarters: true,
-    revenue_contribution: 0.65,
-    created_at: "2024-11-01T08:00:00Z",
-    updated_at: "2025-02-20T12:00:00Z",
-  },
-]
+
 
 const DUMMY_RISKS: Record<string, Risk[]> = {
   "1": [

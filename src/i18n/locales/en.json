@@ -234,6 +234,17 @@
             "update":"Update",
             "modify":"Modify Risk",
             "addNewRisk":"Add New Risk"
+        },
+        "riskMatrix":{
+            "title":"ISO 31000 Risk Matrix",
+            "des":"Risks positioned — Click on a cell to see details",
+            "critical":"Critical",
+            "major":"Major",
+            "moderate":"Moderate",
+            "weak":"Weak",
+            "noRiskSelected":"Select a cell from the matrix",
+            "selectRiskHint":"Click on a cell to see the risks"
+
         }
     },
     "alert":{
