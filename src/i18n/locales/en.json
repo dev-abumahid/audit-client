@@ -133,6 +133,57 @@
             "btnSignIn":"Sign In",
             "hintText":"Don't have an account?"
         }
+    },
+    "organization":{
+        "nav":{
+            "analyze":"Analyze",
+            "dashboard":"Dashboard",
+            "sitesEntities":"Sites & Entities",
+            "riskRegister":"Risk Register",
+            "matrix5x5":"Matrix 5x5",
+            "correlationMatrix":"Correlation Matrix",
+            "pageRankGraph":"Page Rank Graph",
+            "kriDashboard":"KRI Dashboard",
+            "intelligence":"Intelligence",
+            "threatIntel":"Threat Intelligence",
+            "alerts":"Alerts",
+            "governance":"Governance",
+            "regulatoryCompliance":"Regulatory Compliance",
+            "auditMissions":"Audit Missions",
+            "templates":"Templates",
+            "inspections":"Inspections",
+            "findings":"Findings",
+            "boardReports":"Board Reports",
+            "settings":"Settings",
+            "logout":"Logout"
+        },
+        "overview":{
+            "title":"Executive Dashboard",
+            "description":"Consolidated Risk View — CEBI International S.A.",
+            "activeRisk":"Active Risks",
+            "kriAlert":"KRI Alerts",
+            "criticalAlert":"Critical alerts",
+            "revenue":"Revenue",
+            "chart":{
+                "title":"Distribution EBITDA at Risk",
+                "des":"Monte Carlo — 10,000 scenarios",
+                "p5Worst":"P5 (Worst)",
+                "p5Median":"P5 (Median)",
+                "budget":"Budget"
+            },
+            "category":{
+                "title":"Risks by category",
+                "des":"identified risks"
+            },
+            "bottomRow":{
+                "title":"Systemic Tipping Points",
+                "des":"Top 15% PageRank — maximum spread risks"
+            },
+            "alert":{
+                "title":"Recent alerts",
+                "des":"Last 48 hours — sorted by relevance"
+            }
+        }
     }
    
 }

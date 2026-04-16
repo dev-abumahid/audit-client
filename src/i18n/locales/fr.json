@@ -133,7 +133,57 @@
             "btnSignIn": "Se connecter",
             "hintText": "Vous n’avez pas de compte ?"
         }
+    },
+    "organization": {
+        "nav": {
+            "analyze": "Analyse",
+            "dashboard": "Tableau de bord",
+            "sitesEntities": "Sites et entités",
+            "riskRegister": "Registre des risques",
+            "matrix5x5": "Matrice 5×5",
+            "correlationMatrix": "Matrice de corrélation",
+            "pageRankGraph": "Graphique PageRank",
+            "kriDashboard": "Tableau de bord des KRI",
+            "intelligence": "Renseignement",
+            "threatIntel": "Renseignement sur les menaces",
+            "alerts": "Alertes",
+            "governance": "Gouvernance",
+            "regulatoryCompliance": "Conformité réglementaire",
+            "auditMissions": "Missions d'audit",
+            "templates": "Modèles",
+            "inspections": "Inspections",
+            "findings": "Constats",
+            "boardReports": "Rapports du conseil",
+            "settings":"Paramètres",
+            "logout":"Déconnexion"
+        },
+        "overview": {
+            "title": "Tableau de bord exécutif",
+            "description": "Vue consolidée des risques — CEBI International S.A.",
+            "activeRisk": "Risques actifs",
+            "kriAlert": "Alertes KRI",
+            "criticalAlert": "Alertes critiques",
+            "revenue": "Revenus",
+            "chart": {
+                "title": "Distribution de l'EBITDA à risque",
+                "des": "Monte Carlo — 10 000 scénarios",
+                "p5Worst": "P5 (Pire cas)",
+                "p5Median": "P5 (Médian)",
+                "budget": "Budget"
+            },
+            "category": {
+                "title": "Risques par catégorie",
+                "des": "risques identifiés"
+            },
+            "bottomRow": {
+                "title": "Points de bascule systémiques",
+                "des": "Top 15 % PageRank — risques à propagation maximale"
+            },
+            "alert": {
+                "title": "Alertes récentes",
+                "des": "Dernières 48 heures — triées par pertinence"
+            }
+        }
     }
-    
 }
     

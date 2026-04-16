@@ -2,12 +2,13 @@ import logo from "@/assets/images/logo.png"
 import SignInModal from "@/pages/auth/SignInModal"
 import { Menu, X } from "lucide-react"
 import React, { useState } from "react"
-import { Link } from "react-router"
+import { Link, useNavigate } from "react-router"
 import SignUpModal from "../../pages/auth/SignUpModal"
 import { ModeToggle } from "../mode-toggle"
 import LanguageSwitcher from "./LanguageSwitcher"
 
 const NavBar: React.FC = () => {
+  const navigate = useNavigate()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false)
   const [isSignUpModalOpen, setIsSignUpModalOpen] = useState(false)
@@ -34,7 +35,7 @@ const NavBar: React.FC = () => {
     // } else if (role === "USER") {
     //   navigate("/user-dashboard")
     // } else if (role === "ADMIN") {
-    //   navigate("/admin-dashboard")
+    navigate("/organization")
     // }
   }
 
