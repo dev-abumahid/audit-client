@@ -183,6 +183,33 @@
                 "title":"Recent alerts",
                 "des":"Last 48 hours — sorted by relevance"
             }
+        },
+        "site&entities":{
+            "title":"Site & Entities",
+            "description":"Organize activities by location",
+            "csv":"Importer CSV",
+            "aiDiscovery":"AI Discovery",
+            "newSite":"New Site",
+            "activeSite":"Active Sites",
+            "pays":"Pays",
+            "caTotal":"CA Total",
+            "employees":"Employees",
+            "analyzeAi":"Analyze AI",
+            "addRisk":"Add Risk",
+            "addRiskTitle":"Add a risk manually",
+            "cancel":"Cancel",
+            "add":"Add",
+            "aiPendingRisk":"AI risks pending",
+            "confirmedRisk":"Confirmed risks",
+            "noSite":"No sites registered",
+            "siteName":"Site Name",
+            "siteType":"Site Type",
+            "headOffice":"Head Office",
+            "production":"Production",
+            "warehouse":"Warehouse",
+            "other":"Other",
+            "activity":"Activity",
+            "update":"Update Site"
         }
     }
    

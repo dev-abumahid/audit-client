@@ -43,32 +43,32 @@ export default function OrganizationLayout() {
           icon: LayoutDashboard,
         },
         {
-          path: "/sites",
+          path: "/organization/sites",
           label: t("organization.nav.sitesEntities"),
           icon: Building,
         },
         {
-          path: "/risks",
+          path: "/organization/risks",
           label: t("organization.nav.riskRegister"),
           icon: Shield,
         },
         {
-          path: "/risk-matrix",
+          path: "/organization/risk-matrix",
           label: t("organization.nav.matrix5x5"),
           icon: Grid3X3,
         },
         {
-          path: "/correlation-matrix",
+          path: "/organization/correlation-matrix",
           label: t("organization.nav.correlationMatrix"),
           icon: GitBranch,
         },
         {
-          path: "/risk-graph",
+          path: "/organization/risk-graph",
           label: t("organization.nav.pageRankGraph"),
           icon: Network,
         },
         {
-          path: "/kri",
+          path: "/organization/kri",
           label: t("organization.nav.kriDashboard"),
           icon: Activity,
         },
@@ -78,43 +78,47 @@ export default function OrganizationLayout() {
       label: t("organization.nav.intelligence"),
       items: [
         {
-          path: "/intelligence",
+          path: "/organization/intelligence",
           label: t("organization.nav.threatIntel"),
           icon: Radio,
         },
-        { path: "/alerts", label: t("organization.nav.alerts"), icon: Bell },
+        {
+          path: "/organization/alerts",
+          label: t("organization.nav.alerts"),
+          icon: Bell,
+        },
       ],
     },
     {
       label: t("organization.nav.governance"),
       items: [
         {
-          path: "/compliance",
+          path: "/organization/compliance",
           label: t("organization.nav.regulatoryCompliance"),
           icon: Scale,
         },
         {
-          path: "/audit",
+          path: "/organization/audit",
           label: t("organization.nav.auditMissions"),
           icon: ClipboardCheck,
         },
         {
-          path: "/audit/templates",
+          path: "/organization/audit/templates",
           label: t("organization.nav.templates"),
           icon: ClipboardCheck,
         },
         {
-          path: "/audit/inspections",
+          path: "/organization/audit/inspections",
           label: t("organization.nav.inspections"),
           icon: ClipboardCheck,
         },
         {
-          path: "/findings",
+          path: "/organization/findings",
           label: t("organization.nav.findings"),
           icon: AlertTriangle,
         },
         {
-          path: "/reports",
+          path: "/organization/reports",
           label: t("organization.nav.boardReports"),
           icon: FileText,
         },
@@ -130,7 +134,7 @@ export default function OrganizationLayout() {
       <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3">
         {!collapsed ? (
           <Link
-            to="/dashboard"
+            to="/organization"
             className="flex items-center gap-2"
             onClick={() => setMobileOpen(false)}
           >

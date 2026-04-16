@@ -1,4 +1,5 @@
 import Overview from "@/dashboard/organization/overview/Overview"
+import SitesEntities from "@/dashboard/organization/site/SitesEntities"
 import OrganizationLayout from "@/layouts/OrganizationLayout"
 import RootLayout from "@/layouts/RootLayout"
 import ErrorPage from "@/pages/error/ErrorPage"
@@ -19,11 +20,11 @@ export const mainRoute = createBrowserRouter([
         element: <Home />,
       },
       {
-        path: "/terms",
+        path: "terms",
         element: <TermsAndConditions />,
       },
       {
-        path: "/privacy",
+        path: "privacy",
         element: <PrivacyPolicy />,
       },
     ],
@@ -37,6 +38,10 @@ export const mainRoute = createBrowserRouter([
       {
         index: true,
         element: <Overview />,
+      },
+      {
+        path: "sites",
+        element: <SitesEntities />,
       },
     ],
   },
