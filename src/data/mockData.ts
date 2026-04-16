@@ -4,6 +4,7 @@ import type {
   ComplianceObligation,
   KRI,
   Risk,
+  RiskLink,
 } from "@/types/organization"
 
 export const mockRisks: Risk[] = [
@@ -527,3 +528,55 @@ export const riskCategories: Record<string, { label: string; color: string }> =
     strategic: { label: "Stratégique", color: "#6366F1" },
     ehs: { label: "EHS / Environnement", color: "#22C55E" },
   }
+export const DUMMY_LINKS: RiskLink[] = [
+  {
+    id: "rl_001",
+    organization_id: "org_123",
+    user_id: "user_001",
+    source_ref: "risk_fire",
+    target_ref: "risk_property_damage",
+    link_type: "CAUSES",
+    strength: 0.9,
+    created_at: "2026-04-17T10:00:00Z",
+  },
+  {
+    id: "rl_002",
+    organization_id: "org_123",
+    user_id: "user_002",
+    source_ref: "risk_flood",
+    target_ref: "risk_supply_chain",
+    link_type: "AMPLIFIES",
+    strength: 0.75,
+    created_at: "2026-04-16T08:30:00Z",
+  },
+  {
+    id: "rl_003",
+    organization_id: "org_456",
+    user_id: "user_003",
+    source_ref: "risk_cyber_attack",
+    target_ref: "risk_data_breach",
+    link_type: "CAUSES",
+    strength: 0.95,
+    created_at: "2026-04-15T14:20:00Z",
+  },
+  {
+    id: "rl_004",
+    organization_id: "org_789",
+    user_id: "user_004",
+    source_ref: "risk_employee_turnover",
+    target_ref: "risk_productivity_loss",
+    link_type: "CORRELATES",
+    strength: 0.6,
+    created_at: "2026-04-14T11:45:00Z",
+  },
+  {
+    id: "rl_005",
+    organization_id: "org_456",
+    user_id: "user_005",
+    source_ref: "risk_inflation",
+    target_ref: "risk_operational_cost",
+    link_type: "AMPLIFIES",
+    strength: 0.8,
+    created_at: "2026-04-13T09:15:00Z",
+  },
+]
