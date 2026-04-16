@@ -1,4 +1,5 @@
 import Overview from "@/dashboard/organization/overview/Overview"
+import RiskRegisterPage from "@/dashboard/organization/risk/RiskRegisterPage"
 import SitesEntities from "@/dashboard/organization/site/SitesEntities"
 import OrganizationLayout from "@/layouts/OrganizationLayout"
 import RootLayout from "@/layouts/RootLayout"
@@ -42,6 +43,10 @@ export const mainRoute = createBrowserRouter([
       {
         path: "sites",
         element: <SitesEntities />,
+      },
+      {
+        path: "risks",
+        element: <RiskRegisterPage />,
       },
     ],
   },

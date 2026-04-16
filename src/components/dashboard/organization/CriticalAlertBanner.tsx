@@ -76,8 +76,8 @@ export default function CriticalAlertBanner() {
           <span className="text-risk-critical text-xs font-semibold">
             🚨 {criticalAlerts.length}{" "}
             {criticalAlerts.length > 1
-              ? t("dashboard.criticalAlertsBannerPlural")
-              : t("dashboard.criticalAlertsBanner")}
+              ? t("alert.criticalAlertsBannerPlural")
+              : t("alert.criticalAlertsBanner")}
           </span>
 
           <span className="max-w-md truncate text-xs text-muted-foreground">

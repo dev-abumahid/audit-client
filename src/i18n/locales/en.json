@@ -210,7 +210,34 @@
             "other":"Other",
             "activity":"Activity",
             "update":"Update Site"
+        },
+        "riskRegister":{
+            "title":"Risk  Register",
+            "activeRisk":"Active Risks",
+            "delete":"Deleted",
+            "groupByType":"Group by type",
+            "rootCause":"Root Cause AI",
+            "viewAssets":"View Assets",
+            "addNew":"Add New",
+            "close":"Close",
+            "risks":"Risks",
+            "resolution":"Resolution",
+            "sendToFinding":"Send to Finding",
+            "allSite":"All Sites",
+            "allCategory":"All Categories",
+            "category":"CATEGORY",
+            "riskName":"RISK NAME",
+            "description":"DESCRIPTION",
+            "inherentScore":"INHERENT SCORE",
+            "residualScore":"RESIDUAL SCORE",
+            "probability":"PROBABILITY",
+            "update":"Update",
+            "modify":"Modify Risk",
+            "addNewRisk":"Add New Risk"
         }
+    },
+    "alert":{
+        "criticalAlertsBannerPlural":"critical unread alerts",
+        "criticalAlertsBanner":"critical unread alert"
     }
-   
 }

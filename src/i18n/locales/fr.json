@@ -211,6 +211,10 @@
             "activity": "Activité",
             "update": "Mettre à jour le site"
         }
+    },
+    "alert":{
+        "criticalAlertsBanner": "alerte critique non lue",
+        "criticalAlertsBannerPlural": "alertes critiques non lues"
     }
 }
     
