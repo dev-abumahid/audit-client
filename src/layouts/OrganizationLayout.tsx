@@ -292,7 +292,7 @@ export default function OrganizationLayout() {
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
             <Link
-              to="/alerts"
+              to="/organization/alerts"
               className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Bell className="h-4 w-4" />

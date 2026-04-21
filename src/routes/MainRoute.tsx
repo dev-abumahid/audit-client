@@ -1,4 +1,10 @@
+import AlertsPage from "@/dashboard/organization/alerts/AlertsPage"
+import AuditPage from "@/dashboard/organization/audit/AuditPage"
+import CompliancePage from "@/dashboard/organization/compliance/CompliancePage"
+import IntelligencePage from "@/dashboard/organization/intelligence/IntelligencePage"
+import KriDashboardPage from "@/dashboard/organization/kri/KriDashboardPage"
 import Overview from "@/dashboard/organization/overview/Overview"
+import ReportsPage from "@/dashboard/organization/reports/ReportsPage"
 import CorrelationMatrixPage from "@/dashboard/organization/risk/CorrelationMatrixPage"
 import RiskGraphPage from "@/dashboard/organization/risk/RiskGraphPage"
 import RiskMatrixPage from "@/dashboard/organization/risk/RiskMatrixPage"
@@ -62,6 +68,30 @@ export const mainRoute = createBrowserRouter([
       {
         path: "risk-graph",
         element: <RiskGraphPage />,
+      },
+      {
+        path: "kri",
+        element: <KriDashboardPage />,
+      },
+      {
+        path: "intelligence",
+        element: <IntelligencePage />,
+      },
+      {
+        path: "alerts",
+        element: <AlertsPage />,
+      },
+      {
+        path: "compliance",
+        element: <CompliancePage />,
+      },
+      {
+        path: "audit",
+        element: <AuditPage />,
+      },
+      {
+        path: "reports",
+        element: <ReportsPage />,
       },
     ],
   },
