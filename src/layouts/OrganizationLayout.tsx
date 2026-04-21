@@ -219,10 +219,13 @@ export default function OrganizationLayout() {
           {!collapsed && <span>{t("organization.nav.settings")}</span>}
         </Link>
 
-        <button className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+        <Link
+          to="/"
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span>{t("organization.nav.logout")}</span>}
-        </button>
+        </Link>
 
         {/* Collapse Toggle (Desktop) */}
         <button

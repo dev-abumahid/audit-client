@@ -1,3 +1,7 @@
+import AdminOrganization from "@/dashboard/admin/organizations/AdminOrganization"
+import AdminOverview from "@/dashboard/admin/overview/AdminOverview"
+import AdminSettings from "@/dashboard/admin/settings/AdminSettings"
+import AdminTransactions from "@/dashboard/admin/transactions/AdminTransactions"
 import AlertsPage from "@/dashboard/organization/alerts/AlertsPage"
 import AuditPage from "@/dashboard/organization/audit/AuditPage"
 import CompliancePage from "@/dashboard/organization/compliance/CompliancePage"
@@ -10,6 +14,7 @@ import RiskGraphPage from "@/dashboard/organization/risk/RiskGraphPage"
 import RiskMatrixPage from "@/dashboard/organization/risk/RiskMatrixPage"
 import RiskRegisterPage from "@/dashboard/organization/risk/RiskRegisterPage"
 import SitesEntities from "@/dashboard/organization/site/SitesEntities"
+import AdminLayout from "@/layouts/AdminLayout"
 import OrganizationLayout from "@/layouts/OrganizationLayout"
 import RootLayout from "@/layouts/RootLayout"
 import ErrorPage from "@/pages/error/ErrorPage"
@@ -92,6 +97,30 @@ export const mainRoute = createBrowserRouter([
       {
         path: "reports",
         element: <ReportsPage />,
+      },
+    ],
+  },
+
+  // Admin Routes
+  {
+    path: "/admin",
+    element: <AdminLayout />,
+    children: [
+      {
+        index: true,
+        element: <AdminOverview />,
+      },
+      {
+        path: "transaction",
+        element: <AdminTransactions />,
+      },
+      {
+        path: "organizations",
+        element: <AdminOrganization />,
+      },
+      {
+        path: "settings",
+        element: <AdminSettings />,
       },
     ],
   },
