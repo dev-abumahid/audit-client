@@ -1,7 +1,12 @@
+import { useSignInUserMutation } from "@/redux/apis/auth.api"
+import { useAppDispatch } from "@/redux/hooks"
+import { setUser } from "@/redux/slices/user.slice"
 import { X } from "lucide-react"
 import React from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { useNavigate } from "react-router"
+import { toast } from "sonner"
 
 interface SignInFormData {
   email: string
@@ -21,6 +26,9 @@ const SignInModal: React.FC<SignInModalProps> = ({
   onSignUpClick,
   onForgotPasswordClick,
 }) => {
+  const [signInUser] = useSignInUserMutation()
+  const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const {
     register,
@@ -34,12 +42,20 @@ const SignInModal: React.FC<SignInModalProps> = ({
   })
 
   const onSubmit = async (data: SignInFormData) => {
-    const payload = {
-      email: data.email,
-      password: data.password,
+    try {
+      const payload = {
+        email: data.email,
+        password: data.password,
+      }
+      const res = await signInUser(payload).unwrap()
+      if (res?.success) {
+        dispatch(setUser(res?.data))
+        toast.success(res?.message)
+        navigate("/" + res?.data?.role?.toLowerCase())
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message)
     }
-    console.log(payload)
-    //login logic here
   }
 
   const handleForgotPassword = () => {

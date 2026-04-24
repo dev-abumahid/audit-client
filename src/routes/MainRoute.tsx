@@ -22,6 +22,7 @@ import Home from "@/pages/home/Home"
 import PrivacyPolicy from "@/pages/policy/PrivacyPolicy"
 import TermsAndConditions from "@/pages/policy/Terms"
 import { createBrowserRouter } from "react-router"
+import ProtectedRoute from "./ProtectedRoute"
 
 export const mainRoute = createBrowserRouter([
   // common routes
@@ -47,7 +48,11 @@ export const mainRoute = createBrowserRouter([
   // Organization Routes,
   {
     path: "/organization",
-    element: <OrganizationLayout />,
+    element: (
+      <ProtectedRoute role="ORGANIZATION">
+        <OrganizationLayout />
+      </ProtectedRoute>
+    ),
     errorElement: <ErrorPage />,
     children: [
       {
@@ -104,7 +109,11 @@ export const mainRoute = createBrowserRouter([
   // Admin Routes
   {
     path: "/admin",
-    element: <AdminLayout />,
+    element: (
+      <ProtectedRoute role="ADMIN">
+        <AdminLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,
