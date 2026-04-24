@@ -1,90 +1,94 @@
-import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useState } from "react"
+import { X } from "lucide-react"
 
 interface Props {
-  open: boolean;
-  setOpen: (value: boolean) => void;
+  open: boolean
+  setOpen: (value: boolean) => void
 }
 
 const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [form, setForm] = useState({
-    planName: '',
-    planDescription: '',
-    planPrice: '',
-    planType: 'monthly',
-    planFeatures: [''] as string[],
-  });
+    planName: "",
+    planDescription: "",
+    planPrice: "",
+    planType: "monthly",
+    planFeatures: [""] as string[],
+  })
 
   // Handle input changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target
+    setForm((prev) => ({ ...prev, [name]: value }))
+  }
 
   // Handle feature input change
   const handleFeatureChange = (index: number, value: string) => {
-    const updated = [...form.planFeatures];
-    updated[index] = value;
-    setForm((prev) => ({ ...prev, planFeatures: updated }));
-  };
+    const updated = [...form.planFeatures]
+    updated[index] = value
+    setForm((prev) => ({ ...prev, planFeatures: updated }))
+  }
 
   // Add new feature field
   const addFeature = () => {
     setForm((prev) => ({
       ...prev,
-      planFeatures: [...prev.planFeatures, ''],
-    }));
-  };
+      planFeatures: [...prev.planFeatures, ""],
+    }))
+  }
 
   // Remove feature field
   const removeFeature = (index: number) => {
-    if (form.planFeatures.length === 1) return;
+    if (form.planFeatures.length === 1) return
     setForm((prev) => ({
       ...prev,
       planFeatures: prev.planFeatures.filter((_, i) => i !== index),
-    }));
-  };
+    }))
+  }
 
   // Handle form submission (simulated)
   const handleSubmit = async () => {
     if (!form.planName.trim()) {
-      alert('Plan name is required');
-      return;
+      alert("Plan name is required")
+      return
     }
     if (!form.planPrice) {
-      alert('Plan price is required');
-      return;
+      alert("Plan price is required")
+      return
     }
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
 
     // Simulate API call
     setTimeout(() => {
-      alert(`Pricing plan "${form.planName}" created successfully!`);
-      setOpen(false);
-      
+      alert(`Pricing plan "${form.planName}" created successfully!`)
+      setOpen(false)
+
       // Reset form
       setForm({
-        planName: '',
-        planDescription: '',
-        planPrice: '',
-        planType: 'monthly',
-        planFeatures: [''],
-      });
-      setIsSubmitting(false);
-    }, 800);
-  };
+        planName: "",
+        planDescription: "",
+        planPrice: "",
+        planType: "monthly",
+        planFeatures: [""],
+      })
+      setIsSubmitting(false)
+    }, 800)
+  }
 
-  if (!open) return null;
+  if (!open) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-foreground">Add New Pricing Plan</h2>
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-foreground">
+            Add New Pricing Plan
+          </h2>
           <button
             onClick={() => setOpen(false)}
             className="text-muted-foreground hover:text-foreground"
@@ -97,7 +101,7 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
         <div className="space-y-5">
           {/* Plan Name */}
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+            <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
               Plan Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -112,7 +116,7 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
 
           {/* Plan Description */}
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+            <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
               Description
             </label>
             <input
@@ -128,7 +132,7 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
           {/* Price & Type */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
                 Price <span className="text-red-500">*</span>
               </label>
               <input
@@ -142,7 +146,7 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
                 Billing Cycle
               </label>
               <select
@@ -160,8 +164,10 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
 
           {/* Features */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-muted-foreground">Plan Features</label>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-sm font-medium text-muted-foreground">
+                Plan Features
+              </label>
               <button
                 type="button"
                 onClick={addFeature}
@@ -185,7 +191,7 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
                     type="button"
                     onClick={() => removeFeature(index)}
                     disabled={form.planFeatures.length === 1}
-                    className="px-4 border border-border rounded-xl text-muted-foreground hover:bg-muted disabled:opacity-50"
+                    className="rounded-xl border border-border px-4 text-muted-foreground hover:bg-muted disabled:opacity-50"
                   >
                     ✕
                   </button>
@@ -199,21 +205,21 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
         <div className="mt-8 flex gap-3">
           <button
             onClick={() => setOpen(false)}
-            className="flex-1 rounded-xl border border-border py-3 text-sm font-medium hover:bg-muted transition-colors"
+            className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-muted"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex-1 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+            className="flex-1 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
           >
-            {isSubmitting ? 'Creating Plan...' : 'Create Plan'}
+            {isSubmitting ? "Creating Plan..." : "Create Plan"}
           </button>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AddPricingModal;
+export default AddPricingModal

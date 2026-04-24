@@ -138,7 +138,10 @@ export default function AdminLayout() {
           {!collapsed && <span>{t("organization.nav.settings")}</span>}
         </Link>
 
-        <Link to="/" className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+        <Link
+          to="/"
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span>{t("organization.nav.logout")}</span>}
         </Link>

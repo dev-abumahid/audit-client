@@ -1,5 +1,7 @@
 import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAlertBanner"
 import LanguageSwitcher from "@/components/shared/LanguageSwitcher"
+import { useAppDispatch } from "@/redux/hooks"
+import { removeUser } from "@/redux/slices/user.slice"
 import {
   Activity,
   AlertTriangle,
@@ -25,13 +27,23 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Link, Outlet, useLocation } from "react-router"
+import { Link, Outlet, useLocation, useNavigate } from "react-router"
+import { toast } from "sonner"
 
 export default function OrganizationLayout() {
+  const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
   const { t } = useTranslation()
+
+  // handlers
+  const logOutHandler = () => {
+    dispatch(removeUser())
+    navigate("/")
+    toast.success("Logged out")
+  }
 
   const NAV_SECTIONS = [
     {
@@ -219,13 +231,13 @@ export default function OrganizationLayout() {
           {!collapsed && <span>{t("organization.nav.settings")}</span>}
         </Link>
 
-        <Link
-          to="/"
+        <button
+          onClick={logOutHandler}
           className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span>{t("organization.nav.logout")}</span>}
-        </Link>
+        </button>
 
         {/* Collapse Toggle (Desktop) */}
         <button

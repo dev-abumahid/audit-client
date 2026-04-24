@@ -27,8 +27,6 @@ import { toast } from "sonner"
 import type { SiteForm } from "./type"
 import { DUMMY_SITES } from "@/data/site"
 
-
-
 const DUMMY_RISKS: Record<string, Risk[]> = {
   "1": [
     {

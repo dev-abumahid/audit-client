@@ -35,7 +35,6 @@ const EMPTY_FORM = {
   closed_at: "",
 }
 
-
 export default function AuditPage() {
   const [engagements, setEngagements] =
     useState<AuditEngagement[]>(mockAuditEngagements)

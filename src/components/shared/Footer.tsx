@@ -25,7 +25,7 @@ const Footer: React.FC = () => {
 
   return (
     <footer className="border-t border-border bg-background">
-      <div className="mx-auto container px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+      <div className="container mx-auto px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
         {/* Main Footer Content */}
         <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-2 lg:mb-12 lg:grid-cols-12 lg:gap-12">
           {/* Logo and Description */}
