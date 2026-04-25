@@ -1,6 +1,6 @@
 import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAlertBanner"
 import LanguageSwitcher from "@/components/shared/LanguageSwitcher"
-import { useAppDispatch } from "@/redux/hooks"
+import { useAppDispatch, useAppSelector } from "@/redux/hooks"
 import { removeUser } from "@/redux/slices/user.slice"
 import {
   Activity,
@@ -31,6 +31,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router"
 import { toast } from "sonner"
 
 export default function OrganizationLayout() {
+  const user = useAppSelector((state) => state.user)
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
@@ -137,8 +138,6 @@ export default function OrganizationLayout() {
       ],
     },
   ]
-
-  const initials = "OR"
 
   const navContent = (
     <>
@@ -314,8 +313,12 @@ export default function OrganizationLayout() {
               <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
             </Link>
 
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-              {initials}
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground uppercase">
+              {(user?.organizationProfile?.organizationLogo as string) ? (
+                <img src={user?.organizationProfile?.organizationLogo} />
+              ) : (
+                <>{user?.organizationProfile?.organizationName?.charAt(0)}</>
+              )}
             </div>
           </div>
         </header>

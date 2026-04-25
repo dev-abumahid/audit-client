@@ -23,6 +23,7 @@ import PrivacyPolicy from "@/pages/policy/PrivacyPolicy"
 import TermsAndConditions from "@/pages/policy/Terms"
 import { createBrowserRouter } from "react-router"
 import ProtectedRoute from "./ProtectedRoute"
+import TemplatesPage from "@/dashboard/organization/templates/TemplatesPage"
 
 export const mainRoute = createBrowserRouter([
   // common routes
@@ -98,6 +99,10 @@ export const mainRoute = createBrowserRouter([
       {
         path: "audit",
         element: <AuditPage />,
+      },
+      {
+        path: "audit/templates",
+        element: <TemplatesPage />,
       },
       {
         path: "reports",
