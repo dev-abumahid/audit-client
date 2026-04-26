@@ -16,8 +16,16 @@ const templateApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["TEMPLATE"],
     }),
+    createNewTemplate: builder.mutation({
+      query: (data) => ({
+        url: `/template`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["TEMPLATE"],
+    }),
   }),
 })
 
-export const { useGetAllTemplatesQuery, useDeleteTemplateMutation } =
+export const { useGetAllTemplatesQuery, useDeleteTemplateMutation ,useCreateNewTemplateMutation} =
   templateApi

@@ -12,7 +12,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dnd-kit/sortable": "^10.0.0",
     "@fontsource-variable/manrope": "^5.2.8",
+    "@hello-pangea/dnd": "^18.0.1",
     "@reduxjs/toolkit": "^2.11.2",
     "@tailwindcss/vite": "^4.2.1",
     "class-variance-authority": "^0.7.1",

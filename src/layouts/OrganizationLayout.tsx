@@ -1,4 +1,3 @@
-import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAlertBanner"
 import LanguageSwitcher from "@/components/shared/LanguageSwitcher"
 import { useAppDispatch, useAppSelector } from "@/redux/hooks"
 import { removeUser } from "@/redux/slices/user.slice"
@@ -324,7 +323,6 @@ export default function OrganizationLayout() {
         </header>
 
         {/* Critical Alert Banner */}
-        <CriticalAlertBanner />
 
         {/* Page Content */}
         <div className="flex-1 overflow-y-auto">

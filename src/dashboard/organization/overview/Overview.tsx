@@ -1,3 +1,4 @@
+import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAlertBanner"
 import MetricCard from "@/components/dashboard/organization/MetricCard"
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import {
@@ -59,6 +60,7 @@ export default function Overview() {
   const { t } = useTranslation()
   return (
     <div className="space-y-6 p-6">
+      <CriticalAlertBanner />
       {/* Title */}
       <div className="animate-fade-in">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">

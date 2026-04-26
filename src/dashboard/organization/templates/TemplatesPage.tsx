@@ -25,6 +25,7 @@ import {
   Trash2,
 } from "lucide-react"
 import { useState } from "react"
+import { Link } from "react-router"
 import { toast } from "sonner"
 
 // -------- Skeleton --------
@@ -138,11 +139,12 @@ export default function TemplatesPage() {
               className="pl-10"
             />
           </div>
-
-          <Button>
-            <FileText className="mr-2 h-4 w-4" />
-            Create Template
-          </Button>
+          <Link to="/organization/audit/template/create">
+            <Button>
+              <FileText className="mr-2 h-4 w-4" />
+              Create Template
+            </Button>
+          </Link>
         </div>
       </div>
 

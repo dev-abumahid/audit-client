@@ -1,0 +1,322 @@
+import { Button } from "@/components/ui/button"
+import {
+  Calendar,
+  CheckSquare,
+  GripVertical,
+  Image,
+  Plus,
+  Sliders,
+  Trash2,
+  X,
+} from "lucide-react"
+import { useState } from "react"
+
+interface QnASettingsPanelProps {
+  onClose: () => void
+  onSelectInput: (type: string) => void
+  onSelectResponseSet: (options: string[]) => void
+}
+
+const ANSWER_TYPES = [
+  { value: "input", label: "Input", icon: CheckSquare },
+  { value: "checkbox", label: "Check Box", icon: CheckSquare },
+  { value: "date", label: "Date", icon: Calendar },
+  { value: "media", label: "Media", icon: Image },
+  { value: "slider", label: "Slider", icon: Sliders },
+] as const
+
+interface ResponseSet {
+  id: number
+  options: ResponseOption[]
+}
+
+interface ResponseOption {
+  id: number
+  text: string
+}
+
+const DEFAULT_RESPONSE_SETS: ResponseSet[] = [
+  {
+    id: 1,
+    options: [
+      { id: 1, text: "good" },
+      { id: 2, text: "poor" },
+      { id: 3, text: "fair" },
+      { id: 4, text: "n/a" },
+    ],
+  },
+  {
+    id: 2,
+    options: [
+      { id: 1, text: "pass" },
+      { id: 2, text: "fail" },
+      { id: 3, text: "n/a" },
+    ],
+  },
+  {
+    id: 3,
+    options: [
+      { id: 1, text: "yes" },
+      { id: 2, text: "no" },
+      { id: 3, text: "n/a" },
+    ],
+  },
+]
+
+const OPTION_CHIP_COLORS: Record<string, string> = {
+  good: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400",
+  pass: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400",
+  yes: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400",
+  compliant:
+    "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400",
+  poor: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-400",
+  fail: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-400",
+  no: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-400",
+  "not-compliant":
+    "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-400",
+  fair: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-400",
+  "n/a":
+    "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400",
+}
+
+function chipColor(text: string) {
+  return (
+    OPTION_CHIP_COLORS[text.toLowerCase()] ??
+    "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400"
+  )
+}
+
+function QnASettingsPanel({
+  onClose,
+  onSelectInput,
+  onSelectResponseSet,
+}: QnASettingsPanelProps) {
+  const [responseSets, setResponseSets] = useState<ResponseSet[]>(
+    DEFAULT_RESPONSE_SETS
+  )
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editOptions, setEditOptions] = useState<ResponseOption[]>([])
+
+  const startEdit = (set: ResponseSet) => {
+    setEditingId(set.id)
+    setEditOptions([...set.options.map((o) => ({ ...o }))])
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditOptions([])
+  }
+
+  const saveEdit = () => {
+    setResponseSets((prev) =>
+      prev.map((s) => (s.id === editingId ? { ...s, options: editOptions } : s))
+    )
+    setEditingId(null)
+  }
+
+  const addNewResponseSet = () => {
+    const newId = Math.max(...responseSets.map((s) => s.id), 0) + 1
+    const newSet: ResponseSet = {
+      id: newId,
+      options: [
+        { id: 1, text: "option 1" },
+        { id: 2, text: "option 2" },
+      ],
+    }
+    setResponseSets((prev) => [...prev, newSet])
+    startEdit(newSet)
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-40 bg-black/60" onClick={onClose} />
+
+      {/* Panel */}
+      <div className="fixed top-0 right-0 z-50 flex h-full w-full flex-col border-l border-border bg-card shadow-2xl sm:w-105">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <h2 className="text-base font-semibold text-foreground">
+            QnA Settings
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 transition-colors hover:bg-muted"
+          >
+            <X size={18} className="text-muted-foreground" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 space-y-8 overflow-y-auto p-5">
+          {/* Multiple Choice Responses */}
+          <div>
+            <h3 className="mb-1 text-sm font-semibold text-foreground">
+              Multiple Choice Responses
+            </h3>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Predefined options like Yes/No/N/A
+            </p>
+
+            <div className="space-y-4">
+              {responseSets.map((set) => (
+                <div key={set.id}>
+                  <div className="flex items-center gap-2">
+                    <div className="flex flex-1 flex-wrap gap-1.5">
+                      {set.options.map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() =>
+                            onSelectResponseSet(set.options.map((o) => o.text))
+                          }
+                          className={`rounded-md border px-3 py-1 text-xs font-medium transition-all hover:opacity-90 ${chipColor(opt.text)}`}
+                        >
+                          {opt.text}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => startEdit(set)}
+                      className="rounded-lg p-2 transition-colors hover:bg-muted"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-muted-foreground"
+                      >
+                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Inline Edit Mode */}
+                  {editingId === set.id && (
+                    <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/50 p-4">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Edit Options
+                      </p>
+
+                      {editOptions.map((opt, idx) => (
+                        <div key={opt.id} className="flex items-center gap-2">
+                          <GripVertical
+                            size={16}
+                            className="text-muted-foreground"
+                          />
+                          <input
+                            type="text"
+                            value={opt.text}
+                            onChange={(e) =>
+                              setEditOptions((prev) =>
+                                prev.map((o) =>
+                                  o.id === opt.id
+                                    ? { ...o, text: e.target.value }
+                                    : o
+                                )
+                              )
+                            }
+                            className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"
+                            placeholder={`Option ${idx + 1}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditOptions((prev) =>
+                                prev.filter((o) => o.id !== opt.id)
+                              )
+                            }
+                            className="rounded-lg p-1.5 transition-colors hover:bg-destructive/10"
+                          >
+                            <Trash2 size={14} className="text-destructive" />
+                          </button>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newId =
+                            Math.max(...editOptions.map((o) => o.id), 0) + 1
+                          setEditOptions((prev) => [
+                            ...prev,
+                            { id: newId, text: "" },
+                          ])
+                        }}
+                        className="mt-2 flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-700"
+                      >
+                        <Plus size={14} /> Add Option
+                      </button>
+
+                      <div className="flex gap-2 pt-2">
+                        <Button size="sm" onClick={saveEdit}>
+                          Save Changes
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={cancelEdit}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <Button
+              onClick={addNewResponseSet}
+              variant="default"
+              className="mt-6 w-full"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add New Response Set
+            </Button>
+          </div>
+
+          <div className="border-t border-border" />
+
+          {/* Input Types */}
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-foreground">
+              Input Types
+            </h3>
+            <div className="space-y-1">
+              {ANSWER_TYPES.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => onSelectInput(t.value)}
+                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-colors hover:bg-accent"
+                >
+                  <t.icon size={18} className="text-muted-foreground" />
+                  <span className="font-medium">{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-border bg-muted/50 px-5 py-4">
+          <Button onClick={onClose} className="w-full">
+            Close
+          </Button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+export default QnASettingsPanel

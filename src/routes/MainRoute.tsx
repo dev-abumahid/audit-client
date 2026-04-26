@@ -14,6 +14,8 @@ import RiskGraphPage from "@/dashboard/organization/risk/RiskGraphPage"
 import RiskMatrixPage from "@/dashboard/organization/risk/RiskMatrixPage"
 import RiskRegisterPage from "@/dashboard/organization/risk/RiskRegisterPage"
 import SitesEntities from "@/dashboard/organization/site/SitesEntities"
+import CreateTemplatePage from "@/dashboard/organization/templates/CreateTemplatePage"
+import TemplatesPage from "@/dashboard/organization/templates/TemplatesPage"
 import AdminLayout from "@/layouts/AdminLayout"
 import OrganizationLayout from "@/layouts/OrganizationLayout"
 import RootLayout from "@/layouts/RootLayout"
@@ -23,7 +25,6 @@ import PrivacyPolicy from "@/pages/policy/PrivacyPolicy"
 import TermsAndConditions from "@/pages/policy/Terms"
 import { createBrowserRouter } from "react-router"
 import ProtectedRoute from "./ProtectedRoute"
-import TemplatesPage from "@/dashboard/organization/templates/TemplatesPage"
 
 export const mainRoute = createBrowserRouter([
   // common routes
@@ -103,6 +104,10 @@ export const mainRoute = createBrowserRouter([
       {
         path: "audit/templates",
         element: <TemplatesPage />,
+      },
+      {
+        path: "audit/template/create",
+        element: <CreateTemplatePage />,
       },
       {
         path: "reports",
