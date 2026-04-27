@@ -116,7 +116,7 @@ function SortableQuestionRow({
             />
 
             {/* Required Checkbox */}
-            <div className="mt-2 flex items-center gap-2 ">
+            <div className="mt-2 flex items-center gap-2">
               <Controller
                 control={control}
                 name={`pages.${pageIndex}.questions.${questionIndex}.isRequired`}

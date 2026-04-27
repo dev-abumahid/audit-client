@@ -65,7 +65,7 @@ function PageSection({
   }
 
   return (
-    <div className="relative mb-8 border border-border bg-card p-5 rounded-2xl">
+    <div className="relative mb-8 rounded-2xl border border-border bg-card p-5">
       {/* Delete Section Button */}
       {totalPages > 1 && (
         <button
@@ -98,7 +98,7 @@ function PageSection({
       </div>
 
       {/* Questions Container */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card ">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
         {/* Table Header */}
         <div className="grid grid-cols-12 border-b border-border bg-muted/50 px-4 py-3 text-sm font-medium text-muted-foreground">
           <div className="col-span-8">Question</div>
@@ -138,8 +138,12 @@ function PageSection({
         </DndContext>
 
         {/* Add New Question Button */}
-        <div className="flex justify-end border-t border-border  px-4 py-4">
-          <Button size="lg" type="button" onClick={() => onOpenAddModal(pageIndex)}>
+        <div className="flex justify-end border-t border-border px-4 py-4">
+          <Button
+            size="lg"
+            type="button"
+            onClick={() => onOpenAddModal(pageIndex)}
+          >
             <Plus className="h-4 w-4" />
             Add New Question
           </Button>

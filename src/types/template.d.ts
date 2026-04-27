@@ -33,7 +33,6 @@ export interface ITemplate {
   updatedAt: Date
 }
 
-
 export type AnswerType =
   | { answerType: "input"; value: string }
   | { answerType: "multipleSelect"; value: string[] }

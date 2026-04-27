@@ -184,7 +184,11 @@ export default function TemplatesPage() {
                         />
                       )}
                       <div className="line-clamp-1 font-medium">
-                        {template.templateName}
+                        <Link
+                          to={`/organization/audit/template/report/${template.id}`}
+                        >
+                          {template.templateName}
+                        </Link>
                       </div>
                     </div>
                   </TableCell>

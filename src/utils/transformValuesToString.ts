@@ -1,4 +1,4 @@
-import type { TemplateFormValues } from "@/types/template";
+import type { TemplateFormValues } from "@/types/template"
 
 export const transformValuesToString = (values: TemplateFormValues) => {
   return {
@@ -16,5 +16,5 @@ export const transformValuesToString = (values: TemplateFormValues) => {
         },
       })),
     })),
-  };
-};
+  }
+}

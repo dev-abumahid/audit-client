@@ -15,6 +15,7 @@ import RiskMatrixPage from "@/dashboard/organization/risk/RiskMatrixPage"
 import RiskRegisterPage from "@/dashboard/organization/risk/RiskRegisterPage"
 import SitesEntities from "@/dashboard/organization/site/SitesEntities"
 import CreateTemplatePage from "@/dashboard/organization/templates/CreateTemplatePage"
+import TemplateReportPage from "@/dashboard/organization/templates/TemplateReportPage"
 import TemplatesPage from "@/dashboard/organization/templates/TemplatesPage"
 import AdminLayout from "@/layouts/AdminLayout"
 import OrganizationLayout from "@/layouts/OrganizationLayout"
@@ -108,6 +109,10 @@ export const mainRoute = createBrowserRouter([
       {
         path: "audit/template/create",
         element: <CreateTemplatePage />,
+      },
+      {
+        path: "audit/template/report/:id",
+        element: <TemplateReportPage />,
       },
       {
         path: "reports",

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useSignInUserMutation } from "@/redux/apis/auth.api"
 import { useAppDispatch } from "@/redux/hooks"
 import { setUser } from "@/redux/slices/user.slice"

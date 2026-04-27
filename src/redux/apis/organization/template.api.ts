@@ -24,8 +24,19 @@ const templateApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["TEMPLATE"],
     }),
+    getSingleTemplate: builder.query({
+      query: (id) => ({
+        url: `/template/${id}`,
+        method: "GET",
+      }),
+      providesTags: ["TEMPLATE"],
+    }),
   }),
 })
 
-export const { useGetAllTemplatesQuery, useDeleteTemplateMutation ,useCreateNewTemplateMutation} =
-  templateApi
+export const {
+  useGetAllTemplatesQuery,
+  useDeleteTemplateMutation,
+  useCreateNewTemplateMutation,
+  useGetSingleTemplateQuery,
+} = templateApi
