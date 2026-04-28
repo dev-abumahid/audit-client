@@ -31,6 +31,46 @@ const templateApi = baseApi.injectEndpoints({
       }),
       providesTags: ["TEMPLATE"],
     }),
+
+    // update template basics data
+    updateTemplateBasics: builder.mutation({
+      query: ({ data, id }) => ({
+        url: `/template/${id}`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["TEMPLATE"],
+    }),
+    updateOrCreateQuestion: builder.mutation({
+      query: (data) => ({
+        url: `/template/update-or-create-new-question`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["TEMPLATE"],
+    }),
+    deleteQuestion: builder.mutation({
+      query: (id) => ({
+        url: `/template/delete-page-question/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["TEMPLATE"],
+    }),
+    updateOrCreatePage: builder.mutation({
+      query: (data) => ({
+        url: `/template/update-or-create-new-page`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["TEMPLATE"],
+    }),
+    deletePage: builder.mutation({
+      query: (id) => ({
+        url: `/template/delete-template-page/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["TEMPLATE"],
+    }),
   }),
 })
 
@@ -39,4 +79,9 @@ export const {
   useDeleteTemplateMutation,
   useCreateNewTemplateMutation,
   useGetSingleTemplateQuery,
+  useUpdateTemplateBasicsMutation,
+  useUpdateOrCreateQuestionMutation,
+  useDeleteQuestionMutation,
+  useUpdateOrCreatePageMutation,
+  useDeletePageMutation,
 } = templateApi
