@@ -18,57 +18,44 @@ export interface Organization {
 
 export interface Site {
   id: string
-  organization_id: string
-  user_id: string
+  org_account_id?: string
   name: string
-  location: string | null
-  country: string | null
-  activity: string | null
+  location?: string | null
+  country?: string | null
+  activity?: string | null
   revenue: number
   employees_count: number
   site_type: string
-  risk_level: string
-  is_active: boolean
-  ai_generated: boolean
-  is_edited: boolean
-  custom_fields: Record<string, unknown>
-  lat: number | null
-  lng: number | null
-  certifications: string[]
-  is_headquarters: boolean
-  revenue_contribution: number
-  created_at: string
-  updated_at: string
+  lat?: number | null
+  lng?: number | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Risk {
   id: string
-  organization_id: string
-  user_id: string
-  ref: string
+  org_account_id: string
   name: string
-  description: string | null
+  description: string
   category: string
   inherent_score: number
   residual_score: number
   pagerank_score: number
-  is_tipping_point: boolean
   financial_impact_min: number
   financial_impact_max: number
   probability: number
   velocity: string
   trend: string
   status: string
-  owner: string | null
-  color_hex: string
   ai_generated: boolean
   is_edited: boolean
-  site_id: string | null
-  source_info: string | null
+  site_id: string
+  site?: Site
+  source_info?: string
   control_design_eff: number
   control_operating_eff: number
-  created_at: string
-  updated_at: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface RiskLink {

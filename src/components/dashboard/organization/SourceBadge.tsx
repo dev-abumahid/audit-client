@@ -21,7 +21,7 @@ export default function SourceBadge({
         className={`inline-flex items-center gap-1 rounded-full bg-accent/15 font-medium text-accent ${sizeClasses}`}
       >
         <Pencil className={iconSize} />
-        IA modifié
+        Modified AI
       </span>
     )
   }
@@ -32,7 +32,7 @@ export default function SourceBadge({
         className={`inline-flex items-center gap-1 rounded-full bg-primary/10 font-medium text-primary ${sizeClasses}`}
       >
         <Bot className={iconSize} />
-        IA
+        AI
       </span>
     )
   }

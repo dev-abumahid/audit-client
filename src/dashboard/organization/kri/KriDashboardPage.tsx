@@ -322,7 +322,7 @@ export default function KriDashboardPage() {
                     className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
                     <option value="">Select Risk</option>
-                    {risks.map((r) => (
+                    {risks.map((r:any) => (
                       <option key={r.id} value={r.ref}>
                         {r.ref} — {r.name.slice(0, 30)}
                       </option>

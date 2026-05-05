@@ -64,6 +64,13 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+
+    /* Risk color */
+    --color-risk-critical: hsl(var(--risk-critical));
+    --color-risk-high: hsl(var(--risk-high));
+    --color-risk-medium: hsl(var(--risk-medium));
+    --color-risk-low: hsl(var(--risk-low));
+    --color-risk-info: hsl(var(--risk-info));
 }
 
 /* =========================
@@ -115,6 +122,13 @@
     --chart-3: 38 92% 50%;
     --chart-4: 280 65% 60%;
     --chart-5: 0 72% 51%;
+
+    /* Risk colors */
+    --risk-high: 25 95% 53%;
+    --risk-medium: 38 92% 50%;
+    --risk-low: 142 71% 45%;
+    --risk-info: 199 89% 48%;
+    --risk-critical: 0 72% 51%;
 }
 
 /* =========================
@@ -164,6 +178,13 @@
     --chart-3: 38 92% 50%;
     --chart-4: 280 65% 60%;
     --chart-5: 0 72% 51%;
+
+    /* risk colors */
+    --risk-critical: 0 72% 55%;
+    --risk-high: 25 95% 55%;
+    --risk-medium: 38 92% 55%;
+    --risk-low: 142 71% 50%;
+    --risk-info: 199 89% 52%;
 }
 
 /* =========================

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAlertBanner"
 import MetricCard from "@/components/dashboard/organization/MetricCard"
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
@@ -268,7 +269,7 @@ export default function Overview() {
           </div>
           <div className="mt-4 space-y-3">
             {mockRisks
-              .filter((r) => r.is_tipping_point)
+              .filter((r:any) => r.is_tipping_point)
               .map((risk) => (
                 <div
                   key={risk.id}
@@ -276,12 +277,9 @@ export default function Overview() {
                 >
                   <div
                     className="font-mono-data flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold"
-                    style={{
-                      backgroundColor: risk.color_hex + "20",
-                      color: risk.color_hex,
-                    }}
+                   
                   >
-                    {risk.ref}
+                    {risk.id}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">
@@ -293,7 +291,7 @@ export default function Overview() {
                   </div>
                   <div className="text-right">
                     <p className="font-mono-data text-sm font-bold text-foreground">
-                      {risk.pagerank_score.toFixed(1)}
+                      {risk.pagerank_score?.toFixed(1)}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
                       PageRank
@@ -301,9 +299,9 @@ export default function Overview() {
                   </div>
                   <RiskBadge
                     level={
-                      risk.residual_score > 12
+                      risk?.residual_score > 12
                         ? "critical"
-                        : risk.residual_score > 8
+                        : risk?.residual_score > 8
                           ? "high"
                           : "medium"
                     }

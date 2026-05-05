@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   useDeleteQuestionMutation,
   useUpdateOrCreateQuestionMutation,
@@ -52,11 +54,9 @@ function EditSortableQuestionRow({
   questionIndex,
   questionId,
   pageId,
-  templateId,
   control,
   remove,
   onOpenAnswerPanel,
-  getValues,
   isEditMode = false,
 }: SortableQuestionRowProps) {
   const {

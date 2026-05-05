@@ -1,172 +1,115 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
+import { Button } from "@/components/ui/button"
+import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
+import {
+  useCreateNewRiskMutation,
+  useDeleteRiskMutation,
+  useGetAllRisksQuery,
+} from "@/redux/apis/organization/risk.api"
+import {
+  useCreateNewSiteMutation,
+  useDeleteSiteMutation,
+  useGetAllSitesQuery,
+  useUpdateSiteMutation,
+} from "@/redux/apis/organization/sites.api"
 import type { Risk, Site } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import {
   Brain,
   Building,
-  Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
-  DollarSign,
   Loader2,
-  MapPin,
   Pencil,
   Plus,
   PlusCircle,
   Save,
+  Search,
   Trash2,
-  Upload,
-  Users,
   X,
-  XCircle,
 } from "lucide-react"
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
+import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import type { SiteForm } from "./type"
-import { DUMMY_SITES } from "@/data/site"
 
-const DUMMY_RISKS: Record<string, Risk[]> = {
-  "1": [
-    {
-      id: "risk_001",
-      organization_id: "org_123",
-      user_id: "user_456",
-      ref: "R-001",
-      name: "Supply Chain Disruption",
-      description:
-        "Potential delays in raw material imports due to geopolitical instability.",
-      category: "Operational",
-      inherent_score: 8.5,
-      residual_score: 6.2,
-      pagerank_score: 0.78,
-      is_tipping_point: true,
-      financial_impact_min: 500000,
-      financial_impact_max: 2500000,
-      probability: 0.65,
-      velocity: "High",
-      trend: "Increasing",
-      status: "Open",
-      owner: "John Doe",
-      color_hex: "#FF5733",
-      ai_generated: false,
-      is_edited: true,
-      site_id: "site_001",
-      source_info: "Internal audit Q1",
-      control_design_eff: 0.7,
-      control_operating_eff: 0.6,
-      created_at: "2025-01-10T09:00:00Z",
-      updated_at: "2025-03-12T11:45:00Z",
-    },
-    {
-      id: "risk_002",
-      organization_id: "org_123",
-      user_id: "user_789",
-      ref: "R-002",
-      name: "Cybersecurity Breach",
-      description:
-        "Unauthorized access to internal systems and sensitive data.",
-      category: "IT",
-      inherent_score: 9.2,
-      residual_score: 5.8,
-      pagerank_score: 0.85,
-      is_tipping_point: true,
-      financial_impact_min: 1000000,
-      financial_impact_max: 5000000,
-      probability: 0.55,
-      velocity: "Very High",
-      trend: "Stable",
-      status: "Mitigated",
-      owner: "Alice Martin",
-      color_hex: "#C70039",
-      ai_generated: true,
-      is_edited: false,
-      site_id: "site_002",
-      source_info: "External threat intelligence",
-      control_design_eff: 0.8,
-      control_operating_eff: 0.75,
-      created_at: "2024-12-05T07:30:00Z",
-      updated_at: "2025-02-25T16:20:00Z",
-    },
-  ],
-  "2": [
-    {
-      id: "risk_003",
-      organization_id: "org_123",
-      user_id: "user_456",
-      ref: "R-003",
-      name: "Regulatory Compliance Failure",
-      description: null,
-      category: "Compliance",
-      inherent_score: 7.0,
-      residual_score: 4.5,
-      pagerank_score: 0.62,
-      is_tipping_point: false,
-      financial_impact_min: 200000,
-      financial_impact_max: 1200000,
-      probability: 0.4,
-      velocity: "Medium",
-      trend: "Decreasing",
-      status: "Under Review",
-      owner: null,
-      color_hex: "#FFC300",
-      ai_generated: false,
-      is_edited: true,
-      site_id: null,
-      source_info: null,
-      control_design_eff: 0.65,
-      control_operating_eff: 0.7,
-      created_at: "2025-02-01T10:15:00Z",
-      updated_at: "2025-03-18T13:00:00Z",
-    },
-  ],
+// Types for the form
+interface SiteFormValues {
+  name: string
+  location: string
+  country: string
+  activity: string
+  revenue: number
+  employees_count: number
+  site_type: string
+  lat: number
+  lng: number
+}
+
+interface RiskFormValues {
+  status: string
+  name: string
+  category: string
+  description: string
 }
 
 export default function SitesEntities() {
   const { t } = useTranslation()
-  const [sites] = useState<Site[]>(DUMMY_SITES)
-  const [siteRisks] = useState<Record<string, Risk[]>>(DUMMY_RISKS)
+
+  // Search and pagination state
+  const [searchTerm, setSearchTerm] = useState("")
+  const [page, setPage] = useState(1)
+  const [limit] = useState(10)
+  const debouncedSearch = useDebouncedValue(searchTerm, 500)
+  const [expandedSite, setExpandedSite] = useState<string | null>(null)
+
+  // RTK Query
+  const {
+    data: sitesData,
+    isLoading,
+    isFetching,
+    error,
+  } = useGetAllSitesQuery({
+    page,
+    limit,
+    searchTerm: debouncedSearch,
+  })
+  const [createNewSite, { isLoading: isSiteCreating }] =
+    useCreateNewSiteMutation()
+  const [updateSite, { isLoading: isSiteUpdating }] = useUpdateSiteMutation()
+  const [deleteSite] = useDeleteSiteMutation()
+  const { data: riskData } = useGetAllRisksQuery(
+    {
+      siteId: expandedSite,
+      page: 1,
+      limit: 100,
+      searchTerm: "",
+      category: "",
+    },
+    { skip: !expandedSite }
+  )
+  const [deleteRisk] = useDeleteRiskMutation()
+  const [createNewRisk] = useCreateNewRiskMutation()
+  // Reset page when search changes
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1)
+  }, [debouncedSearch])
+
+  // Local state
   const [showForm, setShowForm] = useState(false)
   const [editingSite, setEditingSite] = useState<Site | null>(null)
-  const [form, setForm] = useState<SiteForm>({
-    name: "",
-    location: "",
-    country: "",
-    activity: "",
-    revenue: 0,
-    employees_count: 0,
-    site_type: "production",
-    risk_level: "medium",
-  })
-  const [isSaving, setIsSaving] = useState(false)
-  const [expandedSite, setExpandedSite] = useState<string | null>(null)
+
   const [showRiskForm, setShowRiskForm] = useState<string | null>(null)
-  const [riskForm, setRiskForm] = useState({
-    ref: "",
-    name: "",
-    category: "operational",
-    description: "",
-  })
 
-  const totalRevenue = sites.reduce(
-    (sum, site) => sum + Number(site.revenue),
-    0
-  )
-  const totalEmployees = sites.reduce(
-    (sum, site) => sum + Number(site.employees_count),
-    0
-  )
-
-  const getRiskLevel = (
-    score: number
-  ): "critical" | "high" | "medium" | "low" =>
-    score > 14 ? "critical" : score > 10 ? "high" : score > 6 ? "medium" : "low"
-
-  // Dummy handlers (no real API calls)
-  const openCreate = () => {
-    setEditingSite(null)
-    setForm({
+  // React Hook Form setup for site form
+  const siteForm = useForm<SiteFormValues>({
+    defaultValues: {
       name: "",
       location: "",
       country: "",
@@ -174,64 +117,156 @@ export default function SitesEntities() {
       revenue: 0,
       employees_count: 0,
       site_type: "production",
-      risk_level: "medium",
+    },
+  })
+
+  // React Hook Form setup for risk form
+  const riskForm = useForm<RiskFormValues>({
+    defaultValues: {
+      status: "",
+      name: "",
+      category: "operational",
+      description: "",
+    },
+  })
+
+  // Extract data from API response
+  const sites = sitesData?.data || []
+  const meta = sitesData?.meta || { page: 1, limit: 10, total: 0 }
+  const totalPages = Math.ceil(meta.total / meta.limit)
+
+  const openCreate = () => {
+    setEditingSite(null)
+    siteForm.reset({
+      name: "",
+      location: "",
+      country: "",
+      activity: "",
+      revenue: 0,
+      employees_count: 0,
+      site_type: "production",
     })
     setShowForm(true)
   }
 
   const openEdit = (site: Site) => {
     setEditingSite(site)
-    setForm({
+    siteForm.reset({
       name: site.name,
       location: site.location || "",
       country: site.country || "",
       activity: site.activity || "",
-      revenue: site.revenue,
-      employees_count: site.employees_count,
-      site_type: site.site_type,
-      risk_level: site.risk_level,
+      revenue: site.revenue || 0,
+      employees_count: site.employees_count || 0,
+      site_type: site.site_type || "production",
     })
     setShowForm(true)
   }
 
-  const handleSave = async () => {
-    if (!form.name.trim()) return
-    setIsSaving(true)
-    // Simulate save
-    setTimeout(() => {
-      toast.success("Site save")
-      setShowForm(false)
-      setIsSaving(false)
-    }, 800)
+  const handleSave = async (values: SiteFormValues) => {
+    if (!values.name.trim()) return
+
+    try {
+      let res
+      if (editingSite) {
+        res = await updateSite({
+          id: editingSite.id,
+          data: values,
+        }).unwrap()
+      } else {
+        res = await createNewSite(values).unwrap()
+      }
+      if (res.success) {
+        toast.success(
+          editingSite
+            ? "Site updated successfully"
+            : "Site created successfully"
+        )
+        setShowForm(false)
+      }
+    } catch (error: any) {
+      toast.error("Failed to save site")
+    }
   }
 
-  const handleDelete = (id: string) => {
-    console.log(id)
-    // Simulate delete
-    toast("Site supprimé")
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await deleteSite(id).unwrap()
+      if (res.success) {
+        toast.success("Site deleted successfully")
+      }
+    } catch (error) {
+      toast.error("Failed to delete site")
+    }
   }
 
   const handleAnalyzeSite = (site: Site) => {
-    toast(`Analyse IA lancée pour ${site.name}`)
+    toast(`AI analysis launched for ${site.name}`)
     setExpandedSite(site.id)
   }
 
-  const handleAddManualRisk = (siteId: string) => {
-    console.log(siteId)
-    if (!riskForm.ref || !riskForm.name) return
-    toast("Risque ajouté manuellement")
-    setShowRiskForm(null)
-    setRiskForm({ ref: "", name: "", category: "operational", description: "" })
+  const handleAddManualRisk = async (
+    siteId: string,
+    values: RiskFormValues
+  ) => {
+    if (!values.status || !values.name) return
+    const payload = { ...values, site_id: siteId }
+    const res = await createNewRisk(payload).unwrap()
+    if (res?.success) {
+      toast.success("Risk created successfully")
+      setShowRiskForm(null)
+    } else {
+      toast.error("Failed to create risk")
+    }
   }
 
-  const handleConfirmRisk = (risk: Risk) => {
-    console.log(risk)
-    toast("Risque confirmé")
+  // For risk
+
+  const getRiskLevel = (
+    score: number
+  ): "critical" | "high" | "medium" | "low" =>
+    score > 14 ? "critical" : score > 10 ? "high" : score > 6 ? "medium" : "low"
+
+  const handleRiskDelete = async (id: string) => {
+    const res = await deleteRisk(id).unwrap()
+    if (res?.success) {
+      toast.success("Risk deleted successfully")
+    } else {
+      toast.error("Failed to delete risk")
+    }
   }
 
-  const handleRejectRisk = (risk: Risk) => {
-    console.log(risk)
-    toast("Risque rejeté")
+  // Pagination handlers
+  const goToPage = useCallback(
+    (newPage: number) => {
+      if (newPage >= 1 && newPage <= totalPages) {
+        setPage(newPage)
+      }
+    },
+    [totalPages]
+  )
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg font-medium text-destructive">
+            Error loading sites
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Please try again later
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -248,18 +283,22 @@ export default function SitesEntities() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button className="flex items-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-muted">
-            <Upload className="h-4 w-4" /> {t("organization.site&entities.csv")}
-          </button>
-
-          <button className="flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/20">
-            <Brain className="h-4 w-4" />{" "}
-            {t("organization.site&entities.aiDiscovery")}
-          </button>
-
+          <div className="relative w-80 sm:block">
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search sites..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-background pr-4 pl-10 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+            />
+            {isFetching && (
+              <Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+            )}
+          </div>
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" />{" "}
             {t("organization.site&entities.newSite")}
@@ -267,48 +306,9 @@ export default function SitesEntities() {
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[
-          {
-            icon: Building,
-            value: sites.length,
-            label: `${t("organization.site&entities.activeSite")}`,
-          },
-          {
-            icon: MapPin,
-            value: new Set(sites.map((s) => s.country).filter(Boolean)).size,
-            label: `${t("organization.site&entities.pays")}`,
-          },
-          {
-            icon: DollarSign,
-            value: `€${(totalRevenue / 1000000).toFixed(1)}M`,
-            label: `${t("organization.site&entities.caTotal")}`,
-          },
-          {
-            icon: Users,
-            value: totalEmployees.toLocaleString(),
-            label: `${t("organization.site&entities.employees")}`,
-          },
-        ].map((kpi, i) => (
-          <div key={i} className="rounded-xl border border-border bg-card p-5">
-            <div className="flex items-center gap-3">
-              <kpi.icon className="h-5 w-5 text-primary" />
-              <span className="font-mono text-3xl font-bold text-foreground">
-                {kpi.value}
-              </span>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">{kpi.label}</p>
-          </div>
-        ))}
-      </div>
-
       {/* Sites List */}
       <div className="space-y-4">
-        {sites.map((site) => {
-          const risks = siteRisks[site.id] || []
-          const pendingRisks = risks.filter((r) => r.status === "pending")
-          const confirmedRisks = risks.filter((r) => r.status !== "pending")
+        {sites.map((site: Site) => {
           const isExpanded = expandedSite === site.id
 
           return (
@@ -327,27 +327,16 @@ export default function SitesEntities() {
                       <p className="truncate text-lg font-semibold text-foreground">
                         {site.name}
                       </p>
+
                       <SourceBadge
-                        aiGenerated={site.ai_generated}
-                        isEdited={site.is_edited}
+                        aiGenerated={false}
+                        isEdited={site.updatedAt ? true : false}
                       />
-                      <span
-                        className={`rounded-full px-3 py-0.5 text-xs font-medium capitalize ${
-                          site.risk_level === "critical"
-                            ? "bg-destructive/10 text-destructive"
-                            : site.risk_level === "high"
-                              ? "bg-orange-500/10 text-orange-500"
-                              : site.risk_level === "medium"
-                                ? "bg-yellow-500/10 text-yellow-500"
-                                : "bg-green-500/10 text-green-500"
-                        }`}
-                      >
-                        {site.risk_level}
-                      </span>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {site.country} • {site.activity} • {confirmedRisks.length}{" "}
-                      risque{confirmedRisks.length > 1 ? "s" : ""}
+                      {site.country && `${site.country} • `}
+                      {site.activity && `${site.activity} • `}
+                      Location: {site.location} • Country: {site.country}
                     </p>
                   </div>
                 </div>
@@ -356,8 +345,8 @@ export default function SitesEntities() {
                   <button
                     onClick={() => {
                       setShowRiskForm(site.id)
-                      setRiskForm({
-                        ref: "",
+                      riskForm.reset({
+                        status: "",
                         name: "",
                         category: "operational",
                         description: "",
@@ -390,191 +379,237 @@ export default function SitesEntities() {
                     <Trash2 className="h-4 w-4" />
                   </button>
 
-                  {risks.length > 0 && (
-                    <button
-                      onClick={() =>
-                        setExpandedSite(isExpanded ? null : site.id)
-                      }
-                      className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
-                    >
-                      {isExpanded ? (
-                        <ChevronUp className="h-5 w-5" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5" />
-                      )}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setExpandedSite(isExpanded ? null : site.id)}
+                    className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
+                  >
+                    {isExpanded ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
+                  </button>
                 </div>
               </div>
 
               {/* Manual Risk Form */}
               {showRiskForm === site.id && (
-                <div className="border-t border-border bg-muted/50 p-5">
-                  <p className="mb-3 text-sm font-medium">
-                    {t("organization.site&entities.addRiskTitle")}
-                  </p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <input
-                      value={riskForm.ref}
-                      onChange={(e) =>
-                        setRiskForm((f) => ({ ...f, ref: e.target.value }))
-                      }
-                      placeholder="REF-001"
-                      className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    />
-                    <input
-                      value={riskForm.name}
-                      onChange={(e) =>
-                        setRiskForm((f) => ({ ...f, name: e.target.value }))
-                      }
-                      placeholder="Example risk"
-                      className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    />
-                    <select
-                      value={riskForm.category}
-                      onChange={(e) =>
-                        setRiskForm((f) => ({ ...f, category: e.target.value }))
-                      }
-                      className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                      {Object.entries(RISK_CATEGORIES).map(([key, cat]) => (
-                        <option key={key} value={key}>
-                          {cat.label}
-                        </option>
-                      ))}
-                    </select>
+                <form
+                  onSubmit={riskForm.handleSubmit((values) =>
+                    handleAddManualRisk(site.id, values)
+                  )}
+                  className="border-t border-border bg-muted/30 p-6"
+                >
+                  <div className="mb-5 flex items-center gap-2">
+                    <div className="h-1 w-1 rounded-full bg-primary"></div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {t("organization.site&entities.addRiskTitle")}
+                    </p>
                   </div>
-                  <textarea
-                    value={riskForm.description}
-                    onChange={(e) =>
-                      setRiskForm((f) => ({
-                        ...f,
-                        description: e.target.value,
-                      }))
-                    }
-                    placeholder="Description..."
-                    className="mt-3 h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                  <div className="mt-4 flex justify-end gap-2">
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Risk Name <span className="text-destructive">*</span>
+                      </label>
+                      <input
+                        {...riskForm.register("name", { required: true })}
+                        placeholder="Enter risk name"
+                        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm transition-colors placeholder:text-muted-foreground/50 hover:border-primary/30 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Status <span className="text-destructive">*</span>
+                      </label>
+                      <select
+                        {...riskForm.register("status", { required: true })}
+                        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm transition-colors hover:border-primary/30 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                      >
+                        <option value="open">Open</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="closed">Closed</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Category
+                      </label>
+                      <select
+                        {...riskForm.register("category")}
+                        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm transition-colors hover:border-primary/30 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                      >
+                        {Object.entries(RISK_CATEGORIES).map(([key, cat]) => (
+                          <option key={key} value={key}>
+                            {cat.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Description
+                    </label>
+                    <textarea
+                      {...riskForm.register("description")}
+                      placeholder="Describe the risk in detail..."
+                      rows={3}
+                      className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors placeholder:text-muted-foreground/50 hover:border-primary/30 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="mt-6 flex items-center justify-end gap-3">
                     <button
+                      type="button"
                       onClick={() => setShowRiskForm(null)}
-                      className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+                      className="inline-flex items-center gap-2 rounded-lg border border-input px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
+                      <X className="h-4 w-4" />
                       {t("organization.site&entities.cancel")}
                     </button>
                     <button
-                      onClick={() => handleAddManualRisk(site.id)}
-                      className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground"
+                      type="submit"
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:ring-offset-2"
                     >
+                      <PlusCircle className="h-4 w-4" />
                       {t("organization.site&entities.add")}
                     </button>
                   </div>
-                </div>
+                </form>
               )}
 
-              {/* Expanded Risks Section */}
-              {isExpanded && risks.length > 0 && (
-                <div className="border-t border-border bg-muted/30 p-5">
-                  {pendingRisks.length > 0 && (
-                    <div className="mb-6">
-                      <p className="mb-3 text-xs font-semibold tracking-widest text-accent uppercase">
-                        {t("organization.site&entities.aiPendingRisk")}
-                      </p>
-                      {pendingRisks.map((risk) => (
-                        <div
-                          key={risk.id}
-                          className="mb-3 flex flex-col gap-4 rounded-xl border border-accent/30 bg-accent/5 p-4 sm:flex-row"
-                        >
-                          <div>
-                            <span
-                              className="font-mono font-bold"
-                              style={{ color: risk.color_hex }}
-                            >
-                              {risk.ref}
-                            </span>
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium">{risk.name}</p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {risk.description}
+              {/* Expanded Risks Section - Will be implemented with actual risks data */}
+              {isExpanded && (
+                <div className="border-t border-border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
+                  <p className="mb-4 text-start text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+                    ✅ Confirmed risks (in the register)
+                  </p>
+                  <div className="space-y-1.5">
+                    {riskData?.data.map((risk: Risk) => (
+                      <div
+                        key={risk.id}
+                        className="flex flex-col justify-between gap-2 rounded-lg border-2 border-accent/30 bg-accent/5 p-3 sm:flex-row sm:items-center"
+                      >
+                        <div className="flex items-center gap-16">
+                          <span className="font-mono text-xs font-bold">
+                            RS-{risk.id.split("-")[1].toUpperCase()}
+                          </span>
+
+                          <div className="flex min-w-0 flex-col items-start gap-1.5">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {risk.name}
+                            </p>
+                            <p className="truncate text-[10px] text-muted-foreground">
+                              {risk.description?.slice(0, 120)}
                             </p>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <RiskBadge
-                              level={getRiskLevel(Number(risk.residual_score))}
-                              label={risk.residual_score.toString()}
-                            />
-                            <button
-                              onClick={() => handleConfirmRisk(risk)}
-                              className="rounded-lg bg-green-500/10 p-2 text-green-600 hover:bg-green-500/20"
-                            >
-                              <Check className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleRejectRisk(risk)}
-                              className="rounded-lg bg-destructive/10 p-2 text-destructive hover:bg-destructive/20"
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </button>
-                          </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
 
-                  {confirmedRisks.length > 0 && (
-                    <div>
-                      <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-                        {t("organization.site&entities.confirmedRisk")}
-                      </p>
-                      <div className="space-y-2">
-                        {confirmedRisks.map((risk) => (
-                          <div
-                            key={risk.id}
-                            className="flex items-center gap-4 rounded-lg border border-border bg-card p-3"
+                        <div className="flex items-center gap-2">
+                          <RiskBadge
+                            level={getRiskLevel(Number(risk.residual_score))}
+                            label={Number(risk.residual_score).toFixed(1)}
+                            size="sm"
+                          />
+                          <span
+                            className={`rounded p-1.5 text-[9px] font-medium ${risk.ai_generated ? "bg-accent/20 text-accent" : "bg-primary/10 text-base"}`}
                           >
-                            <span
-                              className="font-mono text-xs font-bold"
-                              style={{ color: risk.color_hex }}
-                            >
-                              {risk.ref}
-                            </span>
-                            <div className="flex-1 text-sm">{risk.name}</div>
-                            <RiskBadge
-                              level={getRiskLevel(Number(risk.residual_score))}
-                              label={risk.residual_score.toString()}
-                            />
-                          </div>
-                        ))}
+                            {risk.ai_generated ? "🤖 AI" : "👤 Manual"}
+                          </span>
+                          <Button
+                            onClick={() => handleRiskDelete(risk.id)}
+                            variant="destructive"
+                            size="sm"
+                          >
+                            Delete
+                            <Trash2 />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           )
         })}
 
-        {sites.length === 0 && (
+        {sites.length === 0 && !isFetching && (
           <div className="rounded-2xl border border-border bg-card py-20 text-center">
             <Building className="mx-auto h-12 w-12 text-muted-foreground/40" />
             <p className="mt-4 text-muted-foreground">
-              {t("organization.site&entities.noSite")}
+              {searchTerm
+                ? t("organization.site&entities.noSearchResults")
+                : t("organization.site&entities.noSite")}
             </p>
           </div>
         )}
       </div>
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            Showing {(meta.page - 1) * meta.limit + 1}-
+            {Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page === 1}
+              className="rounded-lg p-2 text-muted-foreground hover:bg-muted disabled:opacity-50"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+              (pageNum) => (
+                <button
+                  key={pageNum}
+                  onClick={() => goToPage(pageNum)}
+                  className={`h-9 w-9 rounded-lg text-sm font-medium ${
+                    pageNum === page
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              )
+            )}
+
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page === totalPages}
+              className="rounded-lg p-2 text-muted-foreground hover:bg-muted disabled:opacity-50"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Create / Edit Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setShowForm(false)}
+        >
           <div
             className="w-full max-w-lg rounded-2xl border border-border bg-card p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-semibold">
-                {editingSite ? "Modifier le site" : "Nouveau site"}
+                {editingSite
+                  ? t("organization.site&entities.editSite")
+                  : t("organization.site&entities.newSite")}
               </h2>
               <button
                 onClick={() => setShowForm(false)}
@@ -584,95 +619,131 @@ export default function SitesEntities() {
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                  {t("organization.site&entities.siteName")} *
-                </label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
-                  placeholder="Example Site"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={siteForm.handleSubmit(handleSave)}>
+              <div className="space-y-4">
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                    {t("organization.site&entities.pays")}
+                    {t("organization.site&entities.siteName")} *
                   </label>
                   <input
-                    value={form.country}
-                    onChange={(e) =>
-                      setForm({ ...form, country: e.target.value })
-                    }
+                    {...siteForm.register("name", {
+                      required: "Name is required",
+                    })}
+                    className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
+                    placeholder="Example Site"
+                  />
+                  {siteForm.formState.errors.name && (
+                    <p className="mt-1 text-xs text-destructive">
+                      {siteForm.formState.errors.name.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Location
+                  </label>
+                  <input
+                    {...siteForm.register("location")}
                     className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
                   />
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      Country
+                    </label>
+                    <input
+                      {...siteForm.register("country")}
+                      className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      {t("organization.site&entities.siteType")}
+                    </label>
+                    <select
+                      {...siteForm.register("site_type")}
+                      className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
+                    >
+                      <option value="headquarters">
+                        {t("organization.site&entities.headOffice")}
+                      </option>
+                      <option value="production">
+                        {t("organization.site&entities.production")}
+                      </option>
+                      <option value="warehouse">
+                        {t("organization.site&entities.warehouse")}
+                      </option>
+                      <option value="other">
+                        {t("organization.site&entities.other")}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                    {t("organization.site&entities.siteType")}
+                    {t("organization.site&entities.activity")}
                   </label>
-                  <select
-                    value={form.site_type}
-                    onChange={(e) =>
-                      setForm({ ...form, site_type: e.target.value })
-                    }
-                    className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
-                  >
-                    <option value="headquarters">
-                      {t("organization.site&entities.headOffice")}
-                    </option>
-                    <option value="production">
-                      {t("organization.site&entities.production")}
-                    </option>
-                    <option value="warehouse">
-                      {t("organization.site&entities.warehouse")}
-                    </option>
-                    <option value="other">
-                      {t("organization.site&entities.other")}
-                    </option>
-                  </select>
+                  <textarea
+                    rows={4}
+                    {...siteForm.register("activity")}
+                    className="w-full rounded-lg border border-input bg-background p-2 text-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      Revenue
+                    </label>
+                    <input
+                      type="number"
+                      {...siteForm.register("revenue", { valueAsNumber: true })}
+                      className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      {t("organization.site&entities.employees") || "Employees"}
+                    </label>
+                    <input
+                      type="number"
+                      {...siteForm.register("employees_count", {
+                        valueAsNumber: true,
+                      })}
+                      className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                  {t("organization.site&entities.activity")}
-                </label>
-                <input
-                  value={form.activity}
-                  onChange={(e) =>
-                    setForm({ ...form, activity: e.target.value })
-                  }
-                  className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
-                />
+              <div className="mt-8 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="rounded-lg px-5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted"
+                >
+                  {t("organization.site&entities.cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSiteCreating || isSiteUpdating}
+                  className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  {isSiteCreating || isSiteUpdating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {editingSite
+                    ? t("organization.site&entities.update")
+                    : t("organization.site&entities.add")}
+                </button>
               </div>
-            </div>
-
-            <div className="mt-8 flex justify-end gap-3">
-              <button
-                onClick={() => setShowForm(false)}
-                className="rounded-lg px-5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted"
-              >
-                {t("organization.site&entities.cancel")}
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={isSaving || !form.name.trim()}
-                className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                {editingSite
-                  ? `${t("organization.site&entities.update")}`
-                  : `${t("organization.site&entities.add")}`}
-              </button>
-            </div>
+            </form>
           </div>
         </div>
       )}

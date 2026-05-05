@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -17,7 +18,6 @@ import { Link, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
 import EditPageSection from "./components/edit/EditPagesection"
 import QnASettingsPanel from "./components/QnASettingsPanel"
-
 
 let _idCounter = 0
 const uid = () => `rhf-${++_idCounter}-${Math.random().toString(36).slice(2)}`
@@ -109,7 +109,7 @@ const EditTemplatePage = () => {
 
         // Update field array
         pageFields.forEach(() => removePage(0))
-        formattedPages.forEach((page) => appendPage(page))
+        formattedPages.forEach((page: any) => appendPage(page))
       }
     }
   }, [appendPage, pageFields, removePage, setValue, templateData])

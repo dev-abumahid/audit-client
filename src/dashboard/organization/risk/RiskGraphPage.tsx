@@ -33,7 +33,7 @@ export default function RiskGraphPage() {
   }, [risks, siteFilter])
 
   const filteredRefs = useMemo(
-    () => new Set(filteredRisks.map((r) => r.ref)),
+    () => new Set(filteredRisks.map((r) => r.id)),
     [filteredRisks]
   )
 
@@ -55,7 +55,7 @@ export default function RiskGraphPage() {
     }
 
     const chains: DominoChain[] = []
-    const riskMap = new Map(filteredRisks.map((r) => [r.ref, r]))
+    const riskMap = new Map(filteredRisks.map((r) => [r.id, r]))
 
     const dfs = (ref: string, path: string[], visited: Set<string>) => {
       if (visited.has(ref)) return
@@ -130,7 +130,7 @@ export default function RiskGraphPage() {
       catRisks.forEach((r, i) => {
         const angle = (2 * Math.PI * i) / catRisks.length
         const spread = Math.min(60, 30 + catRisks.length * 8)
-        pos[r.ref] = {
+        pos[r.id] = {
           x: ccx + spread * Math.cos(angle),
           y: ccy + spread * Math.sin(angle),
         }
@@ -149,7 +149,7 @@ export default function RiskGraphPage() {
   }
 
   const selectedRiskData = selectedRisk
-    ? filteredRisks.find((r) => r.ref === selectedRisk)
+    ? filteredRisks.find((r) => r.id === selectedRisk)
     : null
 
   return (
@@ -275,39 +275,22 @@ export default function RiskGraphPage() {
 
             {/* Nodes */}
             {filteredRisks.map((risk) => {
-              const pos = positions[risk.ref]
+              const pos = positions[risk.id]
               if (!pos) return null
               const nodeRadius = 18 + Number(risk.pagerank_score) / 6
               const cat = RISK_CATEGORIES[risk.category]
               const catColor = cat?.color || "hsl(220, 10%, 46%)"
-              const isSelected = risk.ref === selectedRisk
-              const isCascaded = cascadeRefs.has(risk.ref)
+              const isSelected = risk.id === selectedRisk
+              const isCascaded = cascadeRefs.has(risk.id)
               const isDimmed = selectedRisk && !isSelected && !isCascaded
 
               return (
                 <g
                   key={risk.id}
                   className="cursor-pointer"
-                  onClick={() => setSelectedRisk(isSelected ? null : risk.ref)}
+                  onClick={() => setSelectedRisk(isSelected ? null : risk.id)}
                   opacity={isDimmed ? 0.15 : 1}
                 >
-                  {/* Tipping point pulse */}
-                  {risk.is_tipping_point && (
-                    <circle
-                      cx={pos.x}
-                      cy={pos.y}
-                      r={nodeRadius + 10}
-                      fill={catColor}
-                      opacity={0.1}
-                    >
-                      <animate
-                        attributeName="r"
-                        values={`${nodeRadius + 8};${nodeRadius + 16};${nodeRadius + 8}`}
-                        dur="2.5s"
-                        repeatCount="indefinite"
-                      />
-                    </circle>
-                  )}
                   {/* Cascade highlight */}
                   {(isSelected || isCascaded) && (
                     <circle
@@ -336,9 +319,7 @@ export default function RiskGraphPage() {
                     fill={catColor}
                     fillOpacity={isSelected ? 0.35 : 0.15}
                     stroke={catColor}
-                    strokeWidth={
-                      isSelected ? 3 : risk.is_tipping_point ? 2.5 : 1.5
-                    }
+                    strokeWidth={2}
                     strokeOpacity={0.7}
                   />
                   <text
@@ -347,7 +328,7 @@ export default function RiskGraphPage() {
                     textAnchor="middle"
                     className="fill-foreground text-[11px] font-bold select-none"
                   >
-                    {risk.ref}
+                    {risk.id}
                   </text>
                   <text
                     x={pos.x}
@@ -369,7 +350,7 @@ export default function RiskGraphPage() {
           {selectedRiskData && (
             <div className="space-y-3 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
               <h3 className="text-sm font-bold text-foreground">
-                {selectedRiskData.ref} — {selectedRiskData.name}
+                {selectedRiskData.id} — {selectedRiskData.name}
               </h3>
               <p className="line-clamp-3 text-xs text-muted-foreground">
                 {selectedRiskData.description}
