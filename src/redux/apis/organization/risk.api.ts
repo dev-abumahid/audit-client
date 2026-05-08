@@ -24,6 +24,14 @@ const risksApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["RISK"],
     }),
+    updateRisk: builder.mutation({
+      query: ({ data, id }) => ({
+        url: `/risk/${id}`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["RISK"],
+    }),
   }),
 })
 
@@ -31,4 +39,5 @@ export const {
   useGetAllRisksQuery,
   useDeleteRiskMutation,
   useCreateNewRiskMutation,
+  useUpdateRiskMutation,
 } = risksApi

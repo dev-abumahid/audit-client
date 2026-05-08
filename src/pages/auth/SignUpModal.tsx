@@ -1,11 +1,12 @@
+import { useSignUpUserMutation } from "@/redux/apis/auth.api"
 import { X } from "lucide-react"
 import React from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 
 interface SignUpFormData {
-  org_name: string
-  userName: string
+  organizationName: string
   email: string
   password: string
 }
@@ -22,16 +23,16 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
   onLoginClick,
 }) => {
   const { t } = useTranslation()
+  const [createNewOrganization, { isLoading }] = useSignUpUserMutation()
 
   const {
     register: formRegister,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<SignUpFormData>({
     defaultValues: {
-      org_name: "",
-      userName: "",
+      organizationName: "",
       email: "",
       password: "",
     },
@@ -39,14 +40,18 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
 
   const onSubmit = async (data: SignUpFormData) => {
     const payload = {
-      org_name: data.org_name,
-      userName: data.userName,
+      organizationName: data.organizationName,
       email: data.email,
       password: data.password,
     }
-
-    console.log(payload)
-    // login or signup logic here
+    const res = await createNewOrganization(payload).unwrap()
+    if (res?.success) {
+      toast.success(res?.message)
+      onClose()
+      onLoginClick()
+    } else {
+      toast.error(res?.error?.message)
+    }
   }
 
   const handleClearForm = () => {
@@ -69,7 +74,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
         <button
           onClick={onClose}
           className="absolute top-3 right-3 z-10 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          disabled={isSubmitting}
+          disabled={isLoading}
         >
           <X size={18} />
         </button>
@@ -98,41 +103,16 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
               <input
                 id="org_name"
                 type="text"
-                {...formRegister("org_name", {
+                {...formRegister("organizationName", {
                   required: "Organization name is required",
                 })}
                 placeholder="Example Organization"
                 className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
-                disabled={isSubmitting}
+                disabled={isLoading}
               />
-              {errors.org_name && (
+              {errors.organizationName && (
                 <p className="mt-1 text-xs text-destructive">
                   {t("auth.signUp.organizationNameReqText")}
-                </p>
-              )}
-            </div>
-
-            {/* Username */}
-            <div>
-              <label
-                htmlFor="userName"
-                className="mb-1.5 block text-xs font-medium text-muted-foreground"
-              >
-                {t("auth.signUp.userName")}
-              </label>
-              <input
-                id="userName"
-                type="text"
-                {...formRegister("userName", {
-                  required: "Username is required",
-                })}
-                placeholder="Example username"
-                className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
-                disabled={isSubmitting}
-              />
-              {errors.userName && (
-                <p className="mt-1 text-xs text-destructive">
-                  {t("auth.signUp.userNameReqText")}
                 </p>
               )}
             </div>
@@ -157,7 +137,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                 })}
                 placeholder="example@email.com"
                 className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
-                disabled={isSubmitting}
+                disabled={isLoading}
               />
               {errors.email && (
                 <p className="mt-1 text-xs text-destructive">
@@ -186,11 +166,11 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                 })}
                 placeholder="********"
                 className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
-                disabled={isSubmitting}
+                disabled={isLoading}
               />
               {errors.password && (
                 <p className="mt-1 text-xs text-destructive">
-                  {t("auth.signUp.passwordReqText")}
+                  {errors.password.message}
                 </p>
               )}
             </div>
@@ -200,7 +180,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
               <button
                 type="button"
                 onClick={handleClearForm}
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="flex-1 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {t("auth.signUp.btnClear")}
@@ -208,10 +188,10 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
 
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="flex flex-1 items-center justify-center rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isSubmitting ? (
+                {isLoading ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
                     Signing Up...
@@ -233,7 +213,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                   onLoginClick()
                 }}
                 className="font-medium text-primary hover:underline focus:outline-none"
-                disabled={isSubmitting}
+                disabled={isLoading}
               >
                 {t("auth.signIn.btnSignIn")}
               </button>

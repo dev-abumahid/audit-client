@@ -31,7 +31,7 @@ export const mockRisks: Risk[] = [
     control_operating_eff: 6,
     createdAt: "2026-01-10T10:00:00Z",
     updatedAt: "2026-01-15T12:00:00Z",
-  }
+  },
 ]
 
 export const mockKRIs: KRI[] = [

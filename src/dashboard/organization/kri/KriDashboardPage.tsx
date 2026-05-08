@@ -135,23 +135,23 @@ export default function KriDashboardPage() {
 
       {/* Status Summary Cards */}
       <div className="animate-slide-up flex flex-wrap gap-3">
-        <div className="border-risk-critical/30 bg-risk-critical/5 flex items-center gap-2 rounded-lg border px-3 py-2">
-          <AlertTriangle className="text-risk-critical h-4 w-4" />
-          <span className="font-mono-data text-risk-critical text-lg font-bold">
+        <div className="flex items-center gap-2 rounded-lg border border-risk-critical/30 bg-risk-critical/5 px-3 py-2">
+          <AlertTriangle className="h-4 w-4 text-risk-critical" />
+          <span className="font-mono-data text-lg font-bold text-risk-critical">
             {alertCount}
           </span>
           <span className="text-xs text-muted-foreground">Alert</span>
         </div>
-        <div className="border-risk-medium/30 bg-risk-medium/5 flex items-center gap-2 rounded-lg border px-3 py-2">
-          <TrendingUp className="text-risk-medium h-4 w-4" />
-          <span className="font-mono-data text-risk-medium text-lg font-bold">
+        <div className="flex items-center gap-2 rounded-lg border border-risk-medium/30 bg-risk-medium/5 px-3 py-2">
+          <TrendingUp className="h-4 w-4 text-risk-medium" />
+          <span className="font-mono-data text-lg font-bold text-risk-medium">
             {warningCount}
           </span>
           <span className="text-xs text-muted-foreground">Warning</span>
         </div>
-        <div className="border-risk-low/30 bg-risk-low/5 flex items-center gap-2 rounded-lg border px-3 py-2">
-          <CheckCircle2 className="text-risk-low h-4 w-4" />
-          <span className="font-mono-data text-risk-low text-lg font-bold">
+        <div className="flex items-center gap-2 rounded-lg border border-risk-low/30 bg-risk-low/5 px-3 py-2">
+          <CheckCircle2 className="h-4 w-4 text-risk-low" />
+          <span className="font-mono-data text-lg font-bold text-risk-low">
             {okCount}
           </span>
           <span className="text-xs text-muted-foreground">OK</span>
@@ -218,13 +218,13 @@ export default function KriDashboardPage() {
               <div className="mt-1 flex items-center gap-4 text-[11px] text-muted-foreground">
                 <span>
                   Threshold:{" "}
-                  <span className="font-mono-data text-risk-critical font-medium">
+                  <span className="font-mono-data font-medium text-risk-critical">
                     {Number(kri.alert_threshold)}
                   </span>
                 </span>
                 <span>
                   Target:{" "}
-                  <span className="font-mono-data text-risk-low font-medium">
+                  <span className="font-mono-data font-medium text-risk-low">
                     {Number(kri.target_value)}
                   </span>
                 </span>
@@ -322,7 +322,7 @@ export default function KriDashboardPage() {
                     className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
                     <option value="">Select Risk</option>
-                    {risks.map((r:any) => (
+                    {risks.map((r: any) => (
                       <option key={r.id} value={r.ref}>
                         {r.ref} — {r.name.slice(0, 30)}
                       </option>

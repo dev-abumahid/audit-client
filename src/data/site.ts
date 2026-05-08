@@ -15,5 +15,5 @@ export const DUMMY_SITES: Site[] = [
     lng: 90.4125,
     createdAt: "2025-01-15T10:00:00Z",
     updatedAt: "2025-03-10T14:30:00Z",
-  }
+  },
 ]

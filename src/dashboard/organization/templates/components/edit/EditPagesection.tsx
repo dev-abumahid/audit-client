@@ -20,7 +20,10 @@ import { useEffect, useState } from "react"
 import { Controller, useFieldArray } from "react-hook-form"
 import { toast } from "sonner"
 import EditSortableQuestionRow from "./EditSortableQuestionRow"
-import { useDeletePageMutation, useUpdateOrCreatePageMutation } from "@/redux/apis/organization/template.api"
+import {
+  useDeletePageMutation,
+  useUpdateOrCreatePageMutation,
+} from "@/redux/apis/organization/template.api"
 
 interface PageSectionProps {
   pageIndex: number

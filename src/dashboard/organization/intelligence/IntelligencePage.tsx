@@ -190,7 +190,7 @@ export default function IntelligencePage() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Threat Intelligence
           </h1>
-          <div className="bg-risk-low ml-2 h-2 w-2 animate-pulse rounded-full" />
+          <div className="ml-2 h-2 w-2 animate-pulse rounded-full bg-risk-low" />
         </div>
         <p className="text-sm text-muted-foreground">
           Automated monitoring from 60+ global sources — ARIA CRO Intelligence
@@ -385,7 +385,7 @@ export default function IntelligencePage() {
                           {(item.relevance_score * 100).toFixed(0)}%
                         </span>
                         {item.requires_immediate_attention && (
-                          <span className="bg-risk-critical/10 text-risk-critical rounded px-1.5 py-0.5 text-[10px] font-medium">
+                          <span className="rounded bg-risk-critical/10 px-1.5 py-0.5 text-[10px] font-medium text-risk-critical">
                             ⚡ Immediate Action
                           </span>
                         )}

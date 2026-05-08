@@ -172,7 +172,7 @@ export default function Overview() {
               <span className="text-muted-foreground">
                 {t("organization.overview.chart.p5Worst")}:
               </span>{" "}
-              <span className="font-mono-data text-risk-critical font-semibold">
+              <span className="font-mono-data font-semibold text-risk-critical">
                 €14.2M
               </span>
             </div>
@@ -188,7 +188,7 @@ export default function Overview() {
               <span className="text-muted-foreground">
                 {t("organization.overview.chart.budget")}:
               </span>{" "}
-              <span className="font-mono-data text-risk-low font-semibold">
+              <span className="font-mono-data font-semibold text-risk-low">
                 €22.0M
               </span>
             </div>
@@ -269,16 +269,13 @@ export default function Overview() {
           </div>
           <div className="mt-4 space-y-3">
             {mockRisks
-              .filter((r:any) => r.is_tipping_point)
+              .filter((r: any) => r.is_tipping_point)
               .map((risk) => (
                 <div
                   key={risk.id}
                   className="flex items-center gap-3 rounded-lg border border-border bg-background p-3"
                 >
-                  <div
-                    className="font-mono-data flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold"
-                   
-                  >
+                  <div className="font-mono-data flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold">
                     {risk.id}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -322,7 +319,7 @@ export default function Overview() {
                 {t("organization.overview.alert.des")}
               </p>
             </div>
-            <AlertTriangle className="text-risk-critical h-4 w-4" />
+            <AlertTriangle className="h-4 w-4 text-risk-critical" />
           </div>
           <div className="mt-4 space-y-3">
             {mockAlerts.slice(0, 4).map((alert) => (

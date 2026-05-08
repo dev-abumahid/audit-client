@@ -39,5 +39,5 @@ export const {
   useGetAllSitesQuery,
   useCreateNewSiteMutation,
   useUpdateSiteMutation,
-  useDeleteSiteMutation
+  useDeleteSiteMutation,
 } = sitesApi

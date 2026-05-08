@@ -177,19 +177,19 @@ export default function CompliancePage() {
 
       {/* Summary Cards */}
       <div className="animate-slide-up grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="border-risk-low/30 bg-risk-low/5 rounded-xl border p-3 lg:p-4">
+        <div className="rounded-xl border border-risk-low/30 bg-risk-low/5 p-3 lg:p-4">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="text-risk-low h-5 w-5" />
-            <span className="font-mono-data text-risk-low text-xl font-bold lg:text-2xl">
+            <CheckCircle2 className="h-5 w-5 text-risk-low" />
+            <span className="font-mono-data text-xl font-bold text-risk-low lg:text-2xl">
               {compliantCount}
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Compliant</p>
         </div>
-        <div className="border-risk-critical/30 bg-risk-critical/5 rounded-xl border p-3 lg:p-4">
+        <div className="rounded-xl border border-risk-critical/30 bg-risk-critical/5 p-3 lg:p-4">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="text-risk-critical h-5 w-5" />
-            <span className="font-mono-data text-risk-critical text-xl font-bold lg:text-2xl">
+            <AlertTriangle className="h-5 w-5 text-risk-critical" />
+            <span className="font-mono-data text-xl font-bold text-risk-critical lg:text-2xl">
               {nonCompliantCount}
             </span>
           </div>
@@ -263,7 +263,7 @@ export default function CompliancePage() {
                     <span
                       className={`font-mono-data text-xs ${
                         isOverdue
-                          ? "text-risk-critical font-bold"
+                          ? "font-bold text-risk-critical"
                           : "text-muted-foreground"
                       }`}
                     >

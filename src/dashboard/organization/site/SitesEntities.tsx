@@ -607,9 +607,7 @@ export default function SitesEntities() {
           >
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-semibold">
-                {editingSite
-                  ? t("organization.site&entities.editSite")
-                  : t("organization.site&entities.newSite")}
+                {editingSite ? "Edit Site Information" : "Add New Site"}
               </h2>
               <button
                 onClick={() => setShowForm(false)}
