@@ -14,7 +14,7 @@ import { transformValuesToString } from "@/utils/transformValuesToString"
 import { Loader2, Plus, Sliders, Upload, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Controller, useFieldArray, useForm } from "react-hook-form"
-import { Link, useNavigate, useParams } from "react-router"
+import { Link, useParams } from "react-router"
 import { toast } from "sonner"
 import EditPageSection from "./components/edit/EditPagesection"
 import QnASettingsPanel from "./components/QnASettingsPanel"
@@ -24,7 +24,6 @@ const uid = () => `rhf-${++_idCounter}-${Math.random().toString(36).slice(2)}`
 
 const EditTemplatePage = () => {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
 
   // Query to fetch template details
   const { data: templateData, isLoading: isFetchingTemplate } =
@@ -72,9 +71,11 @@ const EditTemplatePage = () => {
     fields: pageFields,
     append: appendPage,
     remove: removePage,
+    replace,
   } = useFieldArray({
     control,
     name: "pages",
+    keyName: "fieldId",
   })
 
   // Load template data when fetched
@@ -84,35 +85,33 @@ const EditTemplatePage = () => {
       setValue("templateName", template.templateName || "Untitled Template")
       setValue("templateDisc", template.templateDisc || "")
 
-      if (template.logoUrl) {
+      if (template.templateLogo) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setLogoPreview(template.logoUrl)
+        setLogoPreview(template.templateLogo)
       }
-
       // Reset and populate pages
-      if (template.pages && template.pages.length > 0) {
+      if (template.pages) {
         const formattedPages = template.pages.map((page: any, idx: number) => ({
-          id: page.id || uid(),
+          id: page.id,
           pageIndex: idx,
           title: page.title,
           questions: (page.questions || []).map((q: any, qIdx: number) => ({
-            id: q.id || uid(),
+            id: q.id,
             index: qIdx,
             question: q.question,
             isRequired: q.isRequired,
-            answerType: q.answerType || {
-              answerType: "input",
-              value: "text",
+            answerType: {
+              answerType: q.answerType || "input",
+              value: q.value || "text",
             },
           })),
         }))
 
         // Update field array
-        pageFields.forEach(() => removePage(0))
-        formattedPages.forEach((page: any) => appendPage(page))
+        replace(formattedPages)
       }
     }
-  }, [appendPage, pageFields, removePage, setValue, templateData])
+  }, [replace, setValue, templateData])
 
   const handleAddQuestion = () => {
     if (addModalTarget === null) return
@@ -181,9 +180,9 @@ const EditTemplatePage = () => {
       const formattedValues = transformValuesToString(values)
 
       // Add basic template data
-      formData.append("templateId", id || "")
-      formData.append("templateName", values.templateName)
-      formData.append("templateDisc", values.templateDisc)
+      // formData.append("templateId", id || "")
+      // formData.append("templateName", values.templateName)
+      // formData.append("templateDisc", values.templateDisc)
       formData.append("data", JSON.stringify(formattedValues))
 
       // Add logo file if new one was selected
@@ -191,11 +190,11 @@ const EditTemplatePage = () => {
         formData.append("file", logoFile)
       }
 
-      const res = await updateTemplateBasics(formData).unwrap()
+      const res = await updateTemplateBasics({ data: formData, id }).unwrap()
 
       if (res?.success) {
         toast.success(res?.message || "Template updated successfully!")
-        navigate("/organization/audit/templates")
+        // navigate("/organization/audit/templates")
       } else {
         toast.error(res?.message || "Failed to update template")
       }
@@ -348,7 +347,7 @@ const EditTemplatePage = () => {
         ) : (
           pageFields.map((pageField, pIdx) => (
             <EditPageSection
-              key={pageField.id}
+              key={pageField.fieldId}
               pageIndex={pIdx}
               pageId={pageField.id}
               templateId={id || ""}

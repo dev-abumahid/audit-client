@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Button } from "@/components/ui/button"
-
+import {
+  useDeletePageMutation,
+  useUpdateOrCreatePageMutation,
+} from "@/redux/apis/organization/template.api"
 import {
   closestCenter,
   DndContext,
@@ -17,13 +20,9 @@ import {
 } from "@dnd-kit/sortable"
 import { Plus, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
-import { Controller, useFieldArray } from "react-hook-form"
+import { Controller, useFieldArray, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 import EditSortableQuestionRow from "./EditSortableQuestionRow"
-import {
-  useDeletePageMutation,
-  useUpdateOrCreatePageMutation,
-} from "@/redux/apis/organization/template.api"
 
 interface PageSectionProps {
   pageIndex: number
@@ -61,6 +60,7 @@ function EditPageSection({
   const { fields, remove, move } = useFieldArray({
     control,
     name: `pages.${pageIndex}.questions`,
+    keyName: "fieldId",
   })
 
   const [isSyncing, setIsSyncing] = useState(false)
@@ -76,8 +76,8 @@ function EditPageSection({
     const { active, over } = event
     if (!over || active.id === over.id) return
 
-    const oldIdx = fields.findIndex((f) => f.id === active.id)
-    const newIdx = fields.findIndex((f) => f.id === over.id)
+    const oldIdx = fields.findIndex((f) => f.fieldId === active.id)
+    const newIdx = fields.findIndex((f) => f.fieldId === over.id)
 
     if (oldIdx !== -1 && newIdx !== -1) {
       move(oldIdx, newIdx)
@@ -92,30 +92,42 @@ function EditPageSection({
     }
   }
 
-  // Auto-sync page changes when title is updated
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (isEditMode && pageId && templateId) {
-        try {
-          setIsSyncing(true)
-          const title = getValues(`pages.${pageIndex}.title`)
+  const pageTitle = useWatch({
+    control,
+    name: `pages.${pageIndex}.title`,
+  })
 
-          await updateOrCreatePage({
-            pageId: pageId,
-            pageIndex: pageIndex,
-            title: title,
-            templateId: templateId,
-          }).unwrap()
-        } catch (error) {
-          console.error("Error syncing page:", error)
-        } finally {
-          setIsSyncing(false)
-        }
+  useEffect(() => {
+    if (!isEditMode || !templateId || !pageTitle) return
+
+    // UUID validation
+    const isValidUUID =
+      typeof pageId === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        pageId
+      )
+
+    const timer = setTimeout(async () => {
+      try {
+        setIsSyncing(true)
+
+        await updateOrCreatePage({
+          // only send pageId if valid UUID
+          ...(isValidUUID ? { pageId } : {}),
+
+          pageIndex,
+          title: pageTitle,
+          templateId,
+        }).unwrap()
+      } catch (error) {
+        console.error("Error syncing page:", error)
+      } finally {
+        setIsSyncing(false)
       }
-    }, 1000) // Debounce for 1 second
+    }, 1000)
 
     return () => clearTimeout(timer)
-  }, [getValues(`pages.${pageIndex}.title`)])
+  }, [pageTitle])
 
   const handleDeletePage = async () => {
     if (window.confirm("Are you sure you want to delete this section?")) {
@@ -188,7 +200,7 @@ function EditPageSection({
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={fields.map((f) => f.id)}
+            items={fields.map((f) => f.fieldId)}
             strategy={verticalListSortingStrategy}
           >
             {fields.length === 0 ? (
@@ -198,11 +210,11 @@ function EditPageSection({
             ) : (
               fields.map((field, qIndex) => (
                 <EditSortableQuestionRow
-                  key={field.id}
-                  sortableId={field.id}
+                  key={field.fieldId}
+                  sortableId={field.fieldId}
                   pageIndex={pageIndex}
                   questionIndex={qIndex}
-                  questionId={field.id}
+                  questionId={(field as any).id}
                   pageId={pageId}
                   templateId={templateId}
                   control={control}

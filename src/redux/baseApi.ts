@@ -23,7 +23,7 @@ export const baseQueryWithLogout: BaseQueryFn<
     // 1. redux state clear
     api.dispatch(removeUser())
     // 2. redirect to login page
-    window.location.href = "/"
+    // window.location.href = "/"
   }
 
   return result

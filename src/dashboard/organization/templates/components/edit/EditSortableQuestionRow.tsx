@@ -1,5 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import {
   useDeleteQuestionMutation,
   useUpdateOrCreateQuestionMutation,
@@ -103,35 +104,47 @@ function EditSortableQuestionRow({
     return ANSWER_TYPES.find((t) => t.value === at)?.label ?? at
   })()
 
-  // Auto-sync question changes when in edit mode
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (isEditMode && pageId && questionId && questionText) {
-        try {
-          setIsSyncing(true)
+  const answerTypeKey = JSON.stringify(answerType)
 
-          await updateOrCreateQuestion({
-            index: questionIndex,
-            question: questionText,
-            isRequired: isRequired,
-            answerType: answerType || {
-              answerType: "input",
-              value: "",
-            },
-            pageId: pageId,
-            questionId: questionId,
-          }).unwrap()
-        } catch (error) {
-          console.error("Error syncing question:", error)
-        } finally {
-          setIsSyncing(false)
-        }
+  useEffect(() => {
+    if (!isEditMode || !pageId || !questionText) return
+
+    console.log("answerType", answerType)
+
+    // UUID validation
+    const isValidUUID = (id?: string) =>
+      typeof id === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        id
+      )
+
+    const timer = setTimeout(async () => {
+      try {
+        setIsSyncing(true)
+
+        await updateOrCreateQuestion({
+          index: questionIndex,
+          question: questionText,
+          isRequired,
+
+          answerType: answerType || {
+            answerType: "input",
+            value: "",
+          },
+
+          // only send valid UUIDs
+          ...(isValidUUID(pageId) ? { pageId } : {}),
+          ...(isValidUUID(questionId) ? { questionId } : {}),
+        }).unwrap()
+      } catch (error) {
+        console.error("Error syncing question:", error)
+      } finally {
+        setIsSyncing(false)
       }
-    }, 1000) // Debounce for 1 second
+    }, 1000)
 
     return () => clearTimeout(timer)
-  }, [questionText, isRequired, answerType])
-
+  }, [questionText, isRequired, answerTypeKey])
   const handleDeleteQuestion = async () => {
     if (window.confirm("Are you sure you want to delete this question?")) {
       try {
