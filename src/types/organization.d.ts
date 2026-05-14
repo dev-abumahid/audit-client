@@ -224,3 +224,49 @@ export interface MonteCarloResult {
   var95: number
   distribution: { bucket: string; count: number }[]
 }
+
+export type TInspection = {
+  id: string
+  orgAccountId: string
+  templateId: string
+  siteId: string
+  inspectorProfileId: string | null
+
+  status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "DRAFT"
+
+  createdAt: string
+  updatedAt: string
+
+  template: {
+    id: string
+    templateName: string
+  }
+  site: {
+    id: string
+    name: string
+  }
+  inspector: {
+    id: string
+    fullName: string
+  }
+  questionAnswers: {
+    id: string
+    inspectionId: string
+    questionId: string
+
+    answer: string
+    note: string | null
+
+    mediaFiles: {
+      url: string
+      type: string
+    }[]
+
+    question: {
+      id: string
+      question: string
+      answerType: string
+      value: string
+    }
+  }[]
+}

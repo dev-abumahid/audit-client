@@ -17,16 +17,18 @@ import {
 import type { ITemplate } from "@/types/template"
 import { format } from "date-fns"
 import {
+  Brain,
   ChevronLeft,
   ChevronRight,
   Edit,
-  FileText,
+  Plus,
   Search,
   Trash2,
 } from "lucide-react"
 import { useState } from "react"
 import { Link } from "react-router"
 import { toast } from "sonner"
+import CreateTemplateWithAIDialog from "./shared/CreateTemplateWithAIDialog"
 
 // -------- Skeleton --------
 function TableSkeleton() {
@@ -66,6 +68,8 @@ export default function TemplatesPage() {
 
   const [searchInput, setSearchInput] = useState("")
   const [page, setPage] = useState(1)
+  const [createTemplateModalOpen, setCreateTemplateModalOpen] =
+    useState<boolean>(false)
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
@@ -139,9 +143,15 @@ export default function TemplatesPage() {
               className="pl-10"
             />
           </div>
+
+          <Button onClick={() => setCreateTemplateModalOpen(true)}>
+            <Brain className="mr-2 h-4 w-4" />
+            Generate Template
+          </Button>
+
           <Link to="/organization/audit/template/create">
             <Button>
-              <FileText className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-4 w-4" />
               Create Template
             </Button>
           </Link>
@@ -194,7 +204,7 @@ export default function TemplatesPage() {
                   </TableCell>
 
                   <TableCell className="hidden text-muted-foreground md:table-cell">
-                    {template.templateDisc}
+                    {template.templateDisc?.slice(0, 50) + " ..."}
                   </TableCell>
 
                   <TableCell className="hidden sm:table-cell">
@@ -273,6 +283,10 @@ export default function TemplatesPage() {
         title="Delete Template?"
         description="This will permanently remove the template and all its pages."
         onConfirm={handleConfirmDelete}
+      />
+      <CreateTemplateWithAIDialog
+        open={createTemplateModalOpen}
+        setOpen={setCreateTemplateModalOpen}
       />
     </div>
   )

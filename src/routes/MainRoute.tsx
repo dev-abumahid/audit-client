@@ -5,6 +5,9 @@ import AdminTransactions from "@/dashboard/admin/transactions/AdminTransactions"
 import AlertsPage from "@/dashboard/organization/alerts/AlertsPage"
 import AuditPage from "@/dashboard/organization/audit/AuditPage"
 import CompliancePage from "@/dashboard/organization/compliance/CompliancePage"
+import CreateNewInspection from "@/dashboard/organization/inspection/CreateNewInspection"
+import InspectionReport from "@/dashboard/organization/inspection/InspectionReport"
+import InspectionTable from "@/dashboard/organization/inspection/InspectionTable"
 import IntelligencePage from "@/dashboard/organization/intelligence/IntelligencePage"
 import KriDashboardPage from "@/dashboard/organization/kri/KriDashboardPage"
 import Overview from "@/dashboard/organization/overview/Overview"
@@ -14,7 +17,8 @@ import RiskGraphPage from "@/dashboard/organization/risk/RiskGraphPage"
 import RiskMatrixPage from "@/dashboard/organization/risk/RiskMatrixPage"
 import RiskRegisterPage from "@/dashboard/organization/risk/RiskRegisterPage"
 import SitesEntities from "@/dashboard/organization/site/SitesEntities"
-import CreateTemplatePage from "@/dashboard/organization/templates/CreateTemplatePage"
+import CreateTemplatePage from "@/dashboard/organization/templates/create/CreateTemplatePage"
+import EditTemplatePage from "@/dashboard/organization/templates/edit/EditTemplatePage"
 import TemplateReportPage from "@/dashboard/organization/templates/TemplateReportPage"
 import TemplatesPage from "@/dashboard/organization/templates/TemplatesPage"
 import AdminLayout from "@/layouts/AdminLayout"
@@ -26,7 +30,6 @@ import PrivacyPolicy from "@/pages/policy/PrivacyPolicy"
 import TermsAndConditions from "@/pages/policy/Terms"
 import { createBrowserRouter } from "react-router"
 import ProtectedRoute from "./ProtectedRoute"
-import EditTemplatePage from "@/dashboard/organization/templates/EditTemplatePage"
 
 export const mainRoute = createBrowserRouter([
   // common routes
@@ -110,6 +113,18 @@ export const mainRoute = createBrowserRouter([
       {
         path: "audit/template/create",
         element: <CreateTemplatePage />,
+      },
+      {
+        path: "audit/inspections",
+        element: <InspectionTable />,
+      },
+      {
+        path: "audit/inspection/create",
+        element: <CreateNewInspection />,
+      },
+      {
+        path: "audit/inspections/report/:id",
+        element: <InspectionReport />,
       },
       {
         path: "audit/template/report/:id",

@@ -14,8 +14,8 @@ import { useState } from "react"
 import { Controller, useFieldArray, useForm } from "react-hook-form"
 import { Link, useNavigate } from "react-router"
 import { toast } from "sonner"
-import PageSection from "./components/PageSection"
-import QnASettingsPanel from "./components/QnASettingsPanel"
+import PageSection from "./PageSection"
+import QnASettingsPanel from "../shared/QnASettingsPanel"
 
 let _idCounter = 0
 const uid = () => `rhf-${++_idCounter}-${Math.random().toString(36).slice(2)}`

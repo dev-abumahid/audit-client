@@ -7,7 +7,7 @@ interface IQuestion {
   answerType: string
   config: JsonValue
 }
-interface IPage {
+export interface IPage {
   id: string
   templateId: string
   pageIndex: number
