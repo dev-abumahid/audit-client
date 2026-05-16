@@ -76,6 +76,78 @@ const formatShortDate = (d: string) =>
     day: "numeric",
   })
 
+// const renderAnswerValue = (
+//   answer: any,
+//   answerType: string
+// ): React.ReactNode => {
+//   if (answer === null || answer === undefined || answer === "") {
+//     return (
+//       <span className="text-sm text-muted-foreground italic">
+//         No answer provided
+//       </span>
+//     )
+//   }
+
+//   switch (answerType) {
+//     case "checkbox":
+//       return (
+//         <span
+//           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${
+//             answer
+//               ? "bg-primary text-primary-foreground"
+//               : "bg-gray-200 text-red-500"
+//           }`}
+//         >
+//           {answer ? (
+//             <>
+//               <ToggleRight className="h-4 w-4" /> Yes
+//             </>
+//           ) : (
+//             <>
+//               <ToggleLeft className="h-4 w-4" /> No
+//             </>
+//           )}
+//         </span>
+//       )
+
+//     case "slider":
+//       return (
+//         <div className="w-full max-w-xs">
+//           <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+//             <span>0</span>
+//             <span className="font-semibold text-primary">{answer}</span>
+//             <span>10</span>
+//           </div>
+//           <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+//             <div
+//               className="h-full rounded-full bg-primary transition-all"
+//               style={{ width: `${Number(answer) * 10}%` }}
+//             />
+//           </div>
+//         </div>
+//       )
+
+//     case "date":
+//       return (
+//         <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+//           <Calendar className="h-4 w-4 text-primary" />
+//           {answer}
+//         </span>
+//       )
+
+//     case "multipleSelect":
+//     case "media":
+//     default:
+//       return (
+//         <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+//           {String(answer)}
+//         </p>
+//       )
+//   }
+// }
+
+// ─── Sub Components ───────────────────────────────────────────────────────────
+
 const renderAnswerValue = (
   answer: any,
   answerType: string
@@ -93,9 +165,7 @@ const renderAnswerValue = (
       return (
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${
-            answer
-              ? "bg-primary text-primary-foreground"
-              : "bg-gray-200 text-red-500"
+            answer ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
           }`}
         >
           {answer ? (
@@ -131,12 +201,83 @@ const renderAnswerValue = (
       return (
         <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
           <Calendar className="h-4 w-4 text-primary" />
-          {answer}
+          {new Date(answer).toLocaleDateString()}
         </span>
       )
 
-    case "multipleSelect":
-    case "media":
+    case "multipleSelect": {
+      // Clean and parse the answer
+      let selectedValues: string[] = []
+
+      if (typeof answer === "string") {
+        // Handle formats like "'hello','hi','bye'" or "hello,hi,bye"
+        const cleanAnswer = answer.replace(/'/g, '"') // Replace single quotes with double quotes
+        try {
+          // Try to parse as JSON array
+          if (cleanAnswer.startsWith('"') && cleanAnswer.endsWith('"')) {
+            // Single value case
+            selectedValues = [JSON.parse(cleanAnswer)]
+          } else if (cleanAnswer.startsWith("[")) {
+            // Already array format
+            selectedValues = JSON.parse(cleanAnswer)
+          } else {
+            // Split by comma and clean
+            selectedValues = answer
+              .split(",")
+              .map((item: string) => item.trim().replace(/^['"]|['"]$/g, ""))
+              .filter((item: string) => item)
+          }
+        } catch {
+          // Fallback: split by comma
+          selectedValues = answer
+            .split(",")
+            .map((item: string) => item.trim().replace(/^['"]|['"]$/g, ""))
+            .filter((item: string) => item)
+        }
+      } else if (Array.isArray(answer)) {
+        selectedValues = answer
+      } else {
+        selectedValues = [String(answer)]
+      }
+
+      return (
+        <div className="flex flex-wrap gap-2">
+          {selectedValues.map((value, index) => (
+            <span
+              key={index}
+              className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary"
+            >
+              {value}
+            </span>
+          ))}
+        </div>
+      )
+    }
+
+    case "media": {
+      return (
+        <div className="group relative inline-block overflow-hidden rounded-lg border">
+          <img
+            src={answer}
+            alt="Uploaded media"
+            className="max-h-96 w-auto max-w-full object-cover transition-transform group-hover:scale-105"
+            onError={(e) => {
+              // Handle image load error
+              ;(e.target as HTMLImageElement).src = "/placeholder-image.jpg"
+            }}
+          />
+          <button
+            onClick={() => window.open(answer, "_blank")}
+            className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
+          >
+            <span className="rounded bg-white px-2 py-1 text-xs font-medium text-black">
+              View Full Size
+            </span>
+          </button>
+        </div>
+      )
+    }
+
     default:
       return (
         <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
@@ -145,8 +286,6 @@ const renderAnswerValue = (
       )
   }
 }
-
-// ─── Sub Components ───────────────────────────────────────────────────────────
 
 const QuestionCard = memo(
   ({
