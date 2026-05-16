@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useUploadAnyFileAwsMutation } from "@/redux/apis/common.api"
 import {
   useGetSingleInspectionQuery,
   useUpdateInspectionMutation,
@@ -21,6 +22,7 @@ import {
   CloudUpload,
   FileText,
   Globe,
+  Trash,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
@@ -48,6 +50,7 @@ export default function UpdateInspection() {
   const [updateInspection, { isLoading: isUpdatingInspection }] =
     useUpdateInspectionMutation()
   const [updateQuestionAnswer] = useUpdateInspectionQuestionAnswerMutation()
+  const [uploadFileAws] = useUploadAnyFileAwsMutation()
 
   const inspection = inspectionData?.data
   const template = inspection?.template
@@ -62,6 +65,12 @@ export default function UpdateInspection() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
   const pageRefs = useRef<(HTMLDivElement | null)[]>([])
   const initialized = useRef(false)
+  const [isAnswerMediaUploading, setIsAnswerMediaUploading] = useState<
+    string | null
+  >(null)
+  const [externalMediaUploading, setExternalMediaUploading] = useState<
+    string | null
+  >(null)
 
   // Initialize answers from fetched inspection data
   useEffect(() => {
@@ -219,6 +228,31 @@ export default function UpdateInspection() {
       debouncedUpdateQuestion(questionId, updatedAnswer)
     }
   }
+  const handleMediaFileChangeWithSave = (
+    questionId: string,
+    newMediaFiles: { url: string; type: string }[]
+  ) => {
+    // Get existing media files
+    const existingMediaFiles = answers[questionId]?.mediaFiles || []
+
+    // Append new files
+    const updatedMediaFiles = [...existingMediaFiles, ...newMediaFiles]
+
+    // Create updated answer object
+    const updatedAnswer = {
+      ...answers[questionId],
+      mediaFiles: updatedMediaFiles,
+    }
+
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: updatedAnswer,
+    }))
+
+    if (updatedAnswer.questionAnswerId) {
+      debouncedUpdateQuestion(questionId, updatedAnswer)
+    }
+  }
 
   // Handle note change with auto-save
   const handleNoteChangeWithSave = (questionId: string, note: string) => {
@@ -290,6 +324,141 @@ export default function UpdateInspection() {
       setIsUpdatingStatus(false)
     }
   }
+
+  // media file management
+  const handleAnswerMediaUpload = async (questionId: string, file: File) => {
+    // validation
+    if (!file || !questionId) return
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size should be less than 5MB")
+      return
+    }
+
+    // Check file type
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "video/mp4",
+      "application/pdf",
+    ]
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Only images, MP4 videos, and PDF files are allowed")
+      return
+    }
+
+    setIsAnswerMediaUploading(questionId)
+
+    try {
+      const formdata = new FormData()
+      formdata.append("file", file)
+      const res = await uploadFileAws(formdata).unwrap()
+
+      if (res?.success && res?.data) {
+        handleAnswerChangeWithSave(questionId, res.data)
+        toast.success("Media uploaded successfully!")
+      } else {
+        toast.error("Failed to upload media")
+      }
+    } catch (error) {
+      console.error("Upload error:", error)
+      toast.error("Failed to upload media")
+    } finally {
+      setIsAnswerMediaUploading(null)
+    }
+  }
+
+  const handleRemoveMediaFile = (questionId: string, fileIndex: number) => {
+    const currentMediaFiles = answers[questionId]?.mediaFiles || []
+    const updatedMediaFiles = currentMediaFiles.filter(
+      (_, index) => index !== fileIndex
+    )
+
+    // Create updated answer object
+    const updatedAnswer = {
+      ...answers[questionId],
+      mediaFiles: updatedMediaFiles,
+    }
+
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: updatedAnswer,
+    }))
+
+    if (updatedAnswer.questionAnswerId) {
+      debouncedUpdateQuestion(questionId, updatedAnswer)
+    }
+
+    toast.success("Media file removed")
+  }
+  const handleExternalMediaUpload = async (
+    questionId: string,
+    files: FileList | File[]
+  ) => {
+    if (!questionId || !files || files.length === 0) return
+
+    // Convert FileList to array if needed
+    const fileArray = Array.isArray(files) ? files : Array.from(files)
+
+    // Set uploading state for this question
+    setExternalMediaUploading(questionId)
+
+    try {
+      // Upload all files in parallel
+      const uploadPromises = fileArray.map(async (file) => {
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`${file.name} is larger than 5MB`)
+          return null
+        }
+
+        // Validate file type
+        const allowedTypes = [
+          "image/jpeg",
+          "image/png",
+          "image/gif",
+          "image/webp",
+          "video/mp4",
+          "application/pdf",
+        ]
+        if (!allowedTypes.includes(file.type)) {
+          toast.error(
+            `${file.name} is not supported. Only images, MP4 videos, and PDF files are allowed`
+          )
+          return null
+        }
+
+        const formdata = new FormData()
+        formdata.append("file", file)
+        const res = await uploadFileAws(formdata).unwrap()
+
+        if (res?.success && res?.data) {
+          return { url: res.data, type: "image" }
+        }
+        return null
+      })
+
+      // Wait for all uploads to complete
+      const uploadedFiles = await Promise.all(uploadPromises)
+      const validFiles = uploadedFiles.filter((file) => file !== null)
+
+      if (validFiles.length > 0) {
+        handleMediaFileChangeWithSave(questionId, validFiles)
+        toast.success(`${validFiles.length} file(s) uploaded successfully!`)
+      } else {
+        toast.error("Failed to upload files")
+      }
+    } catch (error) {
+      console.error("Upload error:", error)
+      toast.error("Failed to upload media files")
+    } finally {
+      setExternalMediaUploading(null)
+    }
+  }
+
   const renderQuestionInput = (question: any) => {
     const value = answers[question.id]?.answer
     const answerType = question.answerType
@@ -369,17 +538,63 @@ export default function UpdateInspection() {
 
       case "media":
         return (
-          <Button
-            variant="outline"
-            className="flex w-full items-center gap-2 py-6"
-            onClick={() => {
-              // Handle media upload
-              toast.info("Media upload feature coming soon")
-            }}
-          >
-            <CloudUpload className="h-5 w-5" />
-            Upload Media / Documents
-          </Button>
+          <>
+            {isAnswerMediaUploading === question.id ? (
+              <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-8">
+                <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></span>
+                <p className="text-sm text-muted-foreground">
+                  Uploading media...
+                </p>
+              </div>
+            ) : value ? (
+              <div className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border">
+                <img
+                  src={value}
+                  alt="Uploaded media"
+                  className="max-h-96 max-w-full object-contain transition-transform group-hover:scale-105"
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).src =
+                      "/placeholder-image.jpg"
+                  }}
+                />
+                <button
+                  onClick={() => handleAnswerChangeWithSave(question.id, "")}
+                  className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  <span className="rounded bg-red-500 px-2 py-1 text-xs font-medium text-white">
+                    Delete Media
+                  </span>
+                </button>
+              </div>
+            ) : (
+              <label htmlFor={`dropzone-file-${question.id}`}>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="flex w-full cursor-pointer items-center gap-2 py-6"
+                >
+                  <span>
+                    <CloudUpload className="h-5 w-5" />
+                    Upload Media / Documents
+                  </span>
+                </Button>
+                <input
+                  onChange={(e) => {
+                    const file = (e.target as HTMLInputElement)?.files?.[0]
+                    if (file) {
+                      handleAnswerMediaUpload(question.id, file)
+                    }
+                    // Reset input value so same file can be uploaded again
+                    e.target.value = ""
+                  }}
+                  id={`dropzone-file-${question.id}`}
+                  type="file"
+                  accept="image/*,video/*,application/pdf"
+                  className="hidden"
+                />
+              </label>
+            )}
+          </>
         )
 
       default: {
@@ -560,6 +775,8 @@ export default function UpdateInspection() {
                   const hasNote =
                     visibleNotes[question.id] || !!answers[question.id]?.note
 
+                  const hasMediaFiles = answers[question.id]?.mediaFiles
+
                   return (
                     <Card key={question.id} className="p-6">
                       <div className="mb-4 flex items-start justify-between">
@@ -586,6 +803,27 @@ export default function UpdateInspection() {
                         {renderQuestionInput(question)}
                       </div>
 
+                      {hasMediaFiles && (
+                        <div className="flex items-center gap-5">
+                          {hasMediaFiles.map((mediaFile: any, idx: number) => (
+                            <div key={idx} className="relative">
+                              <span
+                                onClick={() =>
+                                  handleRemoveMediaFile(question.id, idx)
+                                }
+                                className="absolute -top-2 -right-2 cursor-pointer rounded-full bg-amber-100 p-1 text-red-500"
+                              >
+                                <Trash className="size-4" />
+                              </span>
+                              <img
+                                className="h-12 w-12"
+                                src={mediaFile.url}
+                                alt=""
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {hasNote && (
                         <div className="mt-4">
                           <p className="mb-2 text-sm font-medium">Note</p>
@@ -612,16 +850,39 @@ export default function UpdateInspection() {
                           <FileText className="mr-2 h-4 w-4" />
                           {hasNote ? "Hide Note" : "Add Note"}
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            toast.info("Media upload feature coming soon")
-                          }}
-                        >
-                          <CloudUpload className="mr-2 h-4 w-4" />
-                          Add Media
-                        </Button>
+
+                        {externalMediaUploading == question.id ? (
+                          <p className="flex items-center gap-1 text-xs text-yellow-600">
+                            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-yellow-600 border-t-transparent"></span>
+                            Uploading...
+                          </p>
+                        ) : (
+                          <label
+                            htmlFor={`update-external-media-${question.id}`}
+                          >
+                            <Button asChild variant="outline" size="sm">
+                              <span>
+                                <CloudUpload className="mr-2 h-4 w-4" />
+                                Add Media
+                              </span>
+                            </Button>
+                            <input
+                              onChange={(e) => {
+                                const files = (e.target as HTMLInputElement)
+                                  ?.files
+                                if (files) {
+                                  handleExternalMediaUpload(question.id, files)
+                                }
+                                e.target.value = ""
+                              }}
+                              id={`update-external-media-${question.id}`}
+                              type="file"
+                              multiple
+                              accept="image/*,video/*,application/pdf"
+                              className="hidden"
+                            />
+                          </label>
+                        )}
                       </div>
                     </Card>
                   )
