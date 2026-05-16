@@ -30,6 +30,7 @@ import PrivacyPolicy from "@/pages/policy/PrivacyPolicy"
 import TermsAndConditions from "@/pages/policy/Terms"
 import { createBrowserRouter } from "react-router"
 import ProtectedRoute from "./ProtectedRoute"
+import UpdateInspection from "@/dashboard/organization/inspection/UpdateInspection"
 
 export const mainRoute = createBrowserRouter([
   // common routes
@@ -121,6 +122,10 @@ export const mainRoute = createBrowserRouter([
       {
         path: "audit/inspection/create",
         element: <CreateNewInspection />,
+      },
+      {
+        path: "audit/inspection/update/:id",
+        element: <UpdateInspection />,
       },
       {
         path: "audit/inspections/report/:id",

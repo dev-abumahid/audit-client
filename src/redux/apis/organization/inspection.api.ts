@@ -31,6 +31,22 @@ const inspectionApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["INSPECTION"],
     }),
+    updateInspection: builder.mutation({
+      query: ({ data, id }) => ({
+        url: `/inspection/${id}`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["INSPECTION"],
+    }),
+    updateInspectionQuestionAnswer: builder.mutation({
+      query: ({ data, id }) => ({
+        url: `/inspection/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["INSPECTION"],
+    }),
   }),
 })
 
@@ -39,4 +55,6 @@ export const {
   useDeleteInspectionMutation,
   useGetSingleInspectionQuery,
   useCreateNewInspectionMutation,
+  useUpdateInspectionMutation,
+  useUpdateInspectionQuestionAnswerMutation
 } = inspectionApi

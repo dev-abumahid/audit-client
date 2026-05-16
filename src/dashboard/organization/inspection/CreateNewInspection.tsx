@@ -38,6 +38,7 @@ export default function CreateNewInspection() {
     useCreateNewInspectionMutation()
 
   const template = templateData?.data
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const pages = template?.pages || []
 
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
@@ -68,7 +69,6 @@ export default function CreateNewInspection() {
       })
     })
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAnswers(initial)
     initialized.current = true
   }, [pages])
@@ -148,12 +148,11 @@ export default function CreateNewInspection() {
     )
 
     const payload = { templateId, siteId, questionAnswers }
-    console.log("Final Payload:", payload)
 
     try {
       await createInspection(payload).unwrap()
       toast.success("Inspection submitted successfully!")
-      navigate("/dashboard/inspections")
+      navigate("/organization/audit/inspections")
     } catch (error: any) {
       toast.error(error?.data?.message || "Failed to submit inspection")
     }

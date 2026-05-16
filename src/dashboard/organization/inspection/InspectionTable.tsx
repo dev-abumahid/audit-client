@@ -78,7 +78,7 @@ const InspectionTable = () => {
   }
 
   const handleEdit = (inspectionId: string) => {
-    navigate(`/dashboard/inspection-edit/${inspectionId}`)
+    navigate(`/organization/audit/inspection/update/${inspectionId}`)
   }
 
   const handleDelete = async (id: string) => {
