@@ -9,11 +9,19 @@ const recommendationApi = baseApi.injectEndpoints({
       }),
       providesTags: ["RECOMMENDATION"],
     }),
-    updateRecommendationById: builder.mutation({
-      query: ({ body, id }) => ({
-        url: `/recommendation/${id}`,
+    updateRecommendationQuestionById: builder.mutation({
+      query: ({ data, id }) => ({
+        url: `/recommendation/update-question/${id}`,
         method: "PATCH",
-        body,
+        body: data,
+      }),
+      invalidatesTags: ["RECOMMENDATION"],
+    }),
+    updateRecommendationSummary: builder.mutation({
+      query: ({ data, id }) => ({
+        url: `/recommendation/update-summary/${id}`,
+        method: "PATCH",
+        body: data,
       }),
       invalidatesTags: ["RECOMMENDATION"],
     }),
@@ -22,5 +30,6 @@ const recommendationApi = baseApi.injectEndpoints({
 
 export const {
   useGetRecommendationByInspectionIdQuery,
-  useUpdateRecommendationByIdMutation,
+  useUpdateRecommendationQuestionByIdMutation,
+  useUpdateRecommendationSummaryMutation,
 } = recommendationApi

@@ -3,19 +3,19 @@ import { Button } from "@/components/ui/button"
 import { useGenerateRecommendationFromAiMutation } from "@/redux/apis/organization/ai.api"
 import {
   useGetRecommendationByInspectionIdQuery,
-  useUpdateRecommendationByIdMutation,
+  useUpdateRecommendationQuestionByIdMutation,
+  useUpdateRecommendationSummaryMutation,
 } from "@/redux/apis/organization/recommendation.api"
 import { debounce } from "lodash"
 import {
   AlertCircle,
-  AlertTriangle,
   CheckCircle,
   CopyCheck,
   FileText,
   Sparkles,
   Star,
 } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Controller, useFieldArray, useForm } from "react-hook-form"
 
 interface ResultItem {
@@ -23,6 +23,7 @@ interface ResultItem {
   recommendation: string
   question?: string
   standard: string
+  id?: string
 }
 
 interface EditFormData {
@@ -43,10 +44,25 @@ export default function ViewAndEditRecommendation({
   }>({ type: null, message: "" })
   const [isGenerating, setIsGenerating] = useState(false)
 
+  // Refs to track previous values for each question
+  const previousQuestionsRef = useRef<ResultItem[]>([])
+  const previousSummaryRef = useRef<string>("")
+
+  // Refs for debounced functions
+  const autoSaveSingleQuestionRef = useRef<any>(null)
+  const autoSaveSummaryRef = useRef<any>(null)
+
+  // Track which question is being saved
+  const [savingQuestionIndex, setSavingQuestionIndex] = useState<number | null>(
+    null
+  )
+
   // RTQ State
   const { data, isLoading } =
     useGetRecommendationByInspectionIdQuery(inspectionId)
-  const [updateRecommendation] = useUpdateRecommendationByIdMutation()
+  const [updateRecommendationQuestion] =
+    useUpdateRecommendationQuestionByIdMutation()
+  const [updateRecommendationSummary] = useUpdateRecommendationSummaryMutation()
   const [generateRecommendation] = useGenerateRecommendationFromAiMutation()
 
   // Local variable
@@ -54,12 +70,7 @@ export default function ViewAndEditRecommendation({
   const hasRecommendation = !!recommendation?.questions?.length
 
   // Hook Form
-  const {
-    control,
-    reset,
-    watch,
-    formState: { isDirty },
-  } = useForm<EditFormData>({
+  const { control, reset, watch } = useForm<EditFormData>({
     defaultValues: { questions: [], summary: "" },
   })
 
@@ -68,63 +79,190 @@ export default function ViewAndEditRecommendation({
   // Watch for form changes
   const formValues = watch()
 
-  // Auto-save function
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const autoSave = useCallback(
-    debounce(async (formData: EditFormData) => {
+  // Function to check if a specific question has changed
+  const hasQuestionChanged = (
+    currentQuestion: ResultItem,
+    previousQuestion: ResultItem
+  ): boolean => {
+    // Check if previousQuestion exists
+    if (!previousQuestion) return true
+
+    return (
+      currentQuestion.observation !== previousQuestion.observation ||
+      currentQuestion.recommendation !== previousQuestion.recommendation ||
+      currentQuestion.standard !== previousQuestion.standard
+    )
+  }
+
+  // Save function for a single question
+  const saveSingleQuestion = useCallback(
+    async (index: number, questionData: ResultItem) => {
       if (!recommendation?.id || !hasRecommendation) return
 
-      setSaveStatus({ type: "saving", message: "Saving changes..." })
-
-      const payload = {
-        questions: formData.questions.map((item) => ({
-          question: item.question,
-          observation: item.observation || "",
-          standard: item.standard || "",
-          recommendation: item.recommendation || "",
-        })),
-        summary: formData.summary,
-      }
-
       try {
-        await updateRecommendation({
+        setSavingQuestionIndex(index)
+        setSaveStatus({
+          type: "saving",
+          message: `Saving question ${index + 1}...`,
+        })
+
+        // Call API with single question data
+        await updateRecommendationQuestion({
           id: recommendation.id,
-          data: payload,
+          data: {
+            observation: questionData.observation || "",
+            standard: questionData.standard || "",
+            recommendation: questionData.recommendation || "",
+          },
         }).unwrap()
-        reset(formData)
+
+        // Update previous value for this question
+        if (previousQuestionsRef.current[index]) {
+          previousQuestionsRef.current[index] = { ...questionData }
+        }
+
         setSaveStatus({
           type: "success",
-          message: "Changes saved successfully!",
+          message: `Question ${index + 1} saved successfully!`,
         })
         setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
       } catch (error: any) {
+        console.error("Save question error:", error)
         setSaveStatus({
           type: "error",
-          message: error?.data?.message || "Failed to save changes",
+          message:
+            error?.data?.message || `Failed to save question ${index + 1}`,
+        })
+        setTimeout(() => setSaveStatus({ type: null, message: "" }), 3000)
+      } finally {
+        setSavingQuestionIndex(null)
+      }
+    },
+    [recommendation?.id, hasRecommendation, updateRecommendationQuestion]
+  )
+
+  // Create debounced version of save function
+  useEffect(() => {
+    autoSaveSingleQuestionRef.current = debounce(
+      (index: number, questionData: ResultItem) => {
+        saveSingleQuestion(index, questionData)
+      },
+      1000
+    )
+
+    return () => {
+      if (autoSaveSingleQuestionRef.current) {
+        autoSaveSingleQuestionRef.current.cancel()
+      }
+    }
+  }, [saveSingleQuestion])
+
+  // Save function for summary
+  const saveSummary = useCallback(
+    async (summary: string) => {
+      if (!recommendation?.id || !hasRecommendation) return
+
+      try {
+        setSaveStatus({ type: "saving", message: "Saving summary changes..." })
+
+        await updateRecommendationSummary({
+          id: recommendation.id,
+          data: { summary },
+        }).unwrap()
+
+        previousSummaryRef.current = summary
+
+        setSaveStatus({
+          type: "success",
+          message: "Summary saved successfully!",
+        })
+        setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
+      } catch (error: any) {
+        console.error("Save summary error:", error)
+        setSaveStatus({
+          type: "error",
+          message: error?.data?.message || "Failed to save summary",
         })
         setTimeout(() => setSaveStatus({ type: null, message: "" }), 3000)
       }
-    }, 1000),
-    [recommendation?.id, hasRecommendation, updateRecommendation, reset]
+    },
+    [recommendation?.id, hasRecommendation, updateRecommendationSummary]
   )
 
-  // Trigger auto-save when form changes
+  // Create debounced version of save summary
   useEffect(() => {
-    if (isDirty && hasRecommendation && formValues) {
-      autoSave(formValues)
-    }
+    autoSaveSummaryRef.current = debounce((summary: string) => {
+      saveSummary(summary)
+    }, 1000)
+
     return () => {
-      autoSave.cancel()
+      if (autoSaveSummaryRef.current) {
+        autoSaveSummaryRef.current.cancel()
+      }
     }
-  }, [formValues, isDirty, hasRecommendation, autoSave])
+  }, [saveSummary])
+
+  // Monitor each question individually with a different approach
+  useEffect(() => {
+    if (
+      !hasRecommendation ||
+      !formValues.questions ||
+      formValues.questions.length === 0
+    )
+      return
+
+    const currentQuestions = formValues.questions
+    const previousQuestions = previousQuestionsRef.current
+
+    // Check each question for changes
+    currentQuestions.forEach((currentQuestion, index) => {
+      const previousQuestion = previousQuestions[index]
+
+      if (hasQuestionChanged(currentQuestion, previousQuestion)) {
+        console.log(`Question ${index + 1} changed, saving...`, {
+          current: currentQuestion,
+          previous: previousQuestion,
+        })
+
+        // Call debounced save
+        if (autoSaveSingleQuestionRef.current) {
+          autoSaveSingleQuestionRef.current(index, currentQuestion)
+        }
+      }
+    })
+  }, [formValues.questions, hasRecommendation])
+
+  // Monitor summary changes
+  useEffect(() => {
+    if (!hasRecommendation || formValues.summary === undefined) return
+
+    const currentSummary = formValues.summary
+    const previousSummary = previousSummaryRef.current
+
+    if (currentSummary !== previousSummary) {
+      console.log("Summary changed, saving...")
+      if (autoSaveSummaryRef.current) {
+        autoSaveSummaryRef.current(currentSummary)
+      }
+    }
+  }, [formValues.summary, hasRecommendation])
 
   // Reset form when data loads
   useEffect(() => {
     if (data?.data && hasRecommendation) {
+      const questions = data.data.questions || []
+      const summary = data.data.summary || ""
+
+      console.log("Loading data:", { questions, summary })
+
       reset({
-        questions: data.data.questions || [],
-        summary: data.data.summary || "",
+        questions: questions,
+        summary: summary,
       })
+
+      // Initialize refs with initial values - deep clone to avoid reference issues
+      previousQuestionsRef.current = questions.map((q: any) => ({ ...q }))
+      previousSummaryRef.current = summary
     }
   }, [data, reset, hasRecommendation])
 
@@ -133,7 +271,6 @@ export default function ViewAndEditRecommendation({
     setSaveStatus({ type: "saving", message: "Generating recommendation..." })
 
     try {
-      // Call your API to generate recommendation
       const response = await generateRecommendation({ inspectionId }).unwrap()
       if (response.success) {
         setSaveStatus({
@@ -153,7 +290,7 @@ export default function ViewAndEditRecommendation({
     }
   }
 
-  if (isLoading) return
+  if (isLoading) return null
 
   // Show generate button if no recommendation exists
   if (!hasRecommendation) {
@@ -260,13 +397,6 @@ export default function ViewAndEditRecommendation({
                   </span>
                 </div>
               )}
-
-              {isDirty && !saveStatus.type && (
-                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-amber-700">
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
-                  <span className="text-sm font-medium">Auto-saving...</span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -279,9 +409,7 @@ export default function ViewAndEditRecommendation({
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Total Findings</p>
-                  <p className="text-xl font-semibold ">
-                    {totalFindings}
-                  </p>
+                  <p className="text-xl font-semibold">{totalFindings}</p>
                 </div>
               </div>
             </div>
@@ -293,7 +421,7 @@ export default function ViewAndEditRecommendation({
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Created</p>
-                  <p className="text-sm font-medium ">
+                  <p className="text-sm font-medium">
                     {new Date(recommendation.createdAt).toLocaleDateString(
                       "en-US",
                       {
@@ -333,8 +461,14 @@ export default function ViewAndEditRecommendation({
                 control={control}
                 name={`questions.${index}`}
                 render={({ field: { value, onChange } }) => {
+                  const isSavingThisQuestion = savingQuestionIndex === index
+
                   return (
-                    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:shadow-md">
+                    <div
+                      className={`overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:shadow-md ${
+                        isSavingThisQuestion ? "border-blue-400 shadow-md" : ""
+                      }`}
+                    >
                       {/* Card Header */}
                       <div className="w-full cursor-text border-b border-[#6EC075]/20 bg-[#6EC075]/5 px-6 py-4 transition-colors hover:bg-[#6EC075]/10">
                         <div className="flex items-center justify-between">
@@ -354,10 +488,16 @@ export default function ViewAndEditRecommendation({
                                   })
                                 }
                                 type="text"
-                                className="w-full border-none bg-transparent text-lg font-semibold  outline-none focus:ring-0"
-                                placeholder="Enter question..."
+                                className="w-full border-none bg-transparent text-lg font-semibold outline-none focus:ring-0"
+                                disabled
                               />
                             </div>
+                            {isSavingThisQuestion && (
+                              <div className="flex items-center gap-1 text-xs text-blue-600">
+                                <div className="h-3 w-3 animate-spin rounded-full border-b-2 border-blue-600"></div>
+                                <span>Saving...</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -429,7 +569,7 @@ export default function ViewAndEditRecommendation({
                                   standard: e.target.value,
                                 })
                               }
-                              className="w-full border-none bg-transparent leading-relaxed  outline-none focus:ring-0"
+                              className="w-full border-none bg-transparent leading-relaxed outline-none focus:ring-0"
                               placeholder="Enter standard reference..."
                             />
                           </div>
@@ -488,10 +628,12 @@ export default function ViewAndEditRecommendation({
                         Auto-Save Features
                       </h4>
                       <ul className="space-y-1 text-xs text-blue-700">
-                        <li>✓ Changes are saved automatically as you type</li>
-                        <li>✓ No need to click save button</li>
-                        <li>✓ Status indicator shows save progress</li>
-                        <li>✓ All changes are synced in real-time</li>
+                        <li>✓ Each question saves independently</li>
+                        <li>✓ Only changed questions trigger API calls</li>
+                        <li>✓ Summary saves separately</li>
+                        <li>
+                          ✓ Visual indicator shows which question is saving
+                        </li>
                       </ul>
                     </div>
                   </div>
