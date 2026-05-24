@@ -16,7 +16,7 @@ import {
   Star,
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Controller, useFieldArray, useForm } from "react-hook-form"
+import { useForm } from "react-hook-form"
 
 interface ResultItem {
   observation: string
@@ -27,7 +27,6 @@ interface ResultItem {
 }
 
 interface EditFormData {
-  questions: ResultItem[]
   summary: string
 }
 
@@ -36,247 +35,195 @@ export default function ViewAndEditRecommendation({
 }: {
   inspectionId: string
 }) {
-  console.log(inspectionId)
-  // State
   const [saveStatus, setSaveStatus] = useState<{
     type: "success" | "error" | "saving" | null
     message: string
   }>({ type: null, message: "" })
   const [isGenerating, setIsGenerating] = useState(false)
+  const [questions, setQuestions] = useState<ResultItem[]>([])
 
-  // Refs to track previous values for each question
-  const previousQuestionsRef = useRef<ResultItem[]>([])
-  const previousSummaryRef = useRef<string>("")
+  // Fix #3: ID-based debounce ref (not index-based)
+  const debouncedSaveQuestionRef = useRef<Record<string, any>>({})
+  const debouncedSaveSummaryRef = useRef<any>(null)
 
-  // Refs for debounced functions
-  const autoSaveSingleQuestionRef = useRef<
-    Record<number, ReturnType<typeof debounce>>
-  >({})
-  const autoSaveSummaryRef = useRef<any>(null)
+  // Fix #4: Prevent duplicate API calls
+  const lastSavedQuestionRef = useRef<Record<string, string>>({})
+  const lastSavedSummaryRef = useRef<string>("")
 
-  // Track which question is being saved
-  const [savingQuestionIndex, setSavingQuestionIndex] = useState<number | null>(
-    null
-  )
-
-  // RTQ State
-  const { data, isLoading } =
+  // APIs
+  const { data, isLoading, refetch } =
     useGetRecommendationByInspectionIdQuery(inspectionId)
   const [updateRecommendationQuestion] =
     useUpdateRecommendationQuestionByIdMutation()
   const [updateRecommendationSummary] = useUpdateRecommendationSummaryMutation()
   const [generateRecommendation] = useGenerateRecommendationFromAiMutation()
 
-  // Local variable
+  const { register, watch, setValue } = useForm<EditFormData>({
+    defaultValues: { summary: "" },
+  })
+
+  const summaryValue = watch("summary")
   const recommendation = data?.data
   const hasRecommendation = !!recommendation?.questions?.length
 
-  // Hook Form
-  const { control, reset, watch } = useForm<EditFormData>({
-    defaultValues: { questions: [], summary: "" },
-  })
-
-  const { fields } = useFieldArray({ control, name: "questions" })
-
-  // Watch for form changes
-  const formValues = watch()
-
-  // Function to check if a specific question has changed
-  const hasQuestionChanged = (
-    currentQuestion: ResultItem,
-    previousQuestion: ResultItem
-  ): boolean => {
-    // Check if previousQuestion exists
-    if (!previousQuestion) return true
-
-    return (
-      currentQuestion.observation !== previousQuestion.observation ||
-      currentQuestion.recommendation !== previousQuestion.recommendation ||
-      currentQuestion.standard !== previousQuestion.standard
-    )
-  }
-
-  // Save function for a single question
-  const saveSingleQuestion = useCallback(
-    async (index: number, questionData: ResultItem) => {
-      console.log("API HIT", index, questionData)
-      if (!recommendation?.id || !hasRecommendation) return
-
-      try {
-        setSavingQuestionIndex(index)
-        setSaveStatus({
-          type: "saving",
-          message: `Saving question ${index + 1}...`,
-        })
-
-        // Call API with single question data
-        await updateRecommendationQuestion({
-          id: questionData.id,
-          data: {
-            observation: questionData.observation || "",
-            standard: questionData.standard || "",
-            recommendation: questionData.recommendation || "",
-          },
-        }).unwrap()
-
-        // Update previous value for this question
-        if (previousQuestionsRef.current[index]) {
-          previousQuestionsRef.current[index] = { ...questionData }
-        }
-
-        setSaveStatus({
-          type: "success",
-          message: `Question ${index + 1} saved successfully!`,
-        })
-        setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
-      } catch (error: any) {
-        console.error("Save question error:", error)
-        setSaveStatus({
-          type: "error",
-          message:
-            error?.data?.message || `Failed to save question ${index + 1}`,
-        })
-        setTimeout(() => setSaveStatus({ type: null, message: "" }), 3000)
-      } finally {
-        setSavingQuestionIndex(null)
-      }
-    },
-    [recommendation?.id, hasRecommendation, updateRecommendationQuestion]
-  )
-
-  // Create debounced version of save function
+  // Load data - reset everything when new data comes
   useEffect(() => {
-    fields.forEach((_, index) => {
-      autoSaveSingleQuestionRef.current[index] =
-        autoSaveSingleQuestionRef.current[index] ||
-        debounce((questionData: ResultItem) => {
-          saveSingleQuestion(index, questionData)
-        }, 1000)
-    })
-  }, [fields, fields.length, saveSingleQuestion])
+    if (recommendation) {
+      setQuestions(recommendation.questions || [])
+      setValue("summary", recommendation.summary || "")
 
-  // Save function for summary
-  const saveSummary = useCallback(
-    async (summary: string) => {
-      if (!recommendation?.id || !hasRecommendation) return
+      // Reset last saved refs on new data load
+      lastSavedSummaryRef.current = recommendation.summary || ""
+      lastSavedQuestionRef.current = {}
+      recommendation.questions?.forEach((q: any) => {
+        if (q.id) {
+          lastSavedQuestionRef.current[q.id] = JSON.stringify({
+            observation: q.observation,
+            recommendation: q.recommendation,
+            standard: q.standard,
+          })
+        }
+      })
+    }
+  }, [recommendation, setValue])
+
+  // Fix #1 & #2: Stable summary debounce - creates ONLY ONCE
+  useEffect(() => {
+    if (!recommendation?.id) return
+
+    // Create debounced function only once per recommendation id
+    const fn = debounce(async (summary: string) => {
+      // Prevent duplicate API calls
+      if (lastSavedSummaryRef.current === summary) {
+        console.log("Summary unchanged, skipping save")
+        return
+      }
 
       try {
-        setSaveStatus({ type: "saving", message: "Saving summary changes..." })
+        setSaveStatus({ type: "saving", message: "Saving summary..." })
 
         await updateRecommendationSummary({
           id: recommendation.id,
           data: { summary },
         }).unwrap()
 
-        previousSummaryRef.current = summary
-
-        setSaveStatus({
-          type: "success",
-          message: "Summary saved successfully!",
-        })
-        setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
+        lastSavedSummaryRef.current = summary
+        setSaveStatus({ type: "success", message: "Summary saved" })
+        setTimeout(() => setSaveStatus({ type: null, message: "" }), 1500)
       } catch (error: any) {
-        console.error("Save summary error:", error)
-        setSaveStatus({
-          type: "error",
-          message: error?.data?.message || "Failed to save summary",
-        })
-        setTimeout(() => setSaveStatus({ type: null, message: "" }), 3000)
+        console.error("Summary save error:", error)
+        setSaveStatus({ type: "error", message: "Failed to save summary" })
+        setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
       }
-    },
-    [recommendation?.id, hasRecommendation, updateRecommendationSummary]
-  )
+    }, 1500)
 
-  // Create debounced version of save summary
-  useEffect(() => {
-    autoSaveSummaryRef.current = debounce((summary: string) => {
-      saveSummary(summary)
-    }, 1000)
+    debouncedSaveSummaryRef.current = fn
 
     return () => {
-      if (autoSaveSummaryRef.current) {
-        autoSaveSummaryRef.current.cancel()
-      }
+      fn.cancel()
     }
-  }, [saveSummary])
+  }, [recommendation?.id, updateRecommendationSummary])
 
-  // Monitor each question individually with a different approach
+  // Stable summary change detection
+  const prevSummaryRef = useRef<string>("")
   useEffect(() => {
-    if (!hasRecommendation) return
+    if (!recommendation?.id) return
 
-    formValues.questions?.forEach((currentQuestion, index) => {
-      const previousQuestion = previousQuestionsRef.current[index]
+    // Only trigger if actually changed by user
+    if (summaryValue === prevSummaryRef.current) return
 
-      const changed = hasQuestionChanged(currentQuestion, previousQuestion)
+    prevSummaryRef.current = summaryValue
+    debouncedSaveSummaryRef.current?.(summaryValue)
+  }, [summaryValue, recommendation?.id])
 
-      console.log({
-        index,
-        changed,
-        current: currentQuestion,
-        previous: previousQuestion,
-      })
+  // Fix #3: Create debounced save for each question by ID
+  const setupQuestionDebounce = useCallback(
+    (questionId: string) => {
+      if (debouncedSaveQuestionRef.current[questionId]) return
 
-      if (changed) {
-        console.log("calling debounce")
+      debouncedSaveQuestionRef.current[questionId] = debounce(
+        async (questionData: ResultItem) => {
+          if (!questionData.id) return
 
-        autoSaveSingleQuestionRef.current[index]?.(currentQuestion)
+          // Prevent duplicate API calls
+          const currentState = JSON.stringify({
+            observation: questionData.observation,
+            recommendation: questionData.recommendation,
+            standard: questionData.standard,
+          })
+
+          if (lastSavedQuestionRef.current[questionData.id] === currentState) {
+            console.log("Question unchanged, skipping save")
+            return
+          }
+
+          try {
+            await updateRecommendationQuestion({
+              id: questionData.id,
+              data: {
+                observation: questionData.observation || "",
+                standard: questionData.standard || "",
+                recommendation: questionData.recommendation || "",
+              },
+            }).unwrap()
+
+            lastSavedQuestionRef.current[questionData.id] = currentState
+            setSaveStatus({ type: "success", message: "Question saved" })
+            setTimeout(() => setSaveStatus({ type: null, message: "" }), 1500)
+          } catch (error: any) {
+            console.error("Save error:", error)
+            setSaveStatus({
+              type: "error",
+              message: error?.data?.message || "Save failed",
+            })
+            setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
+          }
+        },
+        1000
+      )
+    },
+    [updateRecommendationQuestion]
+  )
+
+  // 🔥 FIX #2: ID-based question change handler (NOT index-based)
+  const handleQuestionChange = useCallback(
+    (questionId: string, field: keyof ResultItem, value: string) => {
+      // Update state using ID (not index)
+      setQuestions((prev) =>
+        prev.map((q) => (q.id === questionId ? { ...q, [field]: value } : q))
+      )
+
+      // Setup and use ID-based debounce
+      if (questionId) {
+        setupQuestionDebounce(questionId)
+
+        // Get the updated question data
+        const updatedQuestion = questions.find((q) => q.id === questionId)
+        if (updatedQuestion) {
+          const updatedData = { ...updatedQuestion, [field]: value }
+          debouncedSaveQuestionRef.current[questionId]?.(updatedData)
+        }
       }
-    })
-  }, [formValues.questions, hasRecommendation])
-
-  // Monitor summary changes
-  useEffect(() => {
-    if (!hasRecommendation || formValues.summary === undefined) return
-
-    const currentSummary = formValues.summary
-    const previousSummary = previousSummaryRef.current
-
-    if (currentSummary !== previousSummary) {
-      console.log("Summary changed, saving...")
-      if (autoSaveSummaryRef.current) {
-        autoSaveSummaryRef.current(currentSummary)
-      }
-    }
-  }, [formValues.summary, hasRecommendation])
-
-  // Reset form when data loads
-  useEffect(() => {
-    if (data?.data && hasRecommendation) {
-      const questions = data.data.questions || []
-      const summary = data.data.summary || ""
-
-      console.log("Loading data:", { questions, summary })
-
-      reset({
-        questions: questions,
-        summary: summary,
-      })
-
-      // Initialize refs with initial values - deep clone to avoid reference issues
-      previousQuestionsRef.current = questions.map((q: any) => ({
-        ...q,
-      }))
-      previousSummaryRef.current = summary
-    }
-  }, [data, reset, hasRecommendation])
+    },
+    [questions, setupQuestionDebounce]
+  )
 
   const handleGenerateRecommendation = async () => {
     setIsGenerating(true)
     setSaveStatus({ type: "saving", message: "Generating recommendation..." })
 
     try {
-      const response = await generateRecommendation({ inspectionId }).unwrap()
-      if (response.success) {
-        setSaveStatus({
-          type: "success",
-          message: "Recommendation generated successfully!",
-        })
-        setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
-      }
+      await generateRecommendation({ inspectionId }).unwrap()
+      await refetch()
+      setSaveStatus({
+        type: "success",
+        message: "Recommendation generated successfully!",
+      })
+      setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
     } catch (error: any) {
       setSaveStatus({
         type: "error",
-        message: error?.data?.message || "Failed to generate recommendation",
+        message: error?.data?.message || "Failed to generate",
       })
       setTimeout(() => setSaveStatus({ type: null, message: "" }), 3000)
     } finally {
@@ -284,9 +231,19 @@ export default function ViewAndEditRecommendation({
     }
   }
 
+  // Cleanup all debounces on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(debouncedSaveQuestionRef.current).forEach((debounced) => {
+        debounced?.cancel()
+      })
+      debouncedSaveSummaryRef.current?.cancel()
+    }
+  }, [])
+
   if (isLoading) return null
 
-  // Show generate button if no recommendation exists
+  // Generate button view
   if (!hasRecommendation) {
     return (
       <div className="min-h-screen rounded-md">
@@ -324,74 +281,55 @@ export default function ViewAndEditRecommendation({
                 </Button>
               </div>
             </div>
-
-            <div className="p-6 md:p-8">
-              <div className="rounded-lg border border-secondary bg-secondary p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="mt-0.5 h-5 w-5 text-blue-600" />
-                  <div>
-                    <h4 className="mb-1 font-medium text-blue-800">
-                      What happens next?
-                    </h4>
-                    <ul className="space-y-1 text-sm text-blue-700">
-                      <li>• AI will analyze all inspection findings</li>
-                      <li>• Generate observations and recommendations</li>
-                      <li>• Reference applicable standards</li>
-                      <li>• Create an executive summary</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
     )
   }
 
-  const totalFindings = recommendation?.questions?.length || 0
+  // Validate all questions have IDs
+  const hasValidIds = questions.every((q) => q.id)
+  if (!hasValidIds) {
+    console.error("Some questions are missing IDs:", questions)
+  }
 
   return (
     <div className="min-h-screen rounded-md p-4 md:p-6 lg:p-8">
       <div className="max-w-8xl mx-auto">
-        {/* Header */}
+        {/* Header with Status */}
         <div className="mb-6 md:mb-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold md:text-3xl">
-                View and Edit Recommendation
-              </h1>
-            </div>
+            <h1 className="text-2xl font-bold md:text-3xl">
+              View and Edit Recommendation
+            </h1>
 
-            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-              {/* Save Status Indicator */}
-              {saveStatus.type === "saving" && (
-                <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-blue-700">
-                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-blue-700"></div>
-                  <span className="text-sm font-medium">
-                    {saveStatus.message}
-                  </span>
-                </div>
-              )}
-
-              {saveStatus.type === "success" && (
-                <div className="flex animate-in items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-green-700 fade-in slide-in-from-top-2">
-                  <CheckCircle className="h-4 w-4 shrink-0" />
-                  <span className="text-sm font-medium">
-                    {saveStatus.message}
-                  </span>
-                </div>
-              )}
-
-              {saveStatus.type === "error" && (
-                <div className="flex animate-in items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-red-700 fade-in slide-in-from-top-2">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span className="text-sm font-medium">
-                    {saveStatus.message}
-                  </span>
-                </div>
-              )}
-            </div>
+            {/* Save Status */}
+            {(saveStatus.type === "saving" ||
+              saveStatus.type === "success" ||
+              saveStatus.type === "error") && (
+              <div
+                className={`flex items-center gap-2 rounded-lg px-4 py-2 ${
+                  saveStatus.type === "saving"
+                    ? "border border-blue-200 bg-blue-50 text-blue-700"
+                    : saveStatus.type === "success"
+                      ? "border border-green-200 bg-green-50 text-green-700"
+                      : "border border-red-200 bg-red-50 text-red-700"
+                }`}
+              >
+                {saveStatus.type === "saving" && (
+                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current"></div>
+                )}
+                {saveStatus.type === "success" && (
+                  <CheckCircle className="h-4 w-4" />
+                )}
+                {saveStatus.type === "error" && (
+                  <AlertCircle className="h-4 w-4" />
+                )}
+                <span className="text-sm font-medium">
+                  {saveStatus.message}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Stats */}
@@ -403,7 +341,7 @@ export default function ViewAndEditRecommendation({
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Total Findings</p>
-                  <p className="text-xl font-semibold">{totalFindings}</p>
+                  <p className="text-xl font-semibold">{questions.length}</p>
                 </div>
               </div>
             </div>
@@ -435,10 +373,8 @@ export default function ViewAndEditRecommendation({
                   <AlertCircle className="h-5 w-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <p className="text-sm font-medium text-green-600">
-                    Auto-save enabled
-                  </p>
+                  <p className="text-sm text-gray-500">Auto-Save</p>
+                  <p className="text-sm font-medium text-green-600">Active</p>
                 </div>
               </div>
             </div>
@@ -447,191 +383,139 @@ export default function ViewAndEditRecommendation({
 
         {/* Main Content */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Left Column - All findings directly visible */}
+          {/* Questions List */}
           <div className="space-y-4 lg:col-span-2">
-            {fields.map((field, index) => (
-              <Controller
-                key={field.id}
-                control={control}
-                name={`questions.${index}`}
-                render={({ field: { value, onChange } }) => {
-                  const isSavingThisQuestion = savingQuestionIndex === index
-
-                  return (
-                    <div
-                      className={`overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:shadow-md ${
-                        isSavingThisQuestion ? "border-blue-400 shadow-md" : ""
-                      }`}
-                    >
-                      {/* Card Header */}
-                      <div className="w-full cursor-text border-b border-[#6EC075]/20 bg-[#6EC075]/5 px-6 py-4 transition-colors hover:bg-[#6EC075]/10">
-                        <div className="flex items-center justify-between">
-                          <div className="flex w-full items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
-                              <span className="text-sm font-bold text-white">
-                                {index + 1}
-                              </span>
-                            </div>
-                            <div className="flex-1">
-                              <input
-                                value={value.question || ""}
-                                onChange={(e) =>
-                                  onChange({
-                                    ...value,
-                                    question: e.target.value,
-                                  })
-                                }
-                                type="text"
-                                className="w-full border-none bg-transparent text-lg font-semibold outline-none focus:ring-0"
-                                disabled
-                              />
-                            </div>
-                            {isSavingThisQuestion && (
-                              <div className="flex items-center gap-1 text-xs text-blue-600">
-                                <div className="h-3 w-3 animate-spin rounded-full border-b-2 border-blue-600"></div>
-                                <span>Saving...</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+            {/* 🔥 FIX #1: Using stable ID as key - NEVER use index */}
+            {questions.map((question) => (
+              <div
+                key={question.id} // Using ID as stable key
+                className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all"
+              >
+                {/* Header */}
+                <div className="border-b border-[#6EC075]/20 bg-[#6EC075]/5 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex w-full items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
+                        <span className="text-sm font-bold text-white">
+                          {/* Find index for display only */}
+                          {questions.findIndex((q) => q.id === question.id) + 1}
+                        </span>
                       </div>
-
-                      <div className="space-y-4 p-4 md:p-6">
-                        {/* Observation */}
-                        <div>
-                          <div className="mb-3 flex items-center gap-2">
-                            <AlertCircle className="h-5 w-5 text-[#6EC075]" />
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-200">
-                              AI Observation
-                            </h4>
-                          </div>
-                          <div className="rounded-lg border border-[#6EC075]/20 bg-[#6EC075]/5 p-4">
-                            <textarea
-                              value={value.observation || ""}
-                              onChange={(e) =>
-                                onChange({
-                                  ...value,
-                                  observation: e.target.value,
-                                })
-                              }
-                              rows={2}
-                              className="w-full border-none bg-transparent outline-none focus:ring-0"
-                              placeholder="Enter observation..."
-                            />
-                          </div>
-                        </div>
-
-                        {/* Recommendation */}
-                        <div>
-                          <div className="mb-3 flex items-center gap-2">
-                            <CheckCircle className="h-5 w-5 text-[#6EC075]" />
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-200">
-                              AI Recommendation
-                            </h4>
-                          </div>
-                          <div className="rounded-lg border border-[#6EC075]/20 bg-[#6EC075]/5 p-4">
-                            <textarea
-                              value={value.recommendation || ""}
-                              onChange={(e) =>
-                                onChange({
-                                  ...value,
-                                  recommendation: e.target.value,
-                                })
-                              }
-                              rows={3}
-                              className="w-full border-none bg-transparent outline-none focus:ring-0"
-                              placeholder="Enter recommendation..."
-                            />
-                          </div>
-                        </div>
-
-                        {/* Standard Reference */}
-                        <div>
-                          <div className="mb-3 flex items-center gap-2">
-                            <Star className="h-5 w-5 text-[#6EC075]" />
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-200">
-                              Applicable Standard
-                            </h4>
-                          </div>
-                          <div className="rounded-lg border border-[#6EC075]/20 bg-[#6EC075]/5 p-4">
-                            <textarea
-                              value={value.standard || ""}
-                              rows={1}
-                              onChange={(e) =>
-                                onChange({
-                                  ...value,
-                                  standard: e.target.value,
-                                })
-                              }
-                              className="w-full border-none bg-transparent leading-relaxed outline-none focus:ring-0"
-                              placeholder="Enter standard reference..."
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-end px-6 pb-4">
-                        <button
-                          type="button"
-                          className="flex w-fit items-center justify-center gap-1 text-sm text-primary transition-colors hover:text-primary/80"
-                        >
-                          <CopyCheck className="w-4" /> Add To Finding
-                        </button>
-                      </div>
+                      <input
+                        value={question.question || ""}
+                        onChange={(e) =>
+                          handleQuestionChange(
+                            question.id!, // Pass ID, not index
+                            "question",
+                            e.target.value
+                          )
+                        }
+                        type="text"
+                        className="flex-1 border-none bg-transparent text-lg font-semibold outline-none focus:ring-0"
+                        disabled
+                        placeholder="Question title"
+                      />
                     </div>
-                  )
-                }}
-              />
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="space-y-4 p-4 md:p-6">
+                  {/* Observation */}
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-[#6EC075]" />
+                      <h4 className="font-semibold">AI Observation</h4>
+                    </div>
+                    <textarea
+                      value={question.observation || ""}
+                      onChange={(e) =>
+                        handleQuestionChange(
+                          question.id!,
+                          "observation",
+                          e.target.value
+                        )
+                      }
+                      rows={2}
+                      className="w-full rounded-lg border border-[#6EC075]/20 bg-[#6EC075]/5 p-4 outline-none focus:ring-2 focus:ring-[#6EC075]"
+                      placeholder="Enter observation..."
+                    />
+                  </div>
+
+                  {/* Recommendation */}
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-[#6EC075]" />
+                      <h4 className="font-semibold">AI Recommendation</h4>
+                    </div>
+                    <textarea
+                      value={question.recommendation || ""}
+                      onChange={(e) =>
+                        handleQuestionChange(
+                          question.id!,
+                          "recommendation",
+                          e.target.value
+                        )
+                      }
+                      rows={3}
+                      className="w-full rounded-lg border border-[#6EC075]/20 bg-[#6EC075]/5 p-4 outline-none focus:ring-2 focus:ring-[#6EC075]"
+                      placeholder="Enter recommendation..."
+                    />
+                  </div>
+
+                  {/* Standard */}
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <Star className="h-5 w-5 text-[#6EC075]" />
+                      <h4 className="font-semibold">Applicable Standard</h4>
+                    </div>
+                    <textarea
+                      value={question.standard || ""}
+                      onChange={(e) =>
+                        handleQuestionChange(
+                          question.id!,
+                          "standard",
+                          e.target.value
+                        )
+                      }
+                      rows={1}
+                      className="w-full rounded-lg border border-[#6EC075]/20 bg-[#6EC075]/5 p-4 outline-none focus:ring-2 focus:ring-[#6EC075]"
+                      placeholder="Enter standard reference..."
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end px-6 pb-4">
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-sm text-primary hover:text-primary/80"
+                  >
+                    <CopyCheck className="w-4" /> Add To Finding
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
 
-          {/* Right Column - Summary */}
+          {/* Summary Sidebar */}
           <div>
-            <div className="sticky top-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-gray-50 p-4 md:p-6">
-                <h2 className="text-lg font-semibold text-gray-900 md:text-xl">
+            <div className="sticky top-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+              <div className="border-b border-border p-4 md:p-6">
+                <h2 className="text-lg font-semibold md:text-xl">
                   Executive Summary
                 </h2>
                 <p className="mt-1 text-sm text-gray-600">
-                  Edits are auto-saved as you type
+                  Auto-saves as you type
                 </p>
               </div>
 
               <div className="p-4 md:p-6">
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Summary Text
-                </label>
-                <Controller
-                  control={control}
-                  name="summary"
-                  render={({ field }) => (
-                    <textarea
-                      {...field}
-                      rows={20}
-                      className="w-full resize-none rounded-lg border border-gray-300 px-3 py-3 font-mono text-sm text-gray-700 transition-all focus:border-transparent focus:ring-2 focus:ring-[#6EC075] focus:outline-none"
-                      placeholder="Enter executive summary..."
-                    />
-                  )}
+                <textarea
+                  {...register("summary")}
+                  rows={25}
+                  className="w-full resize-none rounded-lg border border-border px-3 py-3 font-mono text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-[#6EC075]"
+                  placeholder="Enter executive summary..."
                 />
-
-                <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="mt-0.5 h-5 w-5 text-blue-600" />
-                    <div>
-                      <h4 className="mb-1 text-sm font-medium text-blue-900">
-                        Auto-Save Features
-                      </h4>
-                      <ul className="space-y-1 text-xs text-blue-700">
-                        <li>✓ Each question saves independently</li>
-                        <li>✓ Only changed questions trigger API calls</li>
-                        <li>✓ Summary saves separately</li>
-                        <li>
-                          ✓ Visual indicator shows which question is saving
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
