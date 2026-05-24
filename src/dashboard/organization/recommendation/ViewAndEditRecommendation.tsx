@@ -49,7 +49,9 @@ export default function ViewAndEditRecommendation({
   const previousSummaryRef = useRef<string>("")
 
   // Refs for debounced functions
-  const autoSaveSingleQuestionRef = useRef<any>(null)
+  const autoSaveSingleQuestionRef = useRef<
+    Record<number, ReturnType<typeof debounce>>
+  >({})
   const autoSaveSummaryRef = useRef<any>(null)
 
   // Track which question is being saved
@@ -97,6 +99,7 @@ export default function ViewAndEditRecommendation({
   // Save function for a single question
   const saveSingleQuestion = useCallback(
     async (index: number, questionData: ResultItem) => {
+      console.log("API HIT", index, questionData)
       if (!recommendation?.id || !hasRecommendation) return
 
       try {
@@ -108,7 +111,7 @@ export default function ViewAndEditRecommendation({
 
         // Call API with single question data
         await updateRecommendationQuestion({
-          id: recommendation.id,
+          id: questionData.id,
           data: {
             observation: questionData.observation || "",
             standard: questionData.standard || "",
@@ -143,19 +146,14 @@ export default function ViewAndEditRecommendation({
 
   // Create debounced version of save function
   useEffect(() => {
-    autoSaveSingleQuestionRef.current = debounce(
-      (index: number, questionData: ResultItem) => {
-        saveSingleQuestion(index, questionData)
-      },
-      1000
-    )
-
-    return () => {
-      if (autoSaveSingleQuestionRef.current) {
-        autoSaveSingleQuestionRef.current.cancel()
-      }
-    }
-  }, [saveSingleQuestion])
+    fields.forEach((_, index) => {
+      autoSaveSingleQuestionRef.current[index] =
+        autoSaveSingleQuestionRef.current[index] ||
+        debounce((questionData: ResultItem) => {
+          saveSingleQuestion(index, questionData)
+        }, 1000)
+    })
+  }, [fields, fields.length, saveSingleQuestion])
 
   // Save function for summary
   const saveSummary = useCallback(
@@ -204,30 +202,24 @@ export default function ViewAndEditRecommendation({
 
   // Monitor each question individually with a different approach
   useEffect(() => {
-    if (
-      !hasRecommendation ||
-      !formValues.questions ||
-      formValues.questions.length === 0
-    )
-      return
+    if (!hasRecommendation) return
 
-    const currentQuestions = formValues.questions
-    const previousQuestions = previousQuestionsRef.current
+    formValues.questions?.forEach((currentQuestion, index) => {
+      const previousQuestion = previousQuestionsRef.current[index]
 
-    // Check each question for changes
-    currentQuestions.forEach((currentQuestion, index) => {
-      const previousQuestion = previousQuestions[index]
+      const changed = hasQuestionChanged(currentQuestion, previousQuestion)
 
-      if (hasQuestionChanged(currentQuestion, previousQuestion)) {
-        console.log(`Question ${index + 1} changed, saving...`, {
-          current: currentQuestion,
-          previous: previousQuestion,
-        })
+      console.log({
+        index,
+        changed,
+        current: currentQuestion,
+        previous: previousQuestion,
+      })
 
-        // Call debounced save
-        if (autoSaveSingleQuestionRef.current) {
-          autoSaveSingleQuestionRef.current(index, currentQuestion)
-        }
+      if (changed) {
+        console.log("calling debounce")
+
+        autoSaveSingleQuestionRef.current[index]?.(currentQuestion)
       }
     })
   }, [formValues.questions, hasRecommendation])
@@ -261,7 +253,9 @@ export default function ViewAndEditRecommendation({
       })
 
       // Initialize refs with initial values - deep clone to avoid reference issues
-      previousQuestionsRef.current = questions.map((q: any) => ({ ...q }))
+      previousQuestionsRef.current = questions.map((q: any) => ({
+        ...q,
+      }))
       previousSummaryRef.current = summary
     }
   }, [data, reset, hasRecommendation])
