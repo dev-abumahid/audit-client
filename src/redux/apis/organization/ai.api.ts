@@ -26,6 +26,14 @@ const aiApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["TEMPLATE"],
     }),
+    generateRecommendationFromAi: builder.mutation({
+      query: (body) => ({
+        url: `/ai/generate-recommendation`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["RECOMMENDATION"],
+    }),
   }),
 })
 
@@ -33,4 +41,5 @@ export const {
   useGenerateTemplateWithPromptMutation,
   useGenerateTemplateWithPdfMutation,
   useGenerateTemplateWithRiskMutation,
+  useGenerateRecommendationFromAiMutation,
 } = aiApi

@@ -15,18 +15,11 @@ import {
   useUpdateInspectionMutation,
   useUpdateInspectionQuestionAnswerMutation,
 } from "@/redux/apis/organization/inspection.api"
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  CloudUpload,
-  FileText,
-  Globe,
-  Trash,
-} from "lucide-react"
+import { ArrowLeft, CloudUpload, FileText, Globe, Trash } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
+import ViewAndEditRecommendation from "../recommendation/ViewAndEditRecommendation"
 
 type AnswerEntry = {
   answer: any
@@ -47,8 +40,7 @@ export default function UpdateInspection() {
   const { data: inspectionData, isLoading: isLoadingInspection } =
     useGetSingleInspectionQuery(inspectionId, { skip: !inspectionId })
 
-  const [updateInspection, { isLoading: isUpdatingInspection }] =
-    useUpdateInspectionMutation()
+  const [updateInspection] = useUpdateInspectionMutation()
   const [updateQuestionAnswer] = useUpdateInspectionQuestionAnswerMutation()
   const [uploadFileAws] = useUploadAnyFileAwsMutation()
 
@@ -60,7 +52,6 @@ export default function UpdateInspection() {
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, AnswerEntry>>({})
   const [visibleNotes, setVisibleNotes] = useState<Record<string, boolean>>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState(inspection?.status)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
   const pageRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -267,41 +258,6 @@ export default function UpdateInspection() {
     }
   }
 
-  // Final submit - update inspection status and site if needed
-  const handleSubmit = async () => {
-    if (!inspectionId) {
-      toast.error("Missing inspection information")
-      return
-    }
-
-    setIsSubmitting(true)
-
-    try {
-      // First, save any pending answers
-      const savePromises = Object.entries(answers)
-        .filter(([_, data]) => data.questionAnswerId)
-        .map(([questionId, data]) => handleUpdateQuestion(questionId, data))
-
-      await Promise.all(savePromises)
-
-      // Then update inspection status to COMPLETED
-      await updateInspection({
-        id: inspectionId,
-        data: {
-          status: "COMPLETED",
-          // Only include siteId if you want to change it
-          // siteId: inspection?.siteId,
-        },
-      }).unwrap()
-
-      toast.success("Inspection completed successfully!")
-      navigate("/organization/audit/inspections")
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to submit inspection")
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
   const handleStatusChange = async (newStatus: string) => {
     if (!inspectionId || newStatus === selectedStatus) return
 
@@ -890,37 +846,7 @@ export default function UpdateInspection() {
               </div>
             </div>
           ))}
-
-          {/* Bottom Navigation */}
-          <div className="mt-12 flex justify-between border-t pt-8">
-            <Button
-              variant="outline"
-              onClick={() => scrollToPage(currentPageIndex - 1)}
-              disabled={currentPageIndex === 0}
-            >
-              <ChevronLeft className="mr-2" /> Previous
-            </Button>
-
-            {inspection.status !== "COMPLETED" && (
-              <Button
-                onClick={handleSubmit}
-                size="lg"
-                disabled={isSubmitting || isUpdatingInspection}
-              >
-                {isSubmitting ? "Completing..." : "Complete Inspection"}
-              </Button>
-            )}
-
-            {currentPageIndex < pages.length - 1 && (
-              <Button
-                onClick={() => scrollToPage(currentPageIndex + 1)}
-                size="lg"
-              >
-                Next Page
-                <ChevronRight className="ml-2" />
-              </Button>
-            )}
-          </div>
+          <ViewAndEditRecommendation inspectionId={inspection.id} />
         </div>
       </div>
     </div>

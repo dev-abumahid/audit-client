@@ -32,6 +32,6 @@ export const baseQueryWithLogout: BaseQueryFn<
 export const baseApi = createApi({
   reducerPath: "baseApi",
   baseQuery: baseQueryWithLogout,
-  tagTypes: ["TEMPLATE", "SITE", "RISK", "INSPECTION"],
+  tagTypes: ["TEMPLATE", "SITE", "RISK", "INSPECTION","RECOMMENDATION"],
   endpoints: () => ({}),
 })
