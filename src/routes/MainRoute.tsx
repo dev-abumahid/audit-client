@@ -32,6 +32,7 @@ import { createBrowserRouter } from "react-router"
 import ProtectedRoute from "./ProtectedRoute"
 import UpdateInspection from "@/dashboard/organization/inspection/UpdateInspection"
 import AllFindingsPage from "@/dashboard/organization/findings/AllFindingsPage"
+import FindingDetails from "@/dashboard/organization/findings/FindingDetails"
 
 export const mainRoute = createBrowserRouter([
   // common routes
@@ -79,6 +80,10 @@ export const mainRoute = createBrowserRouter([
       {
         path: "findings",
         element: <AllFindingsPage />,
+      },
+      {
+        path: "finding/:id",
+        element: <FindingDetails />,
       },
       {
         path: "risk-matrix",

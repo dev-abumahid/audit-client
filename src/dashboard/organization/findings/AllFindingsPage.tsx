@@ -160,10 +160,10 @@ export default function AllFindingsPage() {
                     <div
                       className="flex min-w-0 flex-1 cursor-pointer items-start gap-3"
                       onClick={() =>
-                        navigate(`/dashboard/single-action/${action.id}`)
+                        navigate(`/organization/finding/${action.id}`)
                       }
                     >
-                      <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-muted">
+                      <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
                         <span className="text-sm font-medium text-muted-foreground">
                           {action.actionTitle.charAt(0).toUpperCase()}
                         </span>

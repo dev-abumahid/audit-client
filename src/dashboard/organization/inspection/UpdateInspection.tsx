@@ -15,10 +15,19 @@ import {
   useUpdateInspectionMutation,
   useUpdateInspectionQuestionAnswerMutation,
 } from "@/redux/apis/organization/inspection.api"
-import { ArrowLeft, CloudUpload, FileText, Globe, Trash } from "lucide-react"
+import {
+  ArrowLeft,
+  CloudUpload,
+  CopyCheck,
+  FileText,
+  Globe,
+  Trash,
+} from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
+import TextareaAutosize from "react-textarea-autosize"
 import { toast } from "sonner"
+import CreateNewFindingModal from "../findings/CreateNewFindingModal"
 import ViewAndEditRecommendation from "../recommendation/ViewAndEditRecommendation"
 
 type AnswerEntry = {
@@ -26,6 +35,15 @@ type AnswerEntry = {
   note: string
   mediaFiles: { url: string; type: string }[]
   questionAnswerId?: string // Store the question answer ID for updates
+}
+const initialFindingModalState = {
+  open: false,
+  additionalData: {
+    questionId: "",
+    inspectionId: "",
+    actionTitle: "",
+    actionDisc: "",
+  },
 }
 
 export default function UpdateInspection() {
@@ -36,6 +54,9 @@ export default function UpdateInspection() {
     Record<string, boolean>
   >({})
 
+  const [findingModalState, setFindingModalState] = useState(
+    initialFindingModalState
+  )
   // Fetch inspection data
   const { data: inspectionData, isLoading: isLoadingInspection } =
     useGetSingleInspectionQuery(inspectionId, { skip: !inspectionId })
@@ -554,29 +575,14 @@ export default function UpdateInspection() {
         )
 
       default: {
-        // Handle input and textarea
-        const isTextarea = answerType === "textarea" || answerType === "input"
-        if (isTextarea) {
-          return (
-            <textarea
-              value={value ?? ""}
-              onChange={(e) =>
-                handleAnswerChangeWithSave(question.id, e.target.value)
-              }
-              rows={5}
-              className="min-h-30 w-full resize-y rounded-lg border border-input px-4 py-3 focus:ring-2 focus:ring-primary"
-              placeholder="Type your answer here..."
-            />
-          )
-        }
         return (
-          <input
-            type="text"
+          <TextareaAutosize
             value={value ?? ""}
-            onChange={(e) =>
+            onChange={(e: any) =>
               handleAnswerChangeWithSave(question.id, e.target.value)
             }
-            className="w-full rounded-lg border border-input px-4 py-3 focus:ring-2 focus:ring-primary"
+            rows={2}
+            className="w-full resize-y rounded-lg border border-input px-4 py-3 focus:ring-2 focus:ring-primary"
             placeholder="Type your answer here..."
           />
         )
@@ -606,7 +612,7 @@ export default function UpdateInspection() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Header */}
-      <div className="sticky top-0 z-50 border-b bg-card">
+      <div className="border-b bg-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate(-1)}>
@@ -687,7 +693,7 @@ export default function UpdateInspection() {
       <div className="mx-auto flex gap-8 px-6 py-8">
         {/* Sticky Left Navigation */}
         <div className="hidden w-72 lg:block">
-          <div className="sticky top-24 space-y-1">
+          <div className="sticky top-2 space-y-1">
             <p className="mb-3 px-3 text-sm font-semibold text-muted-foreground">
               PAGES
             </p>
@@ -707,6 +713,19 @@ export default function UpdateInspection() {
                 <span className="line-clamp-2">{page.title}</span>
               </button>
             ))}
+            <hr />
+            <Button
+              variant="outline"
+              onClick={() => {
+                document
+                  .getElementById("recommendation-page")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }}
+              size="lg"
+              className="mt-5 w-full"
+            >
+              Viw Recommendation
+            </Button>
           </div>
         </div>
 
@@ -750,9 +769,9 @@ export default function UpdateInspection() {
                             </p>
                           )}
                         </div>
-                        <span className="text-xs text-muted-foreground">
+                        {/* <span className="text-xs text-muted-foreground">
                           Q{pageIndex + 1}
-                        </span>
+                        </span> */}
                       </div>
 
                       <div className="mb-6">
@@ -839,6 +858,26 @@ export default function UpdateInspection() {
                             />
                           </label>
                         )}
+
+                        <div className="flex items-center justify-end px-6 pb-4">
+                          <button
+                            onClick={() =>
+                              setFindingModalState({
+                                open: true,
+                                additionalData: {
+                                  questionId: question.id!,
+                                  inspectionId: inspectionId!,
+                                  actionTitle: question.question as string,
+                                  actionDisc: "",
+                                },
+                              })
+                            }
+                            type="button"
+                            className="flex items-center gap-1 text-sm text-primary hover:text-primary/80"
+                          >
+                            <CopyCheck className="w-4" /> Add To Finding
+                          </button>
+                        </div>
                       </div>
                     </Card>
                   )
@@ -849,6 +888,11 @@ export default function UpdateInspection() {
           <ViewAndEditRecommendation inspectionId={inspection.id} />
         </div>
       </div>
+      <CreateNewFindingModal
+        open={findingModalState.open}
+        onClose={() => setFindingModalState(initialFindingModalState)}
+        additionalData={findingModalState.additionalData}
+      />
     </div>
   )
 }

@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
+import TextareaAutosize from "react-textarea-autosize"
 import CreateNewFindingModal from "../findings/CreateNewFindingModal"
 
 interface ResultItem {
@@ -30,6 +31,15 @@ interface ResultItem {
 interface EditFormData {
   summary: string
 }
+const initialFindingModalState = {
+  open: false,
+  additionalData: {
+    questionId: "",
+    inspectionId: "",
+    actionTitle: "",
+    actionDisc: "",
+  },
+}
 
 export default function ViewAndEditRecommendation({
   inspectionId,
@@ -42,7 +52,9 @@ export default function ViewAndEditRecommendation({
   }>({ type: null, message: "" })
   const [isGenerating, setIsGenerating] = useState(false)
   const [questions, setQuestions] = useState<ResultItem[]>([])
-  const [isFindingModalOpen, setIsFindingModalOpen] = useState(false)
+  const [findingModalState, setFindingModalState] = useState(
+    initialFindingModalState
+  )
 
   // Fix #3: ID-based debounce ref (not index-based)
   const debouncedSaveQuestionRef = useRef<Record<string, any>>({})
@@ -296,7 +308,7 @@ export default function ViewAndEditRecommendation({
   }
 
   return (
-    <div className="min-h-screen rounded-md p-4 md:p-6 lg:p-8">
+    <div id="recommendation-page" className="min-h-screen rounded-md p-4 md:p-6 lg:p-8">
       <div className="max-w-8xl mx-auto">
         {/* Header with Status */}
         <div className="mb-6 md:mb-8">
@@ -407,7 +419,7 @@ export default function ViewAndEditRecommendation({
                         value={question.question || ""}
                         onChange={(e) =>
                           handleQuestionChange(
-                            question.id!, // Pass ID, not index
+                            question.id!,
                             "question",
                             e.target.value
                           )
@@ -429,16 +441,16 @@ export default function ViewAndEditRecommendation({
                       <AlertCircle className="h-5 w-5 text-[#6EC075]" />
                       <h4 className="font-semibold">AI Observation</h4>
                     </div>
-                    <textarea
+                    <TextareaAutosize
                       value={question.observation || ""}
-                      onChange={(e) =>
+                      onChange={(e: any) =>
                         handleQuestionChange(
                           question.id!,
                           "observation",
                           e.target.value
                         )
                       }
-                      rows={2}
+                      rows={1}
                       className="w-full rounded-lg border border-border p-4 outline-none focus:ring-2 focus:ring-primary"
                       placeholder="Enter observation..."
                     />
@@ -450,7 +462,7 @@ export default function ViewAndEditRecommendation({
                       <CheckCircle className="h-5 w-5 text-[#6EC075]" />
                       <h4 className="font-semibold">AI Recommendation</h4>
                     </div>
-                    <textarea
+                    <TextareaAutosize
                       value={question.recommendation || ""}
                       onChange={(e) =>
                         handleQuestionChange(
@@ -459,7 +471,7 @@ export default function ViewAndEditRecommendation({
                           e.target.value
                         )
                       }
-                      rows={3}
+                      rows={2}
                       className="w-full rounded-lg border border-border p-4 outline-none focus:ring-2 focus:ring-primary"
                       placeholder="Enter recommendation..."
                     />
@@ -471,7 +483,7 @@ export default function ViewAndEditRecommendation({
                       <Star className="h-5 w-5 text-[#6EC075]" />
                       <h4 className="font-semibold">Applicable Standard</h4>
                     </div>
-                    <textarea
+                    <TextareaAutosize
                       value={question.standard || ""}
                       onChange={(e) =>
                         handleQuestionChange(
@@ -480,7 +492,7 @@ export default function ViewAndEditRecommendation({
                           e.target.value
                         )
                       }
-                      rows={1}
+                      rows={2}
                       className="w-full rounded-lg border border-border p-4 outline-none focus:ring-2 focus:ring-primary"
                       placeholder="Enter standard reference..."
                     />
@@ -489,7 +501,18 @@ export default function ViewAndEditRecommendation({
 
                 <div className="flex items-center justify-end px-6 pb-4">
                   <button
-                    onClick={() => setIsFindingModalOpen(true)}
+                    onClick={() =>
+                      setFindingModalState({
+                        open: true,
+                        additionalData: {
+                          questionId: question.id!,
+                          inspectionId: inspectionId!,
+                          actionTitle: question.question as string,
+                          actionDisc:
+                            question.recommendation + question.standard,
+                        },
+                      })
+                    }
                     type="button"
                     className="flex items-center gap-1 text-sm text-primary hover:text-primary/80"
                   >
@@ -513,9 +536,9 @@ export default function ViewAndEditRecommendation({
               </div>
 
               <div className="p-4 md:p-6">
-                <textarea
+                <TextareaAutosize
                   {...register("summary")}
-                  rows={25}
+                  rows={1}
                   className="w-full resize-none rounded-lg border border-border px-3 py-3 font-mono text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-[#6EC075]"
                   placeholder="Enter executive summary..."
                 />
@@ -525,8 +548,9 @@ export default function ViewAndEditRecommendation({
         </div>
       </div>
       <CreateNewFindingModal
-        open={isFindingModalOpen}
-        onClose={() => setIsFindingModalOpen(false)}
+        open={findingModalState.open}
+        onClose={() => setFindingModalState(initialFindingModalState)}
+        additionalData={findingModalState.additionalData}
       />
     </div>
   )

@@ -26,6 +26,7 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
+import TextareaAutosize from "react-textarea-autosize"
 import { toast } from "sonner"
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -70,7 +71,7 @@ export default function CreateNewFindingModal({
   additionalData,
 }: CreateActionModalProps) {
   const isEdit = !!editData
-
+  console.log(additionalData)
   // ── API hooks ──────────────────────────────────────────────────────────────
   const [uploadFIle] = useUploadAnyFileAwsMutation()
   const { data: usersData, isLoading: usersLoading } =
@@ -134,14 +135,14 @@ export default function CreateNewFindingModal({
     formState: { errors },
   } = useForm<IAction>({
     defaultValues: {
-      actionTitle: "",
-      actionDisc: "",
+      actionTitle: additionalData?.actionTitle || "",
+      actionDisc: additionalData?.actionDisc || "",
       priority: "Low",
       status: "TO_DO",
       dueDate: defaultDueDate(),
       assignBy: [],
-      inspectionId: additionalData?.actionDisc,
-      questionId: additionalData?.questionId,
+      inspectionId: additionalData?.inspectionId || "",
+      questionId: additionalData?.questionId || "",
       messages: [],
     },
   })
@@ -168,15 +169,15 @@ export default function CreateNewFindingModal({
       setMessages([])
       setMediaFiles([])
       reset({
-        actionTitle: "",
-        actionDisc: "",
+        actionTitle: additionalData?.actionTitle || "",
+        actionDisc: additionalData?.actionDisc || "",
         priority: "Low",
         status: "TO_DO",
         dueDate: defaultDueDate(),
         assignBy: [],
         inspectionId: additionalData?.inspectionId ?? "",
         messages: [],
-        questionId: "",
+        questionId: additionalData?.questionId ?? "",
       })
     }
   }, [open, editData, reset])
@@ -293,10 +294,10 @@ export default function CreateNewFindingModal({
             <label className="mb-1.5 block text-sm font-medium text-foreground">
               Description (Optional)
             </label>
-            <textarea
+            <TextareaAutosize
               {...register("actionDisc")}
               placeholder="Add Description"
-              rows={2}
+              rows={1}
               className="w-full resize-none rounded-lg border border-input bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
@@ -613,9 +614,9 @@ export default function CreateNewFindingModal({
                 {isEdit ? "Updating..." : "Creating..."}
               </>
             ) : isEdit ? (
-              "Update Action"
+              "Update Finding"
             ) : (
-              "Create Action"
+              "Create Finding"
             )}
           </button>
         </div>

@@ -9,6 +9,13 @@ const findingsApi = baseApi.injectEndpoints({
       }),
       providesTags: ["FINDINGS"],
     }),
+    getFindingById: builder.query({
+      query: (id: string) => ({
+        url: `/action/${id}`,
+        method: "GET",
+      }),
+      providesTags: ["FINDINGS"],
+    }),
     deleteFindingById: builder.mutation({
       query: (id) => ({
         url: `/action/${id}`,
@@ -40,4 +47,5 @@ export const {
   useDeleteFindingByIdMutation,
   useCreateNewFindingMutation,
   useUpdateFindingByIdMutation,
+  useGetFindingByIdQuery,
 } = findingsApi
