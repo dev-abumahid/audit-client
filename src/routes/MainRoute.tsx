@@ -31,6 +31,7 @@ import TermsAndConditions from "@/pages/policy/Terms"
 import { createBrowserRouter } from "react-router"
 import ProtectedRoute from "./ProtectedRoute"
 import UpdateInspection from "@/dashboard/organization/inspection/UpdateInspection"
+import AllFindingsPage from "@/dashboard/organization/findings/AllFindingsPage"
 
 export const mainRoute = createBrowserRouter([
   // common routes
@@ -74,6 +75,10 @@ export const mainRoute = createBrowserRouter([
       {
         path: "risks",
         element: <RiskRegisterPage />,
+      },
+      {
+        path: "findings",
+        element: <AllFindingsPage />,
       },
       {
         path: "risk-matrix",

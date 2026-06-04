@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
+import CreateNewFindingModal from "../findings/CreateNewFindingModal"
 
 interface ResultItem {
   observation: string
@@ -41,6 +42,7 @@ export default function ViewAndEditRecommendation({
   }>({ type: null, message: "" })
   const [isGenerating, setIsGenerating] = useState(false)
   const [questions, setQuestions] = useState<ResultItem[]>([])
+  const [isFindingModalOpen, setIsFindingModalOpen] = useState(false)
 
   // Fix #3: ID-based debounce ref (not index-based)
   const debouncedSaveQuestionRef = useRef<Record<string, any>>({})
@@ -437,7 +439,7 @@ export default function ViewAndEditRecommendation({
                         )
                       }
                       rows={2}
-                      className="w-full rounded-lg border border-[#6EC075]/20 bg-[#6EC075]/5 p-4 outline-none focus:ring-2 focus:ring-[#6EC075]"
+                      className="w-full rounded-lg border border-border p-4 outline-none focus:ring-2 focus:ring-primary"
                       placeholder="Enter observation..."
                     />
                   </div>
@@ -458,7 +460,7 @@ export default function ViewAndEditRecommendation({
                         )
                       }
                       rows={3}
-                      className="w-full rounded-lg border border-[#6EC075]/20 bg-[#6EC075]/5 p-4 outline-none focus:ring-2 focus:ring-[#6EC075]"
+                      className="w-full rounded-lg border border-border p-4 outline-none focus:ring-2 focus:ring-primary"
                       placeholder="Enter recommendation..."
                     />
                   </div>
@@ -479,7 +481,7 @@ export default function ViewAndEditRecommendation({
                         )
                       }
                       rows={1}
-                      className="w-full rounded-lg border border-[#6EC075]/20 bg-[#6EC075]/5 p-4 outline-none focus:ring-2 focus:ring-[#6EC075]"
+                      className="w-full rounded-lg border border-border p-4 outline-none focus:ring-2 focus:ring-primary"
                       placeholder="Enter standard reference..."
                     />
                   </div>
@@ -487,6 +489,7 @@ export default function ViewAndEditRecommendation({
 
                 <div className="flex items-center justify-end px-6 pb-4">
                   <button
+                    onClick={() => setIsFindingModalOpen(true)}
                     type="button"
                     className="flex items-center gap-1 text-sm text-primary hover:text-primary/80"
                   >
@@ -521,6 +524,10 @@ export default function ViewAndEditRecommendation({
           </div>
         </div>
       </div>
+      <CreateNewFindingModal
+        open={isFindingModalOpen}
+        onClose={() => setIsFindingModalOpen(false)}
+      />
     </div>
   )
 }
