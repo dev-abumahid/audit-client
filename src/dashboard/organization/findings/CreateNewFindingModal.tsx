@@ -13,6 +13,7 @@ import {
 } from "@/redux/apis/organization/findings.api"
 import { useGetAllInspectionQuery } from "@/redux/apis/organization/inspection.api"
 import { useGetAllOrgUsersQuery } from "@/redux/apis/organization/org.user.api"
+import type { IAction, IActionMessage } from "@/types/finding"
 import {
   AlertCircle,
   AlertTriangle,
@@ -29,42 +30,10 @@ import { toast } from "sonner"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface ActionFormValues {
-  actionTitle: string
-  actionDisc: string
-  priority: "Low" | "Medium" | "High"
-  state: "To do" | "In Progress" | "Complete" | "can't do"
-  dueDate: string
-  assignBy: string[]
-  inspectionId: string
-  questionId: string
-  mediaFiles: string[]
-  messages: Message[]
-}
-
-interface ActionData {
-  id: string
-  actionTitle: string
-  actionDisc?: string
-  priority: "Low" | "Medium" | "High"
-  state?: "To do" | "In Progress" | "Complete" | "can't do"
-  dueDate: string
-  assignBy?: any
-  inspectionId?: string
-  questionId?: string
-  mediaFiles?: string[]
-  messages?: Message[]
-}
-
-interface Message {
-  sender: string
-  message: string
-}
-
 interface CreateActionModalProps {
   open: boolean
   onClose: () => void
-  editData?: ActionData | null
+  editData?: IAction | null
   additionalData?: {
     questionId?: string
     inspectionId?: string
@@ -88,10 +57,10 @@ const PRIORITY_STYLES: Record<string, string> = {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  "To do": "text-blue-600 dark:text-blue-400",
-  "In Progress": "text-yellow-600 dark:text-yellow-400",
-  Complete: "text-green-600 dark:text-green-400",
-  "Can't Do": "text-red-600 dark:text-red-400",
+  TO_DO: "text-blue-600 dark:text-blue-400",
+  IN_PROGRESS: "text-yellow-600 dark:text-yellow-400",
+  COMPLETE: "text-green-600 dark:text-green-400",
+  CANT_DO: "text-red-600 dark:text-red-400",
 }
 
 export default function CreateNewFindingModal({
@@ -127,7 +96,7 @@ export default function CreateNewFindingModal({
 
   // ── Messages & media state ─────────────────────────────────────────────────
   const [messageInput, setMessageInput] = useState("")
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<IActionMessage[]>([])
   const [mediaFiles, setMediaFiles] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -163,17 +132,16 @@ export default function CreateNewFindingModal({
     reset,
     setValue,
     formState: { errors },
-  } = useForm<ActionFormValues>({
+  } = useForm<IAction>({
     defaultValues: {
       actionTitle: "",
       actionDisc: "",
       priority: "Low",
-      state: "To do",
+      status: "TO_DO",
       dueDate: defaultDueDate(),
       assignBy: [],
       inspectionId: additionalData?.actionDisc,
       questionId: additionalData?.questionId,
-      mediaFiles: [],
       messages: [],
     },
   })
@@ -185,17 +153,14 @@ export default function CreateNewFindingModal({
       const insId = editData.inspectionId ?? ""
       setSelectedInspectionId(insId)
       setMessages(editData.messages ?? [])
-      setMediaFiles(editData.mediaFiles ?? [])
       reset({
         actionTitle: editData.actionTitle,
         actionDisc: editData.actionDisc ?? "",
         priority: editData.priority,
-        state: editData.state ?? "To do",
+        status: editData.status ?? "TO_DO",
         dueDate: editData.dueDate?.slice(0, 16) ?? defaultDueDate(),
-        assignBy: editData.assignBy?._id ?? [],
         inspectionId: insId,
         questionId: editData.questionId ?? "",
-        mediaFiles: editData.mediaFiles ?? [],
         messages: editData.messages ?? [],
       })
     } else {
@@ -206,11 +171,10 @@ export default function CreateNewFindingModal({
         actionTitle: "",
         actionDisc: "",
         priority: "Low",
-        state: "To do",
+        status: "TO_DO",
         dueDate: defaultDueDate(),
         assignBy: [],
         inspectionId: additionalData?.inspectionId ?? "",
-        mediaFiles: [],
         messages: [],
         questionId: "",
       })
@@ -229,18 +193,18 @@ export default function CreateNewFindingModal({
   // ── User dropdown ──────────────────────────────────────────────────────────
   const [showUserDropdown, setShowUserDropdown] = useState(false)
 
-  const getSelectedUserNames = useCallback(
-    (ids: string[]) => {
-      if (!ids.length) return "Add assignees"
-      if (ids.length === 1)
-        return users.find((u: any) => u._id === ids[0])?.firstName ?? "1 user"
-      return `${ids.length} users selected`
-    },
-    [users]
-  )
+  // const getSelectedUserNames = useCallback(
+  //   (ids: string[]) => {
+  //     if (!ids.length) return "Add assignees"
+  //     if (ids.length === 1)
+  //       return users.find((u: any) => u._id === ids[0])?.firstName ?? "1 user"
+  //     return `${ids.length} users selected`
+  //   },
+  //   [users]
+  // )
 
   // ── Submit ─────────────────────────────────────────────────────────────────
-  const onSubmit = async (values: ActionFormValues) => {
+  const onSubmit = async (values: IAction) => {
     try {
       const finalMessages = messageInput.trim()
         ? [
@@ -254,12 +218,11 @@ export default function CreateNewFindingModal({
         actionTitle: values.actionTitle.trim(),
         actionDisc: values.actionDisc.trim() || undefined,
         priority: values.priority,
-        state: values.state,
+        status: values.status,
         dueDate: new Date(values.dueDate).toISOString(),
         assignBy: values.assignBy.length ? values.assignBy : undefined,
         question: values.questionId,
         inspectionId: values.inspectionId || undefined,
-        mediaFiles: [...values.mediaFiles, ...mediaFiles],
         messages: finalMessages,
       }
 
@@ -407,33 +370,33 @@ export default function CreateNewFindingModal({
               </label>
               <Controller
                 control={control}
-                name="state"
+                name="status"
                 render={({ field }) => (
                   <select
                     {...field}
                     className={`w-full max-w-55 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none ${STATUS_STYLES[field.value]}`}
                   >
                     <option
-                      className={`${STATUS_STYLES["To do"]}`}
-                      value="To do"
+                      className={`${STATUS_STYLES["TO_DO"]}`}
+                      value="TO_DO"
                     >
                       To Do
                     </option>
                     <option
-                      className={`${STATUS_STYLES["In Progress"]}`}
-                      value="In Progress"
+                      className={`${STATUS_STYLES["IN_PROGRESS"]}`}
+                      value="IN_PROGRESS"
                     >
                       In Progress
                     </option>
                     <option
-                      className={`${STATUS_STYLES["Complete"]}`}
-                      value="Complete"
+                      className={`${STATUS_STYLES["COMPLETE"]}`}
+                      value="COMPLETE"
                     >
                       Complete
                     </option>
                     <option
-                      className={`${STATUS_STYLES["Can't Do"]}`}
-                      value="Can't Do"
+                      className={`${STATUS_STYLES["CANT_DO"]}`}
+                      value="CANT_DO"
                     >
                       Can't Do
                     </option>
@@ -492,7 +455,7 @@ export default function CreateNewFindingModal({
                             : "text-foreground"
                         }
                       >
-                        {getSelectedUserNames(field.value)}
+                        {/* {getSelectedUserNames(field.value)} */}
                       </span>
                       <ChevronDown
                         size={14}
@@ -565,13 +528,13 @@ export default function CreateNewFindingModal({
             {/* Existing messages */}
             {messages.length > 0 && (
               <div className="max-h-36 space-y-2 overflow-y-auto">
-                {messages.map((msg: Message, i: number) => (
+                {messages.map((msg: IActionMessage, i: number) => (
                   <div
                     key={i}
                     className="rounded-lg bg-muted px-3 py-2 text-sm"
                   >
                     <span className="font-medium text-foreground">
-                      {msg.sender}:{" "}
+                      {/* {msg.sender}:{" "} */}
                     </span>
                     <span className="text-muted-foreground">{msg.message}</span>
                   </div>
