@@ -260,7 +260,7 @@ export default function ViewAndEditRecommendation({
   // Generate button view
   if (!hasRecommendation) {
     return (
-      <div className="min-h-screen rounded-md">
+      <div className="min-h-screen rounded-md" id="recommendation-page">
         <div className="mx-auto">
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6 md:p-8">
@@ -308,7 +308,10 @@ export default function ViewAndEditRecommendation({
   }
 
   return (
-    <div id="recommendation-page" className="min-h-screen rounded-md p-4 md:p-6 lg:p-8">
+    <div
+      id="recommendation-page"
+      className="min-h-screen rounded-md p-4 md:p-6 lg:p-8"
+    >
       <div className="max-w-8xl mx-auto">
         {/* Header with Status */}
         <div className="mb-6 md:mb-8">

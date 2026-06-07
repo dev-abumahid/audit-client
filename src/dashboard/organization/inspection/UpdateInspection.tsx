@@ -724,7 +724,7 @@ export default function UpdateInspection() {
               size="lg"
               className="mt-5 w-full"
             >
-              Viw Recommendation
+              View Recommendation
             </Button>
           </div>
         </div>
@@ -875,7 +875,7 @@ export default function UpdateInspection() {
                             type="button"
                             className="flex items-center gap-1 text-sm text-primary hover:text-primary/80"
                           >
-                            <CopyCheck className="w-4" /> Add To Finding
+                            <CopyCheck className="w-4" /> Add Finding
                           </button>
                         </div>
                       </div>

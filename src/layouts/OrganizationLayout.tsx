@@ -218,7 +218,7 @@ export default function OrganizationLayout() {
       {/* Footer */}
       <div className="space-y-1 border-t border-sidebar-border p-3">
         <Link
-          to="/settings"
+          to="/organization/settings"
           onClick={() => setMobileOpen(false)}
           className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
             collapsed ? "justify-center" : ""

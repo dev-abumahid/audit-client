@@ -33,6 +33,7 @@ import ProtectedRoute from "./ProtectedRoute"
 import UpdateInspection from "@/dashboard/organization/inspection/UpdateInspection"
 import AllFindingsPage from "@/dashboard/organization/findings/AllFindingsPage"
 import FindingDetails from "@/dashboard/organization/findings/FindingDetails"
+import OrgSettingPage from "@/dashboard/organization/settings/OrgSettingPage"
 
 export const mainRoute = createBrowserRouter([
   // common routes
@@ -152,6 +153,10 @@ export const mainRoute = createBrowserRouter([
       {
         path: "reports",
         element: <ReportsPage />,
+      },
+      {
+        path: "settings",
+        element: <OrgSettingPage />,
       },
     ],
   },
