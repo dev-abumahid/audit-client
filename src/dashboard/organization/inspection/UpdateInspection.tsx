@@ -22,6 +22,7 @@ import {
   FileText,
   Globe,
   Trash,
+  Upload,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
@@ -29,6 +30,7 @@ import TextareaAutosize from "react-textarea-autosize"
 import { toast } from "sonner"
 import CreateNewFindingModal from "../findings/CreateNewFindingModal"
 import ViewAndEditRecommendation from "../recommendation/ViewAndEditRecommendation"
+import UploadNotesModal from "./UploadNotesModal"
 
 type AnswerEntry = {
   answer: any
@@ -53,6 +55,8 @@ export default function UpdateInspection() {
   const [savingQuestions, setSavingQuestions] = useState<
     Record<string, boolean>
   >({})
+
+  const [openUploadNoteModal, setOpenUploadNoteModal] = useState(false)
 
   const [findingModalState, setFindingModalState] = useState(
     initialFindingModalState
@@ -613,7 +617,7 @@ export default function UpdateInspection() {
     <div className="min-h-screen bg-background">
       {/* Top Header */}
       <div className="border-b bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+        <div className="mx-auto flex items-center justify-between px-6 py-5">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate(-1)}>
               <ArrowLeft className="mr-2 h-5 w-5" /> Back
@@ -687,6 +691,9 @@ export default function UpdateInspection() {
               </div>
             </div>
           </div>
+          <Button onClick={() => setOpenUploadNoteModal(true)}>
+            <Upload /> Upload Notes
+          </Button>
         </div>
       </div>
 
@@ -892,6 +899,10 @@ export default function UpdateInspection() {
         open={findingModalState.open}
         onClose={() => setFindingModalState(initialFindingModalState)}
         additionalData={findingModalState.additionalData}
+      />
+      <UploadNotesModal
+        open={openUploadNoteModal}
+        setOpen={setOpenUploadNoteModal}
       />
     </div>
   )

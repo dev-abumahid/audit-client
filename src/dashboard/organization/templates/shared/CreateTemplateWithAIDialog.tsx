@@ -24,8 +24,9 @@ import {
 } from "@/redux/apis/organization/ai.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import type { Risk } from "@/types/organization"
+import { AnimatePresence, motion } from "framer-motion"
 import { AlertCircleIcon, Brain, FileText, Upload } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
@@ -36,16 +37,43 @@ interface CreateTemplateWithAIDialogProps {
   setOpen: (open: boolean) => void
 }
 
+const getLoadingMessages = (mode: CreationMode) => {
+  switch (mode) {
+    case "prompt":
+      return ["Reviewing your prompt...", "Generating your template..."]
+
+    case "risk":
+      return [
+        "Reviewing risk data...",
+        "Gathering equivalent context...",
+        "Generating your template...",
+      ]
+
+    case "file":
+      return [
+        "Reviewing your file...",
+        "Extracting content...",
+        "Performing OCR...",
+        "Rewriting and optimizing...",
+        "Generating your template...",
+      ]
+
+    default:
+      return ["Generating your template..."]
+  }
+}
 export default function CreateTemplateWithAIDialog({
   open,
   setOpen,
 }: CreateTemplateWithAIDialogProps) {
   const [mode, setMode] = useState<CreationMode>(null)
+  const [messageIndex, setMessageIndex] = useState(0)
   const [prompt, setPrompt] = useState("")
   const [selectedRisk, setSelectedRisk] = useState("")
   const [file, setFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const navigate = useNavigate()
+  const loadingMessages = getLoadingMessages(mode)
 
   // RTK query state
   const { data: riskData } = useGetAllRisksQuery({
@@ -119,6 +147,31 @@ export default function CreateTemplateWithAIDialog({
     }
   }
 
+  useEffect(() => {
+    if (!isLoading) {
+      setMessageIndex(0)
+      return
+    }
+
+    const messages = getLoadingMessages(mode)
+
+    const interval = setInterval(() => {
+      setMessageIndex((prev) => {
+        if (prev >= messages.length - 1) {
+          return prev // stay on last message
+        }
+
+        return prev + 1
+      })
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [isLoading, mode])
+
+  useEffect(() => {
+    setMessageIndex(0)
+  }, [mode])
+
   return (
     <Dialog
       open={open}
@@ -134,14 +187,23 @@ export default function CreateTemplateWithAIDialog({
         {/* Loader Overlay */}
         {isLoading && (
           <div className="absolute inset-0 z-50 flex items-center justify-center rounded-lg bg-background/80 backdrop-blur-sm">
-            <div className="flex flex-col items-center gap-4">
-              {/* Spinner */}
-              <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <div className="flex flex-col items-center gap-5">
+              <div className="relative">
+                <div className="h-14 w-14 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+              </div>
 
-              {/* Text */}
-              <p className="animate-pulse text-sm font-medium text-muted-foreground">
-                AI is generating your template...
-              </p>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={messageIndex}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.35 }}
+                  className="text-center text-sm font-medium text-muted-foreground"
+                >
+                  {loadingMessages[messageIndex]}
+                </motion.p>
+              </AnimatePresence>
             </div>
           </div>
         )}
@@ -250,7 +312,7 @@ export default function CreateTemplateWithAIDialog({
                 </svg>
 
                 <h2 className="mt-1 font-medium tracking-wide text-gray-700 dark:text-gray-200">
-                  Payment File
+                  Any File
                 </h2>
 
                 <p className="mt-2 text-xs tracking-wide text-gray-500 dark:text-gray-400">
