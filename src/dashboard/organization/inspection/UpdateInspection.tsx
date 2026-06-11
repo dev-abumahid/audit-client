@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   CloudUpload,
   CopyCheck,
+  Eye,
   FileText,
   Globe,
   Trash,
@@ -55,7 +56,6 @@ export default function UpdateInspection() {
   const [savingQuestions, setSavingQuestions] = useState<
     Record<string, boolean>
   >({})
-
   const [openUploadNoteModal, setOpenUploadNoteModal] = useState(false)
 
   const [findingModalState, setFindingModalState] = useState(
@@ -692,7 +692,15 @@ export default function UpdateInspection() {
             </div>
           </div>
           <Button onClick={() => setOpenUploadNoteModal(true)}>
-            <Upload /> Upload Notes
+            {inspection?.note?.id ? (
+              <>
+                <Eye /> View Note
+              </>
+            ) : (
+              <>
+                <Upload /> Upload Note
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -903,6 +911,7 @@ export default function UpdateInspection() {
       <UploadNotesModal
         open={openUploadNoteModal}
         setOpen={setOpenUploadNoteModal}
+        inspectionId={inspectionId as string}
       />
     </div>
   )

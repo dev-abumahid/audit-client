@@ -71,7 +71,6 @@ export default function CreateNewFindingModal({
   additionalData,
 }: CreateActionModalProps) {
   const isEdit = !!editData
-  console.log(additionalData)
   // ── API hooks ──────────────────────────────────────────────────────────────
   const [uploadFIle] = useUploadAnyFileAwsMutation()
   const { data: usersData, isLoading: usersLoading } =

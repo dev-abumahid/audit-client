@@ -40,7 +40,8 @@ export const baseApi = createApi({
     "RECOMMENDATION",
     "FINDINGS",
     "ORG_USER",
-    "KNOWLEDGE_BASE"
+    "KNOWLEDGE_BASE",
+    "NOTE",
   ],
   endpoints: () => ({}),
 })

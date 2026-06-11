@@ -3,8 +3,8 @@ import { baseApi } from "@/redux/baseApi"
 const findingsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getAllFindings: builder.query({
-      query: ({ page, limit, searchTerm }) => ({
-        url: `/action?page=${page}&limit=${limit}&searchTerm=${searchTerm}`,
+      query: ({ page, limit, searchTerm, siteId }) => ({
+        url: `/action?page=${page}&limit=${limit}&searchTerm=${searchTerm}&siteId=${siteId}`,
         method: "GET",
       }),
       providesTags: ["FINDINGS"],
