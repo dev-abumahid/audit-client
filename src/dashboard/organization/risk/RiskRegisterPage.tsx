@@ -174,9 +174,6 @@ export default function RiskRegisterPage() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b bg-muted/30 text-left">
-                <th className="px-3 py-2.5 font-semibold text-muted-foreground">
-                  ID
-                </th>
                 <th className="px-3 py-2.5 font-semibold text-muted-foreground uppercase">
                   NAME
                 </th>
@@ -208,11 +205,6 @@ export default function RiskRegisterPage() {
                     key={risk.id}
                     className={`border-b transition-colors hover:bg-muted/30`}
                   >
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono font-bold">{risk.id}</span>
-                      </div>
-                    </td>
                     <td className="max-w-32 px-3 py-2.5 lg:max-w-48">
                       <p className="truncate font-medium">{risk.name}</p>
                       <p className="hidden truncate text-[10px] text-muted-foreground sm:block">

@@ -753,12 +753,12 @@ export default function UpdateInspection() {
                 pageRefs.current[pageIndex] = el
               }}
               data-page-index={pageIndex}
-              className="mb-12 scroll-mt-24"
+              className="mb-12 scroll-mt-24 rounded-md border border-border bg-card/30 p-4"
             >
-              <Card className="mb-8 p-6">
+              <div className="py-6">
                 <h2 className="mb-1 text-2xl font-semibold">{page.title}</h2>
                 <p className="text-muted-foreground">Section {pageIndex + 1}</p>
-              </Card>
+              </div>
 
               <div className="space-y-8">
                 {page.questions?.map((question: any) => {
@@ -768,8 +768,11 @@ export default function UpdateInspection() {
                   const hasMediaFiles = answers[question.id]?.mediaFiles
 
                   return (
-                    <Card key={question.id} className="p-6">
-                      <div className="mb-4 flex items-start justify-between">
+                    <Card
+                      key={question.id}
+                      className="border-none p-6 shadow-none"
+                    >
+                      <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <p className="leading-tight font-medium">
                             {question.question}
@@ -784,14 +787,9 @@ export default function UpdateInspection() {
                             </p>
                           )}
                         </div>
-                        {/* <span className="text-xs text-muted-foreground">
-                          Q{pageIndex + 1}
-                        </span> */}
                       </div>
 
-                      <div className="mb-6">
-                        {renderQuestionInput(question)}
-                      </div>
+                      <div className="">{renderQuestionInput(question)}</div>
 
                       {hasMediaFiles && (
                         <div className="flex items-center gap-5">
@@ -815,7 +813,7 @@ export default function UpdateInspection() {
                         </div>
                       )}
                       {hasNote && (
-                        <div className="mt-4">
+                        <div className="">
                           <p className="mb-2 text-sm font-medium">Note</p>
                           <textarea
                             value={answers[question.id]?.note || ""}
@@ -831,7 +829,7 @@ export default function UpdateInspection() {
                         </div>
                       )}
 
-                      <div className="mt-6 flex gap-3">
+                      <div className="flex gap-3">
                         <Button
                           variant="outline"
                           size="sm"

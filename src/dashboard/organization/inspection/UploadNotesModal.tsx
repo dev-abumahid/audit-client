@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useSplitInspectionNoteMutation } from "@/redux/apis/organization/inspection.api"
 import {
   useExtractNoteFromFileMutation,
   useGetNoteByInspectionIdQuery,
@@ -47,11 +48,13 @@ export default function UploadNotesModal({
   const [file, setFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [isUpdating, setIsUpdating] = useState<boolean>(false)
+  const [isSplitting, setIsSplitting] = useState<boolean>(false)
 
   // RTK query state
   const [uploadRawNote] = useSaveRawNoteMutation()
   const [extractNoteFromFile] = useExtractNoteFromFileMutation()
   const [updateNote] = useUpdateNoteMutation()
+  const [splitInspectionNote] = useSplitInspectionNoteMutation()
   const { data, refetch } = useGetNoteByInspectionIdQuery(inspectionId)
 
   const existingNote = data?.data
@@ -139,6 +142,16 @@ export default function UploadNotesModal({
     }
   }
 
+  const handleSplitNote = async () => {
+    setIsSplitting(true)
+    const res = await splitInspectionNote(inspectionId).unwrap()
+    if (res.success) {
+      toast.success(res.message)
+      handleClose()
+    }
+    setIsSplitting(false)
+  }
+
   useEffect(() => {
     if (!isLoading) return
 
@@ -186,6 +199,9 @@ export default function UploadNotesModal({
           </div>
 
           <DialogFooter className="mt-4">
+            <Button disabled={isSplitting} onClick={handleSplitNote} variant="secondary">
+              {isSplitting ? "Splitting..." : "Split Note"}
+            </Button>
             <Button variant="outline" onClick={handleClose}>
               Cancel
             </Button>
@@ -343,7 +359,7 @@ export default function UploadNotesModal({
             Cancel
           </Button>
           <Button onClick={handleCreate} disabled={!mode || isLoading}>
-            {isLoading ? "Generating..." : "Generate Template"}
+            {isLoading ? "Extracting..." : "Generate Template"}
           </Button>
         </DialogFooter>
       </DialogContent>

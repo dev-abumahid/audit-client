@@ -47,6 +47,13 @@ const inspectionApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["INSPECTION"],
     }),
+    splitInspectionNote: builder.mutation({
+      query: (inspectionId: string) => ({
+        url: `/inspection/split-note-into-inspection/${inspectionId}`,
+        method: "POST",
+      }),
+      invalidatesTags: ["INSPECTION"],
+    }),
   }),
 })
 
@@ -56,5 +63,6 @@ export const {
   useGetSingleInspectionQuery,
   useCreateNewInspectionMutation,
   useUpdateInspectionMutation,
-  useUpdateInspectionQuestionAnswerMutation
+  useUpdateInspectionQuestionAnswerMutation,
+  useSplitInspectionNoteMutation,
 } = inspectionApi
