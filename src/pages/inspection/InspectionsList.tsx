@@ -2,7 +2,7 @@ import { ApiError, api } from '@/lib/api'
 import type { InspectionStatus, InspectionSummary } from '@/types/inspection'
 import { ClipboardCheck, Plus, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 
 const STATUS_LABELS: Record<InspectionStatus, string> = {
   DRAFT: 'Draft',
@@ -18,7 +18,11 @@ const STATUS_CLASSES: Record<InspectionStatus, string> = {
   CANCELLED: 'bg-red-100 text-red-600',
 }
 
+interface Site { id: string; name: string }
+interface Template { id: string; templateName: string }
+
 export default function InspectionsList() {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [inspections, setInspections] = useState<InspectionSummary[]>([])
   const [meta, setMeta] = useState({ page: 1, totalPage: 1, total: 0 })
@@ -29,6 +33,16 @@ export default function InspectionsList() {
   const status = searchParams.get('status') ?? ''
   const page = Number(searchParams.get('page') ?? '1')
   const searchTerm = searchParams.get('searchTerm') ?? ''
+
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalSites, setModalSites] = useState<Site[]>([])
+  const [modalTemplates, setModalTemplates] = useState<Template[]>([])
+  const [modalLoading, setModalLoading] = useState(false)
+  const [selectedSiteId, setSelectedSiteId] = useState('')
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
 
   useEffect(() => {
     const params = new URLSearchParams({ page: String(page), limit: '10' })
@@ -69,6 +83,52 @@ export default function InspectionsList() {
     setParam('searchTerm', searchRef.current?.value ?? '')
   }
 
+  async function openModal() {
+    setModalOpen(true)
+    setSelectedSiteId('')
+    setSelectedTemplateId('')
+    setStartError(null)
+    setModalLoading(true)
+    try {
+      const [sitesRes, templatesRes] = await Promise.all([
+        api.get<{ data: Site[] }>('/api/site?page=1&limit=100'),
+        api.get<{ data: Template[] }>('/api/template?page=1&limit=100'),
+      ])
+      setModalSites(sitesRes.data ?? [])
+      setModalTemplates(templatesRes.data ?? [])
+    } catch {
+      setStartError('Failed to load sites or templates')
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  function closeModal() {
+    setModalOpen(false)
+    setSelectedSiteId('')
+    setSelectedTemplateId('')
+    setStartError(null)
+  }
+
+  async function handleStart(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedSiteId || !selectedTemplateId) return
+    setStarting(true)
+    setStartError(null)
+    try {
+      const res = await api.post<{ data: { id: string } }>('/api/inspection', {
+        templateId: selectedTemplateId,
+        siteId: selectedSiteId,
+        questionAnswers: [],
+      })
+      navigate(`/organization/audit/inspections/${res.data.id}`)
+      closeModal()
+    } catch (err) {
+      setStartError(err instanceof ApiError ? err.message : 'Failed to start inspection')
+      setStarting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Header */}
@@ -79,13 +139,13 @@ export default function InspectionsList() {
             {loading ? '…' : `${meta.total} inspection${meta.total !== 1 ? 's' : ''}`}
           </p>
         </div>
-        <Link
-          to="/organization/audit/inspections/new"
+        <button
+          onClick={openModal}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />
           New inspection
-        </Link>
+        </button>
       </div>
 
       {/* Filters */}
@@ -128,12 +188,12 @@ export default function InspectionsList() {
         <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
           <ClipboardCheck className="h-10 w-10 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">No inspections found</p>
-          <Link
-            to="/organization/audit/inspections/new"
+          <button
+            onClick={openModal}
             className="text-sm font-medium text-primary hover:underline"
           >
             Create your first inspection
-          </Link>
+          </button>
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border">
@@ -206,6 +266,81 @@ export default function InspectionsList() {
             >
               Next
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* New Inspection Modal */}
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={closeModal}
+        >
+          <div
+            className="w-full max-w-md rounded-lg bg-card p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="mb-1 text-sm font-medium text-foreground">Start New Inspection</h2>
+            <p className="mb-6 text-xs text-muted-foreground">Select a site and template to begin.</p>
+
+            {modalLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            ) : (
+              <form onSubmit={handleStart} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="modal-site" className="text-sm font-medium text-foreground">Site</label>
+                  <select
+                    id="modal-site"
+                    value={selectedSiteId}
+                    onChange={(e) => setSelectedSiteId(e.target.value)}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <option value="">Choose a site…</option>
+                    {modalSites.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="modal-template" className="text-sm font-medium text-foreground">Template</label>
+                  <select
+                    id="modal-template"
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <option value="">Choose a template…</option>
+                    {modalTemplates.map((t) => (
+                      <option key={t.id} value={t.id}>{t.templateName}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {startError && (
+                  <p className="text-sm text-destructive">{startError}</p>
+                )}
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!selectedSiteId || !selectedTemplateId || starting}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {starting ? 'Starting…' : 'Start Inspection'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

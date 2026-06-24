@@ -1,16 +1,24 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import InspectionsList from './InspectionsList'
 
 vi.mock('@/lib/api', () => ({
-  api: { get: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn() },
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string) { super(message) }
   },
 }))
 
+const mockNavigate = vi.fn()
+vi.mock('react-router', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('react-router')>()
+  return { ...mod, useNavigate: () => mockNavigate }
+})
+
 import { api } from '@/lib/api'
 const mockGet = vi.mocked(api.get)
+const mockPost = vi.mocked(api.post)
 
 function makeInspection(overrides = {}) {
   return {
@@ -34,7 +42,11 @@ function renderList() {
 }
 
 describe('InspectionsList', () => {
-  beforeEach(() => mockGet.mockReset())
+  beforeEach(() => {
+    mockGet.mockReset()
+    mockPost.mockReset()
+    mockNavigate.mockReset()
+  })
 
   it('shows a loading spinner initially', async () => {
     let settle: (v: unknown) => void
@@ -127,5 +139,89 @@ describe('InspectionsList', () => {
     renderList()
     await waitFor(() => expect(screen.getByText('Fire Safety Audit')).toBeInTheDocument())
     expect(screen.queryByText('Previous')).not.toBeInTheDocument()
+  })
+
+  it('opens the new inspection modal when "New inspection" is clicked', async () => {
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/api/inspection')) return Promise.resolve({ meta: { page: 1, limit: 10, total: 0, totalPage: 0 }, data: [] })
+      if (url.includes('/api/site')) return Promise.resolve({ data: [] })
+      if (url.includes('/api/template')) return Promise.resolve({ data: [] })
+      return Promise.resolve({ data: [] })
+    })
+    renderList()
+    await waitFor(() => screen.getByText('No inspections found'))
+    await userEvent.click(screen.getByText('New inspection'))
+    expect(screen.getByText('Start New Inspection')).toBeInTheDocument()
+  })
+
+  it('populates site and template dropdowns in the modal', async () => {
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/api/inspection')) return Promise.resolve({ meta: { page: 1, limit: 10, total: 0, totalPage: 0 }, data: [] })
+      if (url.includes('/api/site')) return Promise.resolve({ data: [{ id: 's-1', name: 'HQ Casablanca' }] })
+      if (url.includes('/api/template')) return Promise.resolve({ data: [{ id: 't-1', templateName: 'Fire Safety Audit' }] })
+      return Promise.resolve({ data: [] })
+    })
+    renderList()
+    await waitFor(() => screen.getByText('No inspections found'))
+    await userEvent.click(screen.getByText('New inspection'))
+    await waitFor(() => expect(screen.getByText('HQ Casablanca')).toBeInTheDocument())
+    expect(screen.getByText('Fire Safety Audit')).toBeInTheDocument()
+  })
+
+  it('disables Start Inspection until both site and template are selected', async () => {
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/api/inspection')) return Promise.resolve({ meta: { page: 1, limit: 10, total: 0, totalPage: 0 }, data: [] })
+      if (url.includes('/api/site')) return Promise.resolve({ data: [{ id: 's-1', name: 'HQ Casablanca' }] })
+      if (url.includes('/api/template')) return Promise.resolve({ data: [{ id: 't-1', templateName: 'Fire Safety Audit' }] })
+      return Promise.resolve({ data: [] })
+    })
+    renderList()
+    await waitFor(() => screen.getByText('No inspections found'))
+    await userEvent.click(screen.getByText('New inspection'))
+    await waitFor(() => screen.getByText('HQ Casablanca'))
+    const btn = screen.getByRole('button', { name: 'Start Inspection' })
+    expect(btn).toBeDisabled()
+    await userEvent.selectOptions(screen.getByLabelText('Site'), 's-1')
+    expect(btn).toBeDisabled()
+    await userEvent.selectOptions(screen.getByLabelText('Template'), 't-1')
+    expect(btn).not.toBeDisabled()
+  })
+
+  it('submits and navigates to the new inspection on success', async () => {
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/api/inspection')) return Promise.resolve({ meta: { page: 1, limit: 10, total: 0, totalPage: 0 }, data: [] })
+      if (url.includes('/api/site')) return Promise.resolve({ data: [{ id: 's-1', name: 'HQ Casablanca' }] })
+      if (url.includes('/api/template')) return Promise.resolve({ data: [{ id: 't-1', templateName: 'Fire Safety Audit' }] })
+      return Promise.resolve({ data: [] })
+    })
+    mockPost.mockResolvedValue({ data: { id: 'new-insp-1' } })
+    renderList()
+    await waitFor(() => screen.getByText('No inspections found'))
+    await userEvent.click(screen.getByText('New inspection'))
+    await waitFor(() => screen.getByText('HQ Casablanca'))
+    await userEvent.selectOptions(screen.getByLabelText('Site'), 's-1')
+    await userEvent.selectOptions(screen.getByLabelText('Template'), 't-1')
+    await userEvent.click(screen.getByRole('button', { name: 'Start Inspection' }))
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith('/api/inspection', {
+        templateId: 't-1', siteId: 's-1', questionAnswers: [],
+      })
+    )
+    expect(mockNavigate).toHaveBeenCalledWith('/organization/audit/inspections/new-insp-1')
+  })
+
+  it('closes the modal when Cancel is clicked', async () => {
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/api/inspection')) return Promise.resolve({ meta: { page: 1, limit: 10, total: 0, totalPage: 0 }, data: [] })
+      if (url.includes('/api/site')) return Promise.resolve({ data: [] })
+      if (url.includes('/api/template')) return Promise.resolve({ data: [] })
+      return Promise.resolve({ data: [] })
+    })
+    renderList()
+    await waitFor(() => screen.getByText('No inspections found'))
+    await userEvent.click(screen.getByText('New inspection'))
+    await waitFor(() => screen.getByText('Start New Inspection'))
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByText('Start New Inspection')).not.toBeInTheDocument()
   })
 })
