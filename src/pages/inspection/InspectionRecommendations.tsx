@@ -1,0 +1,263 @@
+import { api, ApiError } from '@/lib/api'
+import { ChevronDown, ChevronUp, Loader2, Sparkles } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router'
+
+interface RecommendationResult {
+  id: string
+  question: string
+  observation: string
+  standard: string
+  recommendation: string
+}
+
+interface Recommendation {
+  id: string
+  inspectionId: string
+  summary: string
+  questions: RecommendationResult[]
+  createdAt: string
+}
+
+type SaveStatus = Record<string, 'saving' | 'saved' | 'error'>
+
+export default function InspectionRecommendations() {
+  const { id: inspectionId } = useParams<{ id: string }>()
+
+  const [rec, setRec] = useState<Recommendation | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>({})
+  const [summaryDraft, setSummaryDraft] = useState('')
+  const [savingSummary, setSavingSummary] = useState(false)
+
+  useEffect(() => {
+    if (!inspectionId) return
+    api
+      .get<Recommendation>(`/api/recommendation/inspection/${inspectionId}`)
+      .then((data) => {
+        setRec(data)
+        setSummaryDraft(data.summary)
+        // expand first result by default
+        if (data.questions[0]) {
+          setExpanded({ [data.questions[0].id]: true })
+        }
+      })
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 404) {
+          setNotFound(true)
+        } else {
+          setError(err instanceof ApiError ? err.message : 'Failed to load recommendations')
+        }
+      })
+      .finally(() => setLoading(false))
+  }, [inspectionId])
+
+  function toggle(id: string) {
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  async function saveResult(
+    resultId: string,
+    field: 'observation' | 'standard' | 'recommendation',
+    value: string,
+  ) {
+    setSaveStatus((s) => ({ ...s, [resultId]: 'saving' }))
+    try {
+      await api.patch(`/api/recommendation/update-question/${resultId}`, { [field]: value })
+      setSaveStatus((s) => ({ ...s, [resultId]: 'saved' }))
+    } catch {
+      setSaveStatus((s) => ({ ...s, [resultId]: 'error' }))
+    }
+  }
+
+  async function saveSummary() {
+    if (!rec) return
+    setSavingSummary(true)
+    try {
+      await api.patch(`/api/recommendation/update-summary/${rec.id}`, { summary: summaryDraft })
+      setRec((r) => (r ? { ...r, summary: summaryDraft } : r))
+    } finally {
+      setSavingSummary(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center py-32">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-6 p-6 max-w-3xl mx-auto w-full">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Link to="/organization/audit/inspections" className="hover:text-foreground">
+          Inspections
+        </Link>
+        <span>/</span>
+        <Link to={`/organization/audit/inspections/${inspectionId}`} className="hover:text-foreground">
+          Inspection
+        </Link>
+        <span>/</span>
+        <span className="text-foreground">Recommendations</span>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Sparkles className="h-5 w-5 text-primary" />
+        <h1 className="text-xl font-semibold text-foreground">AI Recommendations</h1>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      {notFound && (
+        <div className="rounded-lg border border-border bg-card p-8 flex flex-col items-center gap-3 text-center">
+          <Sparkles className="h-10 w-10 text-muted-foreground/40" />
+          <p className="text-sm font-medium text-foreground">No recommendations yet</p>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            Recommendations are generated after the AI processes your inspection answers and notes.
+            Complete the inspection and upload your notes first.
+          </p>
+          <div className="flex gap-3 mt-2">
+            <Link
+              to={`/organization/audit/inspections/${inspectionId}`}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Back to inspection
+            </Link>
+            <Link
+              to={`/organization/audit/inspections/${inspectionId}/note`}
+              className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+            >
+              Upload notes
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {rec && (
+        <>
+          {/* Summary card */}
+          <div className="rounded-lg border border-border bg-card p-5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+              Executive summary
+            </p>
+            <textarea
+              value={summaryDraft}
+              onChange={(e) => setSummaryDraft(e.target.value)}
+              rows={4}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground resize-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none placeholder:text-muted-foreground"
+            />
+            {summaryDraft !== rec.summary && (
+              <div className="mt-2 flex justify-end">
+                <button
+                  onClick={saveSummary}
+                  disabled={savingSummary}
+                  className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {savingSummary ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                  Save summary
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Results */}
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-medium text-muted-foreground">
+              {rec.questions.length} finding{rec.questions.length !== 1 ? 's' : ''}
+            </p>
+
+            {rec.questions.map((result, idx) => (
+              <div key={result.id} className="rounded-lg border border-border bg-card overflow-hidden">
+                {/* Header */}
+                <button
+                  onClick={() => toggle(result.id)}
+                  className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                      {idx + 1}
+                    </span>
+                    <span className="text-sm font-medium text-foreground">{result.question}</span>
+                  </div>
+                  {expanded[result.id] ? (
+                    <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                </button>
+
+                {/* Expanded fields */}
+                {expanded[result.id] && (
+                  <div className="border-t border-border px-5 py-4 flex flex-col gap-4">
+                    {(
+                      [
+                        { key: 'observation', label: 'Observation' },
+                        { key: 'standard', label: 'Applicable standard' },
+                        { key: 'recommendation', label: 'Recommendation' },
+                      ] as const
+                    ).map(({ key, label }) => (
+                      <div key={key}>
+                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                          {label}
+                        </label>
+                        <textarea
+                          defaultValue={result[key]}
+                          rows={3}
+                          onBlur={(e) => saveResult(result.id, key, e.target.value)}
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground resize-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                        />
+                      </div>
+                    ))}
+
+                    {saveStatus[result.id] && (
+                      <p
+                        className={`text-xs ${
+                          saveStatus[result.id] === 'saved'
+                            ? 'text-green-600'
+                            : saveStatus[result.id] === 'error'
+                              ? 'text-destructive'
+                              : 'text-muted-foreground'
+                        }`}
+                      >
+                        {saveStatus[result.id] === 'saving'
+                          ? 'Saving…'
+                          : saveStatus[result.id] === 'saved'
+                            ? 'Saved'
+                            : 'Save failed'}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Link
+              to={`/organization/audit/inspections/${inspectionId}/actions`}
+              className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              View corrective actions →
+            </Link>
+            <Link
+              to={`/organization/audit/inspections/${inspectionId}`}
+              className="rounded-md border border-border px-5 py-2 text-sm text-muted-foreground hover:bg-muted"
+            >
+              Back to inspection
+            </Link>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}

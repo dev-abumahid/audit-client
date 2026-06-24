@@ -1,7 +1,10 @@
+import { useAuth } from "@/contexts/useAuth"
 import { X } from "lucide-react"
 import React from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { useNavigate } from "react-router"
+import { toast } from "sonner"
 
 interface SignInFormData {
   email: string
@@ -22,6 +25,8 @@ const SignInModal: React.FC<SignInModalProps> = ({
   onForgotPasswordClick,
 }) => {
   const { t } = useTranslation()
+  const { login } = useAuth()
+  const navigate = useNavigate()
   const {
     register,
     handleSubmit,
@@ -34,12 +39,13 @@ const SignInModal: React.FC<SignInModalProps> = ({
   })
 
   const onSubmit = async (data: SignInFormData) => {
-    const payload = {
-      email: data.email,
-      password: data.password,
+    try {
+      await login(data.email, data.password)
+      onClose()
+      navigate('/organization')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Sign in failed')
     }
-    console.log(payload)
-    //login logic here
   }
 
   const handleForgotPassword = () => {

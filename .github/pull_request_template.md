@@ -12,6 +12,7 @@ Closes #
 ## Definition of done
 - [ ] Scoped to one task; branch is short-lived and rebased on latest `main`
 - [ ] `npm run lint`, `npm run typecheck`, and `npm run build` pass locally
+- [ ] **`npm run test:coverage` passes** — every new file has a corresponding test file; coverage thresholds (80% lines · 74% statements · 68% functions · 65% branches) are met
 - [ ] No secrets/keys committed; no `console.log` left in app code
 - [ ] User-facing text goes through i18n (EN + FR), not hardcoded
 - [ ] Data comes from the API, not hardcoded/mock data

@@ -134,6 +134,10 @@
             "hintText":"Don't have an account?"
         }
     },
+    "dashboard": {
+        "criticalAlertsBanner": "critical alert",
+        "criticalAlertsBannerPlural": "critical alerts"
+    },
     "organization":{
         "nav":{
             "analyze":"Analyze",

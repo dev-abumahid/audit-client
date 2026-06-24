@@ -1,5 +1,6 @@
 import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAlertBanner"
 import LanguageSwitcher from "@/components/shared/LanguageSwitcher"
+import { useAuth } from "@/contexts/useAuth"
 import {
   Activity,
   AlertTriangle,
@@ -32,6 +33,7 @@ export default function OrganizationLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
   const { t } = useTranslation()
+  const { user, logout } = useAuth()
 
   const NAV_SECTIONS = [
     {
@@ -104,7 +106,7 @@ export default function OrganizationLayout() {
           icon: ClipboardCheck,
         },
         {
-          path: "/audit/inspections",
+          path: "/organization/audit/inspections",
           label: t("organization.nav.inspections"),
           icon: ClipboardCheck,
         },
@@ -122,7 +124,8 @@ export default function OrganizationLayout() {
     },
   ]
 
-  const initials = "OR"
+  const name = user?.userProfile?.name ?? user?.userProfile?.userName ?? user?.email ?? ''
+  const initials = name.slice(0, 2).toUpperCase() || 'OR'
 
   const navContent = (
     <>
@@ -215,7 +218,10 @@ export default function OrganizationLayout() {
           {!collapsed && <span>{t("organization.nav.settings")}</span>}
         </Link>
 
-        <button className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+        <button
+          onClick={logout}
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span>{t("organization.nav.logout")}</span>}
         </button>

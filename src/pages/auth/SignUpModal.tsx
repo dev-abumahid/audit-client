@@ -1,7 +1,9 @@
+import { api } from "@/lib/api"
 import { X } from "lucide-react"
-import React from "react"
+import React, { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 
 interface SignUpFormData {
   org_name: string
@@ -22,6 +24,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
   onLoginClick,
 }) => {
   const { t } = useTranslation()
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
 
   const {
     register: formRegister,
@@ -38,27 +41,79 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
   })
 
   const onSubmit = async (data: SignUpFormData) => {
-    const payload = {
-      org_name: data.org_name,
-      userName: data.userName,
-      email: data.email,
-      password: data.password,
+    try {
+      await api.post('/api/auth/sign-up', {
+        organizationName: data.org_name,
+        userName: data.userName,
+        email: data.email,
+        password: data.password,
+      })
+      setPendingEmail(data.email)
+      reset()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Registration failed')
     }
-
-    console.log(payload)
-    // login or signup logic here
   }
 
   const handleClearForm = () => {
     reset()
   }
 
+  const handleClose = () => {
+    setPendingEmail(null)
+    onClose()
+  }
+
   if (!isOpen) return null
+
+  // Verify-email confirmation screen
+  if (pendingEmail) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+        onClick={handleClose}
+      >
+        <div
+          className="relative w-full max-w-sm overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-2xl md:max-w-md"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={handleClose}
+            className="absolute top-3 right-3 z-10 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X size={18} />
+          </button>
+          <div className="px-6 py-10 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <svg className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h2 className="mb-2 text-lg font-semibold text-foreground">Check your email</h2>
+            <p className="mb-1 text-sm text-muted-foreground">
+              We sent a verification code to
+            </p>
+            <p className="mb-6 text-sm font-medium text-foreground">{pendingEmail}</p>
+            <p className="text-xs text-muted-foreground">
+              Enter the code in the email to activate your account, then{" "}
+              <button
+                onClick={() => { handleClose(); onLoginClick() }}
+                className="font-medium text-primary hover:underline"
+              >
+                sign in
+              </button>
+              .
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      onClick={onClose}
+      onClick={handleClose}
     >
       {/* Modal Content - Using your theme variables */}
       <div
@@ -67,7 +122,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
       >
         {/* Close Button */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-3 right-3 z-10 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           disabled={isSubmitting}
         >
@@ -229,7 +284,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
               {t("auth.signUp.hintText")}{" "}
               <button
                 onClick={() => {
-                  onClose()
+                  handleClose()
                   onLoginClick()
                 }}
                 className="font-medium text-primary hover:underline focus:outline-none"

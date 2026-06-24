@@ -88,7 +88,7 @@
             "description": "Tout ce que vous devez savoir sur notre plateforme",
             "questions": [
                 {
-                    "question": "La plateforme est-elle доступible sur mobile et sur le web ?",
+                    "question": "La plateforme est-elle disponible sur mobile et sur le web ?",
                     "answer": "Oui, vous pouvez accéder au tableau de bord via le web et réaliser des inspections depuis le web ou l’application mobile."
                 },
                 {
@@ -121,10 +121,10 @@
             "btnSignUp": "S’inscrire",
             "btnClear": "Réinitialiser",
             "hintText": "Vous avez déjà un compte ?",
-            "organizationNameReqText":"Se requiere el nombre de la organización.",
-            "userNameReqText":"Se requiere nombre de usuario.",
-            "emailReqText":"Se requiere correo electrónico",
-            "passwordReqText":"Se requiere contraseña"
+            "organizationNameReqText":"Le nom de l'organisation est requis.",
+            "userNameReqText":"Le nom d'utilisateur est requis.",
+            "emailReqText":"L'adresse e-mail est requise.",
+            "passwordReqText":"Le mot de passe est requis."
         },
         "signIn": {
             "title": "Connexion",
@@ -133,6 +133,10 @@
             "btnSignIn": "Se connecter",
             "hintText": "Vous n’avez pas de compte ?"
         }
+    },
+    "dashboard": {
+        "criticalAlertsBanner": "alerte critique",
+        "criticalAlertsBannerPlural": "alertes critiques"
     },
     "organization": {
         "nav": {

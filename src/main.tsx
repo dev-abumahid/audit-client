@@ -11,7 +11,7 @@ import { mainRoute } from "./routes/MainRoute.tsx"
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
-      <RouterProvider router={mainRoute}></RouterProvider>
+      <RouterProvider router={mainRoute} />
       <Toaster />
     </ThemeProvider>
   </StrictMode>
