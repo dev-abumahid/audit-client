@@ -1,5 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import {
   useCreateNewRiskMutation,
+  useDeleteRiskMutation,
   useGetAllRisksQuery,
   useUpdateRiskMutation,
 } from "@/redux/apis/organization/risk.api"
@@ -39,6 +42,8 @@ export default function RiskRegisterPage() {
 
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
+  const [deleteRiskId, setDeleteRiskId] = useState<string | null>(null)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   // RTQ query states
   const { data: riskData } = useGetAllRisksQuery({
@@ -57,6 +62,7 @@ export default function RiskRegisterPage() {
   const [createNewRisk, { isLoading: isRiskCreating }] =
     useCreateNewRiskMutation()
   const [updateRisk, { isLoading: isRiskUpdating }] = useUpdateRiskMutation()
+  const [deleteRisk] = useDeleteRiskMutation()
   // Custom make variables
   const risks: Risk[] = riskData?.data
 
@@ -108,6 +114,26 @@ export default function RiskRegisterPage() {
       setShowModal(false)
     } else {
       toast.error(res?.error?.message)
+    }
+  }
+
+  // Deleting Options
+  const openDeleteModal = (id: string) => {
+    setDeleteRiskId(id)
+    setIsDeleteModalOpen(true)
+  }
+
+  const confirmDeleteRisk = async () => {
+    if (!deleteRiskId) return
+    try {
+      const res = await deleteRisk(deleteRiskId).unwrap()
+      if (res.success) {
+        toast.success("Risk deleted successfully")
+        setIsDeleteModalOpen(false)
+        setDeleteRiskId(null)
+      }
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to delete risk")
     }
   }
 
@@ -253,7 +279,10 @@ export default function RiskRegisterPage() {
                         >
                           <Pencil className="h-3 w-3" />
                         </button>
-                        <button className="rounded p-1 hover:bg-destructive/10 hover:text-destructive">
+                        <button
+                          onClick={() => openDeleteModal(risk.id)}
+                          className="rounded p-1 hover:bg-destructive/10 hover:text-destructive"
+                        >
                           <Trash2 className="h-3 w-3" />
                         </button>
                       </div>
@@ -553,6 +582,14 @@ export default function RiskRegisterPage() {
           </div>
         </div>
       )}
+
+      <DeleteAlertModal
+        title="Delete Risk?"
+        description="This will permanently remove this Risk from the system."
+        open={isDeleteModalOpen}
+        setOpen={setIsDeleteModalOpen}
+        onConfirm={confirmDeleteRisk}
+      />
     </div>
   )
 }

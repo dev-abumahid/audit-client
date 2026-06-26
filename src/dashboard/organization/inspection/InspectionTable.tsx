@@ -23,6 +23,7 @@ import {
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { TInspection } from "@/types/organization"
 
+import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import {
   ChevronLeft,
   ChevronRight,
@@ -44,6 +45,8 @@ const InspectionTable = () => {
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [siteFilter, setSiteFilter] = useState("ALL")
   const [currentPage, setCurrentPage] = useState(1)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deletedInspectionId, setDeletedInspectionId] = useState<string>("")
   const limit = 10
 
   // API Calls
@@ -81,12 +84,21 @@ const InspectionTable = () => {
     navigate(`/organization/audit/inspection/update/${inspectionId}`)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this inspection?")) return
+  const handleDeleteConfirmModal = (id: string) => {
+    setDeleteModalOpen(true)
+    setDeletedInspectionId(id)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deletedInspectionId) return
 
     try {
-      await deleteInspection(id).unwrap()
-      toast.success("Inspection deleted successfully")
+      const res = await deleteInspection(deletedInspectionId).unwrap()
+      if (res?.success) {
+        toast.success("Inspection deleted successfully")
+        setDeleteModalOpen(false)
+        setDeletedInspectionId("")
+      }
     } catch (err: any) {
       toast.error(err?.data?.message || "Failed to delete inspection")
     }
@@ -224,7 +236,7 @@ const InspectionTable = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(item.id)}
+                          onClick={() => handleDeleteConfirmModal(item.id)}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -266,6 +278,14 @@ const InspectionTable = () => {
         )}
       </div>
       <StartInspectionModal open={open} setOpen={setOpen} />
+      {/* -------- Delete Modal -------- */}
+      <DeleteAlertModal
+        open={deleteModalOpen}
+        setOpen={setDeleteModalOpen}
+        title="Delete Inspection?"
+        description="This will permanently remove the inspection and all its notes, actions."
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

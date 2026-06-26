@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -12,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useSplitInspectionNoteMutation } from "@/redux/apis/organization/inspection.api"
 import {
+  useDeleteNoteByIdMutation,
   useExtractNoteFromFileMutation,
   useGetNoteByInspectionIdQuery,
   useSaveRawNoteMutation,
@@ -49,12 +51,14 @@ export default function UploadNotesModal({
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [isUpdating, setIsUpdating] = useState<boolean>(false)
   const [isSplitting, setIsSplitting] = useState<boolean>(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   // RTK query state
   const [uploadRawNote] = useSaveRawNoteMutation()
   const [extractNoteFromFile] = useExtractNoteFromFileMutation()
   const [updateNote] = useUpdateNoteMutation()
   const [splitInspectionNote] = useSplitInspectionNoteMutation()
+  const [deleteNote] = useDeleteNoteByIdMutation()
   const { data, refetch } = useGetNoteByInspectionIdQuery(inspectionId)
 
   const existingNote = data?.data
@@ -114,6 +118,7 @@ export default function UploadNotesModal({
       }
 
       handleClose()
+      setOpen(true)
     } catch (error: any) {
       toast.error(error?.data?.message)
     } finally {
@@ -152,6 +157,21 @@ export default function UploadNotesModal({
     setIsSplitting(false)
   }
 
+  const handleNoteDelete = async () => {
+    if (!existingNote.id) return
+
+    try {
+      const res = await deleteNote(existingNote.id).unwrap()
+      if (res.success) {
+        toast.success(res.message)
+        setIsDeleteModalOpen(false)
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete note")
+      console.log(err)
+    }
+  }
+
   useEffect(() => {
     if (!isLoading) return
 
@@ -165,55 +185,71 @@ export default function UploadNotesModal({
   // If note exists, show update form
   if (hasNote && open) {
     return (
-      <Dialog
-        open={open}
-        modal={true}
-        onOpenChange={(val) => {
-          if (isLoading || isUpdating) return
-          setOpen(val)
-        }}
-      >
-        <DialogContent className="flex max-h-[90vh] w-full flex-col sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Notebook className="h-5 w-5" />
-              Update Note
-            </DialogTitle>
-            <DialogDescription>
-              Edit your inspection note below
-            </DialogDescription>
-          </DialogHeader>
+      <>
+        <Dialog
+          open={open}
+          modal={true}
+          onOpenChange={(val) => {
+            if (isLoading || isUpdating) return
+            setOpen(val)
+          }}
+        >
+          <DialogContent className="flex max-h-[90vh] w-full flex-col sm:max-w-4xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Notebook className="h-5 w-5" />
+                Update Note
+              </DialogTitle>
+              <DialogDescription>
+                Edit your inspection note below
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto">
-            <div>
-              <Label htmlFor="update-note">Note Content</Label>
-              <Textarea
-                id="update-note"
-                value={extractedText}
-                onChange={(e) => setExtractedText(e.target.value)}
-                placeholder="Write your note here..."
-                rows={15}
-                className="mt-2 font-mono text-lg"
-              />
+            <div className="flex-1 overflow-y-auto">
+              <div>
+                <Label htmlFor="update-note">Note Content</Label>
+                <Textarea
+                  id="update-note"
+                  value={extractedText}
+                  onChange={(e) => setExtractedText(e.target.value)}
+                  placeholder="Write your note here..."
+                  rows={15}
+                  className="mt-2 font-mono text-lg"
+                />
+              </div>
             </div>
-          </div>
 
-          <DialogFooter className="mt-4">
-            <Button disabled={isSplitting} onClick={handleSplitNote} variant="secondary">
-              {isSplitting ? "Splitting..." : "Split Note"}
-            </Button>
-            <Button variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleUpdate}
-              disabled={isUpdating || !extractedText.trim()}
-            >
-              {isUpdating ? "Updating..." : "Update Note"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter className="mt-4">
+              <Button
+                onClick={() => setIsDeleteModalOpen(true)}
+                variant="destructive"
+              >
+                Delete Note
+              </Button>
+              <Button
+                disabled={isSplitting}
+                onClick={handleSplitNote}
+                variant="secondary"
+              >
+                {isSplitting ? "Splitting..." : "Split Note"}
+              </Button>
+              <Button
+                onClick={handleUpdate}
+                disabled={isUpdating || !extractedText.trim()}
+              >
+                {isUpdating ? "Updating..." : "Update Note"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <DeleteAlertModal
+          open={isDeleteModalOpen}
+          setOpen={setIsDeleteModalOpen}
+          title="Are you sure?"
+          description="After deleting this note can't revert"
+          onConfirm={handleNoteDelete}
+        />
+      </>
     )
   }
 
@@ -228,7 +264,7 @@ export default function UploadNotesModal({
       }}
     >
       <DialogContent
-        className={`max-w-2xl ${isLoading ? "pointer-events-none" : ""}`}
+        className={`max-w-2xl max-h-[90vh] ${isLoading ? "pointer-events-none" : ""}`}
       >
         {/* Loader Overlay */}
         {isLoading && (
@@ -297,7 +333,7 @@ export default function UploadNotesModal({
                 onChange={(e) => setExtractedText(e.target.value)}
                 placeholder="Create a comprehensive daily safety inspection checklist for construction sites including PPE, tools, emergency procedures..."
                 rows={8}
-                className="mt-2"
+                className="mt-2 h-52 resize-none overflow-y-aut"
               />
             </div>
           )}
@@ -359,7 +395,7 @@ export default function UploadNotesModal({
             Cancel
           </Button>
           <Button onClick={handleCreate} disabled={!mode || isLoading}>
-            {isLoading ? "Extracting..." : "Generate Template"}
+            {isLoading ? "Extracting..." : "Upload Notes"}
           </Button>
         </DialogFooter>
       </DialogContent>

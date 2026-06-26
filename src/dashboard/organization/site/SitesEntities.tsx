@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
+import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { Button } from "@/components/ui/button"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import {
@@ -67,6 +68,8 @@ export default function SitesEntities() {
   const [limit] = useState(10)
   const debouncedSearch = useDebouncedValue(searchTerm, 500)
   const [expandedSite, setExpandedSite] = useState<string | null>(null)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [deleteSiteId, setDeleteSiteId] = useState<string | null>(null)
 
   // RTK Query
   const {
@@ -82,7 +85,7 @@ export default function SitesEntities() {
   const [createNewSite, { isLoading: isSiteCreating }] =
     useCreateNewSiteMutation()
   const [updateSite, { isLoading: isSiteUpdating }] = useUpdateSiteMutation()
-  const [deleteSite] = useDeleteSiteMutation()
+  const [deleteSite, { isLoading: isSiteDeleting }] = useDeleteSiteMutation()
   const { data: riskData } = useGetAllRisksQuery(
     {
       siteId: expandedSite,
@@ -188,12 +191,19 @@ export default function SitesEntities() {
       toast.error("Failed to save site")
     }
   }
+  const handleDeleteModalOpen = (siteId: string) => {
+    setIsDeleteModalOpen(true)
+    setDeleteSiteId(siteId)
+  }
 
-  const handleDelete = async (id: string) => {
+  const handleConfirmDelete = async () => {
+    if (!deleteSiteId) return
     try {
-      const res = await deleteSite(id).unwrap()
+      const res = await deleteSite(deleteSiteId).unwrap()
       if (res.success) {
         toast.success("Site deleted successfully")
+        setIsDeleteModalOpen(false)
+        setDeleteSiteId(null)
       }
     } catch (error) {
       toast.error("Failed to delete site")
@@ -373,7 +383,7 @@ export default function SitesEntities() {
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(site.id)}
+                    onClick={() => handleDeleteModalOpen(site.id)}
                     className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -745,6 +755,14 @@ export default function SitesEntities() {
           </div>
         </div>
       )}
+      <DeleteAlertModal
+        open={isDeleteModalOpen}
+        setOpen={setIsDeleteModalOpen}
+        onConfirm={handleConfirmDelete}
+        loading={isSiteDeleting}
+        title="Are you sure ?"
+        description="This will permanently remove this site from the system."
+      />
     </div>
   )
 }

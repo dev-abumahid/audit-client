@@ -32,6 +32,7 @@ import { toast } from "sonner"
 import CreateNewFindingModal from "../findings/CreateNewFindingModal"
 import ViewAndEditRecommendation from "../recommendation/ViewAndEditRecommendation"
 import UploadNotesModal from "./UploadNotesModal"
+import UnSplitText from "./UnSplitText"
 
 type AnswerEntry = {
   answer: any
@@ -741,6 +742,18 @@ export default function UpdateInspection() {
             >
               View Recommendation
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                document
+                  .getElementById("unsplit-page")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }}
+              size="lg"
+              className="mt-5 w-full"
+            >
+              View Unsplit Text
+            </Button>
           </div>
         </div>
 
@@ -899,6 +912,7 @@ export default function UpdateInspection() {
             </div>
           ))}
           <ViewAndEditRecommendation inspectionId={inspection.id} />
+          <UnSplitText unSplitText={inspection?.unSplitText} />
         </div>
       </div>
       <CreateNewFindingModal

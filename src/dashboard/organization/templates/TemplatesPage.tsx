@@ -281,7 +281,7 @@ export default function TemplatesPage() {
         open={deleteModalOpen}
         setOpen={setDeleteModalOpen}
         title="Delete Template?"
-        description="This will permanently remove the template and all its pages."
+        description="You can't recover this template once deleted."
         onConfirm={handleConfirmDelete}
       />
       <CreateTemplateWithAIDialog

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Button } from "@/components/ui/button"
 import { useGenerateRecommendationFromAiMutation } from "@/redux/apis/organization/ai.api"
@@ -260,7 +261,7 @@ export default function ViewAndEditRecommendation({
   // Generate button view
   if (!hasRecommendation) {
     return (
-      <div className="min-h-screen rounded-md" id="recommendation-page">
+      <div className="mb-10 rounded-md" id="recommendation-page">
         <div className="mx-auto">
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6 md:p-8">
