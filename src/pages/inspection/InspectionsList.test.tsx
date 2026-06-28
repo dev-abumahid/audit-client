@@ -194,7 +194,7 @@ describe('InspectionsList', () => {
       if (url.includes('/api/template')) return Promise.resolve({ data: [{ id: 't-1', templateName: 'Fire Safety Audit' }] })
       return Promise.resolve({ data: [] })
     })
-    mockPost.mockResolvedValue({ data: { id: 'new-insp-1' } })
+    mockPost.mockResolvedValue({ id: 'new-insp-1' })
     renderList()
     await waitFor(() => screen.getByText('No inspections found'))
     await userEvent.click(screen.getByText('New inspection'))

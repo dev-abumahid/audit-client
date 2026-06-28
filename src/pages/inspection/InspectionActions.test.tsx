@@ -31,6 +31,7 @@ function makeAction(overrides = {}) {
     dueDate: '2026-07-01T00:00:00.000Z',
     status: 'TO_DO',
     site: null,
+    attachments: [],
     messages: [],
     ...overrides,
   }
@@ -126,7 +127,7 @@ describe('InspectionActions', () => {
 
     await userEvent.type(screen.getByPlaceholderText(/e.g. Replace faulty/i), 'Fix lighting')
     await userEvent.type(screen.getByPlaceholderText(/Describe what needs/i), 'Replace emergency lighting.')
-    await userEvent.type(screen.getByDisplayValue(''), '2026-08-01')
+    await userEvent.type(document.querySelector('input[type="date"]') as HTMLElement, '2026-08-01')
 
     await userEvent.click(screen.getByText('Create action'))
 
@@ -192,5 +193,26 @@ describe('InspectionActions', () => {
 
     expect(screen.getByDisplayValue('In progress')).toBeInTheDocument()
     expect(mockPatch).toHaveBeenCalledWith('/api/action/act-1', { status: 'IN_PROGRESS' })
+  })
+
+  it('displays image attachments on action cards', async () => {
+    mockGet.mockResolvedValue({
+      ...emptyResponse,
+      data: [makeAction({ attachments: ['/uploads/photo.jpg'] })],
+    })
+    renderPage()
+    await waitFor(() => screen.getByText('Replace extinguisher'))
+    const img = document.querySelector('img[alt="Attachment 1"]') as HTMLImageElement
+    expect(img).toBeInTheDocument()
+    expect(img.src).toContain('/uploads/photo.jpg')
+  })
+
+  it('shows an attach file input in the create form', async () => {
+    mockGet.mockResolvedValue(emptyResponse)
+    renderPage()
+    await waitFor(() => screen.getByText('No corrective actions yet.'))
+    await userEvent.click(screen.getByText('New action'))
+    // The hidden file input should be present in the DOM
+    expect(document.querySelector('input[type="file"]')).toBeInTheDocument()
   })
 })

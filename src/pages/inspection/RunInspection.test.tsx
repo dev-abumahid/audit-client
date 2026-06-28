@@ -159,4 +159,48 @@ describe('RunInspection', () => {
     const inputs = screen.getAllByRole('textbox')
     inputs.forEach((input) => expect(input).toBeDisabled())
   })
+
+  it('renders a relative mediaFile URL with the BASE_URL prefix', async () => {
+    const inspectionWithMedia = {
+      ...mockInspection,
+      questionAnswers: [
+        { id: 'qa-1', questionId: 'q-1', answer: 'Paris', note: null,
+          mediaFiles: [{ url: '/uploads/photo.jpg' }],
+          question: { id: 'q-1', question: 'Location?', answerType: 'TEXT', value: null } },
+        { id: 'qa-2', questionId: 'q-2', answer: '', note: null, mediaFiles: null,
+          question: { id: 'q-2', question: 'Date?', answerType: 'DATE', value: null } },
+        { id: 'qa-3', questionId: 'q-3', answer: [], note: null, mediaFiles: null,
+          question: { id: 'q-3', question: 'Extinguisher ok?', answerType: 'CHECKBOX', value: ['Yes', 'No'] } },
+      ],
+    }
+    mockGet.mockResolvedValue(inspectionWithMedia)
+    renderPage()
+    await waitFor(() => screen.getByText('Location?'))
+    const img = document.querySelector('img[alt="Attachment 1"]') as HTMLImageElement
+    expect(img).toBeInTheDocument()
+    // VITE_API_BASE_URL is not set in the test environment so it falls back to ''
+    // meaning relative paths are kept as-is (no double slash)
+    expect(img.src).toContain('/uploads/photo.jpg')
+  })
+
+  it('renders an absolute mediaFile URL unchanged', async () => {
+    const inspectionWithMedia = {
+      ...mockInspection,
+      questionAnswers: [
+        { id: 'qa-1', questionId: 'q-1', answer: 'Paris', note: null,
+          mediaFiles: ['https://cdn.example.com/photo.png'],
+          question: { id: 'q-1', question: 'Location?', answerType: 'TEXT', value: null } },
+        { id: 'qa-2', questionId: 'q-2', answer: '', note: null, mediaFiles: null,
+          question: { id: 'q-2', question: 'Date?', answerType: 'DATE', value: null } },
+        { id: 'qa-3', questionId: 'q-3', answer: [], note: null, mediaFiles: null,
+          question: { id: 'q-3', question: 'Extinguisher ok?', answerType: 'CHECKBOX', value: ['Yes', 'No'] } },
+      ],
+    }
+    mockGet.mockResolvedValue(inspectionWithMedia)
+    renderPage()
+    await waitFor(() => screen.getByText('Location?'))
+    const img = document.querySelector('img[alt="Attachment 1"]') as HTMLImageElement
+    expect(img).toBeInTheDocument()
+    expect(img.src).toBe('https://cdn.example.com/photo.png')
+  })
 })

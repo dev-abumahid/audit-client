@@ -116,12 +116,12 @@ export default function InspectionsList() {
     setStarting(true)
     setStartError(null)
     try {
-      const res = await api.post<{ data: { id: string } }>('/api/inspection', {
+      const res = await api.post<{ id: string }>('/api/inspection', {
         templateId: selectedTemplateId,
         siteId: selectedSiteId,
         questionAnswers: [],
       })
-      navigate(`/organization/audit/inspections/${res.data.id}`)
+      navigate(`/organization/audit/inspections/${res.id}`)
       closeModal()
     } catch (err) {
       setStartError(err instanceof ApiError ? err.message : 'Failed to start inspection')

@@ -1,7 +1,9 @@
 import { api, ApiError } from '@/lib/api'
-import { Loader2, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { FileText, Loader2, Paperclip, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 type ActionPriority = 'Low' | 'Medium' | 'High'
 type ActionStatus = 'TO_DO' | 'IN_PROGRESS' | 'COMPLETE' | 'CANT_DO'
@@ -15,6 +17,7 @@ interface Action {
   dueDate: string
   status: ActionStatus
   site: { id: string; name: string } | null
+  attachments: string[]
 }
 
 const PRIORITY_CLASSES: Record<ActionPriority, string> = {
@@ -56,6 +59,9 @@ function ActionForm({
   submitting,
   formError,
   submitLabel,
+  attachments,
+  onAttach,
+  attachUploading,
 }: {
   title: string
   form: FormState
@@ -65,6 +71,9 @@ function ActionForm({
   submitting: boolean
   formError: string | null
   submitLabel: string
+  attachments: string[]
+  onAttach: (file: File) => Promise<void>
+  attachUploading: boolean
 }) {
   return (
     <form onSubmit={onSubmit} className="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
@@ -96,6 +105,28 @@ function ActionForm({
           placeholder="Describe what needs to be done…"
           className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground resize-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
         />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-muted-foreground">Attachments</label>
+        <div className="flex flex-wrap gap-2">
+          {attachments.map((url, i) => {
+            const isImage = /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url)
+            const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
+            return isImage ? (
+              <img key={i} src={fullUrl} alt={`Attachment ${i + 1}`} className="h-16 w-16 rounded-md border border-border object-cover" />
+            ) : (
+              <a key={i} href={fullUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted">
+                <FileText className="h-3.5 w-3.5" /> File {i + 1}
+              </a>
+            )
+          })}
+          <label className={`flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted ${attachUploading ? 'opacity-60 pointer-events-none' : ''}`}>
+            {attachUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+            Attach file
+            <input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onAttach(f) }} disabled={attachUploading} />
+          </label>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -162,16 +193,41 @@ export default function InspectionActions() {
   const [createForm, setCreateForm] = useState(EMPTY_FORM)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [createAttachments, setCreateAttachments] = useState<string[]>([])
+  const [createAttachUploading, setCreateAttachUploading] = useState(false)
 
   // edit form
   const [editingAction, setEditingAction] = useState<Action | null>(null)
   const [editForm, setEditForm] = useState(EMPTY_FORM)
   const [updating, setUpdating] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
+  const [editAttachments, setEditAttachments] = useState<string[]>([])
+  const [editAttachUploading, setEditAttachUploading] = useState(false)
 
   // delete confirm
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteInFlight, setDeleteInFlight] = useState(false)
+
+  async function uploadAttachment(file: File, onUrl: (url: string) => void, setUploading: (v: boolean) => void) {
+    setUploading(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(`${BASE_URL}/api/action/attachment`, {
+        method: 'POST',
+        credentials: 'include',
+        body: form,
+      })
+      if (!res.ok) throw new Error('Upload failed')
+      const json = await res.json()
+      const url: string = json.data?.url ?? json.url ?? ''
+      if (url) onUrl(url)
+    } catch {
+      // silent — no UI error for now, attachment just won't appear
+    } finally {
+      setUploading(false)
+    }
+  }
 
   function loadActions() {
     if (!inspectionId) return
@@ -203,9 +259,11 @@ export default function InspectionActions() {
         ...createForm,
         inspectionId,
         dueDate: new Date(createForm.dueDate).toISOString(),
+        attachments: createAttachments,
       })
       setActions((prev) => [created, ...prev])
       setCreateForm(EMPTY_FORM)
+      setCreateAttachments([])
       setShowCreate(false)
     } catch (err) {
       setCreateError(err instanceof ApiError ? err.message : 'Failed to create action')
@@ -223,6 +281,7 @@ export default function InspectionActions() {
       dueDate: action.dueDate.slice(0, 10),
       status: action.status,
     })
+    setEditAttachments(action.attachments ?? [])
     setEditError(null)
   }
 
@@ -235,6 +294,7 @@ export default function InspectionActions() {
       const updated = await api.patch<Action>(`/api/action/${editingAction.id}`, {
         ...editForm,
         dueDate: new Date(editForm.dueDate).toISOString(),
+        attachments: editAttachments,
       })
       setActions((prev) => prev.map((a) => (a.id === editingAction.id ? updated : a)))
       setEditingAction(null)
@@ -310,6 +370,9 @@ export default function InspectionActions() {
           submitting={creating}
           formError={createError}
           submitLabel="Create action"
+          attachments={createAttachments}
+          onAttach={(file) => uploadAttachment(file, (url) => setCreateAttachments((prev) => [...prev, url]), setCreateAttachUploading)}
+          attachUploading={createAttachUploading}
         />
       )}
 
@@ -324,6 +387,9 @@ export default function InspectionActions() {
           submitting={updating}
           formError={editError}
           submitLabel="Save changes"
+          attachments={editAttachments}
+          onAttach={(file) => uploadAttachment(file, (url) => setEditAttachments((prev) => [...prev, url]), setEditAttachUploading)}
+          attachUploading={editAttachUploading}
         />
       )}
 
@@ -378,6 +444,22 @@ export default function InspectionActions() {
                   </button>
                 </div>
               </div>
+
+              {(action.attachments?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {action.attachments.map((url, i) => {
+                    const isImage = /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url)
+                    const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
+                    return isImage ? (
+                      <img key={i} src={fullUrl} alt={`Attachment ${i + 1}`} className="h-14 w-14 rounded-md border border-border object-cover" />
+                    ) : (
+                      <a key={i} href={fullUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted">
+                        <FileText className="h-3 w-3" /> File {i + 1}
+                      </a>
+                    )
+                  })}
+                </div>
+              )}
 
               {/* Inline delete confirmation */}
               {deletingId === action.id && (

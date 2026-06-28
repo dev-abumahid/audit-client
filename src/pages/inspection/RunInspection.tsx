@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { QuestionInput } from './QuestionInput'
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
 export default function RunInspection() {
@@ -48,9 +50,9 @@ export default function RunInspection() {
   useEffect(() => {
     if (!id) return
     api
-      .get<{ inspectionId: string }[]>('/api/action')
+      .get<{ data: { inspectionId: string }[] }>('/api/action')
       .then((res) => {
-        setActionCount((res ?? []).filter((a) => a.inspectionId === id).length)
+        setActionCount((res.data ?? []).filter((a) => a.inspectionId === id).length)
       })
       .catch(() => setActionCount(null))
   }, [id])
@@ -70,6 +72,12 @@ export default function RunInspection() {
   }, [inspection])
 
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeout.current) clearTimeout(saveTimeout.current)
+    }
+  }, [])
 
   const handleAnswerChange = useCallback(
     (qaId: string, answer: unknown) => {
@@ -315,18 +323,19 @@ export default function RunInspection() {
                         {files.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-2">
                             {files.map((url, i) => {
+                              const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
                               const isImage = /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(url)
                               return isImage ? (
                                 <img
                                   key={i}
-                                  src={url}
+                                  src={fullUrl}
                                   alt={`Attachment ${i + 1}`}
                                   className="h-20 w-20 rounded-md border border-border object-cover"
                                 />
                               ) : (
                                 <a
                                   key={i}
-                                  href={url}
+                                  href={fullUrl}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
