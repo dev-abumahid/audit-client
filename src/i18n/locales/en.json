@@ -187,7 +187,72 @@
                 "title":"Recent alerts",
                 "des":"Last 48 hours — sorted by relevance"
             }
+        },
+        "site&entities":{
+            "title":"Site & Entities",
+            "description":"Organize activities by location",
+            "csv":"Importer CSV",
+            "aiDiscovery":"AI Discovery",
+            "newSite":"New Site",
+            "activeSite":"Active Sites",
+            "pays":"Pays",
+            "caTotal":"CA Total",
+            "employees":"Employees",
+            "analyzeAi":"Analyze AI",
+            "addRisk":"Add Risk",
+            "addRiskTitle":"Add a risk manually",
+            "cancel":"Cancel",
+            "add":"Add",
+            "aiPendingRisk":"AI risks pending",
+            "confirmedRisk":"Confirmed risks",
+            "noSite":"No sites registered",
+            "siteName":"Site Name",
+            "siteType":"Site Type",
+            "headOffice":"Head Office",
+            "production":"Production",
+            "warehouse":"Warehouse",
+            "other":"Other",
+            "activity":"Activity",
+            "update":"Update Site"
+        },
+        "riskRegister":{
+            "title":"Risk  Register",
+            "activeRisk":"Active Risks",
+            "delete":"Deleted",
+            "groupByType":"Group by type",
+            "rootCause":"Root Cause AI",
+            "viewAssets":"View Assets",
+            "addNew":"Add New",
+            "close":"Close",
+            "risks":"Risks",
+            "resolution":"Resolution",
+            "sendToFinding":"Send to Finding",
+            "allSite":"All Sites",
+            "allCategory":"All Categories",
+            "category":"CATEGORY",
+            "riskName":"RISK NAME",
+            "description":"DESCRIPTION",
+            "inherentScore":"INHERENT SCORE",
+            "residualScore":"RESIDUAL SCORE",
+            "probability":"PROBABILITY",
+            "update":"Update",
+            "modify":"Modify Risk",
+            "addNewRisk":"Add New Risk"
+        },
+        "riskMatrix":{
+            "title":"ISO 31000 Risk Matrix",
+            "des":"Risks positioned — Click on a cell to see details",
+            "critical":"Critical",
+            "major":"Major",
+            "moderate":"Moderate",
+            "weak":"Weak",
+            "noRiskSelected":"Select a cell from the matrix",
+            "selectRiskHint":"Click on a cell to see the risks"
+
         }
+    },
+    "alert":{
+        "criticalAlertsBannerPlural":"critical unread alerts",
+        "criticalAlertsBanner":"critical unread alert"
     }
-   
 }

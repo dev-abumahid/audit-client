@@ -1,4 +1,7 @@
-import { useAuth } from "@/contexts/useAuth"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useSignInUserMutation } from "@/redux/apis/auth.api"
+import { useAppDispatch } from "@/redux/hooks"
+import { setUser } from "@/redux/slices/user.slice"
 import { X } from "lucide-react"
 import React from "react"
 import { useForm } from "react-hook-form"
@@ -24,9 +27,10 @@ const SignInModal: React.FC<SignInModalProps> = ({
   onSignUpClick,
   onForgotPasswordClick,
 }) => {
-  const { t } = useTranslation()
-  const { login } = useAuth()
+  const [signInUser] = useSignInUserMutation()
+  const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const {
     register,
     handleSubmit,
@@ -40,11 +44,18 @@ const SignInModal: React.FC<SignInModalProps> = ({
 
   const onSubmit = async (data: SignInFormData) => {
     try {
-      await login(data.email, data.password)
-      onClose()
-      navigate('/organization')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Sign in failed')
+      const payload = {
+        email: data.email,
+        password: data.password,
+      }
+      const res = await signInUser(payload).unwrap()
+      if (res?.success) {
+        dispatch(setUser(res?.data))
+        toast.success(res?.message)
+        navigate("/" + res?.data?.role?.toLowerCase())
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message)
     }
   }
 

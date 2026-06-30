@@ -1,6 +1,6 @@
-import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAlertBanner"
 import LanguageSwitcher from "@/components/shared/LanguageSwitcher"
-import { useAuth } from "@/contexts/useAuth"
+import { useAppDispatch, useAppSelector } from "@/redux/hooks"
+import { removeUser } from "@/redux/slices/user.slice"
 import {
   Activity,
   AlertTriangle,
@@ -18,7 +18,6 @@ import {
   Network,
   Radio,
   Scale,
-  Search,
   Settings,
   Shield,
   TrendingUp,
@@ -26,14 +25,24 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Link, Outlet, useLocation } from "react-router"
+import { Link, Outlet, useLocation, useNavigate } from "react-router"
+import { toast } from "sonner"
 
 export default function OrganizationLayout() {
+  const user = useAppSelector((state) => state.user)
+  const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
   const { t } = useTranslation()
-  const { user, logout } = useAuth()
+
+  // handlers
+  const logOutHandler = () => {
+    dispatch(removeUser())
+    navigate("/")
+    toast.success("Logged out")
+  }
 
   const NAV_SECTIONS = [
     {
@@ -45,32 +54,32 @@ export default function OrganizationLayout() {
           icon: LayoutDashboard,
         },
         {
-          path: "/sites",
+          path: "/organization/sites",
           label: t("organization.nav.sitesEntities"),
           icon: Building,
         },
         {
-          path: "/risks",
+          path: "/organization/risks",
           label: t("organization.nav.riskRegister"),
           icon: Shield,
         },
         {
-          path: "/risk-matrix",
+          path: "/organization/risk-matrix",
           label: t("organization.nav.matrix5x5"),
           icon: Grid3X3,
         },
         {
-          path: "/correlation-matrix",
+          path: "/organization/correlation-matrix",
           label: t("organization.nav.correlationMatrix"),
           icon: GitBranch,
         },
         {
-          path: "/risk-graph",
+          path: "/organization/risk-graph",
           label: t("organization.nav.pageRankGraph"),
           icon: Network,
         },
         {
-          path: "/kri",
+          path: "/organization/kri",
           label: t("organization.nav.kriDashboard"),
           icon: Activity,
         },
@@ -80,28 +89,32 @@ export default function OrganizationLayout() {
       label: t("organization.nav.intelligence"),
       items: [
         {
-          path: "/intelligence",
+          path: "/organization/intelligence",
           label: t("organization.nav.threatIntel"),
           icon: Radio,
         },
-        { path: "/alerts", label: t("organization.nav.alerts"), icon: Bell },
+        {
+          path: "/organization/alerts",
+          label: t("organization.nav.alerts"),
+          icon: Bell,
+        },
       ],
     },
     {
       label: t("organization.nav.governance"),
       items: [
         {
-          path: "/compliance",
+          path: "/organization/compliance",
           label: t("organization.nav.regulatoryCompliance"),
           icon: Scale,
         },
         {
-          path: "/audit",
+          path: "/organization/audit",
           label: t("organization.nav.auditMissions"),
           icon: ClipboardCheck,
         },
         {
-          path: "/audit/templates",
+          path: "/organization/audit/templates",
           label: t("organization.nav.templates"),
           icon: ClipboardCheck,
         },
@@ -111,12 +124,12 @@ export default function OrganizationLayout() {
           icon: ClipboardCheck,
         },
         {
-          path: "/findings",
+          path: "/organization/findings",
           label: t("organization.nav.findings"),
           icon: AlertTriangle,
         },
         {
-          path: "/reports",
+          path: "/organization/reports",
           label: t("organization.nav.boardReports"),
           icon: FileText,
         },
@@ -124,16 +137,13 @@ export default function OrganizationLayout() {
     },
   ]
 
-  const name = user?.userProfile?.name ?? user?.userProfile?.userName ?? user?.email ?? ''
-  const initials = name.slice(0, 2).toUpperCase() || 'OR'
-
   const navContent = (
     <>
       {/* Logo */}
       <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3">
         {!collapsed ? (
           <Link
-            to="/dashboard"
+            to="/organization"
             className="flex items-center gap-2"
             onClick={() => setMobileOpen(false)}
           >
@@ -208,7 +218,7 @@ export default function OrganizationLayout() {
       {/* Footer */}
       <div className="space-y-1 border-t border-sidebar-border p-3">
         <Link
-          to="/settings"
+          to="/organization/settings"
           onClick={() => setMobileOpen(false)}
           className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
             collapsed ? "justify-center" : ""
@@ -219,7 +229,7 @@ export default function OrganizationLayout() {
         </Link>
 
         <button
-          onClick={logout}
+          onClick={logOutHandler}
           className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <LogOut className="h-4 w-4" />
@@ -280,35 +290,27 @@ export default function OrganizationLayout() {
             >
               <Menu className="h-5 w-5" />
             </button>
-
-            <div className="relative hidden w-80 sm:block">
-              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search..."
-                className="h-9 w-full rounded-md border border-input bg-background pr-4 pl-10 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-              />
-            </div>
           </div>
 
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
             <Link
-              to="/alerts"
+              to="/organization/alerts"
               className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Bell className="h-4 w-4" />
               <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
             </Link>
 
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-              {initials}
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground uppercase">
+              {(user?.organizationProfile?.organizationLogo as string) ? (
+                <img src={user?.organizationProfile?.organizationLogo} />
+              ) : (
+                <>{user?.organizationProfile?.organizationName?.charAt(0)}</>
+              )}
             </div>
           </div>
         </header>
-
-        {/* Critical Alert Banner */}
-        <CriticalAlertBanner />
 
         {/* Page Content */}
         <div className="flex-1 overflow-y-auto">

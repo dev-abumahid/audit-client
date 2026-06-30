@@ -68,16 +68,16 @@ export default function CriticalAlertBanner() {
   if (dismissed || criticalAlerts.length === 0) return null
 
   return (
-    <div className="border-risk-critical/30 bg-risk-critical/5 animate-fade-in border-b px-6 py-2">
+    <div className="animate-fade-in border-b border-risk-critical/30 bg-risk-critical/5 px-6 py-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <AlertTriangle className="text-risk-critical h-4 w-4 animate-pulse" />
+          <AlertTriangle className="h-4 w-4 animate-pulse text-risk-critical" />
 
-          <span className="text-risk-critical text-xs font-semibold">
+          <span className="text-xs font-semibold text-risk-critical">
             🚨 {criticalAlerts.length}{" "}
             {criticalAlerts.length > 1
-              ? t("dashboard.criticalAlertsBannerPlural")
-              : t("dashboard.criticalAlertsBanner")}
+              ? t("alert.criticalAlertsBannerPlural")
+              : t("alert.criticalAlertsBanner")}
           </span>
 
           <span className="max-w-md truncate text-xs text-muted-foreground">

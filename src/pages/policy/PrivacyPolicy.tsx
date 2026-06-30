@@ -60,7 +60,7 @@ const PrivacyPolicy = () => {
         </div>
       </header>
 
-      <main className="container mx-auto max-w-5xl px-4 mt-4">
+      <main className="container mx-auto mt-4 max-w-5xl px-4">
         {/* Highlights Grid */}
         <div className="mb-16 grid gap-6 md:grid-cols-3">
           {dataCards.map((card, idx) => (

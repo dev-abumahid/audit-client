@@ -1,0 +1,912 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import RiskBadge from "@/components/dashboard/organization/RiskBadge"
+import SiteFilter from "@/components/dashboard/organization/SiteFilter"
+import {
+  ChevronDown,
+  ChevronUp,
+  GitBranch,
+  Layers,
+  Loader2,
+  MapPin,
+  Send,
+  Sparkles,
+} from "lucide-react"
+import { useCallback, useMemo, useState } from "react"
+
+type MatrixSize = 3 | 4 | 5
+type ViewMode = "risks" | "findings" | "buckets" | "ai-buckets"
+type GroupMode = "none" | "category" | "rootcause"
+
+interface Risk {
+  id: string
+  ref: string
+  name: string
+  description?: string
+  category: string
+  inherent_score: number
+  residual_score: number
+  pagerank_score: number
+  probability: number
+  financial_impact_max: number
+  site_id?: string
+  ai_generated?: boolean
+  is_edited?: boolean
+  source_info?: string
+}
+
+interface RiskLink {
+  id: string
+  source_ref: string
+  target_ref: string
+  link_type: string
+}
+
+interface AuditFinding {
+  id: string
+  ref: string
+  title: string
+  severity: string
+  cause?: string
+  recommendation?: string
+}
+
+interface RiskBucket {
+  name: string
+  category: string
+  risks: Risk[]
+  sites: string[]
+  totalImpact: number
+}
+
+interface FindingBucket {
+  name: string
+  severity: string
+  findings: AuditFinding[]
+  commonAction: string
+}
+
+// Dummy Data
+const DUMMY_RISKS: Risk[] = [
+  {
+    id: "1",
+    ref: "CY-001",
+    name: "Cyberattaque ransomware",
+    description: "Risque de blocage des systèmes",
+    category: "cyber",
+    inherent_score: 22,
+    residual_score: 14,
+    pagerank_score: 88,
+    probability: 0.75,
+    financial_impact_max: 2500000,
+    site_id: "site1",
+    ai_generated: true,
+  },
+  {
+    id: "2",
+    ref: "OP-012",
+    name: "Rupture chaîne approvisionnement",
+    description: "Dépendance fournisseur unique",
+    category: "operational",
+    inherent_score: 19,
+    residual_score: 16,
+    pagerank_score: 75,
+    probability: 0.85,
+    financial_impact_max: 1800000,
+    site_id: "site2",
+  },
+  {
+    id: "3",
+    ref: "CO-005",
+    name: "Non-conformité RGPD",
+    description: "Manque de consentement données",
+    category: "compliance",
+    inherent_score: 16,
+    residual_score: 10,
+    pagerank_score: 62,
+    probability: 0.45,
+    financial_impact_max: 1200000,
+    site_id: "site1",
+  },
+  {
+    id: "4",
+    ref: "FI-008",
+    name: "Fluctuation taux de change",
+    description: "Exposition devises émergentes",
+    category: "financial",
+    inherent_score: 13,
+    residual_score: 8,
+    pagerank_score: 58,
+    probability: 0.6,
+    financial_impact_max: 600000,
+    site_id: "site3",
+  },
+  {
+    id: "5",
+    ref: "HS-003",
+    name: "Accident grave site",
+    description: "Risque industriel majeur",
+    category: "operational",
+    inherent_score: 21,
+    residual_score: 18,
+    pagerank_score: 91,
+    probability: 0.55,
+    financial_impact_max: 3200000,
+    site_id: "site2",
+  },
+]
+
+const DUMMY_LINKS: RiskLink[] = [
+  { id: "l1", source_ref: "OP-012", target_ref: "CY-001", link_type: "CAUSES" },
+  {
+    id: "l2",
+    source_ref: "CO-005",
+    target_ref: "CY-001",
+    link_type: "AMPLIFIES",
+  },
+  { id: "l3", source_ref: "FI-008", target_ref: "OP-012", link_type: "CAUSES" },
+  { id: "l4", source_ref: "HS-003", target_ref: "OP-012", link_type: "CAUSES" },
+]
+
+const DUMMY_FINDINGS: AuditFinding[] = [
+  {
+    id: "f1",
+    ref: "F-2025-01",
+    title: "Faible contrôle accès systèmes",
+    severity: "high",
+    cause: "Manque de MFA",
+    recommendation: "Implémenter authentification forte",
+  },
+  {
+    id: "f2",
+    ref: "F-2025-02",
+    title: "Données clients non chiffrées",
+    severity: "critical",
+    cause: "Stockage non sécurisé",
+    recommendation: "Chiffrer les données sensibles",
+  },
+  {
+    id: "f3",
+    ref: "F-2025-03",
+    title: "Fournisseur unique critique",
+    severity: "high",
+    cause: "Dépendance excessive",
+    recommendation: "Diversifier les fournisseurs",
+  },
+]
+
+const DUMMY_SITES = [
+  { id: "site1", name: "Siège Paris" },
+  { id: "site2", name: "Usine Lyon" },
+  { id: "site3", name: "Bureau Marseille" },
+]
+
+const RISK_CATEGORIES = {
+  cyber: { label: "Cyber", color: "#ef4444" },
+  operational: { label: "Opérationnel", color: "#f59e0b" },
+  compliance: { label: "Conformité", color: "#8b5cf6" },
+  financial: { label: "Financier", color: "#10b981" },
+}
+
+const AXIS_LABELS_MAP: Record<
+  MatrixSize,
+  { rootCause: string[]; consequence: string[] }
+> = {
+  3: {
+    rootCause: ["0 cause", "1-2 causes", "3+ causes"],
+    consequence: ["0 conséquence", "1-2 conséquences", "3+ conséquences"],
+  },
+  4: {
+    rootCause: ["0 cause", "1 cause", "2 causes", "3+ causes"],
+    consequence: [
+      "0 conséquence",
+      "1 conséquence",
+      "2 conséquences",
+      "3+ conséquences",
+    ],
+  },
+  5: {
+    rootCause: [
+      "Aucune cause",
+      "1 cause racine",
+      "2 causes racines",
+      "3 causes racines",
+      "4+ causes racines",
+    ],
+    consequence: [
+      "Aucune conséquence",
+      "1 conséquence",
+      "2 conséquences",
+      "3 conséquences",
+      "4+ conséquences",
+    ],
+  },
+}
+
+function getCellColor(row: number, col: number, size: MatrixSize): string {
+  const score = (row + 1 + (col + 1)) / (size * 2)
+  if (score >= 0.8) return "bg-red-600"
+  if (score >= 0.6) return "bg-orange-600"
+  if (score >= 0.4) return "bg-yellow-600"
+  return "bg-green-600"
+}
+
+function mapToAxis(value: number, size: MatrixSize): number {
+  const max = size - 1
+  if (size === 3) return value === 0 ? 0 : value <= 2 ? 1 : 2
+  return Math.min(max, value)
+}
+
+export default function CorrelationMatrixPage() {
+  const [risks] = useState(DUMMY_RISKS)
+  const [links] = useState(DUMMY_LINKS)
+  const [findings] = useState(DUMMY_FINDINGS)
+  const [sites] = useState(DUMMY_SITES)
+
+  const [siteFilter, setSiteFilter] = useState<string | null>(null)
+  const [selectedCell, setSelectedCell] = useState<{
+    row: number
+    col: number
+  } | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>("risks")
+  const [groupMode, setGroupMode] = useState<GroupMode>("none")
+  const [matrixSize, setMatrixSize] = useState<MatrixSize>(5)
+  const [expandedBucket, setExpandedBucket] = useState<string | null>(null)
+  const [aiBuckets, setAIBuckets] = useState<any[]>([])
+  const [isAILoading, setIsAILoading] = useState(false)
+  const [sendingBucket, setSendingBucket] = useState<string | null>(null)
+
+  const filteredRisks = useMemo(() => {
+    if (!siteFilter) return risks
+    return risks.filter((r) => r.site_id === siteFilter)
+  }, [risks, siteFilter])
+
+  const filteredRefs = useMemo(
+    () => new Set(filteredRisks.map((r) => r.ref)),
+    [filteredRisks]
+  )
+
+  const riskMetrics = useMemo(() => {
+    const causalLinks = links.filter(
+      (l) => l.link_type === "CAUSES" || l.link_type === "AMPLIFIES"
+    )
+    const metrics: Record<
+      string,
+      { rootCauses: number; consequences: number }
+    > = {}
+    for (const risk of filteredRisks) {
+      metrics[risk.ref] = {
+        rootCauses: causalLinks.filter(
+          (l) => l.target_ref === risk.ref && filteredRefs.has(l.source_ref)
+        ).length,
+        consequences: causalLinks.filter(
+          (l) => l.source_ref === risk.ref && filteredRefs.has(l.target_ref)
+        ).length,
+      }
+    }
+    return metrics
+  }, [filteredRisks, links, filteredRefs])
+
+  const riskGrid = useMemo(() => {
+    const grid: Record<string, Risk[]> = {}
+    for (const risk of filteredRisks) {
+      const m = riskMetrics[risk.ref]
+      if (!m) continue
+      const row = mapToAxis(m.rootCauses, matrixSize)
+      const col = mapToAxis(m.consequences, matrixSize)
+      const key = `${row}-${col}`
+      if (!grid[key]) grid[key] = []
+      grid[key].push(risk)
+    }
+    return grid
+  }, [filteredRisks, riskMetrics, matrixSize])
+
+  const riskBuckets = useMemo<RiskBucket[]>(() => {
+    const bucketMap: Record<string, Risk[]> = {}
+    for (const risk of filteredRisks) {
+      const siteName =
+        sites.find((s) => s.id === risk.site_id)?.name || "Groupe"
+      const key = `${risk.category}::${siteName}`
+      if (!bucketMap[key]) bucketMap[key] = []
+      bucketMap[key].push(risk)
+    }
+    return Object.entries(bucketMap)
+      .filter(([, rs]) => rs.length >= 2)
+      .map(([key, rs]) => {
+        const [category, site] = key.split("::")
+        return {
+          name: `${RISK_CATEGORIES[category as keyof typeof RISK_CATEGORIES]?.label || category} — ${site}`,
+          category,
+          risks: rs,
+          sites: [
+            ...new Set(
+              rs.map(
+                (r) => sites.find((s) => s.id === r.site_id)?.name || "Groupe"
+              )
+            ),
+          ],
+          totalImpact: rs.reduce(
+            (sum, r) => sum + (r.financial_impact_max || 0),
+            0
+          ),
+        }
+      })
+      .sort((a, b) => b.totalImpact - a.totalImpact)
+  }, [filteredRisks, sites])
+
+  const findingBuckets = useMemo<FindingBucket[]>(() => {
+    const bucketMap: Record<string, AuditFinding[]> = {}
+    for (const f of findings) {
+      const key = `${f.severity}::${f.cause || "general"}`
+      if (!bucketMap[key]) bucketMap[key] = []
+      bucketMap[key].push(f)
+    }
+    return Object.entries(bucketMap)
+      .filter(([, fs]) => fs.length >= 2)
+      .map(([key, fs]) => {
+        const [severity] = key.split("::")
+        return {
+          name: `${severity.charAt(0).toUpperCase() + severity.slice(1)} — ${fs[0]?.cause || "Général"}`,
+          severity,
+          findings: fs,
+          commonAction: fs[0]?.recommendation || "Action à définir",
+        }
+      })
+      .sort((a, b) => b.findings.length - a.findings.length)
+  }, [findings])
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const selectedRisks = selectedCell
+    ? riskGrid[`${selectedCell.row}-${selectedCell.col}`] || []
+    : []
+
+  const groupedSelectedRisks = useMemo(() => {
+    if (groupMode === "none") return null
+    const groups: Record<string, Risk[]> = {}
+    for (const risk of selectedRisks) {
+      const key =
+        groupMode === "category" ? risk.category : "Simulated Root Cause"
+      if (!groups[key]) groups[key] = []
+      groups[key].push(risk)
+    }
+    return Object.entries(groups).sort((a, b) => b[1].length - a[1].length)
+  }, [selectedRisks, groupMode])
+
+  const toggleBucket = useCallback((name: string) => {
+    setExpandedBucket((prev) => (prev === name ? null : name))
+  }, [])
+
+  const runAIBucketing = () => {
+    setIsAILoading(true)
+    setTimeout(() => {
+      const dummyAIBuckets = [
+        {
+          bucketName: "Dépendance Fournisseurs Critiques",
+          rootCause: "Manque de diversification des fournisseurs stratégiques",
+          riskRefs: ["OP-012", "HS-003"],
+          sitesAffected: ["Usine Lyon"],
+          aggregatedImpactMax: 5000000,
+          groupedAction: {
+            description:
+              "Identifier et qualifier au moins deux fournisseurs alternatifs",
+            normReference: "ISO 28000",
+            owner: "Supply Chain Manager",
+            estimatedRiskReduction: 45,
+          },
+          dominoRisk: "Risque de propagation cyber via fournisseurs",
+        },
+      ]
+      setAIBuckets(dummyAIBuckets)
+      setViewMode("ai-buckets")
+      setIsAILoading(false)
+    }, 1500)
+  }
+
+  const handleSendBucketToFindings = (bucket: any) => {
+    setSendingBucket(bucket.bucketName)
+    setTimeout(() => {
+      alert(`✅ Finding créé pour le bucket : ${bucket.bucketName}`)
+      setSendingBucket(null)
+    }, 800)
+  }
+
+  const axisLabels = AXIS_LABELS_MAP[matrixSize]
+
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <GitBranch className="h-5 w-5 text-primary" />
+            <h1 className="text-2xl font-bold tracking-tight">
+              Matrice de Corrélation
+            </h1>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Causes racines × Conséquences — Bucketing et analyse
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Matrix Size */}
+          <div className="flex overflow-hidden rounded-lg border border-border">
+            {[3, 4, 5].map((s) => (
+              <button
+                key={s}
+                onClick={() => setMatrixSize(s as MatrixSize)}
+                className={`px-3 py-1.5 text-xs font-medium ${matrixSize === s ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
+              >
+                {s}×{s}
+              </button>
+            ))}
+          </div>
+
+          {/* Group Mode */}
+          <div className="flex overflow-hidden rounded-lg border border-border">
+            {[
+              ["none", "Tous"],
+              ["category", "Par type"],
+              ["rootcause", "Root cause"],
+            ].map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setGroupMode(mode as GroupMode)}
+                className={`px-3 py-1.5 text-xs font-medium ${groupMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* View Mode */}
+          <div className="flex overflow-hidden rounded-lg border border-border">
+            {[
+              ["risks", "Risques"],
+              ["buckets", "Buckets"],
+              ["findings", "Findings"],
+              ["ai-buckets", "IA Buckets"],
+            ].map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode as ViewMode)}
+                className={`px-3 py-1.5 text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <SiteFilter
+            value={siteFilter}
+            onChange={setSiteFilter}
+            className="w-56"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Matrix */}
+        <div className="rounded-xl border border-border bg-card p-6 lg:col-span-2">
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              Conséquences →
+            </span>
+          </div>
+
+          <div className="overflow-auto">
+            <div className="min-w-105">
+              {/* Consequence Labels */}
+              <div className="flex">
+                <div className="w-32 shrink-0" />
+                <div
+                  className="mb-2 grid flex-1 gap-1.5"
+                  style={{ gridTemplateColumns: `repeat(${matrixSize}, 1fr)` }}
+                >
+                  {axisLabels.consequence.map((label, i) => (
+                    <div
+                      key={i}
+                      className="text-center text-[10px] font-medium text-muted-foreground"
+                    >
+                      {label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Matrix Rows */}
+              {[...axisLabels.rootCause].reverse().map((label, reversedRow) => {
+                const row = matrixSize - 1 - reversedRow
+                return (
+                  <div key={row} className="mb-2 flex items-center">
+                    <div className="w-32 pr-3 text-right text-[10px] font-medium text-muted-foreground">
+                      {label}
+                    </div>
+                    <div
+                      className="grid flex-1 gap-1.5"
+                      style={{
+                        gridTemplateColumns: `repeat(${matrixSize}, 1fr)`,
+                      }}
+                    >
+                      {axisLabels.consequence.map((_, col) => {
+                        const cellKey = `${row}-${col}`
+                        const cellRisks = riskGrid[cellKey] || []
+                        const isSelected =
+                          selectedCell?.row === row && selectedCell?.col === col
+
+                        return (
+                          <button
+                            key={col}
+                            onClick={() =>
+                              setSelectedCell(
+                                cellRisks.length ? { row, col } : null
+                              )
+                            }
+                            className={`${getCellColor(row, col, matrixSize)} flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-white transition-all hover:scale-105 ${isSelected ? "scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-70"}`}
+                          >
+                            {cellRisks.length > 0 && (
+                              <>
+                                <span className="text-lg">
+                                  {cellRisks.length}
+                                </span>
+                                <span className="text-[9px] opacity-90">
+                                  risque{cellRisks.length > 1 ? "s" : ""}
+                                </span>
+                              </>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+
+              <div className="mt-4 text-[10px] text-muted-foreground italic">
+                ↑ Causes racines
+              </div>
+
+              {/* Legend */}
+              <div className="mt-6 flex flex-wrap gap-4">
+                {[
+                  { color: "bg-red-600", label: "Nœud systémique" },
+                  { color: "bg-orange-600", label: "Forte interconnexion" },
+                  { color: "bg-yellow-600", label: "Modéré" },
+                  { color: "bg-green-600", label: "Isolé" },
+                ].map(({ color, label }) => (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <div className={`h-3 w-3 rounded ${color}`} />
+                    <span className="text-xs text-muted-foreground">
+                      {label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Detail Panel */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          {viewMode === "risks" && (
+            <>
+              <h3 className="mb-3 text-sm font-semibold">
+                {selectedCell
+                  ? `${selectedRisks.length} risque(s) — ${axisLabels.rootCause[selectedCell.row]} / ${axisLabels.consequence[selectedCell.col]}`
+                  : "Sélectionnez une cellule"}
+              </h3>
+
+              {selectedRisks.length > 0 ? (
+                <div className="max-h-130 space-y-3 overflow-y-auto">
+                  {groupMode !== "none" && groupedSelectedRisks
+                    ? groupedSelectedRisks.map(([key, grpRisks]) => (
+                        <div key={key}>
+                          <div className="mb-2 flex items-center gap-2">
+                            <span className="text-xs font-semibold">
+                              {key} ({grpRisks.length})
+                            </span>
+                          </div>
+                          {grpRisks.map((risk) => (
+                            <RiskDetailCard
+                              key={risk.id}
+                              risk={risk}
+                              sites={sites}
+                              riskMetrics={riskMetrics}
+                              links={links}
+                            />
+                          ))}
+                        </div>
+                      ))
+                    : selectedRisks.map((risk) => (
+                        <RiskDetailCard
+                          key={risk.id}
+                          risk={risk}
+                          sites={sites}
+                          riskMetrics={riskMetrics}
+                          links={links}
+                        />
+                      ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <GitBranch className="mb-2 h-10 w-10 opacity-30" />
+                  <p>Cliquez sur une cellule de la matrice</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {viewMode === "buckets" && (
+            <BucketList
+              buckets={riskBuckets}
+              expandedBucket={expandedBucket}
+              toggleBucket={toggleBucket}
+              sites={sites}
+            />
+          )}
+
+          {viewMode === "findings" && (
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <Layers className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">
+                  {findingBuckets.length} Buckets de findings
+                </h3>
+              </div>
+              {findingBuckets.length > 0 ? (
+                <div className="max-h-125 space-y-2 overflow-y-auto">
+                  {findingBuckets.map((bucket) => (
+                    <div
+                      key={bucket.name}
+                      className="rounded-lg border bg-background"
+                    >
+                      <button
+                        onClick={() => toggleBucket(bucket.name)}
+                        className="flex w-full items-center justify-between p-3 text-left hover:bg-muted/50"
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{bucket.name}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {bucket.findings.length} constats
+                          </p>
+                        </div>
+                        {expandedBucket === bucket.name ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </button>
+                      {expandedBucket === bucket.name && (
+                        <div className="space-y-2 px-3 pb-3 text-xs">
+                          <div className="rounded bg-blue-500/10 p-2 text-blue-700">
+                            Action groupée : {bucket.commonAction}
+                          </div>
+                          {bucket.findings.map((f) => (
+                            <div key={f.id} className="flex justify-between">
+                              <span>{f.title}</span>
+                              <span
+                                className={`rounded px-2 py-0.5 text-[10px] ${f.severity === "critical" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}
+                              >
+                                {f.severity}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="py-8 text-center text-muted-foreground">
+                  Pas de buckets de findings
+                </p>
+              )}
+            </div>
+          )}
+
+          {viewMode === "ai-buckets" && (
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
+                    Buckets IA Root Cause
+                  </h3>
+                </div>
+                <button
+                  onClick={runAIBucketing}
+                  disabled={isAILoading}
+                  className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {isAILoading ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  {isAILoading ? "Analyse en cours..." : "Lancer analyse IA"}
+                </button>
+              </div>
+
+              {aiBuckets.length > 0 ? (
+                <div className="space-y-3">
+                  {aiBuckets.map((bucket, idx) => (
+                    <div key={idx} className="rounded-lg border bg-background">
+                      <button
+                        onClick={() => toggleBucket(bucket.bucketName)}
+                        className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
+                      >
+                        <div>
+                          <p className="font-medium">{bucket.bucketName}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {bucket.riskRefs.length} risques •{" "}
+                            {bucket.sitesAffected.length} sites
+                          </p>
+                        </div>
+                        {expandedBucket === bucket.bucketName ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </button>
+
+                      {expandedBucket === bucket.bucketName && (
+                        <div className="space-y-3 border-t p-3 text-xs">
+                          <div className="rounded bg-amber-500/10 p-2 text-amber-700">
+                            Cause racine : {bucket.rootCause}
+                          </div>
+                          <div className="rounded bg-blue-500/10 p-2 text-blue-700">
+                            Action : {bucket.groupedAction.description}
+                          </div>
+                          <button
+                            onClick={() => handleSendBucketToFindings(bucket)}
+                            disabled={sendingBucket === bucket.bucketName}
+                            className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/5 py-2 text-primary hover:bg-primary/10 disabled:opacity-50"
+                          >
+                            {sendingBucket === bucket.bucketName ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Send className="h-3 w-3" />
+                            )}
+                            Envoyer en Finding
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                  <Sparkles className="mb-3 h-12 w-12 opacity-30" />
+                  <p>
+                    Cliquez sur "Lancer analyse IA" pour générer des buckets
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Risk Detail Card
+function RiskDetailCard({
+  risk,
+  sites,
+  riskMetrics,
+}: {
+  risk: Risk
+  sites: { id: string; name: string }[]
+  riskMetrics: Record<string, { rootCauses: number; consequences: number }>
+  links: RiskLink[]
+}) {
+  const siteName = sites.find((s) => s.id === risk.site_id)?.name
+  const m = riskMetrics[risk.ref] || { rootCauses: 0, consequences: 0 }
+
+  return (
+    <div className="space-y-2 rounded-lg border bg-background p-3">
+      <div className="flex justify-between">
+        <div>
+          <p className="font-mono text-xs text-primary">{risk.ref}</p>
+          <p className="text-sm font-medium">{risk.name}</p>
+        </div>
+        <RiskBadge
+          level={
+            risk.residual_score > 12
+              ? "critical"
+              : risk.residual_score > 8
+                ? "high"
+                : "medium"
+          }
+          size="sm"
+        />
+      </div>
+
+      {siteName && (
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <MapPin className="h-3 w-3" />
+          {siteName}
+        </div>
+      )}
+
+      <p className="line-clamp-2 text-xs text-muted-foreground">
+        {risk.description}
+      </p>
+
+      <div className="flex gap-3 text-[10px] text-muted-foreground">
+        <span>↓ {m.rootCauses} causes</span>
+        <span>↑ {m.consequences} conséquences</span>
+      </div>
+    </div>
+  )
+}
+
+// Bucket List Component
+function BucketList({
+  buckets,
+  expandedBucket,
+  toggleBucket,
+  sites,
+}: {
+  buckets: RiskBucket[]
+  expandedBucket: string | null
+  toggleBucket: (name: string) => void
+  sites: { id: string; name: string }[]
+}) {
+  if (buckets.length === 0) {
+    return (
+      <p className="py-8 text-center text-muted-foreground">
+        Pas assez de risques similaires pour former des buckets
+      </p>
+    )
+  }
+
+  return (
+    <div className="max-h-130 space-y-2 overflow-y-auto">
+      {buckets.map((bucket) => (
+        <div key={bucket.name} className="rounded-lg border bg-background">
+          <button
+            onClick={() => toggleBucket(bucket.name)}
+            className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
+          >
+            <div>
+              <p className="font-medium">{bucket.name}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {bucket.risks.length} risques •{" "}
+                {(bucket.totalImpact / 1000000).toFixed(1)}M€
+              </p>
+            </div>
+            {expandedBucket === bucket.name ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+
+          {expandedBucket === bucket.name && (
+            <div className="space-y-2 border-t p-3 text-xs">
+              {bucket.risks.map((risk) => {
+                const siteName = sites.find((s) => s.id === risk.site_id)?.name
+                return (
+                  <div
+                    key={risk.id}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono">{risk.ref}</span>
+                      <span className="truncate">{risk.name}</span>
+                    </div>
+                    {siteName && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {siteName}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}

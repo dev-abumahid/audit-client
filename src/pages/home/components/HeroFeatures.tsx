@@ -34,7 +34,9 @@ const HeroFeatures: React.FC = () => {
         <div className="mb-12 text-center sm:mb-16 lg:mb-20">
           <h1 className="mb-3 text-xl leading-tight font-bold text-foreground sm:mb-5 sm:text-3xl md:text-4xl lg:text-5xl">
             {t("home.heroFeatures.title1")}{" "}
-            <span className="text-primary">{t("home.heroFeatures.title2")}</span>
+            <span className="text-primary">
+              {t("home.heroFeatures.title2")}
+            </span>
           </h1>
 
           <p className="mx-auto max-w-4xl px-4 text-base leading-relaxed text-muted-foreground sm:text-lg md:text-xl">

@@ -1,0 +1,293 @@
+import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
+import {
+  useDeleteTemplateMutation,
+  useGetAllTemplatesQuery,
+} from "@/redux/apis/organization/template.api"
+import type { ITemplate } from "@/types/template"
+import { format } from "date-fns"
+import {
+  Brain,
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react"
+import { useState } from "react"
+import { Link } from "react-router"
+import { toast } from "sonner"
+import CreateTemplateWithAIDialog from "./shared/CreateTemplateWithAIDialog"
+
+// -------- Skeleton --------
+function TableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <TableRow key={i}>
+          <TableCell>
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 animate-pulse rounded-md bg-muted" />
+              <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+            </div>
+          </TableCell>
+          <TableCell className="hidden md:table-cell">
+            <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+          </TableCell>
+          <TableCell className="hidden sm:table-cell">
+            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+          </TableCell>
+          <TableCell className="hidden md:table-cell">
+            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+          </TableCell>
+          <TableCell className="text-right">
+            <div className="flex justify-end gap-1">
+              <div className="h-8 w-8 animate-pulse rounded bg-muted" />
+              <div className="h-8 w-8 animate-pulse rounded bg-muted" />
+            </div>
+          </TableCell>
+        </TableRow>
+      ))}
+    </>
+  )
+}
+
+export default function TemplatesPage() {
+  const [deleteTemplate] = useDeleteTemplateMutation()
+
+  const [searchInput, setSearchInput] = useState("")
+  const [page, setPage] = useState(1)
+  const [createTemplateModalOpen, setCreateTemplateModalOpen] =
+    useState<boolean>(false)
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
+    null
+  )
+
+  const limit = 10
+
+  //search Input optimized
+  const debouncedSearchTerm = useDebouncedValue(searchInput, 300)
+
+  const { data, isLoading } = useGetAllTemplatesQuery({
+    page,
+    limit,
+    searchTerm: debouncedSearchTerm,
+  })
+
+  const templates: ITemplate[] = data?.data || []
+  const total = data?.meta?.total || 0
+  const totalPages = Math.ceil(total / limit)
+
+  // -------- Handlers --------
+  const handleDeleteClick = (id: string) => {
+    setSelectedTemplateId(id)
+    setDeleteModalOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!selectedTemplateId) return
+
+    try {
+      const res = await deleteTemplate(selectedTemplateId).unwrap()
+
+      if (res?.success) {
+        toast.success(res?.message)
+        setDeleteModalOpen(false)
+        setSelectedTemplateId(null)
+      }
+    } catch (err) {
+      console.log(err)
+      toast.error("Failed to delete template")
+    }
+  }
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  return (
+    <div className="space-y-6 p-4 md:p-6">
+      {/* -------- Header -------- */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Templates</h1>
+          <p className="text-muted-foreground">
+            Manage all your inspection and checklist templates
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search templates..."
+              value={searchInput}
+              onChange={(e) => {
+                setSearchInput(e.target.value)
+                setPage(1)
+              }}
+              className="pl-10"
+            />
+          </div>
+
+          <Button onClick={() => setCreateTemplateModalOpen(true)}>
+            <Brain className="mr-2 h-4 w-4" />
+            Generate Template
+          </Button>
+
+          <Link to="/organization/audit/template/create">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Template
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* -------- Table -------- */}
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Template</TableHead>
+              <TableHead className="hidden md:table-cell">
+                Description
+              </TableHead>
+              <TableHead className="hidden sm:table-cell">Created</TableHead>
+              <TableHead className="hidden md:table-cell">Updated</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {isLoading ? (
+              <TableSkeleton />
+            ) : templates.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center">
+                  No templates found
+                </TableCell>
+              </TableRow>
+            ) : (
+              templates.map((template) => (
+                <TableRow key={template.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      {template.templateLogo && (
+                        <img
+                          src={template.templateLogo}
+                          className="h-8 w-8 rounded-md object-cover"
+                        />
+                      )}
+                      <div className="line-clamp-1 font-medium">
+                        <Link
+                          to={`/organization/audit/template/report/${template.id}`}
+                        >
+                          {template.templateName}
+                        </Link>
+                      </div>
+                    </div>
+                  </TableCell>
+
+                  <TableCell className="hidden text-muted-foreground md:table-cell">
+                    {template.templateDisc?.slice(0, 50) + " ..."}
+                  </TableCell>
+
+                  <TableCell className="hidden sm:table-cell">
+                    {format(new Date(template.createdAt), "dd MMM yyyy")}
+                  </TableCell>
+
+                  <TableCell className="hidden md:table-cell">
+                    {format(new Date(template.updatedAt), "dd MMM yyyy")}
+                  </TableCell>
+
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Link
+                        to={`/organization/audit/template/edit/${template.id}`}
+                      >
+                        <Button variant="ghost" size="sm">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </Link>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteClick(template.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* -------- Pagination -------- */}
+      {totalPages > 1 && (
+        <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+          <p className="text-sm text-muted-foreground">
+            Showing {(page - 1) * limit + 1} to {Math.min(page * limit, total)}{" "}
+            of {total}
+          </p>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === 1}
+              onClick={() => handlePageChange(page - 1)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            <div className="rounded-md bg-muted px-4 py-2 text-sm">
+              {page} / {totalPages}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === totalPages}
+              onClick={() => handlePageChange(page + 1)}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* -------- Delete Modal -------- */}
+      <DeleteAlertModal
+        open={deleteModalOpen}
+        setOpen={setDeleteModalOpen}
+        title="Delete Template?"
+        description="You can't recover this template once deleted."
+        onConfirm={handleConfirmDelete}
+      />
+      <CreateTemplateWithAIDialog
+        open={createTemplateModalOpen}
+        setOpen={setCreateTemplateModalOpen}
+      />
+    </div>
+  )
+}

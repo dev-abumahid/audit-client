@@ -187,7 +187,38 @@
                 "title": "Alertes récentes",
                 "des": "Dernières 48 heures — triées par pertinence"
             }
+        },
+        "site&entities": {
+            "title": "Sites & Entités",
+            "description": "Organiser les activités par site",
+            "csv": "Importer un CSV",
+            "aiDiscovery": "Découverte IA",
+            "newSite": "Nouveau site",
+            "activeSite": "Sites actifs",
+            "pays": "Pays",
+            "caTotal": "Chiffre d'affaires total",
+            "employees": "Employés",
+            "analyzeAi": "Analyser avec l’IA",
+            "addRisk": "Ajouter un risque",
+            "addRiskTitle": "Ajouter un risque manuellement",
+            "cancel": "Annuler",
+            "add": "Ajouter",
+            "aiPendingRisk": "Risques IA en attente",
+            "confirmedRisk": "Risques confirmés",
+            "noSite": "Aucun site enregistré",
+            "siteName": "Nom du site",
+            "siteType": "Type de site",
+            "headOffice": "Siège social",
+            "production": "Production",
+            "warehouse": "Entrepôt",
+            "other": "Autre",
+            "activity": "Activité",
+            "update": "Mettre à jour le site"
         }
+    },
+    "alert":{
+        "criticalAlertsBanner": "alerte critique non lue",
+        "criticalAlertsBannerPlural": "alertes critiques non lues"
     }
 }
     
