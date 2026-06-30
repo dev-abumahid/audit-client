@@ -52,4 +52,16 @@ describe('api client', () => {
     expect(init.method).toBe('POST')
     expect(init.body).toBe(JSON.stringify({ email: 'test@example.com' }))
   })
+
+  it('returns undefined on 204 No Content', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 204, json: vi.fn() })
+    const result = await api.delete('/api/test')
+    expect(result).toBeUndefined()
+  })
+
+  it('returns undefined on 204 No Content', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 204, json: vi.fn() })
+    const result = await api.delete('/api/test')
+    expect(result).toBeUndefined()
+  })
 })
