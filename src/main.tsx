@@ -14,12 +14,12 @@ import { mainRoute } from "./routes/MainRoute.tsx"
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
-      <PersistGate loading={null} persistor={persistor}>
-        <Provider store={store}>
+      <Provider store={store}>
+        <PersistGate loading={null} persistor={persistor}>
           <RouterProvider router={mainRoute}></RouterProvider>
           <Toaster richColors />
-        </Provider>
-      </PersistGate>
+        </PersistGate>
+      </Provider>
     </ThemeProvider>
   </StrictMode>
 )

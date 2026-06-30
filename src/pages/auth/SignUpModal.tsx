@@ -54,8 +54,9 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
       } else {
         toast.error(res?.error?.message)
       }
-    } catch (error: any) {
-      toast.error(error?.data?.message ?? "Registration failed")
+    } catch (error: unknown) {
+      const msg = (error as { data?: { message?: string } })?.data?.message
+      toast.error(msg ?? "Registration failed")
     }
   }
 
