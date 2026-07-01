@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAlertBanner"
 import MetricCard from "@/components/dashboard/organization/MetricCard"
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import {
@@ -59,6 +61,7 @@ export default function Overview() {
   const { t } = useTranslation()
   return (
     <div className="space-y-6 p-6">
+      <CriticalAlertBanner />
       {/* Title */}
       <div className="animate-fade-in">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
@@ -169,7 +172,7 @@ export default function Overview() {
               <span className="text-muted-foreground">
                 {t("organization.overview.chart.p5Worst")}:
               </span>{" "}
-              <span className="font-mono-data text-risk-critical font-semibold">
+              <span className="font-mono-data font-semibold text-risk-critical">
                 €14.2M
               </span>
             </div>
@@ -185,7 +188,7 @@ export default function Overview() {
               <span className="text-muted-foreground">
                 {t("organization.overview.chart.budget")}:
               </span>{" "}
-              <span className="font-mono-data text-risk-low font-semibold">
+              <span className="font-mono-data font-semibold text-risk-low">
                 €22.0M
               </span>
             </div>
@@ -266,20 +269,14 @@ export default function Overview() {
           </div>
           <div className="mt-4 space-y-3">
             {mockRisks
-              .filter((r) => r.isTippingPoint)
+              .filter((r: any) => r.is_tipping_point)
               .map((risk) => (
                 <div
                   key={risk.id}
                   className="flex items-center gap-3 rounded-lg border border-border bg-background p-3"
                 >
-                  <div
-                    className="font-mono-data flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold"
-                    style={{
-                      backgroundColor: risk.colorHex + "20",
-                      color: risk.colorHex,
-                    }}
-                  >
-                    {risk.ref}
+                  <div className="font-mono-data flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold">
+                    {risk.id}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">
@@ -291,7 +288,7 @@ export default function Overview() {
                   </div>
                   <div className="text-right">
                     <p className="font-mono-data text-sm font-bold text-foreground">
-                      {risk.pagerankScore.toFixed(1)}
+                      {risk.pagerank_score?.toFixed(1)}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
                       PageRank
@@ -299,9 +296,9 @@ export default function Overview() {
                   </div>
                   <RiskBadge
                     level={
-                      risk.residualScore > 12
+                      risk?.residual_score > 12
                         ? "critical"
-                        : risk.residualScore > 8
+                        : risk?.residual_score > 8
                           ? "high"
                           : "medium"
                     }
@@ -322,7 +319,7 @@ export default function Overview() {
                 {t("organization.overview.alert.des")}
               </p>
             </div>
-            <AlertTriangle className="text-risk-critical h-4 w-4" />
+            <AlertTriangle className="h-4 w-4 text-risk-critical" />
           </div>
           <div className="mt-4 space-y-3">
             {mockAlerts.slice(0, 4).map((alert) => (
@@ -340,16 +337,19 @@ export default function Overview() {
                       <span className="font-medium">{alert.source}</span>
                       <span>·</span>
                       <span>
-                        {new Date(alert.createdAt).toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {new Date(alert.created_at).toLocaleDateString(
+                          "fr-FR",
+                          {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
                       </span>
                       <span>·</span>
                       <span className="font-mono-data">
-                        {(alert.relevanceScore * 100).toFixed(0)}% pertinent
+                        {(alert.relevance_score * 100).toFixed(0)}% pertinent
                       </span>
                     </div>
                   </div>

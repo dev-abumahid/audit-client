@@ -1,0 +1,489 @@
+import SiteFilter from "@/components/dashboard/organization/SiteFilter"
+import { DUMMY_LINKS, mockRisks } from "@/data/mockData"
+import type { Risk, RiskLink } from "@/types/organization"
+import { RISK_CATEGORIES } from "@/utils/riskConfig"
+import {
+  AlertTriangle,
+  ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Zap,
+} from "lucide-react"
+import { useMemo, useState } from "react"
+
+interface DominoChain {
+  name: string
+  refs: string[]
+  totalImpact: number
+}
+
+export default function RiskGraphPage() {
+  const [risks] = useState<Risk[]>(mockRisks)
+  const [links] = useState<RiskLink[]>(DUMMY_LINKS)
+  const [isLoading] = useState(false)
+  const [siteFilter, setSiteFilter] = useState<string | null>(null)
+  const [selectedRisk, setSelectedRisk] = useState<string | null>(null)
+  const [showDomino, setShowDomino] = useState(true)
+
+  // Filter risks by site
+  const filteredRisks = useMemo(() => {
+    if (!siteFilter) return risks
+    return risks.filter((r) => r.site_id === siteFilter)
+  }, [risks, siteFilter])
+
+  const filteredRefs = useMemo(
+    () => new Set(filteredRisks.map((r) => r.id)),
+    [filteredRisks]
+  )
+
+  const filteredLinks = useMemo(() => {
+    return links.filter(
+      (l) => filteredRefs.has(l.source_ref) && filteredRefs.has(l.target_ref)
+    )
+  }, [links, filteredRefs])
+
+  // Build domino chains (longest causal paths)
+  const dominoChains = useMemo((): DominoChain[] => {
+    const causesLinks = filteredLinks.filter(
+      (l) => l.link_type === "CAUSES" || l.link_type === "AMPLIFIES"
+    )
+    const adjacency: Record<string, string[]> = {}
+    for (const l of causesLinks) {
+      if (!adjacency[l.source_ref]) adjacency[l.source_ref] = []
+      adjacency[l.source_ref].push(l.target_ref)
+    }
+
+    const chains: DominoChain[] = []
+    const riskMap = new Map(filteredRisks.map((r) => [r.id, r]))
+
+    const dfs = (ref: string, path: string[], visited: Set<string>) => {
+      if (visited.has(ref)) return
+      visited.add(ref)
+      path.push(ref)
+      const next = adjacency[ref] || []
+      if (next.length === 0 && path.length >= 3) {
+        const totalImpact = path.reduce((sum, p) => {
+          const risk = riskMap.get(p)
+          return sum + (risk ? Number(risk.financial_impact_max) : 0)
+        }, 0)
+        chains.push({
+          name: `Chaîne ${path[0]} → ${path[path.length - 1]}`,
+          refs: [...path],
+          totalImpact,
+        })
+      }
+      for (const n of next) {
+        dfs(n, path, visited)
+      }
+      path.pop()
+      visited.delete(ref)
+    }
+
+    for (const ref of Object.keys(adjacency)) {
+      dfs(ref, [], new Set())
+    }
+
+    return chains.sort((a, b) => b.totalImpact - a.totalImpact).slice(0, 5)
+  }, [filteredRisks, filteredLinks])
+
+  // Get cascade effects for a selected risk
+  const cascadeRefs = useMemo(() => {
+    if (!selectedRisk) return new Set<string>()
+    const refs = new Set<string>()
+    const queue = [selectedRisk]
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      if (refs.has(current)) continue
+      refs.add(current)
+      for (const l of filteredLinks) {
+        if (l.source_ref === current && !refs.has(l.target_ref)) {
+          queue.push(l.target_ref)
+        }
+      }
+    }
+    refs.delete(selectedRisk)
+    return refs
+  }, [selectedRisk, filteredLinks])
+
+  // Force-directed-ish layout using category clustering
+  const positions = useMemo(() => {
+    const pos: Record<string, { x: number; y: number }> = {}
+    const categories = Array.from(new Set(filteredRisks.map((r) => r.category)))
+    const cx = 450,
+      cy = 300
+
+    // Arrange category clusters in a larger circle
+    const catPositions: Record<string, { cx: number; cy: number }> = {}
+    categories.forEach((cat, i) => {
+      const angle = (2 * Math.PI * i) / categories.length - Math.PI / 2
+      catPositions[cat] = {
+        cx: cx + 180 * Math.cos(angle),
+        cy: cy + 160 * Math.sin(angle),
+      }
+    })
+
+    // Position each risk within its category cluster
+    categories.forEach((cat) => {
+      const catRisks = filteredRisks.filter((r) => r.category === cat)
+      const { cx: ccx, cy: ccy } = catPositions[cat]
+      catRisks.forEach((r, i) => {
+        const angle = (2 * Math.PI * i) / catRisks.length
+        const spread = Math.min(60, 30 + catRisks.length * 8)
+        pos[r.id] = {
+          x: ccx + spread * Math.cos(angle),
+          y: ccy + spread * Math.sin(angle),
+        }
+      })
+    })
+
+    return pos
+  }, [filteredRisks])
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  const selectedRiskData = selectedRisk
+    ? filteredRisks.find((r) => r.id === selectedRisk)
+    : null
+
+  return (
+    <div className="space-y-5 p-6">
+      <div className="animate-fade-in flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Graphe de Dépendances & Effets Domino
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Visualisation PageRank — cliquez un risque pour voir ses effets
+            cascade
+          </p>
+        </div>
+        <SiteFilter
+          value={siteFilter}
+          onChange={setSiteFilter}
+          className="w-56"
+        />
+      </div>
+
+      {/* Legend */}
+      <div className="animate-slide-up flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2 w-6 rounded-full bg-destructive" />
+          CAUSES
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="h-2 w-6 rounded-full bg-orange-500" />
+          AMPLIFIES
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="h-2 w-6 rounded-full bg-blue-500 opacity-60" />
+          CORRELATES
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Zap className="h-3 w-3 text-accent" />
+          Tipping Point
+        </div>
+        {selectedRisk && (
+          <button
+            onClick={() => setSelectedRisk(null)}
+            className="ml-2 rounded-md bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
+          >
+            ✕ Effacer sélection
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+        {/* Graph */}
+        <div className="animate-slide-up rounded-xl border border-border bg-card p-4 xl:col-span-2">
+          <svg
+            viewBox="0 0 900 600"
+            className="h-auto w-full"
+            style={{ minHeight: 400 }}
+          >
+            {/* Links */}
+            {filteredLinks.map((link, i) => {
+              const s = positions[link.source_ref]
+              const t = positions[link.target_ref]
+              if (!s || !t) return null
+
+              const isCascade =
+                selectedRisk &&
+                (link.source_ref === selectedRisk ||
+                  cascadeRefs.has(link.source_ref)) &&
+                cascadeRefs.has(link.target_ref)
+              const isDimmed =
+                selectedRisk && !isCascade && link.source_ref !== selectedRisk
+
+              const color =
+                link.link_type === "CAUSES"
+                  ? "hsl(0, 72%, 51%)"
+                  : link.link_type === "AMPLIFIES"
+                    ? "hsl(25, 95%, 53%)"
+                    : "hsl(199, 89%, 48%)"
+
+              // Arrow marker
+              const dx = t.x - s.x
+              const dy = t.y - s.y
+              const len = Math.sqrt(dx * dx + dy * dy)
+              const nodeR = 22
+              const ratio = (len - nodeR) / len
+              const ex = s.x + dx * ratio
+              const ey = s.y + dy * ratio
+
+              return (
+                <g key={i}>
+                  <line
+                    x1={s.x}
+                    y1={s.y}
+                    x2={ex}
+                    y2={ey}
+                    stroke={isCascade ? "hsl(0, 90%, 50%)" : color}
+                    strokeWidth={
+                      isCascade
+                        ? Number(link.strength) * 5
+                        : Number(link.strength) * 3
+                    }
+                    strokeOpacity={isDimmed ? 0.08 : isCascade ? 0.8 : 0.35}
+                    strokeLinecap="round"
+                    markerEnd={isCascade ? "url(#arrowCascade)" : undefined}
+                  />
+                </g>
+              )
+            })}
+
+            {/* Arrow defs */}
+            <defs>
+              <marker
+                id="arrowCascade"
+                viewBox="0 0 10 7"
+                refX="10"
+                refY="3.5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto"
+              >
+                <polygon points="0 0, 10 3.5, 0 7" fill="hsl(0, 90%, 50%)" />
+              </marker>
+            </defs>
+
+            {/* Nodes */}
+            {filteredRisks.map((risk) => {
+              const pos = positions[risk.id]
+              if (!pos) return null
+              const nodeRadius = 18 + Number(risk.pagerank_score) / 6
+              const cat = RISK_CATEGORIES[risk.category]
+              const catColor = cat?.color || "hsl(220, 10%, 46%)"
+              const isSelected = risk.id === selectedRisk
+              const isCascaded = cascadeRefs.has(risk.id)
+              const isDimmed = selectedRisk && !isSelected && !isCascaded
+
+              return (
+                <g
+                  key={risk.id}
+                  className="cursor-pointer"
+                  onClick={() => setSelectedRisk(isSelected ? null : risk.id)}
+                  opacity={isDimmed ? 0.15 : 1}
+                >
+                  {/* Cascade highlight */}
+                  {(isSelected || isCascaded) && (
+                    <circle
+                      cx={pos.x}
+                      cy={pos.y}
+                      r={nodeRadius + 6}
+                      fill="none"
+                      stroke={
+                        isSelected ? "hsl(var(--primary))" : "hsl(0, 80%, 50%)"
+                      }
+                      strokeWidth={2}
+                      strokeDasharray="4 2"
+                    >
+                      <animate
+                        attributeName="stroke-dashoffset"
+                        values="0;12"
+                        dur="1s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                  )}
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={nodeRadius}
+                    fill={catColor}
+                    fillOpacity={isSelected ? 0.35 : 0.15}
+                    stroke={catColor}
+                    strokeWidth={2}
+                    strokeOpacity={0.7}
+                  />
+                  <text
+                    x={pos.x}
+                    y={pos.y - 4}
+                    textAnchor="middle"
+                    className="fill-foreground text-[11px] font-bold select-none"
+                  >
+                    {risk.id}
+                  </text>
+                  <text
+                    x={pos.x}
+                    y={pos.y + 9}
+                    textAnchor="middle"
+                    className="fill-muted-foreground font-mono text-[8px] select-none"
+                  >
+                    PR:{Number(risk.pagerank_score).toFixed(0)}
+                  </text>
+                </g>
+              )
+            })}
+          </svg>
+        </div>
+
+        {/* Side panel */}
+        <div className="animate-slide-up stagger-2 space-y-4">
+          {/* Selected risk detail */}
+          {selectedRiskData && (
+            <div className="space-y-3 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
+              <h3 className="text-sm font-bold text-foreground">
+                {selectedRiskData.id} — {selectedRiskData.name}
+              </h3>
+              <p className="line-clamp-3 text-xs text-muted-foreground">
+                {selectedRiskData.description}
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-md bg-card p-2">
+                  <span className="text-muted-foreground">PageRank</span>
+                  <p className="font-mono font-bold text-foreground">
+                    {Number(selectedRiskData.pagerank_score).toFixed(0)}
+                  </p>
+                </div>
+                <div className="rounded-md bg-card p-2">
+                  <span className="text-muted-foreground">Impact max</span>
+                  <p className="font-mono font-bold text-foreground">
+                    {(
+                      Number(selectedRiskData.financial_impact_max) / 1000
+                    ).toFixed(1)}
+                    M€
+                  </p>
+                </div>
+              </div>
+              {cascadeRefs.size > 0 && (
+                <div className="rounded-md bg-destructive/10 p-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
+                    <AlertTriangle className="h-3 w-3" />
+                    Effet domino: {cascadeRefs.size} risque
+                    {cascadeRefs.size > 1 ? "s" : ""} impacté
+                    {cascadeRefs.size > 1 ? "s" : ""}
+                  </div>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {Array.from(cascadeRefs).join(" → ")}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Domino chains */}
+          <div className="rounded-xl border border-border bg-card p-4">
+            <button
+              onClick={() => setShowDomino(!showDomino)}
+              className="flex w-full items-center justify-between text-sm font-semibold text-foreground"
+            >
+              <span className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                Scénarios Domino ({dominoChains.length})
+              </span>
+              {showDomino ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </button>
+            {showDomino && (
+              <div className="mt-3 space-y-2">
+                {dominoChains.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Aucune chaîne domino détectée avec les filtres actuels.
+                  </p>
+                ) : (
+                  dominoChains.map((chain, i) => (
+                    <div
+                      key={i}
+                      className="rounded-lg border border-destructive/20 bg-destructive/5 p-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-foreground">
+                          {chain.name}
+                        </span>
+                        <span className="font-mono text-[10px] font-bold text-destructive">
+                          {(chain.totalImpact / 1000).toFixed(1)}M€
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                        {chain.refs.map((ref, j) => (
+                          <span key={ref} className="flex items-center gap-1">
+                            <button
+                              onClick={() => setSelectedRisk(ref)}
+                              className="font-mono font-bold text-foreground hover:text-primary"
+                            >
+                              {ref}
+                            </button>
+                            {j < chain.refs.length - 1 && (
+                              <ArrowRight className="h-2.5 w-2.5 text-destructive" />
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Links list */}
+          <div className="rounded-xl border border-border bg-card p-4">
+            <h3 className="mb-3 text-sm font-semibold text-foreground">
+              Corrélations ({filteredLinks.length})
+            </h3>
+            <div className="max-h-64 space-y-1.5 overflow-y-auto">
+              {filteredLinks.map((link, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/50"
+                >
+                  <span className="font-mono font-bold text-foreground">
+                    {link.source_ref}
+                  </span>
+                  <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />
+                  <span className="font-mono font-bold text-foreground">
+                    {link.target_ref}
+                  </span>
+                  <span
+                    className={`ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
+                      link.link_type === "CAUSES"
+                        ? "bg-destructive/10 text-destructive"
+                        : link.link_type === "AMPLIFIES"
+                          ? "bg-orange-500/10 text-orange-600"
+                          : "bg-blue-500/10 text-blue-600"
+                    }`}
+                  >
+                    {link.link_type}
+                  </span>
+                  <span className="font-mono text-muted-foreground">
+                    ×{Number(link.strength).toFixed(1)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

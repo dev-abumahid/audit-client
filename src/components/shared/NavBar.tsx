@@ -1,14 +1,15 @@
 import logo from "@/assets/images/logo.png"
 import SignInModal from "@/pages/auth/SignInModal"
+import { useAppSelector } from "@/redux/hooks"
 import { Menu, X } from "lucide-react"
 import React, { useState } from "react"
-import { Link, useNavigate } from "react-router"
+import { Link } from "react-router"
 import SignUpModal from "../../pages/auth/SignUpModal"
 import { ModeToggle } from "../mode-toggle"
 import LanguageSwitcher from "./LanguageSwitcher"
 
 const NavBar: React.FC = () => {
-  const navigate = useNavigate()
+  const user = useAppSelector((state) => state.user)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false)
   const [isSignUpModalOpen, setIsSignUpModalOpen] = useState(false)
@@ -25,18 +26,6 @@ const NavBar: React.FC = () => {
 
   const handleForgotPassword = () => {
     setIsSignInModalOpen(false)
-  }
-
-  const handleDashboard = () => {
-    // handle navigate logic here
-    // const role = data?.data?.account?.role
-    // if (role === "ORGANIZATION") {
-    //   navigate("/dashboard")
-    // } else if (role === "USER") {
-    //   navigate("/user-dashboard")
-    // } else if (role === "ADMIN") {
-    navigate("/organization")
-    // }
   }
 
   const closeMobileMenu = () => {
@@ -61,27 +50,30 @@ const NavBar: React.FC = () => {
             <div className="hidden items-center gap-4 lg:flex">
               <ModeToggle />
               <LanguageSwitcher />
+              {user?.role ? (
+                <Link
+                  to={`/${user?.role.toLocaleLowerCase()}`}
+                  className="rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setIsSignInModalOpen(true)}
+                    className="rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                  >
+                    Login
+                  </button>
 
-              <button
-                onClick={handleDashboard}
-                className="rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
-              >
-                Dashboard
-              </button>
-
-              <button
-                onClick={() => setIsSignInModalOpen(true)}
-                className="rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
-              >
-                Login
-              </button>
-
-              <button
-                onClick={() => setIsSignUpModalOpen(true)}
-                className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                Sign Up for Free
-              </button>
+                  <button
+                    onClick={() => setIsSignUpModalOpen(true)}
+                    className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    Sign Up
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -100,35 +92,39 @@ const NavBar: React.FC = () => {
               <div className="flex flex-col gap-3">
                 <LanguageSwitcher />
 
-                <button
-                  onClick={() => {
-                    handleDashboard()
-                    closeMobileMenu()
-                  }}
-                  className="w-full rounded-md border border-primary px-4 py-3 text-left text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
-                >
-                  Dashboard
-                </button>
+                {user?.role ? (
+                  <Link
+                    to={`/${user?.role.toLocaleLowerCase()}`}
+                    onClick={() => {
+                      closeMobileMenu()
+                    }}
+                    className="w-full rounded-md border border-primary px-4 py-3 text-left text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                  >
+                    Dashboard
+                  </Link>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        closeMobileMenu()
+                        setIsSignInModalOpen(true)
+                      }}
+                      className="w-full rounded-md border border-primary px-4 py-3 text-left text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                    >
+                      Login
+                    </button>
 
-                <button
-                  onClick={() => {
-                    closeMobileMenu()
-                    setIsSignInModalOpen(true)
-                  }}
-                  className="w-full rounded-md border border-primary px-4 py-3 text-left text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
-                >
-                  Login
-                </button>
-
-                <button
-                  onClick={() => {
-                    closeMobileMenu()
-                    setIsSignUpModalOpen(true)
-                  }}
-                  className="w-full rounded-md bg-primary px-4 py-3 text-left text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  Sign Up for Free
-                </button>
+                    <button
+                      onClick={() => {
+                        closeMobileMenu()
+                        setIsSignUpModalOpen(true)
+                      }}
+                      className="w-full rounded-md bg-primary px-4 py-3 text-left text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                      Sign Up
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
