@@ -121,8 +121,8 @@ describe('InspectionReport', () => {
 
     render(<InspectionReport />)
 
-    const extinguisherCard = screen.getByText('Extinguisher present?').closest('div.rounded-xl')!
-    const conditionCard = screen.getByText('Condition rating').closest('div.rounded-xl')!
+    const extinguisherCard = screen.getByText('Extinguisher present?').closest<HTMLDivElement>('div.rounded-xl')!
+    const conditionCard = screen.getByText('Condition rating').closest<HTMLDivElement>('div.rounded-xl')!
 
     // Each question's card shows only its own action chip, not the other question's
     expect(within(extinguisherCard).getByText('Replace tag')).toBeInTheDocument()
@@ -148,8 +148,8 @@ describe('InspectionReport', () => {
 
     render(<InspectionReport />)
 
-    const extinguisherCard = screen.getByText('Extinguisher present?').closest('div.rounded-xl')!
-    const conditionCard = screen.getByText('Condition rating').closest('div.rounded-xl')!
+    const extinguisherCard = screen.getByText('Extinguisher present?').closest<HTMLDivElement>('div.rounded-xl')!
+    const conditionCard = screen.getByText('Condition rating').closest<HTMLDivElement>('div.rounded-xl')!
 
     expect(within(extinguisherCard).queryByText('Orphan action')).not.toBeInTheDocument()
     expect(within(conditionCard).queryByText('Orphan action')).not.toBeInTheDocument()

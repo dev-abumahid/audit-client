@@ -143,7 +143,7 @@ describe('CreateNewInspection', () => {
 
     const { container } = render(<CreateNewInspection />)
     const file = new File(['img'], 'site.png', { type: 'image/png' })
-    const input = container.querySelector('input[type="file"]')!
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!
 
     await userEvent.upload(input, file)
 
@@ -168,7 +168,7 @@ describe('CreateNewInspection', () => {
 
     const { container } = render(<CreateNewInspection />)
     const bigFile = new File([new ArrayBuffer(6 * 1024 * 1024)], 'huge.png', { type: 'image/png' })
-    const input = container.querySelector('input[type="file"]')!
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!
 
     await userEvent.upload(input, bigFile)
 
