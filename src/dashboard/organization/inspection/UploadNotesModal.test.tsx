@@ -4,6 +4,9 @@ import UploadNotesModal from './UploadNotesModal'
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+import { toast } from 'sonner'
+const mockToastError = vi.mocked(toast.error)
+
 const mockUploadRawNote = vi.fn()
 const mockExtractNoteFromFile = vi.fn()
 const mockUpdateNote = vi.fn()
@@ -46,6 +49,7 @@ describe('UploadNotesModal', () => {
     mockDeleteNote.mockReset()
     mockUseGetNoteByInspectionIdQuery.mockReset()
     mockRefetch.mockReset()
+    mockToastError.mockReset()
     mockUseGetNoteByInspectionIdQuery.mockReturnValue({ data: undefined, refetch: mockRefetch })
   })
 
@@ -132,6 +136,46 @@ describe('UploadNotesModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /confirm delete/i, hidden: true }))
 
     await waitFor(() => expect(mockDeleteNote).toHaveBeenCalledWith('note-1'))
+  })
+
+  it('shows an error toast when uploading raw text fails', async () => {
+    mockUploadRawNote.mockReturnValue({ unwrap: () => Promise.reject({ data: { message: 'Server unavailable' } }) })
+
+    renderModal()
+    await userEvent.click(screen.getByText('Notes by Text'))
+    await userEvent.type(screen.getByLabelText('Write Detailed Note'), 'Some note')
+    await userEvent.click(screen.getByRole('button', { name: /upload notes/i }))
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('Server unavailable'))
+  })
+
+  it('shows an error toast (with fallback message) when updating a note fails', async () => {
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: { data: { id: 'note-1', extracted_text: 'Old text' } },
+      refetch: mockRefetch,
+    })
+    mockUpdateNote.mockReturnValue({ unwrap: () => Promise.reject({}) })
+
+    renderModal()
+    const textarea = screen.getByLabelText('Note Content')
+    await userEvent.type(textarea, '!')
+    await userEvent.click(screen.getByRole('button', { name: /update note/i }))
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('Failed to update note'))
+  })
+
+  it('shows an error toast (with fallback message) when deleting a note fails', async () => {
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: { data: { id: 'note-1', extracted_text: 'Some text' } },
+      refetch: mockRefetch,
+    })
+    mockDeleteNote.mockReturnValue({ unwrap: () => Promise.reject({}) })
+
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: /delete note/i }))
+    fireEvent.click(screen.getByRole('button', { name: /confirm delete/i, hidden: true }))
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('Failed to delete note'))
   })
 
   it('calls splitInspectionNote when "Split Note" is clicked', async () => {

@@ -5,6 +5,9 @@ import SitesEntities from './SitesEntities'
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }))
 
+import { toast } from 'sonner'
+const mockToastError = vi.mocked(toast.error)
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }))
@@ -67,6 +70,7 @@ describe('SitesEntities', () => {
     mockUseGetAllRisksQuery.mockReset()
     mockDeleteRisk.mockReset()
     mockCreateNewRisk.mockReset()
+    mockToastError.mockReset()
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
   })
 
@@ -230,5 +234,80 @@ describe('SitesEntities', () => {
 
     await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
     expect(mockCreateNewRisk.mock.calls[0][0]).toMatchObject({ name: 'Power outage', site_id: 'site-1' })
+  })
+
+  it('shows an error toast and keeps the form open when saving a site fails', async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+    mockCreateNewSite.mockReturnValue({ unwrap: () => Promise.reject(new Error('network down')) })
+
+    const { container } = render(<SitesEntities />)
+    await userEvent.click(screen.getByRole('button', { name: /organization.site&entities.newSite/i }))
+    await userEvent.type(container.querySelector('[name="name"]')!, 'New Factory')
+    await userEvent.click(screen.getByRole('button', { name: 'organization.site&entities.add' }))
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('Failed to save site'))
+    expect(screen.getByText('Add New Site')).toBeInTheDocument()
+  })
+
+  it('shows an error toast and keeps the confirmation open when deleting a site fails', async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockDeleteSite.mockReturnValue({ unwrap: () => Promise.reject(new Error('locked')) })
+
+    render(<SitesEntities />)
+    const deleteButtons = screen.getAllByRole('button').filter((b) => b.querySelector('svg.lucide-trash2'))
+    await userEvent.click(deleteButtons[0])
+    await userEvent.click(screen.getByRole('button', { name: /confirm delete/i }))
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('Failed to delete site'))
+    // The mocked DeleteAlertModal only renders while `open` is still true
+    expect(screen.getByRole('button', { name: /confirm delete/i })).toBeInTheDocument()
+  })
+
+  it('shows an error toast when the risk-delete response indicates failure', async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [{ id: 'risk-99', name: 'Flooding', residual_score: 12, ai_generated: false }] },
+    })
+    mockDeleteRisk.mockReturnValue({ unwrap: () => Promise.resolve({ success: false }) })
+
+    render(<SitesEntities />)
+    const [expandButton] = screen.getAllByRole('button').filter((b) => b.querySelector('svg.lucide-chevron-down'))
+    await userEvent.click(expandButton)
+    await userEvent.click(screen.getByRole('button', { name: /delete/i }))
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('Failed to delete risk'))
+  })
+
+  it('shows an error toast when the manual-risk-create response indicates failure', async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockCreateNewRisk.mockReturnValue({ unwrap: () => Promise.resolve({ success: false }) })
+
+    const { container } = render(<SitesEntities />)
+    await userEvent.click(screen.getByRole('button', { name: /organization.site&entities.addRisk/i }))
+    await userEvent.type(container.querySelector('[name="name"]')!, 'Power outage')
+    await userEvent.selectOptions(container.querySelector('[name="status"]')!, 'open')
+    await userEvent.click(screen.getByRole('button', { name: 'organization.site&entities.add' }))
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('Failed to create risk'))
   })
 })

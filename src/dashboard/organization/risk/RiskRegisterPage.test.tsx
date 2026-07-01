@@ -5,6 +5,9 @@ import RiskRegisterPage from './RiskRegisterPage'
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+import { toast } from 'sonner'
+const mockToastError = vi.mocked(toast.error)
+
 const mockUseGetAllRisksQuery = vi.fn()
 const mockUseGetAllSitesQuery = vi.fn()
 const mockCreateNewRisk = vi.fn()
@@ -63,6 +66,7 @@ describe('RiskRegisterPage', () => {
     mockCreateNewRisk.mockReset()
     mockUpdateRisk.mockReset()
     mockDeleteRisk.mockReset()
+    mockToastError.mockReset()
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [makeSite()] } })
   })
 
@@ -161,6 +165,39 @@ describe('RiskRegisterPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /confirm delete/i }))
 
     await waitFor(() => expect(mockDeleteRisk).toHaveBeenCalledWith('risk-1'))
+  })
+
+  it('shows an error toast and keeps the confirmation open when delete fails', async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+    mockDeleteRisk.mockReturnValue({
+      unwrap: () => Promise.reject({ data: { message: 'Risk is referenced by an action' } }),
+    })
+
+    render(<RiskRegisterPage />)
+    const deleteButtons = screen.getAllByRole('button').filter((b) => b.querySelector('svg.lucide-trash2'))
+    await userEvent.click(deleteButtons[0])
+    await userEvent.click(screen.getByRole('button', { name: /confirm delete/i }))
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('Risk is referenced by an action'))
+    // The mocked DeleteAlertModal only renders while `open` is still true
+    expect(screen.getByRole('button', { name: /confirm delete/i })).toBeInTheDocument()
+  })
+
+  it('shows an error toast and keeps the modal open when the create response indicates failure', async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+    mockCreateNewRisk.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: false, error: { message: 'Name already exists' } }),
+    })
+
+    const { container } = render(<RiskRegisterPage />)
+    await userEvent.click(screen.getByRole('button', { name: /add new risk/i }))
+    await userEvent.selectOptions(container.querySelector('[name="site_id"]')!, 'site-1')
+    await userEvent.type(container.querySelector('[name="name"]')!, 'Duplicate risk')
+    await userEvent.selectOptions(container.querySelector('[name="status"]')!, 'open')
+    await userEvent.click(screen.getByRole('button', { name: /^add risk$/i }))
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('Name already exists'))
+    expect(screen.getByText('Add New Risk', { selector: 'h2' })).toBeInTheDocument()
   })
 
   it('filters risks by search term via the query hook', async () => {

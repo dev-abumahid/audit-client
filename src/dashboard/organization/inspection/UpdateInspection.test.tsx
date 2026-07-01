@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import UpdateInspection from './UpdateInspection'
 
@@ -155,7 +155,8 @@ describe('UpdateInspection', () => {
     )
   })
 
-  it('does not auto-save a question with no existing questionAnswerId', async () => {
+  it('does not auto-save a question with no existing questionAnswerId', () => {
+    vi.useFakeTimers()
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: {
         data: makeInspection({ questionAnswers: [] }), // no persisted answers yet
@@ -165,10 +166,13 @@ describe('UpdateInspection', () => {
 
     render(<UpdateInspection />)
     const checkbox = screen.getAllByRole('checkbox')[0]
-    await userEvent.click(checkbox)
+    // fireEvent (not userEvent) avoids userEvent's internal async delays, which deadlock
+    // when the whole test runs under fake timers.
+    fireEvent.click(checkbox)
 
-    await new Promise((r) => setTimeout(r, 1200))
+    vi.advanceTimersByTime(1200)
     expect(mockUpdateQuestionAnswer).not.toHaveBeenCalled()
+    vi.useRealTimers()
   })
 
   it('changes inspection status via the dropdown', async () => {

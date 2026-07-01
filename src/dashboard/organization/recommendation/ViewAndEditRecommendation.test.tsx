@@ -149,6 +149,55 @@ describe('ViewAndEditRecommendation', () => {
     )
   })
 
+  it('does not refetch and re-enables the button when generating a recommendation fails', async () => {
+    const refetch = vi.fn()
+    mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
+      data: { data: { questions: [] } },
+      isLoading: false,
+      refetch,
+    })
+    mockGenerateRecommendation.mockReturnValue({ unwrap: () => Promise.reject({ data: { message: 'AI service unavailable' } }) })
+
+    render(<ViewAndEditRecommendation inspectionId="insp-1" />)
+    const button = screen.getByRole('button', { name: /generate recommendation now/i })
+    await userEvent.click(button)
+
+    await waitFor(() => expect(mockGenerateRecommendation).toHaveBeenCalled())
+    // The catch branch skips refetch() and re-enables the button (isGenerating reset in `finally`)
+    expect(refetch).not.toHaveBeenCalled()
+    expect(button).not.toBeDisabled()
+  })
+
+  it('shows an error status (with fallback message) when saving an observation fails', async () => {
+    mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
+      data: { data: makeRecommendation() },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+    mockUpdateRecommendationQuestion.mockReturnValue({ unwrap: () => Promise.reject({}) })
+
+    render(<ViewAndEditRecommendation inspectionId="insp-1" />)
+    const observationField = screen.getByDisplayValue('Extinguisher found near exit')
+    await userEvent.type(observationField, '!')
+
+    await waitFor(() => expect(screen.getByText('Save failed')).toBeInTheDocument())
+  })
+
+  it('shows an error status when saving the summary fails', async () => {
+    mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
+      data: { data: makeRecommendation() },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+    mockUpdateRecommendationSummary.mockReturnValue({ unwrap: () => Promise.reject({}) })
+
+    render(<ViewAndEditRecommendation inspectionId="insp-1" />)
+    const summaryField = screen.getByDisplayValue('Overall the site is compliant.')
+    await userEvent.type(summaryField, '!')
+
+    await waitFor(() => expect(screen.getByText('Failed to save summary')).toBeInTheDocument())
+  })
+
   it('opens the finding modal when "Add To Finding" is clicked', async () => {
     mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
       data: { data: makeRecommendation() },

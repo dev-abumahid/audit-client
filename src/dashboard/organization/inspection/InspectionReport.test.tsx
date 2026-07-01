@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import InspectionReport from './InspectionReport'
 
@@ -107,20 +107,56 @@ describe('InspectionReport', () => {
     expect(screen.getByText('0/3')).toBeInTheDocument()
   })
 
-  it('links a related action to its matching question', () => {
+  it('links each action only to its own matching question, not to others', () => {
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: {
         data: makeInspection({
-          actions: [{ _id: 'act-1', question: 'Extinguisher present?', actionTitle: 'Replace tag', priority: 'high', state: 'To do', dueDate: '2026-07-01T00:00:00.000Z' }],
+          actions: [
+            { _id: 'act-1', question: 'Extinguisher present?', actionTitle: 'Replace tag', priority: 'high', state: 'To do', dueDate: '2026-07-01T00:00:00.000Z' },
+            { _id: 'act-2', question: 'Condition rating', actionTitle: 'Recheck condition', priority: 'low', state: 'To do', dueDate: '2026-07-02T00:00:00.000Z' },
+          ],
         }),
       },
     })
 
     render(<InspectionReport />)
 
-    // "Replace tag" appears both on the question's inline action chip and in the actions table below
-    expect(screen.getAllByText('Replace tag').length).toBe(2)
-    expect(screen.getByText('Actions (1)')).toBeInTheDocument()
+    const extinguisherCard = screen.getByText('Extinguisher present?').closest('div.rounded-xl')!
+    const conditionCard = screen.getByText('Condition rating').closest('div.rounded-xl')!
+
+    // Each question's card shows only its own action chip, not the other question's
+    expect(within(extinguisherCard).getByText('Replace tag')).toBeInTheDocument()
+    expect(within(extinguisherCard).queryByText('Recheck condition')).not.toBeInTheDocument()
+    expect(within(conditionCard).getByText('Recheck condition')).toBeInTheDocument()
+    expect(within(conditionCard).queryByText('Replace tag')).not.toBeInTheDocument()
+
+    expect(screen.getByRole('heading', { name: 'Actions' })).toBeInTheDocument()
+    // Count badge next to the "Actions" heading (separate element, not concatenated text)
+    expect(screen.getByText('2', { selector: 'span.bg-orange-100' })).toBeInTheDocument()
+  })
+
+  it('does not attach an action to any question when its question text matches none', () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          actions: [
+            { _id: 'act-3', question: 'Some unrelated question not in this template', actionTitle: 'Orphan action', priority: 'medium', state: 'To do', dueDate: '2026-07-03T00:00:00.000Z' },
+          ],
+        }),
+      },
+    })
+
+    render(<InspectionReport />)
+
+    const extinguisherCard = screen.getByText('Extinguisher present?').closest('div.rounded-xl')!
+    const conditionCard = screen.getByText('Condition rating').closest('div.rounded-xl')!
+
+    expect(within(extinguisherCard).queryByText('Orphan action')).not.toBeInTheDocument()
+    expect(within(conditionCard).queryByText('Orphan action')).not.toBeInTheDocument()
+    // Still shows up in the actions table, just not attached to any question card
+    expect(screen.getByText('Orphan action')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Actions' })).toBeInTheDocument()
+    expect(screen.getByText('1', { selector: 'span.bg-orange-100' })).toBeInTheDocument()
   })
 
   it('renders the actions table and navigates when a row is clicked', async () => {
