@@ -1,12 +1,20 @@
-import { api, ApiError } from '@/lib/api'
-import { FileText, Loader2, Paperclip, Pencil, Plus, Trash2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { api, ApiError } from "@/lib/api"
+import {
+  FileText,
+  Loader2,
+  Paperclip,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react"
+import { useEffect, useId, useState } from "react"
+import { Link, useParams, useSearchParams } from "react-router"
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ""
 
-type ActionPriority = 'Low' | 'Medium' | 'High'
-type ActionStatus = 'TO_DO' | 'IN_PROGRESS' | 'COMPLETE' | 'CANT_DO'
+type ActionPriority = "Low" | "Medium" | "High"
+type ActionStatus = "TO_DO" | "IN_PROGRESS" | "COMPLETE" | "CANT_DO"
 
 interface Action {
   id: string
@@ -21,31 +29,31 @@ interface Action {
 }
 
 const PRIORITY_CLASSES: Record<ActionPriority, string> = {
-  Low: 'bg-slate-100 text-slate-600',
-  Medium: 'bg-amber-100 text-amber-700',
-  High: 'bg-red-100 text-red-600',
+  Low: "bg-slate-100 text-slate-600",
+  Medium: "bg-amber-100 text-amber-700",
+  High: "bg-red-100 text-red-600",
 }
 
 const STATUS_LABELS: Record<ActionStatus, string> = {
-  TO_DO: 'To do',
-  IN_PROGRESS: 'In progress',
-  COMPLETE: 'Complete',
+  TO_DO: "To do",
+  IN_PROGRESS: "In progress",
+  COMPLETE: "Complete",
   CANT_DO: "Can't do",
 }
 
 const STATUS_CLASSES: Record<ActionStatus, string> = {
-  TO_DO: 'bg-slate-100 text-slate-600',
-  IN_PROGRESS: 'bg-blue-100 text-blue-700',
-  COMPLETE: 'bg-green-100 text-green-700',
-  CANT_DO: 'bg-red-100 text-red-600',
+  TO_DO: "bg-slate-100 text-slate-600",
+  IN_PROGRESS: "bg-blue-100 text-blue-700",
+  COMPLETE: "bg-green-100 text-green-700",
+  CANT_DO: "bg-red-100 text-red-600",
 }
 
 const EMPTY_FORM = {
-  actionTitle: '',
-  actionDisc: '',
-  priority: 'Medium' as ActionPriority,
-  dueDate: '',
-  status: 'TO_DO' as ActionStatus,
+  actionTitle: "",
+  actionDisc: "",
+  priority: "Medium" as ActionPriority,
+  dueDate: "",
+  status: "TO_DO" as ActionStatus,
 }
 
 type FormState = typeof EMPTY_FORM
@@ -62,6 +70,7 @@ function ActionForm({
   attachments,
   onAttach,
   attachUploading,
+  isEdit,
 }: {
   title: string
   form: FormState
@@ -74,67 +83,118 @@ function ActionForm({
   attachments: string[]
   onAttach: (file: File) => Promise<void>
   attachUploading: boolean
+  isEdit?: boolean
 }) {
+  const dueDateId = useId()
   return (
-    <form onSubmit={onSubmit} className="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
+    <form
+      onSubmit={onSubmit}
+      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5"
+    >
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-foreground">{title}</p>
-        <button type="button" onClick={onCancel} className="text-muted-foreground hover:text-foreground">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-muted-foreground hover:text-foreground"
+        >
           <X className="h-4 w-4" />
         </button>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-muted-foreground">Title *</label>
+        <label className="text-xs font-medium text-muted-foreground">
+          Title *
+        </label>
         <input
           required
           value={form.actionTitle}
-          onChange={(e) => setForm((f) => ({ ...f, actionTitle: e.target.value }))}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, actionTitle: e.target.value }))
+          }
           placeholder="e.g. Replace faulty extinguisher in Zone B"
           className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-muted-foreground">Description *</label>
+        <label className="text-xs font-medium text-muted-foreground">
+          Description *
+        </label>
         <textarea
           required
           rows={3}
           value={form.actionDisc}
-          onChange={(e) => setForm((f) => ({ ...f, actionDisc: e.target.value }))}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, actionDisc: e.target.value }))
+          }
           placeholder="Describe what needs to be done…"
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground resize-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+          className="resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-muted-foreground">Attachments</label>
+        <label className="text-xs font-medium text-muted-foreground">
+          Attachments
+        </label>
         <div className="flex flex-wrap gap-2">
           {attachments.map((url, i) => {
             const isImage = /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url)
-            const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
+            const fullUrl = url.startsWith("http") ? url : `${BASE_URL}${url}`
             return isImage ? (
-              <img key={i} src={fullUrl} alt={`Attachment ${i + 1}`} className="h-16 w-16 rounded-md border border-border object-cover" />
+              <img
+                key={i}
+                src={fullUrl}
+                alt={`Attachment ${i + 1}`}
+                className="h-16 w-16 rounded-md border border-border object-cover"
+              />
             ) : (
-              <a key={i} href={fullUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted">
+              <a
+                key={i}
+                href={fullUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+              >
                 <FileText className="h-3.5 w-3.5" /> File {i + 1}
               </a>
             )
           })}
-          <label className={`flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted ${attachUploading ? 'opacity-60 pointer-events-none' : ''}`}>
-            {attachUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+          <label
+            className={`flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted ${attachUploading ? "pointer-events-none opacity-60" : ""}`}
+          >
+            {attachUploading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Paperclip className="h-3.5 w-3.5" />
+            )}
             Attach file
-            <input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onAttach(f) }} disabled={attachUploading} />
+            <input
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) onAttach(f)
+              }}
+              disabled={attachUploading}
+            />
           </label>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Priority *</label>
+          <label className="text-xs font-medium text-muted-foreground">
+            Priority *
+          </label>
           <select
             value={form.priority}
-            onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value as ActionPriority }))}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                priority: e.target.value as ActionPriority,
+              }))
+            }
             className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
           >
             <option value="Low">Low</option>
@@ -144,13 +204,21 @@ function ActionForm({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Due date *</label>
+          <label
+            htmlFor={dueDateId}
+            className="text-xs font-medium text-muted-foreground"
+          >
+            Due date *
+          </label>
           <input
+            id={dueDateId}
             required
             type="date"
             value={form.dueDate}
-            min={new Date().toISOString().slice(0, 10)}
-            onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
+            min={isEdit ? undefined : new Date().toISOString().slice(0, 10)}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, dueDate: e.target.value }))
+            }
             className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
           />
         </div>
@@ -189,7 +257,9 @@ export default function InspectionActions() {
   const [searchParams] = useSearchParams()
 
   // create form
-  const [showCreate, setShowCreate] = useState(() => searchParams.get('new') === '1')
+  const [showCreate, setShowCreate] = useState(
+    () => searchParams.get("new") === "1"
+  )
   const [createForm, setCreateForm] = useState(EMPTY_FORM)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -208,19 +278,23 @@ export default function InspectionActions() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteInFlight, setDeleteInFlight] = useState(false)
 
-  async function uploadAttachment(file: File, onUrl: (url: string) => void, setUploading: (v: boolean) => void) {
+  async function uploadAttachment(
+    file: File,
+    onUrl: (url: string) => void,
+    setUploading: (v: boolean) => void
+  ) {
     setUploading(true)
     try {
       const form = new FormData()
-      form.append('file', file)
+      form.append("file", file)
       const res = await fetch(`${BASE_URL}/api/action/attachment`, {
-        method: 'POST',
-        credentials: 'include',
+        method: "POST",
+        credentials: "include",
         body: form,
       })
-      if (!res.ok) throw new Error('Upload failed')
+      if (!res.ok) throw new Error("Upload failed")
       const json = await res.json()
-      const url: string = json.data?.url ?? json.url ?? ''
+      const url: string = json.data?.url ?? json.url ?? ""
       if (url) onUrl(url)
     } catch {
       // silent — no UI error for now, attachment just won't appear
@@ -233,20 +307,22 @@ export default function InspectionActions() {
     if (!inspectionId) return
     setLoading(true)
     api
-      .get<{ data: Action[] }>('/api/action')
+      .get<{ data: Action[] }>("/api/action")
       .then((res) => {
         const actions = res?.data ?? []
         setActions(actions.filter((a) => a.inspectionId === inspectionId))
       })
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : 'Failed to load actions')
+        setError(
+          err instanceof ApiError ? err.message : "Failed to load actions"
+        )
       })
       .finally(() => setLoading(false))
   }
 
   useEffect(() => {
     loadActions()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inspectionId])
 
   async function handleCreate(e: React.FormEvent) {
@@ -255,7 +331,7 @@ export default function InspectionActions() {
     setCreating(true)
     setCreateError(null)
     try {
-      const created = await api.post<Action>('/api/action', {
+      const created = await api.post<Action>("/api/action", {
         ...createForm,
         inspectionId,
         dueDate: new Date(createForm.dueDate).toISOString(),
@@ -266,7 +342,9 @@ export default function InspectionActions() {
       setCreateAttachments([])
       setShowCreate(false)
     } catch (err) {
-      setCreateError(err instanceof ApiError ? err.message : 'Failed to create action')
+      setCreateError(
+        err instanceof ApiError ? err.message : "Failed to create action"
+      )
     } finally {
       setCreating(false)
     }
@@ -291,15 +369,22 @@ export default function InspectionActions() {
     setUpdating(true)
     setEditError(null)
     try {
-      const updated = await api.patch<Action>(`/api/action/${editingAction.id}`, {
-        ...editForm,
-        dueDate: new Date(editForm.dueDate).toISOString(),
-        attachments: editAttachments,
-      })
-      setActions((prev) => prev.map((a) => (a.id === editingAction.id ? updated : a)))
+      const updated = await api.patch<Action>(
+        `/api/action/${editingAction.id}`,
+        {
+          ...editForm,
+          dueDate: new Date(editForm.dueDate).toISOString(),
+          attachments: editAttachments,
+        }
+      )
+      setActions((prev) =>
+        prev.map((a) => (a.id === editingAction.id ? updated : a))
+      )
       setEditingAction(null)
     } catch (err) {
-      setEditError(err instanceof ApiError ? err.message : 'Failed to update action')
+      setEditError(
+        err instanceof ApiError ? err.message : "Failed to update action"
+      )
     } finally {
       setUpdating(false)
     }
@@ -328,14 +413,20 @@ export default function InspectionActions() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-3xl mx-auto w-full">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link to="/organization/audit/inspections" className="hover:text-foreground">
+        <Link
+          to="/organization/audit/inspections"
+          className="hover:text-foreground"
+        >
           Inspections
         </Link>
         <span>/</span>
-        <Link to={`/organization/audit/inspections/${inspectionId}`} className="hover:text-foreground">
+        <Link
+          to={`/organization/audit/inspections/${inspectionId}`}
+          className="hover:text-foreground"
+        >
           Inspection
         </Link>
         <span>/</span>
@@ -344,15 +435,20 @@ export default function InspectionActions() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Corrective actions</h1>
+          <h1 className="text-xl font-semibold text-foreground">
+            Corrective actions
+          </h1>
           {!loading && (
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {actions.length} action{actions.length !== 1 ? 's' : ''}
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {actions.length} action{actions.length !== 1 ? "s" : ""}
             </p>
           )}
         </div>
         <button
-          onClick={() => { setShowCreate(true); setEditingAction(null) }}
+          onClick={() => {
+            setShowCreate(true)
+            setEditingAction(null)
+          }}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" /> New action
@@ -366,12 +462,21 @@ export default function InspectionActions() {
           form={createForm}
           setForm={setCreateForm}
           onSubmit={handleCreate}
-          onCancel={() => { setShowCreate(false); setCreateError(null) }}
+          onCancel={() => {
+            setShowCreate(false)
+            setCreateError(null)
+          }}
           submitting={creating}
           formError={createError}
           submitLabel="Create action"
           attachments={createAttachments}
-          onAttach={(file) => uploadAttachment(file, (url) => setCreateAttachments((prev) => [...prev, url]), setCreateAttachUploading)}
+          onAttach={(file) =>
+            uploadAttachment(
+              file,
+              (url) => setCreateAttachments((prev) => [...prev, url]),
+              setCreateAttachUploading
+            )
+          }
           attachUploading={createAttachUploading}
         />
       )}
@@ -380,15 +485,25 @@ export default function InspectionActions() {
       {editingAction && (
         <ActionForm
           title="Edit action"
+          isEdit
           form={editForm}
           setForm={setEditForm}
           onSubmit={handleUpdate}
-          onCancel={() => { setEditingAction(null); setEditError(null) }}
+          onCancel={() => {
+            setEditingAction(null)
+            setEditError(null)
+          }}
           submitting={updating}
           formError={editError}
           submitLabel="Save changes"
           attachments={editAttachments}
-          onAttach={(file) => uploadAttachment(file, (url) => setEditAttachments((prev) => [...prev, url]), setEditAttachUploading)}
+          onAttach={(file) =>
+            uploadAttachment(
+              file,
+              (url) => setEditAttachments((prev) => [...prev, url]),
+              setEditAttachUploading
+            )
+          }
           attachUploading={editAttachUploading}
         />
       )}
@@ -405,7 +520,9 @@ export default function InspectionActions() {
         </div>
       ) : actions.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-          <p className="text-sm text-muted-foreground">No corrective actions yet.</p>
+          <p className="text-sm text-muted-foreground">
+            No corrective actions yet.
+          </p>
           <button
             onClick={() => setShowCreate(true)}
             className="text-sm font-medium text-primary hover:underline"
@@ -416,13 +533,20 @@ export default function InspectionActions() {
       ) : (
         <div className="flex flex-col gap-3">
           {actions.map((action) => (
-            <div key={action.id} className="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
+            <div
+              key={action.id}
+              className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
+            >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{action.actionTitle}</p>
-                  <p className="text-sm text-muted-foreground mt-0.5">{action.actionDisc}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground">
+                    {action.actionTitle}
+                  </p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {action.actionDisc}
+                  </p>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex shrink-0 items-center gap-1">
                   <span
                     className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_CLASSES[action.priority]}`}
                   >
@@ -449,11 +573,24 @@ export default function InspectionActions() {
                 <div className="flex flex-wrap gap-2">
                   {action.attachments.map((url, i) => {
                     const isImage = /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url)
-                    const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
+                    const fullUrl = url.startsWith("http")
+                      ? url
+                      : `${BASE_URL}${url}`
                     return isImage ? (
-                      <img key={i} src={fullUrl} alt={`Attachment ${i + 1}`} className="h-14 w-14 rounded-md border border-border object-cover" />
+                      <img
+                        key={i}
+                        src={fullUrl}
+                        alt={`Attachment ${i + 1}`}
+                        className="h-14 w-14 rounded-md border border-border object-cover"
+                      />
                     ) : (
-                      <a key={i} href={fullUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted">
+                      <a
+                        key={i}
+                        href={fullUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+                      >
                         <FileText className="h-3 w-3" /> File {i + 1}
                       </a>
                     )
@@ -464,7 +601,9 @@ export default function InspectionActions() {
               {/* Inline delete confirmation */}
               {deletingId === action.id && (
                 <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2">
-                  <p className="text-xs text-destructive">Delete this action?</p>
+                  <p className="text-xs text-destructive">
+                    Delete this action?
+                  </p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setDeletingId(null)}
@@ -477,7 +616,9 @@ export default function InspectionActions() {
                       disabled={deleteInFlight}
                       className="flex items-center gap-1 text-xs font-medium text-destructive hover:underline disabled:opacity-60"
                     >
-                      {deleteInFlight && <Loader2 className="h-3 w-3 animate-spin" />}
+                      {deleteInFlight && (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      )}
                       Delete
                     </button>
                   </div>
@@ -487,11 +628,15 @@ export default function InspectionActions() {
               <div className="flex items-center justify-between">
                 <select
                   value={action.status}
-                  onChange={(e) => updateStatus(action.id, e.target.value as ActionStatus)}
-                  className={`rounded-full border-0 px-2.5 py-0.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring ${STATUS_CLASSES[action.status]}`}
+                  onChange={(e) =>
+                    updateStatus(action.id, e.target.value as ActionStatus)
+                  }
+                  className={`rounded-full border-0 px-2.5 py-0.5 text-xs font-medium focus:ring-1 focus:ring-ring focus:outline-none ${STATUS_CLASSES[action.status]}`}
                 >
                   {(Object.keys(STATUS_LABELS) as ActionStatus[]).map((s) => (
-                    <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                    <option key={s} value={s}>
+                      {STATUS_LABELS[s]}
+                    </option>
                   ))}
                 </select>
                 <p className="text-xs text-muted-foreground">

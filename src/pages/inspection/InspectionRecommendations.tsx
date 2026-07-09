@@ -1,7 +1,7 @@
-import { api, ApiError } from '@/lib/api'
-import { ChevronDown, ChevronUp, Loader2, Sparkles } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { api, ApiError } from "@/lib/api"
+import { ChevronDown, ChevronUp, Loader2, Sparkles } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Link, useParams } from "react-router"
 
 interface RecommendationResult {
   id: string
@@ -19,7 +19,7 @@ interface Recommendation {
   createdAt: string
 }
 
-type SaveStatus = Record<string, 'saving' | 'saved' | 'error'>
+type SaveStatus = Record<string, "saving" | "saved" | "error">
 
 export default function InspectionRecommendations() {
   const { id: inspectionId } = useParams<{ id: string }>()
@@ -30,7 +30,7 @@ export default function InspectionRecommendations() {
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({})
-  const [summaryDraft, setSummaryDraft] = useState('')
+  const [summaryDraft, setSummaryDraft] = useState("")
   const [savingSummary, setSavingSummary] = useState(false)
 
   useEffect(() => {
@@ -49,7 +49,11 @@ export default function InspectionRecommendations() {
         if (err instanceof ApiError && err.status === 404) {
           setNotFound(true)
         } else {
-          setError(err instanceof ApiError ? err.message : 'Failed to load recommendations')
+          setError(
+            err instanceof ApiError
+              ? err.message
+              : "Failed to load recommendations"
+          )
         }
       })
       .finally(() => setLoading(false))
@@ -61,15 +65,17 @@ export default function InspectionRecommendations() {
 
   async function saveResult(
     resultId: string,
-    field: 'observation' | 'standard' | 'recommendation',
-    value: string,
+    field: "observation" | "standard" | "recommendation",
+    value: string
   ) {
-    setSaveStatus((s) => ({ ...s, [resultId]: 'saving' }))
+    setSaveStatus((s) => ({ ...s, [resultId]: "saving" }))
     try {
-      await api.patch(`/api/recommendation/update-question/${resultId}`, { [field]: value })
-      setSaveStatus((s) => ({ ...s, [resultId]: 'saved' }))
+      await api.patch(`/api/recommendation/update-question/${resultId}`, {
+        [field]: value,
+      })
+      setSaveStatus((s) => ({ ...s, [resultId]: "saved" }))
     } catch {
-      setSaveStatus((s) => ({ ...s, [resultId]: 'error' }))
+      setSaveStatus((s) => ({ ...s, [resultId]: "error" }))
     }
   }
 
@@ -77,7 +83,9 @@ export default function InspectionRecommendations() {
     if (!rec) return
     setSavingSummary(true)
     try {
-      await api.patch(`/api/recommendation/update-summary/${rec.id}`, { summary: summaryDraft })
+      await api.patch(`/api/recommendation/update-summary/${rec.id}`, {
+        summary: summaryDraft,
+      })
       setRec((r) => (r ? { ...r, summary: summaryDraft } : r))
     } finally {
       setSavingSummary(false)
@@ -93,14 +101,20 @@ export default function InspectionRecommendations() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-3xl mx-auto w-full">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link to="/organization/audit/inspections" className="hover:text-foreground">
+        <Link
+          to="/organization/audit/inspections"
+          className="hover:text-foreground"
+        >
           Inspections
         </Link>
         <span>/</span>
-        <Link to={`/organization/audit/inspections/${inspectionId}`} className="hover:text-foreground">
+        <Link
+          to={`/organization/audit/inspections/${inspectionId}`}
+          className="hover:text-foreground"
+        >
           Inspection
         </Link>
         <span>/</span>
@@ -109,7 +123,9 @@ export default function InspectionRecommendations() {
 
       <div className="flex items-center gap-3">
         <Sparkles className="h-5 w-5 text-primary" />
-        <h1 className="text-xl font-semibold text-foreground">AI Recommendations</h1>
+        <h1 className="text-xl font-semibold text-foreground">
+          AI Recommendations
+        </h1>
       </div>
 
       {error && (
@@ -119,14 +135,17 @@ export default function InspectionRecommendations() {
       )}
 
       {notFound && (
-        <div className="rounded-lg border border-border bg-card p-8 flex flex-col items-center gap-3 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-8 text-center">
           <Sparkles className="h-10 w-10 text-muted-foreground/40" />
-          <p className="text-sm font-medium text-foreground">No recommendations yet</p>
-          <p className="text-sm text-muted-foreground max-w-sm">
-            Recommendations are generated after the AI processes your inspection answers and notes.
-            Complete the inspection and upload your notes first.
+          <p className="text-sm font-medium text-foreground">
+            No recommendations yet
           </p>
-          <div className="flex gap-3 mt-2">
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Recommendations are generated after the AI processes your inspection
+            answers and notes. Complete the inspection and upload your notes
+            first.
+          </p>
+          <div className="mt-2 flex gap-3">
             <Link
               to={`/organization/audit/inspections/${inspectionId}`}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
@@ -147,14 +166,14 @@ export default function InspectionRecommendations() {
         <>
           {/* Summary card */}
           <div className="rounded-lg border border-border bg-card p-5">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+            <p className="mb-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
               Executive summary
             </p>
             <textarea
               value={summaryDraft}
               onChange={(e) => setSummaryDraft(e.target.value)}
               rows={4}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground resize-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none placeholder:text-muted-foreground"
+              className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
             />
             {summaryDraft !== rec.summary && (
               <div className="mt-2 flex justify-end">
@@ -163,7 +182,9 @@ export default function InspectionRecommendations() {
                   disabled={savingSummary}
                   className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                 >
-                  {savingSummary ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                  {savingSummary ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : null}
                   Save summary
                 </button>
               </div>
@@ -173,21 +194,27 @@ export default function InspectionRecommendations() {
           {/* Results */}
           <div className="flex flex-col gap-3">
             <p className="text-sm font-medium text-muted-foreground">
-              {rec.questions.length} finding{rec.questions.length !== 1 ? 's' : ''}
+              {rec.questions.length} finding
+              {rec.questions.length !== 1 ? "s" : ""}
             </p>
 
             {rec.questions.map((result, idx) => (
-              <div key={result.id} className="rounded-lg border border-border bg-card overflow-hidden">
+              <div
+                key={result.id}
+                className="overflow-hidden rounded-lg border border-border bg-card"
+              >
                 {/* Header */}
                 <button
                   onClick={() => toggle(result.id)}
-                  className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition-colors"
+                  className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-muted/30"
                 >
                   <div className="flex items-center gap-3">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
                       {idx + 1}
                     </span>
-                    <span className="text-sm font-medium text-foreground">{result.question}</span>
+                    <span className="text-sm font-medium text-foreground">
+                      {result.question}
+                    </span>
                   </div>
                   {expanded[result.id] ? (
                     <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -198,23 +225,25 @@ export default function InspectionRecommendations() {
 
                 {/* Expanded fields */}
                 {expanded[result.id] && (
-                  <div className="border-t border-border px-5 py-4 flex flex-col gap-4">
+                  <div className="flex flex-col gap-4 border-t border-border px-5 py-4">
                     {(
                       [
-                        { key: 'observation', label: 'Observation' },
-                        { key: 'standard', label: 'Applicable standard' },
-                        { key: 'recommendation', label: 'Recommendation' },
+                        { key: "observation", label: "Observation" },
+                        { key: "standard", label: "Applicable standard" },
+                        { key: "recommendation", label: "Recommendation" },
                       ] as const
                     ).map(({ key, label }) => (
                       <div key={key}>
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                        <label className="mb-1.5 block text-xs font-semibold tracking-widest text-muted-foreground uppercase">
                           {label}
                         </label>
                         <textarea
                           defaultValue={result[key]}
                           rows={3}
-                          onBlur={(e) => saveResult(result.id, key, e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground resize-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                          onBlur={(e) =>
+                            saveResult(result.id, key, e.target.value)
+                          }
+                          className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                         />
                       </div>
                     ))}
@@ -222,18 +251,18 @@ export default function InspectionRecommendations() {
                     {saveStatus[result.id] && (
                       <p
                         className={`text-xs ${
-                          saveStatus[result.id] === 'saved'
-                            ? 'text-green-600'
-                            : saveStatus[result.id] === 'error'
-                              ? 'text-destructive'
-                              : 'text-muted-foreground'
+                          saveStatus[result.id] === "saved"
+                            ? "text-green-600"
+                            : saveStatus[result.id] === "error"
+                              ? "text-destructive"
+                              : "text-muted-foreground"
                         }`}
                       >
-                        {saveStatus[result.id] === 'saving'
-                          ? 'Saving…'
-                          : saveStatus[result.id] === 'saved'
-                            ? 'Saved'
-                            : 'Save failed'}
+                        {saveStatus[result.id] === "saving"
+                          ? "Saving…"
+                          : saveStatus[result.id] === "saved"
+                            ? "Saved"
+                            : "Save failed"}
                       </p>
                     )}
                   </div>

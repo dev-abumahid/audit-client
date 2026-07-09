@@ -139,9 +139,8 @@ export default function CreateTemplateWithAIDialog({
       }
 
       handleClose()
-    } catch (error) {
-      console.error(error)
-      toast.error("Failed to create template")
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to create template")
     } finally {
       setIsLoading(false)
     }

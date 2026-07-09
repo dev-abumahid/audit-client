@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -108,9 +109,8 @@ export default function TemplatesPage() {
         setDeleteModalOpen(false)
         setSelectedTemplateId(null)
       }
-    } catch (err) {
-      console.log(err)
-      toast.error("Failed to delete template")
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete template")
     }
   }
 

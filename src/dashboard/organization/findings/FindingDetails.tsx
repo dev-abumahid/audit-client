@@ -112,9 +112,8 @@ const fileName = (url: string) => {
 }
 
 const downloadFile = (url: string) => {
-  console.log(url)
   // Mock download - to be implemented later
-  toast.info("Download functionality will be implemented soon")
+  toast.info(`Visit at: ${url}`)
 }
 
 // Preview Modal Component

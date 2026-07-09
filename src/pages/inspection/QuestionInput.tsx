@@ -1,4 +1,4 @@
-import type { QuestionAnswer, QuestionDef } from '@/types/inspection'
+import type { QuestionAnswer, QuestionDef } from "@/types/inspection"
 
 interface Props {
   question: QuestionDef
@@ -9,22 +9,26 @@ interface Props {
 
 export function QuestionInput({ question, answer, onChange, disabled }: Props) {
   const current = answer?.answer
-  const qaId = answer?.id ?? ''
+  const qaId = answer?.id ?? ""
 
   function emit(value: unknown) {
     if (qaId) onChange(qaId, value)
   }
 
-  const type = question.answerType?.toUpperCase() ?? 'TEXT'
+  const type = question.answerType?.toUpperCase() ?? "TEXT"
 
-  if (type === 'CHECKBOX' || type === 'MULTI_CHOICE') {
-    const options = Array.isArray(question.value) ? (question.value as string[]) : []
-    const selected: string[] = Array.isArray(current) ? (current as string[]) : []
+  if (type === "CHECKBOX" || type === "MULTI_CHOICE") {
+    const options = Array.isArray(question.value)
+      ? (question.value as string[])
+      : []
+    const selected: string[] = Array.isArray(current)
+      ? (current as string[])
+      : []
 
     return (
       <div className="flex flex-col gap-2">
         {options.map((opt) => (
-          <label key={opt} className="flex items-center gap-2.5 cursor-pointer">
+          <label key={opt} className="flex cursor-pointer items-center gap-2.5">
             <input
               type="checkbox"
               disabled={disabled}
@@ -44,13 +48,15 @@ export function QuestionInput({ question, answer, onChange, disabled }: Props) {
     )
   }
 
-  if (type === 'RADIO' || type === 'SINGLE_CHOICE') {
-    const options = Array.isArray(question.value) ? (question.value as string[]) : []
+  if (type === "RADIO" || type === "SINGLE_CHOICE") {
+    const options = Array.isArray(question.value)
+      ? (question.value as string[])
+      : []
 
     return (
       <div className="flex flex-col gap-2">
         {options.map((opt) => (
-          <label key={opt} className="flex items-center gap-2.5 cursor-pointer">
+          <label key={opt} className="flex cursor-pointer items-center gap-2.5">
             <input
               type="radio"
               disabled={disabled}
@@ -65,15 +71,17 @@ export function QuestionInput({ question, answer, onChange, disabled }: Props) {
     )
   }
 
-  if (type === 'RATING' || type === 'SCALE' || type === 'SLIDER') {
+  if (type === "RATING" || type === "SCALE" || type === "SLIDER") {
     const cfg = (question.value as { min?: number; max?: number } | null) ?? {}
     const min = cfg.min ?? 1
     const max = cfg.max ?? 10
-    const val = typeof current === 'number' ? current : min
+    const val = typeof current === "number" ? current : min
 
     return (
       <div className="flex items-center gap-3">
-        <span className="w-6 text-right text-xs text-muted-foreground">{min}</span>
+        <span className="w-6 text-right text-xs text-muted-foreground">
+          {min}
+        </span>
         <input
           type="range"
           min={min}
@@ -85,13 +93,15 @@ export function QuestionInput({ question, answer, onChange, disabled }: Props) {
           className="flex-1"
         />
         <span className="w-6 text-xs text-muted-foreground">{max}</span>
-        <span className="w-8 text-right text-sm font-medium text-foreground">{val}</span>
+        <span className="w-8 text-right text-sm font-medium text-foreground">
+          {val}
+        </span>
       </div>
     )
   }
 
-  if (type === 'DATE') {
-    const dateVal = typeof current === 'string' ? current.slice(0, 10) : ''
+  if (type === "DATE") {
+    const dateVal = typeof current === "string" ? current.slice(0, 10) : ""
     return (
       <input
         type="date"
@@ -103,15 +113,15 @@ export function QuestionInput({ question, answer, onChange, disabled }: Props) {
     )
   }
 
-  if (type === 'PARAGRAPH' || type === 'TEXTAREA') {
+  if (type === "PARAGRAPH" || type === "TEXTAREA") {
     return (
       <textarea
         disabled={disabled}
-        defaultValue={typeof current === 'string' ? current : ''}
+        defaultValue={typeof current === "string" ? current : ""}
         onBlur={(e) => emit(e.target.value)}
         rows={4}
         placeholder="Type your answer…"
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground resize-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50 placeholder:text-muted-foreground"
+        className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
       />
     )
   }
@@ -121,10 +131,10 @@ export function QuestionInput({ question, answer, onChange, disabled }: Props) {
     <input
       type="text"
       disabled={disabled}
-      defaultValue={typeof current === 'string' ? current : ''}
+      defaultValue={typeof current === "string" ? current : ""}
       onBlur={(e) => emit(e.target.value)}
       placeholder="Type your answer…"
-      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50 placeholder:text-muted-foreground"
+      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
     />
   )
 }

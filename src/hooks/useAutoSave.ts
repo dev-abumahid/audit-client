@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { TemplateFormValues } from "@/types/template"
 import { useEffect, useRef, useState } from "react"
 import { type UseFormReturn } from "react-hook-form"
+import { toast } from "sonner"
 
 interface UseAutoSaveOptions {
   form: UseFormReturn<TemplateFormValues>
@@ -66,8 +68,8 @@ export function useAutoSave({
         setTimeout(() => {
           setSaveStatus((prev) => (prev === "saved" ? "idle" : prev))
         }, 2000)
-      } catch (error) {
-        console.error("Auto-save failed:", error)
+      } catch (error: any) {
+        toast.error(error?.message || "Auto-save failed")
         setSaveStatus("error")
       } finally {
         isSavingRef.current = false

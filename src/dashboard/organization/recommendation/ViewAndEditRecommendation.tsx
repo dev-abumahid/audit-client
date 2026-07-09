@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import TextareaAutosize from "react-textarea-autosize"
 import CreateNewFindingModal from "../findings/CreateNewFindingModal"
+import { toast } from "sonner"
 
 interface ResultItem {
   observation: string
@@ -110,7 +111,6 @@ export default function ViewAndEditRecommendation({
     const fn = debounce(async (summary: string) => {
       // Prevent duplicate API calls
       if (lastSavedSummaryRef.current === summary) {
-        console.log("Summary unchanged, skipping save")
         return
       }
 
@@ -126,7 +126,7 @@ export default function ViewAndEditRecommendation({
         setSaveStatus({ type: "success", message: "Summary saved" })
         setTimeout(() => setSaveStatus({ type: null, message: "" }), 1500)
       } catch (error: any) {
-        console.error("Summary save error:", error)
+        toast.error(error?.message || "Summary save error")
         setSaveStatus({ type: "error", message: "Failed to save summary" })
         setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
       }
@@ -168,7 +168,6 @@ export default function ViewAndEditRecommendation({
           })
 
           if (lastSavedQuestionRef.current[questionData.id] === currentState) {
-            console.log("Question unchanged, skipping save")
             return
           }
 
@@ -186,11 +185,9 @@ export default function ViewAndEditRecommendation({
             setSaveStatus({ type: "success", message: "Question saved" })
             setTimeout(() => setSaveStatus({ type: null, message: "" }), 1500)
           } catch (error: any) {
-            console.error("Save error:", error)
-            setSaveStatus({
-              type: "error",
-              message: error?.data?.message || "Save failed",
-            })
+            const message = error?.data?.message || "Save failed"
+            setSaveStatus({ type: "error", message })
+            toast.error(message)
             setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
           }
         },
@@ -256,6 +253,18 @@ export default function ViewAndEditRecommendation({
     }
   }, [])
 
+  // Validate all questions have IDs — warn only on the transition into an
+  // invalid state, not on every questions update while it stays invalid
+  // (e.g. every keystroke while editing an unrelated, valid question).
+  const warnedMissingIdsRef = useRef(false)
+  useEffect(() => {
+    const missingIds = questions.length > 0 && !questions.every((q) => q.id)
+    if (missingIds && !warnedMissingIdsRef.current) {
+      toast.error("Some questions are missing IDs")
+    }
+    warnedMissingIdsRef.current = missingIds
+  }, [questions])
+
   if (isLoading) return null
 
   // Generate button view
@@ -300,12 +309,6 @@ export default function ViewAndEditRecommendation({
         </div>
       </div>
     )
-  }
-
-  // Validate all questions have IDs
-  const hasValidIds = questions.every((q) => q.id)
-  if (!hasValidIds) {
-    console.error("Some questions are missing IDs:", questions)
   }
 
   return (

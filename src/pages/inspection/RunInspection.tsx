@@ -1,13 +1,25 @@
-import { api, ApiError } from '@/lib/api'
-import type { InspectionDetail, PageDef, QuestionAnswer } from '@/types/inspection'
-import { CheckCircle2, ChevronLeft, ChevronRight, FileText, Loader2, Sparkles, ListChecks } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
-import { QuestionInput } from './QuestionInput'
+import { api, ApiError } from "@/lib/api"
+import type {
+  InspectionDetail,
+  PageDef,
+  QuestionAnswer,
+} from "@/types/inspection"
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Loader2,
+  Sparkles,
+  ListChecks,
+} from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Link, useNavigate, useParams } from "react-router"
+import { QuestionInput } from "./QuestionInput"
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ""
 
-type SaveState = 'idle' | 'saving' | 'saved' | 'error'
+type SaveState = "idle" | "saving" | "saved" | "error"
 
 export default function RunInspection() {
   const { id } = useParams<{ id: string }>()
@@ -17,12 +29,14 @@ export default function RunInspection() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPageIdx, setCurrentPageIdx] = useState(0)
-  const [saveState, setSaveState] = useState<SaveState>('idle')
+  const [saveState, setSaveState] = useState<SaveState>("idle")
   const [completing, setCompleting] = useState(false)
   const [actionCount, setActionCount] = useState<number | null>(null)
 
   // Local answer cache for optimistic updates — stored in state so render can read it
-  const [answerCache, setAnswerCache] = useState<Record<string, QuestionAnswer>>({})
+  const [answerCache, setAnswerCache] = useState<
+    Record<string, QuestionAnswer>
+  >({})
 
   useEffect(() => {
     if (!id) return
@@ -38,7 +52,9 @@ export default function RunInspection() {
         })
         setAnswerCache(initial)
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Failed to load inspection')
+        setError(
+          err instanceof ApiError ? err.message : "Failed to load inspection"
+        )
       } finally {
         setLoading(false)
       }
@@ -50,17 +66,21 @@ export default function RunInspection() {
   useEffect(() => {
     if (!id) return
     api
-      .get<{ data: { inspectionId: string }[] }>('/api/action')
+      .get<{ data: { inspectionId: string }[] }>("/api/action")
       .then((res) => {
-        setActionCount((res.data ?? []).filter((a) => a.inspectionId === id).length)
+        setActionCount(
+          (res.data ?? []).filter((a) => a.inspectionId === id).length
+        )
       })
       .catch(() => setActionCount(null))
   }, [id])
 
   const pages: PageDef[] = useMemo(
     () =>
-      (inspection?.template?.pages ?? []).slice().sort((a, b) => a.pageIndex - b.pageIndex),
-    [inspection],
+      (inspection?.template?.pages ?? [])
+        .slice()
+        .sort((a, b) => a.pageIndex - b.pageIndex),
+    [inspection]
   )
 
   const qaByQuestionId = useMemo(() => {
@@ -79,40 +99,37 @@ export default function RunInspection() {
     }
   }, [])
 
-  const handleAnswerChange = useCallback(
-    (qaId: string, answer: unknown) => {
-      // optimistically update cache
-      setAnswerCache((prev) => {
-        const existing = Object.values(prev).find((qa) => qa.id === qaId)
-        if (!existing) return prev
-        return { ...prev, [existing.questionId]: { ...existing, answer } }
-      })
+  const handleAnswerChange = useCallback((qaId: string, answer: unknown) => {
+    // optimistically update cache
+    setAnswerCache((prev) => {
+      const existing = Object.values(prev).find((qa) => qa.id === qaId)
+      if (!existing) return prev
+      return { ...prev, [existing.questionId]: { ...existing, answer } }
+    })
 
-      setSaveState('saving')
-      if (saveTimeout.current) clearTimeout(saveTimeout.current)
+    setSaveState("saving")
+    if (saveTimeout.current) clearTimeout(saveTimeout.current)
 
-      saveTimeout.current = setTimeout(() => {
-        api
-          .put(`/api/inspection/${qaId}`, { answer })
-          .then(() => setSaveState('saved'))
-          .catch(() => setSaveState('error'))
-      }, 600)
-    },
-    [],
-  )
+    saveTimeout.current = setTimeout(() => {
+      api
+        .put(`/api/inspection/${qaId}`, { answer })
+        .then(() => setSaveState("saved"))
+        .catch(() => setSaveState("error"))
+    }, 600)
+  }, [])
 
   async function handleComplete() {
     if (!id) return
     setCompleting(true)
     try {
-      await api.patch(`/api/inspection/${id}`, { status: 'COMPLETED' })
-      navigate('/organization/audit/inspections')
+      await api.patch(`/api/inspection/${id}`, { status: "COMPLETED" })
+      navigate("/organization/audit/inspections")
     } catch {
       setCompleting(false)
     }
   }
 
-  const isCompleted = inspection?.status === 'COMPLETED'
+  const isCompleted = inspection?.status === "COMPLETED"
   const currentPage = pages[currentPageIdx]
   const isLastPage = currentPageIdx === pages.length - 1
 
@@ -128,7 +145,7 @@ export default function RunInspection() {
     return (
       <div className="p-6">
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          {error ?? 'Inspection not found'}
+          {error ?? "Inspection not found"}
         </div>
       </div>
     )
@@ -147,21 +164,21 @@ export default function RunInspection() {
           </Link>
           <span className="text-muted-foreground">/</span>
           <span className="text-sm font-medium text-foreground">
-            {inspection.template?.templateName ?? 'Inspection'}
+            {inspection.template?.templateName ?? "Inspection"}
           </span>
         </div>
         <div className="flex items-center gap-3">
-          {saveState === 'saving' && (
+          {saveState === "saving" && (
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" /> Saving…
             </span>
           )}
-          {saveState === 'saved' && (
+          {saveState === "saved" && (
             <span className="flex items-center gap-1.5 text-xs text-green-600">
               <CheckCircle2 className="h-3 w-3" /> Saved
             </span>
           )}
-          {saveState === 'error' && (
+          {saveState === "error" && (
             <span className="text-xs text-destructive">Save failed</span>
           )}
           <Link
@@ -169,7 +186,7 @@ export default function RunInspection() {
             className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <FileText className="h-4 w-4" />
-            {inspection.note ? 'View notes' : 'Upload notes'}
+            {inspection.note ? "View notes" : "Upload notes"}
           </Link>
           <Link
             to={`/organization/audit/inspections/${id}/recommendations`}
@@ -212,19 +229,22 @@ export default function RunInspection() {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <aside className="hidden w-56 shrink-0 overflow-y-auto border-r border-border bg-card p-4 lg:block">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
             Pages
           </p>
           <nav className="flex flex-col gap-1">
             {pages.map((page, idx) => {
-              const answered = page.questions.filter(
-                (q) => {
-                  const qa = qaByQuestionId[q.id] ?? answerCache[q.id]
-                  if (!qa) return false
-                  const a = qa.answer
-                  return a !== null && a !== undefined && a !== '' && !(Array.isArray(a) && a.length === 0)
-                },
-              ).length
+              const answered = page.questions.filter((q) => {
+                const qa = qaByQuestionId[q.id] ?? answerCache[q.id]
+                if (!qa) return false
+                const a = qa.answer
+                return (
+                  a !== null &&
+                  a !== undefined &&
+                  a !== "" &&
+                  !(Array.isArray(a) && a.length === 0)
+                )
+              }).length
               const total = page.questions.length
               const done = total > 0 && answered === total
 
@@ -234,20 +254,20 @@ export default function RunInspection() {
                   onClick={() => setCurrentPageIdx(idx)}
                   className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors ${
                     idx === currentPageIdx
-                      ? 'bg-primary/10 font-medium text-primary'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      ? "bg-primary/10 font-medium text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
                   <span
                     className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
                       done
-                        ? 'bg-green-100 text-green-700'
+                        ? "bg-green-100 text-green-700"
                         : idx === currentPageIdx
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-muted-foreground'
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    {done ? '✓' : idx + 1}
+                    {done ? "✓" : idx + 1}
                   </span>
                   <span className="truncate">{page.title}</span>
                 </button>
@@ -258,7 +278,9 @@ export default function RunInspection() {
           {inspection.site && (
             <div className="mt-6 border-t border-border pt-4">
               <p className="text-xs text-muted-foreground">Site</p>
-              <p className="text-sm font-medium text-foreground">{inspection.site.name}</p>
+              <p className="text-sm font-medium text-foreground">
+                {inspection.site.name}
+              </p>
             </div>
           )}
         </aside>
@@ -267,14 +289,18 @@ export default function RunInspection() {
         <main className="flex-1 overflow-y-auto p-6">
           {!currentPage ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <p className="text-sm text-muted-foreground">No pages in this template.</p>
+              <p className="text-sm text-muted-foreground">
+                No pages in this template.
+              </p>
             </div>
           ) : (
             <>
               {/* Progress bar */}
               <div className="mb-6">
                 <div className="mb-1.5 flex items-center justify-between">
-                  <h2 className="text-base font-semibold text-foreground">{currentPage.title}</h2>
+                  <h2 className="text-base font-semibold text-foreground">
+                    {currentPage.title}
+                  </h2>
                   <span className="text-xs text-muted-foreground">
                     Page {currentPageIdx + 1} of {pages.length}
                   </span>
@@ -282,7 +308,9 @@ export default function RunInspection() {
                 <div className="h-1 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-primary transition-all"
-                    style={{ width: `${((currentPageIdx + 1) / pages.length) * 100}%` }}
+                    style={{
+                      width: `${((currentPageIdx + 1) / pages.length) * 100}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -293,12 +321,15 @@ export default function RunInspection() {
                   .slice()
                   .sort((a, b) => a.index - b.index)
                   .map((question) => {
-                    const qa = qaByQuestionId[question.id] ?? answerCache[question.id]
+                    const qa =
+                      qaByQuestionId[question.id] ?? answerCache[question.id]
                     const mediaFiles = qa?.mediaFiles
                     const files: string[] = Array.isArray(mediaFiles)
                       ? (mediaFiles as unknown[])
                           .map((f) =>
-                            typeof f === 'string' ? f : (f as { url?: string })?.url,
+                            typeof f === "string"
+                              ? f
+                              : (f as { url?: string })?.url
                           )
                           .filter((u): u is string => Boolean(u))
                       : []
@@ -311,7 +342,12 @@ export default function RunInspection() {
                         <p className="mb-3 text-sm font-medium text-foreground">
                           {question.question}
                           {question.isRequired && (
-                            <span className="ml-1 text-destructive" aria-label="required">*</span>
+                            <span
+                              className="ml-1 text-destructive"
+                              aria-label="required"
+                            >
+                              *
+                            </span>
                           )}
                         </p>
                         <QuestionInput
@@ -323,8 +359,11 @@ export default function RunInspection() {
                         {files.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-2">
                             {files.map((url, i) => {
-                              const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
-                              const isImage = /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(url)
+                              const fullUrl = url.startsWith("http")
+                                ? url
+                                : `${BASE_URL}${url}`
+                              const isImage =
+                                /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(url)
                               return isImage ? (
                                 <img
                                   key={i}

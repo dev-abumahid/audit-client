@@ -16,9 +16,7 @@ const HeroSection = () => {
     setIsSignUpModalOpen(false)
   }
 
-  const handleLoginClick = () => {
-    console.log("Login clicked")
-  }
+  const handleLoginClick = () => {}
 
   return (
     <>

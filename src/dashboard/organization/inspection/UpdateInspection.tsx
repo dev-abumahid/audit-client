@@ -205,7 +205,9 @@ export default function UpdateInspection() {
         },
       }).unwrap()
     } catch (error: any) {
-      console.error(`Failed to update question ${questionId}:`, error)
+      toast.error(
+        `Failed to update question ${questionId}: ${error?.data?.message || error?.message || ""}`
+      )
       throw error
     }
   }
@@ -345,9 +347,8 @@ export default function UpdateInspection() {
       } else {
         toast.error("Failed to upload media")
       }
-    } catch (error) {
-      console.error("Upload error:", error)
-      toast.error("Failed to upload media")
+    } catch (error:any) {
+      toast.error(error?.message || "Failed to upload media")
     } finally {
       setIsAnswerMediaUploading(null)
     }
@@ -433,9 +434,8 @@ export default function UpdateInspection() {
       } else {
         toast.error("Failed to upload files")
       }
-    } catch (error) {
-      console.error("Upload error:", error)
-      toast.error("Failed to upload media files")
+    } catch (error:any) {
+      toast.error(error?.message || "Failed to upload media files")
     } finally {
       setExternalMediaUploading(null)
     }

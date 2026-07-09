@@ -29,7 +29,7 @@ export default function DeleteAlertModal({
 }: DeleteAlertModalProps) {
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogContent className="max-w-sm rounded-3xl p-6 sm:p-8 flex flex-col justify-center items-center">
+      <AlertDialogContent className="flex max-w-sm flex-col items-center justify-center rounded-3xl p-6 sm:p-8">
         <AlertDialogHeader>
           <div className="flex flex-col items-center justify-center gap-3 text-center">
             <AlertCircle
@@ -54,7 +54,7 @@ export default function DeleteAlertModal({
           {/* Delete Button */}
           <AlertDialogAction
             onClick={onConfirm}
-            className="flex-1 rounded-xl border-none bg-red-600 text-white shadow-sm hover:bg-red-700 cursor-pointer"
+            className="flex-1 cursor-pointer rounded-xl border-none bg-red-600 text-white shadow-sm hover:bg-red-700"
             disabled={loading}
           >
             {loading ? "Deleting..." : "Delete"}

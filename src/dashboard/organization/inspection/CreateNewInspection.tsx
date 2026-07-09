@@ -205,9 +205,8 @@ export default function CreateNewInspection() {
       } else {
         toast.error("Failed to upload media")
       }
-    } catch (error) {
-      console.error("Upload error:", error)
-      toast.error("Failed to upload media")
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to upload media")
     } finally {
       setIsAnswerMediaUploading(null)
     }
@@ -286,9 +285,8 @@ export default function CreateNewInspection() {
       } else {
         toast.error("Failed to upload files")
       }
-    } catch (error) {
-      console.error("Upload error:", error)
-      toast.error("Failed to upload media files")
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to upload media files")
     } finally {
       setExternalMediaUploading(null)
     }

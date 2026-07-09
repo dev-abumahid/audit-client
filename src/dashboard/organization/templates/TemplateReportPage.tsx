@@ -7,6 +7,7 @@ import jsPDF from "jspdf"
 import { Download, Loader2 } from "lucide-react"
 import { useRef, useState } from "react"
 import { useParams } from "react-router"
+import { toast } from "sonner"
 
 const TemplateReportPage = () => {
   const { id } = useParams()
@@ -103,8 +104,8 @@ const TemplateReportPage = () => {
       }
 
       pdf.save(`${templateName}.pdf`)
-    } catch (error) {
-      console.error("PDF generation failed:", error)
+    } catch (error: any) {
+      toast.error(error?.message || "PDF generation failed")
     } finally {
       setIsDownloading(false)
     }

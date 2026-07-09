@@ -36,7 +36,6 @@ export default function RiskBadge({
   label,
   size = "sm",
 }: RiskBadgeProps) {
-  console.log(level)
   const c = config[level]
   return (
     <span

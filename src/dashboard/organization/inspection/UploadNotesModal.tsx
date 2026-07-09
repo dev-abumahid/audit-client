@@ -168,7 +168,6 @@ export default function UploadNotesModal({
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to delete note")
-      console.log(err)
     }
   }
 
@@ -264,7 +263,7 @@ export default function UploadNotesModal({
       }}
     >
       <DialogContent
-        className={`max-w-2xl max-h-[90vh] ${isLoading ? "pointer-events-none" : ""}`}
+        className={`max-h-[90vh] max-w-2xl ${isLoading ? "pointer-events-none" : ""}`}
       >
         {/* Loader Overlay */}
         {isLoading && (
@@ -333,7 +332,7 @@ export default function UploadNotesModal({
                 onChange={(e) => setExtractedText(e.target.value)}
                 placeholder="Create a comprehensive daily safety inspection checklist for construction sites including PPE, tools, emergency procedures..."
                 rows={8}
-                className="mt-2 h-52 resize-none overflow-y-aut"
+                className="overflow-y-aut mt-2 h-52 resize-none"
               />
             </div>
           )}

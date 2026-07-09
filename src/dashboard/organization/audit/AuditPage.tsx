@@ -87,18 +87,16 @@ export default function AuditPage() {
 
   const handleSave = async () => {
     if (!form.ref || !form.title) return
-
-    const payload = {
-      ...form,
-      linked_risk_refs: form.linked_risk_refs
-        ? form.linked_risk_refs
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [],
-    }
-    console.log(payload)
-
+    // when i make api then i will use this payload
+    // const payload = {
+    //   ...form,
+    //   linked_risk_refs: form.linked_risk_refs
+    //     ? form.linked_risk_refs
+    //         .split(",")
+    //         .map((s) => s.trim())
+    //         .filter(Boolean)
+    //     : [],
+    // }
     setShowModal(false)
     setForm(EMPTY_FORM)
   }

@@ -84,7 +84,10 @@ export const mainRoute = createBrowserRouter([
       // Inspection run workflow (from main PR #32)
       { path: "audit/inspections/:id", element: <RunInspection /> },
       { path: "audit/inspections/:id/note", element: <InspectionNote /> },
-      { path: "audit/inspections/:id/recommendations", element: <InspectionRecommendations /> },
+      {
+        path: "audit/inspections/:id/recommendations",
+        element: <InspectionRecommendations />,
+      },
       { path: "audit/inspections/:id/actions", element: <InspectionActions /> },
       { path: "reports", element: <ReportsPage /> },
       { path: "settings", element: <OrgSettingPage /> },

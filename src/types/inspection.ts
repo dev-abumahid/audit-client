@@ -1,4 +1,8 @@
-export type InspectionStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+export type InspectionStatus =
+  | "DRAFT"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELLED"
 
 export interface InspectionSummary {
   id: string

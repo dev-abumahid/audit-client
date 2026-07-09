@@ -8,8 +8,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
+      "/api": {
+        target: "http://localhost:5000",
         changeOrigin: true,
       },
     },
@@ -24,7 +24,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     env: {
-      VITE_API_BASE_URL: '',   // prevent .env.local from breaking api.test.ts
+      VITE_API_BASE_URL: "", // prevent .env.local from breaking api.test.ts
     },
     coverage: {
       provider: "v8",
@@ -44,17 +44,17 @@ export default defineConfig({
         "src/pages/home/**",
         "src/pages/policy/**",
         "src/pages/error/**",
-        "src/pages/auth/**",       // auth logic is covered via AuthContext.test.tsx
+        "src/pages/auth/**", // auth logic is covered via AuthContext.test.tsx
         "src/components/home/**",
         "src/components/shared/**",
         "src/components/dashboard/**",
         "src/components/ui/**",
         "src/dashboard/**",
-        "src/lib/utils.ts",        // shadcn cn() helper, no logic to test
+        "src/lib/utils.ts", // shadcn cn() helper, no logic to test
         // infrastructure / config — no business logic
-        "src/redux/**",            // RTK Query store/API definitions, no unit-testable logic
-        "src/hooks/**",            // utility hooks from dev branch, not yet tested
-        "src/utils/**",            // utility functions from dev branch
+        "src/redux/**", // RTK Query store/API definitions, no unit-testable logic
+        "src/hooks/**", // utility hooks from dev branch, not yet tested
+        "src/utils/**", // utility functions from dev branch
         "src/data/**",
         "src/i18n/**",
         "src/components/mode-toggle.tsx",

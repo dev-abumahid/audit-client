@@ -33,7 +33,7 @@ export default function UnSplitText({ unSplitText }: { unSplitText: string }) {
           <div className="border-b border-border p-6 md:p-8">
             <div className="flex flex-col items-center text-center">
               <h2 className="mb-2 text-2xl font-bold">Unsplit Text</h2>
-              <p className="mb-6 text-gray-600 text-justify">{unSplitText}</p>
+              <p className="mb-6 text-justify text-gray-600">{unSplitText}</p>
             </div>
           </div>
         </div>
