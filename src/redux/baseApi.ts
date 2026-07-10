@@ -12,6 +12,16 @@ const rawBaseQuery = fetchBaseQuery({
   credentials: "include",
 })
 
+// Auth endpoints (sign-in, sign-up, OTP, password reset, etc.) can return a
+// 401 as a normal, recoverable outcome (e.g. wrong credentials) — callers
+// handle that inline (see SignInModal.tsx). The global logout/redirect below
+// is only for an authenticated session going invalid mid-use, so requests
+// under /auth/* are excluded from it.
+const isAuthEndpoint = (args: string | FetchArgs): boolean => {
+  const url = typeof args === "string" ? args : args.url
+  return url.startsWith("/auth/")
+}
+
 export const baseQueryWithLogout: BaseQueryFn<
   string | FetchArgs,
   unknown,
@@ -19,11 +29,13 @@ export const baseQueryWithLogout: BaseQueryFn<
 > = async (args, api, extraOptions) => {
   const result = await rawBaseQuery(args, api, extraOptions)
 
-  if (result.error && result.error.status === 401) {
+  if (result.error && result.error.status === 401 && !isAuthEndpoint(args)) {
     // 1. redux state clear
     api.dispatch(removeUser())
-    // 2. redirect to login page
-    // window.location.href = "/"
+    // 2. clear stale RTK Query cache
+    api.dispatch(baseApi.util.resetApiState())
+    // 3. redirect to login page
+    window.location.href = "/"
   }
 
   return result

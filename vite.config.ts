@@ -25,6 +25,7 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     env: {
       VITE_API_BASE_URL: "", // prevent .env.local from breaking api.test.ts
+      VITE_SERVER_BASE_URL: "http://localhost:3001", // fetchBaseQuery needs an absolute base to parse relative paths (baseApi.test.ts)
     },
     coverage: {
       provider: "v8",
