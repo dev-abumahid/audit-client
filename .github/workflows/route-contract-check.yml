@@ -18,6 +18,10 @@ name: Route Contract Check
 # cannot be automated/created by an agent -- it must be set up by hand in
 # GitHub's UI before the scheduled run (or a manual workflow_dispatch) will
 # succeed.
+#
+# On failure, this workflow posts to the #ci-alerts Slack channel via a
+# `SLACK_WEBHOOK_URL` repository secret (a Slack Incoming Webhook), same
+# manual-setup requirement as CROSS_REPO_PAT above.
 
 on:
   workflow_dispatch:
@@ -58,3 +62,10 @@ jobs:
         env:
           AEXA_SERVER_PATH: ${{ github.workspace }}/aexa-server
         run: npm run check:routes
+
+      - name: Notify Slack on failure
+        if: failure()
+        run: |
+          curl -sf -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\":rotating_light: Route contract check failed on aexa-frontend main. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}" \
+            "${{ secrets.SLACK_WEBHOOK_URL }}"
