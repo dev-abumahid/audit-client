@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { Button } from "@/components/ui/button"
 import {
   useDeleteFindingByIdMutation,
@@ -88,7 +89,9 @@ export default function AllFindingsPage() {
     siteId: selectedSiteId || "",
   })
 
-  const [deleteAction] = useDeleteFindingByIdMutation()
+  const [deleteAction, { isLoading: isDeleting }] =
+    useDeleteFindingByIdMutation()
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
   const actions: IAction[] = data?.data || []
   const meta = data?.meta
@@ -98,9 +101,10 @@ export default function AllFindingsPage() {
     try {
       const res = await deleteAction(id).unwrap()
       toast.success(res.message || "Action deleted successfully!")
-      refetch()
+      setDeleteTargetId(null)
     } catch (err: any) {
       toast.error(err?.data?.message || "Failed to delete action")
+      setDeleteTargetId(null)
     }
   }
 
@@ -359,11 +363,27 @@ export default function AllFindingsPage() {
 
                         {/* Actions */}
                         <td className="flex justify-end gap-3 px-4 py-3 text-right whitespace-nowrap">
-                          <Button variant="ghost" size="icon-lg">
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setModalState({ open: true, editData: action })
+                            }}
+                            disabled={
+                              isDeleting && deleteTargetId === action.id
+                            }
+                            variant="ghost"
+                            size="icon-lg"
+                          >
                             <Edit2 />
                           </Button>
                           <Button
-                            onAbort={() => handleDelete(action.id)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteTargetId(action.id)
+                            }}
+                            disabled={
+                              isDeleting && deleteTargetId === action.id
+                            }
                             variant="destructive"
                             size="icon-lg"
                           >
@@ -440,6 +460,15 @@ export default function AllFindingsPage() {
           refetch()
         }}
         editData={modalState.editData}
+      />
+
+      <DeleteAlertModal
+        open={!!deleteTargetId}
+        setOpen={(v) => !v && setDeleteTargetId(null)}
+        loading={isDeleting}
+        onConfirm={() => deleteTargetId && handleDelete(deleteTargetId)}
+        title="Delete Finding?"
+        description="This will permanently remove this finding."
       />
     </div>
   )

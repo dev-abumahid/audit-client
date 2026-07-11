@@ -140,7 +140,7 @@ export default function CreateTemplateWithAIDialog({
 
       handleClose()
     } catch (error: any) {
-      toast.error(error?.message || "Failed to create template")
+      toast.error(error?.data?.message || "Failed to create template")
     } finally {
       setIsLoading(false)
     }

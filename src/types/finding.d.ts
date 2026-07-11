@@ -1,6 +1,6 @@
 import type { Site } from "./organization"
 
-type TAssignBy = {
+export type TAssignBy = {
   id: string
   name: string
 }
@@ -25,6 +25,7 @@ export interface IAction {
   site?: Site | null
   messages: IActionMessage[]
   assignBy: TAssignBy[]
+  mediaFiles?: string[]
 
   // Date time
   createdAt: string

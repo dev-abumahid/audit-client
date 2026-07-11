@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useGetFindingByIdQuery } from "@/redux/apis/organization/findings.api"
+import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import {
+  useDeleteFindingByIdMutation,
+  useGetFindingByIdQuery,
+} from "@/redux/apis/organization/findings.api"
 import {
   AlertCircle,
   Calendar,
@@ -24,6 +28,8 @@ import {
 import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
+import type { TAssignBy } from "@/types/finding"
+import CreateNewFindingModal from "./CreateNewFindingModal"
 
 // Types based on your API response
 interface Site {
@@ -46,6 +52,8 @@ interface Action {
   updatedAt: string
   messages: any[]
   site: Site
+  assignBy: TAssignBy[]
+  mediaFiles?: string[]
 }
 
 type Tab = "details" | "messages" | "files"
@@ -215,17 +223,30 @@ export default function FindingDetails() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const { data, isLoading } = useGetFindingByIdQuery(id as string)
+  const [deleteFinding, { isLoading: isDeleting }] =
+    useDeleteFindingByIdMutation()
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>("details")
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
-  // Mock delete function - to be implemented later
-  const handleDelete = async () => {
-    toast.info("Delete functionality will be implemented soon")
+  const handleDelete = () => {
+    setDeleteConfirmOpen(true)
   }
 
-  // Mock edit function - to be implemented later
   const handleEdit = () => {
-    toast.info("Edit functionality will be implemented soon")
+    setEditModalOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!id) return
+    try {
+      await deleteFinding(id).unwrap()
+      toast.success("Finding deleted successfully!")
+      navigate(-1)
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to delete finding")
+    }
   }
 
   if (isLoading) {
@@ -319,13 +340,15 @@ export default function FindingDetails() {
           <div className="flex gap-2">
             <button
               onClick={handleEdit}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              disabled={isDeleting}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               <Edit size={18} /> Edit
             </button>
             <button
               onClick={handleDelete}
-              className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20"
+              disabled={isDeleting}
+              className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
             >
               <Trash2 size={18} /> Delete
             </button>
@@ -634,6 +657,21 @@ export default function FindingDetails() {
       {previewUrl && (
         <PreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />
       )}
+
+      <CreateNewFindingModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        editData={action as any}
+      />
+
+      <DeleteAlertModal
+        open={deleteConfirmOpen}
+        setOpen={setDeleteConfirmOpen}
+        onConfirm={confirmDelete}
+        loading={isDeleting}
+        title="Delete Finding?"
+        description="This will permanently remove this finding."
+      />
     </div>
   )
 }

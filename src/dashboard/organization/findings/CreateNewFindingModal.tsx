@@ -43,6 +43,11 @@ interface CreateActionModalProps {
   }
 }
 
+// The Assignees UI works with raw user ids, not the {id, name} objects
+// IAction.assignBy holds — form state stores ids, editData.assignBy gets
+// normalized to ids on load, and submitted as-is.
+type FindingFormValues = Omit<IAction, "assignBy"> & { assignBy: string[] }
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const defaultDueDate = () => {
@@ -132,7 +137,7 @@ export default function CreateNewFindingModal({
     reset,
     setValue,
     formState: { errors },
-  } = useForm<IAction>({
+  } = useForm<FindingFormValues>({
     defaultValues: {
       actionTitle: additionalData?.actionTitle || "",
       actionDisc: additionalData?.actionDisc || "",
@@ -153,6 +158,7 @@ export default function CreateNewFindingModal({
       const insId = editData.inspectionId ?? ""
       setSelectedInspectionId(insId)
       setMessages(editData.messages ?? [])
+      setMediaFiles(editData.mediaFiles ?? [])
       reset({
         actionTitle: editData.actionTitle,
         actionDisc: editData.actionDisc ?? "",
@@ -162,6 +168,7 @@ export default function CreateNewFindingModal({
         inspectionId: insId,
         questionId: editData.questionId ?? "",
         messages: editData.messages ?? [],
+        assignBy: (editData.assignBy ?? []).map((a) => a.id),
       })
     } else {
       setSelectedInspectionId(additionalData?.inspectionId ?? "")
@@ -204,7 +211,7 @@ export default function CreateNewFindingModal({
   // )
 
   // ── Submit ─────────────────────────────────────────────────────────────────
-  const onSubmit = async (values: IAction) => {
+  const onSubmit = async (values: FindingFormValues) => {
     try {
       const finalMessages = messageInput.trim()
         ? [
@@ -221,13 +228,14 @@ export default function CreateNewFindingModal({
         status: values.status,
         dueDate: new Date(values.dueDate).toISOString(),
         assignBy: values.assignBy.length ? values.assignBy : undefined,
-        question: values.questionId,
+        questionId: values.questionId,
         inspectionId: values.inspectionId || undefined,
         messages: finalMessages,
+        mediaFiles,
       }
 
       if (isEdit) {
-        await updateAction({ actionId: editData!.id, body: payload }).unwrap()
+        await updateAction({ id: editData!.id, body: payload }).unwrap()
         toast.success("Action updated successfully!")
       } else {
         await addAction(payload).unwrap()
