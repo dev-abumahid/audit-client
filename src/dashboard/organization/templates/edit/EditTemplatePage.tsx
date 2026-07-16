@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAutoSave } from "@/hooks/useAutoSave"
+import { useSectionScroll } from "@/hooks/useSectionScroll"
 import {
   useGetSingleTemplateQuery,
   useUpdateTemplateBasicsMutation,
@@ -15,10 +16,16 @@ import type {
 import { transformValuesToString } from "@/utils/transformValuesToString"
 import { Loader2, Plus, Sliders, Upload, X } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Controller, useFieldArray, useForm } from "react-hook-form"
+import {
+  Controller,
+  useFieldArray,
+  useForm,
+  useWatch,
+} from "react-hook-form"
 import { Link, useParams } from "react-router"
 import { toast } from "sonner"
 import QnASettingsPanel from "../shared/QnASettingsPanel"
+import SectionNavigator from "../shared/SectionNavigator"
 import EditPageSection from "./EditPagesection"
 import { SaveStatusIndicator } from "./SaveStatusIndicator"
 
@@ -61,6 +68,15 @@ const EditTemplatePage = () => {
     name: "pages",
     keyName: "fieldId",
   })
+
+  // pageFields' non-key values are frozen at insertion (react-hook-form
+  // field-array semantics) — watch the live values so the navigator shows
+  // section titles as they're typed, not stale ones from when each section
+  // was created or last loaded.
+  const watchedPages = useWatch({ control, name: "pages" })
+  const { activeIndex, registerSection, scrollToSection } = useSectionScroll(
+    pageFields.map((f) => f.fieldId)
+  )
 
   // Save handler for auto-save
   const handleSave = useCallback(
@@ -278,9 +294,9 @@ const EditTemplatePage = () => {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6">
         {/* Template Header */}
-        <div className="mb-8 rounded-2xl border bg-card p-6">
+        <div className="mx-auto mb-8 max-w-7xl rounded-2xl border bg-card p-6">
           {/* ... Template header JSX remains the same ... */}
           <div className="flex gap-5">
             <div className="h-20 w-20 shrink-0 overflow-hidden">
@@ -376,44 +392,58 @@ const EditTemplatePage = () => {
 
         {/* Pages Section */}
         {pageFields.length === 0 ? (
-          <div className="rounded-2xl border bg-card p-12 text-center">
+          <div className="mx-auto max-w-7xl rounded-2xl border bg-card p-12 text-center">
             <p className="mb-6 text-muted-foreground">No sections yet.</p>
             <Button type="button" onClick={handleAddSection}>
               <Plus className="mr-2 h-4 w-4" /> Create First Section
             </Button>
           </div>
         ) : (
-          pageFields.map((pageField, pIdx) => (
-            <EditPageSection
-              key={pageField.fieldId}
-              pageIndex={pIdx}
-              pageId={pageField.id}
-              templateId={id || ""}
-              control={control}
-              register={register}
-              removePage={removePage}
-              totalPages={pageFields.length}
-              onOpenAddModal={(pi) => setAddModalTarget(pi)}
-              onOpenAnswerPanel={(pi, qi) =>
-                setAnswerPanel({ pageIndex: pi, questionIndex: qi })
-              }
-              getValues={getValues}
-              setValue={setValue}
-              isEditMode={true}
+          <div className="flex items-start gap-6">
+            <SectionNavigator
+              sections={pageFields.map((pageField, idx) => ({
+                id: pageField.fieldId,
+                title: watchedPages?.[idx]?.title ?? "",
+              }))}
+              activeIndex={activeIndex}
+              onSelect={scrollToSection}
             />
-          ))
-        )}
+            {/* No mx-auto here deliberately — on wide viewports it would
+                absorb the leftover flex space and drift this column away
+                from the sidebar instead of staying flush beside it. */}
+            <div className="min-w-0 max-w-7xl flex-1">
+              {pageFields.map((pageField, pIdx) => (
+                <div key={pageField.fieldId} ref={registerSection(pIdx)}>
+                  <EditPageSection
+                    pageIndex={pIdx}
+                    pageId={pageField.id}
+                    templateId={id || ""}
+                    control={control}
+                    register={register}
+                    removePage={removePage}
+                    totalPages={pageFields.length}
+                    onOpenAddModal={(pi) => setAddModalTarget(pi)}
+                    onOpenAnswerPanel={(pi, qi) =>
+                      setAnswerPanel({ pageIndex: pi, questionIndex: qi })
+                    }
+                    getValues={getValues}
+                    setValue={setValue}
+                    isEditMode={true}
+                  />
+                </div>
+              ))}
 
-        {pageFields.length > 0 && (
-          <div className="mt-10 flex justify-center">
-            <Button
-              type="button"
-              onClick={handleAddSection}
-              size="lg"
-              variant="outline"
-            >
-              <Plus className="h-4 w-4" /> Add New Section
-            </Button>
+              <div className="mt-10 flex justify-center">
+                <Button
+                  type="button"
+                  onClick={handleAddSection}
+                  size="lg"
+                  variant="outline"
+                >
+                  <Plus className="h-4 w-4" /> Add New Section
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

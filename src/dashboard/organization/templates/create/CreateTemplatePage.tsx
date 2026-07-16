@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { useSectionScroll } from "@/hooks/useSectionScroll"
 import { useCreateNewTemplateMutation } from "@/redux/apis/organization/template.api"
 import type {
   AnswerType,
@@ -11,11 +12,12 @@ import type {
 import { transformValuesToString } from "@/utils/transformValuesToString"
 import { Loader2, Plus, Sliders, Upload, X } from "lucide-react"
 import { useState } from "react"
-import { Controller, useFieldArray, useForm } from "react-hook-form"
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form"
 import { Link, useNavigate } from "react-router"
 import { toast } from "sonner"
 import PageSection from "./PageSection"
 import QnASettingsPanel from "../shared/QnASettingsPanel"
+import SectionNavigator from "../shared/SectionNavigator"
 
 let _idCounter = 0
 const uid = () => `rhf-${++_idCounter}-${Math.random().toString(36).slice(2)}`
@@ -62,6 +64,15 @@ const CreateTemplatePage = () => {
     control,
     name: "pages",
   })
+
+  // pageFields' non-key values are frozen at insertion (react-hook-form
+  // field-array semantics) — watch the live values so the navigator shows
+  // section titles as they're typed, not stale ones from when each section
+  // was created.
+  const watchedPages = useWatch({ control, name: "pages" })
+  const { activeIndex, registerSection, scrollToSection } = useSectionScroll(
+    pageFields.map((f) => f.id)
+  )
 
   const handleAddQuestion = () => {
     if (addModalTarget === null) return
@@ -171,9 +182,9 @@ const CreateTemplatePage = () => {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6">
         {/* Template Header */}
-        <div className="mb-8 rounded-2xl border bg-card p-6">
+        <div className="mx-auto mb-8 max-w-7xl rounded-2xl border bg-card p-6">
           <div className="flex gap-5">
             <div className="h-20 w-20 shrink-0 overflow-hidden">
               <div className="flex items-center gap-4">
@@ -243,41 +254,55 @@ const CreateTemplatePage = () => {
 
         {/* Pages Section */}
         {pageFields.length === 0 ? (
-          <div className="rounded-2xl border bg-card p-12 text-center">
+          <div className="mx-auto max-w-7xl rounded-2xl border bg-card p-12 text-center">
             <p className="mb-6 text-muted-foreground">No sections yet.</p>
             <Button type="button" onClick={handleAddSection}>
               <Plus className="mr-2 h-4 w-4" /> Create First Section
             </Button>
           </div>
         ) : (
-          pageFields.map((pageField, pIdx) => (
-            <PageSection
-              key={pageField.id}
-              pageIndex={pIdx}
-              control={control}
-              register={register}
-              removePage={removePage}
-              totalPages={pageFields.length}
-              onOpenAddModal={(pi) => setAddModalTarget(pi)}
-              onOpenAnswerPanel={(pi, qi) =>
-                setAnswerPanel({ pageIndex: pi, questionIndex: qi })
-              }
-              getValues={getValues}
-              setValue={setValue}
+          <div className="flex items-start gap-6">
+            <SectionNavigator
+              sections={pageFields.map((pageField, idx) => ({
+                id: pageField.id,
+                title: watchedPages?.[idx]?.title ?? "",
+              }))}
+              activeIndex={activeIndex}
+              onSelect={scrollToSection}
             />
-          ))
-        )}
+            {/* No mx-auto here deliberately — on wide viewports it would
+                absorb the leftover flex space and drift this column away
+                from the sidebar instead of staying flush beside it. */}
+            <div className="min-w-0 max-w-7xl flex-1">
+              {pageFields.map((pageField, pIdx) => (
+                <div key={pageField.id} ref={registerSection(pIdx)}>
+                  <PageSection
+                    pageIndex={pIdx}
+                    control={control}
+                    register={register}
+                    removePage={removePage}
+                    totalPages={pageFields.length}
+                    onOpenAddModal={(pi) => setAddModalTarget(pi)}
+                    onOpenAnswerPanel={(pi, qi) =>
+                      setAnswerPanel({ pageIndex: pi, questionIndex: qi })
+                    }
+                    getValues={getValues}
+                    setValue={setValue}
+                  />
+                </div>
+              ))}
 
-        {pageFields.length > 0 && (
-          <div className="mt-10 flex justify-center">
-            <Button
-              type="button"
-              onClick={handleAddSection}
-              size="lg"
-              variant="outline"
-            >
-              <Plus className="h-4 w-4" /> Add New Section
-            </Button>
+              <div className="mt-10 flex justify-center">
+                <Button
+                  type="button"
+                  onClick={handleAddSection}
+                  size="lg"
+                  variant="outline"
+                >
+                  <Plus className="h-4 w-4" /> Add New Section
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>
