@@ -100,7 +100,8 @@ export const buildTemplatePdfHtml = ({
     .replace("T", " ")
     .substring(0, 19)
   const totalPages = pages.length + 2
-  const initial = templateName.trim().charAt(0).toUpperCase() || "M"
+  const safeTemplateName = escapeHtml(templateName)
+  const initial = escapeHtml(templateName.trim().charAt(0).toUpperCase() || "M")
 
   const logoHtml = logoBase64
     ? `<img src="${logoBase64}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:16px;" />`
@@ -113,15 +114,15 @@ export const buildTemplatePdfHtml = ({
         ${logoHtml}
       </div>
       <h1 style="font-size:32px;font-weight:800;color:#fff;line-height:1.25;max-width:560px;margin:0 0 18px;">
-        ${templateName}
+        ${safeTemplateName}
       </h1>
       <p style="font-size:14px;color:#fff;opacity:0.9;max-width:480px;line-height:1.75;margin:0 0 40px;text-align:justify;">
-        ${templateDisc.slice(0, 200)}
+        ${escapeHtml(templateDisc.slice(0, 200))}
       </p>
       <div style="background:#fff;border-radius:16px;padding:22px 44px;display:inline-block;min-width:260px;text-align:center;">
-        <p style="margin:6px 0;font-size:13px;color:#6b7280;">Organization Name: <strong style="color:#111827;">${userName}</strong></p>
-        <p style="margin:6px 0;font-size:13px;color:#6b7280;">Author Name: <strong style="color:#111827;">${userName}</strong></p>
-        <p style="margin:6px 0;font-size:13px;color:#6b7280;">Date: <strong style="color:#111827;">${createdAt}</strong></p>
+        <p style="margin:6px 0;font-size:13px;color:#6b7280;">Organization Name: <strong style="color:#111827;">${escapeHtml(userName)}</strong></p>
+        <p style="margin:6px 0;font-size:13px;color:#6b7280;">Author Name: <strong style="color:#111827;">${escapeHtml(userName)}</strong></p>
+        <p style="margin:6px 0;font-size:13px;color:#6b7280;">Date: <strong style="color:#111827;">${escapeHtml(createdAt)}</strong></p>
       </div>
     </div>
   `
@@ -142,15 +143,15 @@ export const buildTemplatePdfHtml = ({
           </div>
           <div style="flex:1;">
             <p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1f2937;line-height:1.5;">
-              ${q?.question ?? ""}
+              ${escapeHtml(q?.question ?? "")}
             </p>
             <span style="display:inline-block;background:#dbeafe;color:#3b82f6;font-size:11px;font-weight:700;padding:3px 10px;border-radius:6px;margin-bottom:12px;">
-              Type: ${q?.answerType?.value ?? q?.type ?? ""}
+              Type: ${escapeHtml(q?.answerType?.value ?? q?.type ?? "")}
             </span>
             <div style="border:2px solid #e5e7eb;border-radius:8px;padding:12px 14px;min-height:80px;font-size:13px;background:#f9fafb;">
               ${
                 q?.answer
-                  ? `<span style="color:#374151;">${q.answer}</span>`
+                  ? `<span style="color:#374151;">${escapeHtml(q.answer)}</span>`
                   : `<span style="color:#9ca3af;font-style:italic;">Answer:</span>`
               }
             </div>
@@ -164,15 +165,15 @@ export const buildTemplatePdfHtml = ({
       return `
       <div class="page" style="background:#f9fafb;display:flex;flex-direction:column;">
         <div style="padding:24px 32px 0;">
-          ${breadcrumb(templateName, pageNum)}
+          ${breadcrumb(safeTemplateName, pageNum)}
           <div style="background:${PRIMARY};border-radius:12px;padding:20px 24px;margin-bottom:20px;">
             <h2 style="font-size:22px;font-weight:800;color:#fff;margin:0;line-height:1.35;">
-              ${page?.title ?? `Section ${pageIdx + 1}`}
+              ${escapeHtml(page?.title ?? `Section ${pageIdx + 1}`)}
             </h2>
           </div>
         </div>
         <div style="padding:0 32px;flex:1;">${questionsHtml}</div>
-        ${footer(templateName, pageNum, totalPages, generatedAt)}
+        ${footer(safeTemplateName, pageNum, totalPages, generatedAt)}
       </div>
     `
     })
@@ -182,7 +183,7 @@ export const buildTemplatePdfHtml = ({
   const signOffPage = `
     <div class="page" style="background:#fff;display:flex;flex-direction:column;">
       <div style="background:${PRIMARY};display:flex;justify-content:space-between;align-items:center;padding:10px 32px;">
-        <span style="font-size:13px;font-weight:600;color:#fff;">${templateName}</span>
+        <span style="font-size:13px;font-weight:600;color:#fff;">${safeTemplateName}</span>
         <span style="font-size:12px;color:#fff;opacity:0.8;">Section ${totalPages}</span>
       </div>
       <div style="padding:32px;">

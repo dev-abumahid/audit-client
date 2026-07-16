@@ -1,4 +1,4 @@
-import { buildInspectionPdfHtml } from "./buildInspectionPdfHtml"
+import { buildInspectionPdfHtml, buildTemplatePdfHtml } from "./buildInspectionPdfHtml"
 
 function baseOptions(overrides: Partial<Parameters<typeof buildInspectionPdfHtml>[0]> = {}) {
   return {
@@ -224,5 +224,53 @@ describe("buildInspectionPdfHtml (ticket #63)", () => {
 
     expect(html).not.toContain("<script>alert")
     expect(html).toContain("&lt;script&gt;")
+  })
+})
+
+describe("buildTemplatePdfHtml (phase-1 sweep, 2026-07-16)", () => {
+  // The blank-template preview builder shares buildInspectionPdfHtml's
+  // iframe-srcdoc mechanism (see file-level comment on escapeHtml) but had
+  // never had escaping applied — found during the 2026-07-16 audit sweep.
+  function baseTemplateOptions(
+    overrides: Partial<Parameters<typeof buildTemplatePdfHtml>[0]> = {}
+  ) {
+    return {
+      templateName: "Fire Safety Audit",
+      userName: "Acme Org",
+      createdAt: "2026-07-01",
+      pages: [],
+      ...overrides,
+    }
+  }
+
+  it("escapes HTML in templateName, templateDisc, userName, and question/answer text instead of injecting them raw", () => {
+    const html = buildTemplatePdfHtml(
+      baseTemplateOptions({
+        templateName: '<script>alert("name")</script>',
+        templateDisc: '<script>alert("desc")</script>',
+        userName: '<img src=x onerror="alert(1)">',
+        pages: [
+          {
+            title: '<script>alert("page")</script>',
+            questions: [
+              {
+                question: '<script>alert("question")</script>',
+                answerType: { value: "input" },
+                answer: '<img src=x onerror="alert(2)">',
+              },
+            ],
+          },
+        ],
+      })
+    )
+
+    expect(html).not.toContain("<script>alert")
+    expect(html).not.toContain("<img src=x onerror")
+    expect(html).toContain("&lt;script&gt;")
+    expect(html).toContain("&lt;img src=x onerror")
+  })
+
+  it("does not throw and does not inject raw markup when pages is empty", () => {
+    expect(() => buildTemplatePdfHtml(baseTemplateOptions())).not.toThrow()
   })
 })
