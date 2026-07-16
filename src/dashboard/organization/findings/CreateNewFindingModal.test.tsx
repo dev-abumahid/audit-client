@@ -41,7 +41,12 @@ vi.mock("@/redux/apis/organization/inspection.api", () => ({
 }))
 
 const mockOrgUsers = vi.fn(() => ({
-  data: { data: [] as { _id: string; firstName: string }[] },
+  data: {
+    data: [] as {
+      id: string
+      account?: { email?: string; profile?: { fullName?: string } }
+    }[],
+  },
   isLoading: false,
 }))
 vi.mock("@/redux/apis/organization/org.user.api", () => ({
@@ -140,8 +145,8 @@ describe("CreateNewFindingModal", () => {
     mockOrgUsers.mockReturnValue({
       data: {
         data: [
-          { _id: "user-1", firstName: "Alice" },
-          { _id: "user-2", firstName: "Bob" },
+          { id: "user-1", account: { profile: { fullName: "Alice" } } },
+          { id: "user-2", account: { profile: { fullName: "Bob" } } },
         ],
       },
       isLoading: false,
@@ -183,7 +188,7 @@ describe("CreateNewFindingModal", () => {
 
     // The previously-assigned user must show as checked — this is the bug:
     // editData.assignBy holds {id, name} objects, but the checkbox compared
-    // field.value.includes(user._id), which is always false against objects.
+    // field.value.includes(user.id), which is always false against objects.
     expect(aliceCheckbox.checked).toBe(true)
     expect(bobCheckbox.checked).toBe(false)
 
@@ -224,5 +229,59 @@ describe("CreateNewFindingModal", () => {
     expect(call.body.mediaFiles).toContain(
       "https://cdn.example.com/existing.png"
     )
+  })
+
+  it("renders assignee name/email from the real /organization/members shape (id + nested account.profile.fullName), not the old mock _id/firstName shape (#40)", async () => {
+    mockOrgUsers.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "member-1",
+            account: {
+              email: "auditor@test.com",
+              profile: { fullName: "Auditor One" },
+            },
+          },
+          // No profile.fullName set — must fall back to email, not render blank.
+          { id: "member-2", account: { email: "noname@test.com" } },
+        ],
+      },
+      isLoading: false,
+    })
+    mockCreateNewFinding.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    const assigneesTrigger = screen
+      .getByText("Assignees")
+      .closest("div")
+      ?.querySelector("button") as HTMLButtonElement
+    await userEvent.click(assigneesTrigger)
+
+    expect(screen.getByText("Auditor One")).toBeInTheDocument()
+    expect(screen.getByText("auditor@test.com")).toBeInTheDocument()
+    // No profile.fullName on member-2, so the name line falls back to the
+    // email — it legitimately renders twice (name line + email line).
+    expect(screen.getAllByText("noname@test.com")).toHaveLength(2)
+
+    const memberOneCheckbox = screen
+      .getByText("Auditor One")
+      .closest("label")
+      ?.querySelector('input[type="checkbox"]') as HTMLInputElement
+    await userEvent.click(memberOneCheckbox)
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Enter action title..."),
+      "Finding with real member shape"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: /create finding/i })
+    )
+
+    await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
+    const payload = mockCreateNewFinding.mock.calls[0][0]
+    expect(payload.assignBy).toEqual(["member-1"])
   })
 })

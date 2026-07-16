@@ -486,33 +486,34 @@ export default function CreateNewFindingModal({
                             ) : (
                               users.map((user: any) => (
                                 <label
-                                  key={user._id}
+                                  key={user.id}
                                   className="flex cursor-pointer items-center gap-3 rounded p-2.5 hover:bg-accent hover:text-accent-foreground"
                                 >
                                   <input
                                     type="checkbox"
-                                    checked={field.value.includes(user._id)}
+                                    checked={field.value.includes(user.id)}
                                     onChange={() => {
                                       const next = field.value.includes(
-                                        user._id
+                                        user.id
                                       )
                                         ? field.value.filter(
-                                            (id) => id !== user._id
+                                            (id) => id !== user.id
                                           )
-                                        : [...field.value, user._id]
+                                        : [...field.value, user.id]
                                       field.onChange(next)
                                     }}
                                     className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
                                   />
                                   <div className="min-w-0 flex-1">
                                     <p className="truncate text-sm font-medium text-popover-foreground">
-                                      {user.firstName}
+                                      {user.account?.profile?.fullName ||
+                                        user.account?.email}
                                     </p>
                                     <p className="truncate text-xs text-muted-foreground">
-                                      {user.email}
+                                      {user.account?.email}
                                     </p>
                                   </div>
-                                  {field.value.includes(user._id) && (
+                                  {field.value.includes(user.id) && (
                                     <Check
                                       size={14}
                                       className="shrink-0 text-primary"
