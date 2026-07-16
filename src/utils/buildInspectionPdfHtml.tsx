@@ -4,6 +4,19 @@ const PRIMARY = "#6ec075"
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
+// This HTML string gets assigned to an iframe's `srcdoc` and actually parsed
+// as a real document (see renderHtmlToPdf in InspectionReport.tsx) — unlike
+// JSX, which auto-escapes, nothing here does that for us. Question text,
+// notes, and action titles are org-authored content already displayed
+// elsewhere in the app, but this is the one place it flows into a raw HTML
+// string; escape anything that isn't a value we constructed ourselves.
+const escapeHtml = (value: unknown): string =>
+  String(value ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
+  )
+
 const sharedCss = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @page { margin: 0; size: A4; }
@@ -215,7 +228,7 @@ export const buildTemplatePdfHtml = ({
 
 export interface InspectionPdfOptions {
   inspectionId: string
-  orgName: string
+  orgName?: string
   templateName: string
   templateDisc?: string
   logoBase64?: string | null
@@ -230,7 +243,7 @@ export interface InspectionPdfOptions {
 
 export const buildInspectionPdfHtml = ({
   inspectionId,
-  orgName,
+  orgName = "",
   templateName,
   templateDisc = "",
   logoBase64,
@@ -246,22 +259,36 @@ export const buildInspectionPdfHtml = ({
     .replace("T", " ")
     .substring(0, 19)
   const shortId = inspectionId.slice(-8)
-  const title = templateName || "Inspection Report"
-  const initial = title.trim().charAt(0).toUpperCase() || "I"
+  const title = escapeHtml(templateName || "Inspection Report")
+  const initial = escapeHtml(
+    (templateName || "Inspection Report").trim().charAt(0).toUpperCase() ||
+      "I"
+  )
+  const safeOrgName = escapeHtml(orgName)
+  const safeSiteName = escapeHtml(siteName)
+  const safeStatus = escapeHtml(status)
   const logoHtml = logoBase64
     ? `<img src="${logoBase64}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:16px;" />`
     : `<span style="font-size:52px;font-weight:800;color:${PRIMARY};">${initial}</span>`
 
-  // ── Build answer lookup: question text → { answer, note, mediaFiles }
+  // ── Build answer lookup: questionId → { answer, note, mediaFiles }
+  //
+  // Matched by questionId, not question text: the real QuestionAnswer shape
+  // (src/types/inspection.ts) carries a nested `question: { id, question, ... }`
+  // object, not a top-level `question` string — matching on `.question.trim()`
+  // would throw at runtime (objects have no `.trim`), and even guarded, text
+  // matching is fragile against duplicate/edited question wording. questionId
+  // is the actual FK both sides agree on.
   const qaMap = new Map<
     string,
     { answer: any; note: string; mediaFiles: string[] }
   >()
   questionAndAnswers.forEach((qa: any) => {
-    qaMap.set((qa.question ?? "").trim(), {
+    if (!qa.questionId) return
+    qaMap.set(qa.questionId, {
       answer: qa.answer ?? "",
       note: qa.note ?? "",
-      mediaFiles: qa.media ?? qa.mediaFiles ?? [],
+      mediaFiles: qa.mediaFiles ?? [],
     })
   })
 
@@ -279,17 +306,17 @@ export const buildInspectionPdfHtml = ({
         return `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:${answer ? "#dcfce7" : "#f3f4f6"};color:${answer ? "#166534" : "#6b7280"};">${answer ? "✓ Yes" : "✗ No"}</span>`
       case "slider":
         return `<div style="margin-top:4px;">
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:#9ca3af;margin-bottom:4px;"><span>0</span><span style="font-weight:700;color:${PRIMARY};">${answer}</span><span>100</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#9ca3af;margin-bottom:4px;"><span>0</span><span style="font-weight:700;color:${PRIMARY};">${escapeHtml(answer)}</span><span>100</span></div>
           <div style="height:6px;background:#e5e7eb;border-radius:4px;overflow:hidden;">
-            <div style="height:100%;width:${answer}%;background:${PRIMARY};border-radius:4px;"></div>
+            <div style="height:100%;width:${escapeHtml(answer)}%;background:${PRIMARY};border-radius:4px;"></div>
           </div>
         </div>`
       case "date":
-        return `<span style="font-size:13px;color:#374151;font-weight:500;">📅 ${answer}</span>`
+        return `<span style="font-size:13px;color:#374151;font-weight:500;">📅 ${escapeHtml(answer)}</span>`
       case "multipleSelect":
-        return `<span style="display:inline-block;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px;">${answer}</span>`
+        return `<span style="display:inline-block;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px;">${escapeHtml(answer)}</span>`
       default:
-        return `<p style="font-size:13px;color:#374151;margin:0;line-height:1.6;white-space:pre-wrap;">${String(answer)}</p>`
+        return `<p style="font-size:13px;color:#374151;margin:0;line-height:1.6;white-space:pre-wrap;">${escapeHtml(answer)}</p>`
     }
   }
 
@@ -345,7 +372,7 @@ export const buildInspectionPdfHtml = ({
         templateDisc
           ? `
       <p style="font-size:14px;color:#fff;opacity:0.9;max-width:480px;line-height:1.75;margin:0 0 40px;text-align:justify;">
-        ${templateDisc.slice(0, 200)}
+        ${escapeHtml(templateDisc.slice(0, 200))}
       </p>`
           : `<div style="margin-bottom:40px;"></div>`
       }
@@ -355,13 +382,13 @@ export const buildInspectionPdfHtml = ({
         display:inline-block;min-width:260px;text-align:center;
       ">
         <p style="margin:6px 0;font-size:13px;color:#6b7280;">
-          Organization Name: <strong style="color:#111827;">${orgName}</strong>
+          Organization Name: <strong style="color:#111827;">${safeOrgName}</strong>
         </p>
         <p style="margin:6px 0;font-size:13px;color:#6b7280;">
-          Site: <strong style="color:#111827;">${siteName}</strong>
+          Site: <strong style="color:#111827;">${safeSiteName}</strong>
         </p>
         <p style="margin:6px 0;font-size:13px;color:#6b7280;">
-          Status: <strong style="color:#111827;">${status}</strong>
+          Status: <strong style="color:#111827;">${safeStatus}</strong>
         </p>
         <p style="margin:6px 0;font-size:13px;color:#6b7280;">
           Report ID: <strong style="color:#111827;font-family:monospace;">${shortId}</strong>
@@ -381,17 +408,18 @@ export const buildInspectionPdfHtml = ({
 
       const questionsHtml = questions
         .map((q: any, qIdx: number) => {
-          const matched = qaMap.get((q.question ?? "").trim())
+          const matched = qaMap.get(q.id)
           const answer = matched?.answer ?? ""
           const note = matched?.note ?? ""
           const mediaFiles = matched?.mediaFiles ?? []
-          const answerType = q.answerType?.answerType ?? "input"
-          // Related actions for this question
-          const relActions = actions.filter(
-            (a: any) =>
-              a?.templateInfo?.questionIndex === qIdx &&
-              a?.templateInfo?.pageIndex === pageIdx
-          )
+          // QuestionDef.answerType is a plain string (src/types/inspection.ts),
+          // not a nested { answerType } object.
+          const answerType = q.answerType ?? "input"
+          // Related actions for this question. `templateInfo.questionIndex/pageIndex`
+          // isn't a real field on the Action shape returned with an inspection —
+          // InspectionReport.tsx's own actionsByQuestion grouping (the live,
+          // already-working pattern) matches on the question's text instead.
+          const relActions = actions.filter((a: any) => a.question === q.question)
 
           return `
         <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px 18px;margin-bottom:12px;">
@@ -401,7 +429,7 @@ export const buildInspectionPdfHtml = ({
               ${qIdx + 1}
             </div>
             <div style="flex:1;">
-              <p style="font-size:13px;font-weight:600;color:#1f2937;margin:0 0 6px;line-height:1.5;">${q.question ?? ""}</p>
+              <p style="font-size:13px;font-weight:600;color:#1f2937;margin:0 0 6px;line-height:1.5;">${escapeHtml(q.question)}</p>
             </div>
           </div>
 
@@ -416,7 +444,7 @@ export const buildInspectionPdfHtml = ({
               note.trim()
                 ? `
             <div style="margin-top:8px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;">
-              <p style="font-size:11px;color:#92400e;margin:0;font-style:italic;">${note}</p>
+              <p style="font-size:11px;color:#92400e;margin:0;font-style:italic;">${escapeHtml(note)}</p>
             </div>`
                 : ""
             }
@@ -437,9 +465,9 @@ export const buildInspectionPdfHtml = ({
                 .map(
                   (a: any) => `
                 <div style="display:flex;align-items:center;gap:8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:6px 10px;margin-bottom:4px;">
-                  <span style="font-size:11px;font-weight:600;color:#111827;flex:1;">${a.actionTitle ?? ""}</span>
-                  <span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;${priorityColor(a.priority)}">${a.priority ?? ""}</span>
-                  <span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;${stateColor(a.state)}">${a.state ?? ""}</span>
+                  <span style="font-size:11px;font-weight:600;color:#111827;flex:1;">${escapeHtml(a.actionTitle)}</span>
+                  <span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;${priorityColor(a.priority)}">${escapeHtml(a.priority)}</span>
+                  <span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;${stateColor(a.state)}">${escapeHtml(a.state)}</span>
                 </div>
               `
                 )
@@ -464,7 +492,7 @@ export const buildInspectionPdfHtml = ({
           <!-- Green section title -->
           <div style="background:${PRIMARY};border-radius:10px;padding:16px 20px;margin-bottom:16px;">
             <h3 style="font-size:18px;font-weight:800;color:#fff;margin:0;line-height:1.3;">
-              ${page.title ?? `Section ${pageIdx + 1}`}
+              ${page.title ? escapeHtml(page.title) : `Section ${pageIdx + 1}`}
             </h3>
           </div>
         </div>
@@ -494,7 +522,7 @@ export const buildInspectionPdfHtml = ({
         <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px;">
           <thead>
             <tr style="background:${PRIMARY};">
-              ${["#", "Title", "Priority", "Status", "Due Date", "Q#"]
+              ${["#", "Title", "Priority", "Status", "Due Date", "Question"]
                 .map(
                   (h) =>
                     `<th style="padding:7px 10px;text-align:left;color:#fff;font-weight:700;">${h}</th>`
@@ -508,11 +536,11 @@ export const buildInspectionPdfHtml = ({
                 (action: any, idx: number) => `
               <tr style="${idx % 2 === 0 ? "background:#fff;" : "background:#f9fafb;"}">
                 <td style="padding:7px 10px;color:#6b7280;">${idx + 1}</td>
-                <td style="padding:7px 10px;color:#111827;font-weight:600;">${(action.actionTitle ?? "").substring(0, 38)}${(action.actionTitle ?? "").length > 38 ? "…" : ""}</td>
-                <td style="padding:7px 10px;"><span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;${priorityColor(action.priority)}">${action.priority ?? "—"}</span></td>
-                <td style="padding:7px 10px;"><span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;${stateColor(action.state)}">${action.state ?? "—"}</span></td>
+                <td style="padding:7px 10px;color:#111827;font-weight:600;">${escapeHtml((action.actionTitle ?? "").substring(0, 38))}${(action.actionTitle ?? "").length > 38 ? "…" : ""}</td>
+                <td style="padding:7px 10px;"><span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;${priorityColor(action.priority)}">${action.priority ? escapeHtml(action.priority) : "—"}</span></td>
+                <td style="padding:7px 10px;"><span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;${stateColor(action.state)}">${action.state ? escapeHtml(action.state) : "—"}</span></td>
                 <td style="padding:7px 10px;color:#6b7280;">${action.dueDate ? new Date(action.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}</td>
-                <td style="padding:7px 10px;color:#6b7280;">Q${action.templateInfo?.questionIndex != null ? action.templateInfo.questionIndex + 1 : "—"}</td>
+                <td style="padding:7px 10px;color:#6b7280;max-width:160px;">${action.question ? `${escapeHtml(String(action.question).substring(0, 42))}${String(action.question).length > 42 ? "…" : ""}` : "—"}</td>
               </tr>
             `
               )

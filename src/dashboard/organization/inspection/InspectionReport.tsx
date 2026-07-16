@@ -3,6 +3,10 @@
 
 import { useGetSingleInspectionQuery } from "@/redux/apis/organization/inspection.api"
 import type { IPage } from "@/types/template"
+import { buildInspectionPdfHtml } from "@/utils/buildInspectionPdfHtml"
+import { A4_WIDTH_MM, computePdfPagePlacements } from "@/utils/pdfPageMath"
+import html2canvas from "html2canvas-pro"
+import jsPDF from "jspdf"
 import {
   AlertTriangle,
   Calendar,
@@ -13,6 +17,7 @@ import {
   FileText,
   Globe,
   Hash,
+  Loader2,
   MessageSquare,
   PlayCircle,
   ToggleLeft,
@@ -21,6 +26,7 @@ import {
 } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
+import { toast } from "sonner"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -447,6 +453,59 @@ const PageSection = memo(
   }
 )
 
+// Renders a full HTML document string (built by buildInspectionPdfHtml) into a
+// downloaded, multi-page PDF. The builder lays out one `.page` div per A4-sized
+// section (see its shared CSS), so — unlike TemplateReportPage's single tall
+// canvas sliced at fixed heights — each section is captured and placed as its
+// own PDF page, giving correct, non-mid-content page breaks.
+async function renderHtmlToPdf(html: string, filename: string) {
+  const iframe = document.createElement("iframe")
+  iframe.style.position = "fixed"
+  iframe.style.top = "-10000px"
+  iframe.style.left = "-10000px"
+  iframe.style.width = "210mm"
+  iframe.style.height = "297mm"
+  document.body.appendChild(iframe)
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      iframe.onload = () => resolve()
+      iframe.onerror = () => reject(new Error("Report frame failed to load"))
+      iframe.srcdoc = html
+    })
+
+    const doc = iframe.contentDocument
+    if (!doc) throw new Error("Could not access report frame")
+
+    const pageEls = Array.from(doc.querySelectorAll<HTMLElement>(".page"))
+    if (pageEls.length === 0) throw new Error("Report has no pages to render")
+
+    const pdf = new jsPDF("p", "mm", "a4")
+
+    for (let i = 0; i < pageEls.length; i++) {
+      const canvas = await html2canvas(pageEls[i], {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+      })
+      const imgData = canvas.toDataURL("image/png")
+      const { imgHeightMm, positionsMm } = computePdfPagePlacements(
+        canvas.width,
+        canvas.height
+      )
+      positionsMm.forEach((positionMm, slice) => {
+        if (i > 0 || slice > 0) pdf.addPage()
+        pdf.addImage(imgData, "PNG", 0, positionMm, A4_WIDTH_MM, imgHeightMm)
+      })
+    }
+
+    pdf.save(filename)
+  } finally {
+    document.body.removeChild(iframe)
+  }
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const InspectionReport = () => {
@@ -546,6 +605,32 @@ const InspectionReport = () => {
     })
   }, [])
 
+  const [isDownloading, setIsDownloading] = useState(false)
+
+  const downloadPdf = useCallback(async () => {
+    if (!inspection) return
+    setIsDownloading(true)
+    try {
+      const html = buildInspectionPdfHtml({
+        inspectionId: inspection.id,
+        templateName,
+        logoBase64: template?.templateLogo ?? null,
+        siteName: inspection.site?.name ?? "",
+        status: inspection.status,
+        createdAt: inspection.createdAt,
+        updatedAt: inspection.updatedAt,
+        templatePages,
+        questionAndAnswers: inspection.questionAnswers ?? [],
+        actions,
+      })
+      await renderHtmlToPdf(html, `${templateName}-report.pdf`)
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to generate PDF report")
+    } finally {
+      setIsDownloading(false)
+    }
+  }, [inspection, template, templateName, templatePages, actions])
+
   if (!inspection) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -613,8 +698,20 @@ const InspectionReport = () => {
               ))}
             </div>
 
-            <button className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.985]">
-              <Download className="h-4 w-4" /> Download PDF
+            <button
+              onClick={downloadPdf}
+              disabled={isDownloading}
+              className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isDownloading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Generating…
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" /> Download PDF
+                </>
+              )}
             </button>
           </div>
         </div>
