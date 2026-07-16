@@ -1,4 +1,9 @@
-import { api, ApiError } from "@/lib/api"
+import { useFindingsForInspection } from "@/hooks/useFindingsForInspection"
+import {
+  useCreateNewFindingMutation,
+  useDeleteFindingByIdMutation,
+  useUpdateFindingByIdMutation,
+} from "@/redux/apis/organization/findings.api"
 import {
   FileText,
   Loader2,
@@ -8,8 +13,9 @@ import {
   Trash2,
   X,
 } from "lucide-react"
-import { useEffect, useId, useState } from "react"
+import { useId, useState } from "react"
 import { Link, useParams, useSearchParams } from "react-router"
+import { toast } from "sonner"
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ""
 
@@ -250,9 +256,24 @@ function ActionForm({
 export default function InspectionActions() {
   const { id: inspectionId } = useParams<{ id: string }>()
 
-  const [actions, setActions] = useState<Action[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    findings: actions,
+    isLoading: loading,
+    isFetching: findingsFetching,
+    isError: hasLoadError,
+  } = useFindingsForInspection<Action>(inspectionId)
+  const error = hasLoadError ? "Failed to load actions" : null
+  // True only while a background refetch (e.g. after create/update/delete
+  // invalidates the FINDINGS tag) is in flight — `loading` only covers the
+  // very first fetch, so without this the list can go silent for a moment
+  // after a mutation with no visible feedback.
+  const isBackgroundRefreshing = findingsFetching && !loading
+
+  const [createNewFinding] = useCreateNewFindingMutation()
+  const [updateFindingById] = useUpdateFindingByIdMutation()
+  const [deleteFindingById] = useDeleteFindingByIdMutation()
+
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
 
   const [searchParams] = useSearchParams()
 
@@ -303,47 +324,25 @@ export default function InspectionActions() {
     }
   }
 
-  function loadActions() {
-    if (!inspectionId) return
-    setLoading(true)
-    api
-      .get<{ data: Action[] }>("/api/action")
-      .then((res) => {
-        const actions = res?.data ?? []
-        setActions(actions.filter((a) => a.inspectionId === inspectionId))
-      })
-      .catch((err) => {
-        setError(
-          err instanceof ApiError ? err.message : "Failed to load actions"
-        )
-      })
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => {
-    loadActions()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inspectionId])
-
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!inspectionId) return
     setCreating(true)
     setCreateError(null)
     try {
-      const created = await api.post<Action>("/api/action", {
+      await createNewFinding({
         ...createForm,
         inspectionId,
         dueDate: new Date(createForm.dueDate).toISOString(),
         attachments: createAttachments,
-      })
-      setActions((prev) => [created, ...prev])
+      }).unwrap()
       setCreateForm(EMPTY_FORM)
       setCreateAttachments([])
       setShowCreate(false)
     } catch (err) {
       setCreateError(
-        err instanceof ApiError ? err.message : "Failed to create action"
+        (err as { data?: { message?: string } })?.data?.message ??
+          "Failed to create action"
       )
     } finally {
       setCreating(false)
@@ -369,21 +368,19 @@ export default function InspectionActions() {
     setUpdating(true)
     setEditError(null)
     try {
-      const updated = await api.patch<Action>(
-        `/api/action/${editingAction.id}`,
-        {
+      await updateFindingById({
+        id: editingAction.id,
+        body: {
           ...editForm,
           dueDate: new Date(editForm.dueDate).toISOString(),
           attachments: editAttachments,
-        }
-      )
-      setActions((prev) =>
-        prev.map((a) => (a.id === editingAction.id ? updated : a))
-      )
+        },
+      }).unwrap()
       setEditingAction(null)
     } catch (err) {
       setEditError(
-        err instanceof ApiError ? err.message : "Failed to update action"
+        (err as { data?: { message?: string } })?.data?.message ??
+          "Failed to update action"
       )
     } finally {
       setUpdating(false)
@@ -393,8 +390,7 @@ export default function InspectionActions() {
   async function handleDelete(id: string) {
     setDeleteInFlight(true)
     try {
-      await api.delete(`/api/action/${id}`)
-      setActions((prev) => prev.filter((a) => a.id !== id))
+      await deleteFindingById(id).unwrap()
       setDeletingId(null)
     } catch {
       setDeletingId(null)
@@ -404,11 +400,16 @@ export default function InspectionActions() {
   }
 
   async function updateStatus(id: string, status: ActionStatus) {
-    setActions((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)))
+    setUpdatingStatusId(id)
     try {
-      await api.patch(`/api/action/${id}`, { status })
-    } catch {
-      loadActions()
+      await updateFindingById({ id, body: { status } }).unwrap()
+    } catch (err) {
+      toast.error(
+        (err as { data?: { message?: string } })?.data?.message ??
+          "Failed to update status"
+      )
+    } finally {
+      setUpdatingStatusId(null)
     }
   }
 
@@ -435,8 +436,14 @@ export default function InspectionActions() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">
+          <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
             Corrective actions
+            {isBackgroundRefreshing && (
+              <Loader2
+                className="h-3.5 w-3.5 animate-spin text-muted-foreground"
+                aria-label="Refreshing"
+              />
+            )}
           </h1>
           {!loading && (
             <p className="mt-0.5 text-sm text-muted-foreground">
@@ -628,10 +635,11 @@ export default function InspectionActions() {
               <div className="flex items-center justify-between">
                 <select
                   value={action.status}
+                  disabled={updatingStatusId === action.id}
                   onChange={(e) =>
                     updateStatus(action.id, e.target.value as ActionStatus)
                   }
-                  className={`rounded-full border-0 px-2.5 py-0.5 text-xs font-medium focus:ring-1 focus:ring-ring focus:outline-none ${STATUS_CLASSES[action.status]}`}
+                  className={`rounded-full border-0 px-2.5 py-0.5 text-xs font-medium focus:ring-1 focus:ring-ring focus:outline-none disabled:opacity-60 ${STATUS_CLASSES[action.status]}`}
                 >
                   {(Object.keys(STATUS_LABELS) as ActionStatus[]).map((s) => (
                     <option key={s} value={s}>

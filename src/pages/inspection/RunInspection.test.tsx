@@ -3,18 +3,6 @@ import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import RunInspection from "./RunInspection"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), put: vi.fn(), patch: vi.fn() },
-  ApiError: class ApiError extends Error {
-    constructor(
-      public status: number,
-      message: string
-    ) {
-      super(message)
-    }
-  },
-}))
-
 const mockNavigate = vi.fn()
 vi.mock("react-router", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-router")>()
@@ -25,9 +13,24 @@ vi.mock("react-router", async (importOriginal) => {
   }
 })
 
-import { api } from "@/lib/api"
-const mockGet = vi.mocked(api.get)
-const mockPatch = vi.mocked(api.patch)
+const mockUseGetSingleInspectionQuery = vi.fn()
+const mockUpdateInspectionQuestionAnswer = vi.fn()
+const mockUpdateInspection = vi.fn()
+
+vi.mock("@/redux/apis/organization/inspection.api", () => ({
+  useGetSingleInspectionQuery: (...args: unknown[]) =>
+    mockUseGetSingleInspectionQuery(...args),
+  useUpdateInspectionQuestionAnswerMutation: () => [
+    mockUpdateInspectionQuestionAnswer,
+  ],
+  useUpdateInspectionMutation: () => [mockUpdateInspection],
+}))
+
+const mockUseGetAllFindingsQuery = vi.fn()
+vi.mock("@/redux/apis/organization/findings.api", () => ({
+  useGetAllFindingsQuery: (...args: unknown[]) =>
+    mockUseGetAllFindingsQuery(...args),
+}))
 
 const mockInspection = {
   id: "insp-1",
@@ -134,19 +137,38 @@ function renderPage() {
 
 describe("RunInspection", () => {
   beforeEach(() => {
-    mockGet.mockReset()
-    mockPatch.mockReset()
+    mockUseGetSingleInspectionQuery.mockReset()
+    mockUpdateInspectionQuestionAnswer.mockReset()
+    mockUpdateInspection.mockReset()
+    mockUseGetAllFindingsQuery.mockReset()
     mockNavigate.mockReset()
+    mockUpdateInspectionQuestionAnswer.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+    mockUpdateInspection.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { data: [], meta: { page: 1, limit: 100, total: 0, totalPage: 0 } },
+    })
   })
 
   it("shows a loading spinner initially", () => {
-    mockGet.mockReturnValue(new Promise(() => {}))
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    })
     renderPage()
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
   it("shows an error when the fetch fails", async () => {
-    mockGet.mockResolvedValue(null as unknown as never)
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    })
     renderPage()
     await waitFor(() =>
       expect(screen.getByText("Failed to load inspection")).toBeInTheDocument()
@@ -154,7 +176,11 @@ describe("RunInspection", () => {
   })
 
   it("renders the template name in the breadcrumb", async () => {
-    mockGet.mockResolvedValue(mockInspection)
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() =>
       expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
@@ -162,7 +188,11 @@ describe("RunInspection", () => {
   })
 
   it("renders all page titles in the sidebar", async () => {
-    mockGet.mockResolvedValue(mockInspection)
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     // "General info" appears in both sidebar nav and as the current page heading
     await waitFor(() =>
@@ -172,7 +202,11 @@ describe("RunInspection", () => {
   })
 
   it("renders questions for the current page", async () => {
-    mockGet.mockResolvedValue(mockInspection)
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() =>
       expect(screen.getByText("Location?")).toBeInTheDocument()
@@ -183,7 +217,11 @@ describe("RunInspection", () => {
   })
 
   it("navigates to the next page when Next is clicked", async () => {
-    mockGet.mockResolvedValue(mockInspection)
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() => screen.getByText("Next"))
     await userEvent.click(screen.getByText("Next"))
@@ -194,28 +232,40 @@ describe("RunInspection", () => {
   })
 
   it("Previous button is disabled on the first page", async () => {
-    mockGet.mockResolvedValue(mockInspection)
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() => screen.getByText("Previous"))
     expect(screen.getByText("Previous").closest("button")).toBeDisabled()
   })
 
   it("marks inspection complete and navigates to list", async () => {
-    mockGet.mockResolvedValue(mockInspection)
-    mockPatch.mockResolvedValue({})
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() => screen.getByText("Mark complete"))
     await userEvent.click(screen.getByText("Mark complete"))
     await waitFor(() =>
-      expect(mockPatch).toHaveBeenCalledWith("/api/inspection/insp-1", {
-        status: "COMPLETED",
+      expect(mockUpdateInspection).toHaveBeenCalledWith({
+        id: "insp-1",
+        data: { status: "COMPLETED" },
       })
     )
     expect(mockNavigate).toHaveBeenCalledWith("/organization/audit/inspections")
   })
 
   it('shows "Upload notes" link when inspection has no note', async () => {
-    mockGet.mockResolvedValue(mockInspection)
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() =>
       expect(screen.getByText("Upload notes")).toBeInTheDocument()
@@ -223,7 +273,11 @@ describe("RunInspection", () => {
   })
 
   it('shows "View notes" link when inspection has an existing note', async () => {
-    mockGet.mockResolvedValue({ ...mockInspection, note: { id: "note-1" } })
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: { ...mockInspection, note: { id: "note-1" } } },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() =>
       expect(screen.getByText("View notes")).toBeInTheDocument()
@@ -231,11 +285,39 @@ describe("RunInspection", () => {
   })
 
   it("renders questions as read-only when inspection is COMPLETED", async () => {
-    mockGet.mockResolvedValue({ ...mockInspection, status: "COMPLETED" })
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: { ...mockInspection, status: "COMPLETED" } },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() => screen.getByText("Location?"))
     const inputs = screen.getAllByRole("textbox")
     inputs.forEach((input) => expect(input).toBeDisabled())
+  })
+
+  it("shows the finding count badge from the (server-filtered) findings query", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        data: [
+          { id: "a1", inspectionId: "insp-1" },
+          { id: "a2", inspectionId: "insp-1" },
+        ],
+        meta: { page: 1, limit: 100, total: 2, totalPage: 1 },
+      },
+    })
+    renderPage()
+    await waitFor(() => screen.getByText("Location?"))
+    expect(screen.getAllByText("2").length).toBeGreaterThan(0)
+    expect(mockUseGetAllFindingsQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ inspectionId: "insp-1" }),
+      expect.anything()
+    )
   })
 
   it("renders a relative mediaFile URL with the BASE_URL prefix", async () => {
@@ -283,7 +365,11 @@ describe("RunInspection", () => {
         },
       ],
     }
-    mockGet.mockResolvedValue(inspectionWithMedia)
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: inspectionWithMedia },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() => screen.getByText("Location?"))
     const img = document.querySelector(
@@ -293,6 +379,82 @@ describe("RunInspection", () => {
     // VITE_API_BASE_URL is not set in the test environment so it falls back to ''
     // meaning relative paths are kept as-is (no double slash)
     expect(img.src).toContain("/uploads/photo.jpg")
+  })
+
+  it("does not lose an already-answered question's completion status on a same-inspection background refetch", async () => {
+    // Single-question page so the sidebar "done" checkmark reflects q-1's
+    // status directly.
+    const raceInspection = {
+      ...mockInspection,
+      template: {
+        ...mockInspection.template,
+        pages: [
+          {
+            id: "pg-1",
+            pageIndex: 1,
+            title: "General info",
+            questions: [
+              {
+                id: "q-1",
+                index: 0,
+                question: "Location?",
+                isRequired: true,
+                answerType: "TEXT",
+                value: null,
+              },
+            ],
+          },
+        ],
+      },
+      questionAnswers: [
+        {
+          id: "qa-1",
+          questionId: "q-1",
+          answer: "Paris",
+          note: null,
+          mediaFiles: null,
+          question: {
+            id: "q-1",
+            question: "Location?",
+            answerType: "TEXT",
+            value: null,
+          },
+        },
+      ],
+    }
+
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: raceInspection },
+      isLoading: false,
+      isError: false,
+    })
+    const { rerender } = renderPage()
+    await waitFor(() => screen.getByText("Location?"))
+    // Page is fully answered — sidebar shows a checkmark, not "1".
+    expect(screen.getByText("✓")).toBeInTheDocument()
+
+    // Simulate a background refetch of the *same* inspection (RTK Query
+    // hands back a brand-new object reference on every refetch, even for
+    // unchanged data) that races ahead of the just-answered question's own
+    // row — e.g. read-replica lag right after the autosave that triggered
+    // this refetch. Same inspection id, but questionAnswers is temporarily
+    // missing q-1's row.
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: { ...raceInspection, questionAnswers: [] } },
+      isLoading: false,
+      isError: false,
+    })
+    rerender(
+      <MemoryRouter>
+        <RunInspection />
+      </MemoryRouter>
+    )
+
+    // Because the reseed is keyed on inspection id (not object reference),
+    // the local answer cache from the first render is retained and still
+    // reports q-1 as answered, so the checkmark should NOT revert to "1".
+    await waitFor(() => expect(screen.getByText("✓")).toBeInTheDocument())
+    expect(screen.queryByText("1")).not.toBeInTheDocument()
   })
 
   it("renders an absolute mediaFile URL unchanged", async () => {
@@ -340,7 +502,11 @@ describe("RunInspection", () => {
         },
       ],
     }
-    mockGet.mockResolvedValue(inspectionWithMedia)
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: inspectionWithMedia },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() => screen.getByText("Location?"))
     const img = document.querySelector(

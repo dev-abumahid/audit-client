@@ -3,28 +3,25 @@ import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import InspectionActions from "./InspectionActions"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
-  ApiError: class ApiError extends Error {
-    constructor(
-      public status: number,
-      message: string
-    ) {
-      super(message)
-    }
-  },
-}))
-
 vi.mock("react-router", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-router")>()
   return { ...mod, useParams: () => ({ id: "insp-1" }) }
 })
 
-import { api } from "@/lib/api"
-const mockGet = vi.mocked(api.get)
-const mockPost = vi.mocked(api.post)
-const mockPatch = vi.mocked(api.patch)
-const mockDelete = vi.mocked(api.delete)
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+
+const mockUseGetAllFindingsQuery = vi.fn()
+const mockCreateNewFinding = vi.fn()
+const mockUpdateFindingById = vi.fn()
+const mockDeleteFindingById = vi.fn()
+
+vi.mock("@/redux/apis/organization/findings.api", () => ({
+  useGetAllFindingsQuery: (...args: unknown[]) =>
+    mockUseGetAllFindingsQuery(...args),
+  useCreateNewFindingMutation: () => [mockCreateNewFinding],
+  useUpdateFindingByIdMutation: () => [mockUpdateFindingById],
+  useDeleteFindingByIdMutation: () => [mockDeleteFindingById],
+}))
 
 function makeAction(overrides = {}) {
   return {
@@ -43,7 +40,7 @@ function makeAction(overrides = {}) {
 }
 
 const emptyResponse = {
-  meta: { page: 1, limit: 10, total: 0, totalPage: 0 },
+  meta: { page: 1, limit: 100, total: 0, totalPage: 0 },
   data: [],
 }
 
@@ -57,22 +54,30 @@ function renderPage() {
 
 describe("InspectionActions", () => {
   beforeEach(() => {
-    mockGet.mockReset()
-    mockPost.mockReset()
-    mockPatch.mockReset()
-    mockDelete.mockReset()
+    mockUseGetAllFindingsQuery.mockReset()
+    mockCreateNewFinding.mockReset()
+    mockUpdateFindingById.mockReset()
+    mockDeleteFindingById.mockReset()
+    mockCreateNewFinding.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+    mockUpdateFindingById.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+    mockDeleteFindingById.mockReturnValue({ unwrap: () => Promise.resolve({}) })
   })
 
   it("shows a loading spinner initially", () => {
-    mockGet.mockReturnValue(new Promise(() => {}))
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    })
     renderPage()
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
   it("shows empty state when no actions for this inspection", async () => {
-    mockGet.mockResolvedValue({
-      ...emptyResponse,
-      data: [makeAction({ inspectionId: "other" })],
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: emptyResponse,
+      isLoading: false,
+      isError: false,
     })
     renderPage()
     await waitFor(() =>
@@ -81,7 +86,11 @@ describe("InspectionActions", () => {
   })
 
   it("renders action cards", async () => {
-    mockGet.mockResolvedValue({ ...emptyResponse, data: [makeAction()] })
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [makeAction()] },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() =>
       expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
@@ -94,11 +103,15 @@ describe("InspectionActions", () => {
 
   it("applies the correct colour class to each priority badge", async () => {
     const priorities = ["Low", "Medium", "High"] as const
-    mockGet.mockResolvedValue({
-      ...emptyResponse,
-      data: priorities.map((p, i) =>
-        makeAction({ id: `a-${i}`, priority: p, actionTitle: `Action ${p}` })
-      ),
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        ...emptyResponse,
+        data: priorities.map((p, i) =>
+          makeAction({ id: `a-${i}`, priority: p, actionTitle: `Action ${p}` })
+        ),
+      },
+      isLoading: false,
+      isError: false,
     })
     renderPage()
     await waitFor(() => screen.getByText("Action Low"))
@@ -114,25 +127,29 @@ describe("InspectionActions", () => {
     })
   })
 
-  it("filters out actions from other inspections", async () => {
-    mockGet.mockResolvedValue({
-      ...emptyResponse,
-      data: [
-        makeAction({ id: "a1", inspectionId: "insp-1", actionTitle: "Mine" }),
-        makeAction({
-          id: "a2",
-          inspectionId: "other-insp",
-          actionTitle: "Not mine",
-        }),
-      ],
+  it("requests findings scoped to this inspection via inspectionId", async () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        ...emptyResponse,
+        data: [makeAction({ id: "a1", actionTitle: "Mine" })],
+      },
+      isLoading: false,
+      isError: false,
     })
     renderPage()
     await waitFor(() => expect(screen.getByText("Mine")).toBeInTheDocument())
-    expect(screen.queryByText("Not mine")).not.toBeInTheDocument()
+    expect(mockUseGetAllFindingsQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ inspectionId: "insp-1" }),
+      expect.anything()
+    )
   })
 
   it('opens the create form when "New action" is clicked', async () => {
-    mockGet.mockResolvedValue(emptyResponse)
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: emptyResponse,
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() => screen.getByText("No corrective actions yet."))
     await userEvent.click(screen.getByText("New action"))
@@ -141,10 +158,12 @@ describe("InspectionActions", () => {
     ).toBeInTheDocument()
   })
 
-  it("submits the create form and shows the new action", async () => {
-    mockGet.mockResolvedValue(emptyResponse)
-    const newAction = makeAction({ id: "new-1", actionTitle: "Fix lighting" })
-    mockPost.mockResolvedValue(newAction)
+  it("submits the create form via createNewFinding", async () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: emptyResponse,
+      isLoading: false,
+      isError: false,
+    })
 
     renderPage()
     await waitFor(() => screen.getByText("New action"))
@@ -166,19 +185,60 @@ describe("InspectionActions", () => {
     await userEvent.click(screen.getByText("Create action"))
 
     await waitFor(() =>
-      expect(screen.getByText("Fix lighting")).toBeInTheDocument()
+      expect(mockCreateNewFinding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actionTitle: "Fix lighting",
+          inspectionId: "insp-1",
+        })
+      )
     )
-    expect(mockPost).toHaveBeenCalledWith(
-      "/api/action",
-      expect.objectContaining({
-        actionTitle: "Fix lighting",
-        inspectionId: "insp-1",
-      })
+    // create form closes on success
+    await waitFor(() =>
+      expect(
+        screen.queryByPlaceholderText(/e.g. Replace faulty/i)
+      ).not.toBeInTheDocument()
+    )
+  })
+
+  it("shows the server error message when create fails", async () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: emptyResponse,
+      isLoading: false,
+      isError: false,
+    })
+    mockCreateNewFinding.mockReturnValue({
+      unwrap: () => Promise.reject({ data: { message: "Duplicate title" } }),
+    })
+
+    renderPage()
+    await waitFor(() => screen.getByText("New action"))
+    await userEvent.click(screen.getByText("New action"))
+
+    await userEvent.type(
+      screen.getByPlaceholderText(/e.g. Replace faulty/i),
+      "Fix lighting"
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText(/Describe what needs/i),
+      "Replace emergency lighting."
+    )
+    await userEvent.type(
+      document.querySelector('input[type="date"]') as HTMLElement,
+      "2026-08-01"
+    )
+    await userEvent.click(screen.getByText("Create action"))
+
+    await waitFor(() =>
+      expect(screen.getByText("Duplicate title")).toBeInTheDocument()
     )
   })
 
   it("opens the edit form when the edit button is clicked", async () => {
-    mockGet.mockResolvedValue({ ...emptyResponse, data: [makeAction()] })
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [makeAction()] },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() => screen.getByText("Replace extinguisher"))
 
@@ -187,10 +247,12 @@ describe("InspectionActions", () => {
     expect(screen.getByDisplayValue("Replace extinguisher")).toBeInTheDocument()
   })
 
-  it("submits the edit form and updates the card", async () => {
-    mockGet.mockResolvedValue({ ...emptyResponse, data: [makeAction()] })
-    const updated = makeAction({ actionTitle: "Updated title" })
-    mockPatch.mockResolvedValue(updated)
+  it("submits the edit form via updateFindingById with { id, body } shape", async () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [makeAction()] },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() => screen.getByText("Replace extinguisher"))
 
@@ -200,23 +262,23 @@ describe("InspectionActions", () => {
     await userEvent.type(titleInput, "Updated title")
     await userEvent.click(screen.getByText("Save changes"))
 
-    await waitFor(() => {
-      expect(mockPatch).toHaveBeenCalled()
-    })
-
     await waitFor(() =>
-      expect(screen.getByText("Updated title")).toBeInTheDocument()
-    )
-    expect(mockPatch).toHaveBeenCalledWith(
-      "/api/action/act-1",
-      expect.objectContaining({ actionTitle: "Updated title" })
+      expect(mockUpdateFindingById).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "act-1",
+          body: expect.objectContaining({ actionTitle: "Updated title" }),
+        })
+      )
     )
   })
 
   it("allows editing an overdue action without resetting its past due date", async () => {
     const overdueAction = makeAction({ dueDate: "2020-01-15T00:00:00.000Z" })
-    mockGet.mockResolvedValue({ ...emptyResponse, data: [overdueAction] })
-    mockPatch.mockResolvedValue(overdueAction)
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [overdueAction] },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() => screen.getByText("Replace extinguisher"))
 
@@ -227,18 +289,24 @@ describe("InspectionActions", () => {
 
     await userEvent.click(screen.getByText("Save changes"))
 
-    await waitFor(() => {
-      expect(mockPatch).toHaveBeenCalled()
-    })
-    expect(mockPatch).toHaveBeenCalledWith(
-      "/api/action/act-1",
-      expect.objectContaining({ dueDate: "2020-01-15T00:00:00.000Z" })
+    await waitFor(() =>
+      expect(mockUpdateFindingById).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "act-1",
+          body: expect.objectContaining({
+            dueDate: "2020-01-15T00:00:00.000Z",
+          }),
+        })
+      )
     )
   })
 
-  it("shows inline delete confirm and removes action on confirm", async () => {
-    mockGet.mockResolvedValue({ ...emptyResponse, data: [makeAction()] })
-    mockDelete.mockResolvedValue({})
+  it("shows inline delete confirm and calls deleteFindingById on confirm", async () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [makeAction()] },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() => screen.getByText("Replace extinguisher"))
 
@@ -247,14 +315,23 @@ describe("InspectionActions", () => {
 
     await userEvent.click(screen.getByText("Delete"))
     await waitFor(() =>
-      expect(screen.queryByText("Replace extinguisher")).not.toBeInTheDocument()
+      expect(mockDeleteFindingById).toHaveBeenCalledWith("act-1")
     )
-    expect(mockDelete).toHaveBeenCalledWith("/api/action/act-1")
   })
 
-  it("updates status optimistically via select change", async () => {
-    mockGet.mockResolvedValue({ ...emptyResponse, data: [makeAction()] })
-    mockPatch.mockResolvedValue({})
+  it("calls updateFindingById with { id, body: { status } } via select change and disables it while pending", async () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [makeAction()] },
+      isLoading: false,
+      isError: false,
+    })
+    let resolveUpdate: (v: unknown) => void = () => {}
+    mockUpdateFindingById.mockReturnValue({
+      unwrap: () =>
+        new Promise((resolve) => {
+          resolveUpdate = resolve
+        }),
+    })
     renderPage()
     await waitFor(() =>
       expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
@@ -263,16 +340,85 @@ describe("InspectionActions", () => {
     const select = screen.getByDisplayValue("To do")
     await userEvent.selectOptions(select, "IN_PROGRESS")
 
-    expect(screen.getByDisplayValue("In progress")).toBeInTheDocument()
-    expect(mockPatch).toHaveBeenCalledWith("/api/action/act-1", {
-      status: "IN_PROGRESS",
+    expect(mockUpdateFindingById).toHaveBeenCalledWith({
+      id: "act-1",
+      body: { status: "IN_PROGRESS" },
     })
+    expect(select).toBeDisabled()
+
+    resolveUpdate({})
+    await waitFor(() => expect(select).not.toBeDisabled())
+  })
+
+  it("shows a toast error and re-enables the select when a status update fails", async () => {
+    const { toast } = await import("sonner")
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [makeAction()] },
+      isLoading: false,
+      isError: false,
+    })
+    mockUpdateFindingById.mockReturnValue({
+      unwrap: () => Promise.reject({ data: { message: "Server unavailable" } }),
+    })
+    renderPage()
+    await waitFor(() =>
+      expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
+    )
+
+    const select = screen.getByDisplayValue("To do")
+    await userEvent.selectOptions(select, "IN_PROGRESS")
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Server unavailable")
+    )
+    await waitFor(() => expect(select).not.toBeDisabled())
+  })
+
+  it("falls back to a generic status-update error message when the rejection has no data.message", async () => {
+    const { toast } = await import("sonner")
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [makeAction()] },
+      isLoading: false,
+      isError: false,
+    })
+    mockUpdateFindingById.mockReturnValue({
+      unwrap: () => Promise.reject({}),
+    })
+    renderPage()
+    await waitFor(() =>
+      expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
+    )
+
+    const select = screen.getByDisplayValue("To do")
+    await userEvent.selectOptions(select, "IN_PROGRESS")
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Failed to update status")
+    )
+  })
+
+  it("shows a subtle refreshing indicator during a background refetch (not just initial load)", async () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [makeAction()] },
+      isLoading: false,
+      isFetching: true,
+      isError: false,
+    })
+    renderPage()
+    await waitFor(() =>
+      expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
+    )
+    expect(screen.getByLabelText("Refreshing")).toBeInTheDocument()
   })
 
   it("displays image attachments on action cards", async () => {
-    mockGet.mockResolvedValue({
-      ...emptyResponse,
-      data: [makeAction({ attachments: ["/uploads/photo.jpg"] })],
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        ...emptyResponse,
+        data: [makeAction({ attachments: ["/uploads/photo.jpg"] })],
+      },
+      isLoading: false,
+      isError: false,
     })
     renderPage()
     await waitFor(() => screen.getByText("Replace extinguisher"))
@@ -284,15 +430,27 @@ describe("InspectionActions", () => {
   })
 
   it("shows an attach file input in the create form", async () => {
-    mockGet.mockResolvedValue(emptyResponse)
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: emptyResponse,
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() => screen.getByText("No corrective actions yet."))
     await userEvent.click(screen.getByText("New action"))
     // The hidden file input should be present in the DOM
     expect(document.querySelector('input[type="file"]')).toBeInTheDocument()
   })
+
+  // Attachment upload is intentionally left as an unconverted raw fetch call
+  // (no RTK Query endpoint exists for POST /api/action/attachment yet — see
+  // aexa-server issue #20) — these two tests spy on global fetch directly.
   it("uploads an attachment successfully", async () => {
-    mockGet.mockResolvedValue(emptyResponse)
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: emptyResponse,
+      isLoading: false,
+      isError: false,
+    })
 
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
@@ -326,7 +484,11 @@ describe("InspectionActions", () => {
     fetchSpy.mockRestore()
   })
   it("handles upload failure gracefully", async () => {
-    mockGet.mockResolvedValue(emptyResponse)
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: emptyResponse,
+      isLoading: false,
+      isError: false,
+    })
 
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")

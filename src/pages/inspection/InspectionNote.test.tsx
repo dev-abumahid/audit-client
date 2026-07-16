@@ -13,16 +13,19 @@ vi.mock("react-router", async (importOriginal) => {
   }
 })
 
-const mockFetch = vi.fn()
-vi.stubGlobal("fetch", mockFetch)
+const mockUseGetNoteByInspectionIdQuery = vi.fn()
+const mockExtractNoteFromFile = vi.fn()
+const mockSplitInspectionNote = vi.fn()
 
-function jsonResponse(body: unknown, status = 200) {
-  return Promise.resolve({
-    ok: status >= 200 && status < 300,
-    status,
-    json: () => Promise.resolve(body),
-  })
-}
+vi.mock("@/redux/apis/organization/note.api", () => ({
+  useGetNoteByInspectionIdQuery: (...args: unknown[]) =>
+    mockUseGetNoteByInspectionIdQuery(...args),
+  useExtractNoteFromFileMutation: () => [mockExtractNoteFromFile],
+}))
+
+vi.mock("@/redux/apis/organization/inspection.api", () => ({
+  useSplitInspectionNoteMutation: () => [mockSplitInspectionNote],
+}))
 
 const existingNote = {
   id: "note-1",
@@ -42,21 +45,33 @@ function renderPage() {
 
 describe("InspectionNote", () => {
   beforeEach(() => {
-    mockFetch.mockReset()
+    mockUseGetNoteByInspectionIdQuery.mockReset()
+    mockExtractNoteFromFile.mockReset()
+    mockSplitInspectionNote.mockReset()
     mockNavigate.mockReset()
+    mockExtractNoteFromFile.mockReturnValue({
+      unwrap: () => Promise.resolve({ data: {} }),
+    })
+    mockSplitInspectionNote.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
   })
 
   it("shows a loading spinner while checking for an existing note", () => {
-    mockFetch.mockReturnValue(new Promise(() => {}))
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    })
     renderPage()
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
-  it("shows upload form when no note exists", async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 404,
-      json: () => Promise.resolve(null),
+  it("shows upload form when no note exists (404 mapped to no note)", async () => {
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: { status: 404 },
     })
     renderPage()
     await waitFor(() =>
@@ -64,8 +79,37 @@ describe("InspectionNote", () => {
     )
   })
 
+  it("shows a real error state (not the upload form) on a non-404 error", async () => {
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: { status: 500, data: { message: "Note service unavailable" } },
+    })
+    renderPage()
+    await waitFor(() =>
+      expect(screen.getByText("Note service unavailable")).toBeInTheDocument()
+    )
+    expect(screen.queryByText(/Drop a file here/i)).not.toBeInTheDocument()
+  })
+
+  it("falls back to a generic message for a non-404 error with no server message", async () => {
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: { status: 500 },
+    })
+    renderPage()
+    await waitFor(() =>
+      expect(screen.getByText("Failed to load note")).toBeInTheDocument()
+    )
+  })
+
   it("shows existing note content when a note already exists", async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ data: existingNote }))
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: { data: existingNote },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() =>
       expect(screen.getByText("Site inspection notes")).toBeInTheDocument()
@@ -74,7 +118,11 @@ describe("InspectionNote", () => {
   })
 
   it('shows "Back to inspection" link when a note exists', async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ data: existingNote }))
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: { data: existingNote },
+      isLoading: false,
+      isError: false,
+    })
     renderPage()
     await waitFor(() =>
       expect(screen.getByText("Back to inspection")).toBeInTheDocument()
@@ -82,10 +130,10 @@ describe("InspectionNote", () => {
   })
 
   it("shows an error when an invalid file type is selected", async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 404,
-      json: () => Promise.resolve(null),
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: { status: 404 },
     })
     renderPage()
     await waitFor(() => screen.getByText(/Drop a file here/i))
@@ -105,10 +153,10 @@ describe("InspectionNote", () => {
   })
 
   it("shows the selected filename as a chip", async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 404,
-      json: () => Promise.resolve(null),
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: { status: 404 },
     })
     renderPage()
     await waitFor(() => screen.getByText(/Drop a file here/i))
@@ -123,16 +171,14 @@ describe("InspectionNote", () => {
   })
 
   it("shows extracted text and navigates after a successful upload + AI extraction", async () => {
-    // First call: GET by-inspection → 404
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        json: () => Promise.resolve(null),
-      })
-      // Second call: POST extract-note-from-file
-      .mockResolvedValueOnce(
-        jsonResponse({
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: { status: 404 },
+    })
+    mockExtractNoteFromFile.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
           data: {
             id: "note-new",
             title: "Extracted",
@@ -140,10 +186,11 @@ describe("InspectionNote", () => {
             inspectionId: "insp-1",
             createdAt: "2026-06-22T10:00:00.000Z",
           },
-        })
-      )
-      // Third call: POST split-note-into-inspection
-      .mockResolvedValueOnce(jsonResponse({ data: "success fully splitted" }))
+        }),
+    })
+    mockSplitInspectionNote.mockReturnValue({
+      unwrap: () => Promise.resolve({ data: "success fully splitted" }),
+    })
 
     renderPage()
     await waitFor(() => screen.getByText(/Drop a file here/i))
@@ -161,5 +208,56 @@ describe("InspectionNote", () => {
     )
     expect(screen.getByText("Zone B extinguisher expired.")).toBeInTheDocument()
     expect(screen.getByText("Review answers →")).toBeInTheDocument()
+  })
+
+  it("shows the server-provided error message when the upload mutation fails", async () => {
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: { status: 404 },
+    })
+    mockExtractNoteFromFile.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({ data: { message: "Upload failed (500)" } }),
+    })
+
+    renderPage()
+    await waitFor(() => screen.getByText(/Drop a file here/i))
+
+    const file = new File(["%PDF"], "notes.pdf", { type: "application/pdf" })
+    const input = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+    await userEvent.upload(input, file)
+    await userEvent.click(screen.getByText(/Upload & extract/i))
+
+    await waitFor(() =>
+      expect(screen.getByText("Upload failed (500)")).toBeInTheDocument()
+    )
+  })
+
+  it("falls back to a generic error message when the rejection has no data.message", async () => {
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: { status: 404 },
+    })
+    mockExtractNoteFromFile.mockReturnValue({
+      unwrap: () => Promise.reject({}),
+    })
+
+    renderPage()
+    await waitFor(() => screen.getByText(/Drop a file here/i))
+
+    const file = new File(["%PDF"], "notes.pdf", { type: "application/pdf" })
+    const input = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+    await userEvent.upload(input, file)
+    await userEvent.click(screen.getByText(/Upload & extract/i))
+
+    await waitFor(() =>
+      expect(screen.getByText("Something went wrong")).toBeInTheDocument()
+    )
   })
 })

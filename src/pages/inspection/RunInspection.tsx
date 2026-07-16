@@ -1,4 +1,9 @@
-import { api, ApiError } from "@/lib/api"
+import { useFindingsForInspection } from "@/hooks/useFindingsForInspection"
+import {
+  useGetSingleInspectionQuery,
+  useUpdateInspectionMutation,
+  useUpdateInspectionQuestionAnswerMutation,
+} from "@/redux/apis/organization/inspection.api"
 import type {
   InspectionDetail,
   PageDef,
@@ -25,55 +30,53 @@ export default function RunInspection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const [inspection, setInspection] = useState<InspectionDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [currentPageIdx, setCurrentPageIdx] = useState(0)
   const [saveState, setSaveState] = useState<SaveState>("idle")
   const [completing, setCompleting] = useState(false)
-  const [actionCount, setActionCount] = useState<number | null>(null)
 
   // Local answer cache for optimistic updates — stored in state so render can read it
   const [answerCache, setAnswerCache] = useState<
     Record<string, QuestionAnswer>
   >({})
+  // Tracks which inspection *identity* (by id) the cache above was last
+  // seeded from, so we can re-seed it once per inspection load (e.g. initial
+  // load or navigating to a different inspection) without calling setState
+  // synchronously inside a useEffect (adjusts state during render instead —
+  // see https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  // Deliberately keyed on `inspection.id` rather than the `inspection`
+  // object reference: RTK Query returns a new object reference on every
+  // refetch (including the background refetch triggered by
+  // updateInspectionQuestionAnswer's autosave invalidating the INSPECTION
+  // tag), even when it's the same inspection. Keying on the object
+  // reference would re-seed — and clobber — answerCache on every autosave,
+  // wiping out in-progress edits to other questions that hadn't saved yet.
+  const [seededFromId, setSeededFromId] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!id) return
+  const {
+    data: inspectionResponse,
+    isLoading: loading,
+    isError: hasLoadError,
+  } = useGetSingleInspectionQuery(id!, { skip: !id })
+  const inspection: InspectionDetail | null = inspectionResponse?.data ?? null
+  const error = hasLoadError ? "Failed to load inspection" : null
 
-    async function load() {
-      setLoading(true)
-      try {
-        const data = await api.get<InspectionDetail>(`/api/inspection/${id}`)
-        setInspection(data)
-        const initial: Record<string, QuestionAnswer> = {}
-        data.questionAnswers.forEach((qa) => {
-          initial[qa.questionId] = qa
-        })
-        setAnswerCache(initial)
-      } catch (err) {
-        setError(
-          err instanceof ApiError ? err.message : "Failed to load inspection"
-        )
-      } finally {
-        setLoading(false)
-      }
-    }
+  const [updateInspectionQuestionAnswer] =
+    useUpdateInspectionQuestionAnswerMutation()
+  const [updateInspection] = useUpdateInspectionMutation()
 
-    load()
-  }, [id])
+  if (inspection && inspection.id !== seededFromId) {
+    const initial: Record<string, QuestionAnswer> = {}
+    inspection.questionAnswers.forEach((qa) => {
+      initial[qa.questionId] = qa
+    })
+    setAnswerCache(initial)
+    setSeededFromId(inspection.id)
+  }
 
-  useEffect(() => {
-    if (!id) return
-    api
-      .get<{ data: { inspectionId: string }[] }>("/api/action")
-      .then((res) => {
-        setActionCount(
-          (res.data ?? []).filter((a) => a.inspectionId === id).length
-        )
-      })
-      .catch(() => setActionCount(null))
-  }, [id])
+  const { findings, isLoading: findingsLoading } = useFindingsForInspection<{
+    inspectionId: string
+  }>(id)
+  const actionCount = findingsLoading ? null : findings.length
 
   const pages: PageDef[] = useMemo(
     () =>
@@ -99,30 +102,33 @@ export default function RunInspection() {
     }
   }, [])
 
-  const handleAnswerChange = useCallback((qaId: string, answer: unknown) => {
-    // optimistically update cache
-    setAnswerCache((prev) => {
-      const existing = Object.values(prev).find((qa) => qa.id === qaId)
-      if (!existing) return prev
-      return { ...prev, [existing.questionId]: { ...existing, answer } }
-    })
+  const handleAnswerChange = useCallback(
+    (qaId: string, answer: unknown) => {
+      // optimistically update cache
+      setAnswerCache((prev) => {
+        const existing = Object.values(prev).find((qa) => qa.id === qaId)
+        if (!existing) return prev
+        return { ...prev, [existing.questionId]: { ...existing, answer } }
+      })
 
-    setSaveState("saving")
-    if (saveTimeout.current) clearTimeout(saveTimeout.current)
+      setSaveState("saving")
+      if (saveTimeout.current) clearTimeout(saveTimeout.current)
 
-    saveTimeout.current = setTimeout(() => {
-      api
-        .put(`/api/inspection/${qaId}`, { answer })
-        .then(() => setSaveState("saved"))
-        .catch(() => setSaveState("error"))
-    }, 600)
-  }, [])
+      saveTimeout.current = setTimeout(() => {
+        updateInspectionQuestionAnswer({ id: qaId, data: { answer } })
+          .unwrap()
+          .then(() => setSaveState("saved"))
+          .catch(() => setSaveState("error"))
+      }, 600)
+    },
+    [updateInspectionQuestionAnswer]
+  )
 
   async function handleComplete() {
     if (!id) return
     setCompleting(true)
     try {
-      await api.patch(`/api/inspection/${id}`, { status: "COMPLETED" })
+      await updateInspection({ id, data: { status: "COMPLETED" } }).unwrap()
       navigate("/organization/audit/inspections")
     } catch {
       setCompleting(false)

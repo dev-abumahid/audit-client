@@ -1,4 +1,8 @@
-import { api, ApiError } from "@/lib/api"
+import {
+  useGetRecommendationByInspectionIdQuery,
+  useUpdateRecommendationQuestionByIdMutation,
+  useUpdateRecommendationSummaryMutation,
+} from "@/redux/apis/organization/recommendation.api"
 import { ChevronDown, ChevronUp, Loader2, Sparkles } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router"
@@ -24,40 +28,52 @@ type SaveStatus = Record<string, "saving" | "saved" | "error">
 export default function InspectionRecommendations() {
   const { id: inspectionId } = useParams<{ id: string }>()
 
-  const [rec, setRec] = useState<Recommendation | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({})
   const [summaryDraft, setSummaryDraft] = useState("")
   const [savingSummary, setSavingSummary] = useState(false)
+  // Tracks which recommendation's id auto-expand has already run for, so it
+  // re-fires once per inspection instead of only ever once for the
+  // component's lifetime. The route this page lives on
+  // (audit/inspections/:id/recommendations) isn't remounted when navigating
+  // between different inspections, so a plain one-shot boolean flag would
+  // stay "initialized" forever after the first inspection visited, silently
+  // breaking auto-expand for every subsequent one.
+  const [expandedForId, setExpandedForId] = useState<string | null>(null)
 
+  const {
+    data: recResponse,
+    isLoading: loading,
+    error,
+  } = useGetRecommendationByInspectionIdQuery(inspectionId!, {
+    skip: !inspectionId,
+  })
+
+  const [updateRecommendationQuestionById] =
+    useUpdateRecommendationQuestionByIdMutation()
+  const [updateRecommendationSummary] = useUpdateRecommendationSummaryMutation()
+
+  const rec: Recommendation | null = recResponse?.data ?? null
+  const notFound =
+    !loading &&
+    !!error &&
+    typeof error === "object" &&
+    "status" in error &&
+    error.status === 404
+  const otherError =
+    !loading && !!error && !notFound ? "Failed to load recommendations" : null
+
+  // Seed the summary draft and default-expand the first result once the
+  // recommendation loads (mirrors the old effect keyed on the fetched data).
   useEffect(() => {
-    if (!inspectionId) return
-    api
-      .get<Recommendation>(`/api/recommendation/inspection/${inspectionId}`)
-      .then((data) => {
-        setRec(data)
-        setSummaryDraft(data.summary)
-        // expand first result by default
-        if (data.questions[0]) {
-          setExpanded({ [data.questions[0].id]: true })
-        }
-      })
-      .catch((err) => {
-        if (err instanceof ApiError && err.status === 404) {
-          setNotFound(true)
-        } else {
-          setError(
-            err instanceof ApiError
-              ? err.message
-              : "Failed to load recommendations"
-          )
-        }
-      })
-      .finally(() => setLoading(false))
-  }, [inspectionId])
+    if (!rec) return
+    setSummaryDraft(rec.summary)
+    if (expandedForId !== rec.id && rec.questions[0]) {
+      setExpanded({ [rec.questions[0].id]: true })
+      setExpandedForId(rec.id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rec?.id])
 
   function toggle(id: string) {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -70,9 +86,10 @@ export default function InspectionRecommendations() {
   ) {
     setSaveStatus((s) => ({ ...s, [resultId]: "saving" }))
     try {
-      await api.patch(`/api/recommendation/update-question/${resultId}`, {
-        [field]: value,
-      })
+      await updateRecommendationQuestionById({
+        id: resultId,
+        data: { [field]: value },
+      }).unwrap()
       setSaveStatus((s) => ({ ...s, [resultId]: "saved" }))
     } catch {
       setSaveStatus((s) => ({ ...s, [resultId]: "error" }))
@@ -83,10 +100,10 @@ export default function InspectionRecommendations() {
     if (!rec) return
     setSavingSummary(true)
     try {
-      await api.patch(`/api/recommendation/update-summary/${rec.id}`, {
-        summary: summaryDraft,
-      })
-      setRec((r) => (r ? { ...r, summary: summaryDraft } : r))
+      await updateRecommendationSummary({
+        id: rec.id,
+        data: { summary: summaryDraft },
+      }).unwrap()
     } finally {
       setSavingSummary(false)
     }
@@ -128,9 +145,9 @@ export default function InspectionRecommendations() {
         </h1>
       </div>
 
-      {error && (
+      {otherError && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
+          {otherError}
         </div>
       )}
 
