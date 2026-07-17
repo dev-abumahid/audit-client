@@ -21,6 +21,7 @@ const mockDeleteSite = vi.fn()
 const mockUseGetAllRisksQuery = vi.fn()
 const mockDeleteRisk = vi.fn()
 const mockCreateNewRisk = vi.fn()
+const mockAnalyzeSiteRisks = vi.fn()
 
 vi.mock("@/redux/apis/organization/sites.api", () => ({
   useGetAllSitesQuery: (...args: unknown[]) => mockUseGetAllSitesQuery(...args),
@@ -33,6 +34,10 @@ vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
   useDeleteRiskMutation: () => [mockDeleteRisk],
   useCreateNewRiskMutation: () => [mockCreateNewRisk, { isLoading: false }],
+}))
+
+vi.mock("@/redux/apis/organization/ai.api", () => ({
+  useAnalyzeSiteRisksMutation: () => [mockAnalyzeSiteRisks, { isLoading: false }],
 }))
 
 vi.mock("@/components/shared/DeleteAlertModal", () => ({
@@ -85,6 +90,7 @@ describe("SitesEntities", () => {
     mockUseGetAllRisksQuery.mockReset()
     mockDeleteRisk.mockReset()
     mockCreateNewRisk.mockReset()
+    mockAnalyzeSiteRisks.mockReset()
     mockToastError.mockReset()
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
   })
@@ -442,5 +448,264 @@ describe("SitesEntities", () => {
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Failed to create risk")
     )
+  })
+
+  function makeSuggestion(overrides = {}) {
+    return {
+      risk_id: "sugg-1",
+      title: "Supplier concentration",
+      description: "Single supplier for a critical part",
+      category: "Operational",
+      site: "HQ Casablanca",
+      inherent_risk_score: "High",
+      residual_risk_score: "Medium",
+      Probability: 0.6,
+      minimum_Impact: "€500K",
+      maximum_impact: "€2M",
+      Velocity: "fast",
+      Trend: "increasing",
+      Responsable: "Supply Chain Manager",
+      score: 14,
+      ...overrides,
+    }
+  }
+
+  it("runs AI analysis and renders the returned suggestions", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockAnalyzeSiteRisks.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+    )
+    expect(mockAnalyzeSiteRisks).toHaveBeenCalledWith("site-1")
+  })
+
+  it("shows an error toast and no suggestions panel when AI analysis fails", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockAnalyzeSiteRisks.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({ data: { message: "AI service unavailable" } }),
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+    )
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith("AI service unavailable")
+    )
+    expect(screen.queryByText(/review before importing/i)).toBeNull()
+  })
+
+  it("imports a selected suggestion into the register with the mapped payload", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockAnalyzeSiteRisks.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
+    })
+    mockCreateNewRisk.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+    )
+    await waitFor(() =>
+      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+    )
+
+    await userEvent.click(screen.getByRole("checkbox"))
+    await userEvent.click(
+      screen.getByRole("button", { name: /import selected/i })
+    )
+
+    await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
+    const payload = mockCreateNewRisk.mock.calls[0][0]
+    expect(payload).toMatchObject({
+      name: "Supplier concentration",
+      description: "Single supplier for a critical part",
+      category: "operational",
+      site_id: "site-1",
+      status: "open",
+      ai_generated: true,
+      source_info: "AI Suggested",
+      velocity: "fast",
+      trend: "increasing",
+      inherent_score: 8,
+      residual_score: 5,
+      probability: 60,
+    })
+    // financial_impact_min/max are free text on the AI response ("€500K",
+    // "€2M") and don't reliably parse to the Risk model's Int fields — must
+    // never be forwarded, not even as unparsed strings.
+    expect(payload).not.toHaveProperty("financial_impact_min")
+    expect(payload).not.toHaveProperty("financial_impact_max")
+  })
+
+  it("falls back to the raw AI category string when it doesn't match a known category", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockAnalyzeSiteRisks.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: [makeSuggestion({ category: "Something Unrecognized" })],
+        }),
+    })
+    mockCreateNewRisk.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+    )
+    await waitFor(() =>
+      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+    )
+    await userEvent.click(screen.getByRole("checkbox"))
+    await userEvent.click(
+      screen.getByRole("button", { name: /import selected/i })
+    )
+
+    await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
+    expect(mockCreateNewRisk.mock.calls[0][0]).toMatchObject({
+      category: "Something Unrecognized",
+    })
+  })
+
+  it("does not let a slow analysis for one site overwrite the suggestions already shown for another", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: {
+        data: [
+          makeSite({ id: "site-1", name: "HQ Casablanca" }),
+          makeSite({ id: "site-2", name: "Lyon Plant" }),
+        ],
+        meta: { page: 1, limit: 10, total: 2 },
+      },
+      error: undefined,
+    })
+
+    let resolveSiteOne: (value: unknown) => void = () => {}
+    const siteOnePromise = new Promise((resolve) => {
+      resolveSiteOne = resolve
+    })
+    mockAnalyzeSiteRisks.mockImplementationOnce(() => ({
+      unwrap: () => siteOnePromise,
+    }))
+    mockAnalyzeSiteRisks.mockImplementationOnce(() => ({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: [makeSuggestion({ risk_id: "sugg-2", title: "Flood exposure" })],
+        }),
+    }))
+
+    render(<SitesEntities />)
+    const analyzeButtons = screen.getAllByRole("button", {
+      name: /organization.site&entities.analyzeAi/i,
+    })
+
+    // Start analyzing site 1 (slow, not yet resolved) then switch to site 2
+    // before it finishes.
+    await userEvent.click(analyzeButtons[0])
+    await userEvent.click(analyzeButtons[1])
+
+    await waitFor(() =>
+      expect(screen.getByText("Flood exposure")).toBeInTheDocument()
+    )
+
+    // Site 1's request finally resolves after the user has moved on — its
+    // suggestions must not appear under site 2's now-current panel.
+    resolveSiteOne({
+      success: true,
+      data: [makeSuggestion({ risk_id: "sugg-1", title: "Supplier concentration" })],
+    })
+
+    await waitFor(() => Promise.resolve())
+    expect(screen.queryByText("Supplier concentration")).not.toBeInTheDocument()
+    expect(screen.getByText("Flood exposure")).toBeInTheDocument()
+  })
+
+  it("removes an imported suggestion from the panel but keeps unselected ones", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockAnalyzeSiteRisks.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: [
+            makeSuggestion({ risk_id: "sugg-1", title: "Supplier concentration" }),
+            makeSuggestion({ risk_id: "sugg-2", title: "Flood exposure" }),
+          ],
+        }),
+    })
+    mockCreateNewRisk.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+    )
+    await waitFor(() =>
+      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+    )
+
+    const [firstCheckbox] = screen.getAllByRole("checkbox")
+    await userEvent.click(firstCheckbox)
+    await userEvent.click(
+      screen.getByRole("button", { name: /import selected/i })
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Supplier concentration")
+      ).not.toBeInTheDocument()
+    )
+    expect(screen.getByText("Flood exposure")).toBeInTheDocument()
   })
 })

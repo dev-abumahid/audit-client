@@ -5,6 +5,7 @@ import SourceBadge from "@/components/dashboard/organization/SourceBadge"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { Button } from "@/components/ui/button"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
+import { useAnalyzeSiteRisksMutation } from "@/redux/apis/organization/ai.api"
 import {
   useCreateNewRiskMutation,
   useDeleteRiskMutation,
@@ -21,6 +22,7 @@ import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import {
   Brain,
   Building,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -31,13 +33,65 @@ import {
   PlusCircle,
   Save,
   Search,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+
+// Shape of aexa-server's POST /ai/analyze-site-risks response — a direct
+// passthrough of aexa-ai's RiskItem (app/schemas/risk_analysis_schema.py),
+// field casing included, since the server doesn't reshape it.
+interface RiskSuggestion {
+  risk_id: string
+  title: string
+  description: string
+  category: string
+  site: string
+  inherent_risk_score: string
+  residual_risk_score: string
+  Probability: number
+  minimum_Impact: string
+  maximum_impact: string
+  Velocity: string
+  Trend: string
+  Responsable: string
+  score: number
+}
+
+// The AI is prompted for Title-Case category names close to (but not always
+// exactly matching) RISK_CATEGORIES' keys/labels — e.g. "Cybersecurity" vs
+// the "cyber" key. Best-effort match by label so the imported risk gets a
+// real category badge/color instead of falling through to the unstyled
+// default; falls back to the raw AI string if nothing matches; nothing is
+// lost either way since risk.category on the backend is a free string.
+const matchKnownCategory = (aiCategory: string): string => {
+  const normalized = aiCategory.trim().toLowerCase()
+  const match = Object.entries(RISK_CATEGORIES).find(
+    ([key, cat]) =>
+      key.toLowerCase() === normalized ||
+      cat.label.toLowerCase() === normalized ||
+      cat.label.toLowerCase().includes(normalized) ||
+      normalized.includes(cat.label.toLowerCase())
+  )
+  return match ? match[0] : aiCategory
+}
+
+// AI returns a qualitative High/Medium/Low label for these two scores, but
+// the Risk model stores them as Int?. No documented numeric scale exists for
+// this field, so this mapping is a judgment call, not a spec requirement —
+// picked to land in the same rough range (1-10) the register's own risk
+// matrix already uses for scoring.
+const mapQualitativeScore = (level: string): number => {
+  const normalized = level.trim().toLowerCase()
+  if (normalized === "high") return 8
+  if (normalized === "medium") return 5
+  if (normalized === "low") return 2
+  return 5
+}
 
 // Types for the form
 interface SiteFormValues {
@@ -98,9 +152,9 @@ export default function SitesEntities() {
   )
   const [deleteRisk] = useDeleteRiskMutation()
   const [createNewRisk] = useCreateNewRiskMutation()
+  const [analyzeSiteRisks] = useAnalyzeSiteRisksMutation()
   // Reset page when search changes
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1)
   }, [debouncedSearch])
 
@@ -109,6 +163,26 @@ export default function SitesEntities() {
   const [editingSite, setEditingSite] = useState<Site | null>(null)
 
   const [showRiskForm, setShowRiskForm] = useState<string | null>(null)
+
+  // AI risk-analysis state. Suggestions/selection/importing are scoped to a
+  // single site at a time (analyzingSiteId) rather than keyed per-site,
+  // since only one site's panel realistically drives this at once and it
+  // keeps the state reset trivial when switching sites.
+  const [analyzingSiteId, setAnalyzingSiteId] = useState<string | null>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [suggestions, setSuggestions] = useState<RiskSuggestion[]>([])
+  const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<
+    Set<string>
+  >(new Set())
+  const [importingIds, setImportingIds] = useState<Set<string>>(new Set())
+  // The Analyze button is only disabled for the site currently being
+  // analyzed, so nothing stops clicking Analyze on a different site while
+  // one request is still in flight. This ref (not state, so it's readable
+  // synchronously inside an in-flight request's .then/.catch without a
+  // stale closure) tracks which site's analysis is actually current, so a
+  // slow/late response for a site the user has since moved away from can't
+  // overwrite what's currently displayed for a different site.
+  const latestAnalysisRequestRef = useRef<string | null>(null)
 
   // React Hook Form setup for site form
   const siteForm = useForm<SiteFormValues>({
@@ -210,9 +284,95 @@ export default function SitesEntities() {
     }
   }
 
-  const handleAnalyzeSite = (site: Site) => {
-    toast(`AI analysis launched for ${site.name}`)
+  const handleAnalyzeSite = async (site: Site) => {
+    // Tracks which site's analysis is the "current" one independent of React
+    // state timing — if the user clicks Analyze on a different site before
+    // this request resolves, latestAnalysisRequestRef will have moved on by
+    // the time this .then/.catch runs, and every state update below is
+    // skipped rather than overwriting a different site's already-displayed
+    // suggestions with this stale response.
+    latestAnalysisRequestRef.current = site.id
+    setAnalyzingSiteId(site.id)
+    setSuggestions([])
+    setSelectedSuggestionIds(new Set())
+    setIsAnalyzing(true)
     setExpandedSite(site.id)
+    try {
+      const res = await analyzeSiteRisks(site.id).unwrap()
+      if (latestAnalysisRequestRef.current !== site.id) return
+      const risks: RiskSuggestion[] = res?.data ?? []
+      setSuggestions(risks)
+      if (risks.length === 0) {
+        toast("AI analysis found no additional risks to suggest for this site")
+      }
+    } catch (error: any) {
+      if (latestAnalysisRequestRef.current !== site.id) return
+      toast.error(error?.data?.message || "AI risk analysis failed")
+      setAnalyzingSiteId(null)
+    } finally {
+      if (latestAnalysisRequestRef.current === site.id) {
+        setIsAnalyzing(false)
+      }
+    }
+  }
+
+  const toggleSuggestionSelected = (riskId: string) => {
+    setSelectedSuggestionIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(riskId)) {
+        next.delete(riskId)
+      } else {
+        next.add(riskId)
+      }
+      return next
+    })
+  }
+
+  const handleImportSuggestions = async (siteId: string) => {
+    const toImport = suggestions.filter((s) =>
+      selectedSuggestionIds.has(s.risk_id)
+    )
+    if (toImport.length === 0) return
+
+    setImportingIds(new Set(toImport.map((s) => s.risk_id)))
+    let importedCount = 0
+    for (const suggestion of toImport) {
+      try {
+        const payload = {
+          name: suggestion.title,
+          description: suggestion.description,
+          category: matchKnownCategory(suggestion.category),
+          status: "open",
+          site_id: siteId,
+          source_info: "AI Suggested",
+          ai_generated: true,
+          velocity: suggestion.Velocity,
+          trend: suggestion.Trend,
+          inherent_score: mapQualitativeScore(suggestion.inherent_risk_score),
+          residual_score: mapQualitativeScore(suggestion.residual_risk_score),
+          probability: Math.round(suggestion.Probability * 100),
+        }
+        const res = await createNewRisk(payload).unwrap()
+        if (res?.success) {
+          importedCount += 1
+        }
+      } catch {
+        toast.error(`Failed to import "${suggestion.title}"`)
+      }
+    }
+    setImportingIds(new Set())
+    if (importedCount > 0) {
+      toast.success(
+        importedCount === 1
+          ? "Risk imported into the register"
+          : `${importedCount} risks imported into the register`
+      )
+    }
+    // Remove imported suggestions from the list; leave unselected ones
+    // visible in case the user wants to review them further.
+    const importedIds = new Set(toImport.map((s) => s.risk_id))
+    setSuggestions((prev) => prev.filter((s) => !importedIds.has(s.risk_id)))
+    setSelectedSuggestionIds(new Set())
   }
 
   const handleAddManualRisk = async (
@@ -370,9 +530,14 @@ export default function SitesEntities() {
 
                   <button
                     onClick={() => handleAnalyzeSite(site)}
-                    className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary hover:bg-primary/20"
+                    disabled={isAnalyzing && analyzingSiteId === site.id}
+                    className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary hover:bg-primary/20 disabled:opacity-50"
                   >
-                    <Brain className="h-4 w-4" />{" "}
+                    {isAnalyzing && analyzingSiteId === site.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Brain className="h-4 w-4" />
+                    )}{" "}
                     {t("organization.site&entities.analyzeAi")}
                   </button>
 
@@ -492,6 +657,87 @@ export default function SitesEntities() {
                   </div>
                 </form>
               )}
+
+              {/* AI-suggested risks — pending review, not yet in the register */}
+              {isExpanded &&
+                analyzingSiteId === site.id &&
+                suggestions.length > 0 && (
+                  <div className="border-t border-border bg-primary/5 p-5">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                      <p className="flex items-center gap-1.5 text-start text-[10px] font-semibold tracking-wider text-primary uppercase">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        AI-suggested risks — review before importing
+                      </p>
+                      <button
+                        onClick={() => handleImportSuggestions(site.id)}
+                        disabled={
+                          selectedSuggestionIds.size === 0 ||
+                          importingIds.size > 0
+                        }
+                        className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {importingIds.size > 0 ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Check className="h-3.5 w-3.5" />
+                        )}
+                        Import selected ({selectedSuggestionIds.size})
+                      </button>
+                    </div>
+
+                    <div className="space-y-2 text-start">
+                      {suggestions.map((suggestion) => (
+                        <label
+                          key={suggestion.risk_id}
+                          className="flex cursor-pointer flex-col gap-2 rounded-lg border-2 border-primary/20 bg-card p-3 sm:flex-row sm:items-start"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedSuggestionIds.has(
+                              suggestion.risk_id
+                            )}
+                            onChange={() =>
+                              toggleSuggestionSelected(suggestion.risk_id)
+                            }
+                            className="mt-1 h-4 w-4 shrink-0"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-medium text-foreground">
+                                {suggestion.title}
+                              </p>
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {suggestion.category}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              {suggestion.description}
+                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                              <span>
+                                Inherent: {suggestion.inherent_risk_score}
+                              </span>
+                              <span>
+                                Residual: {suggestion.residual_risk_score}
+                              </span>
+                              <span>
+                                Probability:{" "}
+                                {Math.round(suggestion.Probability * 100)}%
+                              </span>
+                              <span>Velocity: {suggestion.Velocity}</span>
+                              <span>Trend: {suggestion.Trend}</span>
+                              {suggestion.Responsable && (
+                                <span>
+                                  Suggested owner: {suggestion.Responsable}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
               {/* Expanded Risks Section - Will be implemented with actual risks data */}
               {isExpanded && (

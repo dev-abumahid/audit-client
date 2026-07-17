@@ -34,6 +34,16 @@ const aiApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["RECOMMENDATION"],
     }),
+    analyzeSiteRisks: builder.mutation({
+      query: (siteId: string) => ({
+        url: `/ai/analyze-site-risks`,
+        method: "POST",
+        body: { siteId },
+      }),
+      // No RISK invalidation here — this only returns candidate suggestions,
+      // nothing is persisted until the user explicitly imports one via the
+      // existing createNewRisk mutation, which already invalidates RISK.
+    }),
   }),
 })
 
@@ -42,4 +52,5 @@ export const {
   useGenerateTemplateWithPdfMutation,
   useGenerateTemplateWithRiskMutation,
   useGenerateRecommendationFromAiMutation,
+  useAnalyzeSiteRisksMutation,
 } = aiApi
