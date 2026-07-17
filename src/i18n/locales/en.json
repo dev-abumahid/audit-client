@@ -157,6 +157,22 @@
             "invalidLink":"This reset link is invalid or missing a token.",
             "successMessage":"Password reset successfully. You can now sign in.",
             "btnGoToSignIn":"Go to Sign In"
+        },
+        "verifyOtp":{
+            "title":"Check your email",
+            "subTitle":"We sent a verification code to",
+            "codeLabel":"Verification Code",
+            "codeReqText":"Verification code is required",
+            "codeLength":"Enter the 6-character code",
+            "btnVerify":"Verify Email",
+            "verifying":"Verifying...",
+            "successMessage":"Email verified successfully",
+            "noCodeText":"Didn't get a code?",
+            "btnResend":"Resend Code",
+            "resending":"Resending...",
+            "resendSuccess":"A new code has been sent to your email",
+            "verifiedTitle":"Email Verified",
+            "verifiedSubTitle":"Your account is ready. You can now sign in."
         }
     },
     "dashboard": {

@@ -157,6 +157,22 @@
             "invalidLink": "Ce lien de réinitialisation est invalide ou ne contient pas de jeton.",
             "successMessage": "Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
             "btnGoToSignIn": "Aller à la connexion"
+        },
+        "verifyOtp": {
+            "title": "Vérifiez votre e-mail",
+            "subTitle": "Nous avons envoyé un code de vérification à",
+            "codeLabel": "Code de vérification",
+            "codeReqText": "Le code de vérification est requis",
+            "codeLength": "Entrez le code à 6 caractères",
+            "btnVerify": "Vérifier l'e-mail",
+            "verifying": "Vérification...",
+            "successMessage": "E-mail vérifié avec succès",
+            "noCodeText": "Vous n'avez pas reçu de code ?",
+            "btnResend": "Renvoyer le code",
+            "resending": "Envoi en cours...",
+            "resendSuccess": "Un nouveau code a été envoyé à votre e-mail",
+            "verifiedTitle": "E-mail vérifié",
+            "verifiedSubTitle": "Votre compte est prêt. Vous pouvez maintenant vous connecter."
         }
     },
     "dashboard": {

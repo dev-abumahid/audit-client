@@ -1,4 +1,8 @@
-import { useSignUpUserMutation } from "@/redux/apis/auth.api"
+import {
+  useResendOtpMutation,
+  useSignUpUserMutation,
+  useVerifyOtpMutation,
+} from "@/redux/apis/auth.api"
 import { X } from "lucide-react"
 import React, { useState } from "react"
 import { useForm } from "react-hook-form"
@@ -9,6 +13,10 @@ interface SignUpFormData {
   organizationName: string
   email: string
   password: string
+}
+
+interface OtpFormData {
+  otp: string
 }
 
 interface SignUpModalProps {
@@ -24,7 +32,10 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
 }) => {
   const { t } = useTranslation()
   const [createNewOrganization, { isLoading }] = useSignUpUserMutation()
+  const [verifyOtp, { isLoading: isVerifying }] = useVerifyOtpMutation()
+  const [resendOtp, { isLoading: isResending }] = useResendOtpMutation()
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+  const [isVerified, setIsVerified] = useState(false)
 
   const {
     register: formRegister,
@@ -38,6 +49,37 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
       password: "",
     },
   })
+
+  const {
+    register: registerOtp,
+    handleSubmit: handleOtpSubmit,
+    reset: resetOtpForm,
+    formState: { errors: otpErrors },
+  } = useForm<OtpFormData>({ defaultValues: { otp: "" } })
+
+  const onSubmitOtp = async (data: OtpFormData) => {
+    if (!pendingEmail) return
+    try {
+      await verifyOtp({ email: pendingEmail, otp: data.otp }).unwrap()
+      toast.success(t("auth.verifyOtp.successMessage"))
+      setIsVerified(true)
+    } catch (error: unknown) {
+      const msg = (error as { data?: { message?: string } })?.data?.message
+      toast.error(msg ?? "Invalid or expired code")
+    }
+  }
+
+  const handleResendOtp = async () => {
+    if (!pendingEmail) return
+    try {
+      await resendOtp({ email: pendingEmail }).unwrap()
+      toast.success(t("auth.verifyOtp.resendSuccess"))
+      resetOtpForm()
+    } catch (error: unknown) {
+      const msg = (error as { data?: { message?: string } })?.data?.message
+      toast.error(msg ?? "Failed to resend code")
+    }
+  }
 
   const onSubmit = async (data: SignUpFormData) => {
     const payload = {
@@ -66,6 +108,8 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
 
   const handleClose = () => {
     setPendingEmail(null)
+    setIsVerified(false)
+    resetOtpForm()
     onClose()
   }
 
@@ -105,27 +149,95 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
               </svg>
             </div>
             <h2 className="mb-2 text-lg font-semibold text-foreground">
-              Check your email
+              {isVerified
+                ? t("auth.verifyOtp.verifiedTitle")
+                : t("auth.verifyOtp.title")}
             </h2>
-            <p className="mb-1 text-sm text-muted-foreground">
-              We sent a verification code to
-            </p>
-            <p className="mb-6 text-sm font-medium text-foreground">
-              {pendingEmail}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Enter the code in the email to activate your account, then{" "}
-              <button
-                onClick={() => {
-                  handleClose()
-                  onLoginClick()
-                }}
-                className="font-medium text-primary hover:underline"
-              >
-                sign in
-              </button>
-              .
-            </p>
+
+            {isVerified ? (
+              <>
+                <p className="mb-6 text-sm text-muted-foreground">
+                  {t("auth.verifyOtp.verifiedSubTitle")}
+                </p>
+                <button
+                  onClick={() => {
+                    handleClose()
+                    onLoginClick()
+                  }}
+                  className="flex w-full items-center justify-center rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
+                >
+                  {t("auth.signIn.btnSignIn")}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="mb-1 text-sm text-muted-foreground">
+                  {t("auth.verifyOtp.subTitle")}
+                </p>
+                <p className="mb-6 text-sm font-medium text-foreground">
+                  {pendingEmail}
+                </p>
+
+                <form
+                  onSubmit={handleOtpSubmit(onSubmitOtp)}
+                  className="text-left"
+                >
+                  <label
+                    htmlFor="otp"
+                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  >
+                    {t("auth.verifyOtp.codeLabel")}
+                  </label>
+                  <input
+                    id="otp"
+                    type="text"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    {...registerOtp("otp", {
+                      required: t("auth.verifyOtp.codeReqText"),
+                      minLength: {
+                        value: 6,
+                        message: t("auth.verifyOtp.codeLength"),
+                      },
+                      // No maxLength validator here: the native maxLength={6}
+                      // attribute above already prevents typing a 7th
+                      // character, so an RHF maxLength rule could never fire.
+                    })}
+                    placeholder="A1b2C3"
+                    className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-center text-sm tracking-widest text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
+                    disabled={isVerifying}
+                  />
+                  {otpErrors.otp && (
+                    <p className="mt-1 text-xs text-destructive">
+                      {otpErrors.otp.message}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isVerifying}
+                    className="mt-4 flex w-full items-center justify-center rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isVerifying
+                      ? t("auth.verifyOtp.verifying")
+                      : t("auth.verifyOtp.btnVerify")}
+                  </button>
+                </form>
+
+                <p className="mt-4 text-center text-xs text-muted-foreground">
+                  {t("auth.verifyOtp.noCodeText")}{" "}
+                  <button
+                    onClick={handleResendOtp}
+                    disabled={isResending}
+                    className="font-medium text-primary hover:underline disabled:opacity-50"
+                  >
+                    {isResending
+                      ? t("auth.verifyOtp.resending")
+                      : t("auth.verifyOtp.btnResend")}
+                  </button>
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>
