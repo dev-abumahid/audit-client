@@ -70,6 +70,25 @@ const authApi = baseApi.injectEndpoints({
         body: data,
       }),
     }),
+
+    // which social providers have real OAuth credentials configured —
+    // render only these as "Sign in with X" buttons
+    getSocialProviders: builder.query<
+      {
+        data: {
+          google: boolean
+          facebook: boolean
+          twitter: boolean
+          github: boolean
+        }
+      },
+      void
+    >({
+      query: () => ({
+        url: "/auth/social-providers",
+        method: "GET",
+      }),
+    }),
   }),
 })
 
@@ -82,4 +101,5 @@ export const {
   useResendOtpMutation,
   useForgetPasswordMutation,
   useResetPasswordMutation,
+  useGetSocialProvidersQuery,
 } = authApi

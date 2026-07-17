@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
+import SocialLoginButtons from "./SocialLoginButtons"
 
 interface SignInFormData {
   email: string
@@ -175,6 +176,8 @@ const SignInModal: React.FC<SignInModalProps> = ({
                 t("auth.signIn.btnSignIn")
               )}
             </button>
+
+            <SocialLoginButtons />
 
             {/* Sign Up Link */}
             <div className="border-t border-border pt-4">

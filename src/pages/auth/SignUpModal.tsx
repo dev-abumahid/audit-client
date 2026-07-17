@@ -8,6 +8,7 @@ import React, { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import SocialLoginButtons from "./SocialLoginButtons"
 
 interface SignUpFormData {
   organizationName: string
@@ -384,6 +385,10 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                 )}
               </button>
             </div>
+          </div>
+
+          <div className="mt-4">
+            <SocialLoginButtons />
           </div>
 
           {/* Sign In Link */}

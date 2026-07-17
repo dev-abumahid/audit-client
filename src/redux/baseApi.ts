@@ -7,8 +7,15 @@ import type {
 } from "@reduxjs/toolkit/query"
 import { removeUser } from "./slices/user.slice"
 
+// Exported so anything building a full-page-redirect URL (e.g.
+// SocialLoginButtons' OAuth links, which can't go through RTK Query since
+// they need a real browser navigation) reads the exact same value
+// fetchBaseQuery uses below, instead of re-reading the env var independently
+// and risking drift if this ever changes.
+export const SERVER_BASE_URL = import.meta.env.VITE_SERVER_BASE_URL as string
+
 const rawBaseQuery = fetchBaseQuery({
-  baseUrl: import.meta.env.VITE_SERVER_BASE_URL as string,
+  baseUrl: SERVER_BASE_URL,
   credentials: "include",
 })
 

@@ -52,6 +52,9 @@ vi.mock("@/redux/apis/auth.api", () => ({
   useSignUpUserMutation: () => [mockSignUpTrigger, { isLoading: false }],
   useVerifyOtpMutation: () => [mockVerifyOtpTrigger, { isLoading: false }],
   useResendOtpMutation: () => [mockResendOtpTrigger, { isLoading: false }],
+  // No providers configured — SocialLoginButtons renders nothing, same as
+  // this test suite's assumptions before SocialLoginButtons existed.
+  useGetSocialProvidersQuery: () => ({ data: undefined, isLoading: false }),
 }))
 
 // ─────────────────────────────────────────────────────────────────────────────

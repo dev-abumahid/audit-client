@@ -46,6 +46,9 @@ vi.mock("@/redux/hooks", () => ({
 const mockSignInTrigger = vi.fn()
 vi.mock("@/redux/apis/auth.api", () => ({
   useSignInUserMutation: () => [mockSignInTrigger],
+  // No providers configured — SocialLoginButtons renders nothing, same as
+  // this test suite's assumptions before SocialLoginButtons existed.
+  useGetSocialProvidersQuery: () => ({ data: undefined, isLoading: false }),
 }))
 
 // ─────────────────────────────────────────────────────────────────────────────
