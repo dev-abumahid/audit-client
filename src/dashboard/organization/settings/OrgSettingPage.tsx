@@ -1,7 +1,9 @@
 import { useGetMeQuery } from "@/redux/apis/auth.api"
-import { Building2, HelpCircle, Upload, User, Users } from "lucide-react"
+import { Building2, HelpCircle, User, Users } from "lucide-react"
 import { useState } from "react"
 import KnowledgeBaseUploadingForm from "./KnowledgeBaseUploadingForm"
+import PasswordChangeForm from "./PasswordChangeForm"
+import PersonalInfoForm from "./PersonalInfoForm"
 import TeamMembersTab from "./TeamMembersTab"
 
 type TabType = "profile" | "team" | "knowledge"
@@ -64,41 +66,34 @@ export default function OrgSettingPage() {
           {/* User Settings Tab */}
           {activeTab === "profile" && (
             <div className="space-y-6">
-              {/* Profile Card */}
-              <div className="overflow-hidden rounded-xl border border-border bg-card">
-                <div className="relative h-32 bg-gradient-to-r from-primary/20 to-primary/5"></div>
-                <div className="relative px-6 pb-6">
-                  <div className="-mt-12 flex items-end justify-between">
-                    <div className="flex items-end gap-4">
-                      <div className="relative">
-                        <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-background bg-primary/10">
-                          {orgData?.organizationProfile?.organizationLogo ? (
-                            <img
-                              src={
-                                orgData?.organizationProfile?.organizationLogo
-                              }
-                              alt="Organization Logo"
-                              className="size-16 rounded-full"
-                            />
-                          ) : (
-                            <span className="text-3xl font-bold text-primary">
-                              TL
-                            </span>
-                          )}
-                        </div>
-                        <button className="absolute right-0 bottom-0 rounded-full bg-primary p-1.5 text-primary-foreground shadow-lg">
-                          <Upload size={14} />
-                        </button>
-                      </div>
-                    </div>
-                    <button className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-1.5 text-sm text-destructive transition-colors hover:bg-destructive/20">
-                      Delete Account
-                    </button>
-                  </div>
-                </div>
-              </div>
+              {/* Personal info: editable full name + avatar, backed by the
+                  real PATCH /api/profile route. This replaces the old
+                  "Profile Card" (org-logo upload button + Delete Account),
+                  neither of which had any backing route — see #78/#66 for
+                  why they were removed rather than implemented:
+                  - Org logo/name have no update endpoint anywhere in
+                    aexa-server (OrganizationProfile is only ever created,
+                    at signup/invite-accept, never updated) — building that
+                    is real backend work, out of scope for "wire UI to
+                    existing route."
+                  - Account deletion has zero backend support (no route,
+                    and Account.isDeleted is only ever read, never set by
+                    any endpoint) — an irreversible action with no existing
+                    implementation needs its own scoped ticket (soft-delete
+                    semantics, org-anchor-account cascade behavior, session
+                    invalidation), not a button bolted onto this one. */}
+              {orgData && (
+                <PersonalInfoForm
+                  initialFullName={orgData.profile?.fullName ?? ""}
+                  profilePhoto={orgData.profile?.profilePhoto}
+                />
+              )}
 
-              {/* Organization Info */}
+              <PasswordChangeForm />
+
+              {/* Organization Info — still read-only: no backend route
+                  exists to update organizationName/organizationLogo (see
+                  above), so there's nothing to wire yet. */}
               <div className="rounded-xl border border-border bg-card p-6">
                 <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                   <Building2 size={20} /> Organization Information

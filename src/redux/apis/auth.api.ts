@@ -35,6 +35,7 @@ const authApi = baseApi.injectEndpoints({
         url: "/auth/me",
         method: "GET",
       }),
+      providesTags: ["ME"],
     }),
 
     // change password
