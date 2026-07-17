@@ -29,6 +29,7 @@ import AdminLayout from "@/layouts/AdminLayout"
 import OrganizationLayout from "@/layouts/OrganizationLayout"
 import RootLayout from "@/layouts/RootLayout"
 import ErrorPage from "@/pages/error/ErrorPage"
+import ResetPasswordPage from "@/pages/auth/ResetPasswordPage"
 import Home from "@/pages/home/Home"
 import InspectionActions from "@/pages/inspection/InspectionActions"
 import InspectionNote from "@/pages/inspection/InspectionNote"
@@ -48,6 +49,7 @@ export const mainRoute = createBrowserRouter([
       { index: true, element: <Home /> },
       { path: "terms", element: <TermsAndConditions /> },
       { path: "privacy", element: <PrivacyPolicy /> },
+      { path: "reset-password", element: <ResetPasswordPage /> },
     ],
   },
   // Organization Routes

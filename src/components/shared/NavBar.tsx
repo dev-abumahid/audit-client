@@ -1,4 +1,5 @@
 import logo from "@/assets/images/logo.png"
+import ForgotPasswordModal from "@/pages/auth/ForgotPasswordModal"
 import SignInModal from "@/pages/auth/SignInModal"
 import { useAppSelector } from "@/redux/hooks"
 import { Menu, X } from "lucide-react"
@@ -13,6 +14,8 @@ const NavBar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false)
   const [isSignUpModalOpen, setIsSignUpModalOpen] = useState(false)
+  const [isForgotPasswordModalOpen, setIsForgotPasswordModalOpen] =
+    useState(false)
 
   const handleSignInClick = () => {
     setIsSignUpModalOpen(false)
@@ -26,6 +29,7 @@ const NavBar: React.FC = () => {
 
   const handleForgotPassword = () => {
     setIsSignInModalOpen(false)
+    setIsForgotPasswordModalOpen(true)
   }
 
   const closeMobileMenu = () => {
@@ -143,6 +147,12 @@ const NavBar: React.FC = () => {
         isOpen={isSignUpModalOpen}
         onClose={() => setIsSignUpModalOpen(false)}
         onLoginClick={handleSignInClick}
+      />
+
+      <ForgotPasswordModal
+        isOpen={isForgotPasswordModalOpen}
+        onClose={() => setIsForgotPasswordModalOpen(false)}
+        onBackToSignIn={handleSignInClick}
       />
     </>
   )

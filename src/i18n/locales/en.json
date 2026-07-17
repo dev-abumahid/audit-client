@@ -132,6 +132,31 @@
             "btnForgotPassword":"Forgot Password?",
             "btnSignIn":"Sign In",
             "hintText":"Don't have an account?"
+        },
+        "forgotPassword":{
+            "title":"Reset Your Password",
+            "subTitle":"Enter your email and we will send you a reset link",
+            "email":"Email",
+            "emailReqText":"Email is required",
+            "btnSend":"Send Reset Link",
+            "sending":"Sending...",
+            "successMessage":"If that email is registered, a reset link has been sent.",
+            "backToSignIn":"Back to Sign In"
+        },
+        "resetPassword":{
+            "title":"Set a New Password",
+            "subTitle":"Enter a new password for your account",
+            "newPassword":"New Password",
+            "newPasswordReqText":"Password is required",
+            "newPasswordMinLength":"At least 8 characters",
+            "confirmPassword":"Confirm Password",
+            "confirmPasswordReqText":"Please confirm your password",
+            "passwordMismatch":"Passwords do not match",
+            "btnReset":"Reset Password",
+            "resetting":"Resetting...",
+            "invalidLink":"This reset link is invalid or missing a token.",
+            "successMessage":"Password reset successfully. You can now sign in.",
+            "btnGoToSignIn":"Go to Sign In"
         }
     },
     "dashboard": {

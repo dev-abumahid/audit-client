@@ -132,6 +132,31 @@
             "btnForgotPassword": "Mot de passe oublié ?",
             "btnSignIn": "Se connecter",
             "hintText": "Vous n’avez pas de compte ?"
+        },
+        "forgotPassword": {
+            "title": "Réinitialiser votre mot de passe",
+            "subTitle": "Entrez votre e-mail et nous vous enverrons un lien de réinitialisation",
+            "email": "E-mail",
+            "emailReqText": "L'adresse e-mail est requise.",
+            "btnSend": "Envoyer le lien",
+            "sending": "Envoi en cours...",
+            "successMessage": "Si cet e-mail est enregistré, un lien de réinitialisation a été envoyé.",
+            "backToSignIn": "Retour à la connexion"
+        },
+        "resetPassword": {
+            "title": "Définir un nouveau mot de passe",
+            "subTitle": "Entrez un nouveau mot de passe pour votre compte",
+            "newPassword": "Nouveau mot de passe",
+            "newPasswordReqText": "Le mot de passe est requis.",
+            "newPasswordMinLength": "Au moins 8 caractères",
+            "confirmPassword": "Confirmer le mot de passe",
+            "confirmPasswordReqText": "Veuillez confirmer votre mot de passe",
+            "passwordMismatch": "Les mots de passe ne correspondent pas",
+            "btnReset": "Réinitialiser le mot de passe",
+            "resetting": "Réinitialisation...",
+            "invalidLink": "Ce lien de réinitialisation est invalide ou ne contient pas de jeton.",
+            "successMessage": "Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
+            "btnGoToSignIn": "Aller à la connexion"
         }
     },
     "dashboard": {

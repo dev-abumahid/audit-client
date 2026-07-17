@@ -52,6 +52,7 @@ export const baseApi = createApi({
     "RECOMMENDATION",
     "FINDINGS",
     "ORG_USER",
+    "ORG_INVITATION",
     "KNOWLEDGE_BASE",
     "NOTE",
   ],

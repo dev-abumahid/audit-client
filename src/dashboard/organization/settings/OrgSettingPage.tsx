@@ -1,14 +1,16 @@
 import { useGetMeQuery } from "@/redux/apis/auth.api"
-import { Building2, HelpCircle, Upload, User } from "lucide-react"
+import { Building2, HelpCircle, Upload, User, Users } from "lucide-react"
 import { useState } from "react"
 import KnowledgeBaseUploadingForm from "./KnowledgeBaseUploadingForm"
+import TeamMembersTab from "./TeamMembersTab"
 
-type TabType = "profile" | "knowledge"
+type TabType = "profile" | "team" | "knowledge"
 
 export default function OrgSettingPage() {
   const [activeTab, setActiveTab] = useState<TabType>("profile")
   const tabs: { key: TabType; label: string; icon: React.ReactNode }[] = [
     { key: "profile", label: "User Settings", icon: <User size={18} /> },
+    { key: "team", label: "Team", icon: <Users size={18} /> },
     {
       key: "knowledge",
       label: "Knowledge Base",
@@ -120,6 +122,9 @@ export default function OrgSettingPage() {
               </div>
             </div>
           )}
+
+          {/* Team Tab */}
+          {activeTab === "team" && <TeamMembersTab />}
 
           {/* Knowledge Base Tab */}
           {activeTab === "knowledge" && (
