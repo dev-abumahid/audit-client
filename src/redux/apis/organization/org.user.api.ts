@@ -33,6 +33,31 @@ const orgUserApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["ORG_INVITATION"],
     }),
+    // Rotates the invite token server-side, so the old link stops working —
+    // same admin-only, no-client-side-role-check pattern as inviteMember.
+    resendInvitation: builder.mutation({
+      query: (id: string) => ({
+        url: `/organization/invite/${id}/resend`,
+        method: "POST",
+      }),
+      invalidatesTags: ["ORG_INVITATION"],
+    }),
+    // Admin-only (requireCallerIsOrgAdmin server-side). Only status/expiresAt
+    // can be set this way; this UI only ever sends status (suspend/reactivate).
+    updateOrgMember: builder.mutation({
+      query: ({
+        id,
+        body,
+      }: {
+        id: string
+        body: { status?: "ACTIVE" | "SUSPENDED" }
+      }) => ({
+        url: `/organization/members/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["ORG_USER"],
+    }),
   }),
 })
 
@@ -40,4 +65,6 @@ export const {
   useGetAllOrgUsersQuery,
   useGetPendingInvitationsQuery,
   useInviteMemberMutation,
+  useResendInvitationMutation,
+  useUpdateOrgMemberMutation,
 } = orgUserApi

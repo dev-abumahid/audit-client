@@ -1,4 +1,4 @@
-import { Loader2, Mail, Plus, UserPlus, X } from "lucide-react"
+import { Loader2, Mail, Plus, RotateCcw, ShieldOff, UserPlus, X } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -6,6 +6,8 @@ import {
   useGetAllOrgUsersQuery,
   useGetPendingInvitationsQuery,
   useInviteMemberMutation,
+  useResendInvitationMutation,
+  useUpdateOrgMemberMutation,
 } from "@/redux/apis/organization/org.user.api"
 
 interface InviteFormValues {
@@ -73,6 +75,10 @@ function StatusBadge({
 
 export default function TeamMembersTab() {
   const [showInviteForm, setShowInviteForm] = useState(false)
+  // Keyed by member/invitation id, not a single flag — suspending one member
+  // shouldn't disable the reactivate button on a different row.
+  const [mutatingMemberId, setMutatingMemberId] = useState<string | null>(null)
+  const [resendingId, setResendingId] = useState<string | null>(null)
 
   const {
     data: membersData,
@@ -82,6 +88,8 @@ export default function TeamMembersTab() {
   const { data: invitationsData, isLoading: invitationsLoading } =
     useGetPendingInvitationsQuery(undefined)
   const [inviteMember, { isLoading: isInviting }] = useInviteMemberMutation()
+  const [updateOrgMember] = useUpdateOrgMemberMutation()
+  const [resendInvitation] = useResendInvitationMutation()
 
   const members: OrgMember[] = membersData?.data ?? []
   const invitations: PendingInvitation[] = invitationsData?.data ?? []
@@ -107,6 +115,39 @@ export default function TeamMembersTab() {
         (err as { data?: { message?: string } })?.data?.message ||
         "Failed to send invitation"
       toast.error(message)
+    }
+  }
+
+  const handleToggleStatus = async (member: OrgMember) => {
+    const nextStatus = member.status === "SUSPENDED" ? "ACTIVE" : "SUSPENDED"
+    setMutatingMemberId(member.id)
+    try {
+      await updateOrgMember({ id: member.id, body: { status: nextStatus } }).unwrap()
+      toast.success(
+        nextStatus === "SUSPENDED" ? "Member suspended" : "Member reactivated"
+      )
+    } catch (err: unknown) {
+      const message =
+        (err as { data?: { message?: string } })?.data?.message ||
+        "Failed to update member status"
+      toast.error(message)
+    } finally {
+      setMutatingMemberId(null)
+    }
+  }
+
+  const handleResend = async (invitation: PendingInvitation) => {
+    setResendingId(invitation.id)
+    try {
+      await resendInvitation(invitation.id).unwrap()
+      toast.success(`Invitation resent to ${invitation.email}`)
+    } catch (err: unknown) {
+      const message =
+        (err as { data?: { message?: string } })?.data?.message ||
+        "Failed to resend invitation"
+      toast.error(message)
+    } finally {
+      setResendingId(null)
     }
   }
 
@@ -155,32 +196,65 @@ export default function TeamMembersTab() {
               <th className="px-5 py-3 font-medium">Email</th>
               <th className="px-5 py-3 font-medium">Role</th>
               <th className="px-5 py-3 font-medium">Status</th>
+              <th className="px-5 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {members.map((member) => (
-              <tr key={member.id} className="border-b border-border last:border-0">
-                <td className="px-5 py-3 font-medium text-foreground">
-                  {member.account?.profile?.fullName || "—"}
-                </td>
-                <td className="px-5 py-3 text-muted-foreground">
-                  {member.account?.email}
-                </td>
-                <td className="px-5 py-3">
-                  <RoleBadge role={member.role} />
-                </td>
-                <td className="px-5 py-3">
-                  <StatusBadge
-                    status={member.status}
-                    isExpired={member.isExpired}
-                  />
-                </td>
-              </tr>
-            ))}
+            {members.map((member) => {
+              // Flipping status back to ACTIVE on an expired member wouldn't
+              // actually restore access — isMembershipActive (server-side)
+              // still denies them on expiresAt, which this UI has no control
+              // for yet. Rather than ship a "Reactivate" button that looks
+              // like it works but silently doesn't, disable it for this case
+              // with an explanation instead of hiding the gap.
+              const reactivateBlockedByExpiry =
+                member.status === "SUSPENDED" && member.isExpired
+              const isMutating = mutatingMemberId === member.id
+              return (
+                <tr key={member.id} className="border-b border-border last:border-0">
+                  <td className="px-5 py-3 font-medium text-foreground">
+                    {member.account?.profile?.fullName || "—"}
+                  </td>
+                  <td className="px-5 py-3 text-muted-foreground">
+                    {member.account?.email}
+                  </td>
+                  <td className="px-5 py-3">
+                    <RoleBadge role={member.role} />
+                  </td>
+                  <td className="px-5 py-3">
+                    <StatusBadge
+                      status={member.status}
+                      isExpired={member.isExpired}
+                    />
+                  </td>
+                  <td className="px-5 py-3">
+                    <button
+                      onClick={() => handleToggleStatus(member)}
+                      disabled={isMutating || reactivateBlockedByExpiry}
+                      title={
+                        reactivateBlockedByExpiry
+                          ? "This member's access window has also expired — reactivating won't restore access."
+                          : undefined
+                      }
+                      className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isMutating ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : member.status === "SUSPENDED" ? (
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      ) : (
+                        <ShieldOff className="h-3.5 w-3.5" />
+                      )}
+                      {member.status === "SUSPENDED" ? "Reactivate" : "Suspend"}
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
             {members.length === 0 && (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   className="px-5 py-8 text-center text-muted-foreground"
                 >
                   No team members yet.
@@ -204,6 +278,7 @@ export default function TeamMembersTab() {
                 <th className="px-5 py-3 font-medium">Email</th>
                 <th className="px-5 py-3 font-medium">Role</th>
                 <th className="px-5 py-3 font-medium">Expires</th>
+                <th className="px-5 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -221,6 +296,20 @@ export default function TeamMembersTab() {
                   </td>
                   <td className="px-5 py-3 text-xs text-muted-foreground">
                     Expires {new Date(invite.expiresAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-5 py-3">
+                    <button
+                      onClick={() => handleResend(invite)}
+                      disabled={resendingId === invite.id}
+                      className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {resendingId === invite.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      )}
+                      Resend
+                    </button>
                   </td>
                 </tr>
               ))}
