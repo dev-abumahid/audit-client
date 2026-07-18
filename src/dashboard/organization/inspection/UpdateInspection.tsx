@@ -15,6 +15,7 @@ import {
   useUpdateInspectionMutation,
   useUpdateInspectionQuestionAnswerMutation,
 } from "@/redux/apis/organization/inspection.api"
+import { attachmentFileName } from "@/utils/attachmentFileName"
 import {
   ArrowLeft,
   CloudUpload,
@@ -22,7 +23,10 @@ import {
   Eye,
   FileText,
   Globe,
+  Loader2,
+  Paperclip,
   Trash,
+  Trash2,
   Upload,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
@@ -80,6 +84,15 @@ export default function UpdateInspection() {
   const [visibleNotes, setVisibleNotes] = useState<Record<string, boolean>>({})
   const [selectedStatus, setSelectedStatus] = useState(inspection?.status)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false)
+  const [removingAttachmentUrl, setRemovingAttachmentUrl] = useState<
+    string | null
+  >(null)
+  // Serialize inspection-attachment mutations while any one is in flight —
+  // same lost-update race this codebase already hit and fixed on findings'
+  // attachments (both handlers PATCH from a closure-captured attachments
+  // array that's only fresh again after the refetch lands).
+  const isMutatingAttachments = isUploadingAttachment || removingAttachmentUrl !== null
   const pageRefs = useRef<(HTMLDivElement | null)[]>([])
   const initialized = useRef(false)
   const [isAnswerMediaUploading, setIsAnswerMediaUploading] = useState<
@@ -306,6 +319,51 @@ export default function UpdateInspection() {
       toast.error(error?.data?.message || "Failed to update status")
     } finally {
       setIsUpdatingStatus(false)
+    }
+  }
+
+  // inspection-level attachments (as opposed to per-question mediaFiles below)
+  const handleUploadAttachment = async (file: File) => {
+    if (!inspectionId || !inspection) return
+    setIsUploadingAttachment(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const uploadRes = await uploadFileAws(formData).unwrap()
+      const url: string | undefined = uploadRes?.data
+      if (!uploadRes?.success || !url) {
+        toast.error("Failed to upload attachment")
+        return
+      }
+      await updateInspection({
+        id: inspectionId,
+        data: { attachments: [...(inspection.attachments ?? []), url] },
+      }).unwrap()
+      toast.success("Attachment uploaded")
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to upload attachment")
+    } finally {
+      setIsUploadingAttachment(false)
+    }
+  }
+
+  const handleRemoveAttachment = async (url: string) => {
+    if (!inspectionId || !inspection) return
+    setRemovingAttachmentUrl(url)
+    try {
+      await updateInspection({
+        id: inspectionId,
+        data: {
+          attachments: (inspection.attachments ?? []).filter(
+            (existing: string) => existing !== url
+          ),
+        },
+      }).unwrap()
+      toast.success("Attachment removed")
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to remove attachment")
+    } finally {
+      setRemovingAttachmentUrl(null)
     }
   }
 
@@ -703,6 +761,66 @@ export default function UpdateInspection() {
               </>
             )}
           </Button>
+        </div>
+      </div>
+
+      {/* Inspection-level attachments (not per-question mediaFiles) */}
+      <div className="border-b bg-card">
+        <div className="mx-auto flex flex-col gap-3 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Paperclip className="h-4 w-4" /> Attachments
+            </h3>
+            <label className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+              {isUploadingAttachment ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              Upload file
+              <input
+                type="file"
+                className="hidden"
+                disabled={isMutatingAttachments}
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleUploadAttachment(file)
+                  e.target.value = ""
+                }}
+              />
+            </label>
+          </div>
+          {(inspection?.attachments ?? []).length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {(inspection?.attachments ?? []).map((url: string) => (
+                <div
+                  key={url}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-xs"
+                >
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="max-w-50 truncate text-foreground hover:underline"
+                  >
+                    {attachmentFileName(url)}
+                  </a>
+                  <button
+                    onClick={() => handleRemoveAttachment(url)}
+                    disabled={isMutatingAttachments}
+                    title="Remove"
+                    className="text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
+                  >
+                    {removingAttachmentUrl === url ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

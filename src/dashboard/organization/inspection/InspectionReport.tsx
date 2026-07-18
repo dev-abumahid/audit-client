@@ -3,6 +3,7 @@
 
 import { useGetSingleInspectionQuery } from "@/redux/apis/organization/inspection.api"
 import type { IPage } from "@/types/template"
+import { attachmentFileName } from "@/utils/attachmentFileName"
 import { buildInspectionPdfHtml } from "@/utils/buildInspectionPdfHtml"
 import { A4_WIDTH_MM, computePdfPagePlacements } from "@/utils/pdfPageMath"
 import html2canvas from "html2canvas-pro"
@@ -19,6 +20,7 @@ import {
   Hash,
   Loader2,
   MessageSquare,
+  Paperclip,
   PlayCircle,
   ToggleLeft,
   ToggleRight,
@@ -775,6 +777,36 @@ const InspectionReport = () => {
               />
             </div>
           ))}
+
+          {/* Inspection-level attachments (not per-question mediaFiles) */}
+          {inspection.attachments?.length > 0 && (
+            <div>
+              <div className="mb-4 flex items-center gap-3">
+                <div className="rounded-xl bg-primary/10 p-2.5">
+                  <Paperclip className="h-5 w-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-bold text-foreground">
+                  Attachments
+                </h2>
+                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
+                  {inspection.attachments.length}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {inspection.attachments.map((url: string) => (
+                  <a
+                    key={url}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="max-w-64 truncate rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground shadow-sm hover:underline"
+                  >
+                    {attachmentFileName(url)}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Unsplit Text & Actions remain the same */}
           {inspection.unSplit_text && (

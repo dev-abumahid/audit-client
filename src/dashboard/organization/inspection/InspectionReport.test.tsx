@@ -249,6 +249,47 @@ describe("InspectionReport", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/dashboard/single-action/act-1")
   })
 
+  it("renders inspection-level attachments as download links", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          attachments: ["https://cdn.example.com/site-plan.pdf"],
+        }),
+      },
+    })
+
+    render(<InspectionReport />)
+
+    expect(screen.getByRole("heading", { name: "Attachments" })).toBeInTheDocument()
+    const link = screen.getByRole("link", { name: "site-plan.pdf" })
+    expect(link).toHaveAttribute("href", "https://cdn.example.com/site-plan.pdf")
+  })
+
+  it("does not crash on an attachment URL with a malformed percent-escape", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          attachments: ["https://cdn.example.com/100%off.pdf"],
+        }),
+      },
+    })
+
+    expect(() => render(<InspectionReport />)).not.toThrow()
+    expect(screen.getByText("100%off.pdf")).toBeInTheDocument()
+  })
+
+  it("does not render an Attachments section when there are none", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection({ attachments: [] }) },
+    })
+
+    render(<InspectionReport />)
+
+    expect(
+      screen.queryByRole("heading", { name: "Attachments" })
+    ).not.toBeInTheDocument()
+  })
+
   it("renders the unsplit text section when present", () => {
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: {

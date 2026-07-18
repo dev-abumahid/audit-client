@@ -93,6 +93,7 @@ function makeInspection(overrides = {}) {
       },
     ],
     note: null,
+    attachments: [],
     ...overrides,
   }
 }
@@ -264,5 +265,172 @@ describe("UpdateInspection", () => {
     await userEvent.click(screen.getByRole("button", { name: /upload note/i }))
 
     expect(screen.getByText("Upload notes modal open")).toBeInTheDocument()
+  })
+
+  describe("inspection-level attachments", () => {
+    it("renders existing attachments as links", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            attachments: ["https://cdn.example.com/report.pdf"],
+          }),
+        },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />)
+
+      expect(screen.getByText("report.pdf")).toBeInTheDocument()
+    })
+
+    it("uploads a file, persists the URL onto the inspection, and shows a success toast", async () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: makeInspection() },
+        isLoading: false,
+      })
+      mockUploadFileAws.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            data: "https://cdn.example.com/new.pdf",
+          }),
+      })
+      mockUpdateInspection.mockReturnValue({
+        unwrap: () => Promise.resolve({}),
+      })
+
+      render(<UpdateInspection />)
+      const file = new File(["x"], "new.pdf", { type: "application/pdf" })
+      const inputs = document.querySelectorAll('input[type="file"]')
+      // First file input on the page is the attachments uploader (header section).
+      await userEvent.upload(inputs[0] as HTMLInputElement, file)
+
+      await waitFor(() =>
+        expect(mockUpdateInspection).toHaveBeenCalledWith({
+          id: "insp-1",
+          data: { attachments: ["https://cdn.example.com/new.pdf"] },
+        })
+      )
+      const { toast } = await import("sonner")
+      expect(toast.success).toHaveBeenCalledWith("Attachment uploaded")
+    })
+
+    it("appends the new URL to existing attachments rather than replacing them", async () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            attachments: ["https://cdn.example.com/existing.pdf"],
+          }),
+        },
+        isLoading: false,
+      })
+      mockUploadFileAws.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            data: "https://cdn.example.com/new.pdf",
+          }),
+      })
+      mockUpdateInspection.mockReturnValue({
+        unwrap: () => Promise.resolve({}),
+      })
+
+      render(<UpdateInspection />)
+      const file = new File(["x"], "new.pdf", { type: "application/pdf" })
+      const inputs = document.querySelectorAll('input[type="file"]')
+      await userEvent.upload(inputs[0] as HTMLInputElement, file)
+
+      await waitFor(() =>
+        expect(mockUpdateInspection).toHaveBeenCalledWith({
+          id: "insp-1",
+          data: {
+            attachments: [
+              "https://cdn.example.com/existing.pdf",
+              "https://cdn.example.com/new.pdf",
+            ],
+          },
+        })
+      )
+    })
+
+    it("removes an attachment by filtering it out of the array", async () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            attachments: [
+              "https://cdn.example.com/keep.pdf",
+              "https://cdn.example.com/remove.pdf",
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+      mockUpdateInspection.mockReturnValue({
+        unwrap: () => Promise.resolve({}),
+      })
+
+      render(<UpdateInspection />)
+      await userEvent.click(screen.getAllByTitle("Remove")[1])
+
+      await waitFor(() =>
+        expect(mockUpdateInspection).toHaveBeenCalledWith({
+          id: "insp-1",
+          data: { attachments: ["https://cdn.example.com/keep.pdf"] },
+        })
+      )
+    })
+
+    it("blocks a second remove while one is still in flight, preventing a lost-update race", async () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            attachments: [
+              "https://cdn.example.com/a.pdf",
+              "https://cdn.example.com/b.pdf",
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+      let resolveFirstRemove: (value: unknown) => void = () => {}
+      const firstRemovePromise = new Promise((resolve) => {
+        resolveFirstRemove = resolve
+      })
+      mockUpdateInspection.mockReturnValueOnce({
+        unwrap: () => firstRemovePromise,
+      })
+
+      render(<UpdateInspection />)
+      const removeButtons = screen.getAllByTitle("Remove")
+      await userEvent.click(removeButtons[0])
+
+      expect(screen.getAllByTitle("Remove")[1]).toBeDisabled()
+      await userEvent.click(screen.getAllByTitle("Remove")[1])
+      expect(mockUpdateInspection).toHaveBeenCalledTimes(1)
+
+      resolveFirstRemove({})
+    })
+
+    it("shows an error toast when upload fails", async () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: makeInspection() },
+        isLoading: false,
+      })
+      mockUploadFileAws.mockReturnValue({
+        unwrap: () =>
+          Promise.reject({ data: { message: "File too large" } }),
+      })
+
+      render(<UpdateInspection />)
+      const file = new File(["x"], "new.pdf", { type: "application/pdf" })
+      const inputs = document.querySelectorAll('input[type="file"]')
+      await userEvent.upload(inputs[0] as HTMLInputElement, file)
+
+      const { toast } = await import("sonner")
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("File too large")
+      )
+      expect(mockUpdateInspection).not.toHaveBeenCalled()
+    })
   })
 })
