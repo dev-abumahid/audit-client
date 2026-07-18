@@ -117,6 +117,46 @@ describe("InspectionNote", () => {
     expect(screen.getByText(/fire extinguisher in zone B/i)).toBeInTheDocument()
   })
 
+  it("shows a download link for an existing note's attachment", async () => {
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: {
+        data: {
+          ...existingNote,
+          attachments: ["https://cdn.example.com/original-scan.pdf"],
+        },
+      },
+      isLoading: false,
+      isError: false,
+    })
+    renderPage()
+
+    const link = await screen.findByRole("link", {
+      name: /original-scan\.pdf/i,
+    })
+    expect(link).toHaveAttribute(
+      "href",
+      "https://cdn.example.com/original-scan.pdf"
+    )
+  })
+
+  it("shows no attachment link when the note has none", async () => {
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: { data: { ...existingNote, attachments: [] } },
+      isLoading: false,
+      isError: false,
+    })
+    renderPage()
+
+    await waitFor(() =>
+      expect(screen.getByText("Site inspection notes")).toBeInTheDocument()
+    )
+    // Navigation/back links are still present; only attachment links are absent
+    expect(
+      screen.queryByRole("link", { name: /back to inspection/i })
+    ).toBeInTheDocument()
+    expect(document.querySelector('a[target="_blank"]')).not.toBeInTheDocument()
+  })
+
   it('shows "Back to inspection" link when a note exists', async () => {
     mockUseGetNoteByInspectionIdQuery.mockReturnValue({
       data: { data: existingNote },
@@ -208,6 +248,43 @@ describe("InspectionNote", () => {
     )
     expect(screen.getByText("Zone B extinguisher expired.")).toBeInTheDocument()
     expect(screen.getByText("Review answers →")).toBeInTheDocument()
+  })
+
+  it("shows a download link for the source file right after upload + extraction", async () => {
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: { status: 404 },
+    })
+    mockExtractNoteFromFile.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          data: {
+            id: "note-new",
+            title: "Extracted",
+            extracted_text: "Zone B extinguisher expired.",
+            inspectionId: "insp-1",
+            createdAt: "2026-06-22T10:00:00.000Z",
+            attachments: ["https://cdn.example.com/notes.pdf"],
+          },
+        }),
+    })
+    mockSplitInspectionNote.mockReturnValue({
+      unwrap: () => Promise.resolve({ data: "success fully splitted" }),
+    })
+
+    renderPage()
+    await waitFor(() => screen.getByText(/Drop a file here/i))
+
+    const file = new File(["%PDF"], "notes.pdf", { type: "application/pdf" })
+    const input = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+    await userEvent.upload(input, file)
+    await userEvent.click(screen.getByText(/Upload & extract/i))
+
+    const link = await screen.findByRole("link", { name: /notes\.pdf/i })
+    expect(link).toHaveAttribute("href", "https://cdn.example.com/notes.pdf")
   })
 
   it("shows the server-provided error message when the upload mutation fails", async () => {

@@ -3,9 +3,29 @@ import {
   useExtractNoteFromFileMutation,
   useGetNoteByInspectionIdQuery,
 } from "@/redux/apis/organization/note.api"
-import { CheckCircle2, FileText, Loader2, UploadCloud, X } from "lucide-react"
+import {
+  CheckCircle2,
+  FileText,
+  Loader2,
+  Paperclip,
+  UploadCloud,
+  X,
+} from "lucide-react"
 import { useRef, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
+
+// Not imported from a shared util: at time of writing this codebase has the
+// same try/catch-wrapped decodeURIComponent helper duplicated across a
+// couple of not-yet-merged branches (attachments features landing around
+// the same time) — defining it locally here keeps this PR correct
+// independent of which one merges first. Worth consolidating once both land.
+const attachmentFileName = (url: string) => {
+  try {
+    return decodeURIComponent(url.split("/").pop() || "file")
+  } catch {
+    return url.split("/").pop() || "file"
+  }
+}
 
 interface Note {
   id: string
@@ -13,6 +33,7 @@ interface Note {
   extracted_text: string
   inspectionId: string
   createdAt: string
+  attachments?: string[]
 }
 
 type Stage = "idle" | "uploading" | "extracting" | "done" | "error"
@@ -168,6 +189,22 @@ export default function InspectionNote() {
           <p className="line-clamp-6 text-sm whitespace-pre-wrap text-muted-foreground">
             {existingNote.extracted_text}
           </p>
+          {(existingNote.attachments?.length ?? 0) > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {existingNote.attachments!.map((url) => (
+                <a
+                  key={url}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1 text-xs text-foreground hover:underline"
+                >
+                  <Paperclip className="h-3 w-3 text-muted-foreground" />
+                  {attachmentFileName(url)}
+                </a>
+              ))}
+            </div>
+          )}
           <div className="mt-4 flex gap-3">
             <Link
               to={`/organization/audit/inspections/${inspectionId}`}
@@ -305,6 +342,22 @@ export default function InspectionNote() {
             <p className="text-sm whitespace-pre-wrap text-foreground">
               {displayNote.extracted_text}
             </p>
+            {(displayNote.attachments?.length ?? 0) > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {displayNote.attachments!.map((url) => (
+                  <a
+                    key={url}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1 text-xs text-foreground hover:underline"
+                  >
+                    <Paperclip className="h-3 w-3 text-muted-foreground" />
+                    {attachmentFileName(url)}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3">
