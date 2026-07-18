@@ -63,6 +63,8 @@ export const baseApi = createApi({
     "KNOWLEDGE_BASE",
     "NOTE",
     "ME",
+    "KRI",
+    "ALERT",
   ],
   endpoints: () => ({}),
 })

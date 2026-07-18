@@ -1,17 +1,55 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
-import { mockAlerts } from "@/data/mockData"
-import type { Alert } from "@/types/organization"
-import { Bell, Clock, Loader2, MapPin, Sparkles } from "lucide-react"
-import { useState } from "react"
+import {
+  useGetAllAlertsQuery,
+  useMarkAlertReadMutation,
+} from "@/redux/apis/organization/alert.api"
+import { Bell, Clock, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 export default function AlertsPage() {
-  const [alerts] = useState<Alert[]>(mockAlerts)
-  const [isGenerating] = useState(false)
+  const {
+    data: alertResponse,
+    isLoading,
+    error,
+  } = useGetAllAlertsQuery(undefined)
+  const [markAlertRead, { isLoading: isMarkingRead }] =
+    useMarkAlertReadMutation()
 
-  const criticalCount = alerts.filter((a) => a.severity === "critical").length
-  const highCount = alerts.filter((a) => a.severity === "high").length
-  const mediumCount = alerts.filter((a) => a.severity === "medium").length
-  const lowCount = alerts.filter((a) => a.severity === "low").length
+  const alerts = alertResponse?.data ?? []
+
+  const criticalCount = alerts.filter(
+    (a: any) => a.severity === "critical"
+  ).length
+  const highCount = alerts.filter((a: any) => a.severity === "high").length
+  const mediumCount = alerts.filter((a: any) => a.severity === "medium").length
+  const lowCount = alerts.filter((a: any) => a.severity === "low").length
+
+  const handleMarkRead = async (id: string) => {
+    try {
+      await markAlertRead(id).unwrap()
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to mark alert as read")
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-center text-sm text-destructive">
+          Failed to load alerts. Please try again later.
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5 p-6">
@@ -21,20 +59,9 @@ export default function AlertsPage() {
             Risk Alerts
           </h1>
           <p className="text-sm text-muted-foreground">
-            {alerts.length} active alerts
+            {alerts.length} active alert{alerts.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <button
-          disabled={isGenerating}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-transform hover:scale-[0.98] active:scale-95 disabled:opacity-50"
-        >
-          {isGenerating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4" />
-          )}
-          Generate AI Alerts
-        </button>
       </div>
 
       {/* Severity Quick Filters */}
@@ -50,27 +77,27 @@ export default function AlertsPage() {
                   : lowCount
 
           return (
-            <button
+            <div
               key={sev}
-              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
             >
               <RiskBadge level={sev} />
               <span className="font-mono-data">{count}</span>
-            </button>
+            </div>
           )
         })}
       </div>
 
       {/* Alerts List */}
       <div className="animate-slide-up stagger-2 space-y-3">
-        {alerts.map((alert) => (
+        {alerts.map((alert: any) => (
           <div
             key={alert.id}
             className={`group rounded-xl border bg-card p-5 transition-all hover:shadow-md ${
               alert.severity === "critical"
                 ? "border-risk-critical/30"
                 : "border-border"
-            }`}
+            } ${alert.is_read ? "opacity-60" : ""}`}
           >
             <div className="flex items-start gap-4">
               <div
@@ -107,15 +134,14 @@ export default function AlertsPage() {
                       </span>
                     </>
                   )}
-                  {alert.country && (
-                    <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
-                      {alert.country}
-                    </span>
-                  )}
                   {alert.ai_generated && (
                     <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
                       AI Generated
+                    </span>
+                  )}
+                  {!alert.is_read && (
+                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+                      New
                     </span>
                   )}
                 </div>
@@ -123,14 +149,16 @@ export default function AlertsPage() {
                 <h3 className="mt-1.5 text-sm leading-tight font-semibold text-foreground">
                   {alert.title}
                 </h3>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {alert.description}
-                </p>
+                {alert.description && (
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {alert.description}
+                  </p>
+                )}
 
-                <div className="mt-3 flex items-center gap-4">
+                <div className="mt-3 flex items-center justify-between gap-4">
                   <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Clock className="h-3 w-3" />
-                    {new Date(alert.created_at).toLocaleDateString("en-US", {
+                    {new Date(alert.createdAt).toLocaleDateString("en-US", {
                       day: "numeric",
                       month: "short",
                       hour: "2-digit",
@@ -138,25 +166,14 @@ export default function AlertsPage() {
                     })}
                   </span>
 
-                  <span className="font-mono-data text-[11px] font-medium text-primary">
-                    Relevance:{" "}
-                    {(Number(alert.relevance_score) * 100).toFixed(0)}%
-                  </span>
-
-                  {alert.matched_risks?.length > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-[11px] text-muted-foreground">
-                        Matched Risks:
-                      </span>
-                      {alert.matched_risks.map((r) => (
-                        <span
-                          key={r}
-                          className="font-mono-data rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground"
-                        >
-                          {r}
-                        </span>
-                      ))}
-                    </div>
+                  {!alert.is_read && (
+                    <button
+                      onClick={() => handleMarkRead(alert.id)}
+                      disabled={isMarkingRead}
+                      className="rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+                    >
+                      Mark as read
+                    </button>
                   )}
                 </div>
               </div>
@@ -168,9 +185,6 @@ export default function AlertsPage() {
           <div className="py-12 text-center">
             <Bell className="mx-auto h-8 w-8 text-muted-foreground/50" />
             <p className="mt-2 text-sm text-muted-foreground">No alerts yet</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Click "Generate AI Alerts" to create new ones
-            </p>
           </div>
         )}
       </div>

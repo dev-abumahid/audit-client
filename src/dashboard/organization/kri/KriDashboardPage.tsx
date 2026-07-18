@@ -1,100 +1,144 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { mockKRIs, mockRisks } from "@/data/mockData"
-import type { KRI, Risk } from "@/types/organization"
+import {
+  useCreateNewKriMutation,
+  useGetAllKriQuery,
+  useSubmitKriValueMutation,
+} from "@/redux/apis/organization/kri.api"
+import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import {
   AlertTriangle,
-  Brain,
   CheckCircle2,
   Loader2,
+  Pencil,
   Plus,
   Save,
   TrendingUp,
   X,
 } from "lucide-react"
 import { useState } from "react"
-import {
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-} from "recharts"
+import { toast } from "sonner"
 
 const EMPTY_KRI = {
-  id: "",
   name: "",
-  risk_ref: "",
+  risk_id: "",
   unit: "",
   current_value: 0,
   target_value: 0,
   alert_threshold: 0,
-  frequency: "monthly" as const,
-  status: "ok" as const,
-  trend: [] as number[],
+  frequency: "monthly",
 }
 
 export default function KriDashboardPage() {
-  const [kris, setKris] = useState<KRI[]>(mockKRIs)
-  const [risks] = useState<Risk[]>(mockRisks)
+  const {
+    data: kriResponse,
+    isLoading: krisLoading,
+    error: krisError,
+  } = useGetAllKriQuery(undefined)
+  const { data: riskResponse } = useGetAllRisksQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+    siteId: "",
+    category: "",
+  })
+  const [createKri] = useCreateNewKriMutation()
+  const [submitKriValue] = useSubmitKriValueMutation()
+
+  const kris = kriResponse?.data ?? []
+  const risks = riskResponse?.data ?? []
+
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_KRI)
   const [isSaving, setIsSaving] = useState(false)
-  const [isSuggesting, setIsSuggesting] = useState(false)
 
-  // Simulate AI Suggestion with dummy data
-  const handleAISuggestion = async () => {
-    if (risks.length === 0) return
-
-    setIsSuggesting(true)
-
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1200))
-
-    const suggestedNewKris: KRI[] = []
-
-    // Filter out duplicates (simple check by name)
-    const existingNames = new Set(kris.map((k) => k.name.toLowerCase()))
-    const newUniqueKris = suggestedNewKris.filter(
-      (k) => !existingNames.has(k.name.toLowerCase())
-    )
-
-    if (newUniqueKris.length > 0) {
-      setKris((prev) => [...prev, ...newUniqueKris])
-      alert(`${newUniqueKris.length} new KRIs added via AI suggestion!`)
-    } else {
-      alert("No new KRIs to suggest – all relevant ones already exist.")
-    }
-
-    setIsSuggesting(false)
-  }
+  const [updatingKriId, setUpdatingKriId] = useState<string | null>(null)
+  const [updateValue, setUpdateValue] = useState("")
+  const [isUpdatingValue, setIsUpdatingValue] = useState(false)
 
   const handleSave = async () => {
-    if (!form.name || !form.risk_ref) return
+    if (!form.name || !form.risk_id) return
+    if (form.target_value === form.alert_threshold) {
+      toast.error("Target and alert threshold must be different")
+      return
+    }
 
     setIsSaving(true)
-
-    // Simulate save delay
-    await new Promise((resolve) => setTimeout(resolve, 800))
-
-    const newKRI = {
-      ...form,
-      id: "k" + Date.now(),
-      trend: [form.current_value],
-    } as KRI
-
-    setKris((prev) => [...prev, newKRI])
-    setShowForm(false)
-    setForm(EMPTY_KRI)
-
-    alert("KRI created successfully!")
-
-    setIsSaving(false)
+    try {
+      await createKri({
+        risk_id: form.risk_id,
+        name: form.name,
+        unit: form.unit,
+        current_value: form.current_value,
+        alert_threshold: form.alert_threshold,
+        target_value: form.target_value,
+        frequency: form.frequency,
+      }).unwrap()
+      toast.success("KRI created successfully")
+      setShowForm(false)
+      setForm(EMPTY_KRI)
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to create KRI")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const alertCount = kris.filter((k) => k.status === "alert").length
-  const warningCount = kris.filter((k) => k.status === "warning").length
-  const okCount = kris.filter((k) => k.status === "ok").length
+  const openUpdateValue = (kri: any) => {
+    setUpdatingKriId(kri.id)
+    setUpdateValue(String(kri.current_value))
+  }
+
+  const handleUpdateValue = async () => {
+    if (!updatingKriId) return
+    // Number("") === 0, not NaN — an emptied field would otherwise silently
+    // submit 0 as if it were a real reading instead of being rejected.
+    // Found by independent review.
+    if (updateValue.trim() === "") {
+      toast.error("Enter a valid number")
+      return
+    }
+    const value = Number(updateValue)
+    if (Number.isNaN(value)) {
+      toast.error("Enter a valid number")
+      return
+    }
+
+    setIsUpdatingValue(true)
+    try {
+      await submitKriValue({
+        id: updatingKriId,
+        current_value: value,
+      }).unwrap()
+      toast.success("KRI value updated")
+      setUpdatingKriId(null)
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to update KRI value")
+    } finally {
+      setIsUpdatingValue(false)
+    }
+  }
+
+  const alertCount = kris.filter((k: any) => k.status === "ALERT").length
+  const warningCount = kris.filter((k: any) => k.status === "WARNING").length
+  const okCount = kris.filter((k: any) => k.status === "OK").length
+
+  if (krisLoading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (krisError) {
+    return (
+      <div className="p-6">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-center text-sm text-destructive">
+          Failed to load KRIs. Please try again later.
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5 p-4 lg:p-6">
@@ -107,30 +151,15 @@ export default function KriDashboardPage() {
             Monitor key risk indicators across your organization
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={handleAISuggestion}
-            disabled={isSuggesting}
-            className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
-          >
-            {isSuggesting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Brain className="h-3.5 w-3.5" />
-            )}
-            {isSuggesting ? "Suggesting..." : "Suggest with AI"}
-          </button>
-
-          <button
-            onClick={() => {
-              setForm(EMPTY_KRI)
-              setShowForm(true)
-            }}
-            className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
-          >
-            <Plus className="h-3.5 w-3.5" /> New KRI
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            setForm(EMPTY_KRI)
+            setShowForm(true)
+          }}
+          className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
+        >
+          <Plus className="h-3.5 w-3.5" /> New KRI
+        </button>
       </div>
 
       {/* Status Summary Cards */}
@@ -160,24 +189,15 @@ export default function KriDashboardPage() {
 
       {/* KRI Cards */}
       <div className="animate-slide-up stagger-2 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {kris.map((kri) => {
-          const chartData = (kri.trend || []).map((v, i) => ({
-            period: `T${i + 1}`,
-            value: v,
-          }))
+        {kris.map((kri: any) => {
           const statusColor =
-            kri.status === "alert"
+            kri.status === "ALERT"
               ? "border-risk-critical/40"
-              : kri.status === "warning"
+              : kri.status === "WARNING"
                 ? "border-risk-medium/40"
                 : "border-risk-low/40"
 
-          const lineColor =
-            kri.status === "alert"
-              ? "hsl(0, 72%, 51%)"
-              : kri.status === "warning"
-                ? "hsl(38, 92%, 50%)"
-                : "hsl(142, 71%, 45%)"
+          const risk = risks.find((r: any) => r.id === kri.risk_id)
 
           return (
             <div
@@ -189,15 +209,16 @@ export default function KriDashboardPage() {
                   <p className="truncate text-sm font-semibold text-foreground">
                     {kri.name}
                   </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Risk {kri.risk_ref} · {kri.frequency}
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {risk?.name ?? "Unknown risk"}
+                    {kri.frequency ? ` · ${kri.frequency}` : ""}
                   </p>
                 </div>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                    kri.status === "alert"
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                    kri.status === "ALERT"
                       ? "bg-risk-critical/15 text-risk-critical"
-                      : kri.status === "warning"
+                      : kri.status === "WARNING"
                         ? "bg-risk-medium/15 text-risk-medium"
                         : "bg-risk-low/15 text-risk-low"
                   }`}
@@ -213,6 +234,13 @@ export default function KriDashboardPage() {
                 <span className="text-sm text-muted-foreground">
                   {kri.unit}
                 </span>
+                <button
+                  onClick={() => openUpdateValue(kri)}
+                  className="ml-auto rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title="Update value"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
               </div>
 
               <div className="mt-1 flex items-center gap-4 text-[11px] text-muted-foreground">
@@ -229,40 +257,6 @@ export default function KriDashboardPage() {
                   </span>
                 </span>
               </div>
-
-              {chartData.length > 0 && (
-                <div className="mt-3 h-20">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <XAxis
-                        dataKey="period"
-                        tick={false}
-                        stroke="transparent"
-                      />
-                      <YAxis hide domain={["dataMin - 5", "dataMax + 5"]} />
-                      <ReferenceLine
-                        y={Number(kri.alert_threshold)}
-                        stroke="hsl(0, 72%, 51%)"
-                        strokeDasharray="3 3"
-                        strokeOpacity={0.5}
-                      />
-                      <ReferenceLine
-                        y={Number(kri.target_value)}
-                        stroke="hsl(142, 71%, 45%)"
-                        strokeDasharray="3 3"
-                        strokeOpacity={0.5}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="value"
-                        stroke={lineColor}
-                        strokeWidth={2}
-                        dot={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
             </div>
           )
         })}
@@ -273,6 +267,58 @@ export default function KriDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Update Value Modal */}
+      {updatingKriId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setUpdatingKriId(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-foreground">
+                Update Value
+              </h2>
+              <button
+                onClick={() => setUpdatingKriId(null)}
+                className="rounded p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <input
+              type="number"
+              value={updateValue}
+              onChange={(e) => setUpdateValue(e.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              autoFocus
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setUpdatingKriId(null)}
+                className="rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateValue}
+                disabled={isUpdatingValue}
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              >
+                {isUpdatingValue ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* New KRI Modal */}
       {showForm && (
@@ -312,19 +358,19 @@ export default function KriDashboardPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">
-                    Risk Reference
+                    Risk *
                   </label>
                   <select
-                    value={form.risk_ref}
+                    value={form.risk_id}
                     onChange={(e) =>
-                      setForm((f) => ({ ...f, risk_ref: e.target.value }))
+                      setForm((f) => ({ ...f, risk_id: e.target.value }))
                     }
                     className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
                     <option value="">Select Risk</option>
                     {risks.map((r: any) => (
-                      <option key={r.id} value={r.ref}>
-                        {r.ref} — {r.name.slice(0, 30)}
+                      <option key={r.id} value={r.id}>
+                        {r.name.slice(0, 30)}
                       </option>
                     ))}
                   </select>
@@ -402,7 +448,7 @@ export default function KriDashboardPage() {
                 <select
                   value={form.frequency}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, frequency: e.target.value as any }))
+                    setForm((f) => ({ ...f, frequency: e.target.value }))
                   }
                   className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
@@ -423,7 +469,7 @@ export default function KriDashboardPage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={isSaving || !form.name || !form.risk_ref}
+                disabled={isSaving || !form.name || !form.risk_id}
                 className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {isSaving ? (
