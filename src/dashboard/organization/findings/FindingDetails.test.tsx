@@ -19,12 +19,19 @@ vi.mock("react-router", async (importOriginal) => {
 
 const mockUseGetFindingByIdQuery = vi.fn()
 const mockDeleteFinding = vi.fn()
+const mockUpdateFinding = vi.fn()
+const mockUploadAttachment = vi.fn()
 
 vi.mock("@/redux/apis/organization/findings.api", () => ({
   useGetFindingByIdQuery: (...args: unknown[]) =>
     mockUseGetFindingByIdQuery(...args),
   useDeleteFindingByIdMutation: () => [
     mockDeleteFinding,
+    { isLoading: false },
+  ],
+  useUpdateFindingByIdMutation: () => [mockUpdateFinding, { isLoading: false }],
+  useUploadFindingAttachmentMutation: () => [
+    mockUploadAttachment,
     { isLoading: false },
   ],
 }))
@@ -69,6 +76,7 @@ function makeAction(overrides = {}) {
     updatedAt: "2026-06-01T10:00:00.000Z",
     messages: [],
     site: { id: "site-1", name: "HQ Casablanca" },
+    attachments: [],
     ...overrides,
   }
 }
@@ -86,6 +94,8 @@ describe("FindingDetails", () => {
     mockNavigate.mockReset()
     mockUseGetFindingByIdQuery.mockReset()
     mockDeleteFinding.mockReset()
+    mockUpdateFinding.mockReset()
+    mockUploadAttachment.mockReset()
     mockToastError.mockReset()
     mockToastSuccess.mockReset()
     mockUseGetFindingByIdQuery.mockReturnValue({
@@ -148,5 +158,210 @@ describe("FindingDetails", () => {
       expect(mockToastError).toHaveBeenCalledWith("Cannot delete finding")
     )
     expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  describe("attachments", () => {
+    async function openFilesTab() {
+      await userEvent.click(
+        screen.getByRole("button", { name: /attachments/i })
+      )
+    }
+
+    it("shows the empty state when there are no attachments", async () => {
+      renderPage()
+      await openFilesTab()
+
+      expect(screen.getByText("No attachments")).toBeInTheDocument()
+    })
+
+    it("renders existing attachments split into images and files", async () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            attachments: [
+              "https://cdn.example.com/photo.png",
+              "https://cdn.example.com/report.pdf",
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+      renderPage()
+      await openFilesTab()
+
+      expect(screen.getByText("report.pdf")).toBeInTheDocument()
+      expect(screen.getByAltText("attachment-0")).toBeInTheDocument()
+    })
+
+    it("uploads a file, persists the URL onto the finding, and shows a success toast", async () => {
+      mockUploadAttachment.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ data: { url: "https://cdn.example.com/new.png" } }),
+      })
+      mockUpdateFinding.mockReturnValue({
+        unwrap: () => Promise.resolve({}),
+      })
+      renderPage()
+      await openFilesTab()
+
+      const file = new File(["x"], "new.png", { type: "image/png" })
+      const input = document.querySelector(
+        'input[type="file"]'
+      ) as HTMLInputElement
+      await userEvent.upload(input, file)
+
+      await waitFor(() => expect(mockUploadAttachment).toHaveBeenCalled())
+      await waitFor(() =>
+        expect(mockUpdateFinding).toHaveBeenCalledWith({
+          id: "finding-1",
+          body: { attachments: ["https://cdn.example.com/new.png"] },
+        })
+      )
+      expect(mockToastSuccess).toHaveBeenCalledWith("Attachment uploaded")
+    })
+
+    it("appends the new URL to existing attachments rather than replacing them", async () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            attachments: ["https://cdn.example.com/existing.png"],
+          }),
+        },
+        isLoading: false,
+      })
+      mockUploadAttachment.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ data: { url: "https://cdn.example.com/new.png" } }),
+      })
+      mockUpdateFinding.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+      renderPage()
+      await openFilesTab()
+
+      const file = new File(["x"], "new.png", { type: "image/png" })
+      const input = document.querySelector(
+        'input[type="file"]'
+      ) as HTMLInputElement
+      await userEvent.upload(input, file)
+
+      await waitFor(() =>
+        expect(mockUpdateFinding).toHaveBeenCalledWith({
+          id: "finding-1",
+          body: {
+            attachments: [
+              "https://cdn.example.com/existing.png",
+              "https://cdn.example.com/new.png",
+            ],
+          },
+        })
+      )
+    })
+
+    it("shows an error toast when the upload itself fails", async () => {
+      mockUploadAttachment.mockReturnValue({
+        unwrap: () =>
+          Promise.reject({ data: { message: "File too large" } }),
+      })
+      renderPage()
+      await openFilesTab()
+
+      const file = new File(["x"], "new.png", { type: "image/png" })
+      const input = document.querySelector(
+        'input[type="file"]'
+      ) as HTMLInputElement
+      await userEvent.upload(input, file)
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith("File too large")
+      )
+      expect(mockUpdateFinding).not.toHaveBeenCalled()
+    })
+
+    it("shows an error toast and does not lose the attachment when persisting the URL fails", async () => {
+      mockUploadAttachment.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ data: { url: "https://cdn.example.com/new.png" } }),
+      })
+      mockUpdateFinding.mockReturnValue({
+        unwrap: () => Promise.reject({ data: { message: "Save failed" } }),
+      })
+      renderPage()
+      await openFilesTab()
+
+      const file = new File(["x"], "new.png", { type: "image/png" })
+      const input = document.querySelector(
+        'input[type="file"]'
+      ) as HTMLInputElement
+      await userEvent.upload(input, file)
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith("Save failed")
+      )
+    })
+
+    it("removes an attachment by filtering it out of the array", async () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            attachments: [
+              "https://cdn.example.com/keep.png",
+              "https://cdn.example.com/remove.png",
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+      mockUpdateFinding.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+      renderPage()
+      await openFilesTab()
+
+      const removeButtons = screen.getAllByTitle("Remove")
+      await userEvent.click(removeButtons[0])
+
+      await waitFor(() =>
+        expect(mockUpdateFinding).toHaveBeenCalledWith({
+          id: "finding-1",
+          body: { attachments: ["https://cdn.example.com/remove.png"] },
+        })
+      )
+      expect(mockToastSuccess).toHaveBeenCalledWith("Attachment removed")
+    })
+
+    it("blocks a second remove while one is still in flight, preventing a lost-update race", async () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            attachments: [
+              "https://cdn.example.com/a.png",
+              "https://cdn.example.com/b.png",
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+      let resolveFirstRemove: (value: unknown) => void = () => {}
+      const firstRemovePromise = new Promise((resolve) => {
+        resolveFirstRemove = resolve
+      })
+      mockUpdateFinding.mockReturnValueOnce({
+        unwrap: () => firstRemovePromise,
+      })
+      renderPage()
+      await openFilesTab()
+
+      const removeButtons = screen.getAllByTitle("Remove")
+      await userEvent.click(removeButtons[0])
+
+      // Second attachment's remove button must be disabled while the first
+      // removal is still pending — both handlers build their PATCH body
+      // from the same render's `action.attachments` closure, so allowing a
+      // second remove to start here would race and could silently undo the
+      // first removal (whichever PATCH resolves last wins).
+      expect(screen.getAllByTitle("Remove")[1]).toBeDisabled()
+      await userEvent.click(screen.getAllByTitle("Remove")[1])
+      expect(mockUpdateFinding).toHaveBeenCalledTimes(1)
+
+      resolveFirstRemove({})
+      await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled())
+    })
   })
 })

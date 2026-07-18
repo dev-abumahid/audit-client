@@ -3,6 +3,8 @@ import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import {
   useDeleteFindingByIdMutation,
   useGetFindingByIdQuery,
+  useUpdateFindingByIdMutation,
+  useUploadFindingAttachmentMutation,
 } from "@/redux/apis/organization/findings.api"
 import {
   AlertCircle,
@@ -16,10 +18,12 @@ import {
   File,
   FileText,
   Image as ImageIcon,
+  Loader2,
   MapPin,
   MessageSquare,
   Paperclip,
   Trash2,
+  Upload,
   User,
   Users,
   Video,
@@ -54,6 +58,7 @@ interface Action {
   site: Site
   assignBy: TAssignBy[]
   mediaFiles?: string[]
+  attachments: string[]
 }
 
 type Tab = "details" | "messages" | "files"
@@ -120,8 +125,20 @@ const fileName = (url: string) => {
 }
 
 const downloadFile = (url: string) => {
-  // Mock download - to be implemented later
-  toast.info(`Visit at: ${url}`)
+  // Was a mock (just a toast with the URL) — attachments are direct Cloudinary
+  // file URLs, so a real download is just a temporary anchor with `download`
+  // set; the browser handles cross-origin download itself, no fetch/blob
+  // needed. Found and fixed while wiring real attachments in, since shipping
+  // real files behind a fake download button would be the same
+  // looks-real-but-isn't problem this pass exists to fix.
+  const link = document.createElement("a")
+  link.href = url
+  link.download = fileName(url)
+  link.target = "_blank"
+  link.rel = "noopener noreferrer"
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
 
 // Preview Modal Component
@@ -216,19 +233,34 @@ const PreviewModal = ({
   )
 }
 
-// Mock data for attachments (to be replaced with actual API data)
-const mockAttachments: string[] = []
-
 export default function FindingDetails() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const { data, isLoading } = useGetFindingByIdQuery(id as string)
   const [deleteFinding, { isLoading: isDeleting }] =
     useDeleteFindingByIdMutation()
+  const [updateFinding] = useUpdateFindingByIdMutation()
+  const [uploadAttachment] = useUploadFindingAttachmentMutation()
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>("details")
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false)
+  const [removingAttachmentUrl, setRemovingAttachmentUrl] = useState<
+    string | null
+  >(null)
+  // Upload/remove both PATCH the finding with a body built from the
+  // `action.attachments` array captured in this render's closure — that
+  // array only reflects reality again once updateFindingById's own
+  // invalidatesTags refetch lands and re-renders with fresh data, a real
+  // async gap. Two attachment mutations started inside that gap (e.g.
+  // clicking Remove on two different attachments back to back) both read
+  // the same stale array and can race, with whichever PATCH resolves last
+  // silently undoing the other's change. Rather than trying to always read
+  // fresher state, serialize: disable every upload/remove control while ANY
+  // attachment mutation is in flight, not just the specific one clicked.
+  // Found by independent review.
+  const isMutatingAttachments = isUploadingAttachment || removingAttachmentUrl !== null
 
   const handleDelete = () => {
     setDeleteConfirmOpen(true)
@@ -281,6 +313,48 @@ export default function FindingDetails() {
     )
   }
 
+  const handleUploadAttachment = async (file: File) => {
+    setIsUploadingAttachment(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const uploadRes = await uploadAttachment(formData).unwrap()
+      const url: string | undefined = uploadRes?.data?.url
+      if (!url) {
+        toast.error("Upload failed")
+        return
+      }
+      await updateFinding({
+        id: action.id,
+        body: { attachments: [...action.attachments, url] },
+      }).unwrap()
+      toast.success("Attachment uploaded")
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to upload attachment")
+    } finally {
+      setIsUploadingAttachment(false)
+    }
+  }
+
+  const handleRemoveAttachment = async (url: string) => {
+    setRemovingAttachmentUrl(url)
+    try {
+      await updateFinding({
+        id: action.id,
+        body: {
+          attachments: action.attachments.filter(
+            (existing) => existing !== url
+          ),
+        },
+      }).unwrap()
+      toast.success("Attachment removed")
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to remove attachment")
+    } finally {
+      setRemovingAttachmentUrl(null)
+    }
+  }
+
   const TABS: {
     key: Tab
     label: string
@@ -302,7 +376,7 @@ export default function FindingDetails() {
       key: "files",
       label: "Attachments",
       icon: <Paperclip className="h-4 w-4" />,
-      count: mockAttachments.length,
+      count: action.attachments.length,
     },
   ]
 
@@ -497,7 +571,28 @@ export default function FindingDetails() {
                 {/* Files Tab */}
                 {activeTab === "files" && (
                   <div className="space-y-6">
-                    {mockAttachments.length === 0 ? (
+                    <div className="flex justify-end">
+                      <label className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+                        {isUploadingAttachment ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                        Upload file
+                        <input
+                          type="file"
+                          className="hidden"
+                          disabled={isMutatingAttachments}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) handleUploadAttachment(file)
+                            e.target.value = ""
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    {action.attachments.length === 0 ? (
                       <div className="py-12 text-center">
                         <Paperclip className="mx-auto mb-3 h-12 w-12 text-muted-foreground/30" />
                         <p className="text-sm text-muted-foreground">
@@ -507,7 +602,7 @@ export default function FindingDetails() {
                     ) : (
                       <div className="space-y-4">
                         {/* Images Grid */}
-                        {mockAttachments.filter(
+                        {action.attachments.filter(
                           (url) => fileType(url) === "image"
                         ).length > 0 && (
                           <div>
@@ -515,7 +610,7 @@ export default function FindingDetails() {
                               <ImageIcon className="h-4 w-4" /> Images
                             </p>
                             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                              {mockAttachments
+                              {action.attachments
                                 .filter((url) => fileType(url) === "image")
                                 .map((url, i) => (
                                   <div
@@ -542,6 +637,20 @@ export default function FindingDetails() {
                                       >
                                         <Download className="h-4 w-4 text-foreground" />
                                       </button>
+                                      <button
+                                        onClick={() =>
+                                          handleRemoveAttachment(url)
+                                        }
+                                        disabled={isMutatingAttachments}
+                                        className="rounded-lg bg-background p-2 transition-colors hover:bg-destructive/10 disabled:opacity-50"
+                                        title="Remove"
+                                      >
+                                        {removingAttachmentUrl === url ? (
+                                          <Loader2 className="h-4 w-4 animate-spin text-destructive" />
+                                        ) : (
+                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                        )}
+                                      </button>
                                     </div>
                                   </div>
                                 ))}
@@ -550,7 +659,7 @@ export default function FindingDetails() {
                         )}
 
                         {/* Other Files List */}
-                        {mockAttachments.filter(
+                        {action.attachments.filter(
                           (url) => fileType(url) !== "image"
                         ).length > 0 && (
                           <div>
@@ -558,7 +667,7 @@ export default function FindingDetails() {
                               <File className="h-4 w-4" /> Files
                             </p>
                             <div className="space-y-2">
-                              {mockAttachments
+                              {action.attachments
                                 .filter((url) => fileType(url) !== "image")
                                 .map((url, i) => (
                                   <div
@@ -590,6 +699,20 @@ export default function FindingDetails() {
                                         title="Download"
                                       >
                                         <Download className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleRemoveAttachment(url)
+                                        }
+                                        disabled={isMutatingAttachments}
+                                        className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                                        title="Remove"
+                                      >
+                                        {removingAttachmentUrl === url ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <Trash2 className="h-4 w-4" />
+                                        )}
                                       </button>
                                     </div>
                                   </div>

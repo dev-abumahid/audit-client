@@ -39,6 +39,18 @@ const findingsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["FINDINGS"],
     }),
+    // POST /action/attachment doesn't touch any Action row itself (see the
+    // backend's own doc comment) — it just uploads to Cloudinary and returns
+    // { url }. Persisting that URL onto a finding is a separate
+    // updateFindingById call, same two-step pattern InspectionActions.tsx
+    // already uses. No tag invalidation here for that reason.
+    uploadFindingAttachment: builder.mutation({
+      query: (formData: FormData) => ({
+        url: `/action/attachment`,
+        method: "POST",
+        body: formData,
+      }),
+    }),
   }),
 })
 
@@ -48,4 +60,5 @@ export const {
   useCreateNewFindingMutation,
   useUpdateFindingByIdMutation,
   useGetFindingByIdQuery,
+  useUploadFindingAttachmentMutation,
 } = findingsApi
