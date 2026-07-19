@@ -79,7 +79,12 @@ export interface KRI {
   current_value: number
   alert_threshold: number
   target_value: number
-  status: "ok" | "warning" | "alert"
+  // Uppercase, matching the real backend's computed KriStatus type
+  // (kri.service.ts: 'OK' | 'ALERT' | 'WARNING') -- was previously lowercase
+  // here, silently inconsistent with every real consumer (KriDashboardPage,
+  // Overview) because both compare kri.status on an untyped `any`, so
+  // TypeScript never caught the mismatch. Found during frontend#92 review.
+  status: "OK" | "WARNING" | "ALERT"
   trend: number[]
   frequency: string
   is_edited: boolean
