@@ -2,15 +2,17 @@
 import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAlertBanner"
 import MetricCard from "@/components/dashboard/organization/MetricCard"
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
-import {
-  mockAlerts,
-  mockKRIs,
-  mockRisks,
-  riskCategories,
-} from "@/data/mockData"
+// mockRisks is still used for the one thing below (Tipping Points) that
+// has no real backend equivalent — see the comment at that section.
+import { mockRisks, riskCategories } from "@/data/mockData"
+import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
+import { useGetAllKriQuery } from "@/redux/apis/organization/kri.api"
+import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
+import type { Alert, Risk } from "@/types/organization"
 import {
   Activity,
   AlertTriangle,
+  Loader2,
   Shield,
   TrendingDown,
   Zap,
@@ -28,6 +30,9 @@ import {
   YAxis,
 } from "recharts"
 
+// No backend endpoint returns EBITDA percentile data anywhere in this
+// project — kept as static placeholder data, out of scope for this ticket
+// (frontend#92's tractable half covers risks/KRI/alerts, not financials).
 const ebitdaData = [
   { name: "P5", value: 14200 },
   { name: "P10", value: 16100 },
@@ -38,27 +43,53 @@ const ebitdaData = [
   { name: "P95", value: 23800 },
 ]
 
-const categoryData = Object.entries(
-  mockRisks.reduce(
-    (acc, r) => {
-      acc[r.category] = (acc[r.category] || 0) + 1
-      return acc
-    },
-    {} as Record<string, number>
-  )
-).map(([key, value]) => ({
-  name: riskCategories[key]?.label || key,
-  value,
-  color: riskCategories[key]?.color || "#888",
-}))
-
-const kriAlerts = mockKRIs.filter((k) => k.status === "alert").length
-const criticalAlerts = mockAlerts.filter(
-  (a) => a.severity === "critical"
-).length
-
 export default function Overview() {
   const { t } = useTranslation()
+  const { data: riskResponse, isLoading: risksLoading } = useGetAllRisksQuery(
+    {
+      page: 1,
+      limit: 100,
+      searchTerm: "",
+      siteId: "",
+      category: "",
+    }
+  )
+  const { data: kriResponse, isLoading: krisLoading } =
+    useGetAllKriQuery(undefined)
+  const { data: alertResponse, isLoading: alertsLoading } =
+    useGetAllAlertsQuery(undefined)
+
+  const risks: Risk[] = riskResponse?.data ?? []
+  const kris = kriResponse?.data ?? []
+  const alerts: Alert[] = alertResponse?.data ?? []
+
+  const categoryData = Object.entries(
+    risks.reduce(
+      (acc, r) => {
+        acc[r.category] = (acc[r.category] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>
+    )
+  ).map(([key, value]) => ({
+    name: riskCategories[key]?.label || key,
+    value,
+    color: riskCategories[key]?.color || "#888",
+  }))
+
+  const kriAlerts = kris.filter((k: any) => k.status === "ALERT").length
+  const criticalAlerts = alerts.filter(
+    (a) => a.severity === "critical"
+  ).length
+
+  if (risksLoading || krisLoading || alertsLoading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 p-6">
       <CriticalAlertBanner />
@@ -76,7 +107,7 @@ export default function Overview() {
       <div className="animate-slide-up grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title={t("organization.overview.activeRisk")}
-          value={mockRisks.filter((r) => r.status === "open").length}
+          value={risks.filter((r) => r.status === "open").length}
           icon={Shield}
           trend="up"
           trendValue="+2"
@@ -201,7 +232,7 @@ export default function Overview() {
             {t("organization.overview.category.title")}
           </h3>
           <p className="text-xs text-muted-foreground">
-            {mockRisks.length} {t("organization.overview.category.des")}
+            {risks.length} {t("organization.overview.category.des")}
           </p>
           <div className="mt-4 h-48">
             <ResponsiveContainer width="100%" height="100%">
@@ -268,6 +299,12 @@ export default function Overview() {
             <Zap className="h-4 w-4 text-accent" />
           </div>
           <div className="mt-4 space-y-3">
+            {/* Still mock data, deliberately: is_tipping_point has no
+                equivalent field on the real Risk type/backend at all — this
+                isn't a data-source swap like the rest of this page, it's a
+                missing concept. Left as-is rather than guessing at a
+                substitute (e.g. highest pagerank_score) since that's a
+                product decision, not a wiring one. */}
             {mockRisks
               .filter((r: any) => r.is_tipping_point)
               .map((risk) => (
@@ -322,7 +359,7 @@ export default function Overview() {
             <AlertTriangle className="h-4 w-4 text-risk-critical" />
           </div>
           <div className="mt-4 space-y-3">
-            {mockAlerts.slice(0, 4).map((alert) => (
+            {alerts.slice(0, 4).map((alert) => (
               <div
                 key={alert.id}
                 className="rounded-lg border border-border bg-background p-3"

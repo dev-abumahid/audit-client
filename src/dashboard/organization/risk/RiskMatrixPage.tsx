@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SiteFilter from "@/components/dashboard/organization/SiteFilter"
-import { mockRisks } from "@/data/mockData"
-import { DUMMY_SITES } from "@/data/site"
+import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
+import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { Risk } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
-import { Grid3X3, MapPin } from "lucide-react"
+import { Grid3X3, Loader2, MapPin } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -55,7 +55,23 @@ function mapRiskToCell(
 
 export default function RiskMatrixPage() {
   const { t } = useTranslation()
-  const [risks] = useState(mockRisks)
+  const { data: riskResponse, isLoading } = useGetAllRisksQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+    siteId: "",
+    category: "",
+  })
+  const { data: siteResponse } = useGetAllSitesQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+  })
+  // ?? [] creates a fresh array reference every render when data is still
+  // undefined, which would defeat filteredRisks' useMemo below — memoized
+  // so the empty-array fallback is referentially stable too.
+  const risks: Risk[] = useMemo(() => riskResponse?.data ?? [], [riskResponse])
+  const sites: { id: string; name: string }[] = siteResponse?.data ?? []
   const [matrixSize, setMatrixSize] = useState<MatrixSize>(5)
   const [siteFilter, setSiteFilter] = useState<string | null>(null)
   const [groupMode, setGroupMode] = useState<GroupMode>("none")
@@ -97,6 +113,14 @@ export default function RiskMatrixPage() {
   }, [selectedRisks, groupMode])
 
   const labels = LABELS[matrixSize]
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -301,13 +325,13 @@ export default function RiskMatrixPage() {
                         <RiskCard
                           key={risk.id}
                           risk={risk}
-                          sites={DUMMY_SITES}
+                          sites={sites}
                         />
                       ))}
                     </div>
                   ))
                 : selectedRisks.map((risk) => (
-                    <RiskCard key={risk.id} risk={risk} sites={DUMMY_SITES} />
+                    <RiskCard key={risk.id} risk={risk} sites={sites} />
                   ))}
             </div>
           ) : (
