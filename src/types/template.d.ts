@@ -33,6 +33,21 @@ export interface ITemplate {
   updatedAt: Date
 }
 
+// GET /template's list select doesn't include `pages` or full `access` rows
+// (see aexa-server template.service.ts get_all_template_from_db) — it's a
+// narrower shape than a single-template fetch (ITemplate above). Using
+// ITemplate for list results was previously masked by the endpoint being
+// untyped `any`.
+export interface TemplateSummary {
+  id: string
+  templateLogo?: string | null
+  templateName: string
+  templateDisc?: string | null
+  createdAt: string
+  updatedAt: string
+  access: { userId: string }[]
+}
+
 export type AnswerType =
   | { answerType: "input"; value: string }
   | { answerType: "multipleSelect"; value: string[] }

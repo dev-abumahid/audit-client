@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Button } from "@/components/ui/button"
 import { useGetSingleTemplateQuery } from "@/redux/apis/organization/template.api"
-import type { IQuestion, ITemplate } from "@/types/template"
+import type { IQuestion } from "@/types/template"
 import html2canvas from "html2canvas-pro"
 import jsPDF from "jspdf"
 import { Download, Loader2 } from "lucide-react"
@@ -11,8 +11,8 @@ import { toast } from "sonner"
 
 const TemplateReportPage = () => {
   const { id } = useParams()
-  const { data, isLoading } = useGetSingleTemplateQuery(id)
-  const template = data?.data as ITemplate
+  const { data, isLoading } = useGetSingleTemplateQuery(id ?? "")
+  const template = data?.data
   const reportRef = useRef<HTMLDivElement>(null)
   const [isDownloading, setIsDownloading] = useState(false)
 

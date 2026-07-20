@@ -69,7 +69,7 @@ function makeEditData(overrides = {}) {
     updatedAt: "2026-06-01T10:00:00.000Z",
     messages: [],
     assignBy: [],
-    mediaFiles: ["https://cdn.example.com/existing.png"],
+    attachments: ["https://cdn.example.com/existing.png"],
     ...overrides,
   }
 }
@@ -138,7 +138,7 @@ describe("CreateNewFindingModal", () => {
 
     await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
     const payload = mockCreateNewFinding.mock.calls[0][0]
-    expect(payload.mediaFiles).toContain("https://cdn.example.com/new.png")
+    expect(payload.attachments).toContain("https://cdn.example.com/new.png")
   })
 
   it("normalizes editData.assignBy ({id, name} objects) to raw user ids and preserves them on submit", async () => {
@@ -226,7 +226,7 @@ describe("CreateNewFindingModal", () => {
     await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
     const call = mockUpdateFindingById.mock.calls[0][0]
     expect(call.id).toBe("finding-1")
-    expect(call.body.mediaFiles).toContain(
+    expect(call.body.attachments).toContain(
       "https://cdn.example.com/existing.png"
     )
   })

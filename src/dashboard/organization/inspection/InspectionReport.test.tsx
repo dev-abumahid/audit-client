@@ -30,7 +30,7 @@ function makeInspection(overrides = {}) {
     id: "insp-1",
     status: "COMPLETED",
     site: { id: "site-1", name: "HQ Casablanca" },
-    unSplit_text: "",
+    unSplitText: "",
     actions: [],
     template: {
       templateName: "Fire Safety Audit",
@@ -294,7 +294,7 @@ describe("InspectionReport", () => {
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: {
         data: makeInspection({
-          unSplit_text: "Raw inspection transcript here.",
+          unSplitText: "Raw inspection transcript here.",
         }),
       },
     })

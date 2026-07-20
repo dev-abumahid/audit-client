@@ -15,7 +15,7 @@ import {
   useDeleteTemplateMutation,
   useGetAllTemplatesQuery,
 } from "@/redux/apis/organization/template.api"
-import type { ITemplate } from "@/types/template"
+import type { TemplateSummary } from "@/types/template"
 import { format } from "date-fns"
 import {
   Brain,
@@ -88,7 +88,7 @@ export default function TemplatesPage() {
     searchTerm: debouncedSearchTerm,
   })
 
-  const templates: ITemplate[] = data?.data || []
+  const templates: TemplateSummary[] = data?.data || []
   const total = data?.meta?.total || 0
   const totalPages = Math.ceil(total / limit)
 

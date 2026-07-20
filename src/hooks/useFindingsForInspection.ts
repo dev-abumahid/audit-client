@@ -15,7 +15,7 @@ export function useFindingsForInspection<T extends { inspectionId: string }>(
     { skip: !inspectionId }
   )
 
-  const findings = (findingsResponse?.data ?? []) as T[]
+  const findings = (findingsResponse?.data ?? []) as unknown as T[]
 
   return { findings, isLoading, isFetching, isError }
 }

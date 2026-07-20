@@ -158,7 +158,7 @@ export default function CreateNewFindingModal({
       const insId = editData.inspectionId ?? ""
       setSelectedInspectionId(insId)
       setMessages(editData.messages ?? [])
-      setMediaFiles(editData.mediaFiles ?? [])
+      setMediaFiles(editData.attachments ?? [])
       reset({
         actionTitle: editData.actionTitle,
         actionDisc: editData.actionDisc ?? "",
@@ -228,10 +228,13 @@ export default function CreateNewFindingModal({
         status: values.status,
         dueDate: new Date(values.dueDate).toISOString(),
         assignBy: values.assignBy.length ? values.assignBy : undefined,
-        questionId: values.questionId,
+        questionId: values.questionId || undefined,
         inspectionId: values.inspectionId || undefined,
         messages: finalMessages,
-        mediaFiles,
+        // Real Action field is `attachments` (see prisma/schema/action.prisma
+        // on aexa-server) — sending `mediaFiles` here used to be silently
+        // dropped by the backend, which only reads body.attachments.
+        attachments: mediaFiles,
       }
 
       if (isEdit) {

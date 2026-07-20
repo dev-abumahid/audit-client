@@ -24,7 +24,7 @@ import {
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { useGetAllTemplatesQuery } from "@/redux/apis/organization/template.api"
 import type { Site } from "@/types/organization"
-import type { ITemplate } from "@/types/template"
+import type { TemplateSummary } from "@/types/template"
 import { Check, ChevronDown, FileText, Globe } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
@@ -70,7 +70,7 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
   )
 
   const selectedTemplate = templatesData?.data?.find(
-    (t: ITemplate) => t.id === selectedTemplateId
+    (t: TemplateSummary) => t.id === selectedTemplateId
   )
 
   const onSubmit = (data: FormData) => {
@@ -187,7 +187,7 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
                       {isLoading ? "Loading..." : "No template found."}
                     </CommandEmpty>
                     <CommandGroup>
-                      {templatesData?.data?.map((temp: ITemplate) => (
+                      {templatesData?.data?.map((temp: TemplateSummary) => (
                         <CommandItem
                           key={temp.id}
                           value={temp.templateName}

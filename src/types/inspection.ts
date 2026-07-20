@@ -50,9 +50,19 @@ export interface InspectionDetail {
   createdAt: string
   updatedAt: string
   unSplitText: string | null
+  // Inspection-level attachments (as opposed to per-question mediaFiles on
+  // QuestionAnswer) — see prisma/schema/inspection.prisma on aexa-server.
+  // A scalar column, always present on the raw Prisma row even though
+  // inspection.service.ts's get_single_inspection_from_db only declares
+  // `include` (not `select`) for its relations.
+  attachments: string[]
   template: {
     id: string
     templateName: string
+    // Also scalar columns present on the same unrestricted `include` —
+    // used by InspectionReport.tsx's PDF export for the report header.
+    templateLogo: string | null
+    templateDisc: string | null
     pages: PageDef[]
   } | null
   site: { id: string; name: string } | null

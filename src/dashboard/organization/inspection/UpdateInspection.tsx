@@ -15,6 +15,7 @@ import {
   useUpdateInspectionMutation,
   useUpdateInspectionQuestionAnswerMutation,
 } from "@/redux/apis/organization/inspection.api"
+import type { InspectionStatus } from "@/types/inspection"
 import { attachmentFileName } from "@/utils/attachmentFileName"
 import {
   ArrowLeft,
@@ -68,7 +69,7 @@ export default function UpdateInspection() {
   )
   // Fetch inspection data
   const { data: inspectionData, isLoading: isLoadingInspection } =
-    useGetSingleInspectionQuery(inspectionId, { skip: !inspectionId })
+    useGetSingleInspectionQuery(inspectionId ?? "", { skip: !inspectionId })
 
   const [updateInspection] = useUpdateInspectionMutation()
   const [updateQuestionAnswer] = useUpdateInspectionQuestionAnswerMutation()
@@ -299,7 +300,7 @@ export default function UpdateInspection() {
     }
   }
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async (newStatus: InspectionStatus) => {
     if (!inspectionId || newStatus === selectedStatus) return
 
     setIsUpdatingStatus(true)
@@ -1030,7 +1031,7 @@ export default function UpdateInspection() {
             </div>
           ))}
           <ViewAndEditRecommendation inspectionId={inspection.id} />
-          <UnSplitText unSplitText={inspection?.unSplitText} />
+          <UnSplitText unSplitText={inspection?.unSplitText ?? ""} />
         </div>
       </div>
       <CreateNewFindingModal

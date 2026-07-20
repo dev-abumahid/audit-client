@@ -142,7 +142,7 @@ export default function SitesEntities() {
   const [deleteSite, { isLoading: isSiteDeleting }] = useDeleteSiteMutation()
   const { data: riskData } = useGetAllRisksQuery(
     {
-      siteId: expandedSite,
+      siteId: expandedSite ?? "",
       page: 1,
       limit: 100,
       searchTerm: "",

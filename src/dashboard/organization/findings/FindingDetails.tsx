@@ -32,34 +32,8 @@ import {
 import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
-import type { TAssignBy } from "@/types/finding"
+import type { IAction } from "@/types/finding"
 import CreateNewFindingModal from "./CreateNewFindingModal"
-
-// Types based on your API response
-interface Site {
-  name: string
-  id: string
-}
-
-interface Action {
-  id: string
-  orgAccountId: string
-  inspectionId: string
-  siteId: string
-  questionId: string | null
-  actionTitle: string
-  actionDisc: string
-  priority: "Low" | "Medium" | "High"
-  dueDate: string
-  status: "TO_DO" | "IN_PROGRESS" | "COMPLETE" | "CANT_DO"
-  createdAt: string
-  updatedAt: string
-  messages: any[]
-  site: Site
-  assignBy: TAssignBy[]
-  mediaFiles?: string[]
-  attachments: string[]
-}
 
 type Tab = "details" | "messages" | "files"
 
@@ -292,7 +266,7 @@ export default function FindingDetails() {
     )
   }
 
-  const action = data?.data as Action | undefined
+  const action: IAction | undefined = data?.data
 
   if (!action) {
     return (
@@ -543,7 +517,10 @@ export default function FindingDetails() {
                           <div className="flex-1 rounded-lg bg-muted/50 px-4 py-3">
                             <div className="mb-1 flex items-center justify-between">
                               <p className="text-sm font-semibold text-foreground">
-                                {msg.sender || "Unknown"}
+                                {msg.account?.profile?.fullName ||
+                                  msg.account?.organizationProfile
+                                    ?.organizationName ||
+                                  "Unknown"}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {formatDate(msg.createdAt)}

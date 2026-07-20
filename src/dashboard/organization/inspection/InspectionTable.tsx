@@ -21,7 +21,7 @@ import {
   useGetAllInspectionQuery,
 } from "@/redux/apis/organization/inspection.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
-import type { TInspection } from "@/types/organization"
+import type { InspectionSummary } from "@/types/inspection"
 
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import {
@@ -65,8 +65,8 @@ const InspectionTable = () => {
   const [deleteInspection] = useDeleteInspectionMutation()
 
   const inspections = data?.data || []
-  const meta = data?.meta || {}
-  const totalPages = meta.totalPage || 1
+  const meta = data?.meta
+  const totalPages = meta?.totalPage || 1
 
   // Debounced Search
   useEffect(() => {
@@ -192,7 +192,7 @@ const InspectionTable = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                inspections.map((item: TInspection) => (
+                inspections.map((item: InspectionSummary) => (
                   <TableRow key={item.id} className="hover:bg-muted/50">
                     <TableCell>{item.template?.templateName || "—"}</TableCell>
                     <TableCell>{item.site?.name || "—"}</TableCell>

@@ -1,22 +1,51 @@
 import { baseApi } from "@/redux/baseApi"
+import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
+import type { AnswerType, ITemplate, TemplateSummary } from "@/types/template"
+
+interface GetAllTemplatesArgs {
+  page: number
+  limit: number
+  searchTerm: string
+}
+
+interface UpdateOrCreateQuestionArgs {
+  questionId?: string
+  pageId?: string
+  index: number
+  question: string
+  isRequired: boolean
+  answerType: AnswerType
+}
+
+interface UpdateOrCreatePageArgs {
+  pageId?: string
+  pageIndex: number
+  title: string
+  templateId: string
+}
 
 const templateApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getAllTemplates: builder.query({
+    getAllTemplates: builder.query<
+      PaginatedApiResponse<TemplateSummary>,
+      GetAllTemplatesArgs
+    >({
       query: ({ page, limit, searchTerm }) => ({
         url: `/template?page=${page}&limit=${limit}&searchTerm=${searchTerm}`,
         method: "GET",
       }),
       providesTags: ["TEMPLATE"],
     }),
-    deleteTemplate: builder.mutation({
+    deleteTemplate: builder.mutation<ApiResponse<unknown>, string>({
       query: (id) => ({
         url: `/template/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["TEMPLATE"],
     }),
-    createNewTemplate: builder.mutation({
+    // POST body is a FormData ("data": JSON-stringified TemplateFormValues,
+    // optional "file": the logo) — see CreateTemplatePage.tsx's onSubmit.
+    createNewTemplate: builder.mutation<ApiResponse<ITemplate>, FormData>({
       query: (data) => ({
         url: `/template`,
         method: "POST",
@@ -24,7 +53,7 @@ const templateApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["TEMPLATE"],
     }),
-    getSingleTemplate: builder.query({
+    getSingleTemplate: builder.query<ApiResponse<ITemplate>, string>({
       query: (id) => ({
         url: `/template/${id}`,
         method: "GET",
@@ -33,7 +62,10 @@ const templateApi = baseApi.injectEndpoints({
     }),
 
     // update template basics data
-    updateTemplateBasics: builder.mutation({
+    updateTemplateBasics: builder.mutation<
+      ApiResponse<ITemplate>,
+      { data: FormData; id: string }
+    >({
       query: ({ data, id }) => ({
         url: `/template/${id}`,
         method: "PATCH",
@@ -41,7 +73,10 @@ const templateApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["TEMPLATE"],
     }),
-    updateOrCreateQuestion: builder.mutation({
+    updateOrCreateQuestion: builder.mutation<
+      ApiResponse<unknown>,
+      UpdateOrCreateQuestionArgs
+    >({
       query: (data) => ({
         url: `/template/update-or-create-new-question`,
         method: "PATCH",
@@ -49,14 +84,17 @@ const templateApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["TEMPLATE"],
     }),
-    deleteQuestion: builder.mutation({
+    deleteQuestion: builder.mutation<ApiResponse<unknown>, string>({
       query: (id) => ({
         url: `/template/delete-page-question/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["TEMPLATE"],
     }),
-    updateOrCreatePage: builder.mutation({
+    updateOrCreatePage: builder.mutation<
+      ApiResponse<unknown>,
+      UpdateOrCreatePageArgs
+    >({
       query: (data) => ({
         url: `/template/update-or-create-new-page`,
         method: "PATCH",
@@ -64,7 +102,7 @@ const templateApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["TEMPLATE"],
     }),
-    deletePage: builder.mutation({
+    deletePage: builder.mutation<ApiResponse<unknown>, string>({
       query: (id) => ({
         url: `/template/delete-template-page/${id}`,
         method: "DELETE",

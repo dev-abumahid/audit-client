@@ -64,7 +64,7 @@ export default function RiskRegisterPage() {
   const [updateRisk, { isLoading: isRiskUpdating }] = useUpdateRiskMutation()
   const [deleteRisk] = useDeleteRiskMutation()
   // Custom make variables
-  const risks: Risk[] = riskData?.data
+  const risks: Risk[] = riskData?.data || []
 
   // React Hook Form
   const {
@@ -113,7 +113,13 @@ export default function RiskRegisterPage() {
       toast.success(res.message)
       setShowModal(false)
     } else {
-      toast.error(res?.error?.message)
+      // manage_response.ts (aexa-server) never sends an `error` key — a
+      // failed request throws and lands in a .catch, not here — so this
+      // branch is realistically unreachable, but keep a safe fallback
+      // rather than reading a field the response never has. Found while
+      // typing this endpoint (issue #108): `res.error` doesn't type-check
+      // against the real response shape.
+      toast.error(res.message || "Failed to save risk")
     }
   }
 

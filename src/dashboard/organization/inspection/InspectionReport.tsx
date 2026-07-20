@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useGetSingleInspectionQuery } from "@/redux/apis/organization/inspection.api"
-import type { IPage } from "@/types/template"
+import type { PageDef } from "@/types/inspection"
 import { attachmentFileName } from "@/utils/attachmentFileName"
 import { buildInspectionPdfHtml } from "@/utils/buildInspectionPdfHtml"
 import { A4_WIDTH_MM, computePdfPagePlacements } from "@/utils/pdfPageMath"
@@ -514,13 +514,24 @@ const InspectionReport = () => {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  const { data: inspectionRaw } = useGetSingleInspectionQuery(id)
+  const { data: inspectionRaw } = useGetSingleInspectionQuery(id ?? "")
 
   const inspection = inspectionRaw?.data
   const template = inspection?.template
-  const actions = inspection?.actions ?? []
+  // `InspectionDetail` (types/inspection.ts) deliberately doesn't declare
+  // `actions` — GET /inspection/:id (inspection.service.ts's
+  // get_single_inspection_from_db) never `include`s that relation, so this
+  // is `[]` for every real response today. This whole "Actions" section
+  // (and its legacy `action._id`/`action.state` field references below,
+  // which don't match the real Action model's `id`/`status` either) reads
+  // as pre-existing, not-yet-wired-up functionality rather than something
+  // this typing pass (issue #108) should take on rewiring — fetching real
+  // findings here would be via useFindingsForInspection, same as
+  // RunInspection.tsx. Cast (not deleted) so this stays visibly a known gap
+  // for a follow-up rather than silently disabled.
+  const actions = (inspection as { actions?: any[] } | undefined)?.actions ?? []
 
-  const templatePages: IPage[] = template?.pages ?? []
+  const templatePages: PageDef[] = template?.pages ?? []
   const templateName = template?.templateName ?? "Inspection Report"
 
   const actionsByQuestion = useMemo(() => {
@@ -727,7 +738,7 @@ const InspectionReport = () => {
             Sections
           </p>
           <div className="space-y-1">
-            {templatePages.map((page: IPage, idx: number) => {
+            {templatePages.map((page: PageDef, idx: number) => {
               const isActive = activePageIndex === idx
               return (
                 <button
@@ -759,7 +770,7 @@ const InspectionReport = () => {
 
         {/* Main Content */}
         <main className="min-w-0 flex-1 space-y-10">
-          {templatePages.map((page: IPage, pi: number) => (
+          {templatePages.map((page: PageDef, pi: number) => (
             <div
               key={pi}
               ref={(el) => {
@@ -809,7 +820,7 @@ const InspectionReport = () => {
           )}
 
           {/* Unsplit Text & Actions remain the same */}
-          {inspection.unSplit_text && (
+          {inspection.unSplitText && (
             <div>
               <div className="mb-4 flex items-center gap-3">
                 <div className="rounded-xl bg-primary/10 p-2.5">
@@ -821,7 +832,7 @@ const InspectionReport = () => {
               </div>
               <div className="rounded-2xl border border-border bg-card px-6 py-5 shadow-sm">
                 <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
-                  {inspection.unSplit_text}
+                  {inspection.unSplitText}
                 </p>
               </div>
             </div>

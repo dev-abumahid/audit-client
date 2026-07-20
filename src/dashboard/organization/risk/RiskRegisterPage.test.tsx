@@ -222,10 +222,13 @@ describe("RiskRegisterPage", () => {
   it("shows an error toast and keeps the modal open when the create response indicates failure", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
     mockCreateNewRisk.mockReturnValue({
+      // manage_response.ts (aexa-server) always sends { success, message,
+      // data, meta } — never an `error` key — so `message` carries the
+      // failure reason here, not a nested `error.message`.
       unwrap: () =>
         Promise.resolve({
           success: false,
-          error: { message: "Name already exists" },
+          message: "Name already exists",
         }),
     })
 
