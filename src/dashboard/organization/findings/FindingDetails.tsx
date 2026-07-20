@@ -469,11 +469,9 @@ export default function FindingDetails() {
                       </p>
                       <div className="prose prose-sm dark:prose-invert max-w-none text-foreground">
                         {action.actionDisc ? (
-                          <div
-                            dangerouslySetInnerHTML={{
-                              __html: action.actionDisc.replace(/\n/g, "<br/>"),
-                            }}
-                          />
+                          <div className="whitespace-pre-wrap">
+                            {action.actionDisc}
+                          </div>
                         ) : (
                           <p className="text-muted-foreground">
                             No description provided.

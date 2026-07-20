@@ -114,6 +114,19 @@ describe("FindingDetails", () => {
     )
   })
 
+  it("renders actionDisc as literal text and does not execute injected HTML (XSS regression, #107)", async () => {
+    const payload = "<img src=x onerror=alert(1)>"
+    mockUseGetFindingByIdQuery.mockReturnValue({
+      data: { data: makeAction({ actionDisc: payload }) },
+      isLoading: false,
+    })
+
+    const { container } = renderPage()
+
+    expect(container.querySelector("img")).toBeNull()
+    expect(screen.getByText(payload)).toBeInTheDocument()
+  })
+
   it("Delete button opens the confirm modal", async () => {
     renderPage()
 
