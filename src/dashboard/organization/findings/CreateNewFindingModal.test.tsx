@@ -14,6 +14,11 @@ vi.mock("@/redux/apis/common.api", () => ({
 
 const mockCreateNewFinding = vi.fn()
 const mockUpdateFindingById = vi.fn()
+const mockGetFindingById = vi.fn<
+  (id: string, options?: { skip?: boolean }) => { data: unknown }
+>(() => ({
+  data: undefined,
+}))
 vi.mock("@/redux/apis/organization/findings.api", () => ({
   useCreateNewFindingMutation: () => [
     mockCreateNewFinding,
@@ -23,6 +28,8 @@ vi.mock("@/redux/apis/organization/findings.api", () => ({
     mockUpdateFindingById,
     { isLoading: false },
   ],
+  useGetFindingByIdQuery: (id: string, options?: { skip?: boolean }) =>
+    mockGetFindingById(id, options),
 }))
 
 vi.mock("@/redux/apis/organization/inspection.api", () => ({
@@ -79,6 +86,8 @@ describe("CreateNewFindingModal", () => {
     mockUploadFile.mockReset()
     mockCreateNewFinding.mockReset()
     mockUpdateFindingById.mockReset()
+    mockGetFindingById.mockReset()
+    mockGetFindingById.mockReturnValue({ data: undefined })
   })
 
   it("sends questionId (not question) in the request body when a question is selected", async () => {
@@ -283,5 +292,129 @@ describe("CreateNewFindingModal", () => {
     await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
     const payload = mockCreateNewFinding.mock.calls[0][0]
     expect(payload.assignBy).toEqual(["member-1"])
+  })
+
+  it("fetches the single action detail (GET /action/:id) when opened for edit, and skips it when creating", async () => {
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={makeEditData() as any}
+      />
+    )
+
+    await waitFor(() =>
+      expect(mockGetFindingById).toHaveBeenCalledWith(
+        "finding-1",
+        expect.objectContaining({ skip: false })
+      )
+    )
+
+    mockGetFindingById.mockClear()
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    expect(mockGetFindingById).toHaveBeenCalledWith(
+      "",
+      expect.objectContaining({ skip: true })
+    )
+  })
+
+  it("renders the existing conversation thread from the fetched detail, not from the (message-less) list row payload (#162)", async () => {
+    // The list row's editData no longer carries full message bodies —
+    // that's the whole point of #162. Only the detail fetch has them.
+    mockGetFindingById.mockReturnValue({
+      data: {
+        data: makeEditData({
+          messages: [
+            {
+              id: "msg-1",
+              senderAccountId: "acc-1",
+              message: "Replaced the loose bracket.",
+              account: {
+                profile: { fullName: "Alice", profilePhoto: null },
+                organizationProfile: null,
+              },
+              createdAt: "2026-06-02T00:00:00.000Z",
+              updatedAt: "2026-06-02T00:00:00.000Z",
+            },
+          ],
+        }),
+      },
+    })
+
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={makeEditData({ messages: [] }) as any}
+      />
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Replaced the loose bracket.")
+      ).toBeInTheDocument()
+    )
+  })
+
+  it("doesn't clobber in-progress edits to other fields when the detail fetch resolves after mount (the race the two-effect split exists to prevent)", async () => {
+    // Detail fetch starts unresolved, same as a real slow network request.
+    mockGetFindingById.mockReturnValue({ data: undefined })
+
+    // Same object reference across both renders below, matching the real
+    // app: AllFindingsPage's modalState.editData doesn't change identity
+    // just because an internal RTK Query hook resolved. A fresh object on
+    // rerender would itself re-trigger the load effect via its `editData`
+    // dependency and mask the exact race this test exists to catch.
+    const editData = makeEditData({ messages: [] }) as any
+
+    const { rerender } = render(
+      <CreateNewFindingModal open onClose={vi.fn()} editData={editData} />
+    )
+
+    const titleInput = await screen.findByDisplayValue("Fix broken railing")
+    // User starts editing the title before the detail fetch has resolved.
+    await userEvent.clear(titleInput)
+    await userEvent.type(titleInput, "Fix broken railing urgently")
+
+    // Detail fetch now resolves — simulate the RTK Query hook transitioning
+    // from loading to success by re-rendering with the same props while the
+    // mock's return value has changed underneath it.
+    mockGetFindingById.mockReturnValue({
+      data: {
+        data: makeEditData({
+          messages: [
+            {
+              id: "msg-1",
+              senderAccountId: "acc-1",
+              message: "Replaced the loose bracket.",
+              account: {
+                profile: { fullName: "Alice", profilePhoto: null },
+                organizationProfile: null,
+              },
+              createdAt: "2026-06-02T00:00:00.000Z",
+              updatedAt: "2026-06-02T00:00:00.000Z",
+            },
+          ],
+        }),
+      },
+    })
+    rerender(
+      <CreateNewFindingModal open onClose={vi.fn()} editData={editData} />
+    )
+
+    // The message thread should now render...
+    await waitFor(() =>
+      expect(
+        screen.getByText("Replaced the loose bracket.")
+      ).toBeInTheDocument()
+    )
+    // ...without wiping out the title the user was already typing. A full
+    // reset() firing on detail-fetch resolution (folding the two effects
+    // back together) would fail this assertion by reverting to
+    // "Fix broken railing".
+    expect(
+      screen.getByDisplayValue("Fix broken railing urgently")
+    ).toBeInTheDocument()
   })
 })

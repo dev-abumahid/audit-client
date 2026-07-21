@@ -9,6 +9,7 @@ import {
 import { useUploadAnyFileAwsMutation } from "@/redux/apis/common.api"
 import {
   useCreateNewFindingMutation,
+  useGetFindingByIdQuery,
   useUpdateFindingByIdMutation,
 } from "@/redux/apis/organization/findings.api"
 import { useGetAllInspectionQuery } from "@/redux/apis/organization/inspection.api"
@@ -92,6 +93,14 @@ export default function CreateNewFindingModal({
   const [updateAction, { isLoading: isUpdating }] =
     useUpdateFindingByIdMutation()
 
+  // The list row passed in as `editData` no longer carries full message
+  // bodies (aexa-server issue #162 — the list endpoint's `messages` include
+  // was trimmed to a count-only shape). Fetch the single-action detail on
+  // open so the existing conversation thread still renders correctly.
+  const { data: findingDetail } = useGetFindingByIdQuery(editData?.id ?? "", {
+    skip: !open || !editData?.id,
+  })
+
   const isSaving = isCreating || isUpdating
   const users = usersData?.data || []
   const inspectionList: any[] = inspectionsData?.data || []
@@ -157,7 +166,13 @@ export default function CreateNewFindingModal({
     if (editData) {
       const insId = editData.inspectionId ?? ""
       setSelectedInspectionId(insId)
-      setMessages(editData.messages ?? [])
+      // Deliberately NOT seeded from editData.messages here (unlike every
+      // other field below): editData may be a list row, whose messages are
+      // now id-only stubs post-aexa-server#162, not full IActionMessage
+      // objects with a `.message` body to render. Left empty until the
+      // detail-fetch effect below resolves and fills in the real bodies —
+      // a brief empty state beats a flash of blank/undefined message text.
+      setMessages([])
       setMediaFiles(editData.attachments ?? [])
       reset({
         actionTitle: editData.actionTitle,
@@ -167,7 +182,7 @@ export default function CreateNewFindingModal({
         dueDate: editData.dueDate?.slice(0, 16) ?? defaultDueDate(),
         inspectionId: insId,
         questionId: editData.questionId ?? "",
-        messages: editData.messages ?? [],
+        messages: [],
         assignBy: (editData.assignBy ?? []).map((a) => a.id),
       })
     } else {
@@ -187,6 +202,20 @@ export default function CreateNewFindingModal({
       })
     }
   }, [open, editData, reset])
+
+  // Once the detail fetch above resolves, replace the (possibly empty)
+  // messages the list row seeded the form with. Deliberately not folded
+  // into the effect above / a full `reset()`: this can resolve after the
+  // user has already started editing other fields, and a full reset would
+  // clobber that in-progress input.
+  useEffect(() => {
+    if (!open || !editData) return
+    const detailMessages = findingDetail?.data?.messages
+    if (detailMessages) {
+      setMessages(detailMessages)
+      setValue("messages", detailMessages)
+    }
+  }, [open, editData, findingDetail, setValue])
 
   const handleInspectionChange = useCallback(
     (id: string) => {
