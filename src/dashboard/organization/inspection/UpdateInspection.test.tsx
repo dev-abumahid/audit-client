@@ -99,12 +99,15 @@ function makeInspection(overrides = {}) {
 }
 
 describe("UpdateInspection", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mockNavigate.mockReset()
     mockUseGetSingleInspectionQuery.mockReset()
     mockUpdateInspection.mockReset()
     mockUpdateQuestionAnswer.mockReset()
     mockUploadFileAws.mockReset()
+    const { toast } = await import("sonner")
+    vi.mocked(toast.success).mockClear()
+    vi.mocked(toast.error).mockClear()
   })
 
   it("shows a loading message while the inspection is loading", () => {
@@ -431,6 +434,41 @@ describe("UpdateInspection", () => {
         expect(toast.error).toHaveBeenCalledWith("File too large")
       )
       expect(mockUpdateInspection).not.toHaveBeenCalled()
+    })
+
+    it("shows a partial-success message (not the generic upload-failed toast) when the file uploads but persisting it to the inspection then fails (#123)", async () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: makeInspection() },
+        isLoading: false,
+      })
+      mockUploadFileAws.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            data: "https://cdn.example.com/new.pdf",
+          }),
+      })
+      mockUpdateInspection.mockReturnValue({
+        unwrap: () => Promise.reject({ data: {} }),
+      })
+
+      render(<UpdateInspection />)
+      const file = new File(["x"], "new.pdf", { type: "application/pdf" })
+      const inputs = document.querySelectorAll('input[type="file"]')
+      await userEvent.upload(inputs[0] as HTMLInputElement, file)
+
+      const { toast } = await import("sonner")
+      await waitFor(() => expect(mockUpdateInspection).toHaveBeenCalled())
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith(
+          "File uploaded, but failed to attach it to the inspection. Please try uploading it again."
+        )
+      )
+      // The file itself genuinely uploaded -- the generic "Failed to upload
+      // attachment" full-failure message must not fire, and neither must the
+      // success toast (only attaching the URL to the inspection failed).
+      expect(toast.error).not.toHaveBeenCalledWith("Failed to upload attachment")
+      expect(toast.success).not.toHaveBeenCalled()
     })
   })
 })

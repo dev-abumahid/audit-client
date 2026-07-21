@@ -311,6 +311,38 @@ describe("FindingDetails", () => {
       )
     })
 
+    it("shows a partial-success message (not the generic upload-failed toast) when the file uploads but persisting it to the finding then fails (#123)", async () => {
+      mockUploadAttachment.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ data: { url: "https://cdn.example.com/new.png" } }),
+      })
+      mockUpdateFinding.mockReturnValue({
+        unwrap: () => Promise.reject({ data: {} }),
+      })
+      renderPage()
+      await openFilesTab()
+
+      const file = new File(["x"], "new.png", { type: "image/png" })
+      const input = document.querySelector(
+        'input[type="file"]'
+      ) as HTMLInputElement
+      await userEvent.upload(input, file)
+
+      await waitFor(() => expect(mockUpdateFinding).toHaveBeenCalled())
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith(
+          "File uploaded, but failed to attach it to the finding. Please try uploading it again."
+        )
+      )
+      // The file itself genuinely uploaded -- the generic "Failed to upload
+      // attachment" full-failure message must not fire, and neither must the
+      // success toast (only attaching the URL to the finding failed).
+      expect(mockToastError).not.toHaveBeenCalledWith(
+        "Failed to upload attachment"
+      )
+      expect(mockToastSuccess).not.toHaveBeenCalled()
+    })
+
     it("removes an attachment by filtering it out of the array", async () => {
       mockUseGetFindingByIdQuery.mockReturnValue({
         data: {

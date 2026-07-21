@@ -336,10 +336,29 @@ export default function UpdateInspection() {
         toast.error("Failed to upload attachment")
         return
       }
-      await updateInspection({
-        id: inspectionId,
-        data: { attachments: [...(inspection.attachments ?? []), url] },
-      }).unwrap()
+      // Separate try/catch from the upload above: by this point the file
+      // itself has genuinely been uploaded, so a failure here is a partial
+      // success, not a full failure -- it needs its own toast rather than
+      // falling into the shared catch below, which would tell the user the
+      // upload itself failed even though only attaching the URL to the
+      // inspection was lost (#123, same pattern as #170).
+      //
+      // `url` isn't persisted anywhere on this failure -- there's no
+      // retry-attach path that skips a fresh upload, so the message says so
+      // explicitly rather than implying the already-uploaded file can be
+      // reattached without re-uploading it.
+      try {
+        await updateInspection({
+          id: inspectionId,
+          data: { attachments: [...(inspection.attachments ?? []), url] },
+        }).unwrap()
+      } catch (attachErr: any) {
+        toast.error(
+          attachErr?.data?.message ||
+            "File uploaded, but failed to attach it to the inspection. Please try uploading it again."
+        )
+        return
+      }
       toast.success("Attachment uploaded")
     } catch (error: any) {
       toast.error(error?.data?.message || "Failed to upload attachment")

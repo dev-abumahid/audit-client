@@ -291,10 +291,29 @@ export default function FindingDetails() {
         toast.error("Upload failed")
         return
       }
-      await updateFinding({
-        id: action.id,
-        body: { attachments: [...action.attachments, url] },
-      }).unwrap()
+      // Separate try/catch from the upload above: by this point the file
+      // itself has genuinely been uploaded, so a failure here is a partial
+      // success, not a full failure -- it needs its own toast rather than
+      // falling into the shared catch below, which would tell the user the
+      // upload itself failed even though only attaching the URL to the
+      // finding was lost (#123, same pattern as #170).
+      //
+      // `url` isn't persisted anywhere on this failure -- there's no
+      // retry-attach path that skips a fresh upload, so the message says so
+      // explicitly rather than implying the already-uploaded file can be
+      // reattached without re-uploading it.
+      try {
+        await updateFinding({
+          id: action.id,
+          body: { attachments: [...action.attachments, url] },
+        }).unwrap()
+      } catch (attachErr: any) {
+        toast.error(
+          attachErr?.data?.message ||
+            "File uploaded, but failed to attach it to the finding. Please try uploading it again."
+        )
+        return
+      }
       toast.success("Attachment uploaded")
     } catch (err: any) {
       toast.error(err?.data?.message || "Failed to upload attachment")
