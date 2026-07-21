@@ -32,6 +32,33 @@ export interface Site {
   updatedAt: string
 }
 
+// GET /site's list `select` (see aexa-server site.service.ts
+// get_all_site_from_db) is narrower than the full Site row returned by
+// single-resource create/update/delete: it omits org_account_id, site_type,
+// lat, lng entirely. There is no single-site GET endpoint on the frontend to
+// fall back on for those fields, so a list row's site_type/lat/lng are
+// always absent, not just possibly-null — SitesEntities.tsx's edit form
+// pre-fill for site_type silently falls back to its "production" default
+// for every site as a result. Modeled as optional (rather than adding a
+// separate non-overlapping type) so existing `site.site_type || "..."`
+// fallback call sites keep compiling; confirmed against the real backend
+// select, not guessed. Worth a backend ticket to widen the list select if
+// the edit form's pre-fill accuracy ever matters.
+export interface SiteSummary {
+  id: string
+  name: string
+  location?: string | null
+  country?: string | null
+  activity?: string | null
+  revenue: number
+  employees_count: number
+  site_type?: string
+  lat?: number | null
+  lng?: number | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Risk {
   id: string
   org_account_id: string
@@ -69,45 +96,50 @@ export interface RiskLink {
   created_at: string
 }
 
+// Confirmed against the real Kri Prisma model + kri.service.ts (issue
+// #108). The model has no organization_id/user_id/is_edited/trend columns
+// at all -- those were never real, this interface just hadn't been checked
+// against the backend before. `status` isn't a column either: every
+// endpoint (list/single/create/update/submit-value) computes it at
+// response time via with_status()/compute_kri_status() and appends it, so
+// it's always present on data returned from the API even though it's not
+// part of the underlying row -- delete_kri_from_db is the one exception,
+// returning the bare deleted row with no status.
 export interface KRI {
   id: string
-  organization_id: string
-  user_id: string
-  risk_ref: string
+  org_account_id: string
+  risk_id: string
   name: string
-  unit: string | null
+  unit: string
   current_value: number
   alert_threshold: number
   target_value: number
-  // Uppercase, matching the real backend's computed KriStatus type
-  // (kri.service.ts: 'OK' | 'ALERT' | 'WARNING') -- was previously lowercase
-  // here, silently inconsistent with every real consumer (KriDashboardPage,
-  // Overview) because both compare kri.status on an untyped `any`, so
-  // TypeScript never caught the mismatch. Found during frontend#92 review.
+  frequency: string | null
+  createdAt: string
+  updatedAt: string
   status: "OK" | "WARNING" | "ALERT"
-  trend: number[]
-  frequency: string
-  is_edited: boolean
-  created_at: string
-  updated_at: string
 }
 
+// Confirmed against the real Alert Prisma model + alert.service.ts (issue
+// #108). organization_id/user_id/relevance_score/matched_risks/country/
+// is_edited have no backend counterpart -- CriticalAlertBanner.tsx used to
+// sort by relevance_score, a field that was always undefined, so the sort
+// was a silent no-op (alerts already arrive createdAt-desc from the
+// backend). Also `created_at` was wrong casing -- the real column is
+// `createdAt` like everywhere else.
 export interface Alert {
   id: string
-  organization_id: string
-  user_id: string
+  org_account_id: string
+  kri_id: string | null
   source: string
-  type: string | null
+  type: string
   severity: "critical" | "high" | "medium" | "low"
   title: string
   description: string | null
-  relevance_score: number
-  matched_risks: string[]
-  country: string | null
   is_read: boolean
   ai_generated: boolean
-  is_edited: boolean
-  created_at: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface AuditEngagement {

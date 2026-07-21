@@ -18,7 +18,7 @@ import {
   useUpdateSiteMutation,
 } from "@/redux/apis/organization/sites.api"
 import type { RiskSuggestion } from "@/types/ai"
-import type { Risk, Site } from "@/types/organization"
+import type { Risk, SiteSummary } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import {
   Brain,
@@ -141,7 +141,7 @@ export default function SitesEntities() {
 
   // Local state
   const [showForm, setShowForm] = useState(false)
-  const [editingSite, setEditingSite] = useState<Site | null>(null)
+  const [editingSite, setEditingSite] = useState<SiteSummary | null>(null)
 
   const [showRiskForm, setShowRiskForm] = useState<string | null>(null)
 
@@ -207,7 +207,7 @@ export default function SitesEntities() {
     setShowForm(true)
   }
 
-  const openEdit = (site: Site) => {
+  const openEdit = (site: SiteSummary) => {
     setEditingSite(site)
     siteForm.reset({
       name: site.name,
@@ -265,7 +265,7 @@ export default function SitesEntities() {
     }
   }
 
-  const handleAnalyzeSite = async (site: Site) => {
+  const handleAnalyzeSite = async (site: SiteSummary) => {
     // Tracks which site's analysis is the "current" one independent of React
     // state timing — if the user clicks Analyze on a different site before
     // this request resolves, latestAnalysisRequestRef will have moved on by
@@ -459,7 +459,7 @@ export default function SitesEntities() {
 
       {/* Sites List */}
       <div className="space-y-4">
-        {sites.map((site: Site) => {
+        {sites.map((site: SiteSummary) => {
           const isExpanded = expandedSite === site.id
 
           return (

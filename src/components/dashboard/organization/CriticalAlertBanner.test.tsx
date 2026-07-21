@@ -12,20 +12,17 @@ vi.mock("@/redux/apis/organization/alert.api", () => ({
 function makeAlert(overrides = {}) {
   return {
     id: "a1",
-    organization_id: "org-1",
-    user_id: "user-1",
+    org_account_id: "org-1",
+    kri_id: null,
     source: "system_monitor",
     type: "security",
     severity: "high",
     title: "Unauthorized login attempt detected",
     description: null,
-    relevance_score: 0.87,
-    matched_risks: [],
-    country: null,
     is_read: false,
     ai_generated: true,
-    is_edited: false,
-    created_at: "2026-04-15T08:30:00Z",
+    createdAt: "2026-04-15T08:30:00Z",
+    updatedAt: "2026-04-15T08:30:00Z",
     ...overrides,
   }
 }
@@ -72,28 +69,22 @@ describe("CriticalAlertBanner", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("sorts by relevance_score, highest first", () => {
+  // Alert has no relevance_score column on the real backend, so the banner
+  // can't sort by it — it just preserves whatever order GET /alert returns
+  // (createdAt-desc server-side). This locks in that the list isn't
+  // silently reordered/dropped by the (now-removed) filter+sort chain.
+  it("preserves the API's response order, first alert first", () => {
     mockUseGetAllAlertsQuery.mockReturnValue({
       data: {
         data: [
-          makeAlert({
-            id: "a1",
-            severity: "critical",
-            title: "Lower relevance",
-            relevance_score: 0.5,
-          }),
-          makeAlert({
-            id: "a2",
-            severity: "critical",
-            title: "Higher relevance",
-            relevance_score: 0.9,
-          }),
+          makeAlert({ id: "a1", severity: "critical", title: "First alert" }),
+          makeAlert({ id: "a2", severity: "critical", title: "Second alert" }),
         ],
       },
     })
     render(<CriticalAlertBanner />)
 
-    const text = screen.getByText(/Higher relevance, Lower relevance/)
+    const text = screen.getByText(/First alert, Second alert/)
     expect(text).toBeInTheDocument()
   })
 

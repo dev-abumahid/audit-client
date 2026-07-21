@@ -374,7 +374,7 @@ export default function Overview() {
                       <span className="font-medium">{alert.source}</span>
                       <span>·</span>
                       <span>
-                        {new Date(alert.created_at).toLocaleDateString(
+                        {new Date(alert.createdAt).toLocaleDateString(
                           "fr-FR",
                           {
                             day: "numeric",
@@ -384,10 +384,10 @@ export default function Overview() {
                           }
                         )}
                       </span>
-                      <span>·</span>
-                      <span className="font-mono-data">
-                        {(alert.relevance_score * 100).toFixed(0)}% pertinent
-                      </span>
+                      {/* No relevance_score field exists on the real Alert
+                          model (see alert.service.ts) — that "% pertinent"
+                          badge always read undefined * 100 = NaN%. Found
+                          while typing this endpoint (issue #108). */}
                     </div>
                   </div>
                 </div>

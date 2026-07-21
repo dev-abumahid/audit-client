@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/popover"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { useGetAllTemplatesQuery } from "@/redux/apis/organization/template.api"
-import type { Site } from "@/types/organization"
+import type { SiteSummary } from "@/types/organization"
 import type { TemplateSummary } from "@/types/template"
 import { Check, ChevronDown, FileText, Globe } from "lucide-react"
 import { useState } from "react"
@@ -66,7 +66,7 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
   const selectedTemplateId = watch("templateId")
 
   const selectedSite = sitesData?.data?.find(
-    (s: Site) => s.id === selectedSiteId
+    (s: SiteSummary) => s.id === selectedSiteId
   )
 
   const selectedTemplate = templatesData?.data?.find(
@@ -74,6 +74,14 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
   )
 
   const onSubmit = (data: FormData) => {
+    // Guards a real gap the previous untyped `any` on selectedSite masked:
+    // the submit button only checks the ids are set (selectedSiteId /
+    // selectedTemplateId), not that the site/template list has finished
+    // loading and actually contains a matching row. Navigating with
+    // siteName: undefined would silently show a blank site name on the next
+    // page instead of surfacing that something's wrong. Found while typing
+    // this endpoint (issue #108).
+    if (!selectedSite) return
     navigate("/organization/audit/inspection/create", {
       state: {
         siteId: data.siteId,
@@ -128,7 +136,7 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
                   <CommandList>
                     <CommandEmpty>No site found.</CommandEmpty>
                     <CommandGroup>
-                      {sitesData?.data?.map((site: Site) => (
+                      {sitesData?.data?.map((site: SiteSummary) => (
                         <CommandItem
                           className="w-full"
                           key={site.id}

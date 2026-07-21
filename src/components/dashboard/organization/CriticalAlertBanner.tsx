@@ -7,12 +7,16 @@ import { useTranslation } from "react-i18next"
 export default function CriticalAlertBanner() {
   const { t } = useTranslation()
   const [dismissed, setDismissed] = useState(false)
-  const { data: alertResponse } = useGetAllAlertsQuery(undefined)
+  const { data: alertResponse } = useGetAllAlertsQuery()
   const alerts: Alert[] = alertResponse?.data ?? []
 
-  const criticalAlerts = alerts
-    .filter((alert) => alert.severity === "critical")
-    .sort((a, b) => b.relevance_score - a.relevance_score)
+  // Alert has no relevance_score column on the real backend (see
+  // alert.service.ts) -- this used to sort by that field, which was always
+  // undefined, so the .sort() was a silent no-op. The list already arrives
+  // createdAt-desc from GET /alert, which is a reasonable "most recent
+  // first" order for a banner, so there's nothing left to sort by here.
+  // Found while typing this endpoint (issue #108).
+  const criticalAlerts = alerts.filter((alert) => alert.severity === "critical")
 
   if (dismissed || criticalAlerts.length === 0) return null
 

@@ -1,8 +1,10 @@
 import { baseApi } from "@/redux/baseApi"
+import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
+import type { Alert } from "@/types/organization"
 
 const alertApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getAllAlerts: builder.query({
+    getAllAlerts: builder.query<PaginatedApiResponse<Alert>, void>({
       // Same reasoning as kri.api.ts's getAllKri — backend defaults to
       // page=1&limit=10 with no query string, silently truncating the list
       // and its severity counts with no pagination UI to reveal the gap.
@@ -13,16 +15,16 @@ const alertApi = baseApi.injectEndpoints({
       }),
       providesTags: ["ALERT"],
     }),
-    markAlertRead: builder.mutation({
-      query: (id: string) => ({
+    markAlertRead: builder.mutation<ApiResponse<Alert>, string>({
+      query: (id) => ({
         url: `/alert/${id}/read`,
         method: "PATCH",
         body: { is_read: true },
       }),
       invalidatesTags: ["ALERT"],
     }),
-    deleteAlert: builder.mutation({
-      query: (id: string) => ({
+    deleteAlert: builder.mutation<ApiResponse<Alert>, string>({
+      query: (id) => ({
         url: `/alert/${id}`,
         method: "DELETE",
       }),

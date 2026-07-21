@@ -7,7 +7,7 @@ import {
   useUpdateRiskMutation,
 } from "@/redux/apis/organization/risk.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
-import type { Risk, Site } from "@/types/organization"
+import type { Risk, SiteSummary } from "@/types/organization"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { Loader, Pencil, Plus, Search, Trash2 } from "lucide-react"
@@ -180,7 +180,7 @@ export default function RiskRegisterPage() {
           className="h-9 w-40 rounded-lg border border-input bg-card px-3 text-xs lg:w-52"
         >
           <option value="">All Sites</option>
-          {allSites?.data.map((s: Site) => (
+          {allSites?.data.map((s: SiteSummary) => (
             <option key={s.id} value={s.id}>
               {s.name}
             </option>
@@ -320,7 +320,7 @@ export default function RiskRegisterPage() {
                     className="mt-1 h-9 w-full rounded-lg border bg-muted px-3 text-sm"
                   >
                     <option value="">Select Site</option>
-                    {allSites?.data?.map((site: Site) => (
+                    {allSites?.data?.map((site: SiteSummary) => (
                       <option key={site.id} value={site.id}>
                         {site.name}
                       </option>

@@ -59,20 +59,17 @@ function makeKri(overrides = {}) {
 function makeAlert(overrides = {}) {
   return {
     id: "alert-1",
-    organization_id: "org-1",
-    user_id: "user-1",
+    org_account_id: "org-1",
+    kri_id: null,
     source: "KRI Monitor",
     type: "threshold",
     severity: "high",
     title: "Overdue actions exceeded threshold",
     description: null,
-    relevance_score: 0.9,
-    matched_risks: [],
-    country: null,
     is_read: false,
     ai_generated: false,
-    is_edited: false,
-    created_at: "2026-06-21T10:00:00.000Z",
+    createdAt: "2026-06-21T10:00:00.000Z",
+    updatedAt: "2026-06-21T10:00:00.000Z",
     ...overrides,
   }
 }
