@@ -1,4 +1,16 @@
 import { baseApi } from "../baseApi"
+import type { ApiResponse } from "@/types/api"
+
+// update_profile_into_db upserts and returns the full Profile row (see
+// aexa-server's profile.service.ts) -- an upsert, not a plain update,
+// specifically because self-signed-up accounts (the org anchor) never get
+// a Profile row created at signup, only invited members do.
+interface UpdatedProfile {
+  id: string
+  accountId: string
+  fullName: string
+  profilePhoto: string | null
+}
 
 const profileApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -8,7 +20,7 @@ const profileApi = baseApi.injectEndpoints({
     // `req.body = JSON.parse(req.body.data)` before validation (see
     // aexa-server's profile.route.ts). Build the FormData that shape at the
     // call site, this endpoint just forwards whatever FormData it's given.
-    updateProfile: builder.mutation({
+    updateProfile: builder.mutation<ApiResponse<UpdatedProfile>, FormData>({
       query: (formData: FormData) => ({
         url: "/profile",
         method: "PATCH",

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useSignInUserMutation } from "@/redux/apis/auth.api"
+import type { SignInPayload } from "@/redux/apis/auth.api"
 import { useAppDispatch } from "@/redux/hooks"
 import { setUser } from "@/redux/slices/user.slice"
 import { X } from "lucide-react"
@@ -10,10 +11,7 @@ import { useNavigate } from "react-router"
 import { toast } from "sonner"
 import SocialLoginButtons from "./SocialLoginButtons"
 
-interface SignInFormData {
-  email: string
-  password: string
-}
+type SignInFormData = SignInPayload
 
 interface SignInModalProps {
   isOpen: boolean

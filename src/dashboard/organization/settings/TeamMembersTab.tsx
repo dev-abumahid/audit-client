@@ -1,4 +1,12 @@
-import { Loader2, Mail, Plus, RotateCcw, ShieldOff, UserPlus, X } from "lucide-react"
+import {
+  Loader2,
+  Mail,
+  Plus,
+  RotateCcw,
+  ShieldOff,
+  UserPlus,
+  X,
+} from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -9,26 +17,10 @@ import {
   useResendInvitationMutation,
   useUpdateOrgMemberMutation,
 } from "@/redux/apis/organization/org.user.api"
+import type { InviteMemberPayload } from "@/redux/apis/organization/org.user.api"
+import type { OrgMember, PendingInvitation } from "@/types/organizationMember"
 
-interface InviteFormValues {
-  email: string
-  role: "ADMIN" | "LEAD_AUDITOR" | "LIGHT_USER" | "VIEWER"
-}
-
-interface OrgMember {
-  id: string
-  role: string
-  status: string
-  isExpired: boolean
-  account?: { email?: string; profile?: { fullName?: string } }
-}
-
-interface PendingInvitation {
-  id: string
-  email: string
-  role: string
-  expiresAt: string
-}
+type InviteFormValues = InviteMemberPayload
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Admin",
@@ -122,7 +114,10 @@ export default function TeamMembersTab() {
     const nextStatus = member.status === "SUSPENDED" ? "ACTIVE" : "SUSPENDED"
     setMutatingMemberId(member.id)
     try {
-      await updateOrgMember({ id: member.id, body: { status: nextStatus } }).unwrap()
+      await updateOrgMember({
+        id: member.id,
+        body: { status: nextStatus },
+      }).unwrap()
       toast.success(
         nextStatus === "SUSPENDED" ? "Member suspended" : "Member reactivated"
       )
@@ -211,7 +206,10 @@ export default function TeamMembersTab() {
                 member.status === "SUSPENDED" && member.isExpired
               const isMutating = mutatingMemberId === member.id
               return (
-                <tr key={member.id} className="border-b border-border last:border-0">
+                <tr
+                  key={member.id}
+                  className="border-b border-border last:border-0"
+                >
                   <td className="px-5 py-3 font-medium text-foreground">
                     {member.account?.profile?.fullName || "—"}
                   </td>

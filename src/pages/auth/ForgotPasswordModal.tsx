@@ -1,12 +1,11 @@
 import { useForgetPasswordMutation } from "@/redux/apis/auth.api"
+import type { ForgetPasswordPayload } from "@/redux/apis/auth.api"
 import { X } from "lucide-react"
 import React, { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
-interface ForgotPasswordFormData {
-  email: string
-}
+type ForgotPasswordFormData = ForgetPasswordPayload
 
 interface ForgotPasswordModalProps {
   isOpen: boolean

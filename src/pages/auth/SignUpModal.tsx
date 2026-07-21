@@ -3,6 +3,7 @@ import {
   useSignUpUserMutation,
   useVerifyOtpMutation,
 } from "@/redux/apis/auth.api"
+import type { SignUpPayload } from "@/redux/apis/auth.api"
 import { X } from "lucide-react"
 import React, { useState } from "react"
 import { useForm } from "react-hook-form"
@@ -10,11 +11,7 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import SocialLoginButtons from "./SocialLoginButtons"
 
-interface SignUpFormData {
-  organizationName: string
-  email: string
-  password: string
-}
+type SignUpFormData = SignUpPayload
 
 interface OtpFormData {
   otp: string
@@ -89,14 +86,16 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
       password: data.password,
     }
     try {
+      // manageResponse always sets `success: true` for this endpoint, and
+      // .unwrap() throws (caught below) on any non-2xx response -- so a
+      // resolved `res` here is always a success. The previous `else` branch
+      // read `res.error.message`, a key ApiResponse's envelope never has;
+      // it was unreachable dead code, not a real fallback. Found while
+      // typing this endpoint (issue #108).
       const res = await createNewOrganization(payload).unwrap()
-      if (res?.success) {
-        toast.success(res?.message)
-        setPendingEmail(data.email)
-        reset()
-      } else {
-        toast.error(res?.error?.message)
-      }
+      toast.success(res.message)
+      setPendingEmail(data.email)
+      reset()
     } catch (error: unknown) {
       const msg = (error as { data?: { message?: string } })?.data?.message
       toast.error(msg ?? "Registration failed")

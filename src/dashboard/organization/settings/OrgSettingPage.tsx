@@ -85,7 +85,7 @@ export default function OrgSettingPage() {
               {orgData && (
                 <PersonalInfoForm
                   initialFullName={orgData.profile?.fullName ?? ""}
-                  profilePhoto={orgData.profile?.profilePhoto}
+                  profilePhoto={orgData.profile?.profilePhoto ?? undefined}
                 />
               )}
 
@@ -104,7 +104,7 @@ export default function OrgSettingPage() {
                       Organization Name
                     </label>
                     <p className="text-foreground">
-                      {orgData?.organizationProfile.organizationName}
+                      {orgData?.organizationProfile?.organizationName}
                     </p>
                   </div>
                   <div>
