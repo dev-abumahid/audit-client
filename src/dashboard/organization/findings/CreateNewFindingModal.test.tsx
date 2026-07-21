@@ -32,19 +32,24 @@ vi.mock("@/redux/apis/organization/findings.api", () => ({
     mockGetFindingById(id, options),
 }))
 
+const mockInspections = vi.fn<
+  () => {
+    data: { data: { id: string; template: { templateName: string } }[] }
+    isLoading: boolean
+  }
+>(() => ({
+  data: {
+    data: [
+      {
+        id: "insp-1",
+        template: { templateName: "Daily Safety Checklist" },
+      },
+    ],
+  },
+  isLoading: false,
+}))
 vi.mock("@/redux/apis/organization/inspection.api", () => ({
-  useGetAllInspectionQuery: () => ({
-    data: {
-      data: [
-        {
-          _id: "insp-1",
-          id: "insp-1",
-          template: { templateName: "Daily Safety Checklist" },
-        },
-      ],
-    },
-    isLoading: false,
-  }),
+  useGetAllInspectionQuery: () => mockInspections(),
 }))
 
 const mockOrgUsers = vi.fn(() => ({
@@ -88,6 +93,47 @@ describe("CreateNewFindingModal", () => {
     mockUpdateFindingById.mockReset()
     mockGetFindingById.mockReset()
     mockGetFindingById.mockReturnValue({ data: undefined })
+    mockInspections.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "insp-1",
+            template: { templateName: "Daily Safety Checklist" },
+          },
+        ],
+      },
+      isLoading: false,
+    })
+  })
+
+  it("keys Inspection dropdown options by the real InspectionSummary shape (id only, no _id) without a React key warning (#120)", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {})
+
+    mockInspections.mockReturnValue({
+      data: {
+        data: [
+          { id: "insp-1", template: { templateName: "Daily Safety" } },
+          { id: "insp-2", template: { templateName: "Weekly Fire Check" } },
+          { id: "insp-3", template: { templateName: "Monthly Electrical" } },
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    expect(screen.getByText("Daily Safety")).toBeInTheDocument()
+    expect(screen.getByText("Weekly Fire Check")).toBeInTheDocument()
+    expect(screen.getByText("Monthly Electrical")).toBeInTheDocument()
+
+    const keyWarning = consoleError.mock.calls.some((args) =>
+      String(args[0]).includes('Each child in a list should have a unique "key" prop')
+    )
+    expect(keyWarning).toBe(false)
+
+    consoleError.mockRestore()
   })
 
   it("sends questionId (not question) in the request body when a question is selected", async () => {

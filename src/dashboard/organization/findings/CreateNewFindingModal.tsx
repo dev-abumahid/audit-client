@@ -356,7 +356,7 @@ export default function CreateNewFindingModal({
                 <option disabled>Loading...</option>
               ) : (
                 inspectionList.map((ins) => (
-                  <option key={ins._id} value={ins.id}>
+                  <option key={ins.id} value={ins.id}>
                     {ins?.template?.templateName || "Unnamed Inspection"}
                   </option>
                 ))
