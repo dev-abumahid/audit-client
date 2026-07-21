@@ -33,6 +33,7 @@ import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
 import type { IAction } from "@/types/finding"
+import { attachmentFileName } from "@/utils/attachmentFileName"
 import CreateNewFindingModal from "./CreateNewFindingModal"
 
 type Tab = "details" | "messages" | "files"
@@ -90,14 +91,6 @@ const fileType = (url: string) => {
   return "file"
 }
 
-const fileName = (url: string) => {
-  try {
-    return decodeURIComponent(url.split("/").pop() || "file")
-  } catch {
-    return url.split("/").pop() || "file"
-  }
-}
-
 const downloadFile = (url: string) => {
   // Was a mock (just a toast with the URL) — attachments are direct Cloudinary
   // file URLs, so a real download is just a temporary anchor with `download`
@@ -107,7 +100,7 @@ const downloadFile = (url: string) => {
   // looks-real-but-isn't problem this pass exists to fix.
   const link = document.createElement("a")
   link.href = url
-  link.download = fileName(url)
+  link.download = attachmentFileName(url)
   link.target = "_blank"
   link.rel = "noopener noreferrer"
   document.body.appendChild(link)
@@ -143,7 +136,7 @@ const PreviewModal = ({
               {type === "file" && <File className="h-5 w-5" />}
             </div>
             <p className="truncate text-sm font-medium text-foreground">
-              {fileName(url)}
+              {attachmentFileName(url)}
             </p>
           </div>
           <div className="ml-4 flex shrink-0 items-center gap-2">
@@ -653,7 +646,7 @@ export default function FindingDetails() {
                                       <File className="h-5 w-5 shrink-0 text-muted-foreground" />
                                       <div className="min-w-0">
                                         <p className="truncate text-sm font-medium text-foreground">
-                                          {fileName(url)}
+                                          {attachmentFileName(url)}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
                                           {fileType(url)}

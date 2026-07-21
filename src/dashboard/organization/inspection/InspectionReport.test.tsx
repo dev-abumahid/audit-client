@@ -346,4 +346,45 @@ describe("InspectionReport", () => {
     await userEvent.click(screen.getByRole("button", { name: "×" }))
     expect(screen.queryByText("Media Preview")).not.toBeInTheDocument()
   })
+
+  it("opens a media answer's full-size view without granting the new tab window.opener access (#110)", async () => {
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null)
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  { id: "q-5", question: "Uploaded photo", answerType: "media" },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [
+            {
+              questionId: "q-5",
+              answer: "https://cdn.example.com/uploaded-photo.jpg",
+              note: "",
+              mediaFiles: [],
+            },
+          ],
+        }),
+      },
+    })
+
+    render(<InspectionReport />)
+
+    await userEvent.click(screen.getByText("View Full Size"))
+
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://cdn.example.com/uploaded-photo.jpg",
+      "_blank",
+      "noopener,noreferrer"
+    )
+
+    openSpy.mockRestore()
+  })
 })
