@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import { useUploadAnyFileAwsMutation } from "@/redux/apis/common.api"
 import {
+  useAddFindingMessageMutation,
   useCreateNewFindingMutation,
   useGetFindingByIdQuery,
   useUpdateFindingByIdMutation,
@@ -92,6 +93,11 @@ export default function CreateNewFindingModal({
   const [addAction, { isLoading: isCreating }] = useCreateNewFindingMutation()
   const [updateAction, { isLoading: isUpdating }] =
     useUpdateFindingByIdMutation()
+  // Separate endpoint -- update_action_into_db (PATCH, used by updateAction
+  // above) never persists body.messages. Adding a comment to an existing
+  // finding has to go through this PUT endpoint instead (#170).
+  const [addMessage, { isLoading: isAddingMessage }] =
+    useAddFindingMessageMutation()
 
   // The list row passed in as `editData` no longer carries full message
   // bodies (aexa-server issue #162 — the list endpoint's `messages` include
@@ -101,7 +107,7 @@ export default function CreateNewFindingModal({
     skip: !open || !editData?.id,
   })
 
-  const isSaving = isCreating || isUpdating
+  const isSaving = isCreating || isUpdating || isAddingMessage
   const users = usersData?.data || []
   const inspectionList: any[] = inspectionsData?.data || []
 
@@ -241,15 +247,9 @@ export default function CreateNewFindingModal({
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   const onSubmit = async (values: FindingFormValues) => {
-    try {
-      const finalMessages = messageInput.trim()
-        ? [
-            ...messages,
-            { sender: "MM", message: messageInput.trim() },
-            ...values.messages,
-          ]
-        : messages
+    const newMessage = messageInput.trim()
 
+    try {
       const payload = {
         actionTitle: values.actionTitle.trim(),
         actionDisc: values.actionDisc.trim() || undefined,
@@ -259,7 +259,14 @@ export default function CreateNewFindingModal({
         assignBy: values.assignBy.length ? values.assignBy : undefined,
         questionId: values.questionId || undefined,
         inspectionId: values.inspectionId || undefined,
-        messages: finalMessages,
+        // create_action_into_db (POST) persists this array as the finding's
+        // initial comments. update_action_into_db (PATCH, used below for
+        // edits) ignores it entirely -- an edit's new comment goes through
+        // addMessage instead, since there's nothing to "add" beyond the
+        // single new message (messages/values.messages here would already
+        // both hold the pre-existing comments, so folding them back into
+        // this array would double them up -- #170).
+        messages: !isEdit && newMessage ? [{ message: newMessage }] : undefined,
         // Real Action field is `attachments` (see prisma/schema/action.prisma
         // on aexa-server) — sending `mediaFiles` here used to be silently
         // dropped by the backend, which only reads body.attachments.
@@ -268,11 +275,34 @@ export default function CreateNewFindingModal({
 
       if (isEdit) {
         await updateAction({ id: editData!.id, body: payload }).unwrap()
+        // Comments on an existing finding persist through the dedicated PUT
+        // endpoint (#106), not the PATCH above -- see addFindingMessage's
+        // doc comment in findings.api.ts (#170).
+        //
+        // Separate try/catch from the PATCH above: by this point the
+        // action's fields (title/priority/status/etc.) have genuinely been
+        // saved, so a failure here is a partial success, not a full
+        // failure -- it needs its own toast rather than falling into the
+        // shared catch below, which would tell the user the whole update
+        // failed (and never fire the success toast) even though only the
+        // comment was lost. Found by independent review.
+        if (newMessage) {
+          try {
+            await addMessage({ id: editData!.id, message: newMessage }).unwrap()
+          } catch (msgErr: any) {
+            toast.error(
+              msgErr?.data?.message ||
+                "Action updated, but the comment failed to save."
+            )
+            return
+          }
+        }
         toast.success("Action updated successfully!")
       } else {
         await addAction(payload).unwrap()
         toast.success("Action created successfully!")
       }
+      setMessageInput("")
       onClose()
     } catch (err: any) {
       toast.error(

@@ -81,6 +81,24 @@ const findingsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["FINDINGS"],
     }),
+    // update_action_into_db (the PATCH handler above) never reads
+    // body.messages -- it only persists actionTitle/actionDisc/priority/
+    // dueDate/status/attachments/assignBy (see action.service.ts on
+    // aexa-server). Adding a comment to an *existing* finding has to go
+    // through this separate PUT endpoint (update_action_messages_into_db,
+    // added by #106) instead, which appends a single message server-side.
+    // See #170 -- the frontend was never wired to call it.
+    addFindingMessage: builder.mutation<
+      ApiResponse<IAction>,
+      { id: string; message: string }
+    >({
+      query: ({ id, message }) => ({
+        url: `/action/${id}`,
+        method: "PUT",
+        body: { message },
+      }),
+      invalidatesTags: ["FINDINGS"],
+    }),
     // POST /action/attachment doesn't touch any Action row itself (see the
     // backend's own doc comment) — it just uploads to Cloudinary and returns
     // { url }. Persisting that URL onto a finding is a separate
@@ -104,6 +122,7 @@ export const {
   useDeleteFindingByIdMutation,
   useCreateNewFindingMutation,
   useUpdateFindingByIdMutation,
+  useAddFindingMessageMutation,
   useGetFindingByIdQuery,
   useUploadFindingAttachmentMutation,
 } = findingsApi

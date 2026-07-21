@@ -14,6 +14,7 @@ vi.mock("@/redux/apis/common.api", () => ({
 
 const mockCreateNewFinding = vi.fn()
 const mockUpdateFindingById = vi.fn()
+const mockAddFindingMessage = vi.fn()
 const mockGetFindingById = vi.fn<
   (id: string, options?: { skip?: boolean }) => { data: unknown }
 >(() => ({
@@ -26,6 +27,10 @@ vi.mock("@/redux/apis/organization/findings.api", () => ({
   ],
   useUpdateFindingByIdMutation: () => [
     mockUpdateFindingById,
+    { isLoading: false },
+  ],
+  useAddFindingMessageMutation: () => [
+    mockAddFindingMessage,
     { isLoading: false },
   ],
   useGetFindingByIdQuery: (id: string, options?: { skip?: boolean }) =>
@@ -87,12 +92,17 @@ function makeEditData(overrides = {}) {
 }
 
 describe("CreateNewFindingModal", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mockUploadFile.mockReset()
     mockCreateNewFinding.mockReset()
     mockUpdateFindingById.mockReset()
+    mockAddFindingMessage.mockReset()
     mockGetFindingById.mockReset()
     mockGetFindingById.mockReturnValue({ data: undefined })
+    const { toast } = await import("sonner")
+    vi.mocked(toast.success).mockClear()
+    vi.mocked(toast.error).mockClear()
+    vi.mocked(toast.info).mockClear()
     mockInspections.mockReturnValue({
       data: {
         data: [
@@ -363,6 +373,152 @@ describe("CreateNewFindingModal", () => {
       "",
       expect.objectContaining({ skip: true })
     )
+  })
+
+  // #170: update_action_into_db (the PATCH handler behind updateFindingById)
+  // never reads body.messages, so a comment typed while editing an existing
+  // finding has to go through the dedicated PUT endpoint (addFindingMessage)
+  // instead -- #106 added that endpoint server-side but nothing ever called
+  // it from the UI.
+  it("adds a new comment on an existing finding via addFindingMessage, not folded into the PATCH body (#170)", async () => {
+    mockUpdateFindingById.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+    mockAddFindingMessage.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={makeEditData() as any}
+      />
+    )
+
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("Fix broken railing")).toBeInTheDocument()
+    )
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Add an update"),
+      "New comment on edit"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: /update finding/i })
+    )
+
+    await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
+    const patchCall = mockUpdateFindingById.mock.calls[0][0]
+    // The PATCH body must not carry a messages array at all -- the backend
+    // ignores it there, so sending it would just be misleading, and doing
+    // so used to double-count the pre-existing messages (see below).
+    expect(patchCall.body.messages).toBeUndefined()
+
+    await waitFor(() => expect(mockAddFindingMessage).toHaveBeenCalled())
+    expect(mockAddFindingMessage).toHaveBeenCalledWith({
+      id: "finding-1",
+      message: "New comment on edit",
+    })
+  })
+
+  it("does not call addFindingMessage when editing a finding with no new comment typed (#170)", async () => {
+    mockUpdateFindingById.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={makeEditData() as any}
+      />
+    )
+
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("Fix broken railing")).toBeInTheDocument()
+    )
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /update finding/i })
+    )
+
+    await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
+    expect(mockAddFindingMessage).not.toHaveBeenCalled()
+  })
+
+  it("shows a partial-success error (not the generic full-failure toast) when the PATCH succeeds but addFindingMessage then fails (#170)", async () => {
+    mockUpdateFindingById.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+    mockAddFindingMessage.mockReturnValue({
+      unwrap: () => Promise.reject({ data: {} }),
+    })
+    const onClose = vi.fn()
+    const { toast } = await import("sonner")
+
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={onClose}
+        editData={makeEditData() as any}
+      />
+    )
+
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("Fix broken railing")).toBeInTheDocument()
+    )
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Add an update"),
+      "Comment that will fail to save"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: /update finding/i })
+    )
+
+    await waitFor(() => expect(mockAddFindingMessage).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Action updated, but the comment failed to save."
+      )
+    )
+    // The action's own fields genuinely saved (PATCH succeeded) -- the
+    // generic "Failed to update action." full-failure message must not
+    // fire, and neither must the success toast (only the comment failed).
+    expect(toast.error).not.toHaveBeenCalledWith("Failed to update action.")
+    expect(toast.success).not.toHaveBeenCalled()
+    // Modal stays open and the typed comment isn't cleared, so the user can
+    // see what failed and retry instead of silently losing it.
+    expect(onClose).not.toHaveBeenCalled()
+    expect(
+      screen.getByDisplayValue("Comment that will fail to save")
+    ).toBeInTheDocument()
+  })
+
+  it("sends the new comment as the finding's initial messages array on create (not via addFindingMessage)", async () => {
+    mockCreateNewFinding.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Enter action title..."),
+      "Finding with initial comment"
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText("Add an update"),
+      "First comment"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: /create finding/i })
+    )
+
+    await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
+    const payload = mockCreateNewFinding.mock.calls[0][0]
+    expect(payload.messages).toEqual([{ message: "First comment" }])
+    expect(mockAddFindingMessage).not.toHaveBeenCalled()
   })
 
   it("renders the existing conversation thread from the fetched detail, not from the (message-less) list row payload (#162)", async () => {
