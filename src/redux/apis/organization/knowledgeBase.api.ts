@@ -1,3 +1,4 @@
+import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 
 const knowledgeBaseApi = baseApi.injectEndpoints({
@@ -19,7 +20,7 @@ const knowledgeBaseApi = baseApi.injectEndpoints({
     }),
     deleteFileFromPinecone: builder.mutation({
       query: (fileName: string) => ({
-        url: `/ai/delete-file-from-pinecone?fileName=${fileName}`,
+        url: `/ai/delete-file-from-pinecone?${buildQueryString({ fileName })}`,
         method: "DELETE",
       }),
       invalidatesTags: ["KNOWLEDGE_BASE"],

@@ -1,3 +1,4 @@
+import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
 import type { AnswerType, ITemplate, TemplateSummary } from "@/types/template"
@@ -31,7 +32,7 @@ const templateApi = baseApi.injectEndpoints({
       GetAllTemplatesArgs
     >({
       query: ({ page, limit, searchTerm }) => ({
-        url: `/template?page=${page}&limit=${limit}&searchTerm=${searchTerm}`,
+        url: `/template?${buildQueryString({ page, limit, searchTerm })}`,
         method: "GET",
       }),
       providesTags: ["TEMPLATE"],

@@ -1,10 +1,11 @@
+import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 
 const sitesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getAllSites: builder.query({
       query: ({ page, limit, searchTerm }) => ({
-        url: `/site?page=${page}&limit=${limit}&searchTerm=${searchTerm}`,
+        url: `/site?${buildQueryString({ page, limit, searchTerm })}`,
         method: "GET",
       }),
       providesTags: ["SITE"],

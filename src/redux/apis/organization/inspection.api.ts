@@ -1,3 +1,4 @@
+import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
 import type {
@@ -54,7 +55,7 @@ const inspectionApi = baseApi.injectEndpoints({
       GetAllInspectionArgs
     >({
       query: ({ page, limit, searchTerm, status, siteId }) => ({
-        url: `/inspection?page=${page}&limit=${limit}&searchTerm=${searchTerm}&status=${status}&siteId=${siteId}`,
+        url: `/inspection?${buildQueryString({ page, limit, searchTerm, status, siteId })}`,
         method: "GET",
       }),
       providesTags: ["INSPECTION"],

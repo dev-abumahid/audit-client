@@ -1,3 +1,4 @@
+import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
 import type { IAction } from "@/types/finding"
@@ -39,7 +40,7 @@ const findingsApi = baseApi.injectEndpoints({
       GetAllFindingsArgs
     >({
       query: ({ page, limit, searchTerm, siteId, inspectionId }) => ({
-        url: `/action?page=${page}&limit=${limit}&searchTerm=${searchTerm}&siteId=${siteId}&inspectionId=${inspectionId ?? ""}`,
+        url: `/action?${buildQueryString({ page, limit, searchTerm, siteId, inspectionId })}`,
         method: "GET",
       }),
       providesTags: ["FINDINGS"],

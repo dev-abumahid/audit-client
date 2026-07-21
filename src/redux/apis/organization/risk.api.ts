@@ -1,3 +1,4 @@
+import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
 import type { Risk } from "@/types/organization"
@@ -14,7 +15,7 @@ const risksApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getAllRisks: builder.query<PaginatedApiResponse<Risk>, GetAllRisksArgs>({
       query: ({ page, limit, searchTerm, siteId, category }) => ({
-        url: `/risk?page=${page}&limit=${limit}&searchTerm=${searchTerm}&siteId=${siteId}&category=${category}`,
+        url: `/risk?${buildQueryString({ page, limit, searchTerm, siteId, category })}`,
         method: "GET",
       }),
       providesTags: ["RISK"],
