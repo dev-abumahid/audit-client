@@ -102,24 +102,30 @@ export default function RiskRegisterPage() {
   const onSubmit: SubmitHandler<Risk> = async (data) => {
     const filteredData = removeNulls(data)
 
-    let res
-    if (editId) {
-      res = await updateRisk({ id: editId, data: filteredData }).unwrap()
-    } else {
-      res = await createNewRisk(filteredData).unwrap()
-    }
+    try {
+      let res
+      if (editId) {
+        res = await updateRisk({ id: editId, data: filteredData }).unwrap()
+      } else {
+        res = await createNewRisk(filteredData).unwrap()
+      }
 
-    if (res.success) {
-      toast.success(res.message)
-      setShowModal(false)
-    } else {
-      // manage_response.ts (aexa-server) never sends an `error` key — a
-      // failed request throws and lands in a .catch, not here — so this
-      // branch is realistically unreachable, but keep a safe fallback
-      // rather than reading a field the response never has. Found while
-      // typing this endpoint (issue #108): `res.error` doesn't type-check
-      // against the real response shape.
-      toast.error(res.message || "Failed to save risk")
+      if (res.success) {
+        toast.success(res.message)
+        setShowModal(false)
+      } else {
+        // manage_response.ts (aexa-server) never sends an `error` key — a
+        // failed request throws and lands in a .catch, not here — so this
+        // branch is realistically unreachable, but keep a safe fallback
+        // rather than reading a field the response never has. Found while
+        // typing this endpoint (issue #108): `res.error` doesn't type-check
+        // against the real response shape.
+        toast.error(res.message || "Failed to save risk")
+      }
+    } catch (err: any) {
+      // Keep the modal open on failure so the user can retry without
+      // re-entering the whole form (matches handleDelete's pattern below).
+      toast.error(err?.data?.message || "Failed to save risk")
     }
   }
 

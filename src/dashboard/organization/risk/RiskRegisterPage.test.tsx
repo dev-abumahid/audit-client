@@ -256,6 +256,40 @@ describe("RiskRegisterPage", () => {
     ).toBeInTheDocument()
   })
 
+  it("shows an error toast and keeps the modal open when the create request rejects (unhandled rejection)", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+    mockCreateNewRisk.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({
+          data: { message: "Server unavailable" },
+        }),
+    })
+
+    const { container } = render(<RiskRegisterPage />)
+    await userEvent.click(screen.getByRole("button", { name: /add new risk/i }))
+    await userEvent.selectOptions(
+      container.querySelector('[name="site_id"]')!,
+      "site-1"
+    )
+    await userEvent.type(
+      container.querySelector('[name="name"]')!,
+      "Risk that fails to save"
+    )
+    await userEvent.selectOptions(
+      container.querySelector('[name="status"]')!,
+      "open"
+    )
+    await userEvent.click(screen.getByRole("button", { name: /^add risk$/i }))
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith("Server unavailable")
+    )
+    // Modal should stay open on failure, not call setShowModal(false)
+    expect(
+      screen.getByText("Add New Risk", { selector: "h2" })
+    ).toBeInTheDocument()
+  })
+
   it("filters risks by search term via the query hook", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 
