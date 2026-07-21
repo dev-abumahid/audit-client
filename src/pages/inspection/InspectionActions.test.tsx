@@ -247,6 +247,27 @@ describe("InspectionActions", () => {
     expect(screen.getByDisplayValue("Replace extinguisher")).toBeInTheDocument()
   })
 
+  it("opens the edit form for an action with a null actionDisc without a controlled-input warning (aexa-server#173 -- actionDisc is now optional/nullable)", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [makeAction({ actionDisc: null })] },
+      isLoading: false,
+      isError: false,
+    })
+    renderPage()
+    await waitFor(() => screen.getByText("Replace extinguisher"))
+
+    await userEvent.click(screen.getByLabelText("Edit action"))
+    expect(screen.getByText("Edit action")).toBeInTheDocument()
+    expect(
+      consoleError.mock.calls.some((args) =>
+        String(args[0]).includes("a component is changing an uncontrolled input")
+      )
+    ).toBe(false)
+
+    consoleError.mockRestore()
+  })
+
   it("submits the edit form via updateFindingById with { id, body } shape", async () => {
     mockUseGetAllFindingsQuery.mockReturnValue({
       data: { ...emptyResponse, data: [makeAction()] },

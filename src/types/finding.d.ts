@@ -16,7 +16,10 @@ export interface IAction {
 
   // Main body
   actionTitle: string
-  actionDisc: string
+  // Optional at the DB level (aexa-server prisma/schema/action.prisma:
+  // actionDisc String?, see aexa-server#173) -- omitted/null on rows
+  // created with a blank "Description (Optional)" field.
+  actionDisc?: string | null
   priority: "Low" | "Medium" | "High"
   dueDate: string
   status: "TO_DO" | "IN_PROGRESS" | "COMPLETE" | "CANT_DO"

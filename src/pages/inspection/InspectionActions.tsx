@@ -26,7 +26,9 @@ interface Action {
   id: string
   inspectionId: string
   actionTitle: string
-  actionDisc: string
+  // Optional/nullable at the DB level (aexa-server#173) -- omitted/null on
+  // rows created with a blank "Description (Optional)" field.
+  actionDisc?: string | null
   priority: ActionPriority
   dueDate: string
   status: ActionStatus
@@ -353,7 +355,10 @@ export default function InspectionActions() {
     setEditingAction(action)
     setEditForm({
       actionTitle: action.actionTitle,
-      actionDisc: action.actionDisc,
+      // action.actionDisc can be null/undefined (aexa-server#173) -- fall
+      // back to "" so this stays a controlled input, matching the empty
+      // string EMPTY_FORM already seeds for a fresh create.
+      actionDisc: action.actionDisc ?? "",
       priority: action.priority,
       dueDate: action.dueDate.slice(0, 10),
       status: action.status,

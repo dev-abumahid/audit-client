@@ -252,7 +252,10 @@ export default function CreateNewFindingModal({
     try {
       const payload = {
         actionTitle: values.actionTitle.trim(),
-        actionDisc: values.actionDisc.trim() || undefined,
+        // values.actionDisc can now be null/undefined at the type level
+        // (IAction.actionDisc is optional/nullable -- aexa-server#173), even
+        // though this form's own defaultValues always seed "" for it.
+        actionDisc: values.actionDisc?.trim() || undefined,
         priority: values.priority,
         status: values.status,
         dueDate: new Date(values.dueDate).toISOString(),
