@@ -133,7 +133,7 @@ export default function CreateTemplateWithAIDialog({
         }).unwrap()
       }
 
-      if ((response as any)?.success) {
+      if (response?.success) {
         toast.success("Template created successfully")
         navigate("/organization/audit/templates")
       }

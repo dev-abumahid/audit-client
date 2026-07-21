@@ -3,6 +3,7 @@ import {
   useExtractNoteFromFileMutation,
   useGetNoteByInspectionIdQuery,
 } from "@/redux/apis/organization/note.api"
+import type { Note } from "@/types/note"
 import {
   CheckCircle2,
   FileText,
@@ -25,15 +26,6 @@ const attachmentFileName = (url: string) => {
   } catch {
     return url.split("/").pop() || "file"
   }
-}
-
-interface Note {
-  id: string
-  title: string
-  extracted_text: string
-  inspectionId: string
-  createdAt: string
-  attachments?: string[]
 }
 
 type Stage = "idle" | "uploading" | "extracting" | "done" | "error"

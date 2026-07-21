@@ -17,6 +17,7 @@ import {
   useGetAllSitesQuery,
   useUpdateSiteMutation,
 } from "@/redux/apis/organization/sites.api"
+import type { RiskSuggestion } from "@/types/ai"
 import type { Risk, Site } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import {
@@ -41,26 +42,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-
-// Shape of aexa-server's POST /ai/analyze-site-risks response — a direct
-// passthrough of aexa-ai's RiskItem (app/schemas/risk_analysis_schema.py),
-// field casing included, since the server doesn't reshape it.
-interface RiskSuggestion {
-  risk_id: string
-  title: string
-  description: string
-  category: string
-  site: string
-  inherent_risk_score: string
-  residual_risk_score: string
-  Probability: number
-  minimum_Impact: string
-  maximum_impact: string
-  Velocity: string
-  Trend: string
-  Responsable: string
-  score: number
-}
 
 // The AI is prompted for Title-Case category names close to (but not always
 // exactly matching) RISK_CATEGORIES' keys/labels — e.g. "Cybersecurity" vs

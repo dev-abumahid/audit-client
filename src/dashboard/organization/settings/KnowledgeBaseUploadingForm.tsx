@@ -5,6 +5,7 @@ import {
   useGetAllFilesFromPineconeQuery,
   useUploadPdfIntoPineconeMutation,
 } from "@/redux/apis/organization/knowledgeBase.api"
+import type { PineconeDocument } from "@/types/knowledgeBase"
 import { FileText, Loader2, Trash2, Upload } from "lucide-react"
 import type { ChangeEvent, DragEvent } from "react"
 import { useEffect, useRef, useState } from "react"
@@ -21,7 +22,11 @@ function UploadStatusPoller({
   onSettled,
 }: {
   fileId: string
-  onSettled: (fileId: string, outcome: "completed" | "failed", message?: string) => void
+  onSettled: (
+    fileId: string,
+    outcome: "completed" | "failed",
+    message?: string
+  ) => void
 }) {
   const { data: statusResponse } = useCheckUploadFileStatusQuery(fileId, {
     pollingInterval: 2000,
@@ -41,22 +46,6 @@ function UploadStatusPoller({
   }, [statusResponse])
 
   return null
-}
-
-//  id           String   @id @default(uuid())
-//     fileName     String?
-//     fileId       String?
-//     fileSize     String?
-//     orgAccountId String
-//     account      Account  @relation(fields: [orgAccountId], references: [id])
-//     createdAt    DateTime @default(now())
-
-interface Document {
-  id: string
-  fileName: string
-  fileSize: string
-  createdAt: string
-  fileId: string
 }
 
 const KnowledgeBaseUploadingForm = () => {
@@ -102,10 +91,17 @@ const KnowledgeBaseUploadingForm = () => {
   }
 
   const documents = apiResponse?.data || []
-  const totalItems = apiResponse?.meta?.total || 0
+  // GET /ai/get-all-files-from-pinecone is a plain, unpaginated findMany on
+  // the backend (see ai.service.ts's get_all_pinecone_data_from_database) —
+  // there's no meta.total to read (ApiResponse has no `meta` field at all,
+  // unlike the paginated endpoints' PaginatedApiResponse). This used to read
+  // apiResponse?.meta?.total, which was always undefined, so the displayed
+  // count silently showed 0 documents forever regardless of how many were
+  // actually uploaded. Found while typing this endpoint (issue #108).
+  const totalItems = documents.length
 
-  const formatFileSize = (size: string): string => {
-    const bytes = parseInt(size)
+  const formatFileSize = (size: string | null): string => {
+    const bytes = parseInt(size ?? "")
     if (isNaN(bytes) || bytes === 0) return "0 Bytes"
     const k = 1024
     const sizes = ["Bytes", "KB", "MB", "GB"]
@@ -151,7 +147,7 @@ const KnowledgeBaseUploadingForm = () => {
 
       if (result.success) {
         await refetch()
-        const fileId: string | undefined = result?.data?.fileId
+        const fileId = result?.data?.fileId ?? undefined
         if (fileId) {
           toast.info(`${file.name} queued — processing…`)
           setPollingUploads((prev) => new Map(prev).set(fileId, file.name))
@@ -265,7 +261,7 @@ const KnowledgeBaseUploadingForm = () => {
             <p className="text-sm text-muted-foreground">No documents yet</p>
           </div>
         ) : (
-          documents.map((doc: Document) => (
+          documents.map((doc: PineconeDocument) => (
             <div
               key={doc.id}
               className="flex items-center justify-between rounded-lg border border-border bg-card p-3 transition-all hover:border-primary/30"
@@ -277,11 +273,11 @@ const KnowledgeBaseUploadingForm = () => {
                 />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground">
-                    {doc?.fileName}
+                    {doc.fileName ?? "Untitled"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {formatFileSize(doc?.fileSize)}
-                    {pollingUploads.has(doc.fileId) && (
+                    {formatFileSize(doc.fileSize)}
+                    {!!doc.fileId && pollingUploads.has(doc.fileId) && (
                       <span className="ml-2 inline-flex items-center gap-1 text-primary">
                         <Loader2 className="h-3 w-3 animate-spin" /> Processing…
                       </span>
@@ -291,8 +287,23 @@ const KnowledgeBaseUploadingForm = () => {
               </div>
               <div className="flex flex-shrink-0 items-center gap-1">
                 <button
-                  onClick={() => handleDeleteDocument(doc.id, doc?.fileName)}
-                  disabled={deletingId === doc.id || pollingUploads.has(doc.fileId)}
+                  onClick={() => {
+                    // DELETE /ai/delete-file-from-pinecone matches by
+                    // fileName -- a null fileName has nothing to key the
+                    // delete on, so an empty-string fallback would silently
+                    // no-op (Prisma's deleteMany matches zero rows) instead
+                    // of deleting anything. Not reachable via the current
+                    // upload flow (it always sets fileName), but disabled
+                    // rather than left to silently do nothing if that ever
+                    // changes.
+                    if (!doc.fileName) return
+                    handleDeleteDocument(doc.id, doc.fileName)
+                  }}
+                  disabled={
+                    !doc.fileName ||
+                    deletingId === doc.id ||
+                    (!!doc.fileId && pollingUploads.has(doc.fileId))
+                  }
                   className="rounded-md p-1.5 text-risk-critical transition-colors hover:bg-risk-critical/10 disabled:opacity-50"
                   title="Delete"
                 >

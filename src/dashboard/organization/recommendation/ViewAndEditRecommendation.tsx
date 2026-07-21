@@ -7,6 +7,7 @@ import {
   useUpdateRecommendationQuestionByIdMutation,
   useUpdateRecommendationSummaryMutation,
 } from "@/redux/apis/organization/recommendation.api"
+import type { RecommendationResult } from "@/types/recommendation"
 import { debounce } from "lodash"
 import {
   AlertCircle,
@@ -21,14 +22,6 @@ import { useForm } from "react-hook-form"
 import TextareaAutosize from "react-textarea-autosize"
 import CreateNewFindingModal from "../findings/CreateNewFindingModal"
 import { toast } from "sonner"
-
-interface ResultItem {
-  observation: string
-  recommendation: string
-  question?: string
-  standard: string
-  id?: string
-}
 
 interface EditFormData {
   summary: string
@@ -53,7 +46,7 @@ export default function ViewAndEditRecommendation({
     message: string
   }>({ type: null, message: "" })
   const [isGenerating, setIsGenerating] = useState(false)
-  const [questions, setQuestions] = useState<ResultItem[]>([])
+  const [questions, setQuestions] = useState<RecommendationResult[]>([])
   const [findingModalState, setFindingModalState] = useState(
     initialFindingModalState
   )
@@ -91,7 +84,7 @@ export default function ViewAndEditRecommendation({
       // Reset last saved refs on new data load
       lastSavedSummaryRef.current = recommendation.summary || ""
       lastSavedQuestionRef.current = {}
-      recommendation.questions?.forEach((q: any) => {
+      recommendation.questions?.forEach((q: RecommendationResult) => {
         if (q.id) {
           lastSavedQuestionRef.current[q.id] = JSON.stringify({
             observation: q.observation,
@@ -157,7 +150,7 @@ export default function ViewAndEditRecommendation({
       if (debouncedSaveQuestionRef.current[questionId]) return
 
       debouncedSaveQuestionRef.current[questionId] = debounce(
-        async (questionData: ResultItem) => {
+        async (questionData: RecommendationResult) => {
           if (!questionData.id) return
 
           // Prevent duplicate API calls
@@ -199,7 +192,7 @@ export default function ViewAndEditRecommendation({
 
   // 🔥 FIX #2: ID-based question change handler (NOT index-based)
   const handleQuestionChange = useCallback(
-    (questionId: string, field: keyof ResultItem, value: string) => {
+    (questionId: string, field: keyof RecommendationResult, value: string) => {
       // Update state using ID (not index)
       setQuestions((prev) =>
         prev.map((q) => (q.id === questionId ? { ...q, [field]: value } : q))
@@ -426,7 +419,7 @@ export default function ViewAndEditRecommendation({
                         value={question.question || ""}
                         onChange={(e) =>
                           handleQuestionChange(
-                            question.id!,
+                            question.id,
                             "question",
                             e.target.value
                           )
@@ -452,7 +445,7 @@ export default function ViewAndEditRecommendation({
                       value={question.observation || ""}
                       onChange={(e: any) =>
                         handleQuestionChange(
-                          question.id!,
+                          question.id,
                           "observation",
                           e.target.value
                         )
@@ -473,7 +466,7 @@ export default function ViewAndEditRecommendation({
                       value={question.recommendation || ""}
                       onChange={(e) =>
                         handleQuestionChange(
-                          question.id!,
+                          question.id,
                           "recommendation",
                           e.target.value
                         )
@@ -494,7 +487,7 @@ export default function ViewAndEditRecommendation({
                       value={question.standard || ""}
                       onChange={(e) =>
                         handleQuestionChange(
-                          question.id!,
+                          question.id,
                           "standard",
                           e.target.value
                         )
@@ -512,7 +505,7 @@ export default function ViewAndEditRecommendation({
                       setFindingModalState({
                         open: true,
                         additionalData: {
-                          questionId: question.id!,
+                          questionId: question.id,
                           inspectionId: inspectionId!,
                           actionTitle: question.question as string,
                           actionDisc:

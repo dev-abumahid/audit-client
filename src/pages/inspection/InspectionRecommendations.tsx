@@ -3,25 +3,10 @@ import {
   useUpdateRecommendationQuestionByIdMutation,
   useUpdateRecommendationSummaryMutation,
 } from "@/redux/apis/organization/recommendation.api"
+import type { Recommendation } from "@/types/recommendation"
 import { ChevronDown, ChevronUp, Loader2, Sparkles } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router"
-
-interface RecommendationResult {
-  id: string
-  question: string
-  observation: string
-  standard: string
-  recommendation: string
-}
-
-interface Recommendation {
-  id: string
-  inspectionId: string
-  summary: string
-  questions: RecommendationResult[]
-  createdAt: string
-}
 
 type SaveStatus = Record<string, "saving" | "saved" | "error">
 

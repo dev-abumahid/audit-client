@@ -127,6 +127,11 @@ export default function UploadNotesModal({
   }
 
   const handleUpdate = async () => {
+    // hasNote (checked by the branch that renders this handler's button)
+    // only reflects state at render time, not at click time — narrowing it
+    // here for TS is also a real guard against a race where the note gets
+    // deleted out from under an open update form.
+    if (!existingNote) return
     try {
       setIsUpdating(true)
 
@@ -158,7 +163,7 @@ export default function UploadNotesModal({
   }
 
   const handleNoteDelete = async () => {
-    if (!existingNote.id) return
+    if (!existingNote?.id) return
 
     try {
       const res = await deleteNote(existingNote.id).unwrap()
