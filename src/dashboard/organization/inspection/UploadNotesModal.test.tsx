@@ -237,4 +237,30 @@ describe("UploadNotesModal", () => {
       expect(mockSplitInspectionNote).toHaveBeenCalledWith("insp-77")
     )
   })
+
+  it("shows an error toast, keeps the dialog open, and re-enables the button when splitting a note rejects (unhandled rejection)", async () => {
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: { data: { id: "note-1", extracted_text: "Some text" } },
+      refetch: mockRefetch,
+    })
+    mockSplitInspectionNote.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({ data: { message: "Note is too short to split" } }),
+    })
+
+    renderModal({ inspectionId: "insp-77" })
+    await userEvent.click(screen.getByRole("button", { name: /split note/i }))
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith("Note is too short to split")
+    )
+    // Dialog should stay open (Update Note heading still present) and the
+    // split button should be usable again, not stuck disabled/"Splitting..."
+    expect(
+      screen.getByRole("heading", { name: "Update Note" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Split Note" })
+    ).not.toBeDisabled()
+  })
 })

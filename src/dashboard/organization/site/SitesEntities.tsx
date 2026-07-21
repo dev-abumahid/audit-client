@@ -362,12 +362,18 @@ export default function SitesEntities() {
   ) => {
     if (!values.status || !values.name) return
     const payload = { ...values, site_id: siteId }
-    const res = await createNewRisk(payload).unwrap()
-    if (res?.success) {
-      toast.success("Risk created successfully")
-      setShowRiskForm(null)
-    } else {
-      toast.error("Failed to create risk")
+    try {
+      const res = await createNewRisk(payload).unwrap()
+      if (res?.success) {
+        toast.success("Risk created successfully")
+        setShowRiskForm(null)
+      } else {
+        toast.error("Failed to create risk")
+      }
+    } catch (error: any) {
+      // Keep the inline risk form open on failure so the user doesn't lose
+      // what they typed and can retry, same as handleSave above.
+      toast.error(error?.data?.message || "Failed to create risk")
     }
   }
 
@@ -379,11 +385,17 @@ export default function SitesEntities() {
     score > 14 ? "critical" : score > 10 ? "high" : score > 6 ? "medium" : "low"
 
   const handleRiskDelete = async (id: string) => {
-    const res = await deleteRisk(id).unwrap()
-    if (res?.success) {
-      toast.success("Risk deleted successfully")
-    } else {
-      toast.error("Failed to delete risk")
+    try {
+      const res = await deleteRisk(id).unwrap()
+      if (res?.success) {
+        toast.success("Risk deleted successfully")
+      } else {
+        toast.error("Failed to delete risk")
+      }
+    } catch (error: any) {
+      // Direct action button, no confirmation modal/form state to reset here
+      // (unlike handleSave/handleConfirmDelete above).
+      toast.error(error?.data?.message || "Failed to delete risk")
     }
   }
 

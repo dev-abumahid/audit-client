@@ -146,12 +146,20 @@ const CreateTemplatePage = () => {
     if (logoFile) {
       formData.append("file", logoFile)
     }
-    const res = await createNewTemplate(formData).unwrap()
-    if (res?.success) {
-      toast.success(res?.message)
-      navigate("/organization/audit/templates")
-    } else {
-      toast.error(res?.message || "Failed to create template")
+    try {
+      const res = await createNewTemplate(formData).unwrap()
+      if (res?.success) {
+        toast.success(res?.message)
+        navigate("/organization/audit/templates")
+      } else {
+        toast.error(res?.message || "Failed to create template")
+      }
+    } catch (error: unknown) {
+      // No modal to close here (this is a full page, not a dialog) — the
+      // form values are untouched since we never reset them, so the user
+      // can just fix things and hit Save again.
+      const msg = (error as { data?: { message?: string } })?.data?.message
+      toast.error(msg || "Failed to create template")
     }
   }
 

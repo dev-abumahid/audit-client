@@ -88,36 +88,69 @@ const EditPageSection = memo(
     })
 
     // Debounced order sync
+    //
+    // Error-handling granularity: each question's .unwrap() gets its own
+    // try/catch inside the .map() callback, rather than one try/catch around
+    // the whole Promise.all. By the time this fires, the drag has already
+    // reordered `fields` locally (via `move()` in handleDragEnd) and every
+    // request in this batch is already in flight independently on the
+    // server — Promise.all rejecting on the first failure wouldn't stop the
+    // others from completing, it would just mean we stop *listening* to
+    // them, so we'd lose track of which ones actually succeeded. Catching
+    // per-item lets every request settle and be accounted for individually:
+    // we only advance the locally-tracked `index` field (used to detect
+    // "does this question need syncing" on the next pass) for the ones that
+    // actually saved, so a failed item naturally gets retried on the next
+    // reorder instead of being silently treated as synced. One failure also
+    // shouldn't roll back the whole batch's local drag order (that would
+    // fight the user's own drag gesture for items that saved fine), but it
+    // also shouldn't be invisible — the toast reports how many of the batch
+    // failed so the user knows to re-check the order before leaving the page.
     const debouncedSyncOrder = useCallback(
       debounce(async () => {
         if (!isEditMode || !templateId || !pageId || isDragging) return
 
         const questions = getValues(`pages.${pageIndex}.questions`)
-        const updatePromises = questions.map((q: any, idx: number) => {
-          if (q.id && q.index !== idx) {
-            return updateOrCreateQuestion({
-              questionId: q.id,
-              pageId,
-              index: idx,
-              question: q.question,
-              isRequired: q.isRequired,
-              answerType: q.answerType,
-            }).unwrap()
-          }
-          return Promise.resolve()
-        })
+        const results = await Promise.all(
+          questions.map(async (q: any, idx: number) => {
+            if (!q.id || q.index === idx) return { ok: true }
+            try {
+              await updateOrCreateQuestion({
+                questionId: q.id,
+                pageId,
+                index: idx,
+                question: q.question,
+                isRequired: q.isRequired,
+                answerType: q.answerType,
+              }).unwrap()
+              return { ok: true }
+            } catch (error: any) {
+              return { ok: false, message: error?.data?.message }
+            }
+          })
+        )
 
-        await Promise.all(updatePromises)
-
-        // Update local indices
+        // Update local indices only for the questions that synced
+        // successfully; leave failed ones' stale index so the next
+        // debounced pass retries just those instead of assuming they're
+        // already up to date.
         questions.forEach((q: any, idx: number) => {
-          if (q.index !== idx) {
+          if (q.index !== idx && results[idx]?.ok) {
             setValue(`pages.${pageIndex}.questions.${idx}.index`, idx, {
               shouldDirty: false,
               shouldValidate: false,
             })
           }
         })
+
+        const failedCount = results.filter((r) => !r.ok).length
+        if (failedCount > 0) {
+          toast.error(
+            failedCount === 1
+              ? "Failed to save the new order for 1 question"
+              : `Failed to save the new order for ${failedCount} questions`
+          )
+        }
       }, 500),
       [
         isEditMode,

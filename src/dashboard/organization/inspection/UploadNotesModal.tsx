@@ -154,12 +154,21 @@ export default function UploadNotesModal({
 
   const handleSplitNote = async () => {
     setIsSplitting(true)
-    const res = await splitInspectionNote(inspectionId).unwrap()
-    if (res.success) {
-      toast.success(res.message)
-      handleClose()
+    try {
+      const res = await splitInspectionNote(inspectionId).unwrap()
+      if (res.success) {
+        toast.success(res.message)
+        handleClose()
+      }
+    } catch (error: any) {
+      // Keep the update-note dialog open on failure so the user can retry
+      // (matches handleUpdate/handleNoteDelete above); without this, a
+      // rejected split would also leave isSplitting stuck true forever
+      // since setIsSplitting(false) below was never reached.
+      toast.error(error?.data?.message || "Failed to split note")
+    } finally {
+      setIsSplitting(false)
     }
-    setIsSplitting(false)
   }
 
   const handleNoteDelete = async () => {

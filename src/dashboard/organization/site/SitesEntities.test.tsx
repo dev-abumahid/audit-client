@@ -416,6 +416,80 @@ describe("SitesEntities", () => {
     )
   })
 
+  it("shows an error toast and keeps the manual risk form open when creating a risk rejects (unhandled rejection)", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockCreateNewRisk.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({ data: { message: "Server unavailable" } }),
+    })
+
+    const { container } = render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.addRisk/i,
+      })
+    )
+    await userEvent.type(
+      container.querySelector('[name="name"]')!,
+      "Power outage"
+    )
+    await userEvent.selectOptions(
+      container.querySelector('[name="status"]')!,
+      "open"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.site&entities.add" })
+    )
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith("Server unavailable")
+    )
+    // The manual risk form should still be showing so the user can retry
+    expect(
+      screen.getByText("organization.site&entities.addRiskTitle")
+    ).toBeInTheDocument()
+  })
+
+  it("shows an error toast when deleting a risk rejects (unhandled rejection)", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "risk-99",
+            name: "Flooding",
+            residual_score: 12,
+            ai_generated: false,
+          },
+        ],
+      },
+    })
+    mockDeleteRisk.mockReturnValue({
+      unwrap: () => Promise.reject({ data: { message: "Risk is locked" } }),
+    })
+
+    render(<SitesEntities />)
+    const [expandButton] = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-chevron-down"))
+    await userEvent.click(expandButton)
+    await userEvent.click(screen.getByRole("button", { name: /delete/i }))
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith("Risk is locked")
+    )
+  })
+
   it("shows an error toast when the manual-risk-create response indicates failure", async () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,
