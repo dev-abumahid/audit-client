@@ -109,7 +109,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
                 id="email"
                 type="text"
                 {...register("email", {
-                  required: "Email is required",
+                  required: t("auth.signUp.emailReqText"),
                 })}
                 placeholder="example@email.com"
                 className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
@@ -134,7 +134,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
                 id="password"
                 type="password"
                 {...register("password", {
-                  required: "Password is required",
+                  required: t("auth.signUp.passwordReqText"),
                 })}
                 placeholder="********"
                 className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"

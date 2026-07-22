@@ -293,6 +293,13 @@
             "noRiskSelected":"Select a cell from the matrix",
             "selectRiskHint":"Click on a cell to see the risks"
 
+        },
+        "settings":{
+            "passwordChange":{
+                "oldPasswordReqText":"Current password is required",
+                "newPasswordReqText":"New password is required",
+                "confirmPasswordReqText":"Please confirm your new password"
+            }
         }
     },
     "alert":{

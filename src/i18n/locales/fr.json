@@ -258,6 +258,13 @@
             "other": "Autre",
             "activity": "Activité",
             "update": "Mettre à jour le site"
+        },
+        "settings":{
+            "passwordChange":{
+                "oldPasswordReqText":"Le mot de passe actuel est requis.",
+                "newPasswordReqText":"Le nouveau mot de passe est requis.",
+                "confirmPasswordReqText":"Veuillez confirmer votre nouveau mot de passe."
+            }
         }
     },
     "alert":{

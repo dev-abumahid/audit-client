@@ -6,9 +6,9 @@ import SignInModal from "./SignInModal"
 // ── i18n ──────────────────────────────────────────────────────────────────────
 // mockT is a spy (not just a plain function) so tests can assert a specific
 // key was actually looked up -- a plain "does this text appear" assertion
-// can't distinguish t("auth.signIn.signingIn") from a hardcoded string that
-// happens to match the mocked value, which would defeat the point of a
-// regression test for "this string must go through i18n."
+// can't distinguish t(key) from a hardcoded string that happens to match the
+// mocked value, which would defeat the point of a regression test for "this
+// string must go through i18n."
 const { mockT } = vi.hoisted(() => ({
   mockT: vi.fn((key: string) => {
     const map: Record<string, string> = {
@@ -90,6 +90,21 @@ describe("SignInModal", () => {
     expect(screen.getByLabelText("Email")).toBeInTheDocument()
     expect(screen.getByLabelText("Password")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Sign In" })).toBeInTheDocument()
+  })
+
+  it("shows translated required-field messages when submitted empty", async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    await user.click(screen.getByRole("button", { name: "Sign In" }))
+
+    expect(await screen.findByText("Email is required")).toBeInTheDocument()
+    expect(screen.getByText("Password is required")).toBeInTheDocument()
+    expect(mockSignInTrigger).not.toHaveBeenCalled()
+    // Not just "this text is present" -- proves the messages actually came
+    // from t(), not hardcoded strings that happen to match the mock.
+    expect(mockT).toHaveBeenCalledWith("auth.signUp.emailReqText")
+    expect(mockT).toHaveBeenCalledWith("auth.signUp.passwordReqText")
   })
 
   it("calls useSignInUserMutation trigger on submit with correct args", async () => {

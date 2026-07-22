@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useChangePasswordMutation } from "@/redux/apis/auth.api"
 import { useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 interface PasswordChangeFormData {
@@ -10,6 +11,7 @@ interface PasswordChangeFormData {
 }
 
 export default function PasswordChangeForm() {
+  const { t } = useTranslation()
   const [changePassword, { isLoading }] = useChangePasswordMutation()
   const {
     register,
@@ -58,7 +60,7 @@ export default function PasswordChangeForm() {
             id="oldPassword"
             type="password"
             {...register("oldPassword", {
-              required: "Current password is required",
+              required: t("organization.settings.passwordChange.oldPasswordReqText"),
             })}
             className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
             disabled={isLoading}
@@ -81,10 +83,10 @@ export default function PasswordChangeForm() {
             id="newPassword"
             type="password"
             {...register("newPassword", {
-              required: "New password is required",
+              required: t("organization.settings.passwordChange.newPasswordReqText"),
               minLength: {
                 value: 8,
-                message: "At least 8 characters",
+                message: t("auth.resetPassword.newPasswordMinLength"),
               },
             })}
             className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
@@ -108,10 +110,12 @@ export default function PasswordChangeForm() {
             id="confirmPassword"
             type="password"
             {...register("confirmPassword", {
-              required: "Please confirm your new password",
+              required: t(
+                "organization.settings.passwordChange.confirmPasswordReqText",
+              ),
               validate: (value) =>
                 value === watch("newPassword") ||
-                "Passwords do not match",
+                t("auth.resetPassword.passwordMismatch"),
             })}
             className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
             disabled={isLoading}

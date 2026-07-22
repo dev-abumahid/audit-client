@@ -2,6 +2,31 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import PasswordChangeForm from "./PasswordChangeForm"
 
+// ── i18n ──────────────────────────────────────────────────────────────────────
+// mockT is a spy (not just a plain function) so tests can assert a specific
+// key was actually looked up -- a plain "does this text appear" assertion
+// can't distinguish t(key) from a hardcoded string that happens to match the
+// mocked value, which would defeat the point of a regression test for "this
+// string must go through i18n." Same pattern used in SignUpModal.test.tsx.
+const { mockT } = vi.hoisted(() => ({
+  mockT: vi.fn((key: string) => {
+    const map: Record<string, string> = {
+      "organization.settings.passwordChange.oldPasswordReqText":
+        "Current password is required",
+      "organization.settings.passwordChange.newPasswordReqText":
+        "New password is required",
+      "organization.settings.passwordChange.confirmPasswordReqText":
+        "Please confirm your new password",
+      "auth.resetPassword.newPasswordMinLength": "At least 8 characters",
+      "auth.resetPassword.passwordMismatch": "Passwords do not match",
+    }
+    return map[key] ?? key
+  }),
+}))
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({ t: mockT, i18n: { changeLanguage: vi.fn() } }),
+}))
+
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const mockChangePasswordTrigger = vi.fn()
@@ -15,6 +40,7 @@ vi.mock("@/redux/apis/auth.api", () => ({
 describe("PasswordChangeForm", () => {
   beforeEach(() => {
     mockChangePasswordTrigger.mockReset()
+    mockT.mockClear()
   })
 
   it("renders all three fields", () => {
@@ -61,6 +87,51 @@ describe("PasswordChangeForm", () => {
 
     expect(await screen.findByText("Passwords do not match")).toBeInTheDocument()
     expect(mockChangePasswordTrigger).not.toHaveBeenCalled()
+    expect(mockT).toHaveBeenCalledWith("auth.resetPassword.passwordMismatch")
+  })
+
+  it("shows translated required-field messages when all three fields are left empty", async () => {
+    const user = userEvent.setup()
+    render(<PasswordChangeForm />)
+
+    await user.click(screen.getByRole("button", { name: "Change Password" }))
+
+    expect(
+      await screen.findByText("Current password is required")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("New password is required")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("Please confirm your new password")
+    ).toBeInTheDocument()
+    expect(mockChangePasswordTrigger).not.toHaveBeenCalled()
+    // Not just "this text is present" -- proves the messages actually came
+    // from t(), not hardcoded strings that happen to match the mock.
+    expect(mockT).toHaveBeenCalledWith(
+      "organization.settings.passwordChange.oldPasswordReqText"
+    )
+    expect(mockT).toHaveBeenCalledWith(
+      "organization.settings.passwordChange.newPasswordReqText"
+    )
+    expect(mockT).toHaveBeenCalledWith(
+      "organization.settings.passwordChange.confirmPasswordReqText"
+    )
+  })
+
+  it("shows the translated min-length message for a short new password", async () => {
+    const user = userEvent.setup()
+    render(<PasswordChangeForm />)
+
+    await user.type(screen.getByLabelText("Current Password"), "old-pass")
+    await user.type(screen.getByLabelText("New Password"), "short")
+    await user.click(screen.getByRole("button", { name: "Change Password" }))
+
+    expect(
+      await screen.findByText("At least 8 characters")
+    ).toBeInTheDocument()
+    expect(mockChangePasswordTrigger).not.toHaveBeenCalled()
+    expect(mockT).toHaveBeenCalledWith("auth.resetPassword.newPasswordMinLength")
   })
 
   it("surfaces the backend error message on rejection (e.g. incorrect password)", async () => {
