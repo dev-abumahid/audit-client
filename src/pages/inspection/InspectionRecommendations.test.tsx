@@ -8,6 +8,11 @@ vi.mock("react-router", async (importOriginal) => {
   return { ...mod, useParams: () => ({ id: "insp-1" }) }
 })
 
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+
+import { toast } from "sonner"
+const mockToastError = vi.mocked(toast.error)
+
 const mockUseGetRecommendationByInspectionIdQuery = vi.fn()
 const mockUpdateRecommendationQuestionById = vi.fn()
 const mockUpdateRecommendationSummary = vi.fn()
@@ -59,6 +64,7 @@ describe("InspectionRecommendations", () => {
     mockUseGetRecommendationByInspectionIdQuery.mockReset()
     mockUpdateRecommendationQuestionById.mockReset()
     mockUpdateRecommendationSummary.mockReset()
+    mockToastError.mockReset()
     mockUpdateRecommendationQuestionById.mockReturnValue({
       unwrap: () => Promise.resolve({}),
     })
@@ -276,6 +282,56 @@ describe("InspectionRecommendations", () => {
         id: "rec-1",
         data: { summary: "Overall inspection summary. Updated." },
       })
+    )
+  })
+
+  it("shows an error toast and keeps the unsaved draft when saving the summary fails", async () => {
+    mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
+      data: { data: mockRec },
+      isLoading: false,
+      error: undefined,
+    })
+    mockUpdateRecommendationSummary.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({ data: { message: "Summary save failed" } }),
+    })
+    renderPage()
+    const summaryField = await screen.findByDisplayValue(
+      "Overall inspection summary."
+    )
+    await userEvent.type(summaryField, " Updated.")
+    await userEvent.click(screen.getByText("Save summary"))
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith("Summary save failed")
+    )
+    // The unsaved edit is preserved (not discarded) so the user can retry,
+    // and the "Save summary" button is still available since the draft
+    // still differs from the last-persisted summary.
+    expect(
+      screen.getByDisplayValue("Overall inspection summary. Updated.")
+    ).toBeInTheDocument()
+    expect(screen.getByText("Save summary")).toBeInTheDocument()
+  })
+
+  it("falls back to a generic message when the summary save error has no message", async () => {
+    mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
+      data: { data: mockRec },
+      isLoading: false,
+      error: undefined,
+    })
+    mockUpdateRecommendationSummary.mockReturnValue({
+      unwrap: () => Promise.reject({}),
+    })
+    renderPage()
+    const summaryField = await screen.findByDisplayValue(
+      "Overall inspection summary."
+    )
+    await userEvent.type(summaryField, " Updated.")
+    await userEvent.click(screen.getByText("Save summary"))
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith("Failed to save summary")
     )
   })
 })

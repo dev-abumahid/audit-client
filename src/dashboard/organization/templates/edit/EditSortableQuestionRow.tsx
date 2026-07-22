@@ -50,6 +50,15 @@ interface SortableQuestionRowProps {
   setValue: any
   isEditMode?: boolean
   isDraggingGlobal?: boolean
+  // Issue #129: true when this question's most recent drag-reorder sync
+  // (owned by the parent's debouncedSyncOrder, not this component's own
+  // text/type sync below) failed and hasn't succeeded since. Persists
+  // across renders until the parent's next reorder-sync pass retries this
+  // question and it succeeds, unlike the transient toast that reported the
+  // failure — that toast is easy to miss, and without a persistent
+  // indicator the client-rendered order could silently disagree with the
+  // server indefinitely.
+  orderSyncFailed?: boolean
 }
 
 function EditSortableQuestionRow({
@@ -63,6 +72,7 @@ function EditSortableQuestionRow({
   onOpenAnswerPanel,
   isEditMode = false,
   isDraggingGlobal = false,
+  orderSyncFailed = false,
 }: SortableQuestionRowProps) {
   const {
     attributes,
@@ -218,9 +228,17 @@ function EditSortableQuestionRow({
       </button>
 
       {/* Sync Status */}
-      {isSyncing && !isDragging && (
+      {!isDragging && isSyncing && (
         <div className="absolute top-4 left-10 z-10 text-xs text-muted-foreground">
           Saving...
+        </div>
+      )}
+      {!isDragging && !isSyncing && orderSyncFailed && (
+        <div
+          className="absolute top-4 left-10 z-10 text-xs text-destructive"
+          title="This question's new position wasn't saved. Drag it again to retry."
+        >
+          Order not saved
         </div>
       )}
 

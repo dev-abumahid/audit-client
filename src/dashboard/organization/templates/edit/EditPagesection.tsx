@@ -71,6 +71,79 @@ const EditPageSection = memo(
     const [isDragging, setIsDragging] = useState(false)
     const lastSyncedTitle = useRef<string | null>(null)
 
+    // Issue #129 scope decision: this tracks, per question id, whether its
+    // most recent reorder-sync attempt failed — surfaced to
+    // EditSortableQuestionRow as a persistent visual indicator (mirroring
+    // the page-title `isSyncing` pattern above) instead of the prior
+    // behavior where a failed reorder sync was only visible as a toast that
+    // could be missed, after which the client-rendered order could stay
+    // silently wrong indefinitely. It clears for a question once that
+    // question's *next* reorder-sync attempt succeeds (the existing
+    // per-item retry-on-next-drag behavior below already re-attempts failed
+    // questions; this just observes those same results rather than adding
+    // new retry machinery). Full reconciliation against server truth on
+    // remount/refetch (the issue's suggested part (b)) is deliberately not
+    // built here — it would mean restructuring how this component sources
+    // its data (it currently trusts the form's client state as truth and
+    // has no independent "refetch the page's questions" path), which is
+    // disproportionate to this bugfix-adjacent issue. Flagging as a
+    // follow-up instead.
+    const [syncFailedIds, setSyncFailedIds] = useState<Set<string>>(
+      () => new Set()
+    )
+    // Prune ids for questions that no longer exist (deleted, or never had a
+    // real id) so a deleted question's stale "failed" flag doesn't linger
+    // in memory or attach to whatever new question happens to reuse the
+    // slot.
+    useEffect(() => {
+      setSyncFailedIds((prev) => {
+        if (prev.size === 0) return prev
+        const currentIds = new Set(
+          fields.map((f) => (f as any).id).filter(Boolean)
+        )
+        let changed = false
+        const next = new Set<string>()
+        prev.forEach((id) => {
+          if (currentIds.has(id)) next.add(id)
+          else changed = true
+        })
+        return changed ? next : prev
+      })
+    }, [fields])
+
+    // Track whether this component instance is still mounted, and a
+    // monotonic generation counter for debouncedSyncOrder invocations (see
+    // the detailed comment on debouncedSyncOrder below for why both exist).
+    const isMountedRef = useRef(true)
+    useEffect(() => {
+      isMountedRef.current = true
+      return () => {
+        isMountedRef.current = false
+      }
+    }, [])
+    const syncGenerationRef = useRef(0)
+
+    // Pre-existing bug found during live verification of this fix (not
+    // introduced by it, but it made the reorder-sync — and therefore this
+    // issue's whole "sync failed" indicator — unreachable in practice, so
+    // fixing it is necessary for issue #129's fix to actually do anything):
+    // `debouncedSyncOrder` used to read the `isDragging` *state* value
+    // directly in its guard below. Because `debouncedSyncOrder` is
+    // recreated by useCallback whenever `isDragging` changes, the specific
+    // debounced-function instance that `handleDragEnd` invokes is always
+    // the one created while `isDragging === true` (set by `onDragStart`
+    // before the drop), and that instance's closure has `isDragging`
+    // permanently frozen at `true` — so its guard `... || isDragging`
+    // always short-circuited and the sync silently never ran, even after
+    // `setIsDragging(false)` fired a re-render with a fresh instance nobody
+    // called. Reading dragging state through a ref instead makes the guard
+    // check the *current* value at execution time rather than a value
+    // frozen at schedule time.
+    const isDraggingRef = useRef(false)
+    useEffect(() => {
+      isDraggingRef.current = isDragging
+    }, [isDragging])
+
     const sensors = useSensors(
       useSensor(PointerSensor, {
         activationConstraint: {
@@ -108,12 +181,34 @@ const EditPageSection = memo(
     // failed so the user knows to re-check the order before leaving the page.
     const debouncedSyncOrder = useCallback(
       debounce(async () => {
-        if (!isEditMode || !templateId || !pageId || isDragging) return
+        if (!isEditMode || !templateId || !pageId || isDraggingRef.current)
+          return
+
+        // Race-condition guard (issue #129 part 2b): lodash's debounce only
+        // cancels a *pending, not-yet-fired* timer. If this invocation's
+        // async body is already running (awaiting the Promise.all below)
+        // when a second drag calls debouncedSyncOrder() again, the second
+        // call doesn't cancel this one — it schedules its own separate
+        // invocation on top of it. Two overlapping invocations racing to
+        // call setValue from their own (possibly stale-by-then) snapshot of
+        // `questions` could corrupt the locally-tracked `index`
+        // bookkeeping. A full concurrency-guard (queueing/merging results
+        // across overlapping batches) is more machinery than a debounced
+        // client-side reorder sync warrants, so instead: tag each
+        // invocation with a monotonically increasing generation, and if a
+        // newer invocation has started by the time this one's Promise.all
+        // resolves, drop this one's writes entirely rather than merge them.
+        // This is safe — not lossy — because a question whose successful
+        // sync we drop here just looks "still unsynced" locally and gets
+        // retried (one extra, idempotent updateOrCreateQuestion call) by
+        // whichever invocation runs next, same as the existing
+        // failed-item retry path below.
+        const myGeneration = ++syncGenerationRef.current
 
         const questions = getValues(`pages.${pageIndex}.questions`)
         const results = await Promise.all(
           questions.map(async (q: any, idx: number) => {
-            if (!q.id || q.index === idx) return { ok: true }
+            if (!q.id || q.index === idx) return { ok: true, attempted: false }
             try {
               await updateOrCreateQuestion({
                 questionId: q.id,
@@ -123,12 +218,15 @@ const EditPageSection = memo(
                 isRequired: q.isRequired,
                 answerType: q.answerType,
               }).unwrap()
-              return { ok: true }
+              return { ok: true, attempted: true }
             } catch (error: any) {
-              return { ok: false, message: error?.data?.message }
+              return { ok: false, attempted: true, message: error?.data?.message }
             }
           })
         )
+
+        if (!isMountedRef.current) return
+        if (syncGenerationRef.current !== myGeneration) return
 
         // Update local indices only for the questions that synced
         // successfully; leave failed ones' stale index so the next
@@ -141,6 +239,27 @@ const EditPageSection = memo(
               shouldValidate: false,
             })
           }
+        })
+
+        // Per-question "sync failed" tracking, surfaced by
+        // EditSortableQuestionRow as a persistent indicator. Only
+        // `attempted` entries (questions this pass actually tried to sync)
+        // affect the set — a question skipped because it didn't need
+        // reindexing this pass shouldn't have its prior failed flag
+        // touched either way.
+        setSyncFailedIds((prev) => {
+          let changed = false
+          const next = new Set(prev)
+          questions.forEach((q: any, idx: number) => {
+            if (!results[idx]?.attempted || !q.id) return
+            if (results[idx].ok) {
+              if (next.delete(q.id)) changed = true
+            } else if (!next.has(q.id)) {
+              next.add(q.id)
+              changed = true
+            }
+          })
+          return changed ? next : prev
         })
 
         const failedCount = results.filter((r) => !r.ok).length
@@ -159,7 +278,6 @@ const EditPageSection = memo(
         pageIndex,
         getValues,
         setValue,
-        isDragging,
         updateOrCreateQuestion,
       ]
     )
@@ -320,6 +438,7 @@ const EditPageSection = memo(
                     setValue={setValue}
                     isEditMode={isEditMode}
                     isDraggingGlobal={isDragging}
+                    orderSyncFailed={syncFailedIds.has((field as any).id)}
                   />
                 ))
               )}

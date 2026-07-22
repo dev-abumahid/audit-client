@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   useGetRecommendationByInspectionIdQuery,
   useUpdateRecommendationQuestionByIdMutation,
@@ -7,6 +8,7 @@ import type { Recommendation } from "@/types/recommendation"
 import { ChevronDown, ChevronUp, Loader2, Sparkles } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router"
+import { toast } from "sonner"
 
 type SaveStatus = Record<string, "saving" | "saved" | "error">
 
@@ -89,6 +91,16 @@ export default function InspectionRecommendations() {
         id: rec.id,
         data: { summary: summaryDraft },
       }).unwrap()
+      // No local state to reset on success: `summaryDraft` naturally falls
+      // back in sync with `rec.summary` once the mutation's cache
+      // invalidation refetches the recommendation, which is what makes the
+      // "Save summary" button disappear (it's only shown while
+      // `summaryDraft !== rec.summary`).
+    } catch (err: any) {
+      // Leave `summaryDraft` untouched on failure so the user's unsaved
+      // edit isn't discarded — the "Save summary" button stays visible so
+      // they can retry.
+      toast.error(err?.data?.message || "Failed to save summary")
     } finally {
       setSavingSummary(false)
     }
