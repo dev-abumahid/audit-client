@@ -125,6 +125,7 @@
             "userNameReqText":"Le nom d'utilisateur est requis.",
             "emailReqText":"L'adresse e-mail est requise.",
             "passwordReqText":"Le mot de passe est requis.",
+            "passwordMinLengthReqText":"Le mot de passe doit contenir au moins 6 caractères.",
             "signingUp":"Inscription en cours..."
         },
         "signIn": {

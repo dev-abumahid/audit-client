@@ -341,10 +341,10 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                 id="password"
                 type="password"
                 {...formRegister("password", {
-                  required: "Password is required",
+                  required: t("auth.signUp.passwordReqText"),
                   minLength: {
                     value: 6,
-                    message: "Password must be at least 6 characters",
+                    message: t("auth.signUp.passwordMinLengthReqText"),
                   },
                 })}
                 placeholder="********"

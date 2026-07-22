@@ -6,9 +6,9 @@ import SignUpModal from "./SignUpModal"
 // ── i18n ──────────────────────────────────────────────────────────────────────
 // mockT is a spy (not just a plain function) so tests can assert a specific
 // key was actually looked up -- a plain "does this text appear" assertion
-// can't distinguish t("auth.signUp.signingUp") from a hardcoded string that
-// happens to match the mocked value, which would defeat the point of a
-// regression test for "this string must go through i18n."
+// can't distinguish t(key) from a hardcoded string that happens to match the
+// mocked value, which would defeat the point of a regression test for "this
+// string must go through i18n." Same pattern used in SignInModal.test.tsx.
 const { mockT } = vi.hoisted(() => ({
   mockT: vi.fn((key: string) => {
     const map: Record<string, string> = {
@@ -25,6 +25,8 @@ const { mockT } = vi.hoisted(() => ({
       "auth.signUp.organizationNameReqText": "Organization name is required",
       "auth.signUp.emailReqText": "Email is required",
       "auth.signUp.passwordReqText": "Password is required",
+      "auth.signUp.passwordMinLengthReqText":
+        "Password must be at least 6 characters",
       "auth.verifyOtp.title": "Check your email",
       "auth.verifyOtp.subTitle": "We sent a verification code to",
       "auth.verifyOtp.codeLabel": "Verification Code",
@@ -157,6 +159,39 @@ describe("SignUpModal", () => {
     // Not just "this text is present" -- proves the label actually came
     // from t(), not a hardcoded string that happens to match the mock.
     expect(mockT).toHaveBeenCalledWith("auth.signUp.signingUp")
+  })
+
+  it("shows a translated message when password is left empty", async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
+    await user.type(screen.getByLabelText("Email"), "admin@acme.com")
+    await user.click(screen.getByRole("button", { name: "Sign Up" }))
+
+    expect(await screen.findByText("Password is required")).toBeInTheDocument()
+    expect(mockSignUpTrigger).not.toHaveBeenCalled()
+    // Not just "this text is present" -- proves the message actually came
+    // from t(), not a hardcoded string that happens to match the mock.
+    expect(mockT).toHaveBeenCalledWith("auth.signUp.passwordReqText")
+  })
+
+  it("shows a translated message when password is under 6 characters", async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
+    await user.type(screen.getByLabelText("Email"), "admin@acme.com")
+    await user.type(screen.getByLabelText("Password"), "abc")
+    await user.click(screen.getByRole("button", { name: "Sign Up" }))
+
+    expect(
+      await screen.findByText("Password must be at least 6 characters")
+    ).toBeInTheDocument()
+    expect(mockSignUpTrigger).not.toHaveBeenCalled()
+    // Not just "this text is present" -- proves the message actually came
+    // from t(), not a hardcoded string that happens to match the mock.
+    expect(mockT).toHaveBeenCalledWith("auth.signUp.passwordMinLengthReqText")
   })
 
   it("shows email confirmation screen on success", async () => {

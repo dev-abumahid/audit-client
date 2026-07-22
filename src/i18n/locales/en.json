@@ -125,6 +125,7 @@
             "userNameReqText":"Username is required",
             "emailReqText":"Email is required",
             "passwordReqText":"Password is required",
+            "passwordMinLengthReqText":"Password must be at least 6 characters",
             "signingUp":"Signing Up..."
         },
         "signIn":{
