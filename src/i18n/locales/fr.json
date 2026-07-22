@@ -260,6 +260,12 @@
     "alert":{
         "criticalAlertsBanner": "alerte critique non lue",
         "criticalAlertsBannerPlural": "alertes critiques non lues"
+    },
+    "riskLevel":{
+        "critical":"Critique",
+        "high":"Élevé",
+        "medium":"Moyen",
+        "low":"Faible"
     }
 }
     

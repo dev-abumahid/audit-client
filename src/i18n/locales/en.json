@@ -295,5 +295,11 @@
     "alert":{
         "criticalAlertsBannerPlural":"critical unread alerts",
         "criticalAlertsBanner":"critical unread alert"
+    },
+    "riskLevel":{
+        "critical":"Critical",
+        "high":"High",
+        "medium":"Medium",
+        "low":"Low"
     }
 }

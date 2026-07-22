@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next"
+
 interface RiskBadgeProps {
   level: "critical" | "high" | "medium" | "low"
   label?: string
@@ -9,25 +11,21 @@ const config = {
     bg: "bg-risk-critical/15",
     text: "text-risk-critical",
     dot: "bg-risk-critical",
-    default: "Critique",
   },
   high: {
     bg: "bg-risk-high/15",
     text: "text-risk-high",
     dot: "bg-risk-high",
-    default: "Élevé",
   },
   medium: {
     bg: "bg-risk-medium/15",
     text: "text-risk-medium",
     dot: "bg-risk-medium",
-    default: "Moyen",
   },
   low: {
     bg: "bg-risk-low/15",
     text: "text-risk-low",
     dot: "bg-risk-low",
-    default: "Faible",
   },
 }
 
@@ -36,6 +34,7 @@ export default function RiskBadge({
   label,
   size = "sm",
 }: RiskBadgeProps) {
+  const { t } = useTranslation()
   const c = config[level]
   return (
     <span
@@ -44,7 +43,7 @@ export default function RiskBadge({
       }`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
-      {label || c.default}
+      {label || t(`riskLevel.${level}`)}
     </span>
   )
 }
