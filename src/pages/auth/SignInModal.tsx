@@ -168,7 +168,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
               {isSubmitting ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                  Signing In...
+                  {t("auth.signIn.signingIn")}
                 </>
               ) : (
                 t("auth.signIn.btnSignIn")

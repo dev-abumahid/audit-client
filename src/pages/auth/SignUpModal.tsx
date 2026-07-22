@@ -377,7 +377,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                 {isLoading ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                    Signing Up...
+                    {t("auth.signUp.signingUp")}
                   </>
                 ) : (
                   t("auth.signUp.btnSignUp")

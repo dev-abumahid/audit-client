@@ -124,14 +124,16 @@
             "organizationNameReqText":"Organization name is required",
             "userNameReqText":"Username is required",
             "emailReqText":"Email is required",
-            "passwordReqText":"Password is required"
+            "passwordReqText":"Password is required",
+            "signingUp":"Signing Up..."
         },
         "signIn":{
             "title":"Welcome Back",
             "subTitle":"Sign in to your account",
             "btnForgotPassword":"Forgot Password?",
             "btnSignIn":"Sign In",
-            "hintText":"Don't have an account?"
+            "hintText":"Don't have an account?",
+            "signingIn":"Signing In..."
         },
         "forgotPassword":{
             "title":"Reset Your Password",

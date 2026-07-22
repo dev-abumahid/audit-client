@@ -124,14 +124,16 @@
             "organizationNameReqText":"Le nom de l'organisation est requis.",
             "userNameReqText":"Le nom d'utilisateur est requis.",
             "emailReqText":"L'adresse e-mail est requise.",
-            "passwordReqText":"Le mot de passe est requis."
+            "passwordReqText":"Le mot de passe est requis.",
+            "signingUp":"Inscription en cours..."
         },
         "signIn": {
             "title": "Connexion",
             "subTitle": "Connectez-vous à votre compte",
             "btnForgotPassword": "Mot de passe oublié ?",
             "btnSignIn": "Se connecter",
-            "hintText": "Vous n’avez pas de compte ?"
+            "hintText": "Vous n’avez pas de compte ?",
+            "signingIn":"Connexion en cours..."
         },
         "forgotPassword": {
             "title": "Réinitialiser votre mot de passe",

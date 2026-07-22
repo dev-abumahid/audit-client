@@ -4,39 +4,48 @@ import { MemoryRouter } from "react-router"
 import SignUpModal from "./SignUpModal"
 
 // ── i18n ──────────────────────────────────────────────────────────────────────
+// mockT is a spy (not just a plain function) so tests can assert a specific
+// key was actually looked up -- a plain "does this text appear" assertion
+// can't distinguish t("auth.signUp.signingUp") from a hardcoded string that
+// happens to match the mocked value, which would defeat the point of a
+// regression test for "this string must go through i18n."
+const { mockT } = vi.hoisted(() => ({
+  mockT: vi.fn((key: string) => {
+    const map: Record<string, string> = {
+      "auth.signUp.title": "Get Started with Us",
+      "auth.signUp.subTitle": "Create your account to get started",
+      "auth.signUp.organizationName": "Organization Name",
+      "auth.signUp.email": "Email",
+      "auth.signUp.password": "Password",
+      "auth.signUp.btnSignUp": "Sign Up",
+      "auth.signUp.btnClear": "Clear",
+      "auth.signUp.hintText": "Already Signed up?",
+      "auth.signUp.signingUp": "Signing Up...",
+      "auth.signIn.btnSignIn": "Sign In",
+      "auth.signUp.organizationNameReqText": "Organization name is required",
+      "auth.signUp.emailReqText": "Email is required",
+      "auth.signUp.passwordReqText": "Password is required",
+      "auth.verifyOtp.title": "Check your email",
+      "auth.verifyOtp.subTitle": "We sent a verification code to",
+      "auth.verifyOtp.codeLabel": "Verification Code",
+      "auth.verifyOtp.codeReqText": "Verification code is required",
+      "auth.verifyOtp.codeLength": "Enter the 6-character code",
+      "auth.verifyOtp.btnVerify": "Verify Email",
+      "auth.verifyOtp.verifying": "Verifying...",
+      "auth.verifyOtp.noCodeText": "Didn't get a code?",
+      "auth.verifyOtp.btnResend": "Resend Code",
+      "auth.verifyOtp.resending": "Resending...",
+      "auth.verifyOtp.resendSuccess": "A new code has been sent to your email",
+      "auth.verifyOtp.verifiedTitle": "Email Verified",
+      "auth.verifyOtp.verifiedSubTitle":
+        "Your account is ready. You can now sign in.",
+    }
+    return map[key] ?? key
+  }),
+}))
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string) => {
-      const map: Record<string, string> = {
-        "auth.signUp.title": "Get Started with Us",
-        "auth.signUp.subTitle": "Create your account to get started",
-        "auth.signUp.organizationName": "Organization Name",
-        "auth.signUp.email": "Email",
-        "auth.signUp.password": "Password",
-        "auth.signUp.btnSignUp": "Sign Up",
-        "auth.signUp.btnClear": "Clear",
-        "auth.signUp.hintText": "Already Signed up?",
-        "auth.signIn.btnSignIn": "Sign In",
-        "auth.signUp.organizationNameReqText": "Organization name is required",
-        "auth.signUp.emailReqText": "Email is required",
-        "auth.signUp.passwordReqText": "Password is required",
-        "auth.verifyOtp.title": "Check your email",
-        "auth.verifyOtp.subTitle": "We sent a verification code to",
-        "auth.verifyOtp.codeLabel": "Verification Code",
-        "auth.verifyOtp.codeReqText": "Verification code is required",
-        "auth.verifyOtp.codeLength": "Enter the 6-character code",
-        "auth.verifyOtp.btnVerify": "Verify Email",
-        "auth.verifyOtp.verifying": "Verifying...",
-        "auth.verifyOtp.noCodeText": "Didn't get a code?",
-        "auth.verifyOtp.btnResend": "Resend Code",
-        "auth.verifyOtp.resending": "Resending...",
-        "auth.verifyOtp.resendSuccess": "A new code has been sent to your email",
-        "auth.verifyOtp.verifiedTitle": "Email Verified",
-        "auth.verifyOtp.verifiedSubTitle":
-          "Your account is ready. You can now sign in.",
-      }
-      return map[key] ?? key
-    },
+    t: mockT,
     i18n: { changeLanguage: vi.fn() },
   }),
 }))
@@ -48,8 +57,11 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const mockSignUpTrigger = vi.fn()
 const mockVerifyOtpTrigger = vi.fn()
 const mockResendOtpTrigger = vi.fn()
+// let (not const) so the "Signing Up..." loading-label test can flip this
+// before rendering without needing a per-test vi.mock override.
+let mockSignUpIsLoading = false
 vi.mock("@/redux/apis/auth.api", () => ({
-  useSignUpUserMutation: () => [mockSignUpTrigger, { isLoading: false }],
+  useSignUpUserMutation: () => [mockSignUpTrigger, { get isLoading() { return mockSignUpIsLoading } }],
   useVerifyOtpMutation: () => [mockVerifyOtpTrigger, { isLoading: false }],
   useResendOtpMutation: () => [mockResendOtpTrigger, { isLoading: false }],
   // No providers configured — SocialLoginButtons renders nothing, same as
@@ -97,6 +109,8 @@ describe("SignUpModal", () => {
     mockSignUpTrigger.mockReset()
     mockVerifyOtpTrigger.mockReset()
     mockResendOtpTrigger.mockReset()
+    mockSignUpIsLoading = false
+    mockT.mockClear()
   })
 
   it("renders the sign-up form", () => {
@@ -132,6 +146,17 @@ describe("SignUpModal", () => {
         password: "password123",
       })
     )
+  })
+
+  it("shows the translated loading label while the sign-up request is pending", () => {
+    mockSignUpIsLoading = true
+    renderModal()
+
+    expect(screen.getByText("Signing Up...")).toBeInTheDocument()
+    expect(screen.queryByText("Sign Up")).not.toBeInTheDocument()
+    // Not just "this text is present" -- proves the label actually came
+    // from t(), not a hardcoded string that happens to match the mock.
+    expect(mockT).toHaveBeenCalledWith("auth.signUp.signingUp")
   })
 
   it("shows email confirmation screen on success", async () => {
