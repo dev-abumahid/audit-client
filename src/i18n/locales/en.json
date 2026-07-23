@@ -252,6 +252,7 @@
             "aiPendingRisk":"AI risks pending",
             "confirmedRisk":"Confirmed risks",
             "noSite":"No sites registered",
+            "noSearchResults":"No sites match your search",
             "siteName":"Site Name",
             "siteType":"Site Type",
             "headOffice":"Head Office",
