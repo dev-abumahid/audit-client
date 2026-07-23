@@ -4,6 +4,8 @@ import Overview from "./Overview"
 const mockUseGetAllRisksQuery = vi.fn()
 const mockUseGetAllKriQuery = vi.fn()
 const mockUseGetAllAlertsQuery = vi.fn()
+const mockUseGetAllFindingsQuery = vi.fn()
+const mockUseGetAllInspectionQuery = vi.fn()
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) =>
@@ -17,6 +19,16 @@ vi.mock("@/redux/apis/organization/kri.api", () => ({
 vi.mock("@/redux/apis/organization/alert.api", () => ({
   useGetAllAlertsQuery: (...args: unknown[]) =>
     mockUseGetAllAlertsQuery(...args),
+}))
+
+vi.mock("@/redux/apis/organization/findings.api", () => ({
+  useGetAllFindingsQuery: (...args: unknown[]) =>
+    mockUseGetAllFindingsQuery(...args),
+}))
+
+vi.mock("@/redux/apis/organization/inspection.api", () => ({
+  useGetAllInspectionQuery: (...args: unknown[]) =>
+    mockUseGetAllInspectionQuery(...args),
 }))
 
 // CriticalAlertBanner independently calls useGetAllAlertsQuery too --
@@ -56,6 +68,41 @@ function makeKri(overrides = {}) {
   return { id: "kri-1", status: "OK", ...overrides }
 }
 
+function makeFinding(overrides = {}) {
+  return {
+    id: "action-1",
+    orgAccountId: "org-1",
+    inspectionId: "insp-1",
+    siteId: "site-1",
+    questionId: null,
+    actionTitle: "Fix loading dock signage",
+    actionDisc: null,
+    priority: "Medium",
+    dueDate: "2026-08-01T00:00:00.000Z",
+    status: "TO_DO",
+    site: null,
+    messages: [],
+    assignBy: [],
+    attachments: [],
+    createdAt: "2026-06-01T00:00:00.000Z",
+    updatedAt: "2026-06-01T00:00:00.000Z",
+    ...overrides,
+  }
+}
+
+function makeInspection(overrides = {}) {
+  return {
+    id: "insp-1",
+    status: "IN_PROGRESS",
+    createdAt: "2026-06-01T00:00:00.000Z",
+    updatedAt: "2026-06-01T00:00:00.000Z",
+    template: { id: "tpl-1", templateName: "Fire Safety" },
+    site: { id: "site-1", name: "Main Warehouse" },
+    inspector: { id: "user-1", fullName: "Jamie Doe" },
+    ...overrides,
+  }
+}
+
 function makeAlert(overrides = {}) {
   return {
     id: "alert-1",
@@ -79,13 +126,23 @@ describe("Overview", () => {
     mockUseGetAllRisksQuery.mockReset()
     mockUseGetAllKriQuery.mockReset()
     mockUseGetAllAlertsQuery.mockReset()
+    mockUseGetAllFindingsQuery.mockReset()
+    mockUseGetAllInspectionQuery.mockReset()
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     mockUseGetAllKriQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     mockUseGetAllAlertsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    mockUseGetAllFindingsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    mockUseGetAllInspectionQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
   })
 
-  it("shows a loading state while any of risks/KRIs/alerts are loading", () => {
+  it("shows a loading state while any of risks/KRIs/alerts/actions/inspections are loading", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: undefined, isLoading: true })
+    render(<Overview />)
+    expect(document.querySelector(".animate-spin")).toBeInTheDocument()
+  })
+
+  it("shows a loading state while findings/inspections specifically are loading", () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({ data: undefined, isLoading: true })
     render(<Overview />)
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
@@ -135,6 +192,41 @@ describe("Overview", () => {
     render(<Overview />)
 
     expect(screen.getByText("1")).toBeInTheDocument()
+  })
+
+  it("counts real open actions (TO_DO/IN_PROGRESS), not COMPLETE/CANT_DO", () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        data: [
+          makeFinding({ id: "f1", status: "TO_DO" }),
+          makeFinding({ id: "f2", status: "IN_PROGRESS" }),
+          makeFinding({ id: "f3", status: "COMPLETE" }),
+          makeFinding({ id: "f4", status: "CANT_DO" }),
+        ],
+      },
+      isLoading: false,
+    })
+    render(<Overview />)
+
+    expect(screen.getByText("2")).toBeInTheDocument()
+  })
+
+  it("counts real active inspections (DRAFT/IN_PROGRESS), not COMPLETED/CANCELLED", () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: {
+        data: [
+          makeInspection({ id: "i1", status: "DRAFT" }),
+          makeInspection({ id: "i2", status: "IN_PROGRESS" }),
+          makeInspection({ id: "i3", status: "IN_PROGRESS" }),
+          makeInspection({ id: "i4", status: "COMPLETED" }),
+          makeInspection({ id: "i5", status: "CANCELLED" }),
+        ],
+      },
+      isLoading: false,
+    })
+    render(<Overview />)
+
+    expect(screen.getByText("3")).toBeInTheDocument()
   })
 
   it("renders a real alert's title and source in the Recent Alerts list", () => {

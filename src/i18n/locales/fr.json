@@ -211,6 +211,8 @@
             "activeRisk": "Risques actifs",
             "kriAlert": "Alertes KRI",
             "criticalAlert": "Alertes critiques",
+            "openActions": "Actions ouvertes",
+            "activeInspections": "Inspections actives",
             "revenue": "Revenus",
             "chart": {
                 "title": "Distribution de l'EBITDA à risque",

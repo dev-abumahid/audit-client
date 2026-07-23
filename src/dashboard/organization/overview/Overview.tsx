@@ -6,12 +6,16 @@ import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 // has no real backend equivalent — see the comment at that section.
 import { mockRisks, riskCategories } from "@/data/mockData"
 import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
+import { useGetAllFindingsQuery } from "@/redux/apis/organization/findings.api"
+import { useGetAllInspectionQuery } from "@/redux/apis/organization/inspection.api"
 import { useGetAllKriQuery } from "@/redux/apis/organization/kri.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import type { Alert, Risk } from "@/types/organization"
 import {
   Activity,
   AlertTriangle,
+  ClipboardList,
+  ListChecks,
   Loader2,
   Shield,
   TrendingDown,
@@ -58,10 +62,30 @@ export default function Overview() {
     useGetAllKriQuery(undefined)
   const { data: alertResponse, isLoading: alertsLoading } =
     useGetAllAlertsQuery(undefined)
+  // Same limit:100-and-count-client-side approach as the risks query above
+  // — getAllFindings/getAllInspection have no status-only "give me the
+  // count" endpoint, and #25 didn't ask for a new backend aggregation route.
+  const { data: findingResponse, isLoading: findingsLoading } =
+    useGetAllFindingsQuery({
+      page: 1,
+      limit: 100,
+      searchTerm: "",
+      siteId: "",
+    })
+  const { data: inspectionResponse, isLoading: inspectionsLoading } =
+    useGetAllInspectionQuery({
+      page: 1,
+      limit: 100,
+      searchTerm: "",
+      status: "",
+      siteId: "",
+    })
 
   const risks: Risk[] = riskResponse?.data ?? []
   const kris = kriResponse?.data ?? []
   const alerts: Alert[] = alertResponse?.data ?? []
+  const findings = findingResponse?.data ?? []
+  const inspections = inspectionResponse?.data ?? []
 
   const categoryData = Object.entries(
     risks.reduce(
@@ -81,8 +105,22 @@ export default function Overview() {
   const criticalAlerts = alerts.filter(
     (a) => a.severity === "critical"
   ).length
+  // "Open" mirrors the risks card's own status === "open" check just above:
+  // not-yet-terminal states, not a single specific status value.
+  const openActions = findings.filter(
+    (f) => f.status === "TO_DO" || f.status === "IN_PROGRESS"
+  ).length
+  const activeInspections = inspections.filter(
+    (i) => i.status === "DRAFT" || i.status === "IN_PROGRESS"
+  ).length
 
-  if (risksLoading || krisLoading || alertsLoading) {
+  if (
+    risksLoading ||
+    krisLoading ||
+    alertsLoading ||
+    findingsLoading ||
+    inspectionsLoading
+  ) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -128,6 +166,20 @@ export default function Overview() {
           trend="up"
           trendValue="+2"
           trendGood={false}
+        />
+        {/* No trend/trendValue on these two: unlike the cards above, there's
+            no prior-period snapshot anywhere to diff against, so there's no
+            real number to show here (the deltas on the other cards are
+            themselves static placeholders, not something to copy). */}
+        <MetricCard
+          title={t("organization.overview.openActions")}
+          value={openActions}
+          icon={ListChecks}
+        />
+        <MetricCard
+          title={t("organization.overview.activeInspections")}
+          value={activeInspections}
+          icon={ClipboardList}
         />
         <MetricCard
           title={t("organization.overview.revenue")}
