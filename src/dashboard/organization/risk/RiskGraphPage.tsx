@@ -1,5 +1,5 @@
 import SiteFilter from "@/components/dashboard/organization/SiteFilter"
-import { DUMMY_LINKS, mockRisks } from "@/data/mockData"
+import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import type { Risk, RiskLink } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import {
@@ -18,10 +18,27 @@ interface DominoChain {
   totalImpact: number
 }
 
+// No backend model exists for risk-to-risk relationships (CAUSES/
+// AMPLIFIES/CORRELATES) at all -- there's nothing to fetch here, unlike
+// the risks themselves. The old DUMMY_LINKS fixture used fake ids like
+// "risk_fire" that don't match real (uuid) risk ids anyway, so it would
+// never have rendered a single edge against real data. Left empty rather
+// than fabricating relationships; CorrelationMatrixPage.tsx has the same
+// gap with its own local fixture, out of scope here. Module-level (not a
+// useState/useMemo in the component) since it never changes -- the
+// dependent useMemo hooks below need a referentially stable empty array.
+const NO_RISK_LINKS: RiskLink[] = []
+
 export default function RiskGraphPage() {
-  const [risks] = useState<Risk[]>(mockRisks)
-  const [links] = useState<RiskLink[]>(DUMMY_LINKS)
-  const [isLoading] = useState(false)
+  const { data: riskResponse, isLoading } = useGetAllRisksQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+    siteId: "",
+    category: "",
+  })
+  const risks: Risk[] = useMemo(() => riskResponse?.data ?? [], [riskResponse])
+  const links: RiskLink[] = NO_RISK_LINKS
   const [siteFilter, setSiteFilter] = useState<string | null>(null)
   const [selectedRisk, setSelectedRisk] = useState<string | null>(null)
   const [showDomino, setShowDomino] = useState(true)
