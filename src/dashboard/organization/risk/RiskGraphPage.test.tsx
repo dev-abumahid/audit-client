@@ -61,8 +61,29 @@ describe("RiskGraphPage", () => {
     })
     render(<RiskGraphPage />)
 
-    expect(screen.getByText("risk-real-1")).toBeInTheDocument()
+    // Short ids fit inside the node, so both the SVG <text> label and the
+    // <title> tooltip render the id in full (two matching elements).
+    const matches = screen.getAllByText("risk-real-1")
+    expect(
+      matches.some((el) => el.tagName.toLowerCase() === "text")
+    ).toBe(true)
     expect(screen.queryByText("risk_fire")).not.toBeInTheDocument()
+  })
+
+  it("truncates a full-length UUID node label but keeps the full id in a tooltip", () => {
+    const uuid = "123e4567-e89b-12d3-a456-426614174000"
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ id: uuid })] },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />)
+
+    // The visible node label is truncated to the first 8 chars of the UUID...
+    const label = screen.getByText("123e4567")
+    expect(label.tagName.toLowerCase()).toBe("text")
+    // ...while the full UUID is preserved only in the <title> tooltip.
+    const fullId = screen.getByText(uuid)
+    expect(fullId.tagName.toLowerCase()).toBe("title")
   })
 
   it("shows zero correlations rather than fabricated links against real risk data", () => {
@@ -72,6 +93,9 @@ describe("RiskGraphPage", () => {
     })
     render(<RiskGraphPage />)
 
-    expect(screen.getByText("Corrélations (0)")).toBeInTheDocument()
+    // t() echoes the key in the test env (i18n is not initialized in setup).
+    expect(
+      screen.getByText("organization.riskGraph.correlations (0)")
+    ).toBeInTheDocument()
   })
 })

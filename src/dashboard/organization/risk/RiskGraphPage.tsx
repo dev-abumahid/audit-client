@@ -11,12 +11,20 @@ import {
   Zap,
 } from "lucide-react"
 import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 interface DominoChain {
-  name: string
   refs: string[]
   totalImpact: number
 }
+
+// Real risk ids are full UUIDs (~36 chars) that overflow the small circular
+// graph nodes. Show only the first block (8 chars) for long ids so they fit,
+// while short human-readable ids (e.g. test fixtures) render in full. The full
+// id is always preserved elsewhere (SVG <title> tooltip, side-panel header).
+const NODE_LABEL_MAX = 12
+const shortRef = (id: string) =>
+  id.length > NODE_LABEL_MAX ? id.slice(0, 8) : id
 
 // No backend model exists for risk-to-risk relationships (CAUSES/
 // AMPLIFIES/CORRELATES) at all -- there's nothing to fetch here, unlike
@@ -30,6 +38,7 @@ interface DominoChain {
 const NO_RISK_LINKS: RiskLink[] = []
 
 export default function RiskGraphPage() {
+  const { t } = useTranslation()
   const { data: riskResponse, isLoading } = useGetAllRisksQuery({
     page: 1,
     limit: 100,
@@ -85,7 +94,6 @@ export default function RiskGraphPage() {
           return sum + (risk ? Number(risk.financial_impact_max) : 0)
         }, 0)
         chains.push({
-          name: `Chaîne ${path[0]} → ${path[path.length - 1]}`,
           refs: [...path],
           totalImpact,
         })
@@ -174,11 +182,10 @@ export default function RiskGraphPage() {
       <div className="animate-fade-in flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Graphe de Dépendances & Effets Domino
+            {t("organization.riskGraph.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Visualisation PageRank — cliquez un risque pour voir ses effets
-            cascade
+            {t("organization.riskGraph.description")}
           </p>
         </div>
         <SiteFilter
@@ -192,26 +199,26 @@ export default function RiskGraphPage() {
       <div className="animate-slide-up flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <span className="h-2 w-6 rounded-full bg-destructive" />
-          CAUSES
+          {t("organization.riskGraph.legendCauses")}
         </div>
         <div className="flex items-center gap-1.5">
           <span className="h-2 w-6 rounded-full bg-orange-500" />
-          AMPLIFIES
+          {t("organization.riskGraph.legendAmplifies")}
         </div>
         <div className="flex items-center gap-1.5">
           <span className="h-2 w-6 rounded-full bg-blue-500 opacity-60" />
-          CORRELATES
+          {t("organization.riskGraph.legendCorrelates")}
         </div>
         <div className="flex items-center gap-1.5">
           <Zap className="h-3 w-3 text-accent" />
-          Tipping Point
+          {t("organization.riskGraph.legendTippingPoint")}
         </div>
         {selectedRisk && (
           <button
             onClick={() => setSelectedRisk(null)}
             className="ml-2 rounded-md bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
           >
-            ✕ Effacer sélection
+            ✕ {t("organization.riskGraph.clearSelection")}
           </button>
         )}
       </div>
@@ -339,13 +346,14 @@ export default function RiskGraphPage() {
                     strokeWidth={2}
                     strokeOpacity={0.7}
                   />
+                  <title>{risk.id}</title>
                   <text
                     x={pos.x}
                     y={pos.y - 4}
                     textAnchor="middle"
                     className="fill-foreground text-[11px] font-bold select-none"
                   >
-                    {risk.id}
+                    {shortRef(risk.id)}
                   </text>
                   <text
                     x={pos.x}
@@ -374,13 +382,17 @@ export default function RiskGraphPage() {
               </p>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-md bg-card p-2">
-                  <span className="text-muted-foreground">PageRank</span>
+                  <span className="text-muted-foreground">
+                    {t("organization.riskGraph.pageRank")}
+                  </span>
                   <p className="font-mono font-bold text-foreground">
                     {Number(selectedRiskData.pagerank_score).toFixed(0)}
                   </p>
                 </div>
                 <div className="rounded-md bg-card p-2">
-                  <span className="text-muted-foreground">Impact max</span>
+                  <span className="text-muted-foreground">
+                    {t("organization.riskGraph.maxImpact")}
+                  </span>
                   <p className="font-mono font-bold text-foreground">
                     {(
                       Number(selectedRiskData.financial_impact_max) / 1000
@@ -393,12 +405,12 @@ export default function RiskGraphPage() {
                 <div className="rounded-md bg-destructive/10 p-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
                     <AlertTriangle className="h-3 w-3" />
-                    Effet domino: {cascadeRefs.size} risque
-                    {cascadeRefs.size > 1 ? "s" : ""} impacté
-                    {cascadeRefs.size > 1 ? "s" : ""}
+                    {t("organization.riskGraph.dominoEffect", {
+                      count: cascadeRefs.size,
+                    })}
                   </div>
                   <p className="mt-1 text-[10px] text-muted-foreground">
-                    {Array.from(cascadeRefs).join(" → ")}
+                    {Array.from(cascadeRefs).map(shortRef).join(" → ")}
                   </p>
                 </div>
               )}
@@ -413,7 +425,8 @@ export default function RiskGraphPage() {
             >
               <span className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-destructive" />
-                Scénarios Domino ({dominoChains.length})
+                {t("organization.riskGraph.dominoScenarios")} (
+                {dominoChains.length})
               </span>
               {showDomino ? (
                 <ChevronUp className="h-4 w-4" />
@@ -425,7 +438,7 @@ export default function RiskGraphPage() {
               <div className="mt-3 space-y-2">
                 {dominoChains.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    Aucune chaîne domino détectée avec les filtres actuels.
+                    {t("organization.riskGraph.noDominoChains")}
                   </p>
                 ) : (
                   dominoChains.map((chain, i) => (
@@ -435,7 +448,10 @@ export default function RiskGraphPage() {
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold text-foreground">
-                          {chain.name}
+                          {t("organization.riskGraph.chainName", {
+                            source: shortRef(chain.refs[0]),
+                            target: shortRef(chain.refs[chain.refs.length - 1]),
+                          })}
                         </span>
                         <span className="font-mono text-[10px] font-bold text-destructive">
                           {(chain.totalImpact / 1000).toFixed(1)}M€
@@ -447,8 +463,9 @@ export default function RiskGraphPage() {
                             <button
                               onClick={() => setSelectedRisk(ref)}
                               className="font-mono font-bold text-foreground hover:text-primary"
+                              title={ref}
                             >
-                              {ref}
+                              {shortRef(ref)}
                             </button>
                             {j < chain.refs.length - 1 && (
                               <ArrowRight className="h-2.5 w-2.5 text-destructive" />
@@ -466,7 +483,8 @@ export default function RiskGraphPage() {
           {/* Links list */}
           <div className="rounded-xl border border-border bg-card p-4">
             <h3 className="mb-3 text-sm font-semibold text-foreground">
-              Corrélations ({filteredLinks.length})
+              {t("organization.riskGraph.correlations")} ({filteredLinks.length}
+              )
             </h3>
             <div className="max-h-64 space-y-1.5 overflow-y-auto">
               {filteredLinks.map((link, i) => (
@@ -474,12 +492,18 @@ export default function RiskGraphPage() {
                   key={i}
                   className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/50"
                 >
-                  <span className="font-mono font-bold text-foreground">
-                    {link.source_ref}
+                  <span
+                    className="font-mono font-bold text-foreground"
+                    title={link.source_ref}
+                  >
+                    {shortRef(link.source_ref)}
                   </span>
                   <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />
-                  <span className="font-mono font-bold text-foreground">
-                    {link.target_ref}
+                  <span
+                    className="font-mono font-bold text-foreground"
+                    title={link.target_ref}
+                  >
+                    {shortRef(link.target_ref)}
                   </span>
                   <span
                     className={`ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-medium ${

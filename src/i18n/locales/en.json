@@ -296,6 +296,23 @@
             "selectRiskHint":"Click on a cell to see the risks"
 
         },
+        "riskGraph":{
+            "title":"Dependency Graph & Domino Effects",
+            "description":"PageRank visualization — click a risk to see its cascade effects",
+            "legendCauses":"CAUSES",
+            "legendAmplifies":"AMPLIFIES",
+            "legendCorrelates":"CORRELATES",
+            "legendTippingPoint":"Tipping Point",
+            "clearSelection":"Clear selection",
+            "pageRank":"PageRank",
+            "maxImpact":"Max impact",
+            "dominoEffect_one":"Domino effect: {{count}} risk impacted",
+            "dominoEffect_other":"Domino effect: {{count}} risks impacted",
+            "dominoScenarios":"Domino Scenarios",
+            "noDominoChains":"No domino chain detected with the current filters.",
+            "correlations":"Correlations",
+            "chainName":"Chain {{source}} → {{target}}"
+        },
         "settings":{
             "passwordChange":{
                 "oldPasswordReqText":"Current password is required",

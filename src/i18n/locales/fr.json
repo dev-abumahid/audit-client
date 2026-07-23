@@ -261,6 +261,23 @@
             "activity": "Activité",
             "update": "Mettre à jour le site"
         },
+        "riskGraph":{
+            "title":"Graphe de Dépendances & Effets Domino",
+            "description":"Visualisation PageRank — cliquez un risque pour voir ses effets cascade",
+            "legendCauses":"CAUSES",
+            "legendAmplifies":"AMPLIFIES",
+            "legendCorrelates":"CORRELATES",
+            "legendTippingPoint":"Point de bascule",
+            "clearSelection":"Effacer la sélection",
+            "pageRank":"PageRank",
+            "maxImpact":"Impact max",
+            "dominoEffect_one":"Effet domino : {{count}} risque impacté",
+            "dominoEffect_other":"Effet domino : {{count}} risques impactés",
+            "dominoScenarios":"Scénarios Domino",
+            "noDominoChains":"Aucune chaîne domino détectée avec les filtres actuels.",
+            "correlations":"Corrélations",
+            "chainName":"Chaîne {{source}} → {{target}}"
+        },
         "settings":{
             "passwordChange":{
                 "oldPasswordReqText":"Le mot de passe actuel est requis.",
