@@ -87,16 +87,46 @@ export default function AuditPage() {
 
   const handleSave = async () => {
     if (!form.ref || !form.title) return
-    // when i make api then i will use this payload
-    // const payload = {
-    //   ...form,
-    //   linked_risk_refs: form.linked_risk_refs
-    //     ? form.linked_risk_refs
-    //         .split(",")
-    //         .map((s) => s.trim())
-    //         .filter(Boolean)
-    //     : [],
-    // }
+
+    // linked_risk_refs is a comma-separated string in the form but a string[]
+    // on the model; normalize it here (the same shape the real API payload
+    // will use once these pages leave mock data — issue #93).
+    const linkedRiskRefs = form.linked_risk_refs
+      ? form.linked_risk_refs
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : []
+
+    if (editId) {
+      // Replace the edited engagement in place; mark it as human-edited so
+      // the SourceBadge reflects the change.
+      setEngagements((prev) =>
+        prev.map((e) =>
+          e.id === editId
+            ? { ...e, ...form, linked_risk_refs: linkedRiskRefs, is_edited: true }
+            : e
+        )
+      )
+    } else {
+      // Append the newly created engagement. Still mock-backed (issue #93),
+      // so mint a local id and timestamps rather than relying on a backend.
+      const now = new Date().toISOString()
+      const newEng: AuditEngagement = {
+        ...form,
+        linked_risk_refs: linkedRiskRefs,
+        id: crypto.randomUUID(),
+        organization_id: "",
+        user_id: "",
+        ai_generated: false,
+        is_edited: false,
+        report_url: null,
+        created_at: now,
+        updated_at: now,
+      }
+      setEngagements((prev) => [newEng, ...prev])
+    }
+
     setShowModal(false)
     setForm(EMPTY_FORM)
   }

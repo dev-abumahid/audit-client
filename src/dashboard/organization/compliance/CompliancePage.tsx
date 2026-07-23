@@ -100,6 +100,32 @@ export default function CompliancePage() {
 
     setIsSaving(true)
 
+    if (editingObl) {
+      // Replace the edited obligation in place; mark it as human-edited so
+      // the SourceBadge reflects the change.
+      setObligations((prev) =>
+        prev.map((o) =>
+          o.id === form.id ? { ...o, ...form, is_edited: true } : o
+        )
+      )
+    } else {
+      // Append the newly created obligation. These pages are still on mock
+      // data (issues #92/#93), so we mint a local id and timestamps rather
+      // than relying on a backend to assign them.
+      const now = new Date().toISOString()
+      const newObl: ComplianceObligation = {
+        ...form,
+        id: crypto.randomUUID(),
+        organization_id: "",
+        user_id: "",
+        ai_generated: false,
+        is_edited: false,
+        created_at: now,
+        updated_at: now,
+      }
+      setObligations((prev) => [newObl, ...prev])
+    }
+
     setShowForm(false)
     setForm(EMPTY_COMPLIANCE)
     setIsSaving(false)
