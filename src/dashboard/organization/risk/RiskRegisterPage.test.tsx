@@ -98,17 +98,27 @@ describe("RiskRegisterPage", () => {
 
     render(<RiskRegisterPage />)
 
-    expect(screen.getByText("🏢 Groupe")).toBeInTheDocument()
+    // i18n isn't initialized in the test environment, so t() echoes the raw
+    // key back (see RiskMatrixPage.test.tsx for the same convention).
+    expect(
+      screen.getByText("🏢 organization.riskRegister.groupFallback")
+    ).toBeInTheDocument()
   })
 
   it('opens the create modal when "Add New Risk" is clicked', async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 
     render(<RiskRegisterPage />)
-    await userEvent.click(screen.getByRole("button", { name: /add new risk/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    )
 
     expect(
-      screen.getByText("Add New Risk", { selector: "h2" })
+      screen.getByText("organization.riskRegister.addNewRisk", {
+        selector: "h2",
+      })
     ).toBeInTheDocument()
   })
 
@@ -116,13 +126,25 @@ describe("RiskRegisterPage", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 
     render(<RiskRegisterPage />)
-    await userEvent.click(screen.getByRole("button", { name: /add new risk/i }))
-    await userEvent.click(screen.getByRole("button", { name: /^add risk$/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.riskRegister.addRisk" })
+    )
 
     await waitFor(() => {
-      expect(screen.getByText("Site is required")).toBeInTheDocument()
-      expect(screen.getByText("Risk name is required")).toBeInTheDocument()
-      expect(screen.getByText("Status is required")).toBeInTheDocument()
+      expect(
+        screen.getByText("organization.riskRegister.siteRequired")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText("organization.riskRegister.riskNameRequired")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText("organization.riskRegister.statusRequired")
+      ).toBeInTheDocument()
     })
     expect(mockCreateNewRisk).not.toHaveBeenCalled()
   })
@@ -134,7 +156,11 @@ describe("RiskRegisterPage", () => {
     })
 
     const { container } = render(<RiskRegisterPage />)
-    await userEvent.click(screen.getByRole("button", { name: /add new risk/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    )
 
     // Form inputs aren't wired to <label for>, so query by the react-hook-form `name` attribute
     await userEvent.selectOptions(
@@ -146,7 +172,9 @@ describe("RiskRegisterPage", () => {
       container.querySelector('[name="status"]')!,
       "open"
     )
-    await userEvent.click(screen.getByRole("button", { name: /^add risk$/i }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.riskRegister.addRisk" })
+    )
 
     await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
     const submitted = mockCreateNewRisk.mock.calls[0][0]
@@ -166,7 +194,9 @@ describe("RiskRegisterPage", () => {
       .filter((b) => b.querySelector("svg.lucide-pencil"))
     await userEvent.click(editButtons[0])
 
-    expect(screen.getByText("Edit Risk")).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.riskRegister.editRisk")
+    ).toBeInTheDocument()
     expect(container.querySelector('[name="name"]')).toHaveValue(
       "Supply chain disruption"
     )
@@ -233,7 +263,11 @@ describe("RiskRegisterPage", () => {
     })
 
     const { container } = render(<RiskRegisterPage />)
-    await userEvent.click(screen.getByRole("button", { name: /add new risk/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    )
     await userEvent.selectOptions(
       container.querySelector('[name="site_id"]')!,
       "site-1"
@@ -246,13 +280,17 @@ describe("RiskRegisterPage", () => {
       container.querySelector('[name="status"]')!,
       "open"
     )
-    await userEvent.click(screen.getByRole("button", { name: /^add risk$/i }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.riskRegister.addRisk" })
+    )
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Name already exists")
     )
     expect(
-      screen.getByText("Add New Risk", { selector: "h2" })
+      screen.getByText("organization.riskRegister.addNewRisk", {
+        selector: "h2",
+      })
     ).toBeInTheDocument()
   })
 
@@ -266,7 +304,11 @@ describe("RiskRegisterPage", () => {
     })
 
     const { container } = render(<RiskRegisterPage />)
-    await userEvent.click(screen.getByRole("button", { name: /add new risk/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    )
     await userEvent.selectOptions(
       container.querySelector('[name="site_id"]')!,
       "site-1"
@@ -279,14 +321,18 @@ describe("RiskRegisterPage", () => {
       container.querySelector('[name="status"]')!,
       "open"
     )
-    await userEvent.click(screen.getByRole("button", { name: /^add risk$/i }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.riskRegister.addRisk" })
+    )
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Server unavailable")
     )
     // Modal should stay open on failure, not call setShowModal(false)
     expect(
-      screen.getByText("Add New Risk", { selector: "h2" })
+      screen.getByText("organization.riskRegister.addNewRisk", {
+        selector: "h2",
+      })
     ).toBeInTheDocument()
   })
 
@@ -294,7 +340,10 @@ describe("RiskRegisterPage", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 
     render(<RiskRegisterPage />)
-    await userEvent.type(screen.getByPlaceholderText("Search..."), "flood")
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.riskRegister.searchPlaceholder"),
+      "flood"
+    )
 
     await waitFor(() =>
       expect(mockUseGetAllRisksQuery).toHaveBeenCalledWith(

@@ -14,6 +14,7 @@ import { Loader, Pencil, Plus, Search, Trash2 } from "lucide-react"
 import { useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
 import { useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 const EMPTY_RISK: Partial<Risk> = {
@@ -36,6 +37,7 @@ const EMPTY_RISK: Partial<Risk> = {
 }
 
 export default function RiskRegisterPage() {
+  const { t } = useTranslation()
   const [filterCat, setFilterCat] = useState("")
   const [search, setSearch] = useState("")
   const [siteFilter, setSiteFilter] = useState<string>("")
@@ -120,12 +122,16 @@ export default function RiskRegisterPage() {
         // rather than reading a field the response never has. Found while
         // typing this endpoint (issue #108): `res.error` doesn't type-check
         // against the real response shape.
-        toast.error(res.message || "Failed to save risk")
+        toast.error(
+          res.message || t("organization.riskRegister.saveFailedToast")
+        )
       }
     } catch (err: any) {
       // Keep the modal open on failure so the user can retry without
       // re-entering the whole form (matches handleDelete's pattern below).
-      toast.error(err?.data?.message || "Failed to save risk")
+      toast.error(
+        err?.data?.message || t("organization.riskRegister.saveFailedToast")
+      )
     }
   }
 
@@ -140,12 +146,14 @@ export default function RiskRegisterPage() {
     try {
       const res = await deleteRisk(deleteRiskId).unwrap()
       if (res.success) {
-        toast.success("Risk deleted successfully")
+        toast.success(t("organization.riskRegister.deleteSuccessToast"))
         setIsDeleteModalOpen(false)
         setDeleteRiskId(null)
       }
     } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to delete risk")
+      toast.error(
+        err?.data?.message || t("organization.riskRegister.deleteFailedToast")
+      )
     }
   }
 
@@ -154,9 +162,11 @@ export default function RiskRegisterPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight lg:text-2xl">
-            Risk Register
+            {t("organization.riskRegister.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">Risk founds</p>
+          <p className="text-sm text-muted-foreground">
+            {t("organization.riskRegister.subtitle")}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -164,7 +174,8 @@ export default function RiskRegisterPage() {
             onClick={openCreate}
             className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
           >
-            <Plus className="h-3.5 w-3.5" /> Add New Risk
+            <Plus className="h-3.5 w-3.5" />{" "}
+            {t("organization.riskRegister.addNewRisk")}
           </button>
         </div>
       </div>
@@ -175,7 +186,7 @@ export default function RiskRegisterPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search..."
+            placeholder={t("organization.riskRegister.searchPlaceholder")}
             className="h-9 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-xs"
           />
         </div>
@@ -185,7 +196,7 @@ export default function RiskRegisterPage() {
           onChange={(e) => setSiteFilter(e.target.value)}
           className="h-9 w-40 rounded-lg border border-input bg-card px-3 text-xs lg:w-52"
         >
-          <option value="">All Sites</option>
+          <option value="">{t("organization.riskRegister.allSite")}</option>
           {allSites?.data.map((s: SiteSummary) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -198,7 +209,9 @@ export default function RiskRegisterPage() {
           onChange={(e) => setFilterCat(e.target.value)}
           className="h-9 rounded-lg border border-input bg-card px-3 text-xs"
         >
-          <option value="">All Categories</option>
+          <option value="">
+            {t("organization.riskRegister.allCategory")}
+          </option>
           {Object.entries(RISK_CATEGORIES).map(([k, v]) => (
             <option key={k} value={k}>
               {v.label}
@@ -213,25 +226,25 @@ export default function RiskRegisterPage() {
             <thead>
               <tr className="border-b bg-muted/30 text-left">
                 <th className="px-3 py-2.5 font-semibold text-muted-foreground uppercase">
-                  NAME
+                  {t("organization.riskRegister.colName")}
                 </th>
                 <th className="hidden px-3 py-2.5 font-semibold text-muted-foreground sm:table-cell">
-                  SITE
+                  {t("organization.riskRegister.colSite")}
                 </th>
                 <th className="hidden px-3 py-2.5 font-semibold text-muted-foreground md:table-cell">
-                  CAT
+                  {t("organization.riskRegister.colCat")}
                 </th>
                 <th className="px-3 py-2.5 text-center font-semibold text-muted-foreground">
-                  SCORE
+                  {t("organization.riskRegister.colScore")}
                 </th>
                 <th className="hidden px-3 py-2.5 text-center font-semibold text-muted-foreground lg:table-cell">
-                  PR
+                  {t("organization.riskRegister.colPr")}
                 </th>
                 <th className="hidden px-3 py-2.5 text-center font-semibold text-muted-foreground lg:table-cell">
-                  IMPACT
+                  {t("organization.riskRegister.colImpact")}
                 </th>
                 <th className="px-3 py-2.5 font-semibold text-muted-foreground">
-                  SOURCE
+                  {t("organization.riskRegister.colSource")}
                 </th>
                 <th className="w-20 px-3 py-2.5 font-semibold text-muted-foreground"></th>
               </tr>
@@ -251,7 +264,8 @@ export default function RiskRegisterPage() {
                     </td>
                     <td className="hidden px-3 py-2.5 sm:table-cell">
                       <span className="text-[11px] text-muted-foreground">
-                        {risk?.site?.name || "🏢 Groupe"}
+                        {risk?.site?.name ||
+                          `🏢 ${t("organization.riskRegister.groupFallback")}`}
                       </span>
                     </td>
                     <td className="hidden px-3 py-2.5 md:table-cell">
@@ -281,7 +295,9 @@ export default function RiskRegisterPage() {
                       {(risk.financial_impact_max / 1000).toFixed(1)}M
                     </td>
                     <td className="px-3 py-2.5 text-[10px] text-muted-foreground">
-                      {risk.ai_generated ? "🤖 IA" : "Manuel"}
+                      {risk.ai_generated
+                        ? `🤖 ${t("organization.riskRegister.aiGenerated")}`
+                        : t("organization.riskRegister.manual")}
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex gap-1">
@@ -311,21 +327,35 @@ export default function RiskRegisterPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl border bg-card p-5 shadow-xl">
             <h2 className="text-lg font-bold">
-              {editId ? "Edit Risk" : "Add New Risk"}
+              {editId
+                ? t("organization.riskRegister.editRisk")
+                : t("organization.riskRegister.addNewRisk")}
             </h2>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               {/* Basic Information */}
+              {/* Note: required-field messages below are RHF-validated
+                  snapshots. If the language is switched while a validation
+                  error is already showing, the visible message stays in the
+                  old language until the field is re-validated (blur/submit)
+                  -- rules themselves do pick up the new t() string on the
+                  next render, only the already-rendered error text doesn't
+                  retroactively update. Same characteristic the rest of this
+                  form's error handling already has; not fixed here. */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">
-                    Site *
+                    {t("organization.riskRegister.siteLabel")}
                   </label>
                   <select
-                    {...register("site_id", { required: "Site is required" })}
+                    {...register("site_id", {
+                      required: t("organization.riskRegister.siteRequired"),
+                    })}
                     className="mt-1 h-9 w-full rounded-lg border bg-muted px-3 text-sm"
                   >
-                    <option value="">Select Site</option>
+                    <option value="">
+                      {t("organization.riskRegister.selectSite")}
+                    </option>
                     {allSites?.data?.map((site: SiteSummary) => (
                       <option key={site.id} value={site.id}>
                         {site.name}
@@ -341,13 +371,15 @@ export default function RiskRegisterPage() {
 
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">
-                    Category
+                    {t("organization.riskRegister.categoryLabel")}
                   </label>
                   <select
                     {...register("category")}
                     className="mt-1 h-9 w-full rounded-lg border bg-muted px-3 text-sm"
                   >
-                    <option value="">Select Category</option>
+                    <option value="">
+                      {t("organization.riskRegister.selectCategory")}
+                    </option>
                     {Object.entries(RISK_CATEGORIES).map(([k, v]) => (
                       <option key={k} value={k}>
                         {v.label}
@@ -364,10 +396,12 @@ export default function RiskRegisterPage() {
 
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
-                  Risk Name *
+                  {t("organization.riskRegister.riskNameLabel")}
                 </label>
                 <input
-                  {...register("name", { required: "Risk name is required" })}
+                  {...register("name", {
+                    required: t("organization.riskRegister.riskNameRequired"),
+                  })}
                   className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
                 />
                 {errors.name && (
@@ -379,7 +413,7 @@ export default function RiskRegisterPage() {
 
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
-                  Description
+                  {t("organization.riskRegister.descriptionLabel")}
                 </label>
                 <textarea
                   {...register("description")}
@@ -390,11 +424,13 @@ export default function RiskRegisterPage() {
 
               {/* Scores Section */}
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Scores</h3>
+                <h3 className="text-sm font-semibold">
+                  {t("organization.riskRegister.scoresTitle")}
+                </h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">
-                      Inherent Score
+                      {t("organization.riskRegister.inherentScoreLabel")}
                     </label>
                     <input
                       type="number"
@@ -404,7 +440,7 @@ export default function RiskRegisterPage() {
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">
-                      Residual Score
+                      {t("organization.riskRegister.residualScoreLabel")}
                     </label>
                     <input
                       type="number"
@@ -414,7 +450,7 @@ export default function RiskRegisterPage() {
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">
-                      PageRank Score
+                      {t("organization.riskRegister.pagerankScoreLabel")}
                     </label>
                     <input
                       type="number"
@@ -427,11 +463,13 @@ export default function RiskRegisterPage() {
 
               {/* Financial Impact Section */}
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Financial Impact</h3>
+                <h3 className="text-sm font-semibold">
+                  {t("organization.riskRegister.financialImpactTitle")}
+                </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">
-                      Min Impact
+                      {t("organization.riskRegister.minImpactLabel")}
                     </label>
                     <input
                       type="number"
@@ -443,7 +481,7 @@ export default function RiskRegisterPage() {
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">
-                      Max Impact
+                      {t("organization.riskRegister.maxImpactLabel")}
                     </label>
                     <input
                       type="number"
@@ -458,11 +496,13 @@ export default function RiskRegisterPage() {
 
               {/* Risk Assessment Section */}
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Risk Assessment</h3>
+                <h3 className="text-sm font-semibold">
+                  {t("organization.riskRegister.riskAssessmentTitle")}
+                </h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">
-                      Probability
+                      {t("organization.riskRegister.probabilityLabel")}
                     </label>
                     <input
                       type="number"
@@ -472,31 +512,49 @@ export default function RiskRegisterPage() {
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">
-                      Velocity
+                      {t("organization.riskRegister.velocityLabel")}
                     </label>
                     <select
                       {...register("velocity")}
                       className="mt-1 h-9 w-full rounded-lg border bg-muted px-3 text-sm"
                     >
-                      <option value="">Select Velocity</option>
-                      <option value="critical">Critical</option>
-                      <option value="high">High</option>
-                      <option value="medium">Medium</option>
-                      <option value="low">Low</option>
+                      <option value="">
+                        {t("organization.riskRegister.selectVelocity")}
+                      </option>
+                      <option value="critical">
+                        {t("organization.riskRegister.velocityCritical")}
+                      </option>
+                      <option value="high">
+                        {t("organization.riskRegister.velocityHigh")}
+                      </option>
+                      <option value="medium">
+                        {t("organization.riskRegister.velocityMedium")}
+                      </option>
+                      <option value="low">
+                        {t("organization.riskRegister.velocityLow")}
+                      </option>
                     </select>
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">
-                      Trend
+                      {t("organization.riskRegister.trendLabel")}
                     </label>
                     <select
                       {...register("trend")}
                       className="mt-1 h-9 w-full rounded-lg border bg-muted px-3 text-sm"
                     >
-                      <option value="">Select Trend</option>
-                      <option value="increasing">Increasing</option>
-                      <option value="decreasing">Decreasing</option>
-                      <option value="none">None</option>
+                      <option value="">
+                        {t("organization.riskRegister.selectTrend")}
+                      </option>
+                      <option value="increasing">
+                        {t("organization.riskRegister.trendIncreasing")}
+                      </option>
+                      <option value="decreasing">
+                        {t("organization.riskRegister.trendDecreasing")}
+                      </option>
+                      <option value="none">
+                        {t("organization.riskRegister.trendNone")}
+                      </option>
                     </select>
                   </div>
                 </div>
@@ -506,17 +564,29 @@ export default function RiskRegisterPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">
-                    Status *
+                    {t("organization.riskRegister.statusLabel")}
                   </label>
                   <select
-                    {...register("status", { required: "Status is required" })}
+                    {...register("status", {
+                      required: t("organization.riskRegister.statusRequired"),
+                    })}
                     className="mt-1 h-9 w-full rounded-lg border bg-muted px-3 text-sm"
                   >
-                    <option value="">Select Status</option>
-                    <option value="open">Open</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="closed">Closed</option>
+                    <option value="">
+                      {t("organization.riskRegister.selectStatus")}
+                    </option>
+                    <option value="open">
+                      {t("organization.riskRegister.statusOpen")}
+                    </option>
+                    <option value="in_progress">
+                      {t("organization.riskRegister.statusInProgress")}
+                    </option>
+                    <option value="completed">
+                      {t("organization.riskRegister.statusCompleted")}
+                    </option>
+                    <option value="closed">
+                      {t("organization.riskRegister.statusClosed")}
+                    </option>
                   </select>
                   {errors.status && (
                     <p className="mt-1 text-xs text-destructive">
@@ -527,23 +597,27 @@ export default function RiskRegisterPage() {
 
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">
-                    Source Info
+                    {t("organization.riskRegister.sourceInfoLabel")}
                   </label>
                   <input
                     {...register("source_info")}
                     className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
-                    placeholder="Risk source or reference"
+                    placeholder={t(
+                      "organization.riskRegister.sourceInfoPlaceholder"
+                    )}
                   />
                 </div>
               </div>
 
               {/* Control Effectiveness Section */}
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Control Effectiveness</h3>
+                <h3 className="text-sm font-semibold">
+                  {t("organization.riskRegister.controlEffectivenessTitle")}
+                </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">
-                      Design Effectiveness
+                      {t("organization.riskRegister.designEffectivenessLabel")}
                     </label>
                     <input
                       type="number"
@@ -557,7 +631,9 @@ export default function RiskRegisterPage() {
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">
-                      Operating Effectiveness
+                      {t(
+                        "organization.riskRegister.operatingEffectivenessLabel"
+                      )}
                     </label>
                     <input
                       type="number"
@@ -579,7 +655,7 @@ export default function RiskRegisterPage() {
                   onClick={() => setShowModal(false)}
                   className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
                 >
-                  Close
+                  {t("organization.riskRegister.close")}
                 </button>
                 <button
                   type="submit"
@@ -587,7 +663,9 @@ export default function RiskRegisterPage() {
                   className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
                 >
                   {isRiskCreating || (isRiskUpdating && <Loader />)}
-                  {editId ? "Update Risk" : "Add Risk"}
+                  {editId
+                    ? t("organization.riskRegister.updateRisk")
+                    : t("organization.riskRegister.addRisk")}
                 </button>
               </div>
             </form>
@@ -596,8 +674,8 @@ export default function RiskRegisterPage() {
       )}
 
       <DeleteAlertModal
-        title="Delete Risk?"
-        description="This will permanently remove this Risk from the system."
+        title={t("organization.riskRegister.deleteTitle")}
+        description={t("organization.riskRegister.deleteDescription")}
         open={isDeleteModalOpen}
         setOpen={setIsDeleteModalOpen}
         onConfirm={confirmDeleteRisk}
