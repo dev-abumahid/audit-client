@@ -233,9 +233,9 @@ export default function RiskGraphPage() {
           >
             {/* Links */}
             {filteredLinks.map((link, i) => {
-              const s = positions[link.source_ref]
-              const t = positions[link.target_ref]
-              if (!s || !t) return null
+              const source = positions[link.source_ref]
+              const target = positions[link.target_ref]
+              if (!source || !target) return null
 
               const isCascade =
                 selectedRisk &&
@@ -253,19 +253,19 @@ export default function RiskGraphPage() {
                     : "hsl(199, 89%, 48%)"
 
               // Arrow marker
-              const dx = t.x - s.x
-              const dy = t.y - s.y
+              const dx = target.x - source.x
+              const dy = target.y - source.y
               const len = Math.sqrt(dx * dx + dy * dy)
               const nodeR = 22
               const ratio = (len - nodeR) / len
-              const ex = s.x + dx * ratio
-              const ey = s.y + dy * ratio
+              const ex = source.x + dx * ratio
+              const ey = source.y + dy * ratio
 
               return (
                 <g key={i}>
                   <line
-                    x1={s.x}
-                    y1={s.y}
+                    x1={source.x}
+                    y1={source.y}
                     x2={ex}
                     y2={ey}
                     stroke={isCascade ? "hsl(0, 90%, 50%)" : color}

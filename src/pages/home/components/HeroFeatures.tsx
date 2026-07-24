@@ -8,7 +8,7 @@ const HeroFeatures: React.FC = () => {
     {
       icon: Users,
       title: t("home.heroFeatures.features.0.title"),
-      description: t("heroFeatures.features.0.description"),
+      description: t("home.heroFeatures.features.0.description"),
     },
     {
       icon: Smartphone,
