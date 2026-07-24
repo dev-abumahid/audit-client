@@ -242,4 +242,159 @@ describe("AuditPage", () => {
     // Modal stays open on failure.
     expect(screen.getByText("New Audit Engagement")).toBeInTheDocument()
   })
+
+  describe("report upload / download (issue #159)", () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it("uploads a report to /api/audit/attachment then PATCHes report_url", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [makeEngagement({ report_url: null })] },
+        isLoading: false,
+      })
+      mockUpdateAuditEngagement.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({ data: { url: "https://s3.example.com/r.pdf" } }),
+      })
+      vi.stubGlobal("fetch", fetchMock)
+
+      const { container } = render(<AuditPage />)
+
+      const fileInput = container.querySelector(
+        'input[type="file"]'
+      ) as HTMLInputElement
+      const file = new File(["pdf"], "report.pdf", { type: "application/pdf" })
+      await user.upload(fileInput, file)
+
+      // 1) the file was POSTed to the real upload route
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+      const [url, opts] = fetchMock.mock.calls[0]
+      expect(String(url)).toContain("/api/audit/attachment")
+      expect((opts as RequestInit).method).toBe("POST")
+
+      // 2) the returned URL was persisted onto the engagement via PATCH
+      await waitFor(() =>
+        expect(mockUpdateAuditEngagement).toHaveBeenCalledWith({
+          id: "audit-1",
+          data: { report_url: "https://s3.example.com/r.pdf" },
+        })
+      )
+      expect(mockToastSuccess).toHaveBeenCalledWith("Report uploaded successfully")
+    })
+
+    it("shows an error toast and does not PATCH when the upload request fails", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [makeEngagement({ report_url: null })] },
+        isLoading: false,
+      })
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }))
+
+      const { container } = render(<AuditPage />)
+
+      const fileInput = container.querySelector(
+        'input[type="file"]'
+      ) as HTMLInputElement
+      await user.upload(
+        fileInput,
+        new File(["pdf"], "report.pdf", { type: "application/pdf" })
+      )
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith("Failed to upload report")
+      )
+      expect(mockUpdateAuditEngagement).not.toHaveBeenCalled()
+    })
+
+    it("opens the real report URL in a new tab on download", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeEngagement({ report_url: "https://s3.example.com/final.pdf" }),
+          ],
+        },
+        isLoading: false,
+      })
+      const openSpy = vi.fn()
+      vi.stubGlobal("open", openSpy)
+
+      render(<AuditPage />)
+
+      await user.click(screen.getByRole("button", { name: /Report/i }))
+
+      expect(openSpy).toHaveBeenCalledWith(
+        "https://s3.example.com/final.pdf",
+        "_blank",
+        "noopener,noreferrer"
+      )
+    })
+  })
+
+  describe("search and pagination (issue #160)", () => {
+    it("feeds the search box value into the query's searchTerm and resets to page 1", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [makeEngagement()], meta: { total: 1, totalPage: 1 } },
+        isLoading: false,
+      })
+
+      render(<AuditPage />)
+
+      const searchBox = screen.getByPlaceholderText(
+        /Search by reference, title or lead auditor/i
+      )
+      await user.type(searchBox, "cyber")
+
+      // The latest query call reflects the typed searchTerm and page 1.
+      const lastCall =
+        mockUseGetAllAuditEngagementsQuery.mock.calls[
+          mockUseGetAllAuditEngagementsQuery.mock.calls.length - 1
+        ][0]
+      expect(lastCall).toMatchObject({ searchTerm: "cyber", page: 1 })
+    })
+
+    it("renders pagination controls and advances the page when Next is clicked", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: {
+          data: [makeEngagement()],
+          meta: { total: 45, totalPage: 3, page: 1, limit: 20 },
+        },
+        isLoading: false,
+      })
+
+      render(<AuditPage />)
+
+      // Numbered page buttons are present (totalPage > 1).
+      expect(screen.getByRole("button", { name: "2" })).toBeInTheDocument()
+
+      await user.click(screen.getByRole("button", { name: /Next page/i }))
+
+      const lastCall =
+        mockUseGetAllAuditEngagementsQuery.mock.calls[
+          mockUseGetAllAuditEngagementsQuery.mock.calls.length - 1
+        ][0]
+      expect(lastCall.page).toBe(2)
+    })
+
+    it("does not render pagination when there is only one page", () => {
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [makeEngagement()], meta: { total: 1, totalPage: 1 } },
+        isLoading: false,
+      })
+
+      render(<AuditPage />)
+
+      expect(
+        screen.queryByRole("button", { name: /Next page/i })
+      ).not.toBeInTheDocument()
+    })
+  })
 })

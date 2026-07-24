@@ -8,6 +8,8 @@ import {
 } from "@/redux/apis/organization/audit.api"
 import {
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   FileText,
   Loader2,
@@ -15,11 +17,21 @@ import {
   Pencil,
   Play,
   Plus,
+  Search,
   Trash2,
   Upload,
 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+
+// Same base-URL convention the Compliance module uses for its direct
+// attachment upload: RTK Query's baseApi is for JSON endpoints, so the
+// multipart file upload goes through a plain fetch to the shared uploader
+// route instead.
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ""
+
+// One page's worth of engagements. Matches AllFindingsPage's page size.
+const PAGE_SIZE = 20
 
 const STATUS_ICONS: Record<string, React.ElementType> = {
   planned: Play,
@@ -41,10 +53,17 @@ const EMPTY_FORM = {
 }
 
 export default function AuditPage() {
+  // Search box (title / ref / lead_auditor — the backend searches all three)
+  // and page state feed the paginated query. searchTerm was previously
+  // hardcoded to "" and page/limit were fixed at 1/100, so the list silently
+  // capped at 100 rows with no way to reach the rest and no way to filter.
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
+
   const { data: auditData, isLoading } = useGetAllAuditEngagementsQuery({
-    page: 1,
-    limit: 100,
-    searchTerm: "",
+    page,
+    limit: PAGE_SIZE,
+    searchTerm: search,
   })
   const [createAuditEngagement, { isLoading: isCreating }] =
     useCreateAuditEngagementMutation()
@@ -53,11 +72,30 @@ export default function AuditPage() {
   const [deleteAuditEngagement] = useDeleteAuditEngagementMutation()
 
   const engagements: AuditEngagement[] = auditData?.data || []
+  const meta = auditData?.meta
+  const totalPages = meta?.totalPage || 0
 
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [uploading, setUploading] = useState<string | null>(null)
+
+  // Reset to page 1 whenever the search term changes so a filtered result set
+  // never starts on an out-of-range page (same pattern AllFindingsPage uses).
+  const handleSearchChange = (value: string) => {
+    setSearch(value)
+    setPage(1)
+  }
+
+  const getPageNumbers = () => {
+    const maxVisible = 5
+    let start = Math.max(1, page - Math.floor(maxVisible / 2))
+    const end = Math.min(totalPages, start + maxVisible - 1)
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1)
+    }
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
 
   const STATUS_CONFIG: Record<
     string,
@@ -182,16 +220,54 @@ export default function AuditPage() {
 
   const handleReportUpload = async (engId: string, file: File) => {
     setUploading(engId)
+    try {
+      // 1) Upload the file to the shared uploader route and get its URL back,
+      //    mirroring the Compliance module's uploadAttachment flow.
+      const body = new FormData()
+      body.append("file", file)
+      const res = await fetch(`${BASE_URL}/api/audit/attachment`, {
+        method: "POST",
+        credentials: "include",
+        body,
+      })
+      if (!res.ok) throw new Error("Upload failed")
+      const json = await res.json()
+      const url: string = json.data?.url ?? json.url ?? ""
+      if (!url) throw new Error("Upload failed")
 
-    alert(`Report "${file.name}" uploaded successfully`)
-    setUploading(null)
+      // 2) Persist the URL onto the engagement via the normal PATCH endpoint —
+      //    no dedicated update endpoint needed, report_url is just a field.
+      const updateRes = await updateAuditEngagement({
+        id: engId,
+        data: { report_url: url },
+      }).unwrap()
+
+      if (updateRes.success) {
+        toast.success("Report uploaded successfully")
+      } else {
+        toast.error(updateRes.message || "Failed to save report")
+      }
+    } catch (err) {
+      const message =
+        (err as { data?: { message?: string } })?.data?.message ||
+        "Failed to upload report"
+      toast.error(message)
+    } finally {
+      setUploading(null)
+    }
   }
 
   const handleDownloadReport = (reportUrl: string) => {
-    alert(`Opening report: ${reportUrl}`)
-    // In a real app, this would open the signed URL
+    // Open the real stored URL in a new tab.
+    window.open(reportUrl, "_blank", "noopener,noreferrer")
   }
 
+  // Total reflects the whole (filtered) result set via the paginated meta, not
+  // just the current page. The in-progress / completed / findings tallies are
+  // computed over the loaded page only — there is no server-side aggregate
+  // endpoint for them, and computing across pages would require fetching every
+  // page.
+  const totalCount = meta?.total ?? engagements.length
   const inProgressCount = engagements.filter(
     (e) => e.status === "in_progress"
   ).length
@@ -226,7 +302,7 @@ export default function AuditPage() {
       <div className="animate-slide-up flex gap-4 text-xs">
         <div className="rounded-lg border border-border bg-card px-4 py-2.5">
           <span className="font-mono text-lg font-bold text-foreground">
-            {engagements.length}
+            {totalCount}
           </span>
           <span className="ml-2 text-muted-foreground">Total</span>
         </div>
@@ -248,6 +324,17 @@ export default function AuditPage() {
           </span>
           <span className="ml-2 text-muted-foreground">Total Findings</span>
         </div>
+      </div>
+
+      {/* Search */}
+      <div className="animate-slide-up relative max-w-md">
+        <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          placeholder="Search by reference, title or lead auditor"
+          className="h-9 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-xs"
+        />
       </div>
 
       {/* Audit List */}
@@ -382,6 +469,43 @@ export default function AuditPage() {
         {!isLoading && engagements.length === 0 && (
           <div className="rounded-xl border border-border bg-card p-12 text-center">
             <p className="text-muted-foreground">No audit engagements found</p>
+          </div>
+        )}
+
+        {/* Pagination (shown only when the result set spans more than one page) */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(p - 1, 1))}
+              disabled={page === 1}
+              aria-label="Previous page"
+              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ChevronLeft size={20} />
+            </button>
+
+            {getPageNumbers().map((pageNum) => (
+              <button
+                key={pageNum}
+                onClick={() => setPage(pageNum)}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                  page === pageNum
+                    ? "bg-primary text-primary-foreground"
+                    : "text-foreground hover:bg-muted"
+                }`}
+              >
+                {pageNum}
+              </button>
+            ))}
+
+            <button
+              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+              disabled={page === totalPages}
+              aria-label="Next page"
+              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ChevronRight size={20} />
+            </button>
           </div>
         )}
       </div>
