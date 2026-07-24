@@ -67,6 +67,7 @@ export const baseApi = createApi({
     "KRI",
     "ALERT",
     "AUDIT",
+    "COMPLIANCE",
   ],
   endpoints: () => ({}),
 })

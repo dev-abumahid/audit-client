@@ -368,6 +368,77 @@
                 "rejectFailed":"Could not reject this risk."
             }
         },
+        "compliance":{
+            "title":"Compliance Obligations",
+            "subtitle":"{{count}} obligations tracked",
+            "newObligation":"New Obligation",
+            "searchPlaceholder":"Search obligations, description or owner...",
+            "allDomains":"All Domains",
+            "allStatuses":"All Statuses",
+            "empty":"No compliance obligations found",
+            "deleteConfirm":"Delete this compliance obligation?",
+            "domains":{
+                "data_protection":"Data Protection",
+                "health_safety":"Health & Safety",
+                "financial":"Financial",
+                "environmental":"Environmental",
+                "labor_employment":"Labor & Employment",
+                "anti_corruption":"Anti-Corruption",
+                "export_control":"Export Control",
+                "industry_specific":"Industry-Specific"
+            },
+            "status":{
+                "compliant":"Compliant",
+                "in_progress":"In Progress",
+                "non_compliant":"Non-Compliant",
+                "not_applicable":"Not Applicable"
+            },
+            "card":{
+                "compliant":"Compliant",
+                "nonCompliant":"Non-Compliant",
+                "overallScore":"Overall Compliance"
+            },
+            "scorecard":{
+                "title":"Compliance Scorecard",
+                "subtitle":"Compliant obligations per site and domain",
+                "site":"Site",
+                "orgWide":"Org-wide",
+                "noData":"No obligations yet to score"
+            },
+            "col":{
+                "obligation":"OBLIGATION",
+                "domain":"DOMAIN",
+                "dueDate":"DUE DATE",
+                "status":"STATUS",
+                "owner":"OWNER",
+                "source":"SOURCE"
+            },
+            "form":{
+                "newTitle":"New Compliance Obligation",
+                "editTitle":"Edit Compliance Obligation",
+                "title":"Title",
+                "domain":"Domain",
+                "site":"Site",
+                "orgWide":"Org-wide (no site)",
+                "description":"Description",
+                "status":"Status",
+                "dueDate":"Due Date",
+                "owner":"Owner",
+                "attachments":"Evidence Attachments",
+                "uploadEvidence":"Upload Evidence",
+                "cancel":"Cancel",
+                "create":"Create",
+                "update":"Update"
+            },
+            "toast":{
+                "createSuccess":"Compliance obligation created",
+                "updateSuccess":"Compliance obligation updated",
+                "deleteSuccess":"Compliance obligation deleted",
+                "saveFailed":"Failed to save compliance obligation",
+                "deleteFailed":"Failed to delete compliance obligation",
+                "uploadFailed":"Failed to upload attachment"
+            }
+        },
         "riskMatrix":{
             "title":"ISO 31000 Risk Matrix",
             "des":"Risks positioned — Click on a cell to see details",

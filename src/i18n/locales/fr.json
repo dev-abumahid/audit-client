@@ -368,6 +368,77 @@
                 "rejectFailed":"Impossible de rejeter ce risque."
             }
         },
+        "compliance":{
+            "title":"Obligations de conformité",
+            "subtitle":"{{count}} obligations suivies",
+            "newObligation":"Nouvelle obligation",
+            "searchPlaceholder":"Rechercher une obligation, description ou responsable...",
+            "allDomains":"Tous les domaines",
+            "allStatuses":"Tous les statuts",
+            "empty":"Aucune obligation de conformité trouvée",
+            "deleteConfirm":"Supprimer cette obligation de conformité ?",
+            "domains":{
+                "data_protection":"Protection des données",
+                "health_safety":"Santé et sécurité",
+                "financial":"Financier",
+                "environmental":"Environnemental",
+                "labor_employment":"Droit du travail",
+                "anti_corruption":"Anti-corruption",
+                "export_control":"Contrôle des exportations",
+                "industry_specific":"Spécifique au secteur"
+            },
+            "status":{
+                "compliant":"Conforme",
+                "in_progress":"En cours",
+                "non_compliant":"Non conforme",
+                "not_applicable":"Non applicable"
+            },
+            "card":{
+                "compliant":"Conforme",
+                "nonCompliant":"Non conforme",
+                "overallScore":"Conformité globale"
+            },
+            "scorecard":{
+                "title":"Tableau de conformité",
+                "subtitle":"Obligations conformes par site et domaine",
+                "site":"Site",
+                "orgWide":"Toute l'organisation",
+                "noData":"Aucune obligation à évaluer pour l'instant"
+            },
+            "col":{
+                "obligation":"OBLIGATION",
+                "domain":"DOMAINE",
+                "dueDate":"ÉCHÉANCE",
+                "status":"STATUT",
+                "owner":"RESPONSABLE",
+                "source":"SOURCE"
+            },
+            "form":{
+                "newTitle":"Nouvelle obligation de conformité",
+                "editTitle":"Modifier l'obligation de conformité",
+                "title":"Titre",
+                "domain":"Domaine",
+                "site":"Site",
+                "orgWide":"Toute l'organisation (aucun site)",
+                "description":"Description",
+                "status":"Statut",
+                "dueDate":"Échéance",
+                "owner":"Responsable",
+                "attachments":"Pièces justificatives",
+                "uploadEvidence":"Téléverser une preuve",
+                "cancel":"Annuler",
+                "create":"Créer",
+                "update":"Mettre à jour"
+            },
+            "toast":{
+                "createSuccess":"Obligation de conformité créée",
+                "updateSuccess":"Obligation de conformité mise à jour",
+                "deleteSuccess":"Obligation de conformité supprimée",
+                "saveFailed":"Échec de l'enregistrement de l'obligation",
+                "deleteFailed":"Échec de la suppression de l'obligation",
+                "uploadFailed":"Échec du téléversement de la pièce jointe"
+            }
+        },
         "riskMatrix":{
             "title":"Matrice des risques ISO 31000",
             "des":"Risques positionnés — Cliquez sur une cellule pour voir les détails",

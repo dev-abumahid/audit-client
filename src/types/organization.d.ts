@@ -207,23 +207,6 @@ export interface AuditFinding {
   updated_at: string
 }
 
-export interface ComplianceObligation {
-  id: string
-  organization_id: string
-  user_id: string
-  regulation: string
-  jurisdiction: string | null
-  description: string | null
-  deadline: string | null
-  status: "compliant" | "partial" | "non_compliant" | "pending"
-  penalty_estimate: number
-  owner: string | null
-  ai_generated: boolean
-  is_edited: boolean
-  created_at: string
-  updated_at: string
-}
-
 export interface Report {
   id: string
   organization_id: string
