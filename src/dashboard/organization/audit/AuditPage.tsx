@@ -1,7 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
-import { mockAuditEngagements } from "@/data/mockData"
-import type { AuditEngagement } from "@/types/organization"
+import type { AuditEngagement } from "@/redux/apis/organization/audit.api"
+import {
+  useCreateAuditEngagementMutation,
+  useDeleteAuditEngagementMutation,
+  useGetAllAuditEngagementsQuery,
+  useUpdateAuditEngagementMutation,
+} from "@/redux/apis/organization/audit.api"
 import {
   CheckCircle2,
   ExternalLink,
@@ -15,6 +19,7 @@ import {
   Upload,
 } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
 
 const STATUS_ICONS: Record<string, React.ElementType> = {
   planned: Play,
@@ -36,8 +41,19 @@ const EMPTY_FORM = {
 }
 
 export default function AuditPage() {
-  const [engagements, setEngagements] =
-    useState<AuditEngagement[]>(mockAuditEngagements)
+  const { data: auditData, isLoading } = useGetAllAuditEngagementsQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+  })
+  const [createAuditEngagement, { isLoading: isCreating }] =
+    useCreateAuditEngagementMutation()
+  const [updateAuditEngagement, { isLoading: isUpdating }] =
+    useUpdateAuditEngagementMutation()
+  const [deleteAuditEngagement] = useDeleteAuditEngagementMutation()
+
+  const engagements: AuditEngagement[] = auditData?.data || []
+
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -66,31 +82,32 @@ export default function AuditPage() {
     setShowModal(true)
   }
 
-  const openEdit = (eng: any) => {
+  const openEdit = (eng: AuditEngagement) => {
     setEditId(eng.id)
     setForm({
       ref: eng.ref,
       title: eng.title,
       scope: eng.scope || "",
-      status: eng.status,
+      status: eng.status as "planned" | "in_progress" | "completed",
       lead_auditor: eng.lead_auditor || "",
-      priority_score: eng.priority_score,
+      priority_score: eng.priority_score ?? 0,
       findings_count: eng.findings_count,
       linked_risk_refs: eng.linked_risk_refs
         ? eng.linked_risk_refs.join(", ")
         : "",
-      started_at: eng.started_at || "",
-      closed_at: eng.closed_at || "",
+      // The date inputs want a yyyy-mm-dd value; the API returns a full ISO
+      // timestamp, so slice off the time portion.
+      started_at: eng.started_at ? eng.started_at.slice(0, 10) : "",
+      closed_at: eng.closed_at ? eng.closed_at.slice(0, 10) : "",
     })
     setShowModal(true)
   }
 
   const handleSave = async () => {
-    if (!form.ref || !form.title) return
+    if (!form.title) return
 
     // linked_risk_refs is a comma-separated string in the form but a string[]
-    // on the model; normalize it here (the same shape the real API payload
-    // will use once these pages leave mock data — issue #93).
+    // on the model; normalize it here.
     const linkedRiskRefs = form.linked_risk_refs
       ? form.linked_risk_refs
           .split(",")
@@ -98,43 +115,69 @@ export default function AuditPage() {
           .filter(Boolean)
       : []
 
-    if (editId) {
-      // Replace the edited engagement in place; mark it as human-edited so
-      // the SourceBadge reflects the change.
-      setEngagements((prev) =>
-        prev.map((e) =>
-          e.id === editId
-            ? { ...e, ...form, linked_risk_refs: linkedRiskRefs, is_edited: true }
-            : e
-        )
-      )
-    } else {
-      // Append the newly created engagement. Still mock-backed (issue #93),
-      // so mint a local id and timestamps rather than relying on a backend.
-      const now = new Date().toISOString()
-      const newEng: AuditEngagement = {
-        ...form,
-        linked_risk_refs: linkedRiskRefs,
-        id: crypto.randomUUID(),
-        organization_id: "",
-        user_id: "",
-        ai_generated: false,
-        is_edited: false,
-        report_url: null,
-        created_at: now,
-        updated_at: now,
-      }
-      setEngagements((prev) => [newEng, ...prev])
+    const payload: Partial<AuditEngagement> = {
+      ref: form.ref,
+      title: form.title,
+      scope: form.scope,
+      status: form.status,
+      lead_auditor: form.lead_auditor,
+      priority_score: form.priority_score,
+      findings_count: form.findings_count,
+      linked_risk_refs: linkedRiskRefs,
+      // Send null (not "") for unset dates so the backend stores NULL rather
+      // than having to coerce an empty string.
+      started_at: form.started_at || null,
+      closed_at: form.closed_at || null,
     }
 
-    setShowModal(false)
-    setForm(EMPTY_FORM)
+    try {
+      let res
+      if (editId) {
+        // Mark the engagement as human-edited so the SourceBadge reflects the
+        // change, matching the prior local-state behaviour.
+        res = await updateAuditEngagement({
+          id: editId,
+          data: { ...payload, is_edited: true },
+        }).unwrap()
+      } else {
+        res = await createAuditEngagement(payload).unwrap()
+      }
+
+      if (res.success) {
+        toast.success(res.message)
+        setShowModal(false)
+        setForm(EMPTY_FORM)
+      } else {
+        // manage_response.ts (aexa-server) always sends { success, message,
+        // data, meta } — never an `error` key — so `message` carries the
+        // failure reason here.
+        toast.error(res.message || "Failed to save audit engagement")
+      }
+    } catch (err) {
+      // Keep the modal open on failure so the user can retry without
+      // re-entering the whole form.
+      const message =
+        (err as { data?: { message?: string } })?.data?.message ||
+        "Failed to save audit engagement"
+      toast.error(message)
+    }
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("Delete this audit engagement?")) return
-    setEngagements((prev) => prev.filter((e) => e.id !== id))
-    alert("Audit engagement deleted")
+    try {
+      const res = await deleteAuditEngagement(id).unwrap()
+      if (res.success) {
+        toast.success("Audit engagement deleted")
+      } else {
+        toast.error(res.message || "Failed to delete audit engagement")
+      }
+    } catch (err) {
+      const message =
+        (err as { data?: { message?: string } })?.data?.message ||
+        "Failed to delete audit engagement"
+      toast.error(message)
+    }
   }
 
   const handleReportUpload = async (engId: string, file: File) => {
@@ -330,7 +373,13 @@ export default function AuditPage() {
           )
         })}
 
-        {engagements.length === 0 && (
+        {isLoading && (
+          <div className="flex items-center justify-center rounded-xl border border-border bg-card p-12">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {!isLoading && engagements.length === 0 && (
           <div className="rounded-xl border border-border bg-card p-12 text-center">
             <p className="text-muted-foreground">No audit engagements found</p>
           </div>
@@ -366,7 +415,13 @@ export default function AuditPage() {
                 <select
                   value={form.status}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, status: e.target.value as any }))
+                    setForm((f) => ({
+                      ...f,
+                      status: e.target.value as
+                        | "planned"
+                        | "in_progress"
+                        | "completed",
+                    }))
                   }
                   className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 >
@@ -487,7 +542,7 @@ export default function AuditPage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={!form.ref || !form.title}
+                disabled={!form.title || isCreating || isUpdating}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
               >
                 {editId ? "Update" : "Create"}

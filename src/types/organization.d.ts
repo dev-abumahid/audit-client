@@ -142,27 +142,6 @@ export interface Alert {
   updatedAt: string
 }
 
-export interface AuditEngagement {
-  id: string
-  organization_id: string
-  user_id: string
-  ref: string
-  title: string
-  scope: string | null
-  status: "planned" | "in_progress" | "completed"
-  lead_auditor: string | null
-  priority_score: number
-  findings_count: number
-  started_at: string | null
-  closed_at: string | null
-  ai_generated: boolean
-  is_edited: boolean
-  linked_risk_refs: string[]
-  report_url: string | null
-  created_at: string
-  updated_at: string
-}
-
 export interface AuditFinding {
   id: string
   organization_id: string
