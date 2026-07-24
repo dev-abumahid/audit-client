@@ -11,7 +11,7 @@ import type { Risk, SiteSummary } from "@/types/organization"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import RiskApprovalControls from "./RiskApprovalControls"
-import { Loader, Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { Clock, Loader, Pencil, Plus, Search, Trash2 } from "lucide-react"
 import { useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
 import { useForm } from "react-hook-form"
@@ -42,6 +42,11 @@ export default function RiskRegisterPage() {
   const [filterCat, setFilterCat] = useState("")
   const [search, setSearch] = useState("")
   const [siteFilter, setSiteFilter] = useState<string>("")
+  // "Pending my approval" quick-view (#163): narrows the list to risks whose
+  // current approval cycle is live PENDING_APPROVAL, so an admin can find what
+  // is awaiting sign-off without eyeballing every row's badge. Client-side —
+  // approvalStatus is already on each row from GET /risk, so no extra query.
+  const [pendingApprovalOnly, setPendingApprovalOnly] = useState(false)
 
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -68,6 +73,9 @@ export default function RiskRegisterPage() {
   const [deleteRisk] = useDeleteRiskMutation()
   // Custom make variables
   const risks: Risk[] = riskData?.data || []
+  const visibleRisks: Risk[] = pendingApprovalOnly
+    ? risks.filter((risk) => risk.approvalStatus === "PENDING_APPROVAL")
+    : risks
 
   // React Hook Form
   const {
@@ -219,6 +227,20 @@ export default function RiskRegisterPage() {
             </option>
           ))}
         </select>
+
+        <button
+          type="button"
+          aria-pressed={pendingApprovalOnly}
+          onClick={() => setPendingApprovalOnly((prev) => !prev)}
+          className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${
+            pendingApprovalOnly
+              ? "border-yellow-500/40 bg-yellow-500/15 text-yellow-600"
+              : "border-input bg-card text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          <Clock className="h-3.5 w-3.5" />
+          {t("organization.riskRegister.filterPendingApproval")}
+        </button>
       </div>
       {/* Table */}
       <div className="overflow-hidden rounded-xl border bg-card">
@@ -254,7 +276,7 @@ export default function RiskRegisterPage() {
               </tr>
             </thead>
             <tbody>
-              {risks?.map((risk) => {
+              {visibleRisks?.map((risk) => {
                 return (
                   <tr
                     key={risk.id}

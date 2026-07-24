@@ -345,6 +345,50 @@ describe("RiskRegisterPage", () => {
     ).toBeInTheDocument()
   })
 
+  it('narrows to PENDING_APPROVAL risks when "Pending my approval" is toggled', async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            id: "risk-pending",
+            name: "Awaiting sign-off",
+            approvalStatus: "PENDING_APPROVAL",
+          }),
+          makeRisk({
+            id: "risk-approved",
+            name: "Already approved",
+            approvalStatus: "APPROVED",
+          }),
+          makeRisk({
+            id: "risk-none",
+            name: "Never submitted",
+            approvalStatus: "NOT_SUBMITTED",
+          }),
+        ],
+      },
+    })
+
+    render(<RiskRegisterPage />)
+
+    // Before toggling, all three rows are visible.
+    expect(screen.getByText("Awaiting sign-off")).toBeInTheDocument()
+    expect(screen.getByText("Already approved")).toBeInTheDocument()
+    expect(screen.getByText("Never submitted")).toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.filterPendingApproval",
+      })
+    )
+
+    // After toggling, only the PENDING_APPROVAL row remains.
+    await waitFor(() =>
+      expect(screen.queryByText("Already approved")).not.toBeInTheDocument()
+    )
+    expect(screen.getByText("Awaiting sign-off")).toBeInTheDocument()
+    expect(screen.queryByText("Never submitted")).not.toBeInTheDocument()
+  })
+
   it("filters risks by search term via the query hook", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 

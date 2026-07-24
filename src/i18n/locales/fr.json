@@ -321,6 +321,7 @@
             "addNewRisk":"Ajouter un risque",
             "subtitle":"Risques trouvés",
             "searchPlaceholder":"Rechercher...",
+            "filterPendingApproval":"En attente de mon approbation",
             "colName":"NOM",
             "colSite":"SITE",
             "colCat":"CAT",

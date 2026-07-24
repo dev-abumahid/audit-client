@@ -321,6 +321,7 @@
             "addNewRisk":"Add New Risk",
             "subtitle":"Risks found",
             "searchPlaceholder":"Search...",
+            "filterPendingApproval":"Pending my approval",
             "colName":"NAME",
             "colSite":"SITE",
             "colCat":"CAT",

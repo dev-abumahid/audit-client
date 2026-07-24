@@ -1,20 +1,18 @@
 import {
   ChevronLeft,
   ChevronRight,
+  Loader,
   MoreHorizontal,
   Search,
   Sparkles,
 } from "lucide-react"
 import React, { useState } from "react"
 
+import {
+  useGetAdminOrganizationsQuery,
+  type AdminOrganizationListItem,
+} from "@/redux/apis/organization/onboarding.api"
 import OnboardingWizard from "./OnboardingWizard"
-
-interface Organization {
-  _id: string
-  org_name: string
-  isSubscriptionActive: boolean
-  createdAt: string
-}
 
 const AdminOrganization: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("")
@@ -23,57 +21,19 @@ const AdminOrganization: React.FC = () => {
 
   const limit = 10
 
-  // Dummy Organizations Data
-  const allOrganizations: Organization[] = [
-    {
-      _id: "ORG-001",
-      org_name: "TechVision Solutions",
-      isSubscriptionActive: true,
-      createdAt: "2025-11-15T10:30:00Z",
-    },
-    {
-      _id: "ORG-002",
-      org_name: "GreenField Academy",
-      isSubscriptionActive: true,
-      createdAt: "2025-11-20T14:20:00Z",
-    },
-    {
-      _id: "ORG-003",
-      org_name: "Nexus Dynamics",
-      isSubscriptionActive: false,
-      createdAt: "2025-11-25T09:15:00Z",
-    },
-    {
-      _id: "ORG-004",
-      org_name: "Summit Healthcare",
-      isSubscriptionActive: true,
-      createdAt: "2025-12-01T16:45:00Z",
-    },
-    {
-      _id: "ORG-005",
-      org_name: "Quantum Labs",
-      isSubscriptionActive: false,
-      createdAt: "2025-12-05T11:20:00Z",
-    },
-    {
-      _id: "ORG-006",
-      org_name: "BrightPath Education",
-      isSubscriptionActive: true,
-      createdAt: "2025-12-08T08:55:00Z",
-    },
-  ]
+  // Real, server-paginated org list (#162) — replaces the former hardcoded
+  // dummy array so a freshly-onboarded org actually appears here. Search and
+  // pagination are handled server-side; creating an org via the wizard
+  // invalidates the ORGANIZATION cache tag so this list refetches on its own.
+  const { data, isLoading, isFetching } = useGetAdminOrganizationsQuery({
+    page: currentPage,
+    limit,
+    searchTerm,
+  })
 
-  // Filter organizations
-  const filteredOrganizations = allOrganizations.filter((org) =>
-    org.org_name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const totalItems = filteredOrganizations.length
-  const totalPages = Math.ceil(totalItems / limit)
-  const paginatedOrganizations = filteredOrganizations.slice(
-    (currentPage - 1) * limit,
-    currentPage * limit
-  )
+  const organizations: AdminOrganizationListItem[] = data?.data ?? []
+  const totalItems = data?.meta?.total ?? 0
+  const totalPages = data?.meta?.totalPage ?? 0
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value)
@@ -101,15 +61,18 @@ const AdminOrganization: React.FC = () => {
       .slice(0, 2)
   }
 
-  const getStatusInfo = (isActive: boolean) => ({
-    text: isActive ? "Active" : "Inactive",
-    color: isActive
+  // No subscription concept exists in the schema, so the badge reflects the
+  // real, meaningful signal we do have: whether the org account is verified
+  // (and therefore usable). Admin-provisioned orgs are created verified.
+  const getStatusInfo = (isVerified: boolean) => ({
+    text: isVerified ? "Active" : "Pending",
+    color: isVerified
       ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-      : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+      : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
   })
 
-  const getPlanName = (isActive: boolean) =>
-    isActive ? "Active Plan" : "No Active Plan"
+  const getRegionLabel = (org: AdminOrganizationListItem) =>
+    [org.sector, org.country].filter(Boolean).join(" · ") || "—"
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-6">
@@ -158,10 +121,10 @@ const AdminOrganization: React.FC = () => {
                     Organization
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
-                    Plan Status
+                    Status
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
-                    Subscription
+                    Sector / Region
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
                     Created Date
@@ -170,7 +133,13 @@ const AdminOrganization: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {paginatedOrganizations.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center">
+                      <Loader className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+                    </td>
+                  </tr>
+                ) : organizations.length === 0 ? (
                   <tr>
                     <td
                       colSpan={5}
@@ -180,13 +149,13 @@ const AdminOrganization: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  paginatedOrganizations.map((org) => {
-                    const statusInfo = getStatusInfo(org.isSubscriptionActive)
-                    const initials = getInitials(org.org_name)
+                  organizations.map((org) => {
+                    const statusInfo = getStatusInfo(org.isAccountVerified)
+                    const initials = getInitials(org.organizationName)
 
                     return (
                       <tr
-                        key={org._id}
+                        key={org.id}
                         className="transition-colors hover:bg-muted/50"
                       >
                         <td className="px-6 py-4">
@@ -196,7 +165,10 @@ const AdminOrganization: React.FC = () => {
                             </div>
                             <div>
                               <div className="font-medium text-foreground">
-                                {org.org_name}
+                                {org.organizationName}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {org.email}
                               </div>
                             </div>
                           </div>
@@ -209,7 +181,7 @@ const AdminOrganization: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-muted-foreground">
-                          {getPlanName(org.isSubscriptionActive)}
+                          {getRegionLabel(org)}
                         </td>
                         <td className="px-6 py-4 text-sm text-muted-foreground">
                           {formatDate(org.createdAt)}
@@ -229,18 +201,22 @@ const AdminOrganization: React.FC = () => {
 
           {/* Mobile Cards */}
           <div className="space-y-3 p-4 lg:hidden">
-            {paginatedOrganizations.length === 0 ? (
+            {isLoading ? (
+              <div className="py-12 text-center">
+                <Loader className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : organizations.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 No organizations found
               </div>
             ) : (
-              paginatedOrganizations.map((org) => {
-                const statusInfo = getStatusInfo(org.isSubscriptionActive)
-                const initials = getInitials(org.org_name)
+              organizations.map((org) => {
+                const statusInfo = getStatusInfo(org.isAccountVerified)
+                const initials = getInitials(org.organizationName)
 
                 return (
                   <div
-                    key={org._id}
+                    key={org.id}
                     className="rounded-xl border border-border bg-card p-4"
                   >
                     <div className="flex items-center justify-between">
@@ -250,7 +226,7 @@ const AdminOrganization: React.FC = () => {
                         </div>
                         <div>
                           <div className="font-medium text-foreground">
-                            {org.org_name}
+                            {org.organizationName}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {formatDate(org.createdAt)}
@@ -265,7 +241,7 @@ const AdminOrganization: React.FC = () => {
                     </div>
 
                     <div className="mt-4 text-sm text-muted-foreground">
-                      Plan: {getPlanName(org.isSubscriptionActive)}
+                      {getRegionLabel(org)}
                     </div>
                   </div>
                 )
@@ -280,6 +256,9 @@ const AdminOrganization: React.FC = () => {
                 Showing {(currentPage - 1) * limit + 1} to{" "}
                 {Math.min(currentPage * limit, totalItems)} of {totalItems}{" "}
                 organizations
+                {isFetching && (
+                  <Loader className="ml-2 inline h-3 w-3 animate-spin" />
+                )}
               </div>
 
               <div className="flex items-center gap-2">
