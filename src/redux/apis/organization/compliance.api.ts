@@ -28,8 +28,10 @@ export interface ComplianceObligation {
 }
 
 // Computed scorecard returned by GET /compliance/scorecard. A cell's `band`
-// follows the CDC 7.7 red/orange/green thresholds (red <70%, orange 70-85%,
-// green >85%); "none" means the cell/group has no applicable obligations.
+// follows the CDC 7.7 red/orange/green thresholds. The backend boundaries are
+// inclusive on the lower edge (`>=`), so the exact semantics are: green when
+// ratio >= 0.85 (85% and above), orange when 0.70 <= ratio < 0.85, red when
+// ratio < 0.70. "none" means the cell/group has no applicable obligations.
 export type ComplianceScoreBand = "green" | "orange" | "red" | "none"
 
 export interface ComplianceScoreCell {
@@ -56,6 +58,11 @@ export interface ComplianceMatrixCell extends ComplianceScoreCell {
 
 export interface ComplianceScorecard {
   overall: ComplianceScoreCell
+  // Org-wide tally per status (e.g. { compliant: 12, non_compliant: 3, ... }).
+  // Used by the summary cards so their counts reflect the whole org, not just
+  // the current (server-paginated) page of the obligation list. Optional so
+  // older cached responses / test fixtures without it degrade gracefully.
+  statusCounts?: Record<string, number>
   byDomain: ComplianceDomainScore[]
   bySite: ComplianceSiteScore[]
   matrix: ComplianceMatrixCell[]

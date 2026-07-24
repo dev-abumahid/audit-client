@@ -412,6 +412,10 @@
             "allStatuses":"Tous les statuts",
             "empty":"Aucune obligation de conformité trouvée",
             "deleteConfirm":"Supprimer cette obligation de conformité ?",
+            "pagination":{
+                "previous":"Page précédente",
+                "next":"Page suivante"
+            },
             "domains":{
                 "data_protection":"Protection des données",
                 "health_safety":"Santé et sécurité",

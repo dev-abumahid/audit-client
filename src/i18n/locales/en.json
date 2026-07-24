@@ -412,6 +412,10 @@
             "allStatuses":"All Statuses",
             "empty":"No compliance obligations found",
             "deleteConfirm":"Delete this compliance obligation?",
+            "pagination":{
+                "previous":"Previous page",
+                "next":"Next page"
+            },
             "domains":{
                 "data_protection":"Data Protection",
                 "health_safety":"Health & Safety",

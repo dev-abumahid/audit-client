@@ -15,6 +15,8 @@ import { COMPLIANCE_DOMAINS } from "@/utils/complianceConfig"
 import {
   Ban,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Loader2,
   MinusCircle,
@@ -62,6 +64,11 @@ const BAND_CLASSES: Record<ComplianceScoreBand, string> = {
   none: "bg-muted text-muted-foreground border-border",
 }
 
+// Server-side page size for the obligation list. Filtering (search / domain /
+// status) is applied server-side too, so the list is no longer capped at the
+// first 100 rows the way the old client-side-filtered version was.
+const PAGE_SIZE = 20
+
 const EMPTY_FORM = {
   id: "",
   title: "",
@@ -77,10 +84,20 @@ const EMPTY_FORM = {
 export default function CompliancePage() {
   const { t } = useTranslation()
 
+  const [filterDomain, setFilterDomain] = useState("")
+  const [filterStatus, setFilterStatus] = useState("")
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
+
+  // Filtering, searching and pagination are all applied server-side (the
+  // /compliance list endpoint supports searchTerm / status / domain + page /
+  // limit), so results are never silently capped at the first page.
   const { data: complianceData, isLoading } = useGetAllComplianceQuery({
-    page: 1,
-    limit: 100,
-    searchTerm: "",
+    page,
+    limit: PAGE_SIZE,
+    searchTerm: search,
+    status: filterStatus || undefined,
+    domain: filterDomain || undefined,
   })
   const { data: scorecardData } = useGetComplianceScorecardQuery()
   const { data: sitesData } = useGetAllSitesQuery({
@@ -99,6 +116,8 @@ export default function CompliancePage() {
     () => complianceData?.data || [],
     [complianceData]
   )
+  const meta = complianceData?.meta
+  const totalPages = meta?.totalPage ?? 0
   const scorecard = scorecardData?.data
   const sites = sitesData?.data || []
 
@@ -106,9 +125,33 @@ export default function CompliancePage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [uploading, setUploading] = useState(false)
-  const [filterDomain, setFilterDomain] = useState("")
-  const [filterStatus, setFilterStatus] = useState("")
-  const [search, setSearch] = useState("")
+
+  // Changing any filter resets to page 1 so the user never lands on an
+  // out-of-range page for the newly-filtered result set.
+  const handleSearchChange = (value: string) => {
+    setSearch(value)
+    setPage(1)
+  }
+  const handleDomainChange = (value: string) => {
+    setFilterDomain(value)
+    setPage(1)
+  }
+  const handleStatusChange = (value: string) => {
+    setFilterStatus(value)
+    setPage(1)
+  }
+
+  // Windowed page numbers around the current page (same pattern as
+  // AllFindingsPage), so the control stays compact for large result sets.
+  const getPageNumbers = () => {
+    const maxVisible = 5
+    let start = Math.max(1, page - Math.floor(maxVisible / 2))
+    const end = Math.min(totalPages, start + maxVisible - 1)
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1)
+    }
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
 
   // Domain/status labels are echoed as raw keys until i18n initializes (tests),
   // and translated in the running app — same t() convention as RiskRegisterPage.
@@ -121,22 +164,6 @@ export default function CompliancePage() {
 
   const siteName = (siteId: string | null) =>
     siteId ? (sites.find((s) => s.id === siteId)?.name ?? siteId) : null
-
-  const filtered = useMemo(() => {
-    let result = obligations
-    if (filterDomain) result = result.filter((o) => o.domain === filterDomain)
-    if (filterStatus) result = result.filter((o) => o.status === filterStatus)
-    if (search) {
-      const q = search.toLowerCase()
-      result = result.filter(
-        (o) =>
-          o.title.toLowerCase().includes(q) ||
-          (o.description || "").toLowerCase().includes(q) ||
-          (o.owner || "").toLowerCase().includes(q)
-      )
-    }
-    return result
-  }, [obligations, filterDomain, filterStatus, search])
 
   const openCreate = () => {
     setEditingId(null)
@@ -259,12 +286,18 @@ export default function CompliancePage() {
     }
   }
 
-  const compliantCount = obligations.filter(
-    (o) => o.status === "compliant"
-  ).length
-  const nonCompliantCount = obligations.filter(
-    (o) => o.status === "non_compliant"
-  ).length
+  // Whole-org counts come from the scorecard's statusCounts, so they stay
+  // correct now that the list is server-side paginated (the current page is no
+  // longer the whole dataset). Fall back to counting the loaded page if an
+  // older response without statusCounts comes back.
+  const statusCounts = scorecard?.statusCounts
+  const compliantCount =
+    statusCounts?.compliant ??
+    obligations.filter((o) => o.status === "compliant").length
+  const nonCompliantCount =
+    statusCounts?.non_compliant ??
+    obligations.filter((o) => o.status === "non_compliant").length
+  const totalCount = meta?.total ?? obligations.length
 
   const overall = scorecard?.overall
   const overallPct =
@@ -296,7 +329,7 @@ export default function CompliancePage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {t("organization.compliance.subtitle", {
-              count: obligations.length,
+              count: totalCount,
             })}
           </p>
         </div>
@@ -314,14 +347,14 @@ export default function CompliancePage() {
         <div className="relative min-w-40 flex-1">
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder={t("organization.compliance.searchPlaceholder")}
             className="h-9 w-full rounded-lg border border-input bg-card pr-3 pl-3 text-xs"
           />
         </div>
         <select
           value={filterDomain}
-          onChange={(e) => setFilterDomain(e.target.value)}
+          onChange={(e) => handleDomainChange(e.target.value)}
           className="h-9 rounded-lg border border-input bg-card px-3 text-xs"
         >
           <option value="">{t("organization.compliance.allDomains")}</option>
@@ -333,7 +366,7 @@ export default function CompliancePage() {
         </select>
         <select
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
+          onChange={(e) => handleStatusChange(e.target.value)}
           className="h-9 rounded-lg border border-input bg-card px-3 text-xs"
         >
           <option value="">{t("organization.compliance.allStatuses")}</option>
@@ -479,7 +512,7 @@ export default function CompliancePage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((obl) => {
+            {obligations.map((obl) => {
               const StatusIcon = STATUS_ICONS[obl.status] || Clock
               const isOverdue =
                 obl.due_date &&
@@ -571,12 +604,50 @@ export default function CompliancePage() {
           </div>
         )}
 
-        {!isLoading && filtered.length === 0 && (
+        {!isLoading && obligations.length === 0 && (
           <div className="p-12 text-center text-muted-foreground">
             {t("organization.compliance.empty")}
           </div>
         )}
       </div>
+
+      {/* Pagination — server-side; hidden when everything fits on one page. */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => setPage((p) => Math.max(p - 1, 1))}
+            disabled={page === 1}
+            aria-label={t("organization.compliance.pagination.previous")}
+            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          {getPageNumbers().map((pageNum) => (
+            <button
+              key={pageNum}
+              onClick={() => setPage(pageNum)}
+              aria-current={page === pageNum ? "page" : undefined}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                page === pageNum
+                  ? "bg-primary text-primary-foreground"
+                  : "text-foreground hover:bg-muted"
+              }`}
+            >
+              {pageNum}
+            </button>
+          ))}
+
+          <button
+            onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+            disabled={page === totalPages}
+            aria-label={t("organization.compliance.pagination.next")}
+            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Create / Edit Modal */}
       {showForm && (

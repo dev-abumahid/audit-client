@@ -321,4 +321,124 @@ describe("CompliancePage", () => {
       screen.getByText("organization.compliance.form.newTitle")
     ).toBeInTheDocument()
   })
+
+  // ---- Pagination + server-side filtering (issue #161) ----
+
+  it("requests page 1 with server-side filter params on first render", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    const firstArgs = mockUseGetAllComplianceQuery.mock.calls[0][0]
+    expect(firstArgs).toMatchObject({
+      page: 1,
+      limit: 20,
+      searchTerm: "",
+      // undefined (not "") when no filter is selected, so the query key stays
+      // clean and the backend doesn't receive an empty filter param.
+      status: undefined,
+      domain: undefined,
+    })
+  })
+
+  it("does not render pagination controls when there is only one page", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [makeObligation()],
+        meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+      },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    expect(
+      screen.queryByLabelText("organization.compliance.pagination.next")
+    ).not.toBeInTheDocument()
+  })
+
+  it("renders pagination controls and requests the next page when clicked", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [makeObligation()],
+        meta: { page: 1, limit: 20, total: 45, totalPage: 3 },
+      },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    // Page buttons 1..3 are rendered.
+    expect(screen.getByRole("button", { name: "1" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "3" })).toBeInTheDocument()
+
+    await user.click(
+      screen.getByLabelText("organization.compliance.pagination.next")
+    )
+
+    const lastArgs =
+      mockUseGetAllComplianceQuery.mock.calls[
+        mockUseGetAllComplianceQuery.mock.calls.length - 1
+      ][0]
+    expect(lastArgs.page).toBe(2)
+  })
+
+  it("passes the selected domain filter to the query and resets to page 1", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [makeObligation()],
+        meta: { page: 1, limit: 20, total: 45, totalPage: 3 },
+      },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    // Advance to page 2 first, then change a filter — page must reset to 1.
+    await user.click(
+      screen.getByLabelText("organization.compliance.pagination.next")
+    )
+
+    // The domain <select> is the first combobox in the filter bar.
+    const domainSelect = screen.getAllByRole("combobox")[0]
+    await user.selectOptions(domainSelect, "financial")
+
+    const lastArgs =
+      mockUseGetAllComplianceQuery.mock.calls[
+        mockUseGetAllComplianceQuery.mock.calls.length - 1
+      ][0]
+    expect(lastArgs).toMatchObject({ domain: "financial", page: 1 })
+  })
+
+  it("drives the summary count cards from scorecard statusCounts, not the page", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      // Only one row on this page, but the org has many more.
+      data: {
+        data: [makeObligation({ status: "in_progress" })],
+        meta: { page: 1, limit: 20, total: 60, totalPage: 3 },
+      },
+      isLoading: false,
+    })
+    mockUseGetComplianceScorecardQuery.mockReturnValue({
+      data: {
+        data: {
+          ...emptyScorecard,
+          overall: { compliant: 40, total: 60, ratio: 0.67, band: "red" },
+          statusCounts: { compliant: 40, non_compliant: 9, in_progress: 11 },
+        },
+      },
+    })
+
+    render(<CompliancePage />)
+
+    // Whole-org compliant (40) and non-compliant (9) counts, not the single
+    // in_progress row on the current page.
+    expect(screen.getByText("40")).toBeInTheDocument()
+    expect(screen.getByText("9")).toBeInTheDocument()
+  })
 })
