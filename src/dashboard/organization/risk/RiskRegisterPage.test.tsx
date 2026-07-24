@@ -29,6 +29,15 @@ vi.mock("@/components/shared/DeleteAlertModal", () => ({
     open ? <button onClick={onConfirm}>Confirm delete</button> : null,
 }))
 
+// The approval column's controls (badge + role-gated actions) are covered by
+// RiskApprovalControls.test.tsx. Stub it here so this page test stays focused
+// on the register CRUD and doesn't need the approval api / role hook wired.
+vi.mock("./RiskApprovalControls", () => ({
+  default: ({ risk }: { risk: { id: string } }) => (
+    <span data-testid={`approval-controls-${risk.id}`} />
+  ),
+}))
+
 function makeRisk(overrides = {}) {
   return {
     id: "risk-1",

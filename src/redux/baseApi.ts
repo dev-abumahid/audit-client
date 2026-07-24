@@ -55,6 +55,7 @@ export const baseApi = createApi({
     "TEMPLATE",
     "SITE",
     "RISK",
+    "RISK_APPROVAL",
     "INSPECTION",
     "RECOMMENDATION",
     "FINDINGS",

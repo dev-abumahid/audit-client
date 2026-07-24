@@ -10,6 +10,7 @@ import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { Risk, SiteSummary } from "@/types/organization"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
+import RiskApprovalControls from "./RiskApprovalControls"
 import { Loader, Pencil, Plus, Search, Trash2 } from "lucide-react"
 import { useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
@@ -246,6 +247,9 @@ export default function RiskRegisterPage() {
                 <th className="px-3 py-2.5 font-semibold text-muted-foreground">
                   {t("organization.riskRegister.colSource")}
                 </th>
+                <th className="px-3 py-2.5 font-semibold text-muted-foreground">
+                  {t("organization.riskRegister.colApproval")}
+                </th>
                 <th className="w-20 px-3 py-2.5 font-semibold text-muted-foreground"></th>
               </tr>
             </thead>
@@ -298,6 +302,9 @@ export default function RiskRegisterPage() {
                       {risk.ai_generated
                         ? `🤖 ${t("organization.riskRegister.aiGenerated")}`
                         : t("organization.riskRegister.manual")}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <RiskApprovalControls risk={risk} />
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex gap-1">

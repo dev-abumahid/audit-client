@@ -83,6 +83,45 @@ export interface Risk {
   control_operating_eff: number
   createdAt: string
   updatedAt: string
+  // aexa-frontend#95: maker-checker approval state for this risk's current
+  // assessment. Both are appended by GET /risk (the list serializer), not
+  // stored columns — see risk.service.ts's get_all_risk_from_db. Optional
+  // because other endpoints returning a Risk (create/update/single) don't
+  // attach them.
+  approval?: RiskApproval | null
+  approvalStatus?: RiskApprovalDisplayState
+}
+
+// Mirrors aexa-server's RiskApproval Prisma model (issue #95). A risk's
+// approval cycle is a SEPARATE concept from its operational `status` string
+// (open/in_progress/...): it tracks whether the current assessment has been
+// reviewed and signed off.
+export type RiskApprovalStatus = "PENDING_APPROVAL" | "APPROVED" | "REJECTED"
+
+// The display state the UI badges off. NOT_SUBMITTED covers both "never
+// submitted" and "was approved/pending but a later edit invalidated it, so it
+// needs resubmission" — the backend collapses those into one state.
+export type RiskApprovalDisplayState = "NOT_SUBMITTED" | RiskApprovalStatus
+
+export interface RiskApproval {
+  id: string
+  riskId: string
+  status: RiskApprovalStatus
+  submittedById: string
+  decidedById: string | null
+  decidedAt: string | null
+  decisionNote: string | null
+  invalidatedAt: string | null
+  invalidatedById: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// GET /risk/:id/approval response shape (get_risk_approval_state).
+export interface RiskApprovalState {
+  riskId: string
+  status: RiskApprovalDisplayState
+  approval: RiskApproval | null
 }
 
 export interface RiskLink {

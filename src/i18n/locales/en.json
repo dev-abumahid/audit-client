@@ -344,7 +344,29 @@
             "deleteSuccessToast":"Risk deleted successfully",
             "deleteFailedToast":"Failed to delete risk",
             "deleteTitle":"Delete Risk?",
-            "deleteDescription":"This will permanently remove this Risk from the system."
+            "deleteDescription":"This will permanently remove this Risk from the system.",
+            "colApproval":"APPROVAL",
+            "approval":{
+                "badgeNotSubmitted":"Not submitted",
+                "badgePending":"Pending approval",
+                "badgeApproved":"Approved",
+                "badgeRejected":"Rejected",
+                "submit":"Submit for Approval",
+                "approve":"Approve",
+                "reject":"Reject",
+                "rejectModalTitle":"Reject risk approval",
+                "rejectReasonLabel":"Reason for rejection",
+                "rejectReasonPlaceholder":"Explain why this risk assessment is being rejected...",
+                "rejectConfirm":"Confirm Rejection",
+                "cancel":"Cancel",
+                "rejectReasonRequired":"A rejection reason is required.",
+                "submitSuccess":"Risk submitted for approval.",
+                "submitFailed":"Could not submit this risk for approval.",
+                "approveSuccess":"Risk approval approved.",
+                "approveFailed":"Could not approve this risk.",
+                "rejectSuccess":"Risk approval rejected.",
+                "rejectFailed":"Could not reject this risk."
+            }
         },
         "riskMatrix":{
             "title":"ISO 31000 Risk Matrix",

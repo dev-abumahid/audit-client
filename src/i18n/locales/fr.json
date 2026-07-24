@@ -344,7 +344,29 @@
             "deleteSuccessToast":"Risque supprimé avec succès",
             "deleteFailedToast":"Échec de la suppression du risque",
             "deleteTitle":"Supprimer le risque ?",
-            "deleteDescription":"Cette action supprimera définitivement ce risque du système."
+            "deleteDescription":"Cette action supprimera définitivement ce risque du système.",
+            "colApproval":"APPROBATION",
+            "approval":{
+                "badgeNotSubmitted":"Non soumis",
+                "badgePending":"En attente d'approbation",
+                "badgeApproved":"Approuvé",
+                "badgeRejected":"Rejeté",
+                "submit":"Soumettre pour approbation",
+                "approve":"Approuver",
+                "reject":"Rejeter",
+                "rejectModalTitle":"Rejeter l'approbation du risque",
+                "rejectReasonLabel":"Motif du rejet",
+                "rejectReasonPlaceholder":"Expliquez pourquoi cette évaluation du risque est rejetée...",
+                "rejectConfirm":"Confirmer le rejet",
+                "cancel":"Annuler",
+                "rejectReasonRequired":"Un motif de rejet est requis.",
+                "submitSuccess":"Risque soumis pour approbation.",
+                "submitFailed":"Impossible de soumettre ce risque pour approbation.",
+                "approveSuccess":"Approbation du risque approuvée.",
+                "approveFailed":"Impossible d'approuver ce risque.",
+                "rejectSuccess":"Approbation du risque rejetée.",
+                "rejectFailed":"Impossible de rejeter ce risque."
+            }
         },
         "riskMatrix":{
             "title":"Matrice des risques ISO 31000",
