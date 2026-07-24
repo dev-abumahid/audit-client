@@ -1,85 +1,105 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useMyOrgRole } from "@/hooks/useMyOrgRole"
+import type { Report, ReportType } from "@/redux/apis/organization/report.api"
 import {
+  useGenerateReportMutation,
+  useGetAllReportsQuery,
+  usePublishReportMutation,
+} from "@/redux/apis/organization/report.api"
+import {
+  AlertTriangle,
   Calendar,
+  CheckCircle2,
   Download,
   Eye,
   FileText,
   Loader2,
+  Send,
   Sparkles,
-  User,
 } from "lucide-react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 
-const REPORT_TYPES = [
-  "Board Report",
-  "Monthly Executive Committee Report",
-  "Internal Audit Assurance Opinion",
-  "Monte Carlo Stress Test Report",
-  "Compliance Status Report",
+// All 5 Fullbloom-parity types are shown in the dropdown, but only BOARD is
+// backed by real data today — the other 4 are disabled with a "coming soon"
+// tooltip until their backing modules (audit engine, Monte Carlo, compliance)
+// mature. The backend rejects a non-BOARD type too, so this is UX, not the gate.
+const REPORT_TYPES: { value: ReportType; enabled: boolean }[] = [
+  { value: "BOARD", enabled: true },
+  { value: "EXEC_COMMITTEE", enabled: false },
+  { value: "AUDIT_OPINION", enabled: false },
+  { value: "MONTE_CARLO", enabled: false },
+  { value: "COMPLIANCE", enabled: false },
 ]
 
-const DUMMY_REPORTS = [
-  {
-    id: "rep1",
-    type: "Board Report",
-    title: "Q1 2026 Risk & Compliance Board Report",
-    author: "AI + Chief Risk Officer",
-    created_at: "2026-04-10T09:15:00Z",
-    pages: 24,
-    status: "published" as const,
-    ai_generated: true,
-  },
-  {
-    id: "rep2",
-    type: "Monthly Executive Committee Report",
-    title: "March 2026 Risk Dashboard & Key Insights",
-    author: "AI + Risk Management Team",
-    created_at: "2026-04-05T14:30:00Z",
-    pages: 18,
-    status: "draft" as const,
-    ai_generated: true,
-  },
-]
+const STATUS_STYLES: Record<Report["status"], string> = {
+  GENERATING: "bg-blue-500/10 text-blue-600",
+  READY: "bg-risk-medium/10 text-risk-medium",
+  PUBLISHED: "bg-risk-low/10 text-risk-low",
+  FAILED: "bg-destructive/10 text-destructive",
+}
 
 export default function ReportsPage() {
-  const [reports, setReports] = useState(DUMMY_REPORTS)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [selectedType, setSelectedType] = useState(REPORT_TYPES[0])
+  const { t } = useTranslation()
+  const role = useMyOrgRole()
+  const isAdmin = role === "ADMIN"
+
+  const { data: reportData, isLoading } = useGetAllReportsQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+  })
+  const [generateReport, { isLoading: isGenerating }] =
+    useGenerateReportMutation()
+  const [publishReport] = usePublishReportMutation()
+
+  const [selectedType, setSelectedType] = useState<ReportType>("BOARD")
+  const [publishingId, setPublishingId] = useState<string | null>(null)
+
+  const reports: Report[] = reportData?.data || []
 
   const handleGenerate = async () => {
-    setIsGenerating(true)
-
-    // Simulate AI report generation delay
-    await new Promise((resolve) => setTimeout(resolve, 2200))
-
-    const newReport = {
-      id: "rep" + Date.now(),
-      type: selectedType,
-      title: `${selectedType} — ${new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}`,
-      author: "AI + Risk Intelligence Engine",
-      created_at: new Date().toISOString(),
-      pages: Math.floor(Math.random() * 12) + 15, // 15 to 26 pages
-      status: "draft" as const,
-      ai_generated: true,
+    try {
+      const res = await generateReport({ type: selectedType }).unwrap()
+      // Generation is synchronous: the response is the final report. A row that
+      // came back FAILED is a failed generation, surfaced as an error toast even
+      // though the HTTP call itself succeeded.
+      if (res.success && res.data?.status !== "FAILED") {
+        toast.success(t("organization.reports.generateSuccess"))
+      } else {
+        toast.error(t("organization.reports.generateFailed"))
+      }
+    } catch (err) {
+      toast.error(
+        (err as { data?: { message?: string } })?.data?.message ||
+          t("organization.reports.generateFailed")
+      )
     }
-
-    setReports((prev) => [newReport, ...prev])
-
-    alert(
-      `Report generated successfully!\n\nType: ${selectedType}\nPages: ${newReport.pages}\nTitle: ${newReport.title}`
-    )
-
-    setIsGenerating(false)
   }
 
-  const handleDownloadPDF = (report: any) => {
-    alert(`Downloading PDF: ${report.title}\n(${report.pages} pages)`)
-    // In a real app this would trigger pdf generation and download
+  const handlePublish = async (id: string) => {
+    setPublishingId(id)
+    try {
+      const res = await publishReport(id).unwrap()
+      if (res.success) {
+        toast.success(t("organization.reports.publishSuccess"))
+      } else {
+        toast.error(
+          res.message || t("organization.reports.publishFailed")
+        )
+      }
+    } catch (err) {
+      toast.error(
+        (err as { data?: { message?: string } })?.data?.message ||
+          t("organization.reports.publishFailed")
+      )
+    } finally {
+      setPublishingId(null)
+    }
   }
 
-  const handlePreviewPDF = (report: any) => {
-    alert(`Opening preview for: ${report.title}`)
-    // In a real app this would open the PDF in a new tab
+  const openPdf = (report: Report) => {
+    if (report.file_url) window.open(report.file_url, "_blank", "noopener")
   }
 
   return (
@@ -87,11 +107,10 @@ export default function ReportsPage() {
       <div className="animate-fade-in flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Reports
+            {t("organization.reports.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            AI-powered report generation • Board / Executive / Assurance reports
-            • Based on your live data
+            {t("organization.reports.subtitle")}
           </p>
         </div>
       </div>
@@ -99,13 +118,23 @@ export default function ReportsPage() {
       {/* Generate Section */}
       <div className="animate-slide-up flex flex-col items-start gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center">
         <select
+          aria-label={t("organization.reports.typeLabel")}
           value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
-          className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:ring-2 focus:ring-ring focus:outline-none sm:w-auto"
+          onChange={(e) => setSelectedType(e.target.value as ReportType)}
+          disabled={isGenerating}
+          className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:ring-2 focus:ring-ring focus:outline-none disabled:opacity-50 sm:w-auto"
         >
           {REPORT_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {type}
+            <option
+              key={type.value}
+              value={type.value}
+              disabled={!type.enabled}
+              title={
+                type.enabled ? undefined : t("organization.reports.comingSoon")
+              }
+            >
+              {t(`organization.reports.types.${type.value}`)}
+              {type.enabled ? "" : ` — ${t("organization.reports.comingSoon")}`}
             </option>
           ))}
         </select>
@@ -120,90 +149,134 @@ export default function ReportsPage() {
           ) : (
             <Sparkles className="h-4 w-4" />
           )}
-          {isGenerating ? "Generating report..." : "Generate with AI"}
+          {isGenerating
+            ? t("organization.reports.generating")
+            : t("organization.reports.generate")}
         </button>
 
         {isGenerating && (
           <span className="text-xs text-muted-foreground">
-            Collecting risks, KRIs, compliance, audits and findings...
+            {t("organization.reports.generatingHint")}
           </span>
         )}
       </div>
 
       {/* Reports Grid */}
       <div className="animate-slide-up stagger-2 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {reports.map((report) => (
-          <div
-            key={report.id}
-            className="group rounded-xl border border-border bg-card p-5 transition-shadow hover:shadow-md"
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <FileText className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate text-sm font-semibold text-foreground">
-                  {report.title || report.type}
-                </h3>
-                <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(report.created_at).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </div>
-                  {report.author && (
-                    <div className="flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      {report.author}
-                    </div>
+        {reports.map((report) => {
+          const isReady = report.status === "READY"
+          const isPublished = report.status === "PUBLISHED"
+          const isFailed = report.status === "FAILED"
+          const isGen = report.status === "GENERATING"
+          const canOpen = (isReady || isPublished) && !!report.file_url
+
+          return (
+            <div
+              key={report.id}
+              className="group rounded-xl border border-border bg-card p-5 transition-shadow hover:shadow-md"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  {isFailed ? (
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                  ) : isGen ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                  ) : (
+                    <FileText className="h-5 w-5 text-primary" />
                   )}
-                  <div>{report.pages} pages</div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-sm font-semibold text-foreground">
+                    {report.title}
+                  </h3>
+                  <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(report.createdAt).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </div>
+                    {report.reference && (
+                      <div>
+                        {t("organization.reports.reference")}:{" "}
+                        <span className="font-mono">{report.reference}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end gap-1">
+                  {report.ai_generated && (
+                    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      {t("organization.reports.aiBadge")}
+                    </span>
+                  )}
+                  <span
+                    className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_STYLES[report.status]}`}
+                  >
+                    {isPublished && <CheckCircle2 className="h-2.5 w-2.5" />}
+                    {t(`organization.reports.status.${report.status}`)}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1">
-                {report.ai_generated && (
-                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                    AI
-                  </span>
-                )}
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                    report.status === "published"
-                      ? "bg-risk-low/10 text-risk-low"
-                      : "bg-risk-medium/10 text-risk-medium"
-                  }`}
-                >
-                  {report.status === "published" ? "Published" : "Draft"}
-                </span>
-              </div>
-            </div>
+              {isFailed && (
+                <p className="mt-3 text-xs text-destructive">
+                  {t("organization.reports.failedHint")}
+                </p>
+              )}
 
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => handlePreviewPDF(report)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-background py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted active:scale-[0.98]"
-              >
-                <Eye className="h-3.5 w-3.5" /> Preview
-              </button>
-              <button
-                onClick={() => handleDownloadPDF(report)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98]"
-              >
-                <Download className="h-3.5 w-3.5" /> Download PDF
-              </button>
+              {(isReady || isPublished) && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => openPdf(report)}
+                    disabled={!canOpen}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-background py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <Eye className="h-3.5 w-3.5" />{" "}
+                    {t("organization.reports.preview")}
+                  </button>
+                  <button
+                    onClick={() => openPdf(report)}
+                    disabled={!canOpen}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <Download className="h-3.5 w-3.5" />{" "}
+                    {t("organization.reports.download")}
+                  </button>
+                  {/* Publish is the human-review gate — org-admins only, on a
+                      report still awaiting review. Re-checked server-side. */}
+                  {isReady && isAdmin && (
+                    <button
+                      onClick={() => handlePublish(report.id)}
+                      disabled={publishingId === report.id}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary/40 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 active:scale-[0.98] disabled:opacity-50"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      {publishingId === report.id
+                        ? t("organization.reports.publishing")
+                        : t("organization.reports.publish")}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
+          )
+        })}
+
+        {isLoading && (
+          <div className="col-span-full flex items-center justify-center rounded-xl border border-border bg-card p-12">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-        ))}
+        )}
 
-        {reports.length === 0 && (
+        {!isLoading && reports.length === 0 && (
           <div className="col-span-full py-12 text-center">
             <FileText className="mx-auto h-8 w-8 text-muted-foreground/50" />
             <p className="mt-2 text-sm text-muted-foreground">
-              No reports yet. Generate one using AI above.
+              {t("organization.reports.empty")}
             </p>
           </div>
         )}

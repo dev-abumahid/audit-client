@@ -183,6 +183,40 @@
         "criticalAlertsBannerPlural": "critical alerts"
     },
     "organization":{
+        "reports":{
+            "title":"Reports",
+            "subtitle":"AI-powered board reports built from your live risk data",
+            "typeLabel":"Report type",
+            "types":{
+                "BOARD":"Board Report",
+                "EXEC_COMMITTEE":"Monthly Executive Committee Report",
+                "AUDIT_OPINION":"Internal Audit Assurance Opinion",
+                "MONTE_CARLO":"Monte Carlo Stress Test Report",
+                "COMPLIANCE":"Compliance Status Report"
+            },
+            "comingSoon":"Coming soon — requires the audit / Monte Carlo module",
+            "generate":"Generate with AI",
+            "generating":"Generating report...",
+            "generatingHint":"This can take up to two minutes — collecting your risks, KRIs, sites and actions, then rendering the PDF. Please keep this tab open.",
+            "status":{
+                "GENERATING":"Generating",
+                "READY":"Ready for review",
+                "PUBLISHED":"Published",
+                "FAILED":"Failed"
+            },
+            "aiBadge":"AI",
+            "reference":"Reference",
+            "preview":"Preview",
+            "download":"Download PDF",
+            "publish":"Publish",
+            "publishing":"Publishing...",
+            "empty":"No reports yet. Generate one with AI above.",
+            "failedHint":"Generation failed. Please try generating again.",
+            "generateSuccess":"Report generated successfully.",
+            "generateFailed":"Failed to generate report. Please try again.",
+            "publishSuccess":"Report published.",
+            "publishFailed":"Failed to publish report."
+        },
         "nav":{
             "analyze":"Analyze",
             "dashboard":"Dashboard",

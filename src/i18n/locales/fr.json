@@ -183,6 +183,40 @@
         "criticalAlertsBannerPlural": "alertes critiques"
     },
     "organization": {
+        "reports":{
+            "title":"Rapports",
+            "subtitle":"Rapports pour le conseil générés par IA à partir de vos données de risque en temps réel",
+            "typeLabel":"Type de rapport",
+            "types":{
+                "BOARD":"Rapport au conseil",
+                "EXEC_COMMITTEE":"Rapport mensuel du comité exécutif",
+                "AUDIT_OPINION":"Opinion d'assurance de l'audit interne",
+                "MONTE_CARLO":"Rapport de test de résistance Monte-Carlo",
+                "COMPLIANCE":"Rapport d'état de conformité"
+            },
+            "comingSoon":"Bientôt disponible — nécessite le module audit / Monte-Carlo",
+            "generate":"Générer avec l'IA",
+            "generating":"Génération du rapport...",
+            "generatingHint":"Cela peut prendre jusqu'à deux minutes — collecte de vos risques, KRI, sites et actions, puis génération du PDF. Veuillez garder cet onglet ouvert.",
+            "status":{
+                "GENERATING":"En cours de génération",
+                "READY":"Prêt à être revu",
+                "PUBLISHED":"Publié",
+                "FAILED":"Échec"
+            },
+            "aiBadge":"IA",
+            "reference":"Référence",
+            "preview":"Aperçu",
+            "download":"Télécharger le PDF",
+            "publish":"Publier",
+            "publishing":"Publication...",
+            "empty":"Aucun rapport pour le moment. Générez-en un avec l'IA ci-dessus.",
+            "failedHint":"La génération a échoué. Veuillez réessayer.",
+            "generateSuccess":"Rapport généré avec succès.",
+            "generateFailed":"Échec de la génération du rapport. Veuillez réessayer.",
+            "publishSuccess":"Rapport publié.",
+            "publishFailed":"Échec de la publication du rapport."
+        },
         "nav": {
             "analyze": "Analyse",
             "dashboard": "Tableau de bord",
