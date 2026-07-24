@@ -518,5 +518,71 @@
         "high":"High",
         "medium":"Medium",
         "low":"Low"
+    },
+    "admin": {
+        "onboarding": {
+            "title": "Create Organization",
+            "close": "Close",
+            "cancel": "Cancel",
+            "back": "Back",
+            "aiBadge": "AI",
+            "entry": {
+                "subtitle": "Enter a company name and we'll propose a starter risk register grounded in public sources. You review and edit everything before anything is saved.",
+                "companyName": "Company name",
+                "companyNamePlaceholder": "e.g. Acme Manufacturing",
+                "adminEmail": "Admin email",
+                "adminEmailPlaceholder": "admin@company.com",
+                "adminPassword": "Admin password",
+                "sector": "Sector",
+                "country": "Country",
+                "optional": "Optional",
+                "analyze": "Analyze"
+            },
+            "confirm": {
+                "subtitle": "Review the proposed company profile and discovered sites. Edit or uncheck anything before we generate a risk baseline.",
+                "sector": "Sector",
+                "country": "HQ country",
+                "employeeBand": "Employee band",
+                "source": "Source",
+                "discoveredSites": "Discovered sites",
+                "addSite": "Add site",
+                "noSites": "No sites were discovered. You can add one manually.",
+                "includeSite": "Include this site",
+                "siteName": "Site name",
+                "siteLocation": "Location",
+                "continue": "Continue"
+            },
+            "generating": {
+                "message": "Generating a starter risk register from your confirmed sites…"
+            },
+            "review": {
+                "notice": "These risks and KRIs were AI-generated and are not yet saved. Review, edit and uncheck anything before creating the organization.",
+                "unnamed": "Unnamed site",
+                "noRisks": "No risks were generated for this site.",
+                "includeRisk": "Include this risk",
+                "excludeRisk": "Exclude this risk",
+                "category": "Category",
+                "description": "Description",
+                "kris": "Key risk indicators",
+                "includeKri": "Include this KRI",
+                "threshold": "Alert threshold",
+                "thresholdNote": "Thresholds are suggested starting points — adjust them to your context.",
+                "selectedSummary": "{{risks}} risks and {{kris}} KRIs selected",
+                "createOrganization": "Create Organization"
+            },
+            "done": {
+                "title": "{{name}} created",
+                "banner": "{{sites}} sites, {{risks}} risks and {{kris}} KRIs were AI-generated during setup — review recommended before relying on them.",
+                "close": "Done"
+            },
+            "errors": {
+                "required": "Company name, admin email and password are required.",
+                "passwordLength": "Password must be at least 8 characters.",
+                "noSites": "Select at least one site to continue.",
+                "identify": "Could not look up that company. Please try again.",
+                "generate": "Could not generate a risk baseline. Please try again.",
+                "commit": "Could not create the organization. Please try again."
+            }
+        }
     }
 }

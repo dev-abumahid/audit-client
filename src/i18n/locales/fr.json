@@ -517,6 +517,71 @@
         "high":"Élevé",
         "medium":"Moyen",
         "low":"Faible"
+    },
+    "admin": {
+        "onboarding": {
+            "title": "Créer une organisation",
+            "close": "Fermer",
+            "cancel": "Annuler",
+            "back": "Retour",
+            "aiBadge": "IA",
+            "entry": {
+                "subtitle": "Saisissez un nom d'entreprise et nous proposerons un registre des risques initial fondé sur des sources publiques. Vous vérifiez et modifiez tout avant tout enregistrement.",
+                "companyName": "Nom de l'entreprise",
+                "companyNamePlaceholder": "ex. Acme Manufacturing",
+                "adminEmail": "E-mail administrateur",
+                "adminEmailPlaceholder": "admin@entreprise.com",
+                "adminPassword": "Mot de passe administrateur",
+                "sector": "Secteur",
+                "country": "Pays",
+                "optional": "Facultatif",
+                "analyze": "Analyser"
+            },
+            "confirm": {
+                "subtitle": "Vérifiez le profil proposé et les sites découverts. Modifiez ou décochez avant de générer une base de risques.",
+                "sector": "Secteur",
+                "country": "Pays du siège",
+                "employeeBand": "Tranche d'effectifs",
+                "source": "Source",
+                "discoveredSites": "Sites découverts",
+                "addSite": "Ajouter un site",
+                "noSites": "Aucun site découvert. Vous pouvez en ajouter un manuellement.",
+                "includeSite": "Inclure ce site",
+                "siteName": "Nom du site",
+                "siteLocation": "Emplacement",
+                "continue": "Continuer"
+            },
+            "generating": {
+                "message": "Génération d'un registre des risques initial à partir de vos sites confirmés…"
+            },
+            "review": {
+                "notice": "Ces risques et KRI ont été générés par IA et ne sont pas encore enregistrés. Vérifiez, modifiez et décochez avant de créer l'organisation.",
+                "unnamed": "Site sans nom",
+                "noRisks": "Aucun risque généré pour ce site.",
+                "includeRisk": "Inclure ce risque",
+                "excludeRisk": "Exclure ce risque",
+                "category": "Catégorie",
+                "description": "Description",
+                "kris": "Indicateurs clés de risque",
+                "includeKri": "Inclure ce KRI",
+                "threshold": "Seuil d'alerte",
+                "thresholdNote": "Les seuils sont des points de départ suggérés — ajustez-les à votre contexte.",
+                "selectedSummary": "{{risks}} risques et {{kris}} KRI sélectionnés",
+                "createOrganization": "Créer l'organisation"
+            },
+            "done": {
+                "title": "{{name}} créée",
+                "banner": "{{sites}} sites, {{risks}} risques et {{kris}} KRI ont été générés par IA lors de la configuration — vérification recommandée avant de vous y fier.",
+                "close": "Terminé"
+            },
+            "errors": {
+                "required": "Le nom de l'entreprise, l'e-mail administrateur et le mot de passe sont requis.",
+                "passwordLength": "Le mot de passe doit comporter au moins 8 caractères.",
+                "noSites": "Sélectionnez au moins un site pour continuer.",
+                "identify": "Impossible de rechercher cette entreprise. Veuillez réessayer.",
+                "generate": "Impossible de générer une base de risques. Veuillez réessayer.",
+                "commit": "Impossible de créer l'organisation. Veuillez réessayer."
+            }
+        }
     }
 }
-    

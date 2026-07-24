@@ -3,9 +3,11 @@ import {
   ChevronRight,
   MoreHorizontal,
   Search,
-  X,
+  Sparkles,
 } from "lucide-react"
 import React, { useState } from "react"
+
+import OnboardingWizard from "./OnboardingWizard"
 
 interface Organization {
   _id: string
@@ -17,14 +19,7 @@ interface Organization {
 const AdminOrganization: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [formData, setFormData] = useState({
-    org_name: "",
-    userName: "",
-    email: "",
-    password: "",
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isWizardOpen, setIsWizardOpen] = useState(false)
 
   const limit = 10
 
@@ -89,48 +84,6 @@ const AdminOrganization: React.FC = () => {
     setCurrentPage(page)
   }
 
-  const handleOpenModal = () => {
-    setFormData({ org_name: "", userName: "", email: "", password: "" })
-    setIsModalOpen(true)
-  }
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setFormData({ org_name: "", userName: "", email: "", password: "" })
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
-
-  const handleCreateOrganization = async () => {
-    if (
-      !formData.org_name.trim() ||
-      !formData.userName.trim() ||
-      !formData.email.trim() ||
-      !formData.password.trim()
-    ) {
-      alert("Please fill all required fields")
-      return
-    }
-
-    if (formData.password.length < 6) {
-      alert("Password must be at least 6 characters long")
-      return
-    }
-
-    setIsSubmitting(true)
-
-    // Simulate API call
-    setTimeout(() => {
-      alert(`Organization "${formData.org_name}" created successfully!`)
-      handleCloseModal()
-      setIsSubmitting(false)
-      // In real app, you would refetch data here
-    }, 800)
-  }
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       day: "numeric",
@@ -173,10 +126,11 @@ const AdminOrganization: React.FC = () => {
           </div>
 
           <button
-            onClick={handleOpenModal}
+            onClick={() => setIsWizardOpen(true)}
             className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            + Add Organization
+            <Sparkles className="h-4 w-4" />
+            Add Organization
           </button>
         </div>
 
@@ -366,103 +320,9 @@ const AdminOrganization: React.FC = () => {
         </div>
       </div>
 
-      {/* Create Organization Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-            <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-foreground">
-                Create New Organization
-              </h3>
-              <button
-                onClick={handleCloseModal}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-5">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-                  Organization Name
-                </label>
-                <input
-                  name="org_name"
-                  type="text"
-                  value={formData.org_name}
-                  onChange={handleInputChange}
-                  placeholder="Enter organization name"
-                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-                  Username
-                </label>
-                <input
-                  name="userName"
-                  type="text"
-                  value={formData.userName}
-                  onChange={handleInputChange}
-                  placeholder="Enter username"
-                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-                  Email
-                </label>
-                <input
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="Enter email address"
-                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-                  Password
-                </label>
-                <input
-                  name="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="Enter password"
-                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="mt-8 flex gap-3">
-              <button
-                onClick={handleCloseModal}
-                className="flex-1 rounded-xl border border-border py-3 text-sm font-medium hover:bg-muted"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateOrganization}
-                disabled={
-                  isSubmitting ||
-                  !formData.org_name ||
-                  !formData.userName ||
-                  !formData.email ||
-                  !formData.password
-                }
-                className="flex-1 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-              >
-                {isSubmitting ? "Creating..." : "Create Organization"}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Zero-input onboarding wizard (#96) — replaces the former fake modal */}
+      {isWizardOpen && (
+        <OnboardingWizard onClose={() => setIsWizardOpen(false)} />
       )}
     </div>
   )
