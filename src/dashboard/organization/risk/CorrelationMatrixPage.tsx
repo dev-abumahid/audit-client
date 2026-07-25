@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SiteFilter from "@/components/dashboard/organization/SiteFilter"
+import type { Risk } from "@/types/organization"
 import {
   ChevronDown,
   ChevronUp,
@@ -16,23 +17,6 @@ import { useCallback, useMemo, useState } from "react"
 type MatrixSize = 3 | 4 | 5
 type ViewMode = "risks" | "findings" | "buckets" | "ai-buckets"
 type GroupMode = "none" | "category" | "rootcause"
-
-interface Risk {
-  id: string
-  ref: string
-  name: string
-  description?: string
-  category: string
-  inherent_score: number
-  residual_score: number
-  pagerank_score: number
-  probability: number
-  financial_impact_max: number
-  site_id?: string
-  ai_generated?: boolean
-  is_edited?: boolean
-  source_info?: string
-}
 
 interface RiskLink {
   id: string
@@ -65,86 +49,175 @@ interface FindingBucket {
   commonAction: string
 }
 
+// This page stays fixture-driven for now: the real correlation engine (a
+// risk-to-risk RiskLink backend model) is deliberately deferred — see #142,
+// whose core "should we build this" question stays open. What #142 does
+// resolve, and what this file now reflects, is the type-safety landmine: the
+// mock fixtures were built around a divergent LOCAL `Risk` type carrying a
+// human-readable `ref` field that the shared `Risk` in organization.d.ts
+// does not have (it keys risks by UUID `id`). The fixtures below now conform
+// to the shared `Risk` shape and correlate on `id`, so a future real-API
+// wiring pass doesn't inherit a `.ref`-vs-`.id` mismatch.
+const RISK_IDS = {
+  ransomware: "3f8b1c2a-9d4e-4f5a-8b1c-2a9d4e4f5a01",
+  supplyChain: "7a2e5d9c-1b3f-4c6d-8e0a-2b3f4c6d8e02",
+  gdpr: "b4d6f8a0-2c4e-4a6b-8d0f-2c4e4a6b8d03",
+  fx: "c5e7a9b1-3d5f-4b7c-9e1a-3d5f4b7c9e04",
+  siteAccident: "d6f8b0c2-4e6a-4c8d-0f2b-4e6a4c8d0f05",
+} as const
+
+// Full UUID `id`s overflow the compact ref labels, so show only the first
+// block for long ids while short ids (e.g. test fixtures) render in full; the
+// full id is always preserved in a title tooltip. Mirrors RiskGraphPage's
+// shortRef so both pages truncate ids identically.
+const REF_LABEL_MAX = 12
+const shortRef = (id: string) =>
+  id.length > REF_LABEL_MAX ? id.slice(0, 8) : id
+
 // Dummy Data
 const DUMMY_RISKS: Risk[] = [
   {
-    id: "1",
-    ref: "CY-001",
+    id: RISK_IDS.ransomware,
+    org_account_id: "org-1",
     name: "Cyberattaque ransomware",
     description: "Risque de blocage des systèmes",
     category: "cyber",
     inherent_score: 22,
     residual_score: 14,
     pagerank_score: 88,
-    probability: 0.75,
+    financial_impact_min: 500000,
     financial_impact_max: 2500000,
-    site_id: "site1",
+    probability: 0.75,
+    velocity: "fast",
+    trend: "up",
+    status: "open",
     ai_generated: true,
+    is_edited: false,
+    site_id: "site1",
+    control_design_eff: 0,
+    control_operating_eff: 0,
+    createdAt: "2026-06-01T00:00:00.000Z",
+    updatedAt: "2026-06-01T00:00:00.000Z",
   },
   {
-    id: "2",
-    ref: "OP-012",
+    id: RISK_IDS.supplyChain,
+    org_account_id: "org-1",
     name: "Rupture chaîne approvisionnement",
     description: "Dépendance fournisseur unique",
     category: "operational",
     inherent_score: 19,
     residual_score: 16,
     pagerank_score: 75,
-    probability: 0.85,
+    financial_impact_min: 400000,
     financial_impact_max: 1800000,
+    probability: 0.85,
+    velocity: "medium",
+    trend: "up",
+    status: "open",
+    ai_generated: false,
+    is_edited: false,
     site_id: "site2",
+    control_design_eff: 0,
+    control_operating_eff: 0,
+    createdAt: "2026-06-01T00:00:00.000Z",
+    updatedAt: "2026-06-01T00:00:00.000Z",
   },
   {
-    id: "3",
-    ref: "CO-005",
+    id: RISK_IDS.gdpr,
+    org_account_id: "org-1",
     name: "Non-conformité RGPD",
     description: "Manque de consentement données",
     category: "compliance",
     inherent_score: 16,
     residual_score: 10,
     pagerank_score: 62,
-    probability: 0.45,
+    financial_impact_min: 200000,
     financial_impact_max: 1200000,
+    probability: 0.45,
+    velocity: "slow",
+    trend: "stable",
+    status: "open",
+    ai_generated: false,
+    is_edited: false,
     site_id: "site1",
+    control_design_eff: 0,
+    control_operating_eff: 0,
+    createdAt: "2026-06-01T00:00:00.000Z",
+    updatedAt: "2026-06-01T00:00:00.000Z",
   },
   {
-    id: "4",
-    ref: "FI-008",
+    id: RISK_IDS.fx,
+    org_account_id: "org-1",
     name: "Fluctuation taux de change",
     description: "Exposition devises émergentes",
     category: "financial",
     inherent_score: 13,
     residual_score: 8,
     pagerank_score: 58,
-    probability: 0.6,
+    financial_impact_min: 100000,
     financial_impact_max: 600000,
+    probability: 0.6,
+    velocity: "medium",
+    trend: "stable",
+    status: "open",
+    ai_generated: false,
+    is_edited: false,
     site_id: "site3",
+    control_design_eff: 0,
+    control_operating_eff: 0,
+    createdAt: "2026-06-01T00:00:00.000Z",
+    updatedAt: "2026-06-01T00:00:00.000Z",
   },
   {
-    id: "5",
-    ref: "HS-003",
+    id: RISK_IDS.siteAccident,
+    org_account_id: "org-1",
     name: "Accident grave site",
     description: "Risque industriel majeur",
     category: "operational",
     inherent_score: 21,
     residual_score: 18,
     pagerank_score: 91,
-    probability: 0.55,
+    financial_impact_min: 800000,
     financial_impact_max: 3200000,
+    probability: 0.55,
+    velocity: "fast",
+    trend: "up",
+    status: "open",
+    ai_generated: false,
+    is_edited: false,
     site_id: "site2",
+    control_design_eff: 0,
+    control_operating_eff: 0,
+    createdAt: "2026-06-01T00:00:00.000Z",
+    updatedAt: "2026-06-01T00:00:00.000Z",
   },
 ]
 
 const DUMMY_LINKS: RiskLink[] = [
-  { id: "l1", source_ref: "OP-012", target_ref: "CY-001", link_type: "CAUSES" },
+  {
+    id: "l1",
+    source_ref: RISK_IDS.supplyChain,
+    target_ref: RISK_IDS.ransomware,
+    link_type: "CAUSES",
+  },
   {
     id: "l2",
-    source_ref: "CO-005",
-    target_ref: "CY-001",
+    source_ref: RISK_IDS.gdpr,
+    target_ref: RISK_IDS.ransomware,
     link_type: "AMPLIFIES",
   },
-  { id: "l3", source_ref: "FI-008", target_ref: "OP-012", link_type: "CAUSES" },
-  { id: "l4", source_ref: "HS-003", target_ref: "OP-012", link_type: "CAUSES" },
+  {
+    id: "l3",
+    source_ref: RISK_IDS.fx,
+    target_ref: RISK_IDS.supplyChain,
+    link_type: "CAUSES",
+  },
+  {
+    id: "l4",
+    source_ref: RISK_IDS.siteAccident,
+    target_ref: RISK_IDS.supplyChain,
+    link_type: "CAUSES",
+  },
 ]
 
 const DUMMY_FINDINGS: AuditFinding[] = [
@@ -261,7 +334,7 @@ export default function CorrelationMatrixPage() {
   }, [risks, siteFilter])
 
   const filteredRefs = useMemo(
-    () => new Set(filteredRisks.map((r) => r.ref)),
+    () => new Set(filteredRisks.map((r) => r.id)),
     [filteredRisks]
   )
 
@@ -274,12 +347,12 @@ export default function CorrelationMatrixPage() {
       { rootCauses: number; consequences: number }
     > = {}
     for (const risk of filteredRisks) {
-      metrics[risk.ref] = {
+      metrics[risk.id] = {
         rootCauses: causalLinks.filter(
-          (l) => l.target_ref === risk.ref && filteredRefs.has(l.source_ref)
+          (l) => l.target_ref === risk.id && filteredRefs.has(l.source_ref)
         ).length,
         consequences: causalLinks.filter(
-          (l) => l.source_ref === risk.ref && filteredRefs.has(l.target_ref)
+          (l) => l.source_ref === risk.id && filteredRefs.has(l.target_ref)
         ).length,
       }
     }
@@ -289,7 +362,7 @@ export default function CorrelationMatrixPage() {
   const riskGrid = useMemo(() => {
     const grid: Record<string, Risk[]> = {}
     for (const risk of filteredRisks) {
-      const m = riskMetrics[risk.ref]
+      const m = riskMetrics[risk.id]
       if (!m) continue
       const row = mapToAxis(m.rootCauses, matrixSize)
       const col = mapToAxis(m.consequences, matrixSize)
@@ -382,7 +455,7 @@ export default function CorrelationMatrixPage() {
         {
           bucketName: "Dépendance Fournisseurs Critiques",
           rootCause: "Manque de diversification des fournisseurs stratégiques",
-          riskRefs: ["OP-012", "HS-003"],
+          riskRefs: [RISK_IDS.supplyChain, RISK_IDS.siteAccident],
           sitesAffected: ["Usine Lyon"],
           aggregatedImpactMax: 5000000,
           groupedAction: {
@@ -800,13 +873,15 @@ function RiskDetailCard({
   links: RiskLink[]
 }) {
   const siteName = sites.find((s) => s.id === risk.site_id)?.name
-  const m = riskMetrics[risk.ref] || { rootCauses: 0, consequences: 0 }
+  const m = riskMetrics[risk.id] || { rootCauses: 0, consequences: 0 }
 
   return (
     <div className="space-y-2 rounded-lg border bg-background p-3">
       <div className="flex justify-between">
         <div>
-          <p className="font-mono text-xs text-primary">{risk.ref}</p>
+          <p className="font-mono text-xs text-primary" title={risk.id}>
+            {shortRef(risk.id)}
+          </p>
           <p className="text-sm font-medium">{risk.name}</p>
         </div>
         <RiskBadge
@@ -892,7 +967,9 @@ function BucketList({
                     className="flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-mono">{risk.ref}</span>
+                      <span className="font-mono" title={risk.id}>
+                        {shortRef(risk.id)}
+                      </span>
                       <span className="truncate">{risk.name}</span>
                     </div>
                     {siteName && (
