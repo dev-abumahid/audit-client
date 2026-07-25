@@ -179,7 +179,11 @@ describe("InspectionTable", () => {
 
     renderTable()
 
-    expect(screen.getByText("Loading inspections...")).toBeInTheDocument()
+    // i18n isn't initialized in the test environment, so t() echoes the raw
+    // key back (see RiskRegisterPage.test.tsx for the same convention).
+    expect(
+      screen.getByText("organization.inspection.loading")
+    ).toBeInTheDocument()
   })
 
   it("shows empty state when there are no inspections", async () => {
@@ -194,7 +198,9 @@ describe("InspectionTable", () => {
     renderTable()
 
     await waitFor(() =>
-      expect(screen.getByText("No inspections found")).toBeInTheDocument()
+      expect(
+        screen.getByText("organization.inspection.empty")
+      ).toBeInTheDocument()
     )
   })
 })

@@ -118,7 +118,11 @@ describe("UpdateInspection", () => {
 
     render(<UpdateInspection />)
 
-    expect(screen.getByText("Loading inspection data...")).toBeInTheDocument()
+    // i18n isn't initialized in the test environment, so t() echoes the raw
+    // key back (see RiskRegisterPage.test.tsx for the same convention).
+    expect(
+      screen.getByText("organization.inspection.loadingInspection")
+    ).toBeInTheDocument()
   })
 
   it('shows "Inspection not found" when there is no inspection', () => {
@@ -129,7 +133,9 @@ describe("UpdateInspection", () => {
 
     render(<UpdateInspection />)
 
-    expect(screen.getByText("Inspection not found")).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.inspection.notFound")
+    ).toBeInTheDocument()
   })
 
   it("renders template name, site, existing answers and status", () => {
@@ -140,7 +146,11 @@ describe("UpdateInspection", () => {
 
     render(<UpdateInspection />)
 
-    expect(screen.getByText("Edit: Fire Safety Audit")).toBeInTheDocument()
+    // editTitle interpolates {{name}}, but the uninitialized test t() echoes
+    // just the key without interpolation.
+    expect(
+      screen.getByText("organization.inspection.editTitle")
+    ).toBeInTheDocument()
     expect(screen.getByText("HQ Casablanca")).toBeInTheDocument()
     expect(screen.getByDisplayValue("Fine")).toBeInTheDocument()
     expect(screen.getAllByRole("checkbox")[0]).toBeChecked()
@@ -166,7 +176,9 @@ describe("UpdateInspection", () => {
     })
     const { rerender } = render(<UpdateInspection />)
     expect(
-      screen.getByRole("button", { name: /upload note/i })
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNote",
+      })
     ).toBeInTheDocument()
 
     mockUseGetSingleInspectionQuery.mockReturnValue({
@@ -175,7 +187,9 @@ describe("UpdateInspection", () => {
     })
     rerender(<UpdateInspection />)
     expect(
-      screen.getByRole("button", { name: /view note/i })
+      screen.getByRole("button", {
+        name: "organization.inspection.viewNote",
+      })
     ).toBeInTheDocument()
   })
 
@@ -234,7 +248,9 @@ describe("UpdateInspection", () => {
 
     render(<UpdateInspection />)
     await userEvent.click(screen.getByRole("button", { name: /in_progress/i }))
-    await userEvent.click(await screen.findByText("COMPLETED"))
+    await userEvent.click(
+      await screen.findByText("organization.inspection.statusCompleted")
+    )
 
     await waitFor(() =>
       expect(mockUpdateInspection).toHaveBeenCalledWith({
@@ -252,7 +268,9 @@ describe("UpdateInspection", () => {
 
     render(<UpdateInspection />)
     await userEvent.click(
-      screen.getAllByRole("button", { name: /add finding/i })[0]
+      screen.getAllByRole("button", {
+        name: "organization.inspection.addFinding",
+      })[0]
     )
 
     expect(screen.getByText("Finding modal open")).toBeInTheDocument()
@@ -265,7 +283,11 @@ describe("UpdateInspection", () => {
     })
 
     render(<UpdateInspection />)
-    await userEvent.click(screen.getByRole("button", { name: /upload note/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNote",
+      })
+    )
 
     expect(screen.getByText("Upload notes modal open")).toBeInTheDocument()
   })
@@ -315,7 +337,9 @@ describe("UpdateInspection", () => {
         })
       )
       const { toast } = await import("sonner")
-      expect(toast.success).toHaveBeenCalledWith("Attachment uploaded")
+      expect(toast.success).toHaveBeenCalledWith(
+        "organization.inspection.attachmentUploadedToast"
+      )
     })
 
     it("appends the new URL to existing attachments rather than replacing them", async () => {
@@ -373,7 +397,7 @@ describe("UpdateInspection", () => {
       })
 
       render(<UpdateInspection />)
-      await userEvent.click(screen.getAllByTitle("Remove")[1])
+      await userEvent.click(screen.getAllByTitle("organization.inspection.remove")[1])
 
       await waitFor(() =>
         expect(mockUpdateInspection).toHaveBeenCalledWith({
@@ -404,11 +428,11 @@ describe("UpdateInspection", () => {
       })
 
       render(<UpdateInspection />)
-      const removeButtons = screen.getAllByTitle("Remove")
+      const removeButtons = screen.getAllByTitle("organization.inspection.remove")
       await userEvent.click(removeButtons[0])
 
-      expect(screen.getAllByTitle("Remove")[1]).toBeDisabled()
-      await userEvent.click(screen.getAllByTitle("Remove")[1])
+      expect(screen.getAllByTitle("organization.inspection.remove")[1]).toBeDisabled()
+      await userEvent.click(screen.getAllByTitle("organization.inspection.remove")[1])
       expect(mockUpdateInspection).toHaveBeenCalledTimes(1)
 
       resolveFirstRemove({})
@@ -461,13 +485,15 @@ describe("UpdateInspection", () => {
       await waitFor(() => expect(mockUpdateInspection).toHaveBeenCalled())
       await waitFor(() =>
         expect(toast.error).toHaveBeenCalledWith(
-          "File uploaded, but failed to attach it to the inspection. Please try uploading it again."
+          "organization.inspection.attachmentAttachFailedToast"
         )
       )
       // The file itself genuinely uploaded -- the generic "Failed to upload
       // attachment" full-failure message must not fire, and neither must the
       // success toast (only attaching the URL to the inspection failed).
-      expect(toast.error).not.toHaveBeenCalledWith("Failed to upload attachment")
+      expect(toast.error).not.toHaveBeenCalledWith(
+        "organization.inspection.attachmentUploadFailedToast"
+      )
       expect(toast.success).not.toHaveBeenCalled()
     })
   })

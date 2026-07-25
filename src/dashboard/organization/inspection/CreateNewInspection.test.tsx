@@ -91,7 +91,11 @@ describe("CreateNewInspection", () => {
 
     render(<CreateNewInspection />)
 
-    expect(screen.getByText("Loading template...")).toBeInTheDocument()
+    // i18n isn't initialized in the test environment, so t() echoes the raw
+    // key back (see RiskRegisterPage.test.tsx for the same convention).
+    expect(
+      screen.getByText("organization.inspection.loadingTemplate")
+    ).toBeInTheDocument()
   })
 
   it("renders the template name, site and questions", () => {
@@ -121,7 +125,9 @@ describe("CreateNewInspection", () => {
     await userEvent.click(checkbox)
 
     expect(checkbox).toBeChecked()
-    expect(screen.getByText("Yes")).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.inspection.yes")
+    ).toBeInTheDocument()
   })
 
   it("submits answers and navigates to the inspections list on success", async () => {
@@ -134,10 +140,14 @@ describe("CreateNewInspection", () => {
     })
 
     render(<CreateNewInspection />)
-    const textInput = screen.getByPlaceholderText("Type your answer here...")
+    const textInput = screen.getByPlaceholderText(
+      "organization.inspection.answerPlaceholder"
+    )
     await userEvent.type(textInput, "Looks good")
     await userEvent.click(
-      screen.getByRole("button", { name: /submit inspection/i })
+      screen.getByRole("button", {
+        name: "organization.inspection.submitInspection",
+      })
     )
 
     await waitFor(() => expect(mockCreateInspection).toHaveBeenCalled())
@@ -164,7 +174,9 @@ describe("CreateNewInspection", () => {
 
     render(<CreateNewInspection />)
     await userEvent.click(
-      screen.getByRole("button", { name: /submit inspection/i })
+      screen.getByRole("button", {
+        name: "organization.inspection.submitInspection",
+      })
     )
 
     expect(mockCreateInspection).not.toHaveBeenCalled()
@@ -208,7 +220,9 @@ describe("CreateNewInspection", () => {
 
     await waitFor(() => expect(mockUploadFileAws).toHaveBeenCalled())
     await waitFor(() =>
-      expect(screen.getByAltText("Uploaded media")).toHaveAttribute(
+      expect(
+        screen.getByAltText("organization.inspection.uploadedMediaAlt")
+      ).toHaveAttribute(
         "src",
         "https://cdn.example.com/photo.jpg"
       )

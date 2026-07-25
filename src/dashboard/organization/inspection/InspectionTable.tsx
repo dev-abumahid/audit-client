@@ -34,11 +34,13 @@ import {
   Trash2,
 } from "lucide-react"
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 import StartInspectionModal from "./StartInspectionModal"
 
 const InspectionTable = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -95,12 +97,14 @@ const InspectionTable = () => {
     try {
       const res = await deleteInspection(deletedInspectionId).unwrap()
       if (res?.success) {
-        toast.success("Inspection deleted successfully")
+        toast.success(t("organization.inspection.deleteSuccessToast"))
         setDeleteModalOpen(false)
         setDeletedInspectionId("")
       }
     } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to delete inspection")
+      toast.error(
+        err?.data?.message || t("organization.inspection.deleteFailedToast")
+      )
     }
   }
 
@@ -110,13 +114,17 @@ const InspectionTable = () => {
         {/* Header */}
         <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Inspections</h1>
-            <p className="text-muted-foreground">Manage all your inspections</p>
+            <h1 className="text-3xl font-bold text-foreground">
+              {t("organization.inspection.title")}
+            </h1>
+            <p className="text-muted-foreground">
+              {t("organization.inspection.subtitle")}
+            </p>
           </div>
 
           <Button onClick={() => setOpen(true)} className="">
             <Plus className="mr-2 h-4 w-4" />
-            Start New
+            {t("organization.inspection.startNew")}
           </Button>
         </div>
 
@@ -125,7 +133,7 @@ const InspectionTable = () => {
           <div className="relative max-w-md flex-1">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search inspections..."
+              placeholder={t("organization.inspection.searchPlaceholder")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -134,25 +142,37 @@ const InspectionTable = () => {
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full md:w-48">
-              <SelectValue placeholder="All Status" />
+              <SelectValue placeholder={t("organization.inspection.statusAll")} />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="ALL">All Status</SelectItem>
-              <SelectItem value="IN_PROGRESS">IN_PROGRESS</SelectItem>
-              <SelectItem value="COMPLETED">COMPLETED</SelectItem>
-              <SelectItem value="CANCELLED">CANCELLED</SelectItem>
-              <SelectItem value="DRAFT">DRAFT</SelectItem>
+              <SelectItem value="ALL">
+                {t("organization.inspection.statusAll")}
+              </SelectItem>
+              <SelectItem value="IN_PROGRESS">
+                {t("organization.inspection.statusInProgress")}
+              </SelectItem>
+              <SelectItem value="COMPLETED">
+                {t("organization.inspection.statusCompleted")}
+              </SelectItem>
+              <SelectItem value="CANCELLED">
+                {t("organization.inspection.statusCancelled")}
+              </SelectItem>
+              <SelectItem value="DRAFT">
+                {t("organization.inspection.statusDraft")}
+              </SelectItem>
             </SelectContent>
           </Select>
 
           <Select value={siteFilter} onValueChange={setSiteFilter}>
             <SelectTrigger className="w-full md:w-48">
-              <SelectValue placeholder="All Sites" />
+              <SelectValue placeholder={t("organization.inspection.allSites")} />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="ALL">All Sites</SelectItem>
+              <SelectItem value="ALL">
+                {t("organization.inspection.allSites")}
+              </SelectItem>
               {sitesData?.data.map((site: any) => (
                 <SelectItem key={site.id} value={site.id}>
                   {site.name}
@@ -167,19 +187,23 @@ const InspectionTable = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Inspection</TableHead>
-                <TableHead>Site</TableHead>
-                <TableHead>Updated</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Author</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>
+                  {t("organization.inspection.colInspection")}
+                </TableHead>
+                <TableHead>{t("organization.inspection.colSite")}</TableHead>
+                <TableHead>{t("organization.inspection.colUpdated")}</TableHead>
+                <TableHead>{t("organization.inspection.colStatus")}</TableHead>
+                <TableHead>{t("organization.inspection.colAuthor")}</TableHead>
+                <TableHead className="text-right">
+                  {t("organization.inspection.colActions")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center">
-                    Loading inspections...
+                    {t("organization.inspection.loading")}
                   </TableCell>
                 </TableRow>
               ) : inspections.length === 0 ? (
@@ -188,7 +212,7 @@ const InspectionTable = () => {
                     colSpan={6}
                     className="h-24 text-center text-muted-foreground"
                   >
-                    No inspections found
+                    {t("organization.inspection.empty")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -216,7 +240,10 @@ const InspectionTable = () => {
                         {item.status}
                       </span>
                     </TableCell>
-                    <TableCell>{item?.inspector?.fullName || "Org"}</TableCell>
+                    <TableCell>
+                      {item?.inspector?.fullName ||
+                        t("organization.inspection.orgFallback")}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button
@@ -254,7 +281,10 @@ const InspectionTable = () => {
         {totalPages > 1 && (
           <div className="mt-6 flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Page {currentPage} of {totalPages}
+              {t("organization.inspection.pageOf", {
+                current: currentPage,
+                total: totalPages,
+              })}
             </p>
             <div className="flex gap-2">
               <Button
@@ -282,8 +312,8 @@ const InspectionTable = () => {
       <DeleteAlertModal
         open={deleteModalOpen}
         setOpen={setDeleteModalOpen}
-        title="Delete Inspection?"
-        description="This will permanently remove the inspection and all its notes, actions."
+        title={t("organization.inspection.deleteTitle")}
+        description={t("organization.inspection.deleteDescription")}
         onConfirm={handleConfirmDelete}
       />
     </div>

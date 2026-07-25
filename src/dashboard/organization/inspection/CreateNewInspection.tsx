@@ -14,6 +14,7 @@ import {
   Trash,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useLocation, useNavigate } from "react-router"
 import { toast } from "sonner"
 
@@ -24,6 +25,7 @@ type AnswerEntry = {
 }
 
 export default function CreateNewInspection() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { state } = useLocation()
 
@@ -144,7 +146,7 @@ export default function CreateNewInspection() {
 
   const handleSubmit = async () => {
     if (!templateId || !siteId) {
-      toast.error("Missing template or site information")
+      toast.error(t("organization.inspection.missingInfoToast"))
       return
     }
 
@@ -161,10 +163,12 @@ export default function CreateNewInspection() {
 
     try {
       await createInspection(payload).unwrap()
-      toast.success("Inspection submitted successfully!")
+      toast.success(t("organization.inspection.submittedToast"))
       navigate("/organization/audit/inspections")
     } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to submit inspection")
+      toast.error(
+        error?.data?.message || t("organization.inspection.submitFailedToast")
+      )
     }
   }
 
@@ -174,7 +178,7 @@ export default function CreateNewInspection() {
 
     // Check file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size should be less than 5MB")
+      toast.error(t("organization.inspection.fileSizeError"))
       return
     }
 
@@ -188,7 +192,7 @@ export default function CreateNewInspection() {
       "application/pdf",
     ]
     if (!allowedTypes.includes(file.type)) {
-      toast.error("Only images, MP4 videos, and PDF files are allowed")
+      toast.error(t("organization.inspection.fileTypeError"))
       return
     }
 
@@ -201,12 +205,14 @@ export default function CreateNewInspection() {
 
       if (res?.success && res?.data) {
         handleAnswerChange(questionId, res.data)
-        toast.success("Media uploaded successfully!")
+        toast.success(t("organization.inspection.mediaUploadedToast"))
       } else {
-        toast.error("Failed to upload media")
+        toast.error(t("organization.inspection.mediaUploadFailedToast"))
       }
     } catch (error: any) {
-      toast.error(error?.message || "Failed to upload media")
+      toast.error(
+        error?.message || t("organization.inspection.mediaUploadFailedToast")
+      )
     } finally {
       setIsAnswerMediaUploading(null)
     }
@@ -231,7 +237,9 @@ export default function CreateNewInspection() {
       const uploadPromises = fileArray.map(async (file) => {
         // Validate file size (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
-          toast.error(`${file.name} is larger than 5MB`)
+          toast.error(
+            t("organization.inspection.fileTooLargeNamed", { name: file.name })
+          )
           return null
         }
 
@@ -246,7 +254,7 @@ export default function CreateNewInspection() {
         ]
         if (!allowedTypes.includes(file.type)) {
           toast.error(
-            `${file.name} is not supported. Only images, MP4 videos, and PDF files are allowed`
+            t("organization.inspection.fileTypeNamedError", { name: file.name })
           )
           return null
         }
@@ -281,12 +289,19 @@ export default function CreateNewInspection() {
           },
         }))
 
-        toast.success(`${validFiles.length} file(s) uploaded successfully!`)
+        toast.success(
+          t("organization.inspection.filesUploadedToast", {
+            count: validFiles.length,
+          })
+        )
       } else {
-        toast.error("Failed to upload files")
+        toast.error(t("organization.inspection.filesUploadFailedToast"))
       }
     } catch (error: any) {
-      toast.error(error?.message || "Failed to upload media files")
+      toast.error(
+        error?.message ||
+          t("organization.inspection.mediaFilesUploadFailedToast")
+      )
     } finally {
       setExternalMediaUploading(null)
     }
@@ -307,7 +322,7 @@ export default function CreateNewInspection() {
       },
     }))
 
-    toast.success("Media file removed")
+    toast.success(t("organization.inspection.mediaRemovedToast"))
   }
 
   const renderQuestionInput = (question: any) => {
@@ -326,7 +341,11 @@ export default function CreateNewInspection() {
               }
               className="h-5 w-5 accent-primary"
             />
-            <span>{value ? "Yes" : "No"}</span>
+            <span>
+              {value
+                ? t("organization.inspection.yes")
+                : t("organization.inspection.no")}
+            </span>
           </label>
         )
 
@@ -370,7 +389,9 @@ export default function CreateNewInspection() {
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
             className="w-full rounded-lg border border-input px-4 py-3"
           >
-            <option value="">Select option...</option>
+            <option value="">
+              {t("organization.inspection.selectOption")}
+            </option>
             {options.map((opt: string, i: number) => (
               <option key={i} value={opt.trim()}>
                 {opt.trim()}
@@ -387,14 +408,14 @@ export default function CreateNewInspection() {
               <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-8">
                 <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></span>
                 <p className="text-sm text-muted-foreground">
-                  Uploading media...
+                  {t("organization.inspection.uploadingMedia")}
                 </p>
               </div>
             ) : value ? (
               <div className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border">
                 <img
                   src={value}
-                  alt="Uploaded media"
+                  alt={t("organization.inspection.uploadedMediaAlt")}
                   className="max-h-96 max-w-full object-contain transition-transform group-hover:scale-105"
                   onError={(e) => {
                     ;(e.target as HTMLImageElement).src =
@@ -406,7 +427,7 @@ export default function CreateNewInspection() {
                   className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
                 >
                   <span className="rounded bg-red-500 px-2 py-1 text-xs font-medium text-white">
-                    Delete Media
+                    {t("organization.inspection.deleteMedia")}
                   </span>
                 </button>
               </div>
@@ -419,7 +440,7 @@ export default function CreateNewInspection() {
                 >
                   <span>
                     <CloudUpload className="h-5 w-5" />
-                    Upload Media / Documents
+                    {t("organization.inspection.uploadMediaDocuments")}
                   </span>
                 </Button>
                 <input
@@ -448,7 +469,7 @@ export default function CreateNewInspection() {
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
             rows={5}
             className="min-h-30 w-full resize-y rounded-lg border border-input px-4 py-3 focus:ring-2 focus:ring-primary"
-            placeholder="Type your answer here..."
+            placeholder={t("organization.inspection.answerPlaceholder")}
           />
         )
     }
@@ -457,7 +478,7 @@ export default function CreateNewInspection() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        Loading template...
+        {t("organization.inspection.loadingTemplate")}
       </div>
     )
   }
@@ -469,7 +490,8 @@ export default function CreateNewInspection() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate(-1)}>
-              <ArrowLeft className="mr-2 h-5 w-5" /> Back
+              <ArrowLeft className="mr-2 h-5 w-5" />{" "}
+              {t("organization.inspection.back")}
             </Button>
             <div>
               <h1 className="text-2xl font-bold">{template?.templateName}</h1>
@@ -481,7 +503,10 @@ export default function CreateNewInspection() {
             </div>
           </div>
           <div className="text-sm text-muted-foreground">
-            Page {currentPageIndex + 1} of {pages.length}
+            {t("organization.inspection.pageOf", {
+              current: currentPageIndex + 1,
+              total: pages.length,
+            })}
           </div>
         </div>
       </div>
@@ -491,7 +516,7 @@ export default function CreateNewInspection() {
         <div className="hidden w-72 lg:block">
           <div className="sticky top-24 space-y-1">
             <p className="mb-3 px-3 text-sm font-semibold text-muted-foreground">
-              PAGES
+              {t("organization.inspection.pages")}
             </p>
             {pages.map((page: any, index: number) => (
               <button
@@ -525,7 +550,9 @@ export default function CreateNewInspection() {
             >
               <Card className="mb-8 p-6">
                 <h2 className="mb-1 text-2xl font-semibold">{page.title}</h2>
-                <p className="text-muted-foreground">Section {pageIndex + 1}</p>
+                <p className="text-muted-foreground">
+                  {t("organization.inspection.section", { num: pageIndex + 1 })}
+                </p>
               </Card>
 
               <div className="space-y-8">
@@ -544,7 +571,9 @@ export default function CreateNewInspection() {
                           )}
                         </p>
                         <span className="text-xs text-muted-foreground">
-                          Q{pageIndex + 1}
+                          {t("organization.inspection.questionBadge", {
+                            num: pageIndex + 1,
+                          })}
                         </span>
                       </div>
 
@@ -574,14 +603,18 @@ export default function CreateNewInspection() {
                       )}
                       {hasNote && (
                         <div className="mt-4">
-                          <p className="mb-2 text-sm font-medium">Note</p>
+                          <p className="mb-2 text-sm font-medium">
+                            {t("organization.inspection.note")}
+                          </p>
                           <textarea
                             value={answers[question.id]?.note || ""}
                             onChange={(e) =>
                               handleNoteChange(question.id, e.target.value)
                             }
                             className="min-h-22.5 w-full rounded-lg border border-input px-4 py-3"
-                            placeholder="Add your note here..."
+                            placeholder={t(
+                              "organization.inspection.notePlaceholder"
+                            )}
                           />
                         </div>
                       )}
@@ -593,20 +626,22 @@ export default function CreateNewInspection() {
                           onClick={() => toggleNote(question.id)}
                         >
                           <FileText className="mr-2 h-4 w-4" />
-                          {hasNote ? "Hide Note" : "Add Note"}
+                          {hasNote
+                            ? t("organization.inspection.hideNote")
+                            : t("organization.inspection.addNote")}
                         </Button>
 
                         {externalMediaUploading == question.id ? (
                           <p className="flex items-center gap-1 text-xs text-yellow-600">
                             <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-yellow-600 border-t-transparent"></span>
-                            Uploading...
+                            {t("organization.inspection.uploading")}
                           </p>
                         ) : (
                           <label htmlFor={`external-media-${question.id}`}>
                             <Button asChild variant="outline" size="sm">
                               <span>
                                 <CloudUpload className="mr-2 h-4 w-4" />
-                                Add Media
+                                {t("organization.inspection.addMedia")}
                               </span>
                             </Button>
                             <input
@@ -641,19 +676,22 @@ export default function CreateNewInspection() {
               onClick={() => scrollToPage(currentPageIndex - 1)}
               disabled={currentPageIndex === 0}
             >
-              <ChevronLeft className="mr-2" /> Previous
+              <ChevronLeft className="mr-2" />{" "}
+              {t("organization.inspection.previous")}
             </Button>
 
             {currentPageIndex === pages.length - 1 ? (
               <Button onClick={handleSubmit} size="lg" disabled={isSubmitting}>
-                {isSubmitting ? "Submitting..." : "Submit Inspection"}
+                {isSubmitting
+                  ? t("organization.inspection.submitting")
+                  : t("organization.inspection.submitInspection")}
               </Button>
             ) : (
               <Button
                 onClick={() => scrollToPage(currentPageIndex + 1)}
                 size="lg"
               >
-                Next Page
+                {t("organization.inspection.nextPage")}
                 <ChevronRight className="ml-2" />
               </Button>
             )}
