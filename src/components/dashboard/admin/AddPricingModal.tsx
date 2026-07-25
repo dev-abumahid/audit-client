@@ -1,5 +1,6 @@
 import React, { useState } from "react"
 import { X } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 interface Props {
   open: boolean
@@ -7,6 +8,7 @@ interface Props {
 }
 
 const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
+  const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [form, setForm] = useState({
@@ -52,11 +54,11 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
   // Handle form submission (simulated)
   const handleSubmit = async () => {
     if (!form.planName.trim()) {
-      alert("Plan name is required")
+      alert(t("admin.settings.pricing.addModal.nameRequired"))
       return
     }
     if (!form.planPrice) {
-      alert("Plan price is required")
+      alert(t("admin.settings.pricing.addModal.priceRequired"))
       return
     }
 
@@ -64,7 +66,11 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
 
     // Simulate API call
     setTimeout(() => {
-      alert(`Pricing plan "${form.planName}" created successfully!`)
+      alert(
+        t("admin.settings.pricing.addModal.createSuccess", {
+          name: form.planName,
+        })
+      )
       setOpen(false)
 
       // Reset form
@@ -87,7 +93,7 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-foreground">
-            Add New Pricing Plan
+            {t("admin.settings.pricing.addModal.title")}
           </h2>
           <button
             onClick={() => setOpen(false)}
@@ -102,14 +108,17 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
           {/* Plan Name */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-              Plan Name <span className="text-red-500">*</span>
+              {t("admin.settings.pricing.form.planNameLabel")}{" "}
+              <span className="text-red-500">*</span>
             </label>
             <input
               name="planName"
               type="text"
               value={form.planName}
               onChange={handleChange}
-              placeholder="e.g. Professional"
+              placeholder={t(
+                "admin.settings.pricing.addModal.planNamePlaceholder"
+              )}
               className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
@@ -117,14 +126,16 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
           {/* Plan Description */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-              Description
+              {t("admin.settings.pricing.form.descriptionLabel")}
             </label>
             <input
               name="planDescription"
               type="text"
               value={form.planDescription}
               onChange={handleChange}
-              placeholder="Brief description of the plan"
+              placeholder={t(
+                "admin.settings.pricing.addModal.descriptionPlaceholder"
+              )}
               className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
@@ -133,21 +144,24 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-                Price <span className="text-red-500">*</span>
+                {t("admin.settings.pricing.form.priceLabel")}{" "}
+                <span className="text-red-500">*</span>
               </label>
               <input
                 name="planPrice"
                 type="number"
                 value={form.planPrice}
                 onChange={handleChange}
-                placeholder="149"
+                placeholder={t(
+                  "admin.settings.pricing.addModal.pricePlaceholder"
+                )}
                 className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
               />
             </div>
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-                Billing Cycle
+                {t("admin.settings.pricing.form.billingCycleLabel")}
               </label>
               <select
                 name="planType"
@@ -155,9 +169,15 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
                 onChange={handleChange}
                 className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
               >
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly</option>
-                <option value="yearly">Yearly</option>
+                <option value="monthly">
+                  {t("admin.settings.pricing.form.monthly")}
+                </option>
+                <option value="quarterly">
+                  {t("admin.settings.pricing.form.quarterly")}
+                </option>
+                <option value="yearly">
+                  {t("admin.settings.pricing.form.yearly")}
+                </option>
               </select>
             </div>
           </div>
@@ -166,14 +186,14 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
           <div>
             <div className="mb-2 flex items-center justify-between">
               <label className="text-sm font-medium text-muted-foreground">
-                Plan Features
+                {t("admin.settings.pricing.form.featuresLabel")}
               </label>
               <button
                 type="button"
                 onClick={addFeature}
                 className="text-xs text-primary hover:underline"
               >
-                + Add Feature
+                {t("admin.settings.pricing.form.addFeature")}
               </button>
             </div>
 
@@ -183,7 +203,10 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
                   <input
                     type="text"
                     value={feature}
-                    placeholder={`Feature ${index + 1}`}
+                    placeholder={t(
+                      "admin.settings.pricing.form.featurePlaceholder",
+                      { number: index + 1 }
+                    )}
                     onChange={(e) => handleFeatureChange(index, e.target.value)}
                     className="flex-1 rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                   />
@@ -207,14 +230,16 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
             onClick={() => setOpen(false)}
             className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-muted"
           >
-            Cancel
+            {t("admin.settings.pricing.form.cancel")}
           </button>
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
             className="flex-1 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
           >
-            {isSubmitting ? "Creating Plan..." : "Create Plan"}
+            {isSubmitting
+              ? t("admin.settings.pricing.addModal.creating")
+              : t("admin.settings.pricing.addModal.create")}
           </button>
         </div>
       </div>

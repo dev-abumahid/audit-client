@@ -1,5 +1,6 @@
 import { X } from "lucide-react"
 import React, { useState } from "react"
+import { useTranslation } from "react-i18next"
 
 interface Props {
   open: boolean
@@ -11,6 +12,7 @@ interface Props {
 }
 
 const DeletePricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
+  const { t } = useTranslation()
   const [isDeleting, setIsDeleting] = useState(false)
 
   if (!open || !plan) return null
@@ -20,7 +22,11 @@ const DeletePricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
 
     // Simulate API call (replace with your backend call later)
     setTimeout(() => {
-      alert(`Pricing plan "${plan.planName}" has been deleted successfully.`)
+      alert(
+        t("admin.settings.pricing.deleteModal.deleteSuccess", {
+          name: plan.planName,
+        })
+      )
       setOpen(false)
       setIsDeleting(false)
     }, 800)
@@ -36,7 +42,7 @@ const DeletePricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
               <span className="text-xl text-red-600">🗑</span>
             </div>
             <h2 className="text-xl font-semibold text-foreground">
-              Delete Pricing Plan
+              {t("admin.settings.pricing.deleteModal.title")}
             </h2>
           </div>
           <button
@@ -50,12 +56,12 @@ const DeletePricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
         {/* Content */}
         <div className="mb-8">
           <p className="text-foreground">
-            Are you sure you want to delete the plan{" "}
-            <span className="font-semibold">"{plan.planName}"</span>?
+            {t("admin.settings.pricing.deleteModal.confirmText", {
+              name: plan.planName,
+            })}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            This action cannot be undone. All associated data with this plan
-            will be permanently removed.
+            {t("admin.settings.pricing.deleteModal.warningText")}
           </p>
         </div>
 
@@ -65,7 +71,7 @@ const DeletePricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
             onClick={() => setOpen(false)}
             className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-muted"
           >
-            Cancel
+            {t("admin.settings.pricing.form.cancel")}
           </button>
 
           <button
@@ -76,10 +82,10 @@ const DeletePricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
             {isDeleting ? (
               <>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Deleting...
+                {t("admin.settings.pricing.deleteModal.deleting")}
               </>
             ) : (
-              "Yes, Delete Plan"
+              t("admin.settings.pricing.deleteModal.confirmDelete")
             )}
           </button>
         </div>

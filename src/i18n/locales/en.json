@@ -1398,7 +1398,51 @@
                 "title": "Subscription Plans",
                 "subtitle": "Manage pricing tiers and features for your customers",
                 "addPlan": "Add New Plan",
-                "empty": "No pricing plans found. Click \"Add New Plan\" to create one."
+                "empty": "No pricing plans found. Click \"Add New Plan\" to create one.",
+                "card": {
+                    "features": "Features",
+                    "edit": "Edit",
+                    "delete": "Delete"
+                },
+                "form": {
+                    "planNameLabel": "Plan Name",
+                    "descriptionLabel": "Description",
+                    "priceLabel": "Price",
+                    "billingCycleLabel": "Billing Cycle",
+                    "monthly": "Monthly",
+                    "quarterly": "Quarterly",
+                    "yearly": "Yearly",
+                    "featuresLabel": "Plan Features",
+                    "addFeature": "+ Add Feature",
+                    "featurePlaceholder": "Feature {{number}}",
+                    "cancel": "Cancel"
+                },
+                "addModal": {
+                    "title": "Add New Pricing Plan",
+                    "planNamePlaceholder": "e.g. Professional",
+                    "descriptionPlaceholder": "Brief description of the plan",
+                    "pricePlaceholder": "149",
+                    "creating": "Creating Plan...",
+                    "create": "Create Plan",
+                    "nameRequired": "Plan name is required",
+                    "priceRequired": "Plan price is required",
+                    "createSuccess": "Pricing plan \"{{name}}\" created successfully!"
+                },
+                "editModal": {
+                    "title": "Edit Pricing Plan",
+                    "updating": "Updating Plan...",
+                    "update": "Update Plan",
+                    "nameRequired": "Plan name is required",
+                    "updateSuccess": "Pricing plan \"{{name}}\" updated successfully!"
+                },
+                "deleteModal": {
+                    "title": "Delete Pricing Plan",
+                    "confirmText": "Are you sure you want to delete the plan \"{{name}}\"?",
+                    "warningText": "This action cannot be undone. All associated data with this plan will be permanently removed.",
+                    "deleting": "Deleting...",
+                    "confirmDelete": "Yes, Delete Plan",
+                    "deleteSuccess": "Pricing plan \"{{name}}\" has been deleted successfully."
+                }
             }
         },
         "transactions": {

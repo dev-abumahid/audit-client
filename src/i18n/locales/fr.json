@@ -1397,7 +1397,51 @@
                 "title": "Forfaits d'abonnement",
                 "subtitle": "Gérez les niveaux de tarification et les fonctionnalités pour vos clients",
                 "addPlan": "Ajouter un forfait",
-                "empty": "Aucun forfait trouvé. Cliquez sur « Ajouter un forfait » pour en créer un."
+                "empty": "Aucun forfait trouvé. Cliquez sur « Ajouter un forfait » pour en créer un.",
+                "card": {
+                    "features": "Fonctionnalités",
+                    "edit": "Modifier",
+                    "delete": "Supprimer"
+                },
+                "form": {
+                    "planNameLabel": "Nom du forfait",
+                    "descriptionLabel": "Description",
+                    "priceLabel": "Prix",
+                    "billingCycleLabel": "Cycle de facturation",
+                    "monthly": "Mensuel",
+                    "quarterly": "Trimestriel",
+                    "yearly": "Annuel",
+                    "featuresLabel": "Fonctionnalités du forfait",
+                    "addFeature": "+ Ajouter une fonctionnalité",
+                    "featurePlaceholder": "Fonctionnalité {{number}}",
+                    "cancel": "Annuler"
+                },
+                "addModal": {
+                    "title": "Ajouter un nouveau forfait",
+                    "planNamePlaceholder": "ex. Professionnel",
+                    "descriptionPlaceholder": "Brève description du forfait",
+                    "pricePlaceholder": "149",
+                    "creating": "Création du forfait...",
+                    "create": "Créer le forfait",
+                    "nameRequired": "Le nom du forfait est obligatoire",
+                    "priceRequired": "Le prix du forfait est obligatoire",
+                    "createSuccess": "Le forfait « {{name}} » a été créé avec succès !"
+                },
+                "editModal": {
+                    "title": "Modifier le forfait",
+                    "updating": "Mise à jour du forfait...",
+                    "update": "Mettre à jour le forfait",
+                    "nameRequired": "Le nom du forfait est obligatoire",
+                    "updateSuccess": "Le forfait « {{name}} » a été mis à jour avec succès !"
+                },
+                "deleteModal": {
+                    "title": "Supprimer le forfait",
+                    "confirmText": "Voulez-vous vraiment supprimer le forfait « {{name}} » ?",
+                    "warningText": "Cette action est irréversible. Toutes les données associées à ce forfait seront définitivement supprimées.",
+                    "deleting": "Suppression...",
+                    "confirmDelete": "Oui, supprimer le forfait",
+                    "deleteSuccess": "Le forfait « {{name}} » a été supprimé avec succès."
+                }
             }
         },
         "transactions": {

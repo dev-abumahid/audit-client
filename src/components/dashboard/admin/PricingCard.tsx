@@ -1,4 +1,5 @@
 import React from "react"
+import { useTranslation } from "react-i18next"
 
 interface PricingPlan {
   _id: string
@@ -16,6 +17,8 @@ interface Props {
 }
 
 const PricingCard: React.FC<Props> = ({ plan, onEdit, onDelete }) => {
+  const { t } = useTranslation()
+
   const getPeriod = (type: string) => {
     const map: Record<string, string> = {
       monthly: "mo",
@@ -52,7 +55,7 @@ const PricingCard: React.FC<Props> = ({ plan, onEdit, onDelete }) => {
         {/* Features */}
         <div>
           <p className="mb-3 text-xs tracking-widest text-muted-foreground uppercase">
-            Features
+            {t("admin.settings.pricing.card.features")}
           </p>
           <ul className="space-y-2.5">
             {plan.planFeatures.map((feature, index) => (
@@ -71,14 +74,14 @@ const PricingCard: React.FC<Props> = ({ plan, onEdit, onDelete }) => {
           onClick={onEdit}
           className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-muted"
         >
-          Edit
+          {t("admin.settings.pricing.card.edit")}
         </button>
 
         <button
           onClick={onDelete}
           className="flex-1 rounded-xl border border-destructive/30 bg-destructive/5 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
         >
-          Delete
+          {t("admin.settings.pricing.card.delete")}
         </button>
       </div>
     </div>
