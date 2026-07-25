@@ -155,6 +155,19 @@ const AdminTransactions: React.FC = () => {
     }
   }
 
+  const getStatusLabel = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return t("admin.transactions.status.completed")
+      case "pending":
+        return t("admin.transactions.status.pending")
+      case "failed":
+        return t("admin.transactions.status.failed")
+      default:
+        return status
+    }
+  }
+
   return (
     <div className="flex-1 bg-background p-4 sm:p-6">
       <div className="mx-auto max-w-7xl">
@@ -202,7 +215,7 @@ const AdminTransactions: React.FC = () => {
                 <option value="all">{t("admin.transactions.allStatus")}</option>
                 {uniqueStatuses.map((status) => (
                   <option key={status} value={status}>
-                    {status}
+                    {getStatusLabel(status)}
                   </option>
                 ))}
               </select>
@@ -273,7 +286,7 @@ const AdminTransactions: React.FC = () => {
                         <span
                           className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(tx.status)}`}
                         >
-                          {tx.status}
+                          {getStatusLabel(tx.status)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
@@ -310,7 +323,7 @@ const AdminTransactions: React.FC = () => {
                     <span
                       className={`rounded-full px-3 py-1 text-xs ${getStatusColor(tx.status)}`}
                     >
-                      {tx.status}
+                      {getStatusLabel(tx.status)}
                     </span>
                   </div>
 

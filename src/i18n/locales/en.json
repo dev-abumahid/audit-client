@@ -1357,7 +1357,12 @@
             "colAmount": "Amount",
             "colStatus": "Status",
             "colDate": "Date",
-            "viewDetails": "View Details"
+            "viewDetails": "View Details",
+            "status": {
+                "completed": "Completed",
+                "pending": "Pending",
+                "failed": "Failed"
+            }
         },
         "settings": {
             "title": "Settings",
@@ -1411,7 +1416,12 @@
             "colStatus": "Status",
             "colDate": "Date",
             "noResults": "No transactions found",
-            "pagination": "Showing {{from}} to {{to}} of {{total}} transactions"
+            "pagination": "Showing {{from}} to {{to}} of {{total}} transactions",
+            "status": {
+                "completed": "Completed",
+                "pending": "Pending",
+                "failed": "Failed"
+            }
         },
         "onboarding": {
             "title": "Create Organization",

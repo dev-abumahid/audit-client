@@ -128,6 +128,19 @@ const AdminOverview = () => {
     }
   }
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "Completed":
+        return t("admin.overview.status.completed")
+      case "Pending":
+        return t("admin.overview.status.pending")
+      case "Failed":
+        return t("admin.overview.status.failed")
+      default:
+        return status
+    }
+  }
+
   const formatAmount = (amount: number) => `$${amount.toLocaleString()}`
 
   return (
@@ -361,7 +374,7 @@ const AdminOverview = () => {
                       <span
                         className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(payment.status)}`}
                       >
-                        {payment.status}
+                        {getStatusLabel(payment.status)}
                       </span>
                     </td>
                     <td className="px-6 py-5 text-sm text-muted-foreground">
@@ -393,7 +406,7 @@ const AdminOverview = () => {
                   <span
                     className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(payment.status)}`}
                   >
-                    {payment.status}
+                    {getStatusLabel(payment.status)}
                   </span>
                 </div>
 

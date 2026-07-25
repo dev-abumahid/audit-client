@@ -1356,7 +1356,12 @@
             "colAmount": "Montant",
             "colStatus": "Statut",
             "colDate": "Date",
-            "viewDetails": "Voir les détails"
+            "viewDetails": "Voir les détails",
+            "status": {
+                "completed": "Terminé",
+                "pending": "En attente",
+                "failed": "Échoué"
+            }
         },
         "settings": {
             "title": "Paramètres",
@@ -1410,7 +1415,12 @@
             "colStatus": "Statut",
             "colDate": "Date",
             "noResults": "Aucune transaction trouvée",
-            "pagination": "Affichage de {{from}} à {{to}} sur {{total}} transactions"
+            "pagination": "Affichage de {{from}} à {{to}} sur {{total}} transactions",
+            "status": {
+                "completed": "Terminé",
+                "pending": "En attente",
+                "failed": "Échoué"
+            }
         },
         "onboarding": {
             "title": "Créer une organisation",
