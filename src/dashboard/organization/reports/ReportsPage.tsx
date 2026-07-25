@@ -16,9 +16,17 @@ import {
   Send,
   Sparkles,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+
+// While any report is still GENERATING, poll the list so a card resolves to its
+// real terminal state (READY/FAILED) without a manual reload. Generation runs
+// synchronously server-side, but a proxy 504 (the backend's #220 route timeout)
+// or the client navigating away/back means the mutation response may never be
+// seen — polling is the recovery path. Stopped (interval 0) once nothing is
+// generating so an idle Reports page makes no background requests.
+const GENERATING_POLL_INTERVAL_MS = 5000
 
 // All 5 Fullbloom-parity types are shown in the dropdown, but only BOARD is
 // backed by real data today — the other 4 are disabled with a "coming soon"
@@ -44,11 +52,17 @@ export default function ReportsPage() {
   const role = useMyOrgRole()
   const isAdmin = role === "ADMIN"
 
-  const { data: reportData, isLoading } = useGetAllReportsQuery({
-    page: 1,
-    limit: 100,
-    searchTerm: "",
-  })
+  // Reactive polling interval: driven off the data below. 0 = no polling.
+  const [pollingInterval, setPollingInterval] = useState(0)
+
+  const { data: reportData, isLoading } = useGetAllReportsQuery(
+    {
+      page: 1,
+      limit: 100,
+      searchTerm: "",
+    },
+    { pollingInterval },
+  )
   const [generateReport, { isLoading: isGenerating }] =
     useGenerateReportMutation()
   const [publishReport] = usePublishReportMutation()
@@ -57,6 +71,12 @@ export default function ReportsPage() {
   const [publishingId, setPublishingId] = useState<string | null>(null)
 
   const reports: Report[] = reportData?.data || []
+
+  // Turn polling on only while at least one report is GENERATING, off otherwise.
+  const hasGenerating = reports.some((r) => r.status === "GENERATING")
+  useEffect(() => {
+    setPollingInterval(hasGenerating ? GENERATING_POLL_INTERVAL_MS : 0)
+  }, [hasGenerating])
 
   const handleGenerate = async () => {
     try {

@@ -238,4 +238,34 @@ describe("ReportsPage", () => {
     )
     openSpy.mockRestore()
   })
+
+  it("polls the reports list while a report is GENERATING (#220)", async () => {
+    mockUseGetAllReportsQuery.mockReturnValue({
+      data: { data: [makeReport({ status: "GENERATING", file_url: null })] },
+      isLoading: false,
+    })
+
+    render(<ReportsPage />)
+
+    // The effect flips polling on once it sees a GENERATING report; the hook is
+    // re-invoked with a non-zero pollingInterval.
+    await waitFor(() => {
+      const lastArgs = mockUseGetAllReportsQuery.mock.calls.at(-1)
+      expect(lastArgs?.[1]).toMatchObject({ pollingInterval: 5000 })
+    })
+  })
+
+  it("does not poll when no report is GENERATING (#220)", async () => {
+    mockUseGetAllReportsQuery.mockReturnValue({
+      data: { data: [makeReport({ status: "READY" })] },
+      isLoading: false,
+    })
+
+    render(<ReportsPage />)
+
+    await waitFor(() => {
+      const lastArgs = mockUseGetAllReportsQuery.mock.calls.at(-1)
+      expect(lastArgs?.[1]).toMatchObject({ pollingInterval: 0 })
+    })
+  })
 })
