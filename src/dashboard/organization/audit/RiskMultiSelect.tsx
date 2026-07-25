@@ -1,6 +1,7 @@
 import type { LinkedRisk } from "@/redux/apis/organization/audit.api"
 import { Check, ChevronDown, Search, X } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 // aexa-frontend#165: a self-contained searchable checkbox dropdown for picking
 // the real Risk records an audit engagement covers, replacing the old
@@ -27,6 +28,7 @@ export default function RiskMultiSelect({
   onChange,
   isLoading = false,
 }: RiskMultiSelectProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState("")
   const containerRef = useRef<HTMLDivElement>(null)
@@ -35,7 +37,10 @@ export default function RiskMultiSelect({
   useEffect(() => {
     if (!open) return
     const onClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setOpen(false)
       }
     }
@@ -54,8 +59,7 @@ export default function RiskMultiSelect({
     if (!q) return options
     return options.filter(
       (o) =>
-        o.name.toLowerCase().includes(q) ||
-        o.category.toLowerCase().includes(q)
+        o.name.toLowerCase().includes(q) || o.category.toLowerCase().includes(q)
     )
   }, [options, filter])
 
@@ -80,7 +84,9 @@ export default function RiskMultiSelect({
               {risk.name}
               <button
                 type="button"
-                aria-label={`Remove ${risk.name}`}
+                aria-label={t("organization.audit.riskSelect.removeRisk", {
+                  name: risk.name,
+                })}
                 onClick={() => toggle(risk.id)}
                 className="rounded-full hover:bg-primary/20"
               >
@@ -99,8 +105,10 @@ export default function RiskMultiSelect({
       >
         <span>
           {selectedOptions.length > 0
-            ? `${selectedOptions.length} risk${selectedOptions.length > 1 ? "s" : ""} linked`
-            : "Select linked risks"}
+            ? t("organization.audit.riskSelect.linked", {
+                count: selectedOptions.length,
+              })
+            : t("organization.audit.riskSelect.selectPlaceholder")}
         </span>
         <ChevronDown className="h-4 w-4" />
       </button>
@@ -114,21 +122,21 @@ export default function RiskMultiSelect({
               autoFocus
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Search risks"
+              placeholder={t("organization.audit.riskSelect.searchPlaceholder")}
               className="h-8 w-full rounded-md border border-input bg-background pr-2 pl-8 text-xs"
             />
           </div>
           <div className="max-h-52 overflow-y-auto py-1">
             {isLoading && (
               <p className="px-3 py-2 text-xs text-muted-foreground">
-                Loading risks…
+                {t("organization.audit.riskSelect.loading")}
               </p>
             )}
             {!isLoading && filtered.length === 0 && (
               <p className="px-3 py-2 text-xs text-muted-foreground">
                 {options.length === 0
-                  ? "No risks in your organization yet"
-                  : "No risks match your search"}
+                  ? t("organization.audit.riskSelect.noneYet")
+                  : t("organization.audit.riskSelect.noMatch")}
               </p>
             )}
             {!isLoading &&

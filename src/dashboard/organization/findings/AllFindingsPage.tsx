@@ -7,6 +7,7 @@ import {
 } from "@/redux/apis/organization/findings.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { IAction } from "@/types/finding"
+import type { TFunction } from "i18next"
 import {
   ChevronLeft,
   ChevronRight,
@@ -20,9 +21,26 @@ import {
   Trash2,
 } from "lucide-react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 import CreateNewFindingModal from "./CreateNewFindingModal"
+
+// Backend status enum -> i18n key. Resolved with t() at render time so the
+// badge label follows the active locale (the enum value itself is data).
+const STATUS_KEYS: Record<string, string> = {
+  TO_DO: "organization.findings.statusToDo",
+  IN_PROGRESS: "organization.findings.statusInProgress",
+  COMPLETE: "organization.findings.statusComplete",
+  CANT_DO: "organization.findings.statusCantDo",
+}
+
+// Priority enum -> i18n key, same pattern as STATUS_KEYS.
+const PRIORITY_KEYS: Record<string, string> = {
+  Low: "organization.findings.priorityLow",
+  Medium: "organization.findings.priorityMedium",
+  High: "organization.findings.priorityHigh",
+}
 
 const STATUS_COLORS: Record<string, string> = {
   COMPLETE:
@@ -31,13 +49,6 @@ const STATUS_COLORS: Record<string, string> = {
     "text-yellow-600 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/30",
   CANT_DO: "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/30",
   TO_DO: "text-gray-600 bg-gray-50 dark:text-gray-400 dark:bg-gray-900/30",
-}
-
-const STATUS_DISPLAY: Record<string, string> = {
-  TO_DO: "To Do",
-  IN_PROGRESS: "In Progress",
-  COMPLETE: "Complete",
-  CANT_DO: "Can't Do",
 }
 
 const PRIORITY_BADGES: Record<string, string> = {
@@ -52,17 +63,17 @@ const formatDate = (dateString: string) => {
   return `${date.getDate()} ${date.toLocaleDateString("en-US", { month: "short" })} ${date.getFullYear()}`
 }
 
-const getRelativeTime = (dateString: string) => {
+const getRelativeTime = (dateString: string, t: TFunction) => {
   const days = Math.floor(
     (Date.now() - new Date(dateString).getTime()) / 86400000
   )
-  if (days === 0) return "Today"
-  if (days === 1) return "1 day ago"
-  if (days < 30) return `${days} days ago`
-  return days < 60 ? "1 month ago" : `${Math.floor(days / 30)} months ago`
+  if (days === 0) return t("organization.findings.today")
+  if (days < 30) return t("organization.findings.daysAgo", { count: days })
+  return t("organization.findings.monthsAgo", { count: Math.floor(days / 30) })
 }
 
 export default function AllFindingsPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [search, setSearch] = useState("")
   const [selectedSiteId, setSelectedSiteId] = useState<string>("")
@@ -100,10 +111,14 @@ export default function AllFindingsPage() {
   const handleDelete = async (id: string) => {
     try {
       const res = await deleteAction(id).unwrap()
-      toast.success(res.message || "Action deleted successfully!")
+      toast.success(
+        res.message || t("organization.findings.actionDeleteSuccess")
+      )
       setDeleteTargetId(null)
     } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to delete action")
+      toast.error(
+        err?.data?.message || t("organization.findings.actionDeleteFailed")
+      )
       setDeleteTargetId(null)
     }
   }
@@ -138,7 +153,9 @@ export default function AllFindingsPage() {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
-          <p className="mt-4 text-muted-foreground">Loading findings...</p>
+          <p className="mt-4 text-muted-foreground">
+            {t("organization.findings.loadingFindings")}
+          </p>
         </div>
       </div>
     )
@@ -151,17 +168,20 @@ export default function AllFindingsPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold text-foreground">
-              All Findings
+              {t("organization.findings.allTitle")}
             </h1>
             <span className="text-sm text-muted-foreground">
-              • {meta?.total || 0} total
+              •{" "}
+              {t("organization.findings.totalCount", {
+                count: meta?.total || 0,
+              })}
             </span>
           </div>
           <button
             onClick={() => setModalState({ open: true, editData: null })}
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            <Plus size={18} /> Create Finding
+            <Plus size={18} /> {t("organization.findings.createTitle")}
           </button>
         </div>
       </div>
@@ -175,7 +195,7 @@ export default function AllFindingsPage() {
               <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search findings..."
+                placeholder={t("organization.findings.searchPlaceholder")}
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value)
@@ -192,7 +212,7 @@ export default function AllFindingsPage() {
                 className="flex items-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
               >
                 <Filter size={16} />
-                Filter
+                {t("organization.findings.filter")}
                 {selectedSiteId && (
                   <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
                     1
@@ -210,7 +230,7 @@ export default function AllFindingsPage() {
                   <div className="absolute top-full right-0 z-50 mt-2 w-64 rounded-lg border border-border bg-popover shadow-lg">
                     <div className="border-b border-border p-3">
                       <h3 className="text-sm font-medium text-foreground">
-                        Filter by Site
+                        {t("organization.findings.filterBySite")}
                       </h3>
                     </div>
                     <div className="max-h-64 overflow-y-auto p-2">
@@ -222,7 +242,7 @@ export default function AllFindingsPage() {
                             : "text-foreground hover:bg-muted"
                         }`}
                       >
-                        All Sites
+                        {t("organization.findings.allSites")}
                       </button>
                       {sites.map((site: any) => (
                         <button
@@ -244,7 +264,7 @@ export default function AllFindingsPage() {
                           onClick={clearFilters}
                           className="w-full rounded-md px-3 py-2 text-center text-sm text-destructive hover:bg-destructive/10"
                         >
-                          Clear all filters
+                          {t("organization.findings.clearFilters")}
                         </button>
                       </div>
                     )}
@@ -261,25 +281,25 @@ export default function AllFindingsPage() {
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                      Title
+                      {t("organization.findings.colTitle")}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                      Site
+                      {t("organization.findings.site")}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                      Status
+                      {t("organization.findings.statusLabel")}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                      Priority
+                      {t("organization.findings.priority")}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                      Due Date
+                      {t("organization.findings.dueDate")}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                      Messages
+                      {t("organization.findings.tabMessages")}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                      Actions
+                      {t("organization.findings.colActions")}
                     </th>
                   </tr>
                 </thead>
@@ -305,7 +325,9 @@ export default function AllFindingsPage() {
                               </div>
                             )}
                             <div className="mt-1 text-xs text-muted-foreground/60">
-                              Updated {getRelativeTime(action.updatedAt)}
+                              {t("organization.findings.updatedRelative", {
+                                time: getRelativeTime(action.updatedAt, t),
+                              })}
                             </div>
                           </div>
                         </td>
@@ -318,7 +340,8 @@ export default function AllFindingsPage() {
                               className="text-muted-foreground"
                             />
                             <span className="text-sm text-foreground">
-                              {action?.site?.name || "N/A"}
+                              {action?.site?.name ||
+                                t("organization.findings.notAvailable")}
                             </span>
                           </div>
                         </td>
@@ -328,7 +351,9 @@ export default function AllFindingsPage() {
                           <span
                             className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[action.status]}`}
                           >
-                            {STATUS_DISPLAY[action.status]}
+                            {STATUS_KEYS[action.status]
+                              ? t(STATUS_KEYS[action.status])
+                              : action.status}
                           </span>
                         </td>
 
@@ -337,7 +362,9 @@ export default function AllFindingsPage() {
                           <span
                             className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_BADGES[action.priority]}`}
                           >
-                            {action.priority}
+                            {PRIORITY_KEYS[action.priority]
+                              ? t(PRIORITY_KEYS[action.priority])
+                              : action.priority}
                           </span>
                         </td>
 
@@ -400,13 +427,13 @@ export default function AllFindingsPage() {
                         </div>
                         <h3 className="mb-2 text-lg font-medium text-foreground">
                           {search || selectedSiteId
-                            ? "No findings found"
-                            : "No findings yet"}
+                            ? t("organization.findings.noFindingsFound")
+                            : t("organization.findings.noFindingsYet")}
                         </h3>
                         <p className="text-muted-foreground">
                           {search || selectedSiteId
-                            ? "Try adjusting your search or filter criteria."
-                            : "Get started by creating your first finding."}
+                            ? t("organization.findings.adjustSearch")
+                            : t("organization.findings.getStarted")}
                         </p>
                       </td>
                     </tr>
@@ -467,8 +494,8 @@ export default function AllFindingsPage() {
         setOpen={(v) => !v && setDeleteTargetId(null)}
         loading={isDeleting}
         onConfirm={() => deleteTargetId && handleDelete(deleteTargetId)}
-        title="Delete Finding?"
-        description="This will permanently remove this finding."
+        title={t("organization.findings.deleteConfirmTitle")}
+        description={t("organization.findings.deleteConfirmDesc")}
       />
     </div>
   )

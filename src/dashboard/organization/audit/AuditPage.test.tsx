@@ -47,9 +47,10 @@ const RISK_OPTIONS = [
 ]
 
 // The Title label isn't associated with its input via htmlFor, so locate it
-// through the label's wrapping <div>.
+// through the label's wrapping <div>. i18n isn't initialized in the test
+// environment, so t() echoes the raw key back (see RiskRegisterPage.test.tsx).
 function titleInput(): HTMLInputElement {
-  const label = screen.getByText("Title")
+  const label = screen.getByText("organization.audit.titleLabel")
   return label.parentElement!.querySelector("input")!
 }
 
@@ -104,7 +105,7 @@ describe("AuditPage", () => {
 
     expect(container.querySelector(".animate-spin")).toBeInTheDocument()
     expect(
-      screen.queryByText("No audit engagements found")
+      screen.queryByText("organization.audit.empty")
     ).not.toBeInTheDocument()
   })
 
@@ -123,7 +124,9 @@ describe("AuditPage", () => {
     const card = screen
       .getByText("Supply Chain Risk Audit")
       .closest("[class*='rounded-xl']")! as HTMLElement
-    expect(within(card).getByText("In Progress")).toBeInTheDocument()
+    expect(
+      within(card).getByText("organization.audit.statusInProgress")
+    ).toBeInTheDocument()
   })
 
   it("shows the empty state when there are no engagements", () => {
@@ -134,7 +137,7 @@ describe("AuditPage", () => {
 
     render(<AuditPage />)
 
-    expect(screen.getByText("No audit engagements found")).toBeInTheDocument()
+    expect(screen.getByText("organization.audit.empty")).toBeInTheDocument()
   })
 
   it("submits the create form and calls createAuditEngagement with filled data", async () => {
@@ -150,10 +153,17 @@ describe("AuditPage", () => {
 
     render(<AuditPage />)
 
-    await user.click(screen.getByRole("button", { name: /New Audit Mission/i }))
-    await user.type(screen.getByPlaceholderText("AUD-2026-001"), "AUD-2026-999")
+    await user.click(
+      screen.getByRole("button", { name: /organization\.audit\.newMission/i })
+    )
+    await user.type(
+      screen.getByPlaceholderText("organization.audit.refPlaceholder"),
+      "AUD-2026-999"
+    )
     await user.type(titleInput(), "ZZZ Unique Audit Mission XYZ")
-    await user.click(screen.getByRole("button", { name: "Create" }))
+    await user.click(
+      screen.getByRole("button", { name: "organization.audit.create" })
+    )
 
     await waitFor(() => expect(mockCreateAuditEngagement).toHaveBeenCalled())
     const submitted = mockCreateAuditEngagement.mock.calls[0][0]
@@ -191,7 +201,9 @@ describe("AuditPage", () => {
 
     await user.clear(input)
     await user.type(input, "Supply Chain Risk Audit EDITED")
-    await user.click(screen.getByRole("button", { name: "Update" }))
+    await user.click(
+      screen.getByRole("button", { name: "organization.audit.update" })
+    )
 
     await waitFor(() => expect(mockUpdateAuditEngagement).toHaveBeenCalled())
     const callArg = mockUpdateAuditEngagement.mock.calls[0][0]
@@ -223,7 +235,9 @@ describe("AuditPage", () => {
     await waitFor(() =>
       expect(mockDeleteAuditEngagement).toHaveBeenCalledWith("audit-1")
     )
-    expect(mockToastSuccess).toHaveBeenCalledWith("Audit engagement deleted")
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      "organization.audit.deleteSuccess"
+    )
     confirmSpy.mockRestore()
   })
 
@@ -258,15 +272,21 @@ describe("AuditPage", () => {
 
     render(<AuditPage />)
 
-    await user.click(screen.getByRole("button", { name: /New Audit Mission/i }))
+    await user.click(
+      screen.getByRole("button", { name: /organization\.audit\.newMission/i })
+    )
     await user.type(titleInput(), "Audit that fails to save")
-    await user.click(screen.getByRole("button", { name: "Create" }))
+    await user.click(
+      screen.getByRole("button", { name: "organization.audit.create" })
+    )
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Server unavailable")
     )
     // Modal stays open on failure.
-    expect(screen.getByText("New Audit Engagement")).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.audit.newModalTitle")
+    ).toBeInTheDocument()
   })
 
   describe("report upload / download (issue #159)", () => {
@@ -311,7 +331,9 @@ describe("AuditPage", () => {
           data: { report_url: "https://s3.example.com/r.pdf" },
         })
       )
-      expect(mockToastSuccess).toHaveBeenCalledWith("Report uploaded successfully")
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        "organization.audit.reportUploadSuccess"
+      )
     })
 
     it("shows an error toast and does not PATCH when the upload request fails", async () => {
@@ -333,7 +355,9 @@ describe("AuditPage", () => {
       )
 
       await waitFor(() =>
-        expect(mockToastError).toHaveBeenCalledWith("Failed to upload report")
+        expect(mockToastError).toHaveBeenCalledWith(
+          "organization.audit.uploadReportFailed"
+        )
       )
       expect(mockUpdateAuditEngagement).not.toHaveBeenCalled()
     })
@@ -374,7 +398,7 @@ describe("AuditPage", () => {
       render(<AuditPage />)
 
       const searchBox = screen.getByPlaceholderText(
-        /Search by reference, title or lead auditor/i
+        "organization.audit.searchPlaceholder"
       )
       await user.type(searchBox, "cyber")
 
@@ -401,7 +425,9 @@ describe("AuditPage", () => {
       // Numbered page buttons are present (totalPage > 1).
       expect(screen.getByRole("button", { name: "2" })).toBeInTheDocument()
 
-      await user.click(screen.getByRole("button", { name: /Next page/i }))
+      await user.click(
+        screen.getByRole("button", { name: /organization\.audit\.nextPage/i })
+      )
 
       const lastCall =
         mockUseGetAllAuditEngagementsQuery.mock.calls[
@@ -419,7 +445,7 @@ describe("AuditPage", () => {
       render(<AuditPage />)
 
       expect(
-        screen.queryByRole("button", { name: /Next page/i })
+        screen.queryByRole("button", { name: /organization\.audit\.nextPage/i })
       ).not.toBeInTheDocument()
     })
   })
@@ -435,10 +461,14 @@ describe("AuditPage", () => {
       render(<AuditPage />)
 
       await user.click(
-        screen.getByRole("button", { name: /New Audit Mission/i })
+        screen.getByRole("button", { name: /organization\.audit\.newMission/i })
       )
       // Open the risk picker dropdown.
-      await user.click(screen.getByRole("button", { name: /Select linked risks/i }))
+      await user.click(
+        screen.getByRole("button", {
+          name: /organization\.audit\.riskSelect\.selectPlaceholder/i,
+        })
+      )
 
       // Every org risk shows up as a selectable option.
       expect(screen.getByText("Data breach")).toBeInTheDocument()
@@ -454,20 +484,29 @@ describe("AuditPage", () => {
       })
       mockCreateAuditEngagement.mockReturnValue({
         unwrap: () =>
-          Promise.resolve({ success: true, message: "Audit engagement created" }),
+          Promise.resolve({
+            success: true,
+            message: "Audit engagement created",
+          }),
       })
 
       render(<AuditPage />)
 
       await user.click(
-        screen.getByRole("button", { name: /New Audit Mission/i })
+        screen.getByRole("button", { name: /organization\.audit\.newMission/i })
       )
       await user.type(titleInput(), "Audit with linked risk")
-      await user.click(screen.getByRole("button", { name: /Select linked risks/i }))
+      await user.click(
+        screen.getByRole("button", {
+          name: /organization\.audit\.riskSelect\.selectPlaceholder/i,
+        })
+      )
       // Select two risks from the dropdown.
       await user.click(screen.getByText("Data breach"))
       await user.click(screen.getByText("Flood damage"))
-      await user.click(screen.getByRole("button", { name: "Create" }))
+      await user.click(
+        screen.getByRole("button", { name: "organization.audit.create" })
+      )
 
       await waitFor(() => expect(mockCreateAuditEngagement).toHaveBeenCalled())
       const submitted = mockCreateAuditEngagement.mock.calls[0][0]
@@ -482,7 +521,10 @@ describe("AuditPage", () => {
       })
       mockUpdateAuditEngagement.mockReturnValue({
         unwrap: () =>
-          Promise.resolve({ success: true, message: "Audit engagement updated" }),
+          Promise.resolve({
+            success: true,
+            message: "Audit engagement updated",
+          }),
       })
 
       render(<AuditPage />)
@@ -495,11 +537,15 @@ describe("AuditPage", () => {
       // The existing link (risk-1 "Data breach") is shown as a selected chip in
       // the modal, with a remove control — proving edit round-trips it.
       expect(
-        screen.getByRole("button", { name: /Remove Data breach/i })
+        screen.getByRole("button", {
+          name: /organization\.audit\.riskSelect\.removeRisk/i,
+        })
       ).toBeInTheDocument()
 
       // Saving without touching the picker sends the existing link back.
-      await user.click(screen.getByRole("button", { name: "Update" }))
+      await user.click(
+        screen.getByRole("button", { name: "organization.audit.update" })
+      )
       await waitFor(() => expect(mockUpdateAuditEngagement).toHaveBeenCalled())
       const callArg = mockUpdateAuditEngagement.mock.calls[0][0]
       expect(callArg.data.riskIds).toEqual(["risk-1"])
@@ -518,7 +564,9 @@ describe("AuditPage", () => {
         .getByText("Supply Chain Risk Audit")
         .closest("[class*='rounded-xl']")! as HTMLElement
       // The card's "Linked Risks: Data breach" is a clickable button.
-      await user.click(within(card).getByRole("button", { name: "Data breach" }))
+      await user.click(
+        within(card).getByRole("button", { name: "Data breach" })
+      )
 
       expect(mockNavigate).toHaveBeenCalledWith("/organization/risks")
     })

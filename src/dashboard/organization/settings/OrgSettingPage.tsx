@@ -1,6 +1,7 @@
 import { useGetMeQuery } from "@/redux/apis/auth.api"
 import { Building2, HelpCircle, User, Users } from "lucide-react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import KnowledgeBaseUploadingForm from "./KnowledgeBaseUploadingForm"
 import PasswordChangeForm from "./PasswordChangeForm"
 import PersonalInfoForm from "./PersonalInfoForm"
@@ -9,13 +10,22 @@ import TeamMembersTab from "./TeamMembersTab"
 type TabType = "profile" | "team" | "knowledge"
 
 export default function OrgSettingPage() {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<TabType>("profile")
   const tabs: { key: TabType; label: string; icon: React.ReactNode }[] = [
-    { key: "profile", label: "User Settings", icon: <User size={18} /> },
-    { key: "team", label: "Team", icon: <Users size={18} /> },
+    {
+      key: "profile",
+      label: t("organization.settings.tabUserSettings"),
+      icon: <User size={18} />,
+    },
+    {
+      key: "team",
+      label: t("organization.settings.tabTeam"),
+      icon: <Users size={18} />,
+    },
     {
       key: "knowledge",
-      label: "Knowledge Base",
+      label: t("organization.settings.tabKnowledgeBase"),
       icon: <HelpCircle size={18} />,
     },
   ]
@@ -31,10 +41,10 @@ export default function OrgSettingPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              Organization Settings
+              {t("organization.settings.title")}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Manage your organization profile, team members, and preferences
+              {t("organization.settings.subtitle")}
             </p>
           </div>
         </div>
@@ -96,12 +106,13 @@ export default function OrgSettingPage() {
                   above), so there's nothing to wire yet. */}
               <div className="rounded-xl border border-border bg-card p-6">
                 <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <Building2 size={20} /> Organization Information
+                  <Building2 size={20} />{" "}
+                  {t("organization.settings.orgInformation")}
                 </h3>
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-                      Organization Name
+                      {t("organization.settings.orgName")}
                     </label>
                     <p className="text-foreground">
                       {orgData?.organizationProfile?.organizationName}
@@ -109,7 +120,7 @@ export default function OrgSettingPage() {
                   </div>
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-                      Email Domain
+                      {t("organization.settings.emailDomain")}
                     </label>
                     <p className="text-foreground">{orgData?.email}</p>
                   </div>

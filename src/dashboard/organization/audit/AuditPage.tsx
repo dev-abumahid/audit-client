@@ -26,6 +26,7 @@ import {
   Upload,
 } from "lucide-react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 import RiskMultiSelect from "./RiskMultiSelect"
@@ -66,6 +67,7 @@ const EMPTY_FORM = {
 const RISK_PICKER_LIMIT = 500
 
 export default function AuditPage() {
+  const { t } = useTranslation()
   // Search box (title / ref / lead_auditor — the backend searches all three)
   // and page state feed the paginated query. searchTerm was previously
   // hardcoded to "" and page/limit were fixed at 1/100, so the list silently
@@ -131,14 +133,18 @@ export default function AuditPage() {
     string,
     { label: string; bg: string; text: string }
   > = {
-    planned: { label: "Planned", bg: "bg-blue-500/10", text: "text-blue-600" },
+    planned: {
+      label: t("organization.audit.statusPlanned"),
+      bg: "bg-blue-500/10",
+      text: "text-blue-600",
+    },
     in_progress: {
-      label: "In Progress",
+      label: t("organization.audit.statusInProgress"),
       bg: "bg-orange-500/10",
       text: "text-orange-600",
     },
     completed: {
-      label: "Completed",
+      label: t("organization.audit.statusCompleted"),
       bg: "bg-green-500/10",
       text: "text-green-600",
     },
@@ -212,31 +218,31 @@ export default function AuditPage() {
         // manage_response.ts (aexa-server) always sends { success, message,
         // data, meta } — never an `error` key — so `message` carries the
         // failure reason here.
-        toast.error(res.message || "Failed to save audit engagement")
+        toast.error(res.message || t("organization.audit.saveFailed"))
       }
     } catch (err) {
       // Keep the modal open on failure so the user can retry without
       // re-entering the whole form.
       const message =
         (err as { data?: { message?: string } })?.data?.message ||
-        "Failed to save audit engagement"
+        t("organization.audit.saveFailed")
       toast.error(message)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this audit engagement?")) return
+    if (!confirm(t("organization.audit.deleteConfirm"))) return
     try {
       const res = await deleteAuditEngagement(id).unwrap()
       if (res.success) {
-        toast.success("Audit engagement deleted")
+        toast.success(t("organization.audit.deleteSuccess"))
       } else {
-        toast.error(res.message || "Failed to delete audit engagement")
+        toast.error(res.message || t("organization.audit.deleteFailed"))
       }
     } catch (err) {
       const message =
         (err as { data?: { message?: string } })?.data?.message ||
-        "Failed to delete audit engagement"
+        t("organization.audit.deleteFailed")
       toast.error(message)
     }
   }
@@ -266,14 +272,16 @@ export default function AuditPage() {
       }).unwrap()
 
       if (updateRes.success) {
-        toast.success("Report uploaded successfully")
+        toast.success(t("organization.audit.reportUploadSuccess"))
       } else {
-        toast.error(updateRes.message || "Failed to save report")
+        toast.error(
+          updateRes.message || t("organization.audit.saveReportFailed")
+        )
       }
     } catch (err) {
       const message =
         (err as { data?: { message?: string } })?.data?.message ||
-        "Failed to upload report"
+        t("organization.audit.uploadReportFailed")
       toast.error(message)
     } finally {
       setUploading(null)
@@ -307,17 +315,17 @@ export default function AuditPage() {
       <div className="animate-fade-in flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Audit Engagements
+            {t("organization.audit.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Internal and external audit missions tracking
+            {t("organization.audit.subtitle")}
           </p>
         </div>
         <button
           onClick={openCreate}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
         >
-          <Plus className="h-4 w-4" /> New Audit Mission
+          <Plus className="h-4 w-4" /> {t("organization.audit.newMission")}
         </button>
       </div>
 
@@ -327,25 +335,33 @@ export default function AuditPage() {
           <span className="font-mono text-lg font-bold text-foreground">
             {totalCount}
           </span>
-          <span className="ml-2 text-muted-foreground">Total</span>
+          <span className="ml-2 text-muted-foreground">
+            {t("organization.audit.statTotal")}
+          </span>
         </div>
         <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 px-4 py-2.5">
           <span className="font-mono text-lg font-bold text-orange-600">
             {inProgressCount}
           </span>
-          <span className="ml-2 text-muted-foreground">In Progress</span>
+          <span className="ml-2 text-muted-foreground">
+            {t("organization.audit.statInProgress")}
+          </span>
         </div>
         <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-2.5">
           <span className="font-mono text-lg font-bold text-green-600">
             {completedCount}
           </span>
-          <span className="ml-2 text-muted-foreground">Completed</span>
+          <span className="ml-2 text-muted-foreground">
+            {t("organization.audit.statCompleted")}
+          </span>
         </div>
         <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-2.5">
           <span className="font-mono text-lg font-bold text-destructive">
             {totalFindings}
           </span>
-          <span className="ml-2 text-muted-foreground">Total Findings</span>
+          <span className="ml-2 text-muted-foreground">
+            {t("organization.audit.statTotalFindings")}
+          </span>
         </div>
       </div>
 
@@ -355,7 +371,7 @@ export default function AuditPage() {
         <input
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder="Search by reference, title or lead auditor"
+          placeholder={t("organization.audit.searchPlaceholder")}
           className="h-9 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-xs"
         />
       </div>
@@ -411,7 +427,8 @@ export default function AuditPage() {
                       onClick={() => handleDownloadReport(eng.report_url!)}
                       className="flex items-center gap-1 rounded-md bg-green-500/10 px-2 py-1 text-[10px] font-medium text-green-600 hover:bg-green-500/20"
                     >
-                      <FileText className="h-3 w-3" /> Report{" "}
+                      <FileText className="h-3 w-3" />{" "}
+                      {t("organization.audit.report")}{" "}
                       <ExternalLink className="h-2.5 w-2.5" />
                     </button>
                   ) : (
@@ -421,7 +438,7 @@ export default function AuditPage() {
                       ) : (
                         <Upload className="h-3 w-3" />
                       )}
-                      Upload Report
+                      {t("organization.audit.uploadReport")}
                       <input
                         type="file"
                         className="hidden"
@@ -452,27 +469,27 @@ export default function AuditPage() {
               <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
                 {eng.lead_auditor && (
                   <span>
-                    Auditor:{" "}
+                    {t("organization.audit.auditorLabel")}{" "}
                     <span className="font-medium text-foreground">
                       {eng.lead_auditor}
                     </span>
                   </span>
                 )}
                 <span>
-                  Priority:{" "}
+                  {t("organization.audit.priorityLabel")}{" "}
                   <span className="font-mono font-bold text-foreground">
                     {eng.priority_score}
                   </span>
                 </span>
                 <span>
-                  Findings:{" "}
+                  {t("organization.audit.findingsLabel")}{" "}
                   <span className="font-mono font-bold text-foreground">
                     {eng.findings_count}
                   </span>
                 </span>
                 {eng.linked_risks && eng.linked_risks.length > 0 && (
                   <span className="flex flex-wrap items-center gap-1">
-                    Linked Risks:{" "}
+                    {t("organization.audit.linkedRisksLabel")}{" "}
                     {eng.linked_risks.map((risk, i) => (
                       <span key={risk.id} className="flex items-center">
                         <button
@@ -483,7 +500,7 @@ export default function AuditPage() {
                           // rather than a per-risk detail view that doesn't
                           // exist. See aexa-frontend#165.
                           onClick={() => navigate("/organization/risks")}
-                          title="Open in Risk Register"
+                          title={t("organization.audit.openInRegister")}
                           className="font-medium text-primary hover:underline"
                         >
                           {risk.name}
@@ -508,7 +525,9 @@ export default function AuditPage() {
 
         {!isLoading && engagements.length === 0 && (
           <div className="rounded-xl border border-border bg-card p-12 text-center">
-            <p className="text-muted-foreground">No audit engagements found</p>
+            <p className="text-muted-foreground">
+              {t("organization.audit.empty")}
+            </p>
           </div>
         )}
 
@@ -518,7 +537,7 @@ export default function AuditPage() {
             <button
               onClick={() => setPage((p) => Math.max(p - 1, 1))}
               disabled={page === 1}
-              aria-label="Previous page"
+              aria-label={t("organization.audit.prevPage")}
               className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ChevronLeft size={20} />
@@ -541,7 +560,7 @@ export default function AuditPage() {
             <button
               onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
               disabled={page === totalPages}
-              aria-label="Next page"
+              aria-label={t("organization.audit.nextPage")}
               className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ChevronRight size={20} />
@@ -555,13 +574,15 @@ export default function AuditPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-lg space-y-4 rounded-2xl border border-border bg-card p-6 shadow-xl">
             <h2 className="text-lg font-bold text-foreground">
-              {editId ? "Edit Audit Engagement" : "New Audit Engagement"}
+              {editId
+                ? t("organization.audit.editModalTitle")
+                : t("organization.audit.newModalTitle")}
             </h2>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
-                  Reference
+                  {t("organization.audit.refLabel")}
                 </label>
                 <input
                   value={form.ref}
@@ -569,12 +590,12 @@ export default function AuditPage() {
                     setForm((f) => ({ ...f, ref: e.target.value }))
                   }
                   className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
-                  placeholder="AUD-2026-001"
+                  placeholder={t("organization.audit.refPlaceholder")}
                 />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
-                  Status
+                  {t("organization.audit.statusLabel")}
                 </label>
                 <select
                   value={form.status}
@@ -589,16 +610,22 @@ export default function AuditPage() {
                   }
                   className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 >
-                  <option value="planned">Planned</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
+                  <option value="planned">
+                    {t("organization.audit.statusPlanned")}
+                  </option>
+                  <option value="in_progress">
+                    {t("organization.audit.statusInProgress")}
+                  </option>
+                  <option value="completed">
+                    {t("organization.audit.statusCompleted")}
+                  </option>
                 </select>
               </div>
             </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground">
-                Title
+                {t("organization.audit.titleLabel")}
               </label>
               <input
                 value={form.title}
@@ -611,7 +638,7 @@ export default function AuditPage() {
 
             <div>
               <label className="text-xs font-medium text-muted-foreground">
-                Scope
+                {t("organization.audit.scopeLabel")}
               </label>
               <textarea
                 value={form.scope}
@@ -626,7 +653,7 @@ export default function AuditPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
-                  Lead Auditor
+                  {t("organization.audit.leadAuditorLabel")}
                 </label>
                 <input
                   value={form.lead_auditor}
@@ -638,7 +665,7 @@ export default function AuditPage() {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
-                  Findings Count
+                  {t("organization.audit.findingsCountLabel")}
                 </label>
                 <input
                   type="number"
@@ -657,7 +684,7 @@ export default function AuditPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
-                  Start Date
+                  {t("organization.audit.startDateLabel")}
                 </label>
                 <input
                   type="date"
@@ -670,7 +697,7 @@ export default function AuditPage() {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
-                  End Date
+                  {t("organization.audit.endDateLabel")}
                 </label>
                 <input
                   type="date"
@@ -685,7 +712,7 @@ export default function AuditPage() {
 
             <div>
               <label className="text-xs font-medium text-muted-foreground">
-                Linked Risks
+                {t("organization.audit.linkedRisksFieldLabel")}
               </label>
               <div className="mt-1">
                 <RiskMultiSelect
@@ -702,14 +729,16 @@ export default function AuditPage() {
                 onClick={() => setShowModal(false)}
                 className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
               >
-                Cancel
+                {t("organization.audit.cancel")}
               </button>
               <button
                 onClick={handleSave}
                 disabled={!form.title || isCreating || isUpdating}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
               >
-                {editId ? "Update" : "Create"}
+                {editId
+                  ? t("organization.audit.update")
+                  : t("organization.audit.create")}
               </button>
             </div>
           </div>

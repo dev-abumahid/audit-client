@@ -11,6 +11,16 @@ import {
   Zap,
 } from "lucide-react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
+
+// Severity filter value -> i18n key, resolved with t() at render time.
+const SEVERITY_KEYS: Record<string, string> = {
+  all: "organization.intelligence.filterAll",
+  critical: "organization.intelligence.severityCritical",
+  high: "organization.intelligence.severityHigh",
+  medium: "organization.intelligence.severityMedium",
+  low: "organization.intelligence.severityLow",
+}
 
 // Dummy Data
 const DUMMY_SAVED_ITEMS = [
@@ -87,6 +97,7 @@ const DUMMY_PREDICTIONS = {
 }
 
 export default function IntelligencePage() {
+  const { t } = useTranslation()
   const [isScraping, setIsScraping] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [isPredicting, setIsPredicting] = useState(false)
@@ -123,7 +134,13 @@ export default function IntelligencePage() {
 
     setScrapeStats({ sources: 62, items: 184, success: 58 })
 
-    alert("Collection completed: 184 articles from 58/62 sources")
+    alert(
+      t("organization.intelligence.collectionComplete", {
+        items: 184,
+        success: 58,
+        sources: 62,
+      })
+    )
     setIsScraping(false)
   }
 
@@ -153,7 +170,9 @@ export default function IntelligencePage() {
     setSavedItems((prev) => [...newSaved, ...prev])
 
     alert(
-      `Analysis complete: ${DUMMY_ANALYZED_ITEMS.filter((a) => a.is_risk).length} risks identified`
+      t("organization.intelligence.analysisComplete", {
+        count: DUMMY_ANALYZED_ITEMS.filter((a) => a.is_risk).length,
+      })
     )
     setIsAnalyzing(false)
   }
@@ -164,7 +183,7 @@ export default function IntelligencePage() {
     await new Promise((resolve) => setTimeout(resolve, 1500))
 
     setPredictions(DUMMY_PREDICTIONS)
-    alert("AI Predictions generated successfully")
+    alert(t("organization.intelligence.predictionsGenerated"))
     setIsPredicting(false)
   }
 
@@ -188,13 +207,12 @@ export default function IntelligencePage() {
         <div className="flex items-center gap-2">
           <Radio className="h-5 w-5 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Threat Intelligence
+            {t("organization.intelligence.title")}
           </h1>
           <div className="ml-2 h-2 w-2 animate-pulse rounded-full bg-risk-low" />
         </div>
         <p className="text-sm text-muted-foreground">
-          Automated monitoring from 60+ global sources — ARIA CRO Intelligence
-          Engine
+          {t("organization.intelligence.subtitle")}
         </p>
       </div>
 
@@ -210,7 +228,9 @@ export default function IntelligencePage() {
           ) : (
             <Globe className="h-4 w-4" />
           )}
-          {isScraping ? "Collecting sources…" : "Collect 60+ sources"}
+          {isScraping
+            ? t("organization.intelligence.collectingSources")
+            : t("organization.intelligence.collectSources")}
         </button>
 
         {scrapedItems.length > 0 && (
@@ -225,8 +245,10 @@ export default function IntelligencePage() {
               <Zap className="h-4 w-4" />
             )}
             {isAnalyzing
-              ? "Analyzing with ARIA…"
-              : `Analyze ${scrapedItems.length} articles`}
+              ? t("organization.intelligence.analyzingWithAria")
+              : t("organization.intelligence.analyzeArticles", {
+                  count: scrapedItems.length,
+                })}
           </button>
         )}
 
@@ -240,13 +262,16 @@ export default function IntelligencePage() {
           ) : (
             <Brain className="h-4 w-4" />
           )}
-          AI Predictions
+          {t("organization.intelligence.aiPredictions")}
         </button>
 
         {scrapeStats && (
           <span className="text-xs text-muted-foreground">
-            {scrapeStats.success}/{scrapeStats.sources} sources •{" "}
-            {scrapeStats.items} articles
+            {t("organization.intelligence.statsSummary", {
+              success: scrapeStats.success,
+              sources: scrapeStats.sources,
+              items: scrapeStats.items,
+            })}
           </span>
         )}
       </div>
@@ -257,33 +282,39 @@ export default function IntelligencePage() {
           <div className="mb-3 flex items-center gap-2">
             <Brain className="h-4 w-4 text-primary" />
             <h3 className="text-sm font-semibold text-foreground">
-              ARIA Predictions — Predictive Intelligence
+              {t("organization.intelligence.predictionsHeading")}
             </h3>
           </div>
           <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-lg border border-border bg-card p-3">
-              <p className="text-xs text-muted-foreground">7-day Risk Score</p>
+              <p className="text-xs text-muted-foreground">
+                {t("organization.intelligence.score7d")}
+              </p>
               <p className="text-xl font-bold text-foreground">
                 {predictions.predictions.score_7d?.toFixed(1)}
                 <span className="text-xs text-muted-foreground">/10</span>
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-3">
-              <p className="text-xs text-muted-foreground">30-day Risk Score</p>
+              <p className="text-xs text-muted-foreground">
+                {t("organization.intelligence.score30d")}
+              </p>
               <p className="text-xl font-bold text-foreground">
                 {predictions.predictions.score_30d?.toFixed(1)}
                 <span className="text-xs text-muted-foreground">/10</span>
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-3">
-              <p className="text-xs text-muted-foreground">Trend</p>
+              <p className="text-xs text-muted-foreground">
+                {t("organization.intelligence.trend")}
+              </p>
               <p className="flex items-center gap-2 text-xl font-bold text-foreground">
                 <TrendingUp className="h-4 w-4" />
                 {predictions.predictions.trend === "worsening"
-                  ? "Worsening"
+                  ? t("organization.intelligence.trendWorsening")
                   : predictions.predictions.trend === "improving"
-                    ? "Improving"
-                    : "Stable"}
+                    ? t("organization.intelligence.trendImproving")
+                    : t("organization.intelligence.trendStable")}
               </p>
             </div>
           </div>
@@ -294,7 +325,7 @@ export default function IntelligencePage() {
           {predictions.predictions.emerging_risks?.length > 0 && (
             <div className="mt-3">
               <p className="mb-2 text-xs font-semibold text-foreground">
-                Emerging Risks Detected:
+                {t("organization.intelligence.emergingRisks")}
               </p>
               <div className="space-y-1">
                 {predictions.predictions.emerging_risks.map(
@@ -324,7 +355,7 @@ export default function IntelligencePage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search intelligence..."
+            placeholder={t("organization.intelligence.searchPlaceholder")}
             className="h-9 w-full rounded-md border border-input bg-background pr-4 pl-9 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
           />
         </div>
@@ -340,9 +371,7 @@ export default function IntelligencePage() {
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
-              {sev === "all"
-                ? "All"
-                : sev.charAt(0).toUpperCase() + sev.slice(1)}
+              {t(SEVERITY_KEYS[sev])}
               {sev !== "all" &&
                 ` (${savedItems.filter((i) => i.severity === sev).length})`}
             </button>
@@ -356,8 +385,9 @@ export default function IntelligencePage() {
           <div className="mb-3 flex items-center gap-2">
             <Zap className="h-4 w-4 text-primary" />
             <h3 className="text-sm font-semibold text-foreground">
-              ARIA Analysis Results —{" "}
-              {analyzedItems.filter((a) => a.is_risk).length} risks identified
+              {t("organization.intelligence.analysisResults", {
+                count: analyzedItems.filter((a) => a.is_risk).length,
+              })}
             </h3>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -386,7 +416,7 @@ export default function IntelligencePage() {
                         </span>
                         {item.requires_immediate_attention && (
                           <span className="rounded bg-risk-critical/10 px-1.5 py-0.5 text-[10px] font-medium text-risk-critical">
-                            ⚡ Immediate Action
+                            {t("organization.intelligence.immediateAction")}
                           </span>
                         )}
                       </div>
@@ -401,15 +431,19 @@ export default function IntelligencePage() {
       {/* Saved Intelligence Items */}
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-foreground">
-          {filteredItems.length} Intelligence Items
+          {t("organization.intelligence.itemsCount", {
+            count: filteredItems.length,
+          })}
         </h3>
 
         {filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <Shield className="mb-3 h-12 w-12 opacity-20" />
-            <p className="text-sm font-medium">No intelligence items yet</p>
+            <p className="text-sm font-medium">
+              {t("organization.intelligence.noItemsYet")}
+            </p>
             <p className="mt-1 text-xs">
-              Start a collection to populate threat intelligence
+              {t("organization.intelligence.noItemsHint")}
             </p>
           </div>
         ) : (
