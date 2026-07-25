@@ -14,7 +14,11 @@ describe("CorrelationMatrixPage", () => {
     render(<CorrelationMatrixPage />)
 
     // Page renders its header from the shared-shape fixtures without crashing.
-    expect(screen.getByText("Matrice de Corrélation")).toBeInTheDocument()
+    // i18n isn't initialized in the test environment, so t() echoes the raw
+    // key back (see RiskRegisterPage.test.tsx).
+    expect(
+      screen.getByText("organization.correlationMatrix.title")
+    ).toBeInTheDocument()
 
     // The old divergent local Risk type's `ref` values (e.g. "CY-001") no
     // longer exist anywhere -- the fixtures now key off UUID `id` like the
@@ -29,8 +33,19 @@ describe("CorrelationMatrixPage", () => {
     // Switch the detail panel to the bucket view, then expand the one bucket
     // the operational fixtures form (supply-chain + site-accident risks, both
     // at "Usine Lyon"), which renders each risk's id as a ref label.
-    fireEvent.click(screen.getByRole("button", { name: "Buckets" }))
-    fireEvent.click(screen.getByRole("button", { name: /Opérationnel/ }))
+    // Button/label text is now routed through t(), which echoes the raw key
+    // in the test environment; the bucket name interpolates the localized
+    // category label (catOperational) into its accessible name.
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewBuckets",
+      })
+    )
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.correlationMatrix\.catOperational/,
+      })
+    )
 
     const supplyChainId = "7a2e5d9c-1b3f-4c6d-8e0a-2b3f4c6d8e02"
 

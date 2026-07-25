@@ -13,6 +13,11 @@ import {
   Sparkles,
 } from "lucide-react"
 import { useCallback, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
+
+// All user-facing chrome on this page routes through this namespace; the mock
+// fixtures below stay untranslated (seed data, not UI chrome).
+const NS = "organization.correlationMatrix"
 
 type MatrixSize = 3 | 4 | 5
 type ViewMode = "risks" | "findings" | "buckets" | "ai-buckets"
@@ -253,44 +258,52 @@ const DUMMY_SITES = [
   { id: "site3", name: "Bureau Marseille" },
 ]
 
+// Category display labels resolve to i18n keys at render time; colors stay
+// literal (design tokens, not user-facing text).
 const RISK_CATEGORIES = {
-  cyber: { label: "Cyber", color: "#ef4444" },
-  operational: { label: "Opérationnel", color: "#f59e0b" },
-  compliance: { label: "Conformité", color: "#8b5cf6" },
-  financial: { label: "Financier", color: "#10b981" },
+  cyber: { labelKey: "catCyber", color: "#ef4444" },
+  operational: { labelKey: "catOperational", color: "#f59e0b" },
+  compliance: { labelKey: "catCompliance", color: "#8b5cf6" },
+  financial: { labelKey: "catFinancial", color: "#10b981" },
 }
 
+// Axis tick labels differ per matrix size and are count-specific phrasings, so
+// each distinct label maps to its own i18n key (resolved with t() at render).
 const AXIS_LABELS_MAP: Record<
   MatrixSize,
   { rootCause: string[]; consequence: string[] }
 > = {
   3: {
-    rootCause: ["0 cause", "1-2 causes", "3+ causes"],
-    consequence: ["0 conséquence", "1-2 conséquences", "3+ conséquences"],
+    rootCause: ["axisCause0", "axisCause12", "axisCause3plus"],
+    consequence: [
+      "axisConsequence0",
+      "axisConsequence12",
+      "axisConsequence3plus",
+    ],
   },
   4: {
-    rootCause: ["0 cause", "1 cause", "2 causes", "3+ causes"],
+    rootCause: ["axisCause0", "axisCause1", "axisCause2", "axisCause3plus"],
     consequence: [
-      "0 conséquence",
-      "1 conséquence",
-      "2 conséquences",
-      "3+ conséquences",
+      "axisConsequence0",
+      "axisConsequence1",
+      "axisConsequence2",
+      "axisConsequence3plus",
     ],
   },
   5: {
     rootCause: [
-      "Aucune cause",
-      "1 cause racine",
-      "2 causes racines",
-      "3 causes racines",
-      "4+ causes racines",
+      "axisCauseNone",
+      "axisRootCause1",
+      "axisRootCause2",
+      "axisRootCause3",
+      "axisRootCause4plus",
     ],
     consequence: [
-      "Aucune conséquence",
-      "1 conséquence",
-      "2 conséquences",
-      "3 conséquences",
-      "4+ conséquences",
+      "axisConsequenceNone",
+      "axisConsequence1",
+      "axisConsequence2",
+      "axisConsequence3",
+      "axisConsequence4plus",
     ],
   },
 }
@@ -310,6 +323,7 @@ function mapToAxis(value: number, size: MatrixSize): number {
 }
 
 export default function CorrelationMatrixPage() {
+  const { t } = useTranslation()
   const [risks] = useState(DUMMY_RISKS)
   const [links] = useState(DUMMY_LINKS)
   const [findings] = useState(DUMMY_FINDINGS)
@@ -377,7 +391,8 @@ export default function CorrelationMatrixPage() {
     const bucketMap: Record<string, Risk[]> = {}
     for (const risk of filteredRisks) {
       const siteName =
-        sites.find((s) => s.id === risk.site_id)?.name || "Groupe"
+        sites.find((s) => s.id === risk.site_id)?.name ||
+        t(`${NS}.groupFallback`)
       const key = `${risk.category}::${siteName}`
       if (!bucketMap[key]) bucketMap[key] = []
       bucketMap[key].push(risk)
@@ -386,14 +401,18 @@ export default function CorrelationMatrixPage() {
       .filter(([, rs]) => rs.length >= 2)
       .map(([key, rs]) => {
         const [category, site] = key.split("::")
+        const cat = RISK_CATEGORIES[category as keyof typeof RISK_CATEGORIES]
+        const categoryLabel = cat ? t(`${NS}.${cat.labelKey}`) : category
         return {
-          name: `${RISK_CATEGORIES[category as keyof typeof RISK_CATEGORIES]?.label || category} — ${site}`,
+          name: `${categoryLabel} — ${site}`,
           category,
           risks: rs,
           sites: [
             ...new Set(
               rs.map(
-                (r) => sites.find((s) => s.id === r.site_id)?.name || "Groupe"
+                (r) =>
+                  sites.find((s) => s.id === r.site_id)?.name ||
+                  t(`${NS}.groupFallback`)
               )
             ),
           ],
@@ -404,7 +423,7 @@ export default function CorrelationMatrixPage() {
         }
       })
       .sort((a, b) => b.totalImpact - a.totalImpact)
-  }, [filteredRisks, sites])
+  }, [filteredRisks, sites, t])
 
   const findingBuckets = useMemo<FindingBucket[]>(() => {
     const bucketMap: Record<string, AuditFinding[]> = {}
@@ -418,14 +437,14 @@ export default function CorrelationMatrixPage() {
       .map(([key, fs]) => {
         const [severity] = key.split("::")
         return {
-          name: `${severity.charAt(0).toUpperCase() + severity.slice(1)} — ${fs[0]?.cause || "Général"}`,
+          name: `${severity.charAt(0).toUpperCase() + severity.slice(1)} — ${fs[0]?.cause || t(`${NS}.generalFallback`)}`,
           severity,
           findings: fs,
-          commonAction: fs[0]?.recommendation || "Action à définir",
+          commonAction: fs[0]?.recommendation || t(`${NS}.actionToDefine`),
         }
       })
       .sort((a, b) => b.findings.length - a.findings.length)
-  }, [findings])
+  }, [findings, t])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const selectedRisks = selectedCell
@@ -437,12 +456,14 @@ export default function CorrelationMatrixPage() {
     const groups: Record<string, Risk[]> = {}
     for (const risk of selectedRisks) {
       const key =
-        groupMode === "category" ? risk.category : "Simulated Root Cause"
+        groupMode === "category"
+          ? risk.category
+          : t(`${NS}.simulatedRootCause`)
       if (!groups[key]) groups[key] = []
       groups[key].push(risk)
     }
     return Object.entries(groups).sort((a, b) => b[1].length - a[1].length)
-  }, [selectedRisks, groupMode])
+  }, [selectedRisks, groupMode, t])
 
   const toggleBucket = useCallback((name: string) => {
     setExpandedBucket((prev) => (prev === name ? null : name))
@@ -477,12 +498,16 @@ export default function CorrelationMatrixPage() {
   const handleSendBucketToFindings = (bucket: any) => {
     setSendingBucket(bucket.bucketName)
     setTimeout(() => {
-      alert(`✅ Finding créé pour le bucket : ${bucket.bucketName}`)
+      alert(t(`${NS}.findingCreatedAlert`, { bucket: bucket.bucketName }))
       setSendingBucket(null)
     }, 800)
   }
 
-  const axisLabels = AXIS_LABELS_MAP[matrixSize]
+  const axisRaw = AXIS_LABELS_MAP[matrixSize]
+  const axisLabels = {
+    rootCause: axisRaw.rootCause.map((k) => t(`${NS}.${k}`)),
+    consequence: axisRaw.consequence.map((k) => t(`${NS}.${k}`)),
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -491,12 +516,10 @@ export default function CorrelationMatrixPage() {
           <div className="flex items-center gap-2">
             <GitBranch className="h-5 w-5 text-primary" />
             <h1 className="text-2xl font-bold tracking-tight">
-              Matrice de Corrélation
+              {t(`${NS}.title`)}
             </h1>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Causes racines × Conséquences — Bucketing et analyse
-          </p>
+          <p className="text-sm text-muted-foreground">{t(`${NS}.subtitle`)}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -516,16 +539,16 @@ export default function CorrelationMatrixPage() {
           {/* Group Mode */}
           <div className="flex overflow-hidden rounded-lg border border-border">
             {[
-              ["none", "Tous"],
-              ["category", "Par type"],
-              ["rootcause", "Root cause"],
-            ].map(([mode, label]) => (
+              ["none", "groupAll"],
+              ["category", "groupByType"],
+              ["rootcause", "groupRootCause"],
+            ].map(([mode, labelKey]) => (
               <button
                 key={mode}
                 onClick={() => setGroupMode(mode as GroupMode)}
                 className={`px-3 py-1.5 text-xs font-medium ${groupMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
               >
-                {label}
+                {t(`${NS}.${labelKey}`)}
               </button>
             ))}
           </div>
@@ -533,17 +556,17 @@ export default function CorrelationMatrixPage() {
           {/* View Mode */}
           <div className="flex overflow-hidden rounded-lg border border-border">
             {[
-              ["risks", "Risques"],
-              ["buckets", "Buckets"],
-              ["findings", "Findings"],
-              ["ai-buckets", "IA Buckets"],
-            ].map(([mode, label]) => (
+              ["risks", "viewRisks"],
+              ["buckets", "viewBuckets"],
+              ["findings", "viewFindings"],
+              ["ai-buckets", "viewAiBuckets"],
+            ].map(([mode, labelKey]) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode as ViewMode)}
                 className={`px-3 py-1.5 text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
               >
-                {label}
+                {t(`${NS}.${labelKey}`)}
               </button>
             ))}
           </div>
@@ -561,7 +584,7 @@ export default function CorrelationMatrixPage() {
         <div className="rounded-xl border border-border bg-card p-6 lg:col-span-2">
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-              Conséquences →
+              {t(`${NS}.consequencesAxis`)}
             </span>
           </div>
 
@@ -621,7 +644,9 @@ export default function CorrelationMatrixPage() {
                                   {cellRisks.length}
                                 </span>
                                 <span className="text-[9px] opacity-90">
-                                  risque{cellRisks.length > 1 ? "s" : ""}
+                                  {t(`${NS}.riskWord`, {
+                                    count: cellRisks.length,
+                                  })}
                                 </span>
                               </>
                             )}
@@ -634,21 +659,21 @@ export default function CorrelationMatrixPage() {
               })}
 
               <div className="mt-4 text-[10px] text-muted-foreground italic">
-                ↑ Causes racines
+                {t(`${NS}.rootCausesAxis`)}
               </div>
 
               {/* Legend */}
               <div className="mt-6 flex flex-wrap gap-4">
                 {[
-                  { color: "bg-red-600", label: "Nœud systémique" },
-                  { color: "bg-orange-600", label: "Forte interconnexion" },
-                  { color: "bg-yellow-600", label: "Modéré" },
-                  { color: "bg-green-600", label: "Isolé" },
-                ].map(({ color, label }) => (
-                  <div key={label} className="flex items-center gap-1.5">
+                  { color: "bg-red-600", labelKey: "legendSystemic" },
+                  { color: "bg-orange-600", labelKey: "legendHighInterconnection" },
+                  { color: "bg-yellow-600", labelKey: "legendModerate" },
+                  { color: "bg-green-600", labelKey: "legendIsolated" },
+                ].map(({ color, labelKey }) => (
+                  <div key={labelKey} className="flex items-center gap-1.5">
                     <div className={`h-3 w-3 rounded ${color}`} />
                     <span className="text-xs text-muted-foreground">
-                      {label}
+                      {t(`${NS}.${labelKey}`)}
                     </span>
                   </div>
                 ))}
@@ -663,8 +688,12 @@ export default function CorrelationMatrixPage() {
             <>
               <h3 className="mb-3 text-sm font-semibold">
                 {selectedCell
-                  ? `${selectedRisks.length} risque(s) — ${axisLabels.rootCause[selectedCell.row]} / ${axisLabels.consequence[selectedCell.col]}`
-                  : "Sélectionnez une cellule"}
+                  ? t(`${NS}.cellRisksHeading`, {
+                      count: selectedRisks.length,
+                      rootCause: axisLabels.rootCause[selectedCell.row],
+                      consequence: axisLabels.consequence[selectedCell.col],
+                    })
+                  : t(`${NS}.selectCellHeading`)}
               </h3>
 
               {selectedRisks.length > 0 ? (
@@ -701,7 +730,7 @@ export default function CorrelationMatrixPage() {
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <GitBranch className="mb-2 h-10 w-10 opacity-30" />
-                  <p>Cliquez sur une cellule de la matrice</p>
+                  <p>{t(`${NS}.clickCellHint`)}</p>
                 </div>
               )}
             </>
@@ -721,7 +750,9 @@ export default function CorrelationMatrixPage() {
               <div className="mb-3 flex items-center gap-2">
                 <Layers className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold">
-                  {findingBuckets.length} Buckets de findings
+                  {t(`${NS}.findingsBucketsHeading`, {
+                    count: findingBuckets.length,
+                  })}
                 </h3>
               </div>
               {findingBuckets.length > 0 ? (
@@ -738,7 +769,9 @@ export default function CorrelationMatrixPage() {
                         <div>
                           <p className="text-sm font-medium">{bucket.name}</p>
                           <p className="text-[10px] text-muted-foreground">
-                            {bucket.findings.length} constats
+                            {t(`${NS}.constatsCount`, {
+                              count: bucket.findings.length,
+                            })}
                           </p>
                         </div>
                         {expandedBucket === bucket.name ? (
@@ -750,7 +783,9 @@ export default function CorrelationMatrixPage() {
                       {expandedBucket === bucket.name && (
                         <div className="space-y-2 px-3 pb-3 text-xs">
                           <div className="rounded bg-blue-500/10 p-2 text-blue-700">
-                            Action groupée : {bucket.commonAction}
+                            {t(`${NS}.groupedAction`, {
+                              action: bucket.commonAction,
+                            })}
                           </div>
                           {bucket.findings.map((f) => (
                             <div key={f.id} className="flex justify-between">
@@ -769,7 +804,7 @@ export default function CorrelationMatrixPage() {
                 </div>
               ) : (
                 <p className="py-8 text-center text-muted-foreground">
-                  Pas de buckets de findings
+                  {t(`${NS}.noFindingBuckets`)}
                 </p>
               )}
             </div>
@@ -781,7 +816,7 @@ export default function CorrelationMatrixPage() {
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   <h3 className="text-sm font-semibold">
-                    Buckets IA Root Cause
+                    {t(`${NS}.aiBucketsHeading`)}
                   </h3>
                 </div>
                 <button
@@ -794,7 +829,9 @@ export default function CorrelationMatrixPage() {
                   ) : (
                     <Sparkles className="h-3 w-3" />
                   )}
-                  {isAILoading ? "Analyse en cours..." : "Lancer analyse IA"}
+                  {isAILoading
+                    ? t(`${NS}.aiAnalyzing`)
+                    : t(`${NS}.aiRunAnalysis`)}
                 </button>
               </div>
 
@@ -809,8 +846,10 @@ export default function CorrelationMatrixPage() {
                         <div>
                           <p className="font-medium">{bucket.bucketName}</p>
                           <p className="text-[10px] text-muted-foreground">
-                            {bucket.riskRefs.length} risques •{" "}
-                            {bucket.sitesAffected.length} sites
+                            {t(`${NS}.aiBucketMeta`, {
+                              risks: bucket.riskRefs.length,
+                              sites: bucket.sitesAffected.length,
+                            })}
                           </p>
                         </div>
                         {expandedBucket === bucket.bucketName ? (
@@ -823,10 +862,14 @@ export default function CorrelationMatrixPage() {
                       {expandedBucket === bucket.bucketName && (
                         <div className="space-y-3 border-t p-3 text-xs">
                           <div className="rounded bg-amber-500/10 p-2 text-amber-700">
-                            Cause racine : {bucket.rootCause}
+                            {t(`${NS}.aiRootCauseLabel`, {
+                              cause: bucket.rootCause,
+                            })}
                           </div>
                           <div className="rounded bg-blue-500/10 p-2 text-blue-700">
-                            Action : {bucket.groupedAction.description}
+                            {t(`${NS}.aiActionLabel`, {
+                              action: bucket.groupedAction.description,
+                            })}
                           </div>
                           <button
                             onClick={() => handleSendBucketToFindings(bucket)}
@@ -838,7 +881,7 @@ export default function CorrelationMatrixPage() {
                             ) : (
                               <Send className="h-3 w-3" />
                             )}
-                            Envoyer en Finding
+                            {t(`${NS}.sendToFinding`)}
                           </button>
                         </div>
                       )}
@@ -848,9 +891,7 @@ export default function CorrelationMatrixPage() {
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
                   <Sparkles className="mb-3 h-12 w-12 opacity-30" />
-                  <p>
-                    Cliquez sur "Lancer analyse IA" pour générer des buckets
-                  </p>
+                  <p>{t(`${NS}.aiEmptyHint`)}</p>
                 </div>
               )}
             </div>
@@ -872,6 +913,7 @@ function RiskDetailCard({
   riskMetrics: Record<string, { rootCauses: number; consequences: number }>
   links: RiskLink[]
 }) {
+  const { t } = useTranslation()
   const siteName = sites.find((s) => s.id === risk.site_id)?.name
   const m = riskMetrics[risk.id] || { rootCauses: 0, consequences: 0 }
 
@@ -908,8 +950,10 @@ function RiskDetailCard({
       </p>
 
       <div className="flex gap-3 text-[10px] text-muted-foreground">
-        <span>↓ {m.rootCauses} causes</span>
-        <span>↑ {m.consequences} conséquences</span>
+        <span>{t(`${NS}.detailCauses`, { count: m.rootCauses })}</span>
+        <span>
+          {t(`${NS}.detailConsequences`, { count: m.consequences })}
+        </span>
       </div>
     </div>
   )
@@ -927,10 +971,11 @@ function BucketList({
   toggleBucket: (name: string) => void
   sites: { id: string; name: string }[]
 }) {
+  const { t } = useTranslation()
   if (buckets.length === 0) {
     return (
       <p className="py-8 text-center text-muted-foreground">
-        Pas assez de risques similaires pour former des buckets
+        {t(`${NS}.notEnoughRisks`)}
       </p>
     )
   }
@@ -946,8 +991,10 @@ function BucketList({
             <div>
               <p className="font-medium">{bucket.name}</p>
               <p className="text-[10px] text-muted-foreground">
-                {bucket.risks.length} risques •{" "}
-                {(bucket.totalImpact / 1000000).toFixed(1)}M€
+                {t(`${NS}.bucketMeta`, {
+                  count: bucket.risks.length,
+                  impact: (bucket.totalImpact / 1000000).toFixed(1),
+                })}
               </p>
             </div>
             {expandedBucket === bucket.name ? (
