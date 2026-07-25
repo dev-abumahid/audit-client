@@ -21,6 +21,7 @@ import {
 } from "@/redux/apis/organization/note.api"
 import { FileUp, Notebook, TypeOutline } from "lucide-react"
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 type CreationMode = "file" | "text" | null
@@ -31,12 +32,12 @@ interface UploadNotesModalProps {
   inspectionId: string
 }
 
-const loadingMessages = [
-  "AI is reviewing your file...",
-  "AI is extracting content...",
-  "Performing OCR...",
-  "Rewriting and optimizing...",
-  "Generating note...",
+const loadingMessageKeys = [
+  "organization.inspection.aiReviewingFile",
+  "organization.inspection.aiExtractingContent",
+  "organization.inspection.performingOcr",
+  "organization.inspection.rewritingOptimizing",
+  "organization.inspection.generatingNote",
 ]
 
 export default function UploadNotesModal({
@@ -44,6 +45,7 @@ export default function UploadNotesModal({
   setOpen,
   inspectionId,
 }: UploadNotesModalProps) {
+  const { t } = useTranslation()
   const [mode, setMode] = useState<CreationMode>(null)
   const [messageIndex, setMessageIndex] = useState(0)
   const [extractedText, setExtractedText] = useState("")
@@ -141,12 +143,15 @@ export default function UploadNotesModal({
       }).unwrap()
 
       if (response?.success) {
-        toast.success("Note updated successfully")
+        toast.success(t("organization.inspection.noteUpdatedToast"))
         refetch() // Refetch to update the UI
         handleClose()
       }
     } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to update note")
+      toast.error(
+        error?.data?.message ||
+          t("organization.inspection.noteUpdateFailedToast")
+      )
     } finally {
       setIsUpdating(false)
     }
@@ -165,7 +170,10 @@ export default function UploadNotesModal({
       // (matches handleUpdate/handleNoteDelete above); without this, a
       // rejected split would also leave isSplitting stuck true forever
       // since setIsSplitting(false) below was never reached.
-      toast.error(error?.data?.message || "Failed to split note")
+      toast.error(
+        error?.data?.message ||
+          t("organization.inspection.noteSplitFailedToast")
+      )
     } finally {
       setIsSplitting(false)
     }
@@ -181,7 +189,9 @@ export default function UploadNotesModal({
         setIsDeleteModalOpen(false)
       }
     } catch (err: any) {
-      toast.error(err?.message || "Failed to delete note")
+      toast.error(
+        err?.message || t("organization.inspection.noteDeleteFailedToast")
+      )
     }
   }
 
@@ -189,7 +199,7 @@ export default function UploadNotesModal({
     if (!isLoading) return
 
     const interval = setInterval(() => {
-      setMessageIndex((prev) => (prev + 1) % loadingMessages.length)
+      setMessageIndex((prev) => (prev + 1) % loadingMessageKeys.length)
     }, 1000)
 
     return () => clearInterval(interval)
@@ -211,21 +221,25 @@ export default function UploadNotesModal({
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Notebook className="h-5 w-5" />
-                Update Note
+                {t("organization.inspection.updateNote")}
               </DialogTitle>
               <DialogDescription>
-                Edit your inspection note below
+                {t("organization.inspection.updateNoteDescription")}
               </DialogDescription>
             </DialogHeader>
 
             <div className="flex-1 overflow-y-auto">
               <div>
-                <Label htmlFor="update-note">Note Content</Label>
+                <Label htmlFor="update-note">
+                  {t("organization.inspection.noteContent")}
+                </Label>
                 <Textarea
                   id="update-note"
                   value={extractedText}
                   onChange={(e) => setExtractedText(e.target.value)}
-                  placeholder="Write your note here..."
+                  placeholder={t(
+                    "organization.inspection.noteContentPlaceholder"
+                  )}
                   rows={15}
                   className="mt-2 font-mono text-lg"
                 />
@@ -237,20 +251,24 @@ export default function UploadNotesModal({
                 onClick={() => setIsDeleteModalOpen(true)}
                 variant="destructive"
               >
-                Delete Note
+                {t("organization.inspection.deleteNote")}
               </Button>
               <Button
                 disabled={isSplitting}
                 onClick={handleSplitNote}
                 variant="secondary"
               >
-                {isSplitting ? "Splitting..." : "Split Note"}
+                {isSplitting
+                  ? t("organization.inspection.splitting")
+                  : t("organization.inspection.splitNote")}
               </Button>
               <Button
                 onClick={handleUpdate}
                 disabled={isUpdating || !extractedText.trim()}
               >
-                {isUpdating ? "Updating..." : "Update Note"}
+                {isUpdating
+                  ? t("organization.inspection.updating")
+                  : t("organization.inspection.updateNote")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -258,8 +276,8 @@ export default function UploadNotesModal({
         <DeleteAlertModal
           open={isDeleteModalOpen}
           setOpen={setIsDeleteModalOpen}
-          title="Are you sure?"
-          description="After deleting this note can't revert"
+          title={t("organization.inspection.deleteConfirmTitle")}
+          description={t("organization.inspection.deleteConfirmDescription")}
           onConfirm={handleNoteDelete}
         />
       </>
@@ -288,7 +306,7 @@ export default function UploadNotesModal({
 
               {/* Text */}
               <p className="animate-pulse text-sm font-medium text-muted-foreground">
-                {loadingMessages[messageIndex]}
+                {t(loadingMessageKeys[messageIndex])}
               </p>
             </div>
           </div>
@@ -296,10 +314,10 @@ export default function UploadNotesModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Notebook className="h-5 w-5" />
-            Upload Notes
+            {t("organization.inspection.uploadNotes")}
           </DialogTitle>
           <DialogDescription>
-            Choose one method to upload your note into this inspection
+            {t("organization.inspection.uploadNotesDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -313,9 +331,11 @@ export default function UploadNotesModal({
           >
             <TypeOutline className="h-6 w-6 text-primary" />
             <div>
-              <p className="font-medium">Notes by Text</p>
+              <p className="font-medium">
+                {t("organization.inspection.notesByText")}
+              </p>
               <p className="text-sm text-muted-foreground">
-                Describe in detail Notes here..
+                {t("organization.inspection.notesByTextHint")}
               </p>
             </div>
           </button>
@@ -329,9 +349,11 @@ export default function UploadNotesModal({
           >
             <FileUp className="h-6 w-6 text-primary" />
             <div>
-              <p className="font-medium">Extract note from file</p>
+              <p className="font-medium">
+                {t("organization.inspection.extractNoteFromFile")}
+              </p>
               <p className="text-sm text-muted-foreground">
-                Upload existing any file to extract notes
+                {t("organization.inspection.extractNoteFromFileHint")}
               </p>
             </div>
           </button>
@@ -339,12 +361,16 @@ export default function UploadNotesModal({
           {/* Conditional Input Fields */}
           {mode === "text" && (
             <div className="pt-2">
-              <Label htmlFor="extracted-text">Write Detailed Note</Label>
+              <Label htmlFor="extracted-text">
+                {t("organization.inspection.writeDetailedNote")}
+              </Label>
               <Textarea
                 id="extracted-text"
                 value={extractedText}
                 onChange={(e) => setExtractedText(e.target.value)}
-                placeholder="Create a comprehensive daily safety inspection checklist for construction sites including PPE, tools, emergency procedures..."
+                placeholder={t(
+                  "organization.inspection.writeDetailedNotePlaceholder"
+                )}
                 rows={8}
                 className="overflow-y-aut mt-2 h-52 resize-none"
               />
@@ -357,7 +383,7 @@ export default function UploadNotesModal({
                 htmlFor="file"
                 className="block text-sm text-gray-500 dark:text-gray-300"
               >
-                Upload any File
+                {t("organization.inspection.uploadAnyFile")}
               </label>
 
               <label
@@ -380,11 +406,11 @@ export default function UploadNotesModal({
                 </svg>
 
                 <h2 className="mt-1 font-medium tracking-wide text-gray-700 dark:text-gray-200">
-                  Any File
+                  {t("organization.inspection.anyFile")}
                 </h2>
 
                 <p className="mt-2 text-xs tracking-wide text-gray-500 dark:text-gray-400">
-                  Upload any file.{" "}
+                  {t("organization.inspection.uploadAnyFileHint")}{" "}
                 </p>
 
                 <input
@@ -396,7 +422,9 @@ export default function UploadNotesModal({
               </label>
               {file && (
                 <p className="mt-1 text-xs text-green-600">
-                  Selected: {file.name}
+                  {t("organization.inspection.selectedFile", {
+                    name: file.name,
+                  })}
                 </p>
               )}
             </div>
@@ -405,10 +433,12 @@ export default function UploadNotesModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            Cancel
+            {t("organization.inspection.cancel")}
           </Button>
           <Button onClick={handleCreate} disabled={!mode || isLoading}>
-            {isLoading ? "Extracting..." : "Upload Notes"}
+            {isLoading
+              ? t("organization.inspection.extracting")
+              : t("organization.inspection.uploadNotes")}
           </Button>
         </DialogFooter>
       </DialogContent>

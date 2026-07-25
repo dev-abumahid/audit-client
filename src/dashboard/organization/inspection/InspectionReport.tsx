@@ -26,7 +26,9 @@ import {
   ToggleRight,
   XCircle,
 } from "lucide-react"
+import type { TFunction } from "i18next"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
 
@@ -158,12 +160,13 @@ const formatShortDate = (d: string) =>
 
 const renderAnswerValue = (
   answer: any,
-  answerType: string
+  answerType: string,
+  t: TFunction
 ): React.ReactNode => {
   if (answer === null || answer === undefined || answer === "") {
     return (
       <span className="text-sm text-muted-foreground italic">
-        No answer provided
+        {t("organization.inspection.noAnswerProvided")}
       </span>
     )
   }
@@ -178,11 +181,13 @@ const renderAnswerValue = (
         >
           {answer ? (
             <>
-              <ToggleRight className="h-4 w-4" /> Yes
+              <ToggleRight className="h-4 w-4" />{" "}
+              {t("organization.inspection.yes")}
             </>
           ) : (
             <>
-              <ToggleLeft className="h-4 w-4" /> No
+              <ToggleLeft className="h-4 w-4" />{" "}
+              {t("organization.inspection.no")}
             </>
           )}
         </span>
@@ -267,7 +272,7 @@ const renderAnswerValue = (
         <div className="group relative inline-block overflow-hidden rounded-lg border">
           <img
             src={answer}
-            alt="Uploaded media"
+            alt={t("organization.inspection.uploadedMediaAlt")}
             className="max-h-96 w-auto max-w-full object-cover transition-transform group-hover:scale-105"
             onError={(e) => {
               // Handle image load error
@@ -279,7 +284,7 @@ const renderAnswerValue = (
             className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
           >
             <span className="rounded bg-white px-2 py-1 text-xs font-medium text-black">
-              View Full Size
+              {t("organization.inspection.viewFullSize")}
             </span>
           </button>
         </div>
@@ -313,6 +318,7 @@ const QuestionCard = memo(
     relatedActions: any[]
     onMediaClick: (url: string) => void
   }) => {
+    const { t } = useTranslation()
     const navigate = useNavigate()
     const answerType =
       question.answerType?.answerType ?? question.answerType ?? "input"
@@ -336,14 +342,18 @@ const QuestionCard = memo(
         </div>
 
         <div className="ml-11">
-          <p className="mb-1.5 text-xs text-muted-foreground">Answer:</p>
+          <p className="mb-1.5 text-xs text-muted-foreground">
+            {t("organization.inspection.answerLabel")}
+          </p>
           <div className="min-h-17.5 w-full rounded-lg border border-border bg-muted/50 px-4 py-3">
-            {renderAnswerValue(answer, answerType)}
+            {renderAnswerValue(answer, answerType, t)}
           </div>
 
           {hasNote && (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5">
-              <p className="text-sm font-medium text-amber-700">Note:</p>
+              <p className="text-sm font-medium text-amber-700">
+                {t("organization.inspection.noteLabel")}
+              </p>
               <p className="text-sm text-amber-800">{note}</p>
             </div>
           )}
@@ -374,7 +384,9 @@ const QuestionCard = memo(
             <div className="mt-3 border-t border-border pt-3">
               <p className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
                 <AlertTriangle className="h-3 w-3 text-orange-500" />
-                Actions ({relatedActions.length})
+                {t("organization.inspection.actionsCount", {
+                  count: relatedActions.length,
+                })}
               </p>
               <div className="flex flex-wrap gap-2">
                 {relatedActions.map((action: any) => (
@@ -414,6 +426,7 @@ const PageSection = memo(
     actionsByQuestion: Record<string, any[]>
     onMediaClick: (url: string) => void
   }) => {
+    const { t } = useTranslation()
     const questions = page?.questions ?? []
 
     return (
@@ -423,7 +436,7 @@ const PageSection = memo(
             {templateName}
           </span>
           <span className="text-sm text-muted-foreground">
-            Section {pageIndex + 1}
+            {t("organization.inspection.section", { num: pageIndex + 1 })}
           </span>
         </div>
 
@@ -511,6 +524,7 @@ async function renderHtmlToPdf(html: string, filename: string) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const InspectionReport = () => {
+  const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
 
@@ -532,7 +546,8 @@ const InspectionReport = () => {
   const actions = (inspection as { actions?: any[] } | undefined)?.actions ?? []
 
   const templatePages: PageDef[] = template?.pages ?? []
-  const templateName = template?.templateName ?? "Inspection Report"
+  const templateName =
+    template?.templateName ?? t("organization.inspection.reportTitleFallback")
 
   const actionsByQuestion = useMemo(() => {
     const map: Record<string, any[]> = {}
@@ -638,7 +653,9 @@ const InspectionReport = () => {
       })
       await renderHtmlToPdf(html, `${templateName}-report.pdf`)
     } catch (err: any) {
-      toast.error(err?.message || "Failed to generate PDF report")
+      toast.error(
+        err?.message || t("organization.inspection.pdfGenerateFailedToast")
+      )
     } finally {
       setIsDownloading(false)
     }
@@ -649,7 +666,9 @@ const InspectionReport = () => {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="space-y-3 text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Loading report…</p>
+          <p className="text-sm text-muted-foreground">
+            {t("organization.inspection.loadingReport")}
+          </p>
         </div>
       </div>
     )
@@ -671,7 +690,8 @@ const InspectionReport = () => {
 
             {inspection.site?.name && (
               <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-                Site: <Globe className="h-3.5 w-3.5 text-primary" />{" "}
+                {t("organization.inspection.siteLabel")}{" "}
+                <Globe className="h-3.5 w-3.5 text-primary" />{" "}
                 {inspection.site.name}
               </p>
             )}
@@ -681,17 +701,17 @@ const InspectionReport = () => {
             <div className="flex flex-wrap gap-2">
               {[
                 {
-                  label: "Sections",
+                  label: t("organization.inspection.sections"),
                   value: templatePages.length,
                   icon: FileText,
                 },
                 {
-                  label: "Questions",
+                  label: t("organization.inspection.questions"),
                   value: `${totalAnswered}/${totalQuestions}`,
                   icon: Hash,
                 },
                 {
-                  label: "Actions",
+                  label: t("organization.inspection.colActions"),
                   value: actions.length,
                   icon: AlertTriangle,
                 },
@@ -718,11 +738,13 @@ const InspectionReport = () => {
             >
               {isDownloading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Generating…
+                  <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                  {t("organization.inspection.generating")}
                 </>
               ) : (
                 <>
-                  <Download className="h-4 w-4" /> Download PDF
+                  <Download className="h-4 w-4" />{" "}
+                  {t("organization.inspection.downloadPdf")}
                 </>
               )}
             </button>
@@ -735,7 +757,7 @@ const InspectionReport = () => {
         {/* Sidebar */}
         <aside className="sticky top-6 hidden h-fit max-h-[calc(100vh-1.5rem)] w-72 flex-col overflow-y-auto lg:flex">
           <p className="mb-2 px-3 text-xs font-bold tracking-widest text-muted-foreground uppercase">
-            Sections
+            {t("organization.inspection.sections")}
           </p>
           <div className="space-y-1">
             {templatePages.map((page: PageDef, idx: number) => {
@@ -797,7 +819,7 @@ const InspectionReport = () => {
                   <Paperclip className="h-5 w-5 text-primary" />
                 </div>
                 <h2 className="text-xl font-bold text-foreground">
-                  Attachments
+                  {t("organization.inspection.attachments")}
                 </h2>
                 <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
                   {inspection.attachments.length}
@@ -827,7 +849,7 @@ const InspectionReport = () => {
                   <MessageSquare className="h-5 w-5 text-primary" />
                 </div>
                 <h2 className="text-xl font-bold text-foreground">
-                  Unsplit Text
+                  {t("organization.inspection.unsplitText")}
                 </h2>
               </div>
               <div className="rounded-2xl border border-border bg-card px-6 py-5 shadow-sm">
@@ -845,7 +867,9 @@ const InspectionReport = () => {
                 <div className="rounded-xl bg-orange-100 p-2.5">
                   <AlertTriangle className="h-5 w-5 text-orange-500" />
                 </div>
-                <h2 className="text-xl font-bold text-foreground">Actions</h2>
+                <h2 className="text-xl font-bold text-foreground">
+                  {t("organization.inspection.colActions")}
+                </h2>
                 <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-600">
                   {actions.length}
                 </span>
@@ -855,16 +879,20 @@ const InspectionReport = () => {
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted">
-                      {["#", "Title", "Priority", "Status", "Due Date"].map(
-                        (h) => (
-                          <th
-                            key={h}
-                            className="px-4 py-3 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
-                          >
-                            {h}
-                          </th>
-                        )
-                      )}
+                      {[
+                        "#",
+                        t("organization.inspection.colTitle"),
+                        t("organization.inspection.colPriority"),
+                        t("organization.inspection.colStatus"),
+                        t("organization.inspection.colDueDate"),
+                      ].map((h) => (
+                        <th
+                          key={h}
+                          className="px-4 py-3 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                        >
+                          {h}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -921,7 +949,7 @@ const InspectionReport = () => {
           >
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <h3 className="text-sm font-bold text-foreground">
-                Media Preview
+                {t("organization.inspection.mediaPreview")}
               </h3>
               <button
                 onClick={() => setSelectedMedia(null)}

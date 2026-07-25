@@ -28,6 +28,7 @@ import type { TemplateSummary } from "@/types/template"
 import { Check, ChevronDown, FileText, Globe } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 
 type FormData = {
@@ -41,6 +42,7 @@ type Props = {
 }
 
 export default function StartInspectionModal({ open, setOpen }: Props) {
+  const { t } = useTranslation()
   const [siteOpen, setSiteOpen] = useState(false)
   const [templateOpen, setTemplateOpen] = useState(false)
   const [templateSearch, setTemplateSearch] = useState("")
@@ -96,9 +98,11 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Start New Inspection</DialogTitle>
+          <DialogTitle>
+            {t("organization.inspection.startNewInspection")}
+          </DialogTitle>
           <DialogDescription>
-            Select a site and template to begin the inspection.
+            {t("organization.inspection.startModalDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -107,7 +111,7 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-medium text-foreground">
               <Globe className="h-4 w-4 text-muted-foreground" />
-              Select Site
+              {t("organization.inspection.selectSite")}
             </label>
 
             <Popover open={siteOpen} onOpenChange={setSiteOpen}>
@@ -117,7 +121,9 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
                   role="combobox"
                   className="w-full justify-between"
                 >
-                  {selectedSite ? selectedSite.name : "Choose a site..."}
+                  {selectedSite
+                    ? selectedSite.name
+                    : t("organization.inspection.chooseSite")}
                   <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -128,13 +134,17 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
               >
                 <Command>
                   <CommandInput
-                    placeholder="Search site..."
+                    placeholder={t(
+                      "organization.inspection.searchSitePlaceholder"
+                    )}
                     value={siteSearch}
                     onValueChange={setSiteSearch}
                     className="w-full"
                   />
                   <CommandList>
-                    <CommandEmpty>No site found.</CommandEmpty>
+                    <CommandEmpty>
+                      {t("organization.inspection.noSiteFound")}
+                    </CommandEmpty>
                     <CommandGroup>
                       {sitesData?.data?.map((site: SiteSummary) => (
                         <CommandItem
@@ -167,7 +177,7 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-medium text-foreground">
               <FileText className="h-4 w-4 text-muted-foreground" />
-              Select Template
+              {t("organization.inspection.selectTemplate")}
             </label>
 
             <Popover open={templateOpen} onOpenChange={setTemplateOpen}>
@@ -179,20 +189,24 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
                 >
                   {selectedTemplate
                     ? selectedTemplate.templateName
-                    : "Choose a template..."}
+                    : t("organization.inspection.chooseTemplate")}
                   <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-full p-0" align="start">
                 <Command>
                   <CommandInput
-                    placeholder="Search templates..."
+                    placeholder={t(
+                      "organization.inspection.searchTemplatesPlaceholder"
+                    )}
                     value={templateSearch}
                     onValueChange={setTemplateSearch}
                   />
                   <CommandList>
                     <CommandEmpty>
-                      {isLoading ? "Loading..." : "No template found."}
+                      {isLoading
+                        ? t("organization.inspection.loadingShort")
+                        : t("organization.inspection.noTemplateFound")}
                     </CommandEmpty>
                     <CommandGroup>
                       {templatesData?.data?.map((temp: TemplateSummary) => (
@@ -225,14 +239,14 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                Cancel
+                {t("organization.inspection.cancel")}
               </Button>
             </DialogClose>
             <Button
               type="submit"
               disabled={!selectedSiteId || !selectedTemplateId}
             >
-              Start Inspection
+              {t("organization.inspection.startInspection")}
             </Button>
           </DialogFooter>
         </form>

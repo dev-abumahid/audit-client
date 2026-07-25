@@ -1,6 +1,8 @@
 import { Text } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 export default function UnSplitText({ unSplitText }: { unSplitText: string }) {
+  const { t } = useTranslation()
   // Generate button view
   if (!unSplitText) {
     return (
@@ -13,11 +15,10 @@ export default function UnSplitText({ unSplitText }: { unSplitText: string }) {
                   <Text className="h-8 w-8 text-[#6EC075]" />
                 </div>
                 <h2 className="mb-2 text-2xl font-bold">
-                  No Unsplit Text Found
+                  {t("organization.inspection.noUnsplitTextTitle")}
                 </h2>
                 <p className="mb-6 text-gray-600">
-                  Tips: Please check if the note has been split then you can
-                  find unsplit text.
+                  {t("organization.inspection.noUnsplitTextTip")}
                 </p>
               </div>
             </div>
@@ -32,7 +33,9 @@ export default function UnSplitText({ unSplitText }: { unSplitText: string }) {
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <div className="border-b border-border p-6 md:p-8">
             <div className="flex flex-col items-center text-center">
-              <h2 className="mb-2 text-2xl font-bold">Unsplit Text</h2>
+              <h2 className="mb-2 text-2xl font-bold">
+                {t("organization.inspection.unsplitText")}
+              </h2>
               <p className="mb-6 text-justify text-gray-600">{unSplitText}</p>
             </div>
           </div>

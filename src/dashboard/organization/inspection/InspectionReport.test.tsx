@@ -75,7 +75,11 @@ describe("InspectionReport", () => {
 
     render(<InspectionReport />)
 
-    expect(screen.getByText("Loading report…")).toBeInTheDocument()
+    // i18n isn't initialized in the test environment, so t() echoes the raw
+    // key back (see RiskRegisterPage.test.tsx for the same convention).
+    expect(
+      screen.getByText("organization.inspection.loadingReport")
+    ).toBeInTheDocument()
   })
 
   it("renders the header with status, template name, site and stats", () => {
@@ -100,7 +104,7 @@ describe("InspectionReport", () => {
 
     render(<InspectionReport />)
 
-    expect(screen.getByText("Yes")).toBeInTheDocument()
+    expect(screen.getByText("organization.inspection.yes")).toBeInTheDocument()
     expect(screen.getByText("Checked twice")).toBeInTheDocument()
   })
 
@@ -124,7 +128,9 @@ describe("InspectionReport", () => {
 
     render(<InspectionReport />)
 
-    expect(screen.getAllByText("No answer provided").length).toBe(3)
+    expect(
+      screen.getAllByText("organization.inspection.noAnswerProvided").length
+    ).toBe(3)
     expect(screen.getByText("0/3")).toBeInTheDocument()
   })
 
@@ -177,7 +183,11 @@ describe("InspectionReport", () => {
       within(conditionCard).queryByText("Replace tag")
     ).not.toBeInTheDocument()
 
-    expect(screen.getByRole("heading", { name: "Actions" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", {
+        name: "organization.inspection.colActions",
+      })
+    ).toBeInTheDocument()
     // Count badge next to the "Actions" heading (separate element, not concatenated text)
     expect(
       screen.getByText("2", { selector: "span.bg-orange-100" })
@@ -219,7 +229,11 @@ describe("InspectionReport", () => {
     ).not.toBeInTheDocument()
     // Still shows up in the actions table, just not attached to any question card
     expect(screen.getByText("Orphan action")).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Actions" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", {
+        name: "organization.inspection.colActions",
+      })
+    ).toBeInTheDocument()
     expect(
       screen.getByText("1", { selector: "span.bg-orange-100" })
     ).toBeInTheDocument()
@@ -260,9 +274,16 @@ describe("InspectionReport", () => {
 
     render(<InspectionReport />)
 
-    expect(screen.getByRole("heading", { name: "Attachments" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", {
+        name: "organization.inspection.attachments",
+      })
+    ).toBeInTheDocument()
     const link = screen.getByRole("link", { name: "site-plan.pdf" })
-    expect(link).toHaveAttribute("href", "https://cdn.example.com/site-plan.pdf")
+    expect(link).toHaveAttribute(
+      "href",
+      "https://cdn.example.com/site-plan.pdf"
+    )
   })
 
   it("does not crash on an attachment URL with a malformed percent-escape", () => {
@@ -286,7 +307,9 @@ describe("InspectionReport", () => {
     render(<InspectionReport />)
 
     expect(
-      screen.queryByRole("heading", { name: "Attachments" })
+      screen.queryByRole("heading", {
+        name: "organization.inspection.attachments",
+      })
     ).not.toBeInTheDocument()
   })
 
@@ -301,7 +324,9 @@ describe("InspectionReport", () => {
 
     render(<InspectionReport />)
 
-    expect(screen.getByText("Unsplit Text")).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.inspection.unsplitText")
+    ).toBeInTheDocument()
     expect(
       screen.getByText("Raw inspection transcript here.")
     ).toBeInTheDocument()
@@ -338,13 +363,19 @@ describe("InspectionReport", () => {
     })
 
     render(<InspectionReport />)
-    expect(screen.queryByText("Media Preview")).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.inspection.mediaPreview")
+    ).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole("button", { name: /media-0/i }))
-    expect(screen.getByText("Media Preview")).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.inspection.mediaPreview")
+    ).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole("button", { name: "×" }))
-    expect(screen.queryByText("Media Preview")).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.inspection.mediaPreview")
+    ).not.toBeInTheDocument()
   })
 
   it("opens a media answer's full-size view without granting the new tab window.opener access (#110)", async () => {
@@ -358,7 +389,11 @@ describe("InspectionReport", () => {
               {
                 title: "General",
                 questions: [
-                  { id: "q-5", question: "Uploaded photo", answerType: "media" },
+                  {
+                    id: "q-5",
+                    question: "Uploaded photo",
+                    answerType: "media",
+                  },
                 ],
               },
             ],
@@ -377,7 +412,9 @@ describe("InspectionReport", () => {
 
     render(<InspectionReport />)
 
-    await userEvent.click(screen.getByText("View Full Size"))
+    await userEvent.click(
+      screen.getByText("organization.inspection.viewFullSize")
+    )
 
     expect(openSpy).toHaveBeenCalledWith(
       "https://cdn.example.com/uploaded-photo.jpg",

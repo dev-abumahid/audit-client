@@ -67,18 +67,28 @@ describe("UploadNotesModal", () => {
     renderModal()
 
     expect(
-      screen.getByRole("heading", { name: "Upload Notes" })
+      screen.getByRole("heading", {
+        name: "organization.inspection.uploadNotes",
+      })
     ).toBeInTheDocument()
-    expect(screen.getByText("Notes by Text")).toBeInTheDocument()
-    expect(screen.getByText("Extract note from file")).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.inspection.notesByText")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.inspection.extractNoteFromFile")
+    ).toBeInTheDocument()
   })
 
   it('reveals the text field after choosing "Notes by Text"', async () => {
     renderModal()
 
-    await userEvent.click(screen.getByText("Notes by Text"))
+    await userEvent.click(
+      screen.getByText("organization.inspection.notesByText")
+    )
 
-    expect(screen.getByLabelText("Write Detailed Note")).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.inspection.writeDetailedNote")
+    ).toBeInTheDocument()
   })
 
   it("submits raw text and calls uploadRawNote", async () => {
@@ -87,12 +97,18 @@ describe("UploadNotesModal", () => {
     })
 
     renderModal({ inspectionId: "insp-42" })
-    await userEvent.click(screen.getByText("Notes by Text"))
+    await userEvent.click(
+      screen.getByText("organization.inspection.notesByText")
+    )
     await userEvent.type(
-      screen.getByLabelText("Write Detailed Note"),
+      screen.getByLabelText("organization.inspection.writeDetailedNote"),
       "Fire extinguisher checked"
     )
-    await userEvent.click(screen.getByRole("button", { name: /upload notes/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNotes",
+      })
+    )
 
     await waitFor(() => expect(mockUploadRawNote).toHaveBeenCalled())
     expect(mockUploadRawNote.mock.calls[0][0]).toMatchObject({
@@ -104,7 +120,11 @@ describe("UploadNotesModal", () => {
   it("disables the upload button until a mode is chosen", () => {
     renderModal()
 
-    expect(screen.getByRole("button", { name: /upload notes/i })).toBeDisabled()
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNotes",
+      })
+    ).toBeDisabled()
   })
 
   it("shows the update form when a note already exists", () => {
@@ -116,11 +136,13 @@ describe("UploadNotesModal", () => {
     renderModal()
 
     expect(
-      screen.getByRole("heading", { name: "Update Note" })
+      screen.getByRole("heading", {
+        name: "organization.inspection.updateNote",
+      })
     ).toBeInTheDocument()
-    expect(screen.getByLabelText("Note Content")).toHaveValue(
-      "Existing note content"
-    )
+    expect(
+      screen.getByLabelText("organization.inspection.noteContent")
+    ).toHaveValue("Existing note content")
   })
 
   it("submits an update and calls updateNote with the edited text", async () => {
@@ -133,10 +155,14 @@ describe("UploadNotesModal", () => {
     })
 
     renderModal()
-    const textarea = screen.getByLabelText("Note Content")
+    const textarea = screen.getByLabelText(
+      "organization.inspection.noteContent"
+    )
     await userEvent.clear(textarea)
     await userEvent.type(textarea, "Updated text")
-    await userEvent.click(screen.getByRole("button", { name: /update note/i }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.updateNote" })
+    )
 
     await waitFor(() =>
       expect(mockUpdateNote).toHaveBeenCalledWith({
@@ -156,7 +182,9 @@ describe("UploadNotesModal", () => {
     })
 
     renderModal()
-    await userEvent.click(screen.getByRole("button", { name: /delete note/i }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.deleteNote" })
+    )
     // Radix scroll-locks the body (pointer-events: none) and marks background siblings
     // aria-hidden while its own dialog is open. The mocked DeleteAlertModal isn't wrapped in
     // its own portal, so userEvent's pointer-events/visibility checks reject a real click here —
@@ -174,12 +202,18 @@ describe("UploadNotesModal", () => {
     })
 
     renderModal()
-    await userEvent.click(screen.getByText("Notes by Text"))
+    await userEvent.click(
+      screen.getByText("organization.inspection.notesByText")
+    )
     await userEvent.type(
-      screen.getByLabelText("Write Detailed Note"),
+      screen.getByLabelText("organization.inspection.writeDetailedNote"),
       "Some note"
     )
-    await userEvent.click(screen.getByRole("button", { name: /upload notes/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNotes",
+      })
+    )
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Server unavailable")
@@ -194,12 +228,18 @@ describe("UploadNotesModal", () => {
     mockUpdateNote.mockReturnValue({ unwrap: () => Promise.reject({}) })
 
     renderModal()
-    const textarea = screen.getByLabelText("Note Content")
+    const textarea = screen.getByLabelText(
+      "organization.inspection.noteContent"
+    )
     await userEvent.type(textarea, "!")
-    await userEvent.click(screen.getByRole("button", { name: /update note/i }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.updateNote" })
+    )
 
     await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith("Failed to update note")
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.inspection.noteUpdateFailedToast"
+      )
     )
   })
 
@@ -211,13 +251,17 @@ describe("UploadNotesModal", () => {
     mockDeleteNote.mockReturnValue({ unwrap: () => Promise.reject({}) })
 
     renderModal()
-    await userEvent.click(screen.getByRole("button", { name: /delete note/i }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.deleteNote" })
+    )
     fireEvent.click(
       screen.getByRole("button", { name: /confirm delete/i, hidden: true })
     )
 
     await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith("Failed to delete note")
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.inspection.noteDeleteFailedToast"
+      )
     )
   })
 
@@ -231,7 +275,9 @@ describe("UploadNotesModal", () => {
     })
 
     renderModal({ inspectionId: "insp-77" })
-    await userEvent.click(screen.getByRole("button", { name: /split note/i }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.splitNote" })
+    )
 
     await waitFor(() =>
       expect(mockSplitInspectionNote).toHaveBeenCalledWith("insp-77")
@@ -249,7 +295,9 @@ describe("UploadNotesModal", () => {
     })
 
     renderModal({ inspectionId: "insp-77" })
-    await userEvent.click(screen.getByRole("button", { name: /split note/i }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.splitNote" })
+    )
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Note is too short to split")
@@ -257,10 +305,12 @@ describe("UploadNotesModal", () => {
     // Dialog should stay open (Update Note heading still present) and the
     // split button should be usable again, not stuck disabled/"Splitting..."
     expect(
-      screen.getByRole("heading", { name: "Update Note" })
+      screen.getByRole("heading", {
+        name: "organization.inspection.updateNote",
+      })
     ).toBeInTheDocument()
     expect(
-      screen.getByRole("button", { name: "Split Note" })
+      screen.getByRole("button", { name: "organization.inspection.splitNote" })
     ).not.toBeDisabled()
   })
 })
