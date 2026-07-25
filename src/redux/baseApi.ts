@@ -73,6 +73,7 @@ export const baseApi = createApi({
     "GOVERNANCE",
     "INTELLIGENCE_ITEM",
     "INTELLIGENCE_RUN",
+    "CORRELATION_MATRIX",
   ],
   endpoints: () => ({}),
 })

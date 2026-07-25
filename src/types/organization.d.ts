@@ -1,3 +1,5 @@
+import type { IAction } from "./finding"
+
 // Issue #97 — "Three Lines of Defense" governance classification. Verified
 // against the live aexa-server source (kri.validation.ts / risk.validation.ts
 // / action.validation.ts's LINE_OF_DEFENSE_ENUM). Risk and Kri always have a
@@ -69,6 +71,10 @@ export interface SiteSummary {
 export interface Risk {
   id: string
   org_account_id: string
+  // aexa-frontend#142: human-readable reference code (e.g. "CYB-001"),
+  // backfilled for every pre-existing row -- always present, never optional.
+  // See aexa-server prisma/schema/risk.prisma's Risk.ref comment.
+  ref: string
   name: string
   description: string
   category: string
@@ -133,15 +139,81 @@ export interface RiskApprovalState {
   approval: RiskApproval | null
 }
 
+export type RiskLinkType = "CAUSES" | "AMPLIFIES" | "CORRELATES"
+
+// Confirmed against the real merged aexa-server model (aexa-frontend#142,
+// prisma/schema/risk.prisma's RiskLink + risk_link.service.ts). The previous
+// shape here (organization_id/user_id/strength/created_at) never matched any
+// real endpoint -- RiskLink didn't exist server-side until this PR. Fixed
+// now that it's real: org_account_id (not organization_id), no user_id (no
+// per-user ownership on this model), no strength (Fullbloom's own RiskLink
+// doesn't carry one either), createdAt (camelCase, matching every other
+// Prisma model's timestamp field in this codebase).
 export interface RiskLink {
   id: string
-  organization_id: string
-  user_id: string
+  org_account_id: string
   source_ref: string
   target_ref: string
-  link_type: "CAUSES" | "AMPLIFIES" | "CORRELATES"
-  strength: number
-  created_at: string
+  link_type: RiskLinkType
+  createdAt: string
+}
+
+// GET /risk/correlation-matrix response shape (risk.correlation.service.ts's
+// get_correlation_matrix_data): everything the page needs in one call.
+export interface CorrelationMatrixData {
+  risks: Risk[]
+  riskLinks: RiskLink[]
+  actions: IAction[]
+}
+
+// POST /risk/root-cause-bucketing response shape, confirmed against
+// risk.correlation.service.ts's RootCauseRiskBucket/RootCauseFindingBucket/
+// RootCauseBucketingAiResponse interfaces exactly.
+export interface RootCauseGroupedAction {
+  description: string
+  normReference: string
+  owner: string
+  priority: "immediate" | "short_term" | "medium_term" | "long_term"
+  estimatedRiskReduction: number
+  estimatedCost: string
+  timeline: string
+}
+
+export interface RootCauseRiskBucket {
+  bucketName: string
+  rootCause: string
+  rootCauseCategory:
+    | "governance"
+    | "process"
+    | "technology"
+    | "people"
+    | "external"
+    | "compliance"
+  category: string
+  riskRefs: string[]
+  pageRankScore: number
+  aggregatedImpactMin: number
+  aggregatedImpactMax: number
+  groupedAction: RootCauseGroupedAction
+  dominoRisk: string | null
+}
+
+export interface RootCauseFindingBucket {
+  bucketName: string
+  rootCause: string
+  findingRefs: string[]
+  commonAction: {
+    description: string
+    normReference: string
+    owner: string
+    priority: string
+  }
+}
+
+export interface RootCauseBucketingResult {
+  methodology: string
+  riskBuckets: RootCauseRiskBucket[]
+  findingBuckets: RootCauseFindingBucket[]
 }
 
 // Confirmed against the real Kri Prisma model + kri.service.ts (issue

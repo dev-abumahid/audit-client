@@ -269,11 +269,14 @@ export default function RiskGraphPage() {
                     x2={ex}
                     y2={ey}
                     stroke={isCascade ? "hsl(0, 90%, 50%)" : color}
-                    strokeWidth={
-                      isCascade
-                        ? Number(link.strength) * 5
-                        : Number(link.strength) * 3
-                    }
+                    // The real RiskLink model (aexa-frontend#142) has no
+                    // strength/weight column -- Fullbloom's own RiskLink
+                    // doesn't carry one either. This edge weighting is
+                    // currently unreachable (links is always the empty
+                    // NO_RISK_LINKS array above), so a fixed width per
+                    // link_type is the correct stand-in rather than a
+                    // strength this model doesn't have.
+                    strokeWidth={isCascade ? 5 : 3}
                     strokeOpacity={isDimmed ? 0.08 : isCascade ? 0.8 : 0.35}
                     strokeLinecap="round"
                     markerEnd={isCascade ? "url(#arrowCascade)" : undefined}
@@ -515,9 +518,6 @@ export default function RiskGraphPage() {
                     }`}
                   >
                     {link.link_type}
-                  </span>
-                  <span className="font-mono text-muted-foreground">
-                    ×{Number(link.strength).toFixed(1)}
                   </span>
                 </div>
               ))}

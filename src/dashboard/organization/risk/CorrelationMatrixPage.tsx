@@ -1,7 +1,22 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SiteFilter from "@/components/dashboard/organization/SiteFilter"
-import type { Risk } from "@/types/organization"
+import { useMyOrgRole } from "@/hooks/useMyOrgRole"
+import {
+  useCreateRiskLinkMutation,
+  useDeleteRiskLinkMutation,
+  useGetCorrelationMatrixDataQuery,
+  useRunRootCauseBucketingMutation,
+} from "@/redux/apis/organization/riskLink.api"
+import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
+import type { IAction } from "@/types/finding"
+import type {
+  Risk,
+  RiskLink,
+  RiskLinkType,
+  RootCauseBucketingResult,
+  RootCauseFindingBucket,
+  RootCauseRiskBucket,
+} from "@/types/organization"
 import {
   ChevronDown,
   ChevronUp,
@@ -9,35 +24,22 @@ import {
   Layers,
   Loader2,
   MapPin,
-  Send,
+  Plus,
   Sparkles,
+  Trash2,
+  X,
 } from "lucide-react"
+import type { FormEvent } from "react"
 import { useCallback, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 
-// All user-facing chrome on this page routes through this namespace; the mock
-// fixtures below stay untranslated (seed data, not UI chrome).
+// All user-facing chrome on this page routes through this namespace.
 const NS = "organization.correlationMatrix"
 
 type MatrixSize = 3 | 4 | 5
 type ViewMode = "risks" | "findings" | "buckets" | "ai-buckets"
 type GroupMode = "none" | "category" | "rootcause"
-
-interface RiskLink {
-  id: string
-  source_ref: string
-  target_ref: string
-  link_type: string
-}
-
-interface AuditFinding {
-  id: string
-  ref: string
-  title: string
-  severity: string
-  cause?: string
-  recommendation?: string
-}
 
 interface RiskBucket {
   name: string
@@ -49,228 +51,29 @@ interface RiskBucket {
 
 interface FindingBucket {
   name: string
-  severity: string
-  findings: AuditFinding[]
+  priority: string
+  findings: IAction[]
   commonAction: string
 }
 
-// This page stays fixture-driven for now: the real correlation engine (a
-// risk-to-risk RiskLink backend model) is deliberately deferred — see #142,
-// whose core "should we build this" question stays open. What #142 does
-// resolve, and what this file now reflects, is the type-safety landmine: the
-// mock fixtures were built around a divergent LOCAL `Risk` type carrying a
-// human-readable `ref` field that the shared `Risk` in organization.d.ts
-// does not have (it keys risks by UUID `id`). The fixtures below now conform
-// to the shared `Risk` shape and correlate on `id`, so a future real-API
-// wiring pass doesn't inherit a `.ref`-vs-`.id` mismatch.
-const RISK_IDS = {
-  ransomware: "3f8b1c2a-9d4e-4f5a-8b1c-2a9d4e4f5a01",
-  supplyChain: "7a2e5d9c-1b3f-4c6d-8e0a-2b3f4c6d8e02",
-  gdpr: "b4d6f8a0-2c4e-4a6b-8d0f-2c4e4a6b8d03",
-  fx: "c5e7a9b1-3d5f-4b7c-9e1a-3d5f4b7c9e04",
-  siteAccident: "d6f8b0c2-4e6a-4c8d-0f2b-4e6a4c8d0f05",
-} as const
-
-// Full UUID `id`s overflow the compact ref labels, so show only the first
-// block for long ids while short ids (e.g. test fixtures) render in full; the
-// full id is always preserved in a title tooltip. Mirrors RiskGraphPage's
-// shortRef so both pages truncate ids identically.
-const REF_LABEL_MAX = 12
-const shortRef = (id: string) =>
-  id.length > REF_LABEL_MAX ? id.slice(0, 8) : id
-
-// Dummy Data
-const DUMMY_RISKS: Risk[] = [
-  {
-    id: RISK_IDS.ransomware,
-    org_account_id: "org-1",
-    name: "Cyberattaque ransomware",
-    description: "Risque de blocage des systèmes",
-    category: "cyber",
-    inherent_score: 22,
-    residual_score: 14,
-    pagerank_score: 88,
-    financial_impact_min: 500000,
-    financial_impact_max: 2500000,
-    probability: 0.75,
-    velocity: "fast",
-    trend: "up",
-    status: "open",
-    ai_generated: true,
-    is_edited: false,
-    site_id: "site1",
-    control_design_eff: 0,
-    control_operating_eff: 0,
-    createdAt: "2026-06-01T00:00:00.000Z",
-    updatedAt: "2026-06-01T00:00:00.000Z",
-    line_of_defense: "FIRST",
-  },
-  {
-    id: RISK_IDS.supplyChain,
-    org_account_id: "org-1",
-    name: "Rupture chaîne approvisionnement",
-    description: "Dépendance fournisseur unique",
-    category: "operational",
-    inherent_score: 19,
-    residual_score: 16,
-    pagerank_score: 75,
-    financial_impact_min: 400000,
-    financial_impact_max: 1800000,
-    probability: 0.85,
-    velocity: "medium",
-    trend: "up",
-    status: "open",
-    ai_generated: false,
-    is_edited: false,
-    site_id: "site2",
-    control_design_eff: 0,
-    control_operating_eff: 0,
-    createdAt: "2026-06-01T00:00:00.000Z",
-    updatedAt: "2026-06-01T00:00:00.000Z",
-    line_of_defense: "FIRST",
-  },
-  {
-    id: RISK_IDS.gdpr,
-    org_account_id: "org-1",
-    name: "Non-conformité RGPD",
-    description: "Manque de consentement données",
-    category: "compliance",
-    inherent_score: 16,
-    residual_score: 10,
-    pagerank_score: 62,
-    financial_impact_min: 200000,
-    financial_impact_max: 1200000,
-    probability: 0.45,
-    velocity: "slow",
-    trend: "stable",
-    status: "open",
-    ai_generated: false,
-    is_edited: false,
-    site_id: "site1",
-    control_design_eff: 0,
-    control_operating_eff: 0,
-    createdAt: "2026-06-01T00:00:00.000Z",
-    updatedAt: "2026-06-01T00:00:00.000Z",
-    line_of_defense: "FIRST",
-  },
-  {
-    id: RISK_IDS.fx,
-    org_account_id: "org-1",
-    name: "Fluctuation taux de change",
-    description: "Exposition devises émergentes",
-    category: "financial",
-    inherent_score: 13,
-    residual_score: 8,
-    pagerank_score: 58,
-    financial_impact_min: 100000,
-    financial_impact_max: 600000,
-    probability: 0.6,
-    velocity: "medium",
-    trend: "stable",
-    status: "open",
-    ai_generated: false,
-    is_edited: false,
-    site_id: "site3",
-    control_design_eff: 0,
-    control_operating_eff: 0,
-    createdAt: "2026-06-01T00:00:00.000Z",
-    updatedAt: "2026-06-01T00:00:00.000Z",
-    line_of_defense: "FIRST",
-  },
-  {
-    id: RISK_IDS.siteAccident,
-    org_account_id: "org-1",
-    name: "Accident grave site",
-    description: "Risque industriel majeur",
-    category: "operational",
-    inherent_score: 21,
-    residual_score: 18,
-    pagerank_score: 91,
-    financial_impact_min: 800000,
-    financial_impact_max: 3200000,
-    probability: 0.55,
-    velocity: "fast",
-    trend: "up",
-    status: "open",
-    ai_generated: false,
-    is_edited: false,
-    site_id: "site2",
-    control_design_eff: 0,
-    control_operating_eff: 0,
-    createdAt: "2026-06-01T00:00:00.000Z",
-    updatedAt: "2026-06-01T00:00:00.000Z",
-    line_of_defense: "FIRST",
-  },
-]
-
-const DUMMY_LINKS: RiskLink[] = [
-  {
-    id: "l1",
-    source_ref: RISK_IDS.supplyChain,
-    target_ref: RISK_IDS.ransomware,
-    link_type: "CAUSES",
-  },
-  {
-    id: "l2",
-    source_ref: RISK_IDS.gdpr,
-    target_ref: RISK_IDS.ransomware,
-    link_type: "AMPLIFIES",
-  },
-  {
-    id: "l3",
-    source_ref: RISK_IDS.fx,
-    target_ref: RISK_IDS.supplyChain,
-    link_type: "CAUSES",
-  },
-  {
-    id: "l4",
-    source_ref: RISK_IDS.siteAccident,
-    target_ref: RISK_IDS.supplyChain,
-    link_type: "CAUSES",
-  },
-]
-
-const DUMMY_FINDINGS: AuditFinding[] = [
-  {
-    id: "f1",
-    ref: "F-2025-01",
-    title: "Faible contrôle accès systèmes",
-    severity: "high",
-    cause: "Manque de MFA",
-    recommendation: "Implémenter authentification forte",
-  },
-  {
-    id: "f2",
-    ref: "F-2025-02",
-    title: "Données clients non chiffrées",
-    severity: "critical",
-    cause: "Stockage non sécurisé",
-    recommendation: "Chiffrer les données sensibles",
-  },
-  {
-    id: "f3",
-    ref: "F-2025-03",
-    title: "Fournisseur unique critique",
-    severity: "high",
-    cause: "Dépendance excessive",
-    recommendation: "Diversifier les fournisseurs",
-  },
-]
-
-const DUMMY_SITES = [
-  { id: "site1", name: "Siège Paris" },
-  { id: "site2", name: "Usine Lyon" },
-  { id: "site3", name: "Bureau Marseille" },
-]
+// Same convention as RiskApprovalControls.tsx / RiskRegisterPage.tsx /
+// IntelligencePage.tsx for reading a message out of an RTK Query rejected
+// mutation error.
+const errorMessage = (err: unknown, fallback: string): string =>
+  (err as { data?: { message?: string } })?.data?.message || fallback
 
 // Category display labels resolve to i18n keys at render time; colors stay
-// literal (design tokens, not user-facing text).
-const RISK_CATEGORIES = {
+// literal (design tokens, not user-facing text). Categories outside this map
+// (this org's real risk categories can be much broader, see riskConfig.ts)
+// fall back to the raw category string, same as before.
+const RISK_CATEGORIES: Record<string, { labelKey: string; color: string }> = {
   cyber: { labelKey: "catCyber", color: "#ef4444" },
   operational: { labelKey: "catOperational", color: "#f59e0b" },
   compliance: { labelKey: "catCompliance", color: "#8b5cf6" },
   financial: { labelKey: "catFinancial", color: "#10b981" },
 }
+
+const LINK_TYPES: RiskLinkType[] = ["CAUSES", "AMPLIFIES", "CORRELATES"]
 
 // Axis tick labels differ per matrix size and are count-specific phrasings, so
 // each distinct label maps to its own i18n key (resolved with t() at render).
@@ -329,10 +132,39 @@ function mapToAxis(value: number, size: MatrixSize): number {
 
 export default function CorrelationMatrixPage() {
   const { t } = useTranslation()
-  const [risks] = useState(DUMMY_RISKS)
-  const [links] = useState(DUMMY_LINKS)
-  const [findings] = useState(DUMMY_FINDINGS)
-  const [sites] = useState(DUMMY_SITES)
+  const role = useMyOrgRole()
+  const canManageLinks = role === "ADMIN" || role === "LEAD_AUDITOR"
+
+  const {
+    data: matrixResponse,
+    isLoading: isMatrixLoading,
+    isFetching: isMatrixFetching,
+  } = useGetCorrelationMatrixDataQuery()
+  const risks = useMemo(
+    () => matrixResponse?.data.risks ?? [],
+    [matrixResponse]
+  )
+  const links = useMemo(
+    () => matrixResponse?.data.riskLinks ?? [],
+    [matrixResponse]
+  )
+  const findings = useMemo(
+    () => matrixResponse?.data.actions ?? [],
+    [matrixResponse]
+  )
+
+  const { data: sitesResponse } = useGetAllSitesQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+  })
+  const sites = useMemo(() => sitesResponse?.data ?? [], [sitesResponse])
+
+  const [createRiskLink, { isLoading: isCreatingLink }] =
+    useCreateRiskLinkMutation()
+  const [deleteRiskLink] = useDeleteRiskLinkMutation()
+  const [runRootCauseBucketing, { isLoading: isAILoading }] =
+    useRunRootCauseBucketingMutation()
 
   const [siteFilter, setSiteFilter] = useState<string | null>(null)
   const [selectedCell, setSelectedCell] = useState<{
@@ -343,9 +175,14 @@ export default function CorrelationMatrixPage() {
   const [groupMode, setGroupMode] = useState<GroupMode>("none")
   const [matrixSize, setMatrixSize] = useState<MatrixSize>(5)
   const [expandedBucket, setExpandedBucket] = useState<string | null>(null)
-  const [aiBuckets, setAIBuckets] = useState<any[]>([])
-  const [isAILoading, setIsAILoading] = useState(false)
-  const [sendingBucket, setSendingBucket] = useState<string | null>(null)
+  const [aiResult, setAiResult] = useState<RootCauseBucketingResult | null>(
+    null
+  )
+
+  const [showLinkForm, setShowLinkForm] = useState(false)
+  const [sourceRef, setSourceRef] = useState("")
+  const [targetRef, setTargetRef] = useState("")
+  const [linkType, setLinkType] = useState<RiskLinkType>("CAUSES")
 
   const filteredRisks = useMemo(() => {
     if (!siteFilter) return risks
@@ -353,7 +190,7 @@ export default function CorrelationMatrixPage() {
   }, [risks, siteFilter])
 
   const filteredRefs = useMemo(
-    () => new Set(filteredRisks.map((r) => r.id)),
+    () => new Set(filteredRisks.map((r) => r.ref)),
     [filteredRisks]
   )
 
@@ -366,12 +203,12 @@ export default function CorrelationMatrixPage() {
       { rootCauses: number; consequences: number }
     > = {}
     for (const risk of filteredRisks) {
-      metrics[risk.id] = {
+      metrics[risk.ref] = {
         rootCauses: causalLinks.filter(
-          (l) => l.target_ref === risk.id && filteredRefs.has(l.source_ref)
+          (l) => l.target_ref === risk.ref && filteredRefs.has(l.source_ref)
         ).length,
         consequences: causalLinks.filter(
-          (l) => l.source_ref === risk.id && filteredRefs.has(l.target_ref)
+          (l) => l.source_ref === risk.ref && filteredRefs.has(l.target_ref)
         ).length,
       }
     }
@@ -381,7 +218,7 @@ export default function CorrelationMatrixPage() {
   const riskGrid = useMemo(() => {
     const grid: Record<string, Risk[]> = {}
     for (const risk of filteredRisks) {
-      const m = riskMetrics[risk.id]
+      const m = riskMetrics[risk.ref]
       if (!m) continue
       const row = mapToAxis(m.rootCauses, matrixSize)
       const col = mapToAxis(m.consequences, matrixSize)
@@ -406,7 +243,7 @@ export default function CorrelationMatrixPage() {
       .filter(([, rs]) => rs.length >= 2)
       .map(([key, rs]) => {
         const [category, site] = key.split("::")
-        const cat = RISK_CATEGORIES[category as keyof typeof RISK_CATEGORIES]
+        const cat = RISK_CATEGORIES[category]
         const categoryLabel = cat ? t(`${NS}.${cat.labelKey}`) : category
         return {
           name: `${categoryLabel} — ${site}`,
@@ -431,23 +268,20 @@ export default function CorrelationMatrixPage() {
   }, [filteredRisks, sites, t])
 
   const findingBuckets = useMemo<FindingBucket[]>(() => {
-    const bucketMap: Record<string, AuditFinding[]> = {}
+    const bucketMap: Record<string, IAction[]> = {}
     for (const f of findings) {
-      const key = `${f.severity}::${f.cause || "general"}`
+      const key = f.priority
       if (!bucketMap[key]) bucketMap[key] = []
       bucketMap[key].push(f)
     }
     return Object.entries(bucketMap)
       .filter(([, fs]) => fs.length >= 2)
-      .map(([key, fs]) => {
-        const [severity] = key.split("::")
-        return {
-          name: `${severity.charAt(0).toUpperCase() + severity.slice(1)} — ${fs[0]?.cause || t(`${NS}.generalFallback`)}`,
-          severity,
-          findings: fs,
-          commonAction: fs[0]?.recommendation || t(`${NS}.actionToDefine`),
-        }
-      })
+      .map(([priority, fs]) => ({
+        name: t(`${NS}.findingPriorityBucketName`, { priority }),
+        priority,
+        findings: fs,
+        commonAction: fs[0]?.actionDisc || t(`${NS}.actionToDefine`),
+      }))
       .sort((a, b) => b.findings.length - a.findings.length)
   }, [findings, t])
 
@@ -474,44 +308,77 @@ export default function CorrelationMatrixPage() {
     setExpandedBucket((prev) => (prev === name ? null : name))
   }, [])
 
-  const runAIBucketing = () => {
-    setIsAILoading(true)
-    setTimeout(() => {
-      const dummyAIBuckets = [
-        {
-          bucketName: "Dépendance Fournisseurs Critiques",
-          rootCause: "Manque de diversification des fournisseurs stratégiques",
-          riskRefs: [RISK_IDS.supplyChain, RISK_IDS.siteAccident],
-          sitesAffected: ["Usine Lyon"],
-          aggregatedImpactMax: 5000000,
-          groupedAction: {
-            description:
-              "Identifier et qualifier au moins deux fournisseurs alternatifs",
-            normReference: "ISO 28000",
-            owner: "Supply Chain Manager",
-            estimatedRiskReduction: 45,
-          },
-          dominoRisk: "Risque de propagation cyber via fournisseurs",
-        },
-      ]
-      setAIBuckets(dummyAIBuckets)
-      setViewMode("ai-buckets")
-      setIsAILoading(false)
-    }, 1500)
+  const runAIBucketing = async () => {
+    try {
+      const res = await runRootCauseBucketing().unwrap()
+      if (res.success) {
+        setAiResult(res.data)
+        setViewMode("ai-buckets")
+      } else {
+        toast.error(res.message || t(`${NS}.aiBucketingFailed`))
+      }
+    } catch (err) {
+      toast.error(errorMessage(err, t(`${NS}.aiBucketingFailed`)))
+    }
   }
 
-  const handleSendBucketToFindings = (bucket: any) => {
-    setSendingBucket(bucket.bucketName)
-    setTimeout(() => {
-      alert(t(`${NS}.findingCreatedAlert`, { bucket: bucket.bucketName }))
-      setSendingBucket(null)
-    }, 800)
+  const resetLinkForm = () => {
+    setShowLinkForm(false)
+    setSourceRef("")
+    setTargetRef("")
+    setLinkType("CAUSES")
+  }
+
+  const handleCreateLink = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!sourceRef || !targetRef) return
+    if (sourceRef === targetRef) {
+      toast.error(t(`${NS}.linkSelfRejected`))
+      return
+    }
+    try {
+      const res = await createRiskLink({
+        source_ref: sourceRef,
+        target_ref: targetRef,
+        link_type: linkType,
+      }).unwrap()
+      if (res.success) {
+        toast.success(t(`${NS}.linkCreatedToast`))
+        resetLinkForm()
+      } else {
+        toast.error(res.message || t(`${NS}.linkCreateFailed`))
+      }
+    } catch (err) {
+      toast.error(errorMessage(err, t(`${NS}.linkCreateFailed`)))
+    }
+  }
+
+  const handleDeleteLink = async (link: RiskLink) => {
+    try {
+      const res = await deleteRiskLink(link.id).unwrap()
+      if (res.success) {
+        toast.success(t(`${NS}.linkDeletedToast`))
+      } else {
+        toast.error(res.message || t(`${NS}.linkDeleteFailed`))
+      }
+    } catch (err) {
+      toast.error(errorMessage(err, t(`${NS}.linkDeleteFailed`)))
+    }
   }
 
   const axisRaw = AXIS_LABELS_MAP[matrixSize]
   const axisLabels = {
     rootCause: axisRaw.rootCause.map((k) => t(`${NS}.${k}`)),
     consequence: axisRaw.consequence.map((k) => t(`${NS}.${k}`)),
+  }
+
+  if (isMatrixLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 p-12 text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <p>{t(`${NS}.loadingMatrix`)}</p>
+      </div>
+    )
   }
 
   return (
@@ -523,6 +390,9 @@ export default function CorrelationMatrixPage() {
             <h1 className="text-2xl font-bold tracking-tight">
               {t(`${NS}.title`)}
             </h1>
+            {isMatrixFetching && (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            )}
           </div>
           <p className="text-sm text-muted-foreground">{t(`${NS}.subtitle`)}</p>
         </div>
@@ -685,6 +555,149 @@ export default function CorrelationMatrixPage() {
               </div>
             </div>
           </div>
+
+          {/* Risk Links (create/delete) */}
+          <div className="mt-6 border-t border-border pt-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                {t(`${NS}.existingLinksHeading`, { count: links.length })}
+              </h3>
+              {canManageLinks && !showLinkForm && (
+                <button
+                  onClick={() => setShowLinkForm(true)}
+                  className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {t(`${NS}.addLink`)}
+                </button>
+              )}
+            </div>
+
+            {canManageLinks && showLinkForm && (
+              <form
+                onSubmit={handleCreateLink}
+                className="mb-4 space-y-2 rounded-lg border border-border bg-background p-3"
+              >
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <select
+                    aria-label={t(`${NS}.linkFormSourceLabel`)}
+                    value={sourceRef}
+                    onChange={(e) => {
+                      const next = e.target.value
+                      setSourceRef(next)
+                      // The target <select> filters out whatever is
+                      // currently selected as source -- if the user changes
+                      // source to what target already held, clear target
+                      // rather than leaving it pointed at a now-removed
+                      // <option>.
+                      if (next === targetRef) setTargetRef("")
+                    }}
+                    required
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  >
+                    <option value="">
+                      {t(`${NS}.linkFormSourcePlaceholder`)}
+                    </option>
+                    {risks.map((r) => (
+                      <option key={r.id} value={r.ref}>
+                        {r.ref} — {r.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    aria-label={t(`${NS}.linkFormTargetLabel`)}
+                    value={targetRef}
+                    onChange={(e) => setTargetRef(e.target.value)}
+                    required
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  >
+                    <option value="">
+                      {t(`${NS}.linkFormTargetPlaceholder`)}
+                    </option>
+                    {risks
+                      .filter((r) => r.ref !== sourceRef)
+                      .map((r) => (
+                        <option key={r.id} value={r.ref}>
+                          {r.ref} — {r.name}
+                        </option>
+                      ))}
+                  </select>
+
+                  <select
+                    aria-label={t(`${NS}.linkFormTypeLabel`)}
+                    value={linkType}
+                    onChange={(e) =>
+                      setLinkType(e.target.value as RiskLinkType)
+                    }
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  >
+                    {LINK_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {t(`${NS}.linkType${type.charAt(0)}${type.slice(1).toLowerCase()}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={resetLinkForm}
+                    className="flex items-center gap-1 rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
+                  >
+                    <X className="h-3 w-3" />
+                    {t(`${NS}.linkFormCancel`)}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreatingLink}
+                    className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {isCreatingLink && (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    )}
+                    {t(`${NS}.linkFormSubmit`)}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {links.length === 0 ? (
+              <p className="py-4 text-center text-xs text-muted-foreground">
+                {t(`${NS}.noLinksYet`)}
+              </p>
+            ) : (
+              <div className="max-h-48 space-y-1.5 overflow-y-auto">
+                {links.map((link) => (
+                  <div
+                    key={link.id}
+                    className="flex items-center justify-between rounded-md border border-border bg-background px-2.5 py-1.5 text-xs"
+                  >
+                    <span className="font-mono">
+                      {link.source_ref}
+                      <span className="mx-1.5 text-muted-foreground">
+                        {link.link_type}
+                      </span>
+                      {link.target_ref}
+                    </span>
+                    {canManageLinks && (
+                      <button
+                        onClick={() => handleDeleteLink(link)}
+                        aria-label={t(`${NS}.deleteLinkLabel`, {
+                          source: link.source_ref,
+                          target: link.target_ref,
+                        })}
+                        className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Detail Panel */}
@@ -717,7 +730,6 @@ export default function CorrelationMatrixPage() {
                               risk={risk}
                               sites={sites}
                               riskMetrics={riskMetrics}
-                              links={links}
                             />
                           ))}
                         </div>
@@ -728,7 +740,6 @@ export default function CorrelationMatrixPage() {
                           risk={risk}
                           sites={sites}
                           riskMetrics={riskMetrics}
-                          links={links}
                         />
                       ))}
                 </div>
@@ -794,11 +805,11 @@ export default function CorrelationMatrixPage() {
                           </div>
                           {bucket.findings.map((f) => (
                             <div key={f.id} className="flex justify-between">
-                              <span>{f.title}</span>
+                              <span>{f.actionTitle}</span>
                               <span
-                                className={`rounded px-2 py-0.5 text-[10px] ${f.severity === "critical" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}
+                                className={`rounded px-2 py-0.5 text-[10px] ${f.priority === "High" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}
                               >
-                                {f.severity}
+                                {f.priority}
                               </span>
                             </div>
                           ))}
@@ -840,58 +851,45 @@ export default function CorrelationMatrixPage() {
                 </button>
               </div>
 
-              {aiBuckets.length > 0 ? (
-                <div className="space-y-3">
-                  {aiBuckets.map((bucket, idx) => (
-                    <div key={idx} className="rounded-lg border bg-background">
-                      <button
-                        onClick={() => toggleBucket(bucket.bucketName)}
-                        className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
-                      >
-                        <div>
-                          <p className="font-medium">{bucket.bucketName}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {t(`${NS}.aiBucketMeta`, {
-                              risks: bucket.riskRefs.length,
-                              sites: bucket.sitesAffected.length,
-                            })}
-                          </p>
-                        </div>
-                        {expandedBucket === bucket.bucketName ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </button>
+              {aiResult ? (
+                <div className="space-y-4">
+                  <p className="rounded bg-muted/50 p-2 text-[11px] text-muted-foreground italic">
+                    {t(`${NS}.aiMethodologyLabel`, {
+                      methodology: aiResult.methodology,
+                    })}
+                  </p>
 
-                      {expandedBucket === bucket.bucketName && (
-                        <div className="space-y-3 border-t p-3 text-xs">
-                          <div className="rounded bg-amber-500/10 p-2 text-amber-700">
-                            {t(`${NS}.aiRootCauseLabel`, {
-                              cause: bucket.rootCause,
-                            })}
-                          </div>
-                          <div className="rounded bg-blue-500/10 p-2 text-blue-700">
-                            {t(`${NS}.aiActionLabel`, {
-                              action: bucket.groupedAction.description,
-                            })}
-                          </div>
-                          <button
-                            onClick={() => handleSendBucketToFindings(bucket)}
-                            disabled={sendingBucket === bucket.bucketName}
-                            className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/5 py-2 text-primary hover:bg-primary/10 disabled:opacity-50"
-                          >
-                            {sendingBucket === bucket.bucketName ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Send className="h-3 w-3" />
-                            )}
-                            {t(`${NS}.sendToFinding`)}
-                          </button>
-                        </div>
-                      )}
+                  <div>
+                    <h4 className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                      {t(`${NS}.aiRiskBucketsHeading`)}
+                    </h4>
+                    <div className="space-y-2">
+                      {aiResult.riskBuckets.map((bucket) => (
+                        <AIRiskBucketCard
+                          key={bucket.bucketName}
+                          bucket={bucket}
+                          expanded={expandedBucket === bucket.bucketName}
+                          onToggle={() => toggleBucket(bucket.bucketName)}
+                        />
+                      ))}
                     </div>
-                  ))}
+                  </div>
+
+                  <div>
+                    <h4 className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                      {t(`${NS}.aiFindingBucketsHeading`)}
+                    </h4>
+                    <div className="space-y-2">
+                      {aiResult.findingBuckets.map((bucket) => (
+                        <AIFindingBucketCard
+                          key={bucket.bucketName}
+                          bucket={bucket}
+                          expanded={expandedBucket === bucket.bucketName}
+                          onToggle={() => toggleBucket(bucket.bucketName)}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
@@ -916,19 +914,16 @@ function RiskDetailCard({
   risk: Risk
   sites: { id: string; name: string }[]
   riskMetrics: Record<string, { rootCauses: number; consequences: number }>
-  links: RiskLink[]
 }) {
   const { t } = useTranslation()
   const siteName = sites.find((s) => s.id === risk.site_id)?.name
-  const m = riskMetrics[risk.id] || { rootCauses: 0, consequences: 0 }
+  const m = riskMetrics[risk.ref] || { rootCauses: 0, consequences: 0 }
 
   return (
     <div className="space-y-2 rounded-lg border bg-background p-3">
       <div className="flex justify-between">
         <div>
-          <p className="font-mono text-xs text-primary" title={risk.id}>
-            {shortRef(risk.id)}
-          </p>
+          <p className="font-mono text-xs text-primary">{risk.ref}</p>
           <p className="text-sm font-medium">{risk.name}</p>
         </div>
         <RiskBadge
@@ -1019,9 +1014,7 @@ function BucketList({
                     className="flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-mono" title={risk.id}>
-                        {shortRef(risk.id)}
-                      </span>
+                      <span className="font-mono">{risk.ref}</span>
                       <span className="truncate">{risk.name}</span>
                     </div>
                     {siteName && (
@@ -1036,6 +1029,125 @@ function BucketList({
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+// AI risk-bucket card (real POST /risk/root-cause-bucketing shape).
+function AIRiskBucketCard({
+  bucket,
+  expanded,
+  onToggle,
+}: {
+  bucket: RootCauseRiskBucket
+  expanded: boolean
+  onToggle: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="rounded-lg border bg-background">
+      <button
+        onClick={onToggle}
+        className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
+      >
+        <div>
+          <p className="font-medium">{bucket.bucketName}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {t(`${NS}.aiBucketMeta`, {
+              risks: bucket.riskRefs.length,
+              score: bucket.pageRankScore,
+            })}
+          </p>
+        </div>
+        {expanded ? (
+          <ChevronUp className="h-4 w-4" />
+        ) : (
+          <ChevronDown className="h-4 w-4" />
+        )}
+      </button>
+
+      {expanded && (
+        <div className="space-y-2 border-t p-3 text-xs">
+          <div className="rounded bg-amber-500/10 p-2 text-amber-700">
+            {t(`${NS}.aiRootCauseLabel`, { cause: bucket.rootCause })}
+          </div>
+          <div className="rounded bg-blue-500/10 p-2 text-blue-700">
+            {t(`${NS}.aiActionLabel`, {
+              action: bucket.groupedAction.description,
+            })}
+          </div>
+          <div className="text-muted-foreground">
+            {t(`${NS}.aiImpactRangeLabel`, {
+              min: bucket.aggregatedImpactMin,
+              max: bucket.aggregatedImpactMax,
+            })}
+          </div>
+          <div className="text-muted-foreground">
+            {t(`${NS}.aiOwnerLabel`, { owner: bucket.groupedAction.owner })}
+          </div>
+          <div className="text-muted-foreground">
+            {t(`${NS}.aiEstRiskReductionLabel`, {
+              value: bucket.groupedAction.estimatedRiskReduction,
+            })}
+          </div>
+          {bucket.dominoRisk && (
+            <div className="rounded bg-red-500/10 p-2 text-red-700">
+              {t(`${NS}.aiDominoRiskLabel`, { risk: bucket.dominoRisk })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// AI finding-bucket card (real POST /risk/root-cause-bucketing shape).
+function AIFindingBucketCard({
+  bucket,
+  expanded,
+  onToggle,
+}: {
+  bucket: RootCauseFindingBucket
+  expanded: boolean
+  onToggle: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="rounded-lg border bg-background">
+      <button
+        onClick={onToggle}
+        className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
+      >
+        <div>
+          <p className="font-medium">{bucket.bucketName}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {t(`${NS}.aiFindingRefsLabel`, {
+              count: bucket.findingRefs.length,
+            })}
+          </p>
+        </div>
+        {expanded ? (
+          <ChevronUp className="h-4 w-4" />
+        ) : (
+          <ChevronDown className="h-4 w-4" />
+        )}
+      </button>
+
+      {expanded && (
+        <div className="space-y-2 border-t p-3 text-xs">
+          <div className="rounded bg-amber-500/10 p-2 text-amber-700">
+            {t(`${NS}.aiRootCauseLabel`, { cause: bucket.rootCause })}
+          </div>
+          <div className="rounded bg-blue-500/10 p-2 text-blue-700">
+            {t(`${NS}.aiActionLabel`, {
+              action: bucket.commonAction.description,
+            })}
+          </div>
+          <div className="text-muted-foreground">
+            {t(`${NS}.aiOwnerLabel`, { owner: bucket.commonAction.owner })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
