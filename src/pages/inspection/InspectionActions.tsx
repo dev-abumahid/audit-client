@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react"
 import { useId, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Link, useParams, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
@@ -40,13 +41,6 @@ const PRIORITY_CLASSES: Record<ActionPriority, string> = {
   Low: "bg-slate-100 text-slate-600",
   Medium: "bg-amber-100 text-amber-700",
   High: "bg-red-100 text-red-600",
-}
-
-const STATUS_LABELS: Record<ActionStatus, string> = {
-  TO_DO: "To do",
-  IN_PROGRESS: "In progress",
-  COMPLETE: "Complete",
-  CANT_DO: "Can't do",
 }
 
 const STATUS_CLASSES: Record<ActionStatus, string> = {
@@ -93,6 +87,7 @@ function ActionForm({
   attachUploading: boolean
   isEdit?: boolean
 }) {
+  const { t } = useTranslation()
   const dueDateId = useId()
   return (
     <form
@@ -112,7 +107,7 @@ function ActionForm({
 
       <div className="flex flex-col gap-1">
         <label className="text-xs font-medium text-muted-foreground">
-          Title *
+          {t("pages.inspection.actions.form.titleLabel")}
         </label>
         <input
           required
@@ -120,14 +115,14 @@ function ActionForm({
           onChange={(e) =>
             setForm((f) => ({ ...f, actionTitle: e.target.value }))
           }
-          placeholder="e.g. Replace faulty extinguisher in Zone B"
+          placeholder={t("pages.inspection.actions.form.titlePlaceholder")}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
         />
       </div>
 
       <div className="flex flex-col gap-1">
         <label className="text-xs font-medium text-muted-foreground">
-          Description *
+          {t("pages.inspection.actions.form.descriptionLabel")}
         </label>
         <textarea
           required
@@ -136,14 +131,16 @@ function ActionForm({
           onChange={(e) =>
             setForm((f) => ({ ...f, actionDisc: e.target.value }))
           }
-          placeholder="Describe what needs to be done…"
+          placeholder={t(
+            "pages.inspection.actions.form.descriptionPlaceholder"
+          )}
           className="resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
         />
       </div>
 
       <div className="flex flex-col gap-1">
         <label className="text-xs font-medium text-muted-foreground">
-          Attachments
+          {t("pages.inspection.actions.form.attachmentsLabel")}
         </label>
         <div className="flex flex-wrap gap-2">
           {attachments.map((url, i) => {
@@ -153,7 +150,9 @@ function ActionForm({
               <img
                 key={i}
                 src={fullUrl}
-                alt={`Attachment ${i + 1}`}
+                alt={t("pages.inspection.actions.attachment", {
+                  index: i + 1,
+                })}
                 className="h-16 w-16 rounded-md border border-border object-cover"
               />
             ) : (
@@ -164,7 +163,8 @@ function ActionForm({
                 rel="noreferrer"
                 className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
               >
-                <FileText className="h-3.5 w-3.5" /> File {i + 1}
+                <FileText className="h-3.5 w-3.5" />{" "}
+                {t("pages.inspection.actions.file", { index: i + 1 })}
               </a>
             )
           })}
@@ -176,7 +176,7 @@ function ActionForm({
             ) : (
               <Paperclip className="h-3.5 w-3.5" />
             )}
-            Attach file
+            {t("pages.inspection.actions.form.attachFile")}
             <input
               type="file"
               className="hidden"
@@ -193,7 +193,7 @@ function ActionForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground">
-            Priority *
+            {t("pages.inspection.actions.form.priorityLabel")}
           </label>
           <select
             value={form.priority}
@@ -205,9 +205,15 @@ function ActionForm({
             }
             className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
           >
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
+            <option value="Low">
+              {t("pages.inspection.actions.priorityLow")}
+            </option>
+            <option value="Medium">
+              {t("pages.inspection.actions.priorityMedium")}
+            </option>
+            <option value="High">
+              {t("pages.inspection.actions.priorityHigh")}
+            </option>
           </select>
         </div>
 
@@ -216,7 +222,7 @@ function ActionForm({
             htmlFor={dueDateId}
             className="text-xs font-medium text-muted-foreground"
           >
-            Due date *
+            {t("pages.inspection.actions.form.dueDateLabel")}
           </label>
           <input
             id={dueDateId}
@@ -240,7 +246,7 @@ function ActionForm({
           onClick={onCancel}
           className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
         >
-          Cancel
+          {t("pages.inspection.actions.form.cancel")}
         </button>
         <button
           type="submit"
@@ -256,7 +262,21 @@ function ActionForm({
 }
 
 export default function InspectionActions() {
+  const { t } = useTranslation()
   const { id: inspectionId } = useParams<{ id: string }>()
+
+  const STATUS_LABELS: Record<ActionStatus, string> = {
+    TO_DO: t("pages.inspection.actions.statusToDo"),
+    IN_PROGRESS: t("pages.inspection.actions.statusInProgress"),
+    COMPLETE: t("pages.inspection.actions.statusComplete"),
+    CANT_DO: t("pages.inspection.actions.statusCantDo"),
+  }
+
+  const PRIORITY_LABELS: Record<ActionPriority, string> = {
+    Low: t("pages.inspection.actions.priorityLow"),
+    Medium: t("pages.inspection.actions.priorityMedium"),
+    High: t("pages.inspection.actions.priorityHigh"),
+  }
 
   const {
     findings: actions,
@@ -264,7 +284,7 @@ export default function InspectionActions() {
     isFetching: findingsFetching,
     isError: hasLoadError,
   } = useFindingsForInspection<Action>(inspectionId)
-  const error = hasLoadError ? "Failed to load actions" : null
+  const error = hasLoadError ? t("pages.inspection.actions.loadFailed") : null
   // True only while a background refetch (e.g. after create/update/delete
   // invalidates the FINDINGS tag) is in flight — `loading` only covers the
   // very first fetch, so without this the list can go silent for a moment
@@ -344,7 +364,7 @@ export default function InspectionActions() {
     } catch (err) {
       setCreateError(
         (err as { data?: { message?: string } })?.data?.message ??
-          "Failed to create action"
+          t("pages.inspection.actions.createFailed")
       )
     } finally {
       setCreating(false)
@@ -385,7 +405,7 @@ export default function InspectionActions() {
     } catch (err) {
       setEditError(
         (err as { data?: { message?: string } })?.data?.message ??
-          "Failed to update action"
+          t("pages.inspection.actions.updateFailed")
       )
     } finally {
       setUpdating(false)
@@ -411,7 +431,7 @@ export default function InspectionActions() {
     } catch (err) {
       toast.error(
         (err as { data?: { message?: string } })?.data?.message ??
-          "Failed to update status"
+          t("pages.inspection.actions.statusUpdateFailed")
       )
     } finally {
       setUpdatingStatusId(null)
@@ -426,33 +446,41 @@ export default function InspectionActions() {
           to="/organization/audit/inspections"
           className="hover:text-foreground"
         >
-          Inspections
+          {t("pages.inspection.actions.breadcrumbInspections")}
         </Link>
         <span>/</span>
         <Link
           to={`/organization/audit/inspections/${inspectionId}`}
           className="hover:text-foreground"
         >
-          Inspection
+          {t("pages.inspection.actions.breadcrumbInspection")}
         </Link>
         <span>/</span>
-        <span className="text-foreground">Actions</span>
+        <span className="text-foreground">
+          {t("pages.inspection.actions.breadcrumbActions")}
+        </span>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
-            Corrective actions
+            {t("pages.inspection.actions.title")}
             {isBackgroundRefreshing && (
               <Loader2
                 className="h-3.5 w-3.5 animate-spin text-muted-foreground"
-                aria-label="Refreshing"
+                aria-label={t("pages.inspection.actions.refreshing")}
               />
             )}
           </h1>
           {!loading && (
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {actions.length} action{actions.length !== 1 ? "s" : ""}
+              {actions.length !== 1
+                ? t("pages.inspection.actions.countPlural", {
+                    count: actions.length,
+                  })
+                : t("pages.inspection.actions.countSingular", {
+                    count: actions.length,
+                  })}
             </p>
           )}
         </div>
@@ -463,14 +491,14 @@ export default function InspectionActions() {
           }}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
-          <Plus className="h-4 w-4" /> New action
+          <Plus className="h-4 w-4" /> {t("pages.inspection.actions.newAction")}
         </button>
       </div>
 
       {/* Create form */}
       {showCreate && (
         <ActionForm
-          title="New corrective action"
+          title={t("pages.inspection.actions.newActionFormTitle")}
           form={createForm}
           setForm={setCreateForm}
           onSubmit={handleCreate}
@@ -480,7 +508,7 @@ export default function InspectionActions() {
           }}
           submitting={creating}
           formError={createError}
-          submitLabel="Create action"
+          submitLabel={t("pages.inspection.actions.createAction")}
           attachments={createAttachments}
           onAttach={(file) =>
             uploadAttachment(
@@ -496,7 +524,7 @@ export default function InspectionActions() {
       {/* Edit form */}
       {editingAction && (
         <ActionForm
-          title="Edit action"
+          title={t("pages.inspection.actions.editActionFormTitle")}
           isEdit
           form={editForm}
           setForm={setEditForm}
@@ -507,7 +535,7 @@ export default function InspectionActions() {
           }}
           submitting={updating}
           formError={editError}
-          submitLabel="Save changes"
+          submitLabel={t("pages.inspection.actions.saveChanges")}
           attachments={editAttachments}
           onAttach={(file) =>
             uploadAttachment(
@@ -533,13 +561,13 @@ export default function InspectionActions() {
       ) : actions.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
           <p className="text-sm text-muted-foreground">
-            No corrective actions yet.
+            {t("pages.inspection.actions.empty")}
           </p>
           <button
             onClick={() => setShowCreate(true)}
             className="text-sm font-medium text-primary hover:underline"
           >
-            Add the first action
+            {t("pages.inspection.actions.addFirst")}
           </button>
         </div>
       ) : (
@@ -562,19 +590,19 @@ export default function InspectionActions() {
                   <span
                     className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_CLASSES[action.priority]}`}
                   >
-                    {action.priority}
+                    {PRIORITY_LABELS[action.priority]}
                   </span>
                   <button
                     onClick={() => openEdit(action)}
                     className="ml-1 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    aria-label="Edit action"
+                    aria-label={t("pages.inspection.actions.editAction")}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => setDeletingId(action.id)}
                     className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    aria-label="Delete action"
+                    aria-label={t("pages.inspection.actions.deleteAction")}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -592,7 +620,9 @@ export default function InspectionActions() {
                       <img
                         key={i}
                         src={fullUrl}
-                        alt={`Attachment ${i + 1}`}
+                        alt={t("pages.inspection.actions.attachment", {
+                          index: i + 1,
+                        })}
                         className="h-14 w-14 rounded-md border border-border object-cover"
                       />
                     ) : (
@@ -603,7 +633,8 @@ export default function InspectionActions() {
                         rel="noreferrer"
                         className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
                       >
-                        <FileText className="h-3 w-3" /> File {i + 1}
+                        <FileText className="h-3 w-3" />{" "}
+                        {t("pages.inspection.actions.file", { index: i + 1 })}
                       </a>
                     )
                   })}
@@ -614,14 +645,14 @@ export default function InspectionActions() {
               {deletingId === action.id && (
                 <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2">
                   <p className="text-xs text-destructive">
-                    Delete this action?
+                    {t("pages.inspection.actions.deleteConfirm")}
                   </p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setDeletingId(null)}
                       className="text-xs text-muted-foreground hover:text-foreground"
                     >
-                      Cancel
+                      {t("pages.inspection.actions.form.cancel")}
                     </button>
                     <button
                       onClick={() => handleDelete(action.id)}
@@ -631,7 +662,7 @@ export default function InspectionActions() {
                       {deleteInFlight && (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       )}
-                      Delete
+                      {t("pages.inspection.actions.delete")}
                     </button>
                   </div>
                 </div>
@@ -653,7 +684,9 @@ export default function InspectionActions() {
                   ))}
                 </select>
                 <p className="text-xs text-muted-foreground">
-                  Due {new Date(action.dueDate).toLocaleDateString()}
+                  {t("pages.inspection.actions.due", {
+                    date: new Date(action.dueDate).toLocaleDateString(),
+                  })}
                 </p>
               </div>
             </div>

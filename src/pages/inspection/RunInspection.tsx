@@ -19,6 +19,7 @@ import {
   ListChecks,
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Link, useNavigate, useParams } from "react-router"
 import { QuestionInput } from "./QuestionInput"
 
@@ -27,6 +28,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ""
 type SaveState = "idle" | "saving" | "saved" | "error"
 
 export default function RunInspection() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
@@ -58,7 +60,7 @@ export default function RunInspection() {
     isError: hasLoadError,
   } = useGetSingleInspectionQuery(id!, { skip: !id })
   const inspection: InspectionDetail | null = inspectionResponse?.data ?? null
-  const error = hasLoadError ? "Failed to load inspection" : null
+  const error = hasLoadError ? t("pages.inspection.run.loadError") : null
 
   const [updateInspectionQuestionAnswer] =
     useUpdateInspectionQuestionAnswerMutation()
@@ -151,7 +153,7 @@ export default function RunInspection() {
     return (
       <div className="p-6">
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          {error ?? "Inspection not found"}
+          {error ?? t("pages.inspection.run.notFound")}
         </div>
       </div>
     )
@@ -166,47 +168,51 @@ export default function RunInspection() {
             to="/organization/audit/inspections"
             className="text-sm text-muted-foreground hover:text-foreground"
           >
-            ← Inspections
+            ← {t("pages.inspection.run.breadcrumb")}
           </Link>
           <span className="text-muted-foreground">/</span>
           <span className="text-sm font-medium text-foreground">
-            {inspection.template?.templateName ?? "Inspection"}
+            {inspection.template?.templateName ?? t("pages.inspection.run.defaultTitle")}
           </span>
         </div>
         <div className="flex items-center gap-3">
           {saveState === "saving" && (
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+              <Loader2 className="h-3 w-3 animate-spin" /> {t("pages.inspection.run.saving")}
             </span>
           )}
           {saveState === "saved" && (
             <span className="flex items-center gap-1.5 text-xs text-green-600">
-              <CheckCircle2 className="h-3 w-3" /> Saved
+              <CheckCircle2 className="h-3 w-3" /> {t("pages.inspection.run.saved")}
             </span>
           )}
           {saveState === "error" && (
-            <span className="text-xs text-destructive">Save failed</span>
+            <span className="text-xs text-destructive">
+              {t("pages.inspection.run.saveFailed")}
+            </span>
           )}
           <Link
             to={`/organization/audit/inspections/${id}/note`}
             className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <FileText className="h-4 w-4" />
-            {inspection.note ? "View notes" : "Upload notes"}
+            {inspection.note
+              ? t("pages.inspection.run.viewNotes")
+              : t("pages.inspection.run.uploadNotes")}
           </Link>
           <Link
             to={`/organization/audit/inspections/${id}/recommendations`}
             className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <Sparkles className="h-4 w-4" />
-            Recommendations
+            {t("pages.inspection.run.recommendations")}
           </Link>
           <Link
             to={`/organization/audit/inspections/${id}/actions`}
             className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <ListChecks className="h-4 w-4" />
-            Findings
+            {t("pages.inspection.run.findings")}
             {actionCount !== null && actionCount > 0 && (
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground">
                 {actionCount}
@@ -225,7 +231,7 @@ export default function RunInspection() {
               ) : (
                 <CheckCircle2 className="h-4 w-4" />
               )}
-              Mark complete
+              {t("pages.inspection.run.markComplete")}
             </button>
           )}
         </div>
@@ -236,7 +242,7 @@ export default function RunInspection() {
         {/* Sidebar */}
         <aside className="hidden w-56 shrink-0 overflow-y-auto border-r border-border bg-card p-4 lg:block">
           <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-            Pages
+            {t("pages.inspection.run.pagesLabel")}
           </p>
           <nav className="flex flex-col gap-1">
             {pages.map((page, idx) => {
@@ -283,7 +289,9 @@ export default function RunInspection() {
 
           {inspection.site && (
             <div className="mt-6 border-t border-border pt-4">
-              <p className="text-xs text-muted-foreground">Site</p>
+              <p className="text-xs text-muted-foreground">
+                {t("pages.inspection.run.siteLabel")}
+              </p>
               <p className="text-sm font-medium text-foreground">
                 {inspection.site.name}
               </p>
@@ -296,7 +304,7 @@ export default function RunInspection() {
           {!currentPage ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <p className="text-sm text-muted-foreground">
-                No pages in this template.
+                {t("pages.inspection.run.noPages")}
               </p>
             </div>
           ) : (
@@ -308,7 +316,10 @@ export default function RunInspection() {
                     {currentPage.title}
                   </h2>
                   <span className="text-xs text-muted-foreground">
-                    Page {currentPageIdx + 1} of {pages.length}
+                    {t("pages.inspection.run.pageOf", {
+                      current: currentPageIdx + 1,
+                      total: pages.length,
+                    })}
                   </span>
                 </div>
                 <div className="h-1 overflow-hidden rounded-full bg-muted">
@@ -350,7 +361,7 @@ export default function RunInspection() {
                           {question.isRequired && (
                             <span
                               className="ml-1 text-destructive"
-                              aria-label="required"
+                              aria-label={t("pages.inspection.run.required")}
                             >
                               *
                             </span>
@@ -374,7 +385,9 @@ export default function RunInspection() {
                                 <img
                                   key={i}
                                   src={fullUrl}
-                                  alt={`Attachment ${i + 1}`}
+                                  alt={t("pages.inspection.run.attachment", {
+                                    index: i + 1,
+                                  })}
                                   className="h-20 w-20 rounded-md border border-border object-cover"
                                 />
                               ) : (
@@ -386,7 +399,9 @@ export default function RunInspection() {
                                   className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                                 >
                                   <FileText className="h-3.5 w-3.5" />
-                                  Attachment {i + 1}
+                                  {t("pages.inspection.run.attachment", {
+                                    index: i + 1,
+                                  })}
                                 </a>
                               )
                             })}
@@ -398,14 +413,16 @@ export default function RunInspection() {
                               to={`/organization/audit/inspections/${id}/actions?new=1`}
                               className="text-xs font-medium text-primary hover:underline"
                             >
-                              + Add finding
+                              + {t("pages.inspection.run.addFinding")}
                             </Link>
                             {actionCount !== null && actionCount > 0 && (
                               <Link
                                 to={`/organization/audit/inspections/${id}/actions`}
                                 className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                               >
-                                {actionCount} entered
+                                {t("pages.inspection.run.entered", {
+                                  count: actionCount,
+                                })}
                               </Link>
                             )}
                           </div>
@@ -422,7 +439,8 @@ export default function RunInspection() {
                   onClick={() => setCurrentPageIdx((p) => p - 1)}
                   className="flex items-center gap-1.5 rounded-md border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted disabled:opacity-40"
                 >
-                  <ChevronLeft className="h-4 w-4" /> Previous
+                  <ChevronLeft className="h-4 w-4" />{" "}
+                  {t("pages.inspection.run.previous")}
                 </button>
 
                 {isLastPage ? (
@@ -437,11 +455,12 @@ export default function RunInspection() {
                       ) : (
                         <CheckCircle2 className="h-4 w-4" />
                       )}
-                      Complete inspection
+                      {t("pages.inspection.run.completeInspection")}
                     </button>
                   ) : (
                     <span className="flex items-center gap-1.5 text-sm font-medium text-green-600">
-                      <CheckCircle2 className="h-4 w-4" /> Completed
+                      <CheckCircle2 className="h-4 w-4" />{" "}
+                      {t("pages.inspection.run.completed")}
                     </span>
                   )
                 ) : (
@@ -449,7 +468,8 @@ export default function RunInspection() {
                     onClick={() => setCurrentPageIdx((p) => p + 1)}
                     className="flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                   >
-                    Next <ChevronRight className="h-4 w-4" />
+                    {t("pages.inspection.run.next")}{" "}
+                    <ChevronRight className="h-4 w-4" />
                   </button>
                 )}
               </div>

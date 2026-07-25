@@ -171,7 +171,7 @@ describe("RunInspection", () => {
     })
     renderPage()
     await waitFor(() =>
-      expect(screen.getByText("Failed to load inspection")).toBeInTheDocument()
+      expect(screen.getByText("pages.inspection.run.loadError")).toBeInTheDocument()
     )
   })
 
@@ -223,8 +223,8 @@ describe("RunInspection", () => {
       isError: false,
     })
     renderPage()
-    await waitFor(() => screen.getByText("Next"))
-    await userEvent.click(screen.getByText("Next"))
+    await waitFor(() => screen.getByText("pages.inspection.run.next"))
+    await userEvent.click(screen.getByText("pages.inspection.run.next"))
     await waitFor(() =>
       expect(screen.getByText("Extinguisher ok?")).toBeInTheDocument()
     )
@@ -238,8 +238,8 @@ describe("RunInspection", () => {
       isError: false,
     })
     renderPage()
-    await waitFor(() => screen.getByText("Previous"))
-    expect(screen.getByText("Previous").closest("button")).toBeDisabled()
+    await waitFor(() => screen.getByText("pages.inspection.run.previous"))
+    expect(screen.getByText("pages.inspection.run.previous").closest("button")).toBeDisabled()
   })
 
   it("marks inspection complete and navigates to list", async () => {
@@ -249,8 +249,8 @@ describe("RunInspection", () => {
       isError: false,
     })
     renderPage()
-    await waitFor(() => screen.getByText("Mark complete"))
-    await userEvent.click(screen.getByText("Mark complete"))
+    await waitFor(() => screen.getByText("pages.inspection.run.markComplete"))
+    await userEvent.click(screen.getByText("pages.inspection.run.markComplete"))
     await waitFor(() =>
       expect(mockUpdateInspection).toHaveBeenCalledWith({
         id: "insp-1",
@@ -268,7 +268,7 @@ describe("RunInspection", () => {
     })
     renderPage()
     await waitFor(() =>
-      expect(screen.getByText("Upload notes")).toBeInTheDocument()
+      expect(screen.getByText("pages.inspection.run.uploadNotes")).toBeInTheDocument()
     )
   })
 
@@ -280,7 +280,7 @@ describe("RunInspection", () => {
     })
     renderPage()
     await waitFor(() =>
-      expect(screen.getByText("View notes")).toBeInTheDocument()
+      expect(screen.getByText("pages.inspection.run.viewNotes")).toBeInTheDocument()
     )
   })
 
@@ -373,7 +373,7 @@ describe("RunInspection", () => {
     renderPage()
     await waitFor(() => screen.getByText("Location?"))
     const img = document.querySelector(
-      'img[alt="Attachment 1"]'
+      'img[alt="pages.inspection.run.attachment"]'
     ) as HTMLImageElement
     expect(img).toBeInTheDocument()
     // VITE_API_BASE_URL is not set in the test environment so it falls back to ''
@@ -510,7 +510,7 @@ describe("RunInspection", () => {
     renderPage()
     await waitFor(() => screen.getByText("Location?"))
     const img = document.querySelector(
-      'img[alt="Attachment 1"]'
+      'img[alt="pages.inspection.run.attachment"]'
     ) as HTMLImageElement
     expect(img).toBeInTheDocument()
     expect(img.src).toBe("https://cdn.example.com/photo.png")

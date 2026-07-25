@@ -4,12 +4,14 @@ import SignInModal from "@/pages/auth/SignInModal"
 import { useAppSelector } from "@/redux/hooks"
 import { Menu, X } from "lucide-react"
 import React, { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 import SignUpModal from "../../pages/auth/SignUpModal"
 import { ModeToggle } from "../mode-toggle"
 import LanguageSwitcher from "./LanguageSwitcher"
 
 const NavBar: React.FC = () => {
+  const { t } = useTranslation()
   const user = useAppSelector((state) => state.user)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false)
@@ -59,7 +61,7 @@ const NavBar: React.FC = () => {
                   to={`/${user?.role.toLocaleLowerCase()}`}
                   className="rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
                 >
-                  Dashboard
+                  {t("home.navbar.dashboard")}
                 </Link>
               ) : (
                 <>
@@ -67,14 +69,14 @@ const NavBar: React.FC = () => {
                     onClick={() => setIsSignInModalOpen(true)}
                     className="rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
                   >
-                    Login
+                    {t("home.navbar.login")}
                   </button>
 
                   <button
                     onClick={() => setIsSignUpModalOpen(true)}
                     className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                   >
-                    Sign Up
+                    {t("home.navbar.signUp")}
                   </button>
                 </>
               )}
@@ -84,7 +86,7 @@ const NavBar: React.FC = () => {
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="p-2 text-foreground lg:hidden"
-              aria-label="Toggle menu"
+              aria-label={t("home.navbar.toggleMenu")}
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -104,7 +106,7 @@ const NavBar: React.FC = () => {
                     }}
                     className="w-full rounded-md border border-primary px-4 py-3 text-left text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
                   >
-                    Dashboard
+                    {t("home.navbar.dashboard")}
                   </Link>
                 ) : (
                   <>
@@ -115,7 +117,7 @@ const NavBar: React.FC = () => {
                       }}
                       className="w-full rounded-md border border-primary px-4 py-3 text-left text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
                     >
-                      Login
+                      {t("home.navbar.login")}
                     </button>
 
                     <button
@@ -125,7 +127,7 @@ const NavBar: React.FC = () => {
                       }}
                       className="w-full rounded-md bg-primary px-4 py-3 text-left text-primary-foreground transition-colors hover:bg-primary/90"
                     >
-                      Sign Up
+                      {t("home.navbar.signUp")}
                     </button>
                   </>
                 )}

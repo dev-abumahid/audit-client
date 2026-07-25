@@ -2,21 +2,8 @@ import { ApiError, api } from "@/lib/api"
 import type { InspectionStatus, InspectionSummary } from "@/types/inspection"
 import { ClipboardCheck, Plus, Search } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Link, useNavigate, useSearchParams } from "react-router"
-
-const STATUS_LABELS: Record<InspectionStatus, string> = {
-  DRAFT: "Draft",
-  IN_PROGRESS: "In Progress",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-}
-
-const STATUS_CLASSES: Record<InspectionStatus, string> = {
-  DRAFT: "bg-slate-100 text-slate-600",
-  IN_PROGRESS: "bg-blue-100 text-blue-700",
-  COMPLETED: "bg-green-100 text-green-700",
-  CANCELLED: "bg-red-100 text-red-600",
-}
 
 interface Site {
   id: string
@@ -27,13 +14,28 @@ interface Template {
   templateName: string
 }
 
+const STATUS_CLASSES: Record<InspectionStatus, string> = {
+  DRAFT: "bg-slate-100 text-slate-600",
+  IN_PROGRESS: "bg-blue-100 text-blue-700",
+  COMPLETED: "bg-green-100 text-green-700",
+  CANCELLED: "bg-red-100 text-red-600",
+}
+
 export default function InspectionsList() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [inspections, setInspections] = useState<InspectionSummary[]>([])
   const [meta, setMeta] = useState({ page: 1, totalPage: 1, total: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const STATUS_LABELS: Record<InspectionStatus, string> = {
+    DRAFT: t("pages.inspection.list.statusDraft"),
+    IN_PROGRESS: t("pages.inspection.list.statusInProgress"),
+    COMPLETED: t("pages.inspection.list.statusCompleted"),
+    CANCELLED: t("pages.inspection.list.statusCancelled"),
+  }
 
   const searchRef = useRef<HTMLInputElement>(null)
   const status = searchParams.get("status") ?? ""
@@ -67,7 +69,9 @@ export default function InspectionsList() {
         setMeta(json.meta ?? { page: 1, totalPage: 1, total: 0 })
       } catch (err) {
         setError(
-          err instanceof ApiError ? err.message : "Failed to load inspections"
+          err instanceof ApiError
+            ? err.message
+            : t("pages.inspection.list.loadFailed")
         )
       } finally {
         setLoading(false)
@@ -75,7 +79,7 @@ export default function InspectionsList() {
     }
 
     load()
-  }, [status, page, searchTerm])
+  }, [status, page, searchTerm, t])
 
   function setParam(key: string, value: string) {
     setSearchParams((prev) => {
@@ -106,7 +110,7 @@ export default function InspectionsList() {
       setModalSites(sitesRes.data ?? [])
       setModalTemplates(templatesRes.data ?? [])
     } catch {
-      setStartError("Failed to load sites or templates")
+      setStartError(t("pages.inspection.list.loadSitesTemplatesFailed"))
     } finally {
       setModalLoading(false)
     }
@@ -134,7 +138,9 @@ export default function InspectionsList() {
       closeModal()
     } catch (err) {
       setStartError(
-        err instanceof ApiError ? err.message : "Failed to start inspection"
+        err instanceof ApiError
+          ? err.message
+          : t("pages.inspection.list.startFailed")
       )
       setStarting(false)
     }
@@ -145,11 +151,17 @@ export default function InspectionsList() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Inspections</h1>
+          <h1 className="text-xl font-semibold text-foreground">
+            {t("pages.inspection.list.title")}
+          </h1>
           <p className="text-sm text-muted-foreground">
             {loading
               ? "…"
-              : `${meta.total} inspection${meta.total !== 1 ? "s" : ""}`}
+              : meta.total !== 1
+                ? t("pages.inspection.list.countPlural", { count: meta.total })
+                : t("pages.inspection.list.countSingular", {
+                    count: meta.total,
+                  })}
           </p>
         </div>
         <button
@@ -157,7 +169,7 @@ export default function InspectionsList() {
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />
-          New inspection
+          {t("pages.inspection.list.newInspection")}
         </button>
       </div>
 
@@ -169,7 +181,7 @@ export default function InspectionsList() {
             ref={searchRef}
             defaultValue={searchTerm}
             type="text"
-            placeholder="Search by template…"
+            placeholder={t("pages.inspection.list.searchPlaceholder")}
             className="h-9 rounded-md border border-input bg-background pr-3 pl-9 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
           />
         </form>
@@ -179,7 +191,7 @@ export default function InspectionsList() {
           onChange={(e) => setParam("status", e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
         >
-          <option value="">All statuses</option>
+          <option value="">{t("pages.inspection.list.allStatuses")}</option>
           {(Object.keys(STATUS_LABELS) as InspectionStatus[]).map((s) => (
             <option key={s} value={s}>
               {STATUS_LABELS[s]}
@@ -200,12 +212,14 @@ export default function InspectionsList() {
       ) : inspections.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
           <ClipboardCheck className="h-10 w-10 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">No inspections found</p>
+          <p className="text-sm text-muted-foreground">
+            {t("pages.inspection.list.empty")}
+          </p>
           <button
             onClick={openModal}
             className="text-sm font-medium text-primary hover:underline"
           >
-            Create your first inspection
+            {t("pages.inspection.list.createFirst")}
           </button>
         </div>
       ) : (
@@ -214,19 +228,19 @@ export default function InspectionsList() {
             <thead className="bg-muted/50">
               <tr className="border-b border-border text-left">
                 <th className="px-4 py-3 font-medium text-muted-foreground">
-                  Template
+                  {t("pages.inspection.list.colTemplate")}
                 </th>
                 <th className="px-4 py-3 font-medium text-muted-foreground">
-                  Site
+                  {t("pages.inspection.list.colSite")}
                 </th>
                 <th className="px-4 py-3 font-medium text-muted-foreground">
-                  Inspector
+                  {t("pages.inspection.list.colInspector")}
                 </th>
                 <th className="px-4 py-3 font-medium text-muted-foreground">
-                  Status
+                  {t("pages.inspection.list.colStatus")}
                 </th>
                 <th className="px-4 py-3 font-medium text-muted-foreground">
-                  Created
+                  {t("pages.inspection.list.colCreated")}
                 </th>
                 <th className="px-4 py-3" />
               </tr>
@@ -261,7 +275,9 @@ export default function InspectionsList() {
                       to={`/organization/audit/inspections/${inspection.id}`}
                       className="text-xs font-medium text-primary hover:underline"
                     >
-                      {inspection.status === "COMPLETED" ? "View" : "Continue"}
+                      {inspection.status === "COMPLETED"
+                        ? t("pages.inspection.list.view")
+                        : t("pages.inspection.list.continue")}
                     </Link>
                   </td>
                 </tr>
@@ -275,7 +291,10 @@ export default function InspectionsList() {
       {meta.totalPage > 1 && (
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
-            Page {meta.page} of {meta.totalPage}
+            {t("pages.inspection.list.pageOf", {
+              current: meta.page,
+              total: meta.totalPage,
+            })}
           </span>
           <div className="flex gap-2">
             <button
@@ -283,14 +302,14 @@ export default function InspectionsList() {
               onClick={() => setParam("page", String(page - 1))}
               className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted disabled:opacity-40"
             >
-              Previous
+              {t("pages.inspection.list.previous")}
             </button>
             <button
               disabled={page >= meta.totalPage}
               onClick={() => setParam("page", String(page + 1))}
               className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted disabled:opacity-40"
             >
-              Next
+              {t("pages.inspection.list.next")}
             </button>
           </div>
         </div>
@@ -307,10 +326,10 @@ export default function InspectionsList() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="mb-1 text-sm font-medium text-foreground">
-              Start New Inspection
+              {t("pages.inspection.list.modalTitle")}
             </h2>
             <p className="mb-6 text-xs text-muted-foreground">
-              Select a site and template to begin.
+              {t("pages.inspection.list.modalSubtitle")}
             </p>
 
             {modalLoading ? (
@@ -324,7 +343,7 @@ export default function InspectionsList() {
                     htmlFor="modal-site"
                     className="text-sm font-medium text-foreground"
                   >
-                    Site
+                    {t("pages.inspection.list.siteLabel")}
                   </label>
                   <select
                     id="modal-site"
@@ -332,7 +351,9 @@ export default function InspectionsList() {
                     onChange={(e) => setSelectedSiteId(e.target.value)}
                     className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                   >
-                    <option value="">Choose a site…</option>
+                    <option value="">
+                      {t("pages.inspection.list.chooseSite")}
+                    </option>
                     {modalSites.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name}
@@ -346,7 +367,7 @@ export default function InspectionsList() {
                     htmlFor="modal-template"
                     className="text-sm font-medium text-foreground"
                   >
-                    Template
+                    {t("pages.inspection.list.templateLabel")}
                   </label>
                   <select
                     id="modal-template"
@@ -354,10 +375,12 @@ export default function InspectionsList() {
                     onChange={(e) => setSelectedTemplateId(e.target.value)}
                     className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                   >
-                    <option value="">Choose a template…</option>
-                    {modalTemplates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.templateName}
+                    <option value="">
+                      {t("pages.inspection.list.chooseTemplate")}
+                    </option>
+                    {modalTemplates.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.templateName}
                       </option>
                     ))}
                   </select>
@@ -373,7 +396,7 @@ export default function InspectionsList() {
                     onClick={closeModal}
                     className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
                   >
-                    Cancel
+                    {t("pages.inspection.list.cancel")}
                   </button>
                   <button
                     type="submit"
@@ -382,7 +405,9 @@ export default function InspectionsList() {
                     }
                     className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {starting ? "Starting…" : "Start Inspection"}
+                    {starting
+                      ? t("pages.inspection.list.starting")
+                      : t("pages.inspection.list.startInspection")}
                   </button>
                 </div>
               </form>

@@ -75,7 +75,7 @@ describe("InspectionNote", () => {
     })
     renderPage()
     await waitFor(() =>
-      expect(screen.getByText(/Drop a file here/i)).toBeInTheDocument()
+      expect(screen.getByText(/pages\.inspection\.note\.dropFilePrefix/)).toBeInTheDocument()
     )
   })
 
@@ -89,7 +89,7 @@ describe("InspectionNote", () => {
     await waitFor(() =>
       expect(screen.getByText("Note service unavailable")).toBeInTheDocument()
     )
-    expect(screen.queryByText(/Drop a file here/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/pages\.inspection\.note\.dropFilePrefix/)).not.toBeInTheDocument()
   })
 
   it("falls back to a generic message for a non-404 error with no server message", async () => {
@@ -100,7 +100,7 @@ describe("InspectionNote", () => {
     })
     renderPage()
     await waitFor(() =>
-      expect(screen.getByText("Failed to load note")).toBeInTheDocument()
+      expect(screen.getByText("pages.inspection.note.loadFailed")).toBeInTheDocument()
     )
   })
 
@@ -152,7 +152,7 @@ describe("InspectionNote", () => {
     )
     // Navigation/back links are still present; only attachment links are absent
     expect(
-      screen.queryByRole("link", { name: /back to inspection/i })
+      screen.queryByRole("link", { name: "pages.inspection.note.backToInspection" })
     ).toBeInTheDocument()
     expect(document.querySelector('a[target="_blank"]')).not.toBeInTheDocument()
   })
@@ -165,7 +165,7 @@ describe("InspectionNote", () => {
     })
     renderPage()
     await waitFor(() =>
-      expect(screen.getByText("Back to inspection")).toBeInTheDocument()
+      expect(screen.getByText("pages.inspection.note.backToInspection")).toBeInTheDocument()
     )
   })
 
@@ -176,7 +176,7 @@ describe("InspectionNote", () => {
       error: { status: 404 },
     })
     renderPage()
-    await waitFor(() => screen.getByText(/Drop a file here/i))
+    await waitFor(() => screen.getByText(/pages\.inspection\.note\.dropFilePrefix/))
 
     // userEvent.upload skips display:none inputs — use fireEvent directly
     const file = new File(["content"], "notes.txt", { type: "text/plain" })
@@ -187,7 +187,7 @@ describe("InspectionNote", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText(/Only PDF, JPG, PNG, or WEBP/i)
+        screen.getByText(/pages\.inspection\.note\.fileTypeError/)
       ).toBeInTheDocument()
     )
   })
@@ -199,7 +199,7 @@ describe("InspectionNote", () => {
       error: { status: 404 },
     })
     renderPage()
-    await waitFor(() => screen.getByText(/Drop a file here/i))
+    await waitFor(() => screen.getByText(/pages\.inspection\.note\.dropFilePrefix/))
 
     const file = new File(["%PDF"], "report.pdf", { type: "application/pdf" })
     const input = document.querySelector(
@@ -233,7 +233,7 @@ describe("InspectionNote", () => {
     })
 
     renderPage()
-    await waitFor(() => screen.getByText(/Drop a file here/i))
+    await waitFor(() => screen.getByText(/pages\.inspection\.note\.dropFilePrefix/))
 
     const file = new File(["%PDF"], "notes.pdf", { type: "application/pdf" })
     const input = document.querySelector(
@@ -241,13 +241,13 @@ describe("InspectionNote", () => {
     ) as HTMLInputElement
     await userEvent.upload(input, file)
 
-    await userEvent.click(screen.getByText(/Upload & extract/i))
+    await userEvent.click(screen.getByText("pages.inspection.note.uploadExtract"))
 
     await waitFor(() =>
-      expect(screen.getByText(/Notes uploaded/i)).toBeInTheDocument()
+      expect(screen.getByText(/pages\.inspection\.note\.doneTitle/)).toBeInTheDocument()
     )
     expect(screen.getByText("Zone B extinguisher expired.")).toBeInTheDocument()
-    expect(screen.getByText("Review answers →")).toBeInTheDocument()
+    expect(screen.getByText(/pages\.inspection\.note\.reviewAnswers/)).toBeInTheDocument()
   })
 
   it("shows a download link for the source file right after upload + extraction", async () => {
@@ -274,14 +274,14 @@ describe("InspectionNote", () => {
     })
 
     renderPage()
-    await waitFor(() => screen.getByText(/Drop a file here/i))
+    await waitFor(() => screen.getByText(/pages\.inspection\.note\.dropFilePrefix/))
 
     const file = new File(["%PDF"], "notes.pdf", { type: "application/pdf" })
     const input = document.querySelector(
       'input[type="file"]'
     ) as HTMLInputElement
     await userEvent.upload(input, file)
-    await userEvent.click(screen.getByText(/Upload & extract/i))
+    await userEvent.click(screen.getByText("pages.inspection.note.uploadExtract"))
 
     const link = await screen.findByRole("link", { name: /notes\.pdf/i })
     expect(link).toHaveAttribute("href", "https://cdn.example.com/notes.pdf")
@@ -299,14 +299,14 @@ describe("InspectionNote", () => {
     })
 
     renderPage()
-    await waitFor(() => screen.getByText(/Drop a file here/i))
+    await waitFor(() => screen.getByText(/pages\.inspection\.note\.dropFilePrefix/))
 
     const file = new File(["%PDF"], "notes.pdf", { type: "application/pdf" })
     const input = document.querySelector(
       'input[type="file"]'
     ) as HTMLInputElement
     await userEvent.upload(input, file)
-    await userEvent.click(screen.getByText(/Upload & extract/i))
+    await userEvent.click(screen.getByText("pages.inspection.note.uploadExtract"))
 
     await waitFor(() =>
       expect(screen.getByText("Upload failed (500)")).toBeInTheDocument()
@@ -324,17 +324,17 @@ describe("InspectionNote", () => {
     })
 
     renderPage()
-    await waitFor(() => screen.getByText(/Drop a file here/i))
+    await waitFor(() => screen.getByText(/pages\.inspection\.note\.dropFilePrefix/))
 
     const file = new File(["%PDF"], "notes.pdf", { type: "application/pdf" })
     const input = document.querySelector(
       'input[type="file"]'
     ) as HTMLInputElement
     await userEvent.upload(input, file)
-    await userEvent.click(screen.getByText(/Upload & extract/i))
+    await userEvent.click(screen.getByText("pages.inspection.note.uploadExtract"))
 
     await waitFor(() =>
-      expect(screen.getByText("Something went wrong")).toBeInTheDocument()
+      expect(screen.getByText("pages.inspection.note.genericError")).toBeInTheDocument()
     )
   })
 })

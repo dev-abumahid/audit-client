@@ -91,9 +91,9 @@ describe("InspectionRecommendations", () => {
     })
     renderPage()
     await waitFor(() =>
-      expect(screen.getByText("No recommendations yet")).toBeInTheDocument()
+      expect(screen.getByText("pages.inspection.recommendations.emptyTitle")).toBeInTheDocument()
     )
-    expect(screen.getByText(/Complete the inspection/i)).toBeInTheDocument()
+    expect(screen.getByText(/pages\.inspection\.recommendations\.emptyBody/)).toBeInTheDocument()
   })
 
   it("shows a generic error message on a non-404 error", async () => {
@@ -105,7 +105,7 @@ describe("InspectionRecommendations", () => {
     renderPage()
     await waitFor(() =>
       expect(
-        screen.getByText("Failed to load recommendations")
+        screen.getByText("pages.inspection.recommendations.loadFailed")
       ).toBeInTheDocument()
     )
   })
@@ -122,7 +122,7 @@ describe("InspectionRecommendations", () => {
         screen.getByDisplayValue("Overall inspection summary.")
       ).toBeInTheDocument()
     )
-    expect(screen.getByText("2 findings")).toBeInTheDocument()
+    expect(screen.getByText("pages.inspection.recommendations.findingsPlural")).toBeInTheDocument()
   })
 
   it("renders finding question labels", async () => {
@@ -275,7 +275,7 @@ describe("InspectionRecommendations", () => {
       "Overall inspection summary."
     )
     await userEvent.type(summaryField, " Updated.")
-    await userEvent.click(screen.getByText("Save summary"))
+    await userEvent.click(screen.getByText("pages.inspection.recommendations.saveSummary"))
 
     await waitFor(() =>
       expect(mockUpdateRecommendationSummary).toHaveBeenCalledWith({
@@ -300,7 +300,7 @@ describe("InspectionRecommendations", () => {
       "Overall inspection summary."
     )
     await userEvent.type(summaryField, " Updated.")
-    await userEvent.click(screen.getByText("Save summary"))
+    await userEvent.click(screen.getByText("pages.inspection.recommendations.saveSummary"))
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Summary save failed")
@@ -311,7 +311,7 @@ describe("InspectionRecommendations", () => {
     expect(
       screen.getByDisplayValue("Overall inspection summary. Updated.")
     ).toBeInTheDocument()
-    expect(screen.getByText("Save summary")).toBeInTheDocument()
+    expect(screen.getByText("pages.inspection.recommendations.saveSummary")).toBeInTheDocument()
   })
 
   it("falls back to a generic message when the summary save error has no message", async () => {
@@ -328,10 +328,10 @@ describe("InspectionRecommendations", () => {
       "Overall inspection summary."
     )
     await userEvent.type(summaryField, " Updated.")
-    await userEvent.click(screen.getByText("Save summary"))
+    await userEvent.click(screen.getByText("pages.inspection.recommendations.saveSummary"))
 
     await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith("Failed to save summary")
+      expect(mockToastError).toHaveBeenCalledWith("pages.inspection.recommendations.saveFailed")
     )
   })
 })

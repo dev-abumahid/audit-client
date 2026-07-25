@@ -81,7 +81,7 @@ describe("InspectionActions", () => {
     })
     renderPage()
     await waitFor(() =>
-      expect(screen.getByText("No corrective actions yet.")).toBeInTheDocument()
+      expect(screen.getByText("pages.inspection.actions.empty")).toBeInTheDocument()
     )
   })
 
@@ -98,7 +98,7 @@ describe("InspectionActions", () => {
     expect(
       screen.getByText("Zone B fire extinguisher needs replacement.")
     ).toBeInTheDocument()
-    expect(screen.getByText("High")).toBeInTheDocument()
+    expect(screen.getByText("pages.inspection.actions.priorityHigh")).toBeInTheDocument()
   })
 
   it("applies the correct colour class to each priority badge", async () => {
@@ -117,9 +117,9 @@ describe("InspectionActions", () => {
     await waitFor(() => screen.getByText("Action Low"))
 
     const classMap: Record<string, string> = {
-      Low: "bg-slate-100",
-      Medium: "bg-amber-100",
-      High: "bg-red-100",
+      "pages.inspection.actions.priorityLow": "bg-slate-100",
+      "pages.inspection.actions.priorityMedium": "bg-amber-100",
+      "pages.inspection.actions.priorityHigh": "bg-red-100",
     }
     document.querySelectorAll("span.rounded-full").forEach((badge) => {
       const label = badge.textContent?.trim() ?? ""
@@ -151,10 +151,10 @@ describe("InspectionActions", () => {
       isError: false,
     })
     renderPage()
-    await waitFor(() => screen.getByText("No corrective actions yet."))
-    await userEvent.click(screen.getByText("New action"))
+    await waitFor(() => screen.getByText("pages.inspection.actions.empty"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.newAction"))
     expect(
-      screen.getByPlaceholderText(/e.g. Replace faulty/i)
+      screen.getByPlaceholderText("pages.inspection.actions.form.titlePlaceholder")
     ).toBeInTheDocument()
   })
 
@@ -166,15 +166,15 @@ describe("InspectionActions", () => {
     })
 
     renderPage()
-    await waitFor(() => screen.getByText("New action"))
-    await userEvent.click(screen.getByText("New action"))
+    await waitFor(() => screen.getByText("pages.inspection.actions.newAction"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.newAction"))
 
     await userEvent.type(
-      screen.getByPlaceholderText(/e.g. Replace faulty/i),
+      screen.getByPlaceholderText("pages.inspection.actions.form.titlePlaceholder"),
       "Fix lighting"
     )
     await userEvent.type(
-      screen.getByPlaceholderText(/Describe what needs/i),
+      screen.getByPlaceholderText("pages.inspection.actions.form.descriptionPlaceholder"),
       "Replace emergency lighting."
     )
     await userEvent.type(
@@ -182,7 +182,7 @@ describe("InspectionActions", () => {
       "2026-08-01"
     )
 
-    await userEvent.click(screen.getByText("Create action"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.createAction"))
 
     await waitFor(() =>
       expect(mockCreateNewFinding).toHaveBeenCalledWith(
@@ -195,7 +195,7 @@ describe("InspectionActions", () => {
     // create form closes on success
     await waitFor(() =>
       expect(
-        screen.queryByPlaceholderText(/e.g. Replace faulty/i)
+        screen.queryByPlaceholderText("pages.inspection.actions.form.titlePlaceholder")
       ).not.toBeInTheDocument()
     )
   })
@@ -211,22 +211,22 @@ describe("InspectionActions", () => {
     })
 
     renderPage()
-    await waitFor(() => screen.getByText("New action"))
-    await userEvent.click(screen.getByText("New action"))
+    await waitFor(() => screen.getByText("pages.inspection.actions.newAction"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.newAction"))
 
     await userEvent.type(
-      screen.getByPlaceholderText(/e.g. Replace faulty/i),
+      screen.getByPlaceholderText("pages.inspection.actions.form.titlePlaceholder"),
       "Fix lighting"
     )
     await userEvent.type(
-      screen.getByPlaceholderText(/Describe what needs/i),
+      screen.getByPlaceholderText("pages.inspection.actions.form.descriptionPlaceholder"),
       "Replace emergency lighting."
     )
     await userEvent.type(
       document.querySelector('input[type="date"]') as HTMLElement,
       "2026-08-01"
     )
-    await userEvent.click(screen.getByText("Create action"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.createAction"))
 
     await waitFor(() =>
       expect(screen.getByText("Duplicate title")).toBeInTheDocument()
@@ -242,8 +242,8 @@ describe("InspectionActions", () => {
     renderPage()
     await waitFor(() => screen.getByText("Replace extinguisher"))
 
-    await userEvent.click(screen.getByLabelText("Edit action"))
-    expect(screen.getByText("Edit action")).toBeInTheDocument()
+    await userEvent.click(screen.getByLabelText("pages.inspection.actions.editAction"))
+    expect(screen.getByText("pages.inspection.actions.editActionFormTitle")).toBeInTheDocument()
     expect(screen.getByDisplayValue("Replace extinguisher")).toBeInTheDocument()
   })
 
@@ -257,8 +257,8 @@ describe("InspectionActions", () => {
     renderPage()
     await waitFor(() => screen.getByText("Replace extinguisher"))
 
-    await userEvent.click(screen.getByLabelText("Edit action"))
-    expect(screen.getByText("Edit action")).toBeInTheDocument()
+    await userEvent.click(screen.getByLabelText("pages.inspection.actions.editAction"))
+    expect(screen.getByText("pages.inspection.actions.editActionFormTitle")).toBeInTheDocument()
     expect(
       consoleError.mock.calls.some((args) =>
         String(args[0]).includes("a component is changing an uncontrolled input")
@@ -277,11 +277,11 @@ describe("InspectionActions", () => {
     renderPage()
     await waitFor(() => screen.getByText("Replace extinguisher"))
 
-    await userEvent.click(screen.getByLabelText("Edit action"))
+    await userEvent.click(screen.getByLabelText("pages.inspection.actions.editAction"))
     const titleInput = screen.getByDisplayValue("Replace extinguisher")
     await userEvent.clear(titleInput)
     await userEvent.type(titleInput, "Updated title")
-    await userEvent.click(screen.getByText("Save changes"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.saveChanges"))
 
     await waitFor(() =>
       expect(mockUpdateFindingById).toHaveBeenCalledWith(
@@ -303,12 +303,14 @@ describe("InspectionActions", () => {
     renderPage()
     await waitFor(() => screen.getByText("Replace extinguisher"))
 
-    await userEvent.click(screen.getByLabelText("Edit action"))
-    const dateInput = screen.getByLabelText(/due date/i)
+    await userEvent.click(screen.getByLabelText("pages.inspection.actions.editAction"))
+    const dateInput = screen.getByLabelText(
+      "pages.inspection.actions.form.dueDateLabel"
+    )
     expect(dateInput).toHaveValue("2020-01-15")
     expect(dateInput).not.toHaveAttribute("min")
 
-    await userEvent.click(screen.getByText("Save changes"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.saveChanges"))
 
     await waitFor(() =>
       expect(mockUpdateFindingById).toHaveBeenCalledWith(
@@ -331,10 +333,10 @@ describe("InspectionActions", () => {
     renderPage()
     await waitFor(() => screen.getByText("Replace extinguisher"))
 
-    await userEvent.click(screen.getByLabelText("Delete action"))
-    expect(screen.getByText("Delete this action?")).toBeInTheDocument()
+    await userEvent.click(screen.getByLabelText("pages.inspection.actions.deleteAction"))
+    expect(screen.getByText("pages.inspection.actions.deleteConfirm")).toBeInTheDocument()
 
-    await userEvent.click(screen.getByText("Delete"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.delete"))
     await waitFor(() =>
       expect(mockDeleteFindingById).toHaveBeenCalledWith("act-1")
     )
@@ -358,7 +360,7 @@ describe("InspectionActions", () => {
       expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
     )
 
-    const select = screen.getByDisplayValue("To do")
+    const select = screen.getByDisplayValue("pages.inspection.actions.statusToDo")
     await userEvent.selectOptions(select, "IN_PROGRESS")
 
     expect(mockUpdateFindingById).toHaveBeenCalledWith({
@@ -386,7 +388,7 @@ describe("InspectionActions", () => {
       expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
     )
 
-    const select = screen.getByDisplayValue("To do")
+    const select = screen.getByDisplayValue("pages.inspection.actions.statusToDo")
     await userEvent.selectOptions(select, "IN_PROGRESS")
 
     await waitFor(() =>
@@ -410,11 +412,11 @@ describe("InspectionActions", () => {
       expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
     )
 
-    const select = screen.getByDisplayValue("To do")
+    const select = screen.getByDisplayValue("pages.inspection.actions.statusToDo")
     await userEvent.selectOptions(select, "IN_PROGRESS")
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("Failed to update status")
+      expect(toast.error).toHaveBeenCalledWith("pages.inspection.actions.statusUpdateFailed")
     )
   })
 
@@ -429,7 +431,7 @@ describe("InspectionActions", () => {
     await waitFor(() =>
       expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
     )
-    expect(screen.getByLabelText("Refreshing")).toBeInTheDocument()
+    expect(screen.getByLabelText("pages.inspection.actions.refreshing")).toBeInTheDocument()
   })
 
   it("displays image attachments on action cards", async () => {
@@ -444,7 +446,7 @@ describe("InspectionActions", () => {
     renderPage()
     await waitFor(() => screen.getByText("Replace extinguisher"))
     const img = document.querySelector(
-      'img[alt="Attachment 1"]'
+      'img[alt="pages.inspection.actions.attachment"]'
     ) as HTMLImageElement
     expect(img).toBeInTheDocument()
     expect(img.src).toContain("/uploads/photo.jpg")
@@ -457,8 +459,8 @@ describe("InspectionActions", () => {
       isError: false,
     })
     renderPage()
-    await waitFor(() => screen.getByText("No corrective actions yet."))
-    await userEvent.click(screen.getByText("New action"))
+    await waitFor(() => screen.getByText("pages.inspection.actions.empty"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.newAction"))
     // The hidden file input should be present in the DOM
     expect(document.querySelector('input[type="file"]')).toBeInTheDocument()
   })
@@ -484,9 +486,9 @@ describe("InspectionActions", () => {
 
     renderPage()
 
-    await waitFor(() => screen.getByText("No corrective actions yet."))
+    await waitFor(() => screen.getByText("pages.inspection.actions.empty"))
 
-    await userEvent.click(screen.getByText("New action"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.newAction"))
 
     const input = document.querySelector(
       'input[type="file"]'
@@ -517,9 +519,9 @@ describe("InspectionActions", () => {
 
     renderPage()
 
-    await waitFor(() => screen.getByText("No corrective actions yet."))
+    await waitFor(() => screen.getByText("pages.inspection.actions.empty"))
 
-    await userEvent.click(screen.getByText("New action"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.newAction"))
 
     const input = document.querySelector(
       'input[type="file"]'

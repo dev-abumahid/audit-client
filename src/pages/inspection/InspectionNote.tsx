@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react"
 import { useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Link, useNavigate, useParams } from "react-router"
 
 // Not imported from a shared util: at time of writing this codebase has the
@@ -31,6 +32,7 @@ const attachmentFileName = (url: string) => {
 type Stage = "idle" | "uploading" | "extracting" | "done" | "error"
 
 export default function InspectionNote() {
+  const { t } = useTranslation()
   const { id: inspectionId } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
@@ -61,7 +63,7 @@ export default function InspectionNote() {
   const noteLoadError =
     !noteLoading && !!noteError && !noteNotFound
       ? ((noteError as { data?: { message?: string } })?.data?.message ??
-        "Failed to load note")
+        t("pages.inspection.note.loadFailed"))
       : null
   const existingNote: Note | null = noteError
     ? null
@@ -73,7 +75,7 @@ export default function InspectionNote() {
   function pickFile(file: File) {
     const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp"]
     if (!allowed.includes(file.type)) {
-      setErrorMsg("Only PDF, JPG, PNG, or WEBP files are accepted.")
+      setErrorMsg(t("pages.inspection.note.fileTypeError"))
       return
     }
     setSelectedFile(file)
@@ -109,7 +111,7 @@ export default function InspectionNote() {
     } catch (err) {
       setErrorMsg(
         (err as { data?: { message?: string } })?.data?.message ??
-          "Something went wrong"
+          t("pages.inspection.note.genericError")
       )
       setStage("error")
     }
@@ -134,26 +136,27 @@ export default function InspectionNote() {
           to="/organization/audit/inspections"
           className="hover:text-foreground"
         >
-          Inspections
+          {t("pages.inspection.note.breadcrumbInspections")}
         </Link>
         <span>/</span>
         <Link
           to={`/organization/audit/inspections/${inspectionId}`}
           className="hover:text-foreground"
         >
-          Inspection
+          {t("pages.inspection.note.breadcrumbInspection")}
         </Link>
         <span>/</span>
-        <span className="text-foreground">Notes</span>
+        <span className="text-foreground">
+          {t("pages.inspection.note.breadcrumbNotes")}
+        </span>
       </div>
 
       <div>
         <h1 className="text-xl font-semibold text-foreground">
-          Inspector notes
+          {t("pages.inspection.note.title")}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Upload a handwritten or typed note — OCR extracts the text and AI maps
-          it to your questions automatically.
+          {t("pages.inspection.note.subtitle")}
         </p>
       </div>
 
@@ -202,7 +205,7 @@ export default function InspectionNote() {
               to={`/organization/audit/inspections/${inspectionId}`}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              Back to inspection
+              {t("pages.inspection.note.backToInspection")}
             </Link>
           </div>
         </div>
@@ -232,11 +235,13 @@ export default function InspectionNote() {
               <UploadCloud className="h-8 w-8 text-muted-foreground" />
               <div className="text-center">
                 <p className="text-sm font-medium text-foreground">
-                  Drop a file here or{" "}
-                  <span className="text-primary">browse</span>
+                  {t("pages.inspection.note.dropFilePrefix")}{" "}
+                  <span className="text-primary">
+                    {t("pages.inspection.note.browse")}
+                  </span>
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  PDF, JPG, PNG, WEBP · max 10 MB
+                  {t("pages.inspection.note.fileHint")}
                 </p>
               </div>
               <input
@@ -264,7 +269,7 @@ export default function InspectionNote() {
                 <button
                   onClick={() => setSelectedFile(null)}
                   className="text-muted-foreground hover:text-foreground"
-                  aria-label="Remove file"
+                  aria-label={t("pages.inspection.note.removeFile")}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -286,12 +291,13 @@ export default function InspectionNote() {
             >
               {stage === "uploading" ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Uploading &amp;
-                  extracting text…
+                  <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                  {t("pages.inspection.note.uploadingExtracting")}
                 </>
               ) : (
                 <>
-                  <UploadCloud className="h-4 w-4" /> Upload &amp; extract
+                  <UploadCloud className="h-4 w-4" />{" "}
+                  {t("pages.inspection.note.uploadExtract")}
                 </>
               )}
             </button>
@@ -303,10 +309,10 @@ export default function InspectionNote() {
         <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-6 text-center">
           <Loader2 className="h-7 w-7 animate-spin text-primary" />
           <p className="text-sm font-medium text-foreground">
-            AI is mapping notes to questions…
+            {t("pages.inspection.note.mappingNotes")}
           </p>
           <p className="text-xs text-muted-foreground">
-            This usually takes a few seconds.
+            {t("pages.inspection.note.mappingHint")}
           </p>
         </div>
       )}
@@ -318,18 +324,17 @@ export default function InspectionNote() {
             <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
             <div>
               <p className="text-sm font-medium text-green-800">
-                Notes uploaded &amp; answers extracted
+                {t("pages.inspection.note.doneTitle")}
               </p>
               <p className="text-xs text-green-700">
-                AI has pre-filled your inspection answers. Review them before
-                marking complete.
+                {t("pages.inspection.note.doneBody")}
               </p>
             </div>
           </div>
 
           <div className="rounded-lg border border-border bg-card p-5">
             <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-              Extracted text
+              {t("pages.inspection.note.extractedText")}
             </p>
             <p className="text-sm whitespace-pre-wrap text-foreground">
               {displayNote.extracted_text}
@@ -359,13 +364,13 @@ export default function InspectionNote() {
               }
               className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              Review answers →
+              {t("pages.inspection.note.reviewAnswers")} →
             </button>
             <Link
               to="/organization/audit/inspections"
               className="rounded-md border border-border px-5 py-2 text-sm text-muted-foreground hover:bg-muted"
             >
-              Back to list
+              {t("pages.inspection.note.backToList")}
             </Link>
           </div>
         </div>

@@ -7,12 +7,14 @@ import {
 import type { Recommendation } from "@/types/recommendation"
 import { ChevronDown, ChevronUp, Loader2, Sparkles } from "lucide-react"
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Link, useParams } from "react-router"
 import { toast } from "sonner"
 
 type SaveStatus = Record<string, "saving" | "saved" | "error">
 
 export default function InspectionRecommendations() {
+  const { t } = useTranslation()
   const { id: inspectionId } = useParams<{ id: string }>()
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
@@ -48,7 +50,9 @@ export default function InspectionRecommendations() {
     "status" in error &&
     error.status === 404
   const otherError =
-    !loading && !!error && !notFound ? "Failed to load recommendations" : null
+    !loading && !!error && !notFound
+      ? t("pages.inspection.recommendations.loadFailed")
+      : null
 
   // Seed the summary draft and default-expand the first result once the
   // recommendation loads (mirrors the old effect keyed on the fetched data).
@@ -100,7 +104,9 @@ export default function InspectionRecommendations() {
       // Leave `summaryDraft` untouched on failure so the user's unsaved
       // edit isn't discarded — the "Save summary" button stays visible so
       // they can retry.
-      toast.error(err?.data?.message || "Failed to save summary")
+      toast.error(
+        err?.data?.message || t("pages.inspection.recommendations.saveFailed")
+      )
     } finally {
       setSavingSummary(false)
     }
@@ -122,23 +128,25 @@ export default function InspectionRecommendations() {
           to="/organization/audit/inspections"
           className="hover:text-foreground"
         >
-          Inspections
+          {t("pages.inspection.recommendations.breadcrumbInspections")}
         </Link>
         <span>/</span>
         <Link
           to={`/organization/audit/inspections/${inspectionId}`}
           className="hover:text-foreground"
         >
-          Inspection
+          {t("pages.inspection.recommendations.breadcrumbInspection")}
         </Link>
         <span>/</span>
-        <span className="text-foreground">Recommendations</span>
+        <span className="text-foreground">
+          {t("pages.inspection.recommendations.breadcrumbRecommendations")}
+        </span>
       </div>
 
       <div className="flex items-center gap-3">
         <Sparkles className="h-5 w-5 text-primary" />
         <h1 className="text-xl font-semibold text-foreground">
-          AI Recommendations
+          {t("pages.inspection.recommendations.title")}
         </h1>
       </div>
 
@@ -152,25 +160,23 @@ export default function InspectionRecommendations() {
         <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-8 text-center">
           <Sparkles className="h-10 w-10 text-muted-foreground/40" />
           <p className="text-sm font-medium text-foreground">
-            No recommendations yet
+            {t("pages.inspection.recommendations.emptyTitle")}
           </p>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Recommendations are generated after the AI processes your inspection
-            answers and notes. Complete the inspection and upload your notes
-            first.
+            {t("pages.inspection.recommendations.emptyBody")}
           </p>
           <div className="mt-2 flex gap-3">
             <Link
               to={`/organization/audit/inspections/${inspectionId}`}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              Back to inspection
+              {t("pages.inspection.recommendations.backToInspection")}
             </Link>
             <Link
               to={`/organization/audit/inspections/${inspectionId}/note`}
               className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
             >
-              Upload notes
+              {t("pages.inspection.recommendations.uploadNotes")}
             </Link>
           </div>
         </div>
@@ -181,7 +187,7 @@ export default function InspectionRecommendations() {
           {/* Summary card */}
           <div className="rounded-lg border border-border bg-card p-5">
             <p className="mb-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-              Executive summary
+              {t("pages.inspection.recommendations.executiveSummary")}
             </p>
             <textarea
               value={summaryDraft}
@@ -199,7 +205,7 @@ export default function InspectionRecommendations() {
                   {savingSummary ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : null}
-                  Save summary
+                  {t("pages.inspection.recommendations.saveSummary")}
                 </button>
               </div>
             )}
@@ -208,8 +214,13 @@ export default function InspectionRecommendations() {
           {/* Results */}
           <div className="flex flex-col gap-3">
             <p className="text-sm font-medium text-muted-foreground">
-              {rec.questions.length} finding
-              {rec.questions.length !== 1 ? "s" : ""}
+              {rec.questions.length !== 1
+                ? t("pages.inspection.recommendations.findingsPlural", {
+                    count: rec.questions.length,
+                  })
+                : t("pages.inspection.recommendations.findingsSingular", {
+                    count: rec.questions.length,
+                  })}
             </p>
 
             {rec.questions.map((result, idx) => (
@@ -242,9 +253,24 @@ export default function InspectionRecommendations() {
                   <div className="flex flex-col gap-4 border-t border-border px-5 py-4">
                     {(
                       [
-                        { key: "observation", label: "Observation" },
-                        { key: "standard", label: "Applicable standard" },
-                        { key: "recommendation", label: "Recommendation" },
+                        {
+                          key: "observation",
+                          label: t(
+                            "pages.inspection.recommendations.fieldObservation"
+                          ),
+                        },
+                        {
+                          key: "standard",
+                          label: t(
+                            "pages.inspection.recommendations.fieldStandard"
+                          ),
+                        },
+                        {
+                          key: "recommendation",
+                          label: t(
+                            "pages.inspection.recommendations.fieldRecommendation"
+                          ),
+                        },
                       ] as const
                     ).map(({ key, label }) => (
                       <div key={key}>
@@ -273,10 +299,10 @@ export default function InspectionRecommendations() {
                         }`}
                       >
                         {saveStatus[result.id] === "saving"
-                          ? "Saving…"
+                          ? t("pages.inspection.recommendations.saving")
                           : saveStatus[result.id] === "saved"
-                            ? "Saved"
-                            : "Save failed"}
+                            ? t("pages.inspection.recommendations.saved")
+                            : t("pages.inspection.recommendations.saveFailedShort")}
                       </p>
                     )}
                   </div>
@@ -290,13 +316,13 @@ export default function InspectionRecommendations() {
               to={`/organization/audit/inspections/${inspectionId}/actions`}
               className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              View corrective actions →
+              {t("pages.inspection.recommendations.viewCorrectiveActions")} →
             </Link>
             <Link
               to={`/organization/audit/inspections/${inspectionId}`}
               className="rounded-md border border-border px-5 py-2 text-sm text-muted-foreground hover:bg-muted"
             >
-              Back to inspection
+              {t("pages.inspection.recommendations.backToInspection")}
             </Link>
           </div>
         </>

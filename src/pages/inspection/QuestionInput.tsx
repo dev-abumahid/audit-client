@@ -1,4 +1,5 @@
 import type { QuestionAnswer, QuestionDef } from "@/types/inspection"
+import { useTranslation } from "react-i18next"
 
 interface Props {
   question: QuestionDef
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export function QuestionInput({ question, answer, onChange, disabled }: Props) {
+  const { t } = useTranslation()
   const current = answer?.answer
   const qaId = answer?.id ?? ""
 
@@ -120,7 +122,7 @@ export function QuestionInput({ question, answer, onChange, disabled }: Props) {
         defaultValue={typeof current === "string" ? current : ""}
         onBlur={(e) => emit(e.target.value)}
         rows={4}
-        placeholder="Type your answer…"
+        placeholder={t("pages.inspection.questionInput.placeholder")}
         className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
       />
     )
@@ -133,7 +135,7 @@ export function QuestionInput({ question, answer, onChange, disabled }: Props) {
       disabled={disabled}
       defaultValue={typeof current === "string" ? current : ""}
       onBlur={(e) => emit(e.target.value)}
-      placeholder="Type your answer…"
+      placeholder={t("pages.inspection.questionInput.placeholder")}
       className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
     />
   )
