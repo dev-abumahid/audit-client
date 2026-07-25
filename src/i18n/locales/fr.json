@@ -611,6 +611,7 @@
       "alerts": "Alertes",
       "governance": "Gouvernance",
       "regulatoryCompliance": "Conformité réglementaire",
+      "threeLinesOfDefense": "Trois lignes de défense",
       "auditMissions": "Missions d'audit",
       "templates": "Modèles",
       "inspections": "Inspections",
@@ -878,6 +879,38 @@
         "saveFailed": "Échec de l'enregistrement de l'obligation",
         "deleteFailed": "Échec de la suppression de l'obligation",
         "uploadFailed": "Échec du téléversement de la pièce jointe"
+      }
+    },
+    "threeLinesOfDefense": {
+      "title": "Trois lignes de défense",
+      "subtitle": "Tableau de classification de la gouvernance pour les risques, contrôles, KRI, conformité et audits",
+      "loading": "Chargement du tableau de classification...",
+      "empty": "Aucun élément dans cette ligne pour le moment",
+      "itemCount": "{{count}} éléments",
+      "noLeadAuditor": "Aucun auditeur principal assigné",
+      "moveToFirst": "Déplacer vers la 1re ligne",
+      "moveToSecond": "Déplacer vers la 2e ligne",
+      "moveToThird": "Déplacer vers la 3e ligne",
+      "lines": {
+        "first": "1re ligne de défense",
+        "second": "2e ligne de défense",
+        "third": "3e ligne de défense"
+      },
+      "sections": {
+        "risks": "Risques",
+        "actions": "Contrôles / Actions",
+        "kris": "KRI",
+        "compliance": "Conformité",
+        "audits": "Audits"
+      },
+      "unclassified": {
+        "title": "Actions non classées",
+        "subtitle": "Actions créées avant que la classification par ligne de défense ne soit requise",
+        "empty": "Aucune action non classée"
+      },
+      "toast": {
+        "reassignSuccess": "Élément réassigné",
+        "reassignFailed": "Échec de la réassignation de l'élément"
       }
     },
     "riskMatrix": {

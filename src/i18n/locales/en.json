@@ -611,6 +611,7 @@
       "alerts": "Alerts",
       "governance": "Governance",
       "regulatoryCompliance": "Regulatory Compliance",
+      "threeLinesOfDefense": "Three Lines of Defense",
       "auditMissions": "Audit Missions",
       "templates": "Templates",
       "inspections": "Inspections",
@@ -878,6 +879,38 @@
         "saveFailed": "Failed to save compliance obligation",
         "deleteFailed": "Failed to delete compliance obligation",
         "uploadFailed": "Failed to upload attachment"
+      }
+    },
+    "threeLinesOfDefense": {
+      "title": "Three Lines of Defense",
+      "subtitle": "Governance classification board across risks, controls, KRIs, compliance and audits",
+      "loading": "Loading classification board...",
+      "empty": "No items in this line yet",
+      "itemCount": "{{count}} items",
+      "noLeadAuditor": "No lead auditor assigned",
+      "moveToFirst": "Move to 1st Line",
+      "moveToSecond": "Move to 2nd Line",
+      "moveToThird": "Move to 3rd Line",
+      "lines": {
+        "first": "1st Line of Defense",
+        "second": "2nd Line of Defense",
+        "third": "3rd Line of Defense"
+      },
+      "sections": {
+        "risks": "Risks",
+        "actions": "Controls / Actions",
+        "kris": "KRIs",
+        "compliance": "Compliance",
+        "audits": "Audits"
+      },
+      "unclassified": {
+        "title": "Unclassified Actions",
+        "subtitle": "Actions created before line-of-defense classification was required",
+        "empty": "No unclassified actions"
+      },
+      "toast": {
+        "reassignSuccess": "Item reassigned",
+        "reassignFailed": "Failed to reassign item"
       }
     },
     "riskMatrix": {

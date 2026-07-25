@@ -20,6 +20,7 @@ import {
   Scale,
   Settings,
   Shield,
+  ShieldCheck,
   TrendingUp,
   X,
 } from "lucide-react"
@@ -107,6 +108,11 @@ export default function OrganizationLayout() {
           path: "/organization/compliance",
           label: t("organization.nav.regulatoryCompliance"),
           icon: Scale,
+        },
+        {
+          path: "/organization/three-lines-of-defense",
+          label: t("organization.nav.threeLinesOfDefense"),
+          icon: ShieldCheck,
         },
         {
           path: "/organization/audit",

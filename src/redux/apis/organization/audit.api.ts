@@ -1,6 +1,7 @@
 import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
+import type { LineOfDefense } from "@/types/organization"
 
 // A real Risk record linked to an engagement, as flattened by aexa-server's
 // audit GET responses (aexa-frontend#165). Replaces the former free-text
@@ -40,6 +41,8 @@ export interface AuditEngagement {
   report_url: string | null
   createdAt: string
   updatedAt: string
+  // Issue #97. Always set — DB default is THIRD for pre-existing rows.
+  line_of_defense: LineOfDefense
 }
 
 // Write payload for create/update. The linked-risk relation is written as a

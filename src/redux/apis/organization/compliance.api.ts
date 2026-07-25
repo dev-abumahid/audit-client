@@ -1,6 +1,7 @@
 import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
+import type { LineOfDefense } from "@/types/organization"
 
 // Real response shape returned by aexa-server's /api/compliance endpoints (the
 // Prisma ComplianceObligation model), not the old mockCompliance fixture shape.
@@ -25,6 +26,8 @@ export interface ComplianceObligation {
   is_edited: boolean
   createdAt: string
   updatedAt: string
+  // Issue #97. Always set — DB default is SECOND for pre-existing rows.
+  line_of_defense: LineOfDefense
 }
 
 // Computed scorecard returned by GET /compliance/scorecard. A cell's `band`

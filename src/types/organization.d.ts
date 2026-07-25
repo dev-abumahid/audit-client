@@ -1,3 +1,10 @@
+// Issue #97 — "Three Lines of Defense" governance classification. Verified
+// against the live aexa-server source (kri.validation.ts / risk.validation.ts
+// / action.validation.ts's LINE_OF_DEFENSE_ENUM). Risk and Kri always have a
+// value (DB defaults FIRST / SECOND respectively); it's nullable only on
+// Action (see finding.d.ts's IAction).
+export type LineOfDefense = "FIRST" | "SECOND" | "THIRD"
+
 export interface Organization {
   id: string
   user_id: string
@@ -90,6 +97,8 @@ export interface Risk {
   // attach them.
   approval?: RiskApproval | null
   approvalStatus?: RiskApprovalDisplayState
+  // Issue #97. Always set — DB default is FIRST for pre-existing rows.
+  line_of_defense: LineOfDefense
 }
 
 // Mirrors aexa-server's RiskApproval Prisma model (issue #95). A risk's
@@ -157,6 +166,8 @@ export interface KRI {
   createdAt: string
   updatedAt: string
   status: "OK" | "WARNING" | "ALERT"
+  // Issue #97. Always set — DB default is SECOND for pre-existing rows.
+  line_of_defense: LineOfDefense
 }
 
 // Confirmed against the real Alert Prisma model + alert.service.ts (issue

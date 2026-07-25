@@ -1,4 +1,4 @@
-import type { Site } from "./organization"
+import type { LineOfDefense, Site } from "./organization"
 
 export type TAssignBy = {
   id: string
@@ -36,6 +36,13 @@ export interface IAction {
   // create/edit through that modal. Found while typing this endpoint
   // (issue #108).
   attachments: string[]
+
+  // Issue #97. Unlike Risk/Kri/ComplianceObligation/AuditEngagement, Action's
+  // line_of_defense is nullable — rows created before #97 have no value and
+  // surface as "Unclassified" in the Three Lines of Defense board rather than
+  // being defaulted to any one line (see governance.service.ts on
+  // aexa-server).
+  line_of_defense: LineOfDefense | null
 
   // Date time
   createdAt: string

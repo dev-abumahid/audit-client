@@ -9,6 +9,7 @@ import CreateNewInspection from "@/dashboard/organization/inspection/CreateNewIn
 import InspectionReport from "@/dashboard/organization/inspection/InspectionReport"
 import InspectionTable from "@/dashboard/organization/inspection/InspectionTable"
 import IntelligencePage from "@/dashboard/organization/intelligence/IntelligencePage"
+import ThreeLinesOfDefensePage from "@/dashboard/organization/governance/ThreeLinesOfDefensePage"
 import KriDashboardPage from "@/dashboard/organization/kri/KriDashboardPage"
 import Overview from "@/dashboard/organization/overview/Overview"
 import ReportsPage from "@/dashboard/organization/reports/ReportsPage"
@@ -74,6 +75,7 @@ export const mainRoute = createBrowserRouter([
       { path: "intelligence", element: <IntelligencePage /> },
       { path: "alerts", element: <AlertsPage /> },
       { path: "compliance", element: <CompliancePage /> },
+      { path: "three-lines-of-defense", element: <ThreeLinesOfDefensePage /> },
       { path: "audit", element: <AuditPage /> },
       { path: "audit/templates", element: <TemplatesPage /> },
       { path: "audit/template/create", element: <CreateTemplatePage /> },

@@ -1,6 +1,6 @@
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
-import type { KRI } from "@/types/organization"
+import type { KRI, LineOfDefense } from "@/types/organization"
 
 // Mirrors kri.validation.ts's create_kri zod schema on aexa-server exactly
 // -- frequency is optional there, and target_value/alert_threshold must
@@ -18,12 +18,15 @@ interface CreateKriPayload {
 // update_kri's zod schema explicitly does not accept current_value, risk_id,
 // or org_account_id -- the backend strips them from the body even if sent
 // (see kri.service.ts's update_kri_into_db destructuring them out).
+// line_of_defense isn't part of CreateKriPayload/kri.validation.ts's create
+// schema — it's set separately via update (issue #97, ADMIN/LEAD_AUDITOR
+// only server-side).
 type UpdateKriPayload = Partial<
   Pick<
     CreateKriPayload,
     "name" | "unit" | "alert_threshold" | "target_value" | "frequency"
   >
->
+> & { line_of_defense?: LineOfDefense }
 
 const kriApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({

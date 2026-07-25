@@ -2,6 +2,7 @@ import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
 import type { IAction } from "@/types/finding"
+import type { LineOfDefense } from "@/types/organization"
 
 interface GetAllFindingsArgs {
   page: number
@@ -37,6 +38,11 @@ interface FindingRequestBody {
   // through a request body.
   messages?: { message: string }[]
   attachments?: string[]
+  // Issue #97 — Three Lines of Defense reassignment. update_action_into_db
+  // gates this specifically to ADMIN/LEAD_AUDITOR (403 otherwise); the
+  // frontend hides the control for other roles rather than duplicating that
+  // check (see useMyOrgRole / ThreeLinesOfDefensePage.tsx).
+  line_of_defense?: LineOfDefense
 }
 
 const findingsApi = baseApi.injectEndpoints({

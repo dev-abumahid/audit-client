@@ -103,6 +103,7 @@ const DUMMY_RISKS: Risk[] = [
     control_operating_eff: 0,
     createdAt: "2026-06-01T00:00:00.000Z",
     updatedAt: "2026-06-01T00:00:00.000Z",
+    line_of_defense: "FIRST",
   },
   {
     id: RISK_IDS.supplyChain,
@@ -126,6 +127,7 @@ const DUMMY_RISKS: Risk[] = [
     control_operating_eff: 0,
     createdAt: "2026-06-01T00:00:00.000Z",
     updatedAt: "2026-06-01T00:00:00.000Z",
+    line_of_defense: "FIRST",
   },
   {
     id: RISK_IDS.gdpr,
@@ -149,6 +151,7 @@ const DUMMY_RISKS: Risk[] = [
     control_operating_eff: 0,
     createdAt: "2026-06-01T00:00:00.000Z",
     updatedAt: "2026-06-01T00:00:00.000Z",
+    line_of_defense: "FIRST",
   },
   {
     id: RISK_IDS.fx,
@@ -172,6 +175,7 @@ const DUMMY_RISKS: Risk[] = [
     control_operating_eff: 0,
     createdAt: "2026-06-01T00:00:00.000Z",
     updatedAt: "2026-06-01T00:00:00.000Z",
+    line_of_defense: "FIRST",
   },
   {
     id: RISK_IDS.siteAccident,
@@ -195,6 +199,7 @@ const DUMMY_RISKS: Risk[] = [
     control_operating_eff: 0,
     createdAt: "2026-06-01T00:00:00.000Z",
     updatedAt: "2026-06-01T00:00:00.000Z",
+    line_of_defense: "FIRST",
   },
 ]
 
