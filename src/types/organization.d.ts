@@ -319,3 +319,59 @@ export type TInspection = {
     }
   }[]
 }
+
+// Mirrors aexa-server's IntelligenceItem Prisma model (intelligence.prisma,
+// aexa-frontend#141 stage 2/3). A scraped RSS article, persisted by
+// POST /intelligence/scrape and annotated in-place by POST /intelligence/analyze.
+// The analysis fields are all nullable/undefined until analyzed_at is set --
+// analyzed_at is the single source of truth for "has this item been
+// analyzed" (drives GET /items?analyzed= and hiding/showing the
+// Create-Risk button). created_risk_id being non-null means this item has
+// already been promoted -- hide Create-Risk, show a link to the Risk
+// instead.
+export interface IntelligenceItem {
+  id: string
+  org_account_id: string
+
+  title: string
+  description: string | null
+  link: string | null
+  source_name: string
+  source_category: string | null
+  source_credibility: number | null
+  source_language: string | null
+  published_at: string | null
+  scraped_at: string
+
+  is_risk: boolean | null
+  severity: "critical" | "high" | "medium" | "low" | null
+  category: string | null
+  relevance_score: number | null
+  risk_summary: string | null
+  root_cause: string | null
+  potential_impact: string | null
+  recommended_actions:
+    | { action: string; priority: string; norm_reference?: string | null }[]
+    | null
+  confidence: number | null
+  source_evidence: string | null
+  analyzed_at: string | null
+
+  created_risk_id: string | null
+}
+
+// Mirrors aexa-server's IntelligenceRun Prisma model. One point-in-time
+// result from one of the 4 org-level actions (predict/mitigations/rcsa/
+// resilience-scan). `result` is the raw aexa-ai response for that
+// run_type -- see aexa-ai's threat_intelligence_schema.py for the exact
+// per-action response shape (PredictResponse / MitigationsResponse /
+// RcsaResponse / ResilienceScanResponse). Kept as `unknown` here (narrowed
+// with per-panel type guards in IntelligencePage.tsx) rather than a union,
+// since the caller already knows which run_type it asked for.
+export interface IntelligenceRun {
+  id: string
+  org_account_id: string
+  run_type: "PREDICT" | "MITIGATIONS" | "RCSA" | "RESILIENCE_SCAN"
+  result: unknown
+  createdAt: string
+}

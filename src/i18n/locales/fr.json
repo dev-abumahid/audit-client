@@ -1015,35 +1015,94 @@
     },
     "intelligence": {
       "title": "Renseignement sur les menaces",
-      "subtitle": "Surveillance automatisée de plus de 60 sources mondiales — Moteur de renseignement ARIA CRO",
-      "collectingSources": "Collecte des sources…",
-      "collectSources": "Collecter plus de 60 sources",
-      "analyzingWithAria": "Analyse avec ARIA…",
-      "analyzeArticles": "Analyser {{count}} articles",
-      "aiPredictions": "Prédictions IA",
-      "statsSummary": "{{success}}/{{sources}} sources • {{items}} articles",
-      "collectionComplete": "Collecte terminée : {{items}} articles provenant de {{success}}/{{sources}} sources",
-      "analysisComplete": "Analyse terminée : {{count}} risques identifiés",
-      "predictionsGenerated": "Prédictions IA générées avec succès",
-      "predictionsHeading": "Prédictions ARIA — Renseignement prédictif",
-      "score7d": "Score de risque sur 7 jours",
-      "score30d": "Score de risque sur 30 jours",
-      "trend": "Tendance",
-      "trendWorsening": "En détérioration",
-      "trendImproving": "En amélioration",
-      "trendStable": "Stable",
-      "emergingRisks": "Risques émergents détectés :",
-      "searchPlaceholder": "Rechercher des renseignements...",
-      "filterAll": "Tous",
-      "severityCritical": "Critique",
-      "severityHigh": "Élevé",
-      "severityMedium": "Moyen",
-      "severityLow": "Faible",
-      "analysisResults": "Résultats d'analyse ARIA — {{count}} risques identifiés",
-      "immediateAction": "⚡ Action immédiate",
-      "itemsCount": "{{count}} éléments de renseignement",
-      "noItemsYet": "Aucun élément de renseignement pour le moment",
-      "noItemsHint": "Lancez une collecte pour alimenter le renseignement sur les menaces"
+      "subtitle": "Surveillance automatisée de plus de 60 sources mondiales — collecte en temps réel, analyse IA et orchestration",
+      "actions": {
+        "scrape": "Collecter les sources",
+        "scraping": "Collecte des sources…",
+        "analyzeCount": "Analyser {{count}} articles",
+        "analyzing": "Analyse en cours…",
+        "predict": "Prédire les tendances",
+        "predicting": "Prédiction en cours…",
+        "mitigations": "Générer des mesures d'atténuation",
+        "mitigationsRunning": "Génération des mesures d'atténuation…",
+        "rcsa": "Générer une RCSA",
+        "rcsaRunning": "Génération de la RCSA…",
+        "resilienceScan": "Analyse de résilience",
+        "resilienceScanRunning": "Analyse en cours…"
+      },
+      "toasts": {
+        "scrapeSuccess": "{{itemsNew}} nouveaux articles collectés depuis {{sourcesSucceeded}}/{{sourcesTotal}} sources",
+        "scrapeFailed": "Échec de la collecte des sources de renseignement",
+        "analyzeSuccess": "Analyse terminée : {{count}} éléments analysés",
+        "analyzeFailed": "Échec de l'analyse des éléments de renseignement",
+        "predictSuccess": "Prédiction de tendance générée avec succès",
+        "predictFailed": "Échec de la génération de la prédiction de tendance",
+        "mitigationsSuccess": "Mesures d'atténuation générées avec succès",
+        "mitigationsFailed": "Échec de la génération des mesures d'atténuation",
+        "rcsaSuccess": "RCSA générée avec succès",
+        "rcsaFailed": "Échec de la génération de la RCSA",
+        "resilienceScanSuccess": "Analyse de résilience terminée avec succès",
+        "resilienceScanFailed": "Échec de l'analyse de résilience",
+        "createRiskSuccess": "Risque créé à partir de cet élément",
+        "createRiskFailed": "Échec de la création du risque à partir de cet élément"
+      },
+      "sections": {
+        "predictions": "Prédictions IA — Intelligence prédictive",
+        "mitigations": "Mesures d'atténuation générées par l'IA",
+        "rcsa": "Auto-évaluation des risques et contrôles (RCSA)",
+        "resilienceScan": "Analyse de résilience",
+        "itemsCount": "{{count}} éléments de renseignement",
+        "itemsEmpty": "Aucun élément de renseignement pour le moment",
+        "itemsEmptyHint": "Lancez une collecte pour alimenter le renseignement sur les menaces"
+      },
+      "predictions": {
+        "score7d": "Score de risque à 7 jours",
+        "score30d": "Score de risque à 30 jours",
+        "trend": "Tendance",
+        "trend_worsening": "En aggravation",
+        "trend_stable": "Stable",
+        "trend_improving": "En amélioration",
+        "emergingRisks": "Risques émergents détectés :"
+      },
+      "mitigations": {
+        "empty": "Aucune mesure d'atténuation générée pour le moment",
+        "owner": "Responsable",
+        "effectiveness": "Efficacité"
+      },
+      "rcsa": {
+        "controlEnvironmentScore": "Score de l'environnement de contrôle",
+        "riskAppetite": "Appétence globale au risque",
+        "inherent": "Inhérent",
+        "residual": "Résiduel",
+        "controlEffectiveness": "Efficacité du contrôle",
+        "deficiencies": "Principales lacunes de contrôle"
+      },
+      "resilience": {
+        "overall": "Global",
+        "supplyChain": "Chaîne d'approvisionnement",
+        "financial": "Financier",
+        "geopolitical": "Géopolitique",
+        "immediateAlerts": "Alertes immédiates",
+        "topVulnerabilities": "Principales vulnérabilités"
+      },
+      "filters": {
+        "searchPlaceholder": "Rechercher dans le renseignement...",
+        "severity_all": "Tous",
+        "severity_critical": "Critique",
+        "severity_high": "Élevé",
+        "severity_medium": "Moyen",
+        "severity_low": "Faible"
+      },
+      "item": {
+        "notAnalyzedYet": "Pas encore analysé",
+        "viewRisk": "Voir le risque",
+        "createRisk": "Créer un risque"
+      },
+      "pagination": {
+        "previous": "Précédent",
+        "next": "Suivant",
+        "pageOf": "Page {{page}} sur {{totalPages}}"
+      }
     },
     "alerts": {
       "markReadFailed": "Échec du marquage de l'alerte comme lue",

@@ -1,204 +1,276 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
+import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
+  useAnalyzeIntelligenceMutation,
+  useCreateRiskFromItemMutation,
+  useGenerateMitigationsMutation,
+  useGenerateRcsaMutation,
+  useGetIntelligenceItemsQuery,
+  useGetIntelligenceRunsQuery,
+  usePredictTrendsMutation,
+  useResilienceScanMutation,
+  useScrapeIntelligenceMutation,
+} from "@/redux/apis/organization/intelligence.api"
+import type { IntelligenceItem } from "@/types/organization"
+import {
+  AlertTriangle,
   Brain,
+  CheckCircle2,
+  ClipboardList,
+  ExternalLink,
   Globe,
   Loader2,
   Radio,
   Search,
   Shield,
+  ShieldCheck,
   TrendingUp,
   Zap,
 } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { Link } from "react-router"
+import { toast } from "sonner"
+import {
+  isMitigationsResult,
+  isPredictResult,
+  isRcsaResult,
+  isResilienceScanResult,
+} from "./intelligenceRunTypes"
 
-// Severity filter value -> i18n key, resolved with t() at render time.
-const SEVERITY_KEYS: Record<string, string> = {
-  all: "organization.intelligence.filterAll",
-  critical: "organization.intelligence.severityCritical",
-  high: "organization.intelligence.severityHigh",
-  medium: "organization.intelligence.severityMedium",
-  low: "organization.intelligence.severityLow",
-}
+const SEVERITIES = ["all", "critical", "high", "medium", "low"] as const
+type SeverityFilter = (typeof SEVERITIES)[number]
 
-// Dummy Data
-const DUMMY_SAVED_ITEMS = [
-  {
-    id: "i1",
-    title: "New ransomware campaign targets European manufacturing firms",
-    description:
-      "A sophisticated ransomware group has launched attacks against several manufacturers in Germany and France. Initial access via phishing.",
-    severity: "high",
-    category: "cyber",
-    source_name: "Cyber Threat Intel",
-    relevance_score: 0.87,
-    created_at: "2026-04-15T10:30:00Z",
-  },
-  {
-    id: "i2",
-    title: "Supply chain disruption expected due to Red Sea shipping attacks",
-    description:
-      "Ongoing geopolitical tensions in the Red Sea are causing significant delays in global shipping routes.",
-    severity: "medium",
-    category: "operational",
-    source_name: "Risk Watch Daily",
-    relevance_score: 0.76,
-    created_at: "2026-04-16T08:15:00Z",
-  },
-  {
-    id: "i3",
-    title: "New data privacy regulation proposed in Southeast Asia",
-    description:
-      "Governments in the region are moving toward stricter data localization requirements.",
-    severity: "low",
-    category: "compliance",
-    source_name: "Regulatory Bulletin",
-    relevance_score: 0.64,
-    created_at: "2026-04-14T14:20:00Z",
-  },
-]
-
-const DUMMY_ANALYZED_ITEMS = [
-  {
-    original_title: "Major cyber attack hits logistics provider",
-    risk_summary:
-      "High likelihood of supply chain impact. Immediate monitoring recommended.",
-    severity: "critical",
-    category: "cyber",
-    relevance_score: 0.92,
-    is_risk: true,
-    requires_immediate_attention: true,
-    recommended_actions: [{ action: "Activate incident response team" }],
-  },
-  {
-    original_title: "Rising inflation concerns in key markets",
-    risk_summary: "Potential cost increase for raw materials in Q3.",
-    severity: "medium",
-    category: "financial",
-    relevance_score: 0.71,
-    is_risk: true,
-    requires_immediate_attention: false,
-  },
-]
-
-const DUMMY_PREDICTIONS = {
-  predictions: {
-    score_7d: 6.8,
-    score_30d: 7.4,
-    trend: "worsening" as const,
-    board_summary:
-      "Overall risk posture is deteriorating due to increasing cyber threats and geopolitical instability.",
-    emerging_risks: [
-      { title: "AI-powered phishing campaigns", probability: 0.78 },
-      { title: "Disruption in semiconductor supply", probability: 0.65 },
-    ],
-  },
-}
+// Extracts a readable message from an RTK Query rejected-mutation error,
+// same convention as RiskApprovalControls.tsx / RiskRegisterPage.tsx.
+const errorMessage = (err: unknown, fallback: string): string =>
+  (err as { data?: { message?: string } })?.data?.message || fallback
 
 export default function IntelligencePage() {
   const { t } = useTranslation()
-  const [isScraping, setIsScraping] = useState(false)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [isPredicting, setIsPredicting] = useState(false)
-
-  const [savedItems, setSavedItems] = useState(DUMMY_SAVED_ITEMS)
-  const [scrapedItems, setScrapedItems] = useState<any[]>([])
-  const [analyzedItems, setAnalyzedItems] = useState(DUMMY_ANALYZED_ITEMS)
-  const [predictions, setPredictions] = useState<any>(DUMMY_PREDICTIONS)
-  const [scrapeStats, setScrapeStats] = useState<{
-    sources: number
-    items: number
-    success: number
-  } | null>({
-    sources: 62,
-    items: 184,
-    success: 58,
-  })
+  const role = useMyOrgRole()
+  const canCreateRisk = role === "ADMIN" || role === "LEAD_AUDITOR"
 
   const [search, setSearch] = useState("")
-  const [filterSeverity, setFilterSeverity] = useState<string>("all")
+  const [filterSeverity, setFilterSeverity] = useState<SeverityFilter>("all")
+  const [page, setPage] = useState(1)
+  const [creatingRiskId, setCreatingRiskId] = useState<string | null>(null)
 
-  // Simulate Scraping
+  // Main displayed list -- all items (any analysis state), newest scraped
+  // first (server default order). Filtered client-side by search/severity,
+  // same UX as the page's previous dummy version.
+  const {
+    data: itemsData,
+    isLoading: itemsLoading,
+    isFetching: itemsFetching,
+  } = useGetIntelligenceItemsQuery({ page, limit: 20 })
+
+  // Separate, small query just for the un-analyzed count so the "Analyze"
+  // button's label is accurate regardless of what's currently paginated in
+  // the main list above -- RTK Query caches this independently since the
+  // args differ.
+  const { data: unanalyzedData } = useGetIntelligenceItemsQuery({
+    analyzed: false,
+    page: 1,
+    limit: 1,
+  })
+  const unanalyzedCount = unanalyzedData?.meta.total ?? 0
+
+  const { data: predictRuns } = useGetIntelligenceRunsQuery({
+    run_type: "PREDICT",
+    page: 1,
+    limit: 1,
+  })
+  const { data: mitigationsRuns } = useGetIntelligenceRunsQuery({
+    run_type: "MITIGATIONS",
+    page: 1,
+    limit: 1,
+  })
+  const { data: rcsaRuns } = useGetIntelligenceRunsQuery({
+    run_type: "RCSA",
+    page: 1,
+    limit: 1,
+  })
+  const { data: resilienceRuns } = useGetIntelligenceRunsQuery({
+    run_type: "RESILIENCE_SCAN",
+    page: 1,
+    limit: 1,
+  })
+
+  const [scrape, { isLoading: isScraping }] = useScrapeIntelligenceMutation()
+  const [analyze, { isLoading: isAnalyzing }] =
+    useAnalyzeIntelligenceMutation()
+  const [predict, { isLoading: isPredicting }] = usePredictTrendsMutation()
+  const [generateMitigations, { isLoading: isGeneratingMitigations }] =
+    useGenerateMitigationsMutation()
+  const [generateRcsa, { isLoading: isGeneratingRcsa }] =
+    useGenerateRcsaMutation()
+  const [resilienceScan, { isLoading: isScanningResilience }] =
+    useResilienceScanMutation()
+  const [createRiskFromItem] = useCreateRiskFromItemMutation()
+
   const handleScrape = async () => {
-    setIsScraping(true)
-    await new Promise((resolve) => setTimeout(resolve, 1800))
-
-    setScrapedItems(
-      Array.from({ length: 12 }, (_, i) => ({
-        source_name: `Source ${i + 1}`,
-        source_url: "#",
-        source_category: "news",
-      }))
-    )
-
-    setScrapeStats({ sources: 62, items: 184, success: 58 })
-
-    alert(
-      t("organization.intelligence.collectionComplete", {
-        items: 184,
-        success: 58,
-        sources: 62,
-      })
-    )
-    setIsScraping(false)
+    try {
+      const res = await scrape().unwrap()
+      if (res.success) {
+        toast.success(
+          t("organization.intelligence.toasts.scrapeSuccess", {
+            itemsNew: res.data.itemsNew,
+            sourcesSucceeded: res.data.sourcesSucceeded,
+            sourcesTotal: res.data.sourcesTotal,
+          })
+        )
+      } else {
+        toast.error(
+          res.message || t("organization.intelligence.toasts.scrapeFailed")
+        )
+      }
+    } catch (err) {
+      toast.error(
+        errorMessage(err, t("organization.intelligence.toasts.scrapeFailed"))
+      )
+    }
   }
 
-  // Simulate Analysis
   const handleAnalyze = async () => {
-    if (scrapedItems.length === 0) return
-
-    setIsAnalyzing(true)
-    await new Promise((resolve) => setTimeout(resolve, 2200))
-
-    setAnalyzedItems(DUMMY_ANALYZED_ITEMS)
-
-    // Simulate saving some items
-    const newSaved = DUMMY_ANALYZED_ITEMS.filter((a) => a.is_risk).map(
-      (item, i) => ({
-        id: `new-${Date.now()}-${i}`,
-        title: item.original_title,
-        description: item.risk_summary,
-        severity: item.severity,
-        category: item.category,
-        source_name: "ARIA Analysis",
-        relevance_score: item.relevance_score,
-        created_at: new Date().toISOString(),
-      })
-    )
-
-    setSavedItems((prev) => [...newSaved, ...prev])
-
-    alert(
-      t("organization.intelligence.analysisComplete", {
-        count: DUMMY_ANALYZED_ITEMS.filter((a) => a.is_risk).length,
-      })
-    )
-    setIsAnalyzing(false)
+    try {
+      const res = await analyze().unwrap()
+      if (res.success) {
+        toast.success(
+          t("organization.intelligence.toasts.analyzeSuccess", {
+            count: res.data.count,
+          })
+        )
+      } else {
+        toast.error(
+          res.message || t("organization.intelligence.toasts.analyzeFailed")
+        )
+      }
+    } catch (err) {
+      toast.error(
+        errorMessage(err, t("organization.intelligence.toasts.analyzeFailed"))
+      )
+    }
   }
 
-  // Simulate Prediction
   const handlePredict = async () => {
-    setIsPredicting(true)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    setPredictions(DUMMY_PREDICTIONS)
-    alert(t("organization.intelligence.predictionsGenerated"))
-    setIsPredicting(false)
+    try {
+      const res = await predict().unwrap()
+      if (res.success) {
+        toast.success(t("organization.intelligence.toasts.predictSuccess"))
+      } else {
+        toast.error(
+          res.message || t("organization.intelligence.toasts.predictFailed")
+        )
+      }
+    } catch (err) {
+      toast.error(
+        errorMessage(err, t("organization.intelligence.toasts.predictFailed"))
+      )
+    }
   }
 
-  const filteredItems = savedItems.filter((item) => {
+  const handleMitigations = async () => {
+    try {
+      const res = await generateMitigations().unwrap()
+      if (res.success) {
+        toast.success(t("organization.intelligence.toasts.mitigationsSuccess"))
+      } else {
+        toast.error(
+          res.message ||
+            t("organization.intelligence.toasts.mitigationsFailed")
+        )
+      }
+    } catch (err) {
+      toast.error(
+        errorMessage(
+          err,
+          t("organization.intelligence.toasts.mitigationsFailed")
+        )
+      )
+    }
+  }
+
+  const handleRcsa = async () => {
+    try {
+      const res = await generateRcsa().unwrap()
+      if (res.success) {
+        toast.success(t("organization.intelligence.toasts.rcsaSuccess"))
+      } else {
+        toast.error(
+          res.message || t("organization.intelligence.toasts.rcsaFailed")
+        )
+      }
+    } catch (err) {
+      toast.error(
+        errorMessage(err, t("organization.intelligence.toasts.rcsaFailed"))
+      )
+    }
+  }
+
+  const handleResilienceScan = async () => {
+    try {
+      const res = await resilienceScan().unwrap()
+      if (res.success) {
+        toast.success(
+          t("organization.intelligence.toasts.resilienceScanSuccess")
+        )
+      } else {
+        toast.error(
+          res.message ||
+            t("organization.intelligence.toasts.resilienceScanFailed")
+        )
+      }
+    } catch (err) {
+      toast.error(
+        errorMessage(
+          err,
+          t("organization.intelligence.toasts.resilienceScanFailed")
+        )
+      )
+    }
+  }
+
+  const handleCreateRisk = async (item: IntelligenceItem) => {
+    setCreatingRiskId(item.id)
+    try {
+      const res = await createRiskFromItem({ itemId: item.id }).unwrap()
+      if (res.success) {
+        toast.success(t("organization.intelligence.toasts.createRiskSuccess"))
+      } else {
+        toast.error(
+          res.message ||
+            t("organization.intelligence.toasts.createRiskFailed")
+        )
+      }
+    } catch (err) {
+      toast.error(
+        errorMessage(
+          err,
+          t("organization.intelligence.toasts.createRiskFailed")
+        )
+      )
+    } finally {
+      setCreatingRiskId(null)
+    }
+  }
+
+  const items = itemsData?.data ?? []
+  const meta = itemsData?.meta
+  const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1
+
+  const filteredItems = items.filter((item) => {
     if (filterSeverity !== "all" && item.severity !== filterSeverity)
       return false
-    if (
-      search &&
-      !((item.title as string) || "")
-        .toLowerCase()
-        .includes(search.toLowerCase())
-    )
+    if (search && !item.title.toLowerCase().includes(search.toLowerCase()))
       return false
     return true
   })
+
+  const predictResult = predictRuns?.data[0]
+  const mitigationsResult = mitigationsRuns?.data[0]
+  const rcsaResult = rcsaRuns?.data[0]
+  const resilienceResult = resilienceRuns?.data[0]
 
   return (
     <div className="space-y-6 p-6">
@@ -209,7 +281,6 @@ export default function IntelligencePage() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             {t("organization.intelligence.title")}
           </h1>
-          <div className="ml-2 h-2 w-2 animate-pulse rounded-full bg-risk-low" />
         </div>
         <p className="text-sm text-muted-foreground">
           {t("organization.intelligence.subtitle")}
@@ -229,28 +300,26 @@ export default function IntelligencePage() {
             <Globe className="h-4 w-4" />
           )}
           {isScraping
-            ? t("organization.intelligence.collectingSources")
-            : t("organization.intelligence.collectSources")}
+            ? t("organization.intelligence.actions.scraping")
+            : t("organization.intelligence.actions.scrape")}
         </button>
 
-        {scrapedItems.length > 0 && (
-          <button
-            onClick={handleAnalyze}
-            disabled={isAnalyzing}
-            className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-40"
-          >
-            {isAnalyzing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Zap className="h-4 w-4" />
-            )}
-            {isAnalyzing
-              ? t("organization.intelligence.analyzingWithAria")
-              : t("organization.intelligence.analyzeArticles", {
-                  count: scrapedItems.length,
-                })}
-          </button>
-        )}
+        <button
+          onClick={handleAnalyze}
+          disabled={isAnalyzing || unanalyzedCount === 0}
+          className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-40"
+        >
+          {isAnalyzing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Zap className="h-4 w-4" />
+          )}
+          {isAnalyzing
+            ? t("organization.intelligence.actions.analyzing")
+            : t("organization.intelligence.actions.analyzeCount", {
+                count: unanalyzedCount,
+              })}
+        </button>
 
         <button
           onClick={handlePredict}
@@ -262,87 +331,323 @@ export default function IntelligencePage() {
           ) : (
             <Brain className="h-4 w-4" />
           )}
-          {t("organization.intelligence.aiPredictions")}
+          {isPredicting
+            ? t("organization.intelligence.actions.predicting")
+            : t("organization.intelligence.actions.predict")}
         </button>
 
-        {scrapeStats && (
-          <span className="text-xs text-muted-foreground">
-            {t("organization.intelligence.statsSummary", {
-              success: scrapeStats.success,
-              sources: scrapeStats.sources,
-              items: scrapeStats.items,
-            })}
-          </span>
-        )}
+        <button
+          onClick={handleMitigations}
+          disabled={isGeneratingMitigations}
+          className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted disabled:opacity-40"
+        >
+          {isGeneratingMitigations ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ShieldCheck className="h-4 w-4" />
+          )}
+          {isGeneratingMitigations
+            ? t("organization.intelligence.actions.mitigationsRunning")
+            : t("organization.intelligence.actions.mitigations")}
+        </button>
+
+        <button
+          onClick={handleRcsa}
+          disabled={isGeneratingRcsa}
+          className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted disabled:opacity-40"
+        >
+          {isGeneratingRcsa ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ClipboardList className="h-4 w-4" />
+          )}
+          {isGeneratingRcsa
+            ? t("organization.intelligence.actions.rcsaRunning")
+            : t("organization.intelligence.actions.rcsa")}
+        </button>
+
+        <button
+          onClick={handleResilienceScan}
+          disabled={isScanningResilience}
+          className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted disabled:opacity-40"
+        >
+          {isScanningResilience ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <AlertTriangle className="h-4 w-4" />
+          )}
+          {isScanningResilience
+            ? t("organization.intelligence.actions.resilienceScanRunning")
+            : t("organization.intelligence.actions.resilienceScan")}
+        </button>
       </div>
 
       {/* Predictions Panel */}
-      {predictions && (
+      {predictResult && isPredictResult(predictResult.result) && (
         <div className="animate-fade-in rounded-xl border border-primary/20 bg-primary/5 p-5">
           <div className="mb-3 flex items-center gap-2">
             <Brain className="h-4 w-4 text-primary" />
             <h3 className="text-sm font-semibold text-foreground">
-              {t("organization.intelligence.predictionsHeading")}
+              {t("organization.intelligence.sections.predictions")}
             </h3>
           </div>
           <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-lg border border-border bg-card p-3">
               <p className="text-xs text-muted-foreground">
-                {t("organization.intelligence.score7d")}
+                {t("organization.intelligence.predictions.score7d")}
               </p>
               <p className="text-xl font-bold text-foreground">
-                {predictions.predictions.score_7d?.toFixed(1)}
+                {predictResult.result.score_7d.toFixed(1)}
                 <span className="text-xs text-muted-foreground">/10</span>
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-3">
               <p className="text-xs text-muted-foreground">
-                {t("organization.intelligence.score30d")}
+                {t("organization.intelligence.predictions.score30d")}
               </p>
               <p className="text-xl font-bold text-foreground">
-                {predictions.predictions.score_30d?.toFixed(1)}
+                {predictResult.result.score_30d.toFixed(1)}
                 <span className="text-xs text-muted-foreground">/10</span>
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-3">
               <p className="text-xs text-muted-foreground">
-                {t("organization.intelligence.trend")}
+                {t("organization.intelligence.predictions.trend")}
               </p>
               <p className="flex items-center gap-2 text-xl font-bold text-foreground">
                 <TrendingUp className="h-4 w-4" />
-                {predictions.predictions.trend === "worsening"
-                  ? t("organization.intelligence.trendWorsening")
-                  : predictions.predictions.trend === "improving"
-                    ? t("organization.intelligence.trendImproving")
-                    : t("organization.intelligence.trendStable")}
+                {t(
+                  `organization.intelligence.predictions.trend_${predictResult.result.trend}`
+                )}
               </p>
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            {predictions.predictions.board_summary}
+            {predictResult.result.board_summary}
           </p>
 
-          {predictions.predictions.emerging_risks?.length > 0 && (
+          {predictResult.result.emerging_risks.length > 0 && (
             <div className="mt-3">
               <p className="mb-2 text-xs font-semibold text-foreground">
-                {t("organization.intelligence.emergingRisks")}
+                {t("organization.intelligence.predictions.emergingRisks")}
               </p>
               <div className="space-y-1">
-                {predictions.predictions.emerging_risks.map(
-                  (er: any, i: number) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 text-xs text-muted-foreground"
-                    >
-                      <span className="text-risk-high">⚠</span>
-                      <span>{er.title}</span>
-                      <span className="font-mono">
-                        ({(er.probability * 100).toFixed(0)}%)
+                {predictResult.result.emerging_risks.map((er, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 text-xs text-muted-foreground"
+                  >
+                    <span className="text-risk-high">⚠</span>
+                    <span>{er.title}</span>
+                    <span className="font-mono">
+                      ({(er.probability * 100).toFixed(0)}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mitigations Panel */}
+      {mitigationsResult && isMitigationsResult(mitigationsResult.result) && (
+        <div className="animate-fade-in rounded-xl border border-border bg-card p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("organization.intelligence.sections.mitigations")}
+            </h3>
+          </div>
+          {mitigationsResult.result.mitigations.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {t("organization.intelligence.mitigations.empty")}
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {mitigationsResult.result.mitigations.map((riskMitigation) => (
+                <div
+                  key={riskMitigation.risk_id}
+                  className="rounded-lg border border-border p-3"
+                >
+                  <p className="mb-2 text-sm font-medium text-foreground">
+                    {riskMitigation.risk_name}
+                  </p>
+                  <div className="space-y-2">
+                    {riskMitigation.actions.map((action, i) => (
+                      <div
+                        key={i}
+                        className="rounded-md bg-muted/50 p-2 text-xs"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <RiskBadge level={action.priority} size="sm" />
+                          <span className="font-medium text-foreground">
+                            {action.title}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-muted-foreground">
+                          {action.description}
+                        </p>
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          {t("organization.intelligence.mitigations.owner")}:{" "}
+                          {action.owner} ·{" "}
+                          {t(
+                            "organization.intelligence.mitigations.effectiveness"
+                          )}
+                          : {(action.effectiveness_score * 100).toFixed(0)}%
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* RCSA Panel */}
+      {rcsaResult && isRcsaResult(rcsaResult.result) && (
+        <div className="animate-fade-in rounded-xl border border-border bg-card p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <ClipboardList className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("organization.intelligence.sections.rcsa")}
+            </h3>
+          </div>
+          <div className="mb-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">
+                {t("organization.intelligence.rcsa.controlEnvironmentScore")}
+              </p>
+              <p className="text-xl font-bold text-foreground">
+                {rcsaResult.result.control_environment_score}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">
+                {t("organization.intelligence.rcsa.riskAppetite")}
+              </p>
+              <p className="text-sm font-medium text-foreground">
+                {rcsaResult.result.overall_risk_appetite}
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {rcsaResult.result.risk_universe.map((entry, i) => (
+              <div key={i} className="rounded-lg border border-border p-3">
+                <p className="text-sm font-medium text-foreground">
+                  {entry.risk_category}
+                </p>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {t("organization.intelligence.rcsa.inherent")}:{" "}
+                  {entry.inherent_risk_score} ·{" "}
+                  {t("organization.intelligence.rcsa.residual")}:{" "}
+                  {entry.residual_risk_score} ·{" "}
+                  {t("organization.intelligence.rcsa.controlEffectiveness")}:{" "}
+                  {entry.control_effectiveness}
+                </p>
+              </div>
+            ))}
+          </div>
+          {rcsaResult.result.key_control_deficiencies.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-1 text-xs font-semibold text-foreground">
+                {t("organization.intelligence.rcsa.deficiencies")}
+              </p>
+              <ul className="list-inside list-disc text-xs text-muted-foreground">
+                {rcsaResult.result.key_control_deficiencies.map((d, i) => (
+                  <li key={i}>{d}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Resilience Scan Panel */}
+      {resilienceResult && isResilienceScanResult(resilienceResult.result) && (
+        <div className="animate-fade-in rounded-xl border border-border bg-card p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("organization.intelligence.sections.resilienceScan")}
+            </h3>
+          </div>
+          <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">
+                {t("organization.intelligence.resilience.overall")}
+              </p>
+              <p className="text-xl font-bold text-foreground">
+                {resilienceResult.result.resilience_score.overall}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">
+                {t("organization.intelligence.resilience.supplyChain")}
+              </p>
+              <p className="text-xl font-bold text-foreground">
+                {resilienceResult.result.resilience_score.supply_chain}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">
+                {t("organization.intelligence.resilience.financial")}
+              </p>
+              <p className="text-xl font-bold text-foreground">
+                {resilienceResult.result.resilience_score.financial}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">
+                {t("organization.intelligence.resilience.geopolitical")}
+              </p>
+              <p className="text-xl font-bold text-foreground">
+                {resilienceResult.result.resilience_score.geopolitical}
+              </p>
+            </div>
+          </div>
+
+          {resilienceResult.result.immediate_alerts.length > 0 && (
+            <div className="mb-3">
+              <p className="mb-2 text-xs font-semibold text-foreground">
+                {t("organization.intelligence.resilience.immediateAlerts")}
+              </p>
+              <div className="space-y-2">
+                {resilienceResult.result.immediate_alerts.map((alert, i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg border border-destructive/30 bg-destructive/5 p-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <RiskBadge level={alert.severity} size="sm" />
+                      <span className="text-sm font-medium text-foreground">
+                        {alert.title}
                       </span>
                     </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {alert.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {resilienceResult.result.resilience_score.top_vulnerabilities
+            .length > 0 && (
+            <div>
+              <p className="mb-1 text-xs font-semibold text-foreground">
+                {t("organization.intelligence.resilience.topVulnerabilities")}
+              </p>
+              <ul className="list-inside list-disc text-xs text-muted-foreground">
+                {resilienceResult.result.resilience_score.top_vulnerabilities.map(
+                  (v, i) => (
+                    <li key={i}>{v}</li>
                   )
                 )}
-              </div>
+              </ul>
             </div>
           )}
         </div>
@@ -355,13 +660,15 @@ export default function IntelligencePage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("organization.intelligence.searchPlaceholder")}
+            placeholder={t(
+              "organization.intelligence.filters.searchPlaceholder"
+            )}
             className="h-9 w-full rounded-md border border-input bg-background pr-4 pl-9 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
           />
         </div>
 
         <div className="flex gap-1">
-          {["all", "critical", "high", "medium", "low"].map((sev) => (
+          {SEVERITIES.map((sev) => (
             <button
               key={sev}
               onClick={() => setFilterSeverity(sev)}
@@ -371,132 +678,142 @@ export default function IntelligencePage() {
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
-              {t(SEVERITY_KEYS[sev])}
-              {sev !== "all" &&
-                ` (${savedItems.filter((i) => i.severity === sev).length})`}
+              {t(`organization.intelligence.filters.severity_${sev}`)}
             </button>
           ))}
         </div>
+        {itemsFetching && (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        )}
       </div>
 
-      {/* Live Analysis Results */}
-      {analyzedItems.length > 0 && (
-        <div className="animate-fade-in rounded-xl border border-primary/30 bg-primary/5 p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">
-              {t("organization.intelligence.analysisResults", {
-                count: analyzedItems.filter((a) => a.is_risk).length,
-              })}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {analyzedItems
-              .filter((a) => a.is_risk)
-              .map((item, i) => (
-                <div
-                  key={i}
-                  className="rounded-lg border border-border bg-card p-3"
-                >
-                  <div className="flex items-start gap-2">
-                    <RiskBadge level={item.severity as any} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <p className="line-clamp-1 text-sm font-medium text-foreground">
-                        {item.original_title}
-                      </p>
-                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {item.risk_summary}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          {item.category}
-                        </span>
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          {(item.relevance_score * 100).toFixed(0)}%
-                        </span>
-                        {item.requires_immediate_attention && (
-                          <span className="rounded bg-risk-critical/10 px-1.5 py-0.5 text-[10px] font-medium text-risk-critical">
-                            {t("organization.intelligence.immediateAction")}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* Saved Intelligence Items */}
+      {/* Intelligence Items */}
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-foreground">
-          {t("organization.intelligence.itemsCount", {
+          {t("organization.intelligence.sections.itemsCount", {
             count: filteredItems.length,
           })}
         </h3>
 
-        {filteredItems.length === 0 ? (
+        {itemsLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <Shield className="mb-3 h-12 w-12 opacity-20" />
             <p className="text-sm font-medium">
-              {t("organization.intelligence.noItemsYet")}
+              {t("organization.intelligence.sections.itemsEmpty")}
             </p>
             <p className="mt-1 text-xs">
-              {t("organization.intelligence.noItemsHint")}
+              {t("organization.intelligence.sections.itemsEmptyHint")}
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {filteredItems.map((item, i) => (
+            {filteredItems.map((item) => (
               <div
-                key={(item.id as string) || i}
+                key={item.id}
                 className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-border/80"
               >
                 <div className="flex items-start gap-3">
-                  <RiskBadge
-                    level={
-                      (item.severity as
-                        | "critical"
-                        | "high"
-                        | "medium"
-                        | "low") || "medium"
-                    }
-                    size="sm"
-                  />
+                  <RiskBadge level={item.severity ?? "medium"} size="sm" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">
-                      {item.title as string}
+                      {item.title}
                     </p>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {item.description as string}
-                    </p>
-                    <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
-                      <span className="font-medium">
-                        {item.source_name as string}
-                      </span>
+                    {item.risk_summary && (
+                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                        {item.risk_summary}
+                      </p>
+                    )}
+                    {!item.risk_summary && item.description && (
+                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                        {item.description}
+                      </p>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
+                      <span className="font-medium">{item.source_name}</span>
+                      {item.relevance_score != null && (
+                        <>
+                          <span>·</span>
+                          <span className="font-mono">
+                            {(item.relevance_score * 100).toFixed(0)}%
+                          </span>
+                        </>
+                      )}
                       <span>·</span>
-                      <span className="font-mono">
-                        {(
-                          ((item.relevance_score as number) || 0) * 100
-                        ).toFixed(0)}
-                        %
+                      <span>
+                        {new Date(item.scraped_at).toLocaleDateString("en-US")}
                       </span>
-                      {item.created_at && (
+                      {!item.analyzed_at && (
                         <>
                           <span>·</span>
                           <span>
-                            {new Date(
-                              item.created_at as string
-                            ).toLocaleDateString("en-US")}
+                            {t(
+                              "organization.intelligence.item.notAnalyzedYet"
+                            )}
                           </span>
                         </>
                       )}
                     </div>
+
+                    {canCreateRisk && item.analyzed_at && (
+                      <div className="mt-2">
+                        {item.created_risk_id ? (
+                          <Link
+                            to="/organization/risks"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                          >
+                            <CheckCircle2 className="h-3 w-3" />
+                            {t("organization.intelligence.item.viewRisk")}
+                            <ExternalLink className="h-3 w-3" />
+                          </Link>
+                        ) : (
+                          <button
+                            onClick={() => handleCreateRisk(item)}
+                            disabled={creatingRiskId === item.id}
+                            className="inline-flex items-center gap-1 rounded-md border border-primary/40 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+                          >
+                            {creatingRiskId === item.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Shield className="h-3 w-3" />
+                            )}
+                            {t("organization.intelligence.item.createRisk")}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 pt-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="rounded-md border border-border px-3 py-1 text-xs disabled:opacity-40"
+            >
+              {t("organization.intelligence.pagination.previous")}
+            </button>
+            <span className="text-xs text-muted-foreground">
+              {t("organization.intelligence.pagination.pageOf", {
+                page,
+                totalPages,
+              })}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="rounded-md border border-border px-3 py-1 text-xs disabled:opacity-40"
+            >
+              {t("organization.intelligence.pagination.next")}
+            </button>
           </div>
         )}
       </div>

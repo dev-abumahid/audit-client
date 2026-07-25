@@ -1,53 +1,783 @@
-import { render, screen } from "@testing-library/react"
+import type { IntelligenceItem, IntelligenceRun } from "@/types/organization"
+import { render, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import IntelligencePage from "./IntelligencePage"
 
-// i18n isn't initialized in the test environment, so t() echoes the raw key
-// back (see RiskRegisterPage.test.tsx for the same convention). The page runs
-// on deferred mock data (issue #141); this smoke test only asserts that the
-// user-facing chrome is routed through translation keys.
+// The page renders a react-router <Link> for "View Risk" -- needs a Router
+// context, same convention as FindingDetails.test.tsx.
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <IntelligencePage />
+    </MemoryRouter>
+  )
+}
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+import { toast } from "sonner"
+const mockToastSuccess = vi.mocked(toast.success)
+const mockToastError = vi.mocked(toast.error)
+
+// Role hook is mocked per-test via this mutable holder, same convention as
+// RiskApprovalControls.test.tsx.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+}))
+
+const mockUseGetIntelligenceItemsQuery = vi.fn()
+const mockUseGetIntelligenceRunsQuery = vi.fn()
+const mockScrape = vi.fn()
+const mockAnalyze = vi.fn()
+const mockPredict = vi.fn()
+const mockGenerateMitigations = vi.fn()
+const mockGenerateRcsa = vi.fn()
+const mockResilienceScan = vi.fn()
+const mockCreateRiskFromItem = vi.fn()
+
+vi.mock("@/redux/apis/organization/intelligence.api", () => ({
+  useGetIntelligenceItemsQuery: (...args: unknown[]) =>
+    mockUseGetIntelligenceItemsQuery(...args),
+  useGetIntelligenceRunsQuery: (...args: unknown[]) =>
+    mockUseGetIntelligenceRunsQuery(...args),
+  useScrapeIntelligenceMutation: () => [mockScrape, { isLoading: false }],
+  useAnalyzeIntelligenceMutation: () => [mockAnalyze, { isLoading: false }],
+  usePredictTrendsMutation: () => [mockPredict, { isLoading: false }],
+  useGenerateMitigationsMutation: () => [
+    mockGenerateMitigations,
+    { isLoading: false },
+  ],
+  useGenerateRcsaMutation: () => [mockGenerateRcsa, { isLoading: false }],
+  useResilienceScanMutation: () => [mockResilienceScan, { isLoading: false }],
+  useCreateRiskFromItemMutation: () => [
+    mockCreateRiskFromItem,
+    { isLoading: false },
+  ],
+}))
+
+function makeItem(overrides: Partial<IntelligenceItem> = {}): IntelligenceItem {
+  return {
+    id: "item-1",
+    org_account_id: "org-1",
+    title: "Ransomware campaign targets manufacturers",
+    description: "A sophisticated ransomware group...",
+    link: null,
+    source_name: "Cyber Threat Intel",
+    source_category: "cyber",
+    source_credibility: 0.9,
+    source_language: "en",
+    published_at: "2026-04-15T10:30:00.000Z",
+    scraped_at: "2026-04-15T10:30:00.000Z",
+    is_risk: true,
+    severity: "high",
+    category: "cyber",
+    relevance_score: 0.87,
+    risk_summary: "High likelihood of supply chain impact.",
+    root_cause: "Phishing",
+    potential_impact: "Operational disruption",
+    recommended_actions: null,
+    confidence: 0.8,
+    source_evidence: null,
+    analyzed_at: "2026-04-15T11:00:00.000Z",
+    created_risk_id: null,
+    ...overrides,
+  }
+}
+
+function makeRun(overrides: Partial<IntelligenceRun> = {}): IntelligenceRun {
+  return {
+    id: "run-1",
+    org_account_id: "org-1",
+    run_type: "PREDICT",
+    result: {},
+    createdAt: "2026-04-15T10:30:00.000Z",
+    ...overrides,
+  }
+}
+
+const emptyItemsResult = {
+  data: { data: [], meta: { page: 1, limit: 20, total: 0, totalPage: 1 } },
+}
+const emptyRunsResult = {
+  data: { data: [], meta: { page: 1, limit: 1, total: 0, totalPage: 1 } },
+}
 
 describe("IntelligencePage", () => {
-  it("renders the localized header, action bar and prediction labels", () => {
-    render(<IntelligencePage />)
+  beforeEach(() => {
+    mockRole = "ADMIN"
+    mockUseGetIntelligenceItemsQuery.mockReset()
+    mockUseGetIntelligenceRunsQuery.mockReset()
+    mockScrape.mockReset()
+    mockAnalyze.mockReset()
+    mockPredict.mockReset()
+    mockGenerateMitigations.mockReset()
+    mockGenerateRcsa.mockReset()
+    mockResilienceScan.mockReset()
+    mockCreateRiskFromItem.mockReset()
+    mockToastSuccess.mockReset()
+    mockToastError.mockReset()
+
+    mockUseGetIntelligenceItemsQuery.mockReturnValue(emptyItemsResult)
+    mockUseGetIntelligenceRunsQuery.mockReturnValue(emptyRunsResult)
+  })
+
+  it("renders intelligence items from the real query", () => {
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem()],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+            }
+    )
+
+    renderPage()
 
     expect(
-      screen.getByText("organization.intelligence.title")
+      screen.getByText("Ransomware campaign targets manufacturers")
     ).toBeInTheDocument()
+    expect(screen.getByText("Cyber Threat Intel")).toBeInTheDocument()
+  })
+
+  it("shows the empty state when there are no items", () => {
+    renderPage()
+
     expect(
-      screen.getByText("organization.intelligence.subtitle")
-    ).toBeInTheDocument()
-    // Action buttons.
-    expect(
-      screen.getByText("organization.intelligence.collectSources")
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText("organization.intelligence.aiPredictions")
-    ).toBeInTheDocument()
-    // Predictions panel labels (rendered from the seeded prediction data).
-    expect(
-      screen.getByText("organization.intelligence.predictionsHeading")
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText("organization.intelligence.score7d")
+      screen.getByText("organization.intelligence.sections.itemsEmpty")
     ).toBeInTheDocument()
   })
 
-  it("routes the search placeholder and severity filters through t()", () => {
-    render(<IntelligencePage />)
+  it("triggers the scrape mutation and shows a success toast", async () => {
+    mockScrape.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          message: "ok",
+          data: {
+            items: [],
+            sourcesTotal: 62,
+            sourcesSucceeded: 58,
+            itemsScraped: 12,
+            itemsNew: 5,
+          },
+        }),
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.actions.scrape",
+      })
+    )
+
+    await waitFor(() => expect(mockScrape).toHaveBeenCalled())
+    expect(mockToastSuccess).toHaveBeenCalled()
+  })
+
+  it("triggers the analyze mutation and shows the result count", async () => {
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? {
+              data: {
+                data: [],
+                meta: { page: 1, limit: 1, total: 3, totalPage: 1 },
+              },
+            }
+          : emptyItemsResult
+    )
+    mockAnalyze.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          message: "ok",
+          data: { items: [], count: 3 },
+        }),
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.actions.analyzeCount",
+      })
+    )
+
+    await waitFor(() => expect(mockAnalyze).toHaveBeenCalled())
+    expect(mockToastSuccess).toHaveBeenCalled()
+  })
+
+  it("triggers the predict mutation", async () => {
+    mockPredict.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          message: "ok",
+          data: makeRun(),
+        }),
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.actions.predict",
+      })
+    )
+
+    await waitFor(() => expect(mockPredict).toHaveBeenCalled())
+    expect(mockToastSuccess).toHaveBeenCalled()
+  })
+
+  it("triggers the mitigations mutation", async () => {
+    mockGenerateMitigations.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ success: true, message: "ok", data: makeRun() }),
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.actions.mitigations",
+      })
+    )
+
+    await waitFor(() => expect(mockGenerateMitigations).toHaveBeenCalled())
+    expect(mockToastSuccess).toHaveBeenCalled()
+  })
+
+  it("triggers the RCSA mutation", async () => {
+    mockGenerateRcsa.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ success: true, message: "ok", data: makeRun() }),
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.actions.rcsa",
+      })
+    )
+
+    await waitFor(() => expect(mockGenerateRcsa).toHaveBeenCalled())
+    expect(mockToastSuccess).toHaveBeenCalled()
+  })
+
+  it("triggers the resilience scan mutation", async () => {
+    mockResilienceScan.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ success: true, message: "ok", data: makeRun() }),
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.actions.resilienceScan",
+      })
+    )
+
+    await waitFor(() => expect(mockResilienceScan).toHaveBeenCalled())
+    expect(mockToastSuccess).toHaveBeenCalled()
+  })
+
+  it("shows a toast when a mutation fails", async () => {
+    mockScrape.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({ data: { message: "AI service error: 502" } }),
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.actions.scrape",
+      })
+    )
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith("AI service error: 502")
+    )
+  })
+
+  it("renders the Create Risk button for ADMIN on an analyzed, not-yet-promoted item", () => {
+    mockRole = "ADMIN"
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem()],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+            }
+    )
+
+    renderPage()
 
     expect(
-      screen.getByPlaceholderText("organization.intelligence.searchPlaceholder")
-    ).toBeInTheDocument()
-    expect(
       screen.getByRole("button", {
-        name: "organization.intelligence.filterAll",
+        name: "organization.intelligence.item.createRisk",
       })
     ).toBeInTheDocument()
-    // Severity filters render "<key> (count)"; match the localized label part.
+  })
+
+  it("hides the Create Risk button for VIEWER", () => {
+    mockRole = "VIEWER"
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem()],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+            }
+    )
+
+    renderPage()
+
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.intelligence.item.createRisk",
+      })
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows a View Risk link instead of Create Risk once created_risk_id is set", () => {
+    mockRole = "ADMIN"
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem({ created_risk_id: "risk-99" })],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+            }
+    )
+
+    renderPage()
+
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.intelligence.item.createRisk",
+      })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText("organization.intelligence.item.viewRisk")
+    ).toBeInTheDocument()
+  })
+
+  it("calls createRiskFromItem when Create Risk is clicked", async () => {
+    mockRole = "ADMIN"
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem()],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+            }
+    )
+    mockCreateRiskFromItem.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          message: "ok",
+          data: { id: "risk-99", name: "Ransomware campaign" },
+        }),
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.item.createRisk",
+      })
+    )
+
+    await waitFor(() =>
+      expect(mockCreateRiskFromItem).toHaveBeenCalledWith({
+        itemId: "item-1",
+      })
+    )
+    expect(mockToastSuccess).toHaveBeenCalled()
+  })
+
+  // Round-1 review gap: only scrape's rejection path was tested. Every
+  // mutation goes through the same errorMessage()-then-toast.error pattern,
+  // but each is wired to its own catch block -- worth confirming each one
+  // individually rather than assuming they all behave the same.
+  const rejectionCases: Array<{
+    name: string
+    mock: typeof mockAnalyze
+    buttonName: string
+  }> = [
+    {
+      name: "analyze",
+      mock: mockAnalyze,
+      buttonName: "organization.intelligence.actions.analyzeCount",
+    },
+    {
+      name: "predict",
+      mock: mockPredict,
+      buttonName: "organization.intelligence.actions.predict",
+    },
+    {
+      name: "mitigations",
+      mock: mockGenerateMitigations,
+      buttonName: "organization.intelligence.actions.mitigations",
+    },
+    {
+      name: "rcsa",
+      mock: mockGenerateRcsa,
+      buttonName: "organization.intelligence.actions.rcsa",
+    },
+    {
+      name: "resilienceScan",
+      mock: mockResilienceScan,
+      buttonName: "organization.intelligence.actions.resilienceScan",
+    },
+  ]
+
+  for (const { name, mock, buttonName } of rejectionCases) {
+    it(`shows a toast with the real error message when ${name} fails`, async () => {
+      // The Analyze button is disabled when there are 0 un-analyzed items
+      // (the default empty-query mock from beforeEach), so give it a
+      // non-zero count here -- same setup the passing "triggers the analyze
+      // mutation" test above already uses.
+      if (name === "analyze") {
+        mockUseGetIntelligenceItemsQuery.mockImplementation(
+          (args: { analyzed?: boolean }) =>
+            args.analyzed === false
+              ? {
+                  data: {
+                    data: [],
+                    meta: { page: 1, limit: 1, total: 3, totalPage: 1 },
+                  },
+                }
+              : emptyItemsResult
+        )
+      }
+      mock.mockReturnValue({
+        unwrap: () =>
+          Promise.reject({ data: { message: `${name} backend error` } }),
+      })
+
+      renderPage()
+      await userEvent.click(screen.getByRole("button", { name: buttonName }))
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith(`${name} backend error`)
+      )
+    })
+  }
+
+  it("shows a toast with the real error message when createRiskFromItem fails", async () => {
+    mockRole = "ADMIN"
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem()],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+            }
+    )
+    mockCreateRiskFromItem.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({ data: { message: "create-risk backend error" } }),
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.item.createRisk",
+      })
+    )
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith("create-risk backend error")
+    )
+  })
+
+  // Round-1 review gap: only ADMIN-visible and VIEWER-hidden were tested,
+  // despite the actual gate being `role === "ADMIN" || role === "LEAD_AUDITOR"`
+  // -- LEAD_AUDITOR (should show) and LIGHT_USER (should hide) had zero
+  // coverage, and the old test's name falsely implied LIGHT_USER was covered.
+  it("shows the Create Risk button for LEAD_AUDITOR", () => {
+    mockRole = "LEAD_AUDITOR"
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem()],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+            }
+    )
+
+    renderPage()
+
     expect(
       screen.getByRole("button", {
-        name: /organization\.intelligence\.severityCritical/,
+        name: "organization.intelligence.item.createRisk",
       })
+    ).toBeInTheDocument()
+  })
+
+  it("hides the Create Risk button for LIGHT_USER", () => {
+    mockRole = "LIGHT_USER"
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem()],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+            }
+    )
+
+    renderPage()
+
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.intelligence.item.createRisk",
+      })
+    ).not.toBeInTheDocument()
+  })
+
+  // Round-1 review gap: the existing "calls createRiskFromItem" test only
+  // asserted the mutation fired -- it never verified the UI actually
+  // transitions afterward. In the real app that transition comes from RTK
+  // Query's cache invalidation causing useGetIntelligenceItemsQuery to
+  // refetch with created_risk_id now set; since this file mocks the hook
+  // directly (no real store), we simulate that refetch by having the mock's
+  // return value change after the mutation resolves, then re-rendering --
+  // the same externally-observable effect a real invalidated-tag refetch
+  // would produce.
+  it("shows View Risk instead of Create Risk after createRiskFromItem succeeds", async () => {
+    mockRole = "ADMIN"
+    let itemsAnalyzedResult = {
+      data: {
+        data: [makeItem()],
+        meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+      },
+    }
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false ? emptyItemsResult : itemsAnalyzedResult
+    )
+    mockCreateRiskFromItem.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          message: "ok",
+          data: { id: "risk-99", name: "Ransomware campaign" },
+        }),
+    })
+
+    const { rerender } = renderPage()
+    expect(
+      screen.getByRole("button", {
+        name: "organization.intelligence.item.createRisk",
+      })
+    ).toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.item.createRisk",
+      })
+    )
+    await waitFor(() => expect(mockCreateRiskFromItem).toHaveBeenCalled())
+
+    // Simulate the refetch a real invalidated INTELLIGENCE_ITEM tag would
+    // trigger: the item now comes back with created_risk_id set.
+    itemsAnalyzedResult = {
+      data: {
+        data: [makeItem({ created_risk_id: "risk-99" })],
+        meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+      },
+    }
+    rerender(
+      <MemoryRouter>
+        <IntelligencePage />
+      </MemoryRouter>
+    )
+
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.intelligence.item.createRisk",
+      })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText("organization.intelligence.item.viewRisk")
+    ).toBeInTheDocument()
+  })
+
+  // Round-1 review gap: the runtime type guards (intelligenceRunTypes.ts)
+  // had zero test coverage in either direction -- no test proved they accept
+  // real well-formed aexa-ai response shapes, and no test proved they reject
+  // a malformed/partial one instead of letting the component crash on a
+  // missing field.
+  describe("runtime type guards for IntelligenceRun.result", () => {
+    function mockRunsFor(runType: string, result: unknown) {
+      mockUseGetIntelligenceRunsQuery.mockImplementation(
+        (args: { run_type: string }) =>
+          args.run_type === runType
+            ? {
+                data: {
+                  data: [makeRun({ run_type: runType as never, result })],
+                  meta: { page: 1, limit: 1, total: 1, totalPage: 1 },
+                },
+              }
+            : emptyRunsResult
+      )
+    }
+
+    it("renders the predict panel for a well-formed result and rejects a malformed one", () => {
+      mockRunsFor("PREDICT", {
+        score_7d: 42,
+        score_30d: 55,
+        trend: "worsening",
+        confidence: 0.7,
+        emerging_risks: [],
+        key_drivers: [],
+        board_summary: "Summary text",
+      })
+      const { unmount } = renderPage()
+      expect(screen.getByText("Summary text")).toBeInTheDocument()
+      unmount()
+
+      // Missing score_30d/emerging_risks -- must not crash, must not render.
+      mockRunsFor("PREDICT", { score_7d: 42, trend: "worsening" })
+      expect(() => renderPage()).not.toThrow()
+      expect(screen.queryByText("Summary text")).not.toBeInTheDocument()
+    })
+
+    it("renders the mitigations panel for a well-formed result and rejects a malformed one", () => {
+      mockRunsFor("MITIGATIONS", {
+        mitigations: [
+          {
+            risk_id: "r1",
+            risk_name: "Ransomware exposure",
+            actions: [
+              {
+                title: "Patch VPN",
+                description: "d",
+                mitigation_type: "prevent",
+                owner: "IT",
+                priority: "high",
+                effectiveness_score: 0.8,
+                risk_reduction: 0.5,
+              },
+            ],
+          },
+        ],
+      })
+      const { unmount } = renderPage()
+      expect(screen.getByText("Ransomware exposure")).toBeInTheDocument()
+      unmount()
+
+      // mitigations entries present but missing `actions` -- must not crash.
+      mockRunsFor("MITIGATIONS", {
+        mitigations: [{ risk_id: "r1", risk_name: "X" }],
+      })
+      expect(() => renderPage()).not.toThrow()
+      expect(screen.queryByText("Ransomware exposure")).not.toBeInTheDocument()
+    })
+
+    it("renders the RCSA panel for a well-formed result and rejects a malformed one", () => {
+      mockRunsFor("RCSA", {
+        rcsa_date: "2026-01-01",
+        assessment_period: "Q1",
+        risk_universe: [],
+        control_environment_score: 70,
+        overall_risk_appetite: "Moderate",
+        key_control_deficiencies: ["Gap A"],
+        management_actions: [],
+      })
+      const { unmount } = renderPage()
+      expect(screen.getByText("Gap A")).toBeInTheDocument()
+      unmount()
+
+      // risk_universe present but key_control_deficiencies missing.
+      mockRunsFor("RCSA", { risk_universe: [] })
+      expect(() => renderPage()).not.toThrow()
+      expect(screen.queryByText("Gap A")).not.toBeInTheDocument()
+    })
+
+    it("renders the resilience-scan panel for a well-formed result and rejects a malformed one", () => {
+      mockRunsFor("RESILIENCE_SCAN", {
+        analysis_date: "2026-01-01",
+        company_context: "ctx",
+        immediate_alerts: [],
+        resilience_score: {
+          overall: 60,
+          supply_chain: 55,
+          financial: 65,
+          geopolitical: 50,
+          trend: "stable",
+          top_vulnerabilities: ["Single-source supplier"],
+        },
+      })
+      const { unmount } = renderPage()
+      expect(
+        screen.getByText("Single-source supplier")
+      ).toBeInTheDocument()
+      unmount()
+
+      // resilience_score present but missing top_vulnerabilities/immediate_alerts.
+      mockRunsFor("RESILIENCE_SCAN", {
+        resilience_score: { overall: 60 },
+      })
+      expect(() => renderPage()).not.toThrow()
+      expect(
+        screen.queryByText("Single-source supplier")
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  it("does not show Create Risk for an item that has not been analyzed yet", () => {
+    mockRole = "ADMIN"
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [
+                  makeItem({
+                    analyzed_at: null,
+                    severity: null,
+                    is_risk: null,
+                  }),
+                ],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+            }
+    )
+
+    renderPage()
+
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.intelligence.item.createRisk",
+      })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText("organization.intelligence.item.notAnalyzedYet")
     ).toBeInTheDocument()
   })
 })

@@ -71,6 +71,8 @@ export const baseApi = createApi({
     "REPORT",
     "ORGANIZATION",
     "GOVERNANCE",
+    "INTELLIGENCE_ITEM",
+    "INTELLIGENCE_RUN",
   ],
   endpoints: () => ({}),
 })
