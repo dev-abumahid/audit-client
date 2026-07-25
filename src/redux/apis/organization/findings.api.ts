@@ -26,6 +26,12 @@ interface FindingRequestBody {
   assignBy?: string[]
   questionId?: string
   inspectionId?: string
+  // Optional back-link to the ComplianceObligation this action remediates
+  // (aexa-frontend#166 "Create Action" from a non-compliant obligation).
+  // create_action_into_db validates it belongs to the caller's org and writes
+  // the real FK; update_action_into_db deliberately never reads it, so it is
+  // only ever sent on create (aexa-server#226).
+  complianceObligationId?: string
   // Only `message` is persisted per item — see MESSAGES include comment in
   // finding.d.ts for why the full IActionMessage shape doesn't round-trip
   // through a request body.

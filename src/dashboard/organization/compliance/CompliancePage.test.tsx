@@ -30,6 +30,25 @@ vi.mock("@/redux/apis/organization/sites.api", () => ({
   useGetAllSitesQuery: (...args: unknown[]) => mockUseGetAllSitesQuery(...args),
 }))
 
+// The reused Action-creation modal (#166) pulls in its own RTK Query hooks
+// (findings/inspection/org-users/upload) that this suite doesn't wrap in a
+// store — mock it and capture the props it's opened with, the same pattern
+// AllFindingsPage.test uses.
+const mockCreateActionModal = vi.fn()
+vi.mock("@/dashboard/organization/findings/CreateNewFindingModal", () => ({
+  default: (props: {
+    open: boolean
+    additionalData?: { complianceObligationId?: string; actionTitle?: string }
+  }) => {
+    mockCreateActionModal(props)
+    return props.open ? (
+      <div data-testid="create-action-modal">
+        {props.additionalData?.actionTitle}
+      </div>
+    ) : null
+  },
+}))
+
 // The Title label isn't associated with its input via htmlFor, so locate it
 // through the label's wrapping <div>. In the test env i18n is not initialized,
 // so t() echoes raw keys (same convention as RiskRegisterPage.test).
@@ -75,6 +94,7 @@ describe("CompliancePage", () => {
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
     mockUseGetAllSitesQuery.mockReset()
+    mockCreateActionModal.mockReset()
     // Sensible defaults; individual tests override the compliance query.
     mockUseGetComplianceScorecardQuery.mockReturnValue({
       data: { data: emptyScorecard },
@@ -440,5 +460,142 @@ describe("CompliancePage", () => {
     // in_progress row on the current page.
     expect(screen.getByText("40")).toBeInTheDocument()
     expect(screen.getByText("9")).toBeInTheDocument()
+  })
+
+  // ── Create Action from a non-compliant obligation (#166) ──────────────────
+
+  it("shows a Create Action button ONLY on non-compliant rows", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [
+          makeObligation({
+            id: "comp-fail",
+            title: "Failing obligation",
+            status: "non_compliant",
+          }),
+          makeObligation({
+            id: "comp-ok",
+            title: "Passing obligation",
+            status: "compliant",
+          }),
+          makeObligation({
+            id: "comp-wip",
+            title: "In-progress obligation",
+            status: "in_progress",
+          }),
+          makeObligation({
+            id: "comp-na",
+            title: "Not-applicable obligation",
+            status: "not_applicable",
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    const failRow = screen.getByText("Failing obligation").closest("tr")!
+    const okRow = screen.getByText("Passing obligation").closest("tr")!
+    const wipRow = screen.getByText("In-progress obligation").closest("tr")!
+    const naRow = screen.getByText("Not-applicable obligation").closest("tr")!
+
+    // Only the non-compliant row exposes the remediation affordance.
+    expect(
+      within(failRow).getByRole("button", {
+        name: /organization\.compliance\.createAction\.button/i,
+      })
+    ).toBeInTheDocument()
+    expect(
+      within(okRow).queryByRole("button", {
+        name: /organization\.compliance\.createAction\.button/i,
+      })
+    ).not.toBeInTheDocument()
+    expect(
+      within(wipRow).queryByRole("button", {
+        name: /organization\.compliance\.createAction\.button/i,
+      })
+    ).not.toBeInTheDocument()
+    expect(
+      within(naRow).queryByRole("button", {
+        name: /organization\.compliance\.createAction\.button/i,
+      })
+    ).not.toBeInTheDocument()
+  })
+
+  it("pre-fills a description that references the obligation even when it has no description", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [
+          makeObligation({
+            id: "comp-nodesc",
+            title: "Undocumented control",
+            description: undefined,
+            status: "non_compliant",
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /organization\.compliance\.createAction\.button/i,
+      })
+    )
+
+    const props = mockCreateActionModal.mock.calls.at(-1)![0]
+    expect(props.additionalData.complianceObligationId).toBe("comp-nodesc")
+    // Fallback branch (no description) still names the obligation and never
+    // interpolates a literal "undefined".
+    expect(props.additionalData.actionDisc).toContain("Undocumented control")
+    expect(props.additionalData.actionDisc).not.toContain("undefined")
+  })
+
+  it("opens the reused Action modal pre-filled with a Remediate title and the obligation's complianceObligationId", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [
+          makeObligation({
+            id: "comp-77",
+            title: "GDPR Article 30 records",
+            description: "Maintain records of processing activities",
+            status: "non_compliant",
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    // Modal is not mounted until the button is clicked.
+    expect(
+      screen.queryByTestId("create-action-modal")
+    ).not.toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /organization\.compliance\.createAction\.button/i,
+      })
+    )
+
+    expect(screen.getByTestId("create-action-modal")).toBeInTheDocument()
+    const props = mockCreateActionModal.mock.calls.at(-1)![0]
+    expect(props.open).toBe(true)
+    // The real relation the backend (aexa-server#226) links on save.
+    expect(props.additionalData.complianceObligationId).toBe("comp-77")
+    // Pre-filled title references the obligation.
+    expect(props.additionalData.actionTitle).toBe(
+      "Remediate: GDPR Article 30 records"
+    )
+    // Description references the failing obligation too.
+    expect(props.additionalData.actionDisc).toContain(
+      "GDPR Article 30 records"
+    )
   })
 })

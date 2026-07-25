@@ -173,6 +173,62 @@ describe("CreateNewFindingModal", () => {
     expect(payload).not.toHaveProperty("question")
   })
 
+  it("sends complianceObligationId from additionalData on create (aexa-frontend#166)", async () => {
+    mockCreateNewFinding.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        additionalData={{
+          actionTitle: "Remediate: GDPR Article 30 records",
+          complianceObligationId: "comp-99",
+        }}
+      />
+    )
+
+    // Title comes pre-filled from additionalData — no typing needed.
+    await userEvent.click(
+      screen.getByRole("button", { name: /create finding/i })
+    )
+
+    await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
+    const payload = mockCreateNewFinding.mock.calls[0][0]
+    expect(payload).toHaveProperty("complianceObligationId", "comp-99")
+    expect(payload.actionTitle).toBe("Remediate: GDPR Article 30 records")
+  })
+
+  it("does NOT send complianceObligationId when editing an existing finding (create-only, aexa-server#226)", async () => {
+    mockUpdateFindingById.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={makeEditData() as any}
+        // Even if some caller passed it, an edit must never carry it.
+        additionalData={{ complianceObligationId: "comp-99" }}
+      />
+    )
+
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("Fix broken railing")).toBeInTheDocument()
+    )
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /update finding/i })
+    )
+
+    await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
+    const call = mockUpdateFindingById.mock.calls[0][0]
+    expect(call.body).not.toHaveProperty("complianceObligationId")
+    expect(mockCreateNewFinding).not.toHaveBeenCalled()
+  })
+
   it("includes uploaded media URLs in the payload after uploading a file", async () => {
     mockUploadFile.mockReturnValue({
       unwrap: () =>

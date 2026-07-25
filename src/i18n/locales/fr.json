@@ -407,6 +407,9 @@
             "title":"Obligations de conformité",
             "subtitle":"{{count}} obligations suivies",
             "newObligation":"Nouvelle obligation",
+            "createAction":{
+                "button":"Créer une action"
+            },
             "searchPlaceholder":"Rechercher une obligation, description ou responsable...",
             "allDomains":"Tous les domaines",
             "allStatuses":"Tous les statuts",

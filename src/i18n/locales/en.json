@@ -407,6 +407,9 @@
             "title":"Compliance Obligations",
             "subtitle":"{{count}} obligations tracked",
             "newObligation":"New Obligation",
+            "createAction":{
+                "button":"Create Action"
+            },
             "searchPlaceholder":"Search obligations, description or owner...",
             "allDomains":"All Domains",
             "allStatuses":"All Statuses",

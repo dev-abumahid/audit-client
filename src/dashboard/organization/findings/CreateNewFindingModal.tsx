@@ -42,6 +42,11 @@ interface CreateActionModalProps {
     inspectionId?: string
     actionTitle?: string
     actionDisc?: string
+    // Optional back-link to the ComplianceObligation this action remediates
+    // (aexa-frontend#166). Threaded straight onto the create payload below —
+    // not a user-editable form field, and only sent on create, mirroring the
+    // backend which sets it once at creation (aexa-server#226).
+    complianceObligationId?: string
   }
 }
 
@@ -302,7 +307,15 @@ export default function CreateNewFindingModal({
         }
         toast.success("Action updated successfully!")
       } else {
-        await addAction(payload).unwrap()
+        // complianceObligationId is only ever sent on create — the backend
+        // sets this FK once at creation and its update handler never reads it
+        // (aexa-server#226), so it's added here rather than to the shared
+        // payload above. Undefined (the normal Findings/Inspection flows) is
+        // simply omitted by the request serializer.
+        await addAction({
+          ...payload,
+          complianceObligationId: additionalData?.complianceObligationId,
+        }).unwrap()
         toast.success("Action created successfully!")
       }
       setMessageInput("")

@@ -1,4 +1,5 @@
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
+import CreateNewFindingModal from "@/dashboard/organization/findings/CreateNewFindingModal"
 import type {
   ComplianceObligation,
   ComplianceScoreBand,
@@ -125,6 +126,12 @@ export default function CompliancePage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [uploading, setUploading] = useState(false)
+
+  // The obligation a remediation Action is being created for (#166). Non-null
+  // means the reused CreateNewFindingModal is open, pre-filled and carrying the
+  // real complianceObligationId FK the backend (aexa-server#226) links on save.
+  const [actionObligation, setActionObligation] =
+    useState<ComplianceObligation | null>(null)
 
   // Changing any filter resets to page 1 so the user never lands on an
   // out-of-range page for the newly-filtered result set.
@@ -577,19 +584,35 @@ export default function CompliancePage() {
                     />
                   </td>
                   <td className="px-3 py-3">
-                    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      <button
-                        onClick={() => openEdit(obl)}
-                        className="rounded p-1 text-muted-foreground hover:bg-muted"
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(obl.id)}
-                        className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                    <div className="flex items-center justify-end gap-1">
+                      {/* Remediation path for a failing obligation (#166):
+                          only non-compliant rows are a dead end that needs a
+                          "Create Action" affordance. Kept always-visible (not
+                          hover-gated like edit/delete) so the remediation nudge
+                          is actually discoverable. */}
+                      {obl.status === "non_compliant" && (
+                        <button
+                          onClick={() => setActionObligation(obl)}
+                          className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/20"
+                        >
+                          <Plus className="h-3 w-3" />
+                          {t("organization.compliance.createAction.button")}
+                        </button>
+                      )}
+                      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          onClick={() => openEdit(obl)}
+                          className="rounded p-1 text-muted-foreground hover:bg-muted"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(obl.id)}
+                          className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -864,6 +887,27 @@ export default function CompliancePage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Remediation Action modal (#166). Reuses the Findings/Inspection
+          CreateNewFindingModal verbatim rather than building a second Action
+          form — pre-filled with a title/description referencing the obligation
+          and carrying complianceObligationId so the backend writes the real
+          Action → ComplianceObligation link on save (aexa-server#226). Only
+          mounted while an obligation is selected, so its RTK Query hooks stay
+          idle on the normal Compliance view. */}
+      {actionObligation && (
+        <CreateNewFindingModal
+          open
+          onClose={() => setActionObligation(null)}
+          additionalData={{
+            actionTitle: `Remediate: ${actionObligation.title}`,
+            actionDisc: actionObligation.description
+              ? `Remediation action for non-compliant obligation "${actionObligation.title}": ${actionObligation.description}`
+              : `Remediation action for non-compliant obligation "${actionObligation.title}".`,
+            complianceObligationId: actionObligation.id,
+          }}
+        />
       )}
     </div>
   )
