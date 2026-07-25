@@ -1747,6 +1747,63 @@
           "usage": "5. Acceptable Use Policy"
         },
         "tocHeading": "Table of Contents"
+      },
+      "privacy": {
+        "pageTitle": "Privacy Policy",
+        "intro": "Your privacy is our priority. This policy explains how we handle your data and the steps we take to keep it secure.",
+        "lastUpdated": "Last Updated: {{date}}",
+        "cards": {
+          "collect": {
+            "title": "What we collect",
+            "items": [
+              "Account info",
+              "Inspection data",
+              "Device logs",
+              "Location (optional)"
+            ]
+          },
+          "use": {
+            "title": "How we use it",
+            "items": [
+              "Platform analytics",
+              "Generating reports",
+              "Account security",
+              "Support requests"
+            ]
+          },
+          "sharing": {
+            "title": "Data Sharing",
+            "items": [
+              "Service providers",
+              "Legal compliance",
+              "Your organization",
+              "No selling to 3rd parties"
+            ]
+          }
+        },
+        "sections": {
+          "security": {
+            "title": "1. Data Security & Storage",
+            "body1": "We implement industry-standard AES-256 encryption for all data at rest and TLS/SSL for data in transit. Your inspection records and operational data are stored in secure, distributed cloud environments with 24/7 monitoring.",
+            "body2": "Access to this data within our company is strictly limited to authorized personnel who require it to perform their jobs (e.g., technical support or database maintenance)."
+          },
+          "cookies": {
+            "title": "2. Cookies and Tracking",
+            "body": "We use essential cookies to keep you logged in and functional cookies to remember your preferences (like your preferred language or dashboard layout). We do not use tracking cookies for cross-site advertising."
+          },
+          "rights": {
+            "title": "3. Your Rights & Control",
+            "intro": "Depending on your location (such as GDPR or CCPA jurisdictions), you have specific rights regarding your data:",
+            "item1": "Right to access your data",
+            "item2": "Right to request data deletion",
+            "item3": "Right to data portability",
+            "item4": "Right to correct inaccuracies"
+          }
+        },
+        "footer": {
+          "title": "Privacy Questions?",
+          "body": "If you have any questions about this Privacy Policy or our data practices, please contact our Data Protection Officer."
+        }
       }
     }
   }

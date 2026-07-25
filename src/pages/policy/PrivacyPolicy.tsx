@@ -1,40 +1,37 @@
 import { Database, Eye, Lock, Mail, Share2, ShieldCheck } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 const PrivacyPolicy = () => {
+  const { t } = useTranslation()
   const lastUpdated = "February 24, 2026"
 
   const dataCards = [
     {
       icon: <Database className="h-6 w-6 text-primary" />,
-      title: "What we collect",
-      items: [
-        "Account info",
-        "Inspection data",
-        "Device logs",
-        "Location (optional)",
-      ],
+      title: t("pages.policy.privacy.cards.collect.title"),
+      items: t("pages.policy.privacy.cards.collect.items", {
+        returnObjects: true,
+      }) as string[],
     },
     {
       icon: <Eye className="h-6 w-6 text-primary" />,
-      title: "How we use it",
-      items: [
-        "Platform analytics",
-        "Generating reports",
-        "Account security",
-        "Support requests",
-      ],
+      title: t("pages.policy.privacy.cards.use.title"),
+      items: t("pages.policy.privacy.cards.use.items", {
+        returnObjects: true,
+      }) as string[],
     },
     {
       icon: <Share2 className="h-6 w-6 text-primary" />,
-      title: "Data Sharing",
-      items: [
-        "Service providers",
-        "Legal compliance",
-        "Your organization",
-        "No selling to 3rd parties",
-      ],
+      title: t("pages.policy.privacy.cards.sharing.title"),
+      items: t("pages.policy.privacy.cards.sharing.items", {
+        returnObjects: true,
+      }) as string[],
     },
   ]
+
+  const rights = t("pages.policy.privacy.sections.rights", {
+    returnObjects: true,
+  }) as { intro: string; item1: string; item2: string; item3: string; item4: string }
 
   return (
     <div className="min-h-screen bg-background pb-20 text-foreground">
@@ -46,16 +43,15 @@ const PrivacyPolicy = () => {
           </div>
 
           <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
-            Privacy Policy
+            {t("pages.policy.privacy.pageTitle")}
           </h1>
 
           <p className="mx-auto max-w-xl text-lg text-muted-foreground">
-            Your privacy is our priority. This policy explains how we handle
-            your data and the steps we take to keep it secure.
+            {t("pages.policy.privacy.intro")}
           </p>
 
           <div className="mt-6 font-mono text-sm text-primary">
-            Last Updated: {lastUpdated}
+            {t("pages.policy.privacy.lastUpdated", { date: lastUpdated })}
           </div>
         </div>
       </header>
@@ -91,19 +87,12 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="mb-6 flex items-center gap-3 text-2xl font-semibold">
               <ShieldCheck className="h-6 w-6 text-primary" />
-              1. Data Security & Storage
+              {t("pages.policy.privacy.sections.security.title")}
             </h2>
             <div className="prose prose-neutral dark:prose-invert max-w-none leading-relaxed text-muted-foreground">
-              <p>
-                We implement industry-standard AES-256 encryption for all data
-                at rest and TLS/SSL for data in transit. Your inspection records
-                and operational data are stored in secure, distributed cloud
-                environments with 24/7 monitoring.
-              </p>
+              <p>{t("pages.policy.privacy.sections.security.body1")}</p>
               <p className="mt-4">
-                Access to this data within our company is strictly limited to
-                authorized personnel who require it to perform their jobs (e.g.,
-                technical support or database maintenance).
+                {t("pages.policy.privacy.sections.security.body2")}
               </p>
             </div>
           </section>
@@ -111,43 +100,34 @@ const PrivacyPolicy = () => {
           {/* 2. Cookies and Tracking */}
           <section className="rounded-2xl border border-border bg-card p-8">
             <h2 className="mb-6 text-2xl font-semibold">
-              2. Cookies and Tracking
+              {t("pages.policy.privacy.sections.cookies.title")}
             </h2>
             <p className="leading-relaxed text-muted-foreground">
-              We use essential cookies to keep you logged in and functional
-              cookies to remember your preferences (like your preferred language
-              or dashboard layout). We do not use tracking cookies for
-              cross-site advertising.
+              {t("pages.policy.privacy.sections.cookies.body")}
             </p>
           </section>
 
           {/* 3. Your Rights & Control */}
           <section>
             <h2 className="mb-6 text-2xl font-semibold">
-              3. Your Rights & Control
+              {t("pages.policy.privacy.sections.rights.title")}
             </h2>
-            <p className="mb-8 text-muted-foreground">
-              Depending on your location (such as GDPR or CCPA jurisdictions),
-              you have specific rights regarding your data:
-            </p>
+            <p className="mb-8 text-muted-foreground">{rights.intro}</p>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              {[
-                "Right to access your data",
-                "Right to request data deletion",
-                "Right to data portability",
-                "Right to correct inaccuracies",
-              ].map((right, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-3 rounded-xl border border-border bg-card p-5"
-                >
-                  <div className="shrink-0 text-xl font-bold text-primary">
-                    ✓
+              {[rights.item1, rights.item2, rights.item3, rights.item4].map(
+                (right, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-3 rounded-xl border border-border bg-card p-5"
+                  >
+                    <div className="shrink-0 text-xl font-bold text-primary">
+                      ✓
+                    </div>
+                    <span className="text-sm leading-snug">{right}</span>
                   </div>
-                  <span className="text-sm leading-snug">{right}</span>
-                </div>
-              ))}
+                ),
+              )}
             </div>
           </section>
 
@@ -156,11 +136,10 @@ const PrivacyPolicy = () => {
             <div className="mx-auto max-w-2xl rounded-3xl border border-primary/20 bg-linear-to-br from-primary/5 to-transparent p-10">
               <Mail className="mx-auto mb-6 h-12 w-12 text-primary" />
               <h3 className="mb-3 text-2xl font-semibold">
-                Privacy Questions?
+                {t("pages.policy.privacy.footer.title")}
               </h3>
               <p className="mb-8 text-muted-foreground">
-                If you have any questions about this Privacy Policy or our data
-                practices, please contact our Data Protection Officer.
+                {t("pages.policy.privacy.footer.body")}
               </p>
               <a
                 href="mailto:privacy@yourcompany.com"

@@ -1747,6 +1747,63 @@
           "usage": "5. Politique d'utilisation acceptable"
         },
         "tocHeading": "Table des matières"
+      },
+      "privacy": {
+        "pageTitle": "Politique de confidentialité",
+        "intro": "Votre vie privée est notre priorité. Cette politique explique comment nous traitons vos données et les mesures que nous prenons pour les sécuriser.",
+        "lastUpdated": "Dernière mise à jour : {{date}}",
+        "cards": {
+          "collect": {
+            "title": "Ce que nous collectons",
+            "items": [
+              "Informations de compte",
+              "Données d'inspection",
+              "Journaux de l'appareil",
+              "Localisation (facultatif)"
+            ]
+          },
+          "use": {
+            "title": "Comment nous l'utilisons",
+            "items": [
+              "Analyses de la plateforme",
+              "Génération de rapports",
+              "Sécurité du compte",
+              "Demandes d'assistance"
+            ]
+          },
+          "sharing": {
+            "title": "Partage des données",
+            "items": [
+              "Prestataires de services",
+              "Conformité légale",
+              "Votre organisation",
+              "Aucune vente à des tiers"
+            ]
+          }
+        },
+        "sections": {
+          "security": {
+            "title": "1. Sécurité et stockage des données",
+            "body1": "Nous mettons en œuvre un chiffrement AES-256 conforme aux normes du secteur pour toutes les données au repos et TLS/SSL pour les données en transit. Vos registres d'inspection et données opérationnelles sont stockés dans des environnements cloud sécurisés et distribués, surveillés 24 h/24 et 7 j/7.",
+            "body2": "L'accès à ces données au sein de notre entreprise est strictement limité au personnel autorisé qui en a besoin pour exercer ses fonctions (par exemple, support technique ou maintenance de la base de données)."
+          },
+          "cookies": {
+            "title": "2. Cookies et suivi",
+            "body": "Nous utilisons des cookies essentiels pour vous maintenir connecté et des cookies fonctionnels pour mémoriser vos préférences (comme votre langue préférée ou la disposition du tableau de bord). Nous n'utilisons pas de cookies de suivi pour la publicité inter-sites."
+          },
+          "rights": {
+            "title": "3. Vos droits et votre contrôle",
+            "intro": "Selon votre localisation (par exemple, les juridictions RGPD ou CCPA), vous disposez de droits spécifiques concernant vos données :",
+            "item1": "Droit d'accès à vos données",
+            "item2": "Droit de demander la suppression des données",
+            "item3": "Droit à la portabilité des données",
+            "item4": "Droit de corriger les inexactitudes"
+          }
+        },
+        "footer": {
+          "title": "Des questions sur la confidentialité ?",
+          "body": "Si vous avez des questions sur cette politique de confidentialité ou nos pratiques en matière de données, veuillez contacter notre délégué à la protection des données."
+        }
       }
     }
   }
