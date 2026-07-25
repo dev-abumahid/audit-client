@@ -96,8 +96,8 @@ describe("AdminOrganization", () => {
 
     render(<AdminOrganization />)
 
-    expect(screen.getAllByText("Active").length).toBeGreaterThan(0)
-    expect(screen.getAllByText("Pending").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("admin.organizations.statusActive").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("admin.organizations.statusPending").length).toBeGreaterThan(0)
   })
 
   it("shows the empty state when there are no organizations", () => {
@@ -105,7 +105,7 @@ describe("AdminOrganization", () => {
 
     render(<AdminOrganization />)
 
-    expect(screen.getAllByText("No organizations found").length).toBeGreaterThan(
+    expect(screen.getAllByText("admin.organizations.noResults").length).toBeGreaterThan(
       0
     )
   })
@@ -115,7 +115,7 @@ describe("AdminOrganization", () => {
 
     render(<AdminOrganization />)
     await userEvent.type(
-      screen.getByPlaceholderText("Search organizations..."),
+      screen.getByPlaceholderText("admin.organizations.searchPlaceholder"),
       "acme"
     )
 

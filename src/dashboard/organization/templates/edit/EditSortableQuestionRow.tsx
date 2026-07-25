@@ -8,32 +8,11 @@ import {
 import { isValidUUID } from "@/utils/validUUID"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import {
-  Calendar,
-  CheckSquare,
-  ChevronDown,
-  GripVertical,
-  Image,
-  MapPinned,
-  PenTool,
-  Sliders,
-  Trash2,
-} from "lucide-react"
+import { ChevronDown, GripVertical, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Controller, useWatch } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-
-const ANSWER_TYPES = [
-  { value: "input", label: "Input", icon: CheckSquare },
-  { value: "checkbox", label: "Check Box", icon: CheckSquare },
-  { value: "date", label: "Date", icon: Calendar },
-  { value: "media", label: "Media", icon: Image },
-  { value: "slider", label: "Slider", icon: Sliders },
-  { value: "annotation", label: "Annotation", icon: PenTool },
-  { value: "signature", label: "Signature", icon: PenTool },
-  { value: "location", label: "Location", icon: MapPinned },
-  { value: "instruction", label: "Instruction", icon: MapPinned },
-] as const
 
 interface SortableQuestionRowProps {
   sortableId: string
@@ -74,6 +53,7 @@ function EditSortableQuestionRow({
   isDraggingGlobal = false,
   orderSyncFailed = false,
 }: SortableQuestionRowProps) {
+  const { t } = useTranslation()
   const {
     attributes,
     listeners,
@@ -114,10 +94,15 @@ function EditSortableQuestionRow({
   })
 
   const answerLabel = (() => {
-    if (!answerType) return "Select Type"
+    if (!answerType) return t("organization.templates.builder.selectType")
     const at = answerType.answerType
-    if (at === "input") return `Input (${answerType.value ?? "text"})`
-    return ANSWER_TYPES.find((t) => t.value === at)?.label ?? at
+    if (at === "input")
+      return t("organization.templates.builder.inputWithValue", {
+        value: answerType.value ?? "text",
+      })
+    return t(`organization.templates.builder.answerTypes.${at}`, {
+      defaultValue: at,
+    })
   })()
 
   const isDragging = isSortableDragging || isDraggingGlobal
@@ -148,7 +133,7 @@ function EditSortableQuestionRow({
 
       lastSyncedValueRef.current = syncKey
     } catch (error:any) {
-      toast.error(error?.message || "Error syncing question",)
+      toast.error(error?.message || t("organization.templates.builder.syncQuestionError"))
     } finally {
       setIsSyncing(false)
     }
@@ -186,15 +171,15 @@ function EditSortableQuestionRow({
   }, [answerType])
 
   const handleDeleteQuestion = async () => {
-    if (window.confirm("Are you sure you want to delete this question?")) {
+    if (window.confirm(t("organization.templates.builder.confirmDeleteQuestion"))) {
       try {
         if (isEditMode && questionId) {
           await deleteQuestion(questionId).unwrap()
-          toast.success("Question deleted successfully")
+          toast.success(t("organization.templates.builder.questionDeleted"))
         }
         remove(questionIndex)
       } catch (error:any) {
-        toast.error(error?.message || "Failed to delete question")
+        toast.error(error?.message || t("organization.templates.builder.deleteQuestionFailed"))
       }
     }
   }
@@ -222,7 +207,7 @@ function EditSortableQuestionRow({
         onClick={handleDeleteQuestion}
         disabled={isDeletingQuestion || isUpdatingQuestion}
         className="absolute top-4 left-2 z-10 rounded-full bg-red-500 p-1 text-white opacity-0 transition-all group-hover:opacity-100 hover:bg-red-600 disabled:opacity-50"
-        title="Delete Question"
+        title={t("organization.templates.builder.deleteQuestion")}
       >
         <Trash2 size={12} />
       </button>
@@ -230,15 +215,15 @@ function EditSortableQuestionRow({
       {/* Sync Status */}
       {!isDragging && isSyncing && (
         <div className="absolute top-4 left-10 z-10 text-xs text-muted-foreground">
-          Saving...
+          {t("organization.templates.builder.saving")}
         </div>
       )}
       {!isDragging && !isSyncing && orderSyncFailed && (
         <div
           className="absolute top-4 left-10 z-10 text-xs text-destructive"
-          title="This question's new position wasn't saved. Drag it again to retry."
+          title={t("organization.templates.builder.orderNotSavedTooltip")}
         >
-          Order not saved
+          {t("organization.templates.builder.orderNotSaved")}
         </div>
       )}
 
@@ -264,7 +249,7 @@ function EditSortableQuestionRow({
                 <textarea
                   {...field}
                   rows={2}
-                  placeholder="Enter question…"
+                  placeholder={t("organization.templates.builder.enterQuestion")}
                   className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                 />
               )}
@@ -289,7 +274,7 @@ function EditSortableQuestionRow({
                 htmlFor={`req-${sortableId}`}
                 className="cursor-pointer text-xs text-muted-foreground select-none"
               >
-                Required
+                {t("organization.templates.builder.required")}
               </label>
             </div>
           </div>

@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 const EMPTY_KRI = {
@@ -29,6 +30,7 @@ const EMPTY_KRI = {
 }
 
 export default function KriDashboardPage() {
+  const { t } = useTranslation()
   const {
     data: kriResponse,
     isLoading: krisLoading,
@@ -58,7 +60,7 @@ export default function KriDashboardPage() {
   const handleSave = async () => {
     if (!form.name || !form.risk_id) return
     if (form.target_value === form.alert_threshold) {
-      toast.error("Target and alert threshold must be different")
+      toast.error(t("organization.kri.toast.thresholdMustDiffer"))
       return
     }
 
@@ -73,11 +75,11 @@ export default function KriDashboardPage() {
         target_value: form.target_value,
         frequency: form.frequency,
       }).unwrap()
-      toast.success("KRI created successfully")
+      toast.success(t("organization.kri.toast.created"))
       setShowForm(false)
       setForm(EMPTY_KRI)
     } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to create KRI")
+      toast.error(err?.data?.message || t("organization.kri.toast.createFailed"))
     } finally {
       setIsSaving(false)
     }
@@ -94,12 +96,12 @@ export default function KriDashboardPage() {
     // submit 0 as if it were a real reading instead of being rejected.
     // Found by independent review.
     if (updateValue.trim() === "") {
-      toast.error("Enter a valid number")
+      toast.error(t("organization.kri.toast.enterValidNumber"))
       return
     }
     const value = Number(updateValue)
     if (Number.isNaN(value)) {
-      toast.error("Enter a valid number")
+      toast.error(t("organization.kri.toast.enterValidNumber"))
       return
     }
 
@@ -109,10 +111,12 @@ export default function KriDashboardPage() {
         id: updatingKriId,
         current_value: value,
       }).unwrap()
-      toast.success("KRI value updated")
+      toast.success(t("organization.kri.toast.valueUpdated"))
       setUpdatingKriId(null)
     } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to update KRI value")
+      toast.error(
+        err?.data?.message || t("organization.kri.toast.updateFailed")
+      )
     } finally {
       setIsUpdatingValue(false)
     }
@@ -134,7 +138,7 @@ export default function KriDashboardPage() {
     return (
       <div className="p-6">
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-center text-sm text-destructive">
-          Failed to load KRIs. Please try again later.
+          {t("organization.kri.loadError")}
         </div>
       </div>
     )
@@ -145,10 +149,10 @@ export default function KriDashboardPage() {
       <div className="animate-fade-in flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground lg:text-2xl">
-            KRI Dashboard
+            {t("organization.kri.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Monitor key risk indicators across your organization
+            {t("organization.kri.description")}
           </p>
         </div>
         <button
@@ -158,7 +162,7 @@ export default function KriDashboardPage() {
           }}
           className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
         >
-          <Plus className="h-3.5 w-3.5" /> New KRI
+          <Plus className="h-3.5 w-3.5" /> {t("organization.kri.newKri")}
         </button>
       </div>
 
@@ -169,21 +173,27 @@ export default function KriDashboardPage() {
           <span className="font-mono-data text-lg font-bold text-risk-critical">
             {alertCount}
           </span>
-          <span className="text-xs text-muted-foreground">Alert</span>
+          <span className="text-xs text-muted-foreground">
+            {t("organization.kri.status.alert")}
+          </span>
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-risk-medium/30 bg-risk-medium/5 px-3 py-2">
           <TrendingUp className="h-4 w-4 text-risk-medium" />
           <span className="font-mono-data text-lg font-bold text-risk-medium">
             {warningCount}
           </span>
-          <span className="text-xs text-muted-foreground">Warning</span>
+          <span className="text-xs text-muted-foreground">
+            {t("organization.kri.status.warning")}
+          </span>
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-risk-low/30 bg-risk-low/5 px-3 py-2">
           <CheckCircle2 className="h-4 w-4 text-risk-low" />
           <span className="font-mono-data text-lg font-bold text-risk-low">
             {okCount}
           </span>
-          <span className="text-xs text-muted-foreground">OK</span>
+          <span className="text-xs text-muted-foreground">
+            {t("organization.kri.status.ok")}
+          </span>
         </div>
       </div>
 
@@ -210,7 +220,7 @@ export default function KriDashboardPage() {
                     {kri.name}
                   </p>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {risk?.name ?? "Unknown risk"}
+                    {risk?.name ?? t("organization.kri.unknownRisk")}
                     {kri.frequency ? ` · ${kri.frequency}` : ""}
                   </p>
                 </div>
@@ -237,7 +247,7 @@ export default function KriDashboardPage() {
                 <button
                   onClick={() => openUpdateValue(kri)}
                   className="ml-auto rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  title="Update value"
+                  title={t("organization.kri.updateValueTooltip")}
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
@@ -245,13 +255,13 @@ export default function KriDashboardPage() {
 
               <div className="mt-1 flex items-center gap-4 text-[11px] text-muted-foreground">
                 <span>
-                  Threshold:{" "}
+                  {t("organization.kri.thresholdLabel")}{" "}
                   <span className="font-mono-data font-medium text-risk-critical">
                     {Number(kri.alert_threshold)}
                   </span>
                 </span>
                 <span>
-                  Target:{" "}
+                  {t("organization.kri.targetLabel")}{" "}
                   <span className="font-mono-data font-medium text-risk-low">
                     {Number(kri.target_value)}
                   </span>
@@ -263,7 +273,9 @@ export default function KriDashboardPage() {
 
         {kris.length === 0 && (
           <div className="col-span-full rounded-xl border border-border bg-card p-12 text-center">
-            <p className="text-sm text-muted-foreground">No KRIs found</p>
+            <p className="text-sm text-muted-foreground">
+              {t("organization.kri.noKris")}
+            </p>
           </div>
         )}
       </div>
@@ -280,7 +292,7 @@ export default function KriDashboardPage() {
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">
-                Update Value
+                {t("organization.kri.updateValueTitle")}
               </h2>
               <button
                 onClick={() => setUpdatingKriId(null)}
@@ -301,7 +313,7 @@ export default function KriDashboardPage() {
                 onClick={() => setUpdatingKriId(null)}
                 className="rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
               >
-                Cancel
+                {t("organization.kri.cancel")}
               </button>
               <button
                 onClick={handleUpdateValue}
@@ -313,7 +325,7 @@ export default function KriDashboardPage() {
                 ) : (
                   <Save className="h-4 w-4" />
                 )}
-                Save
+                {t("organization.kri.save")}
               </button>
             </div>
           </div>
@@ -331,7 +343,9 @@ export default function KriDashboardPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">New KRI</h2>
+              <h2 className="text-lg font-bold text-foreground">
+                {t("organization.kri.newKri")}
+              </h2>
               <button
                 onClick={() => setShowForm(false)}
                 className="rounded p-1 text-muted-foreground hover:text-foreground"
@@ -343,7 +357,7 @@ export default function KriDashboardPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
-                  Name *
+                  {t("organization.kri.form.name")} *
                 </label>
                 <input
                   value={form.name}
@@ -351,14 +365,14 @@ export default function KriDashboardPage() {
                     setForm((f) => ({ ...f, name: e.target.value }))
                   }
                   className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  placeholder="Enter KRI name"
+                  placeholder={t("organization.kri.form.namePlaceholder")}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">
-                    Risk *
+                    {t("organization.kri.form.risk")} *
                   </label>
                   <select
                     value={form.risk_id}
@@ -367,7 +381,9 @@ export default function KriDashboardPage() {
                     }
                     className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
-                    <option value="">Select Risk</option>
+                    <option value="">
+                      {t("organization.kri.form.selectRisk")}
+                    </option>
                     {risks.map((r: any) => (
                       <option key={r.id} value={r.id}>
                         {r.name.slice(0, 30)}
@@ -377,7 +393,7 @@ export default function KriDashboardPage() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">
-                    Unit
+                    {t("organization.kri.form.unit")}
                   </label>
                   <input
                     value={form.unit}
@@ -385,7 +401,7 @@ export default function KriDashboardPage() {
                       setForm((f) => ({ ...f, unit: e.target.value }))
                     }
                     className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    placeholder="%, days, count, etc."
+                    placeholder={t("organization.kri.form.unitPlaceholder")}
                   />
                 </div>
               </div>
@@ -393,7 +409,7 @@ export default function KriDashboardPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">
-                    Current Value
+                    {t("organization.kri.form.currentValue")}
                   </label>
                   <input
                     type="number"
@@ -409,7 +425,7 @@ export default function KriDashboardPage() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">
-                    Alert Threshold
+                    {t("organization.kri.form.alertThreshold")}
                   </label>
                   <input
                     type="number"
@@ -425,7 +441,7 @@ export default function KriDashboardPage() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">
-                    Target
+                    {t("organization.kri.form.target")}
                   </label>
                   <input
                     type="number"
@@ -443,7 +459,7 @@ export default function KriDashboardPage() {
 
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
-                  Frequency
+                  {t("organization.kri.form.frequency")}
                 </label>
                 <select
                   value={form.frequency}
@@ -452,10 +468,18 @@ export default function KriDashboardPage() {
                   }
                   className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="quarterly">Quarterly</option>
+                  <option value="daily">
+                    {t("organization.kri.frequency.daily")}
+                  </option>
+                  <option value="weekly">
+                    {t("organization.kri.frequency.weekly")}
+                  </option>
+                  <option value="monthly">
+                    {t("organization.kri.frequency.monthly")}
+                  </option>
+                  <option value="quarterly">
+                    {t("organization.kri.frequency.quarterly")}
+                  </option>
                 </select>
               </div>
             </div>
@@ -465,7 +489,7 @@ export default function KriDashboardPage() {
                 onClick={() => setShowForm(false)}
                 className="rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
               >
-                Cancel
+                {t("organization.kri.cancel")}
               </button>
               <button
                 onClick={handleSave}
@@ -477,7 +501,7 @@ export default function KriDashboardPage() {
                 ) : (
                   <Save className="h-4 w-4" />
                 )}
-                Create KRI
+                {t("organization.kri.createKri")}
               </button>
             </div>
           </div>

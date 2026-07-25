@@ -6,6 +6,7 @@ import {
   Search,
 } from "lucide-react"
 import React, { useState } from "react"
+import { useTranslation } from "react-i18next"
 
 interface Transaction {
   _id: string
@@ -19,6 +20,7 @@ interface Transaction {
 }
 
 const AdminTransactions: React.FC = () => {
+  const { t } = useTranslation()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
@@ -160,20 +162,20 @@ const AdminTransactions: React.FC = () => {
         <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-3xl font-semibold text-foreground">
-              Transactions
+              {t("admin.transactions.title")}
             </h1>
             <p className="mt-1 text-muted-foreground">
-              Manage and track all platform payments
+              {t("admin.transactions.subtitle")}
             </p>
           </div>
 
           {/* Export button - Now calls backend */}
           <button
-            onClick={() => alert("Export request sent to backend")}
+            onClick={() => alert(t("admin.transactions.exportSent"))}
             className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Download className="h-4 w-4" />
-            Export as PDF
+            {t("admin.transactions.exportPdf")}
           </button>
         </div>
 
@@ -184,7 +186,7 @@ const AdminTransactions: React.FC = () => {
               <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search by transaction ID or organization..."
+                placeholder={t("admin.transactions.searchPlaceholder")}
                 value={searchTerm}
                 onChange={handleSearchChange}
                 className="w-full rounded-xl border border-input bg-background py-2.5 pr-4 pl-10 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
@@ -197,7 +199,7 @@ const AdminTransactions: React.FC = () => {
                 onChange={handleStatusChange}
                 className="w-full appearance-none rounded-xl border border-input bg-background px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
               >
-                <option value="all">All Status</option>
+                <option value="all">{t("admin.transactions.allStatus")}</option>
                 {uniqueStatuses.map((status) => (
                   <option key={status} value={status}>
                     {status}
@@ -214,25 +216,25 @@ const AdminTransactions: React.FC = () => {
               <thead>
                 <tr className="border-b border-border bg-muted/50">
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
-                    Transaction ID
+                    {t("admin.transactions.colTransactionId")}
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
-                    Organization
+                    {t("admin.transactions.colOrganization")}
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
-                    Plan
+                    {t("admin.transactions.colPlan")}
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
-                    Type
+                    {t("admin.transactions.colType")}
                   </th>
                   <th className="px-6 py-4 text-right text-sm font-medium text-muted-foreground">
-                    Amount
+                    {t("admin.transactions.colAmount")}
                   </th>
                   <th className="px-6 py-4 text-center text-sm font-medium text-muted-foreground">
-                    Status
+                    {t("admin.transactions.colStatus")}
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
-                    Date
+                    {t("admin.transactions.colDate")}
                   </th>
                 </tr>
               </thead>
@@ -243,7 +245,7 @@ const AdminTransactions: React.FC = () => {
                       colSpan={7}
                       className="py-12 text-center text-muted-foreground"
                     >
-                      No transactions found
+                      {t("admin.transactions.noResults")}
                     </td>
                   </tr>
                 ) : (
@@ -288,7 +290,7 @@ const AdminTransactions: React.FC = () => {
           <div className="space-y-4 p-4 lg:hidden">
             {paginatedTransactions.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
-                No transactions found
+                {t("admin.transactions.noResults")}
               </div>
             ) : (
               paginatedTransactions.map((tx) => (
@@ -314,11 +316,11 @@ const AdminTransactions: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-xs text-muted-foreground">Plan</p>
+                      <p className="text-xs text-muted-foreground">{t("admin.transactions.colPlan")}</p>
                       <p className="font-medium">{tx.planName}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Amount</p>
+                      <p className="text-xs text-muted-foreground">{t("admin.transactions.colAmount")}</p>
                       <p className="font-semibold text-foreground">
                         {formatAmount(tx.amount)}
                       </p>
@@ -337,9 +339,11 @@ const AdminTransactions: React.FC = () => {
           {totalPages > 1 && (
             <div className="flex flex-col items-center justify-between gap-4 border-t border-border px-6 py-4 sm:flex-row">
               <div className="text-sm text-muted-foreground">
-                Showing {(currentPage - 1) * limit + 1} to{" "}
-                {Math.min(currentPage * limit, totalItems)} of {totalItems}{" "}
-                transactions
+                {t("admin.transactions.pagination", {
+                  from: (currentPage - 1) * limit + 1,
+                  to: Math.min(currentPage * limit, totalItems),
+                  total: totalItems,
+                })}
               </div>
 
               <div className="flex items-center gap-2">

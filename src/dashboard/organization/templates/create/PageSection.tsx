@@ -16,6 +16,7 @@ import {
 } from "@dnd-kit/sortable"
 import { Plus, Trash2 } from "lucide-react"
 import { Controller, useFieldArray } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 import SortableQuestionRow from "./SortableQuestionRow"
 
 interface PageSectionProps {
@@ -40,6 +41,7 @@ function PageSection({
   onOpenAnswerPanel,
   getValues,
 }: PageSectionProps) {
+  const { t } = useTranslation()
   const { fields, remove, move } = useFieldArray({
     control,
     name: `pages.${pageIndex}.questions`,
@@ -72,7 +74,7 @@ function PageSection({
           type="button"
           onClick={() => removePage(pageIndex)}
           className="absolute -top-3 -right-3 z-10 rounded-full bg-red-500 p-1.5 text-white shadow-md transition-colors hover:bg-red-600"
-          title="Delete Section"
+          title={t("organization.templates.builder.deleteSection")}
         >
           <Trash2 size={14} />
         </button>
@@ -88,12 +90,14 @@ function PageSection({
               {...field}
               type="text"
               className="w-full rounded-xl border border-border bg-card px-5 py-4 text-xl font-semibold text-foreground focus:border-transparent focus:ring-2 focus:ring-primary focus:outline-none"
-              placeholder="Section Title"
+              placeholder={t("organization.templates.builder.sectionTitlePlaceholder")}
             />
           )}
         />
         <p className="mt-1 pl-5 text-sm text-muted-foreground">
-          Section {pageIndex + 1} of your inspection report.
+          {t("organization.templates.builder.sectionSubtitle", {
+            number: pageIndex + 1,
+          })}
         </p>
       </div>
 
@@ -101,8 +105,8 @@ function PageSection({
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         {/* Table Header */}
         <div className="grid grid-cols-12 border-b border-border bg-muted/50 px-4 py-3 text-sm font-medium text-muted-foreground">
-          <div className="col-span-8">Question</div>
-          <div className="col-span-4">Type of Question</div>
+          <div className="col-span-8">{t("organization.templates.builder.questionHeader")}</div>
+          <div className="col-span-4">{t("organization.templates.builder.typeHeader")}</div>
         </div>
 
         {/* Sortable Questions */}
@@ -117,7 +121,7 @@ function PageSection({
           >
             {fields.length === 0 ? (
               <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-                No questions yet. Click "Add New" below to get started.
+                {t("organization.templates.builder.noQuestions")}
               </div>
             ) : (
               fields.map((field, qIndex) => (
@@ -145,7 +149,7 @@ function PageSection({
             onClick={() => onOpenAddModal(pageIndex)}
           >
             <Plus className="h-4 w-4" />
-            Add New Question
+            {t("organization.templates.builder.addNewQuestion")}
           </Button>
         </div>
       </div>

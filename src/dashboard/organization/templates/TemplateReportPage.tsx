@@ -6,55 +6,60 @@ import html2canvas from "html2canvas-pro"
 import jsPDF from "jspdf"
 import { Download, Loader2 } from "lucide-react"
 import { useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useParams } from "react-router"
 import { toast } from "sonner"
 
 const TemplateReportPage = () => {
+  const { t } = useTranslation()
   const { id } = useParams()
   const { data, isLoading } = useGetSingleTemplateQuery(id ?? "")
   const template = data?.data
   const reportRef = useRef<HTMLDivElement>(null)
   const [isDownloading, setIsDownloading] = useState(false)
 
-  const templateName = template?.templateName || "Untitled Template"
+  const templateName =
+    template?.templateName || t("organization.templates.report.untitled")
   const templateDisc = template?.templateDisc || ""
   const pages = template?.pages || []
 
   const getAnswerTypeLabel = (question: IQuestion): string => {
     switch (question.answerType) {
       case "input":
-        return "Text Input"
+        return t("organization.templates.report.answerType.input")
       case "multipleSelect":
-        return `Multiple Choice (${(question as any).value})`
+        return t("organization.templates.report.answerType.multipleSelect", {
+          value: (question as any).value,
+        })
       case "date":
-        return "Date Picker"
+        return t("organization.templates.report.answerType.date")
       case "media":
-        return "Media Upload (Photo/Video/Document)"
+        return t("organization.templates.report.answerType.media")
       case "checkbox":
-        return "Checkbox (Yes/No)"
+        return t("organization.templates.report.answerType.checkbox")
       case "slider":
-        return "Slider / Rating Scale"
+        return t("organization.templates.report.answerType.slider")
       default:
-        return "Open Response"
+        return t("organization.templates.report.answerType.default")
     }
   }
 
   const getAnswerHint = (question: IQuestion): string => {
     switch (question.answerType) {
       case "input":
-        return "Enter your response here..."
+        return t("organization.templates.report.answerHint.input")
       case "multipleSelect":
-        return "Select all applicable options"
+        return t("organization.templates.report.answerHint.multipleSelect")
       case "date":
-        return "DD/MM/YYYY"
+        return t("organization.templates.report.answerHint.date")
       case "media":
-        return "Attach photo, video, or document"
+        return t("organization.templates.report.answerHint.media")
       case "checkbox":
-        return "☐ Yes    ☐ No"
+        return t("organization.templates.report.answerHint.checkbox")
       case "slider":
-        return "Rate on a scale (e.g., 1–10 or 1–5)"
+        return t("organization.templates.report.answerHint.slider")
       default:
-        return "Provide your answer here"
+        return t("organization.templates.report.answerHint.default")
     }
   }
 
@@ -105,7 +110,9 @@ const TemplateReportPage = () => {
 
       pdf.save(`${templateName}.pdf`)
     } catch (error: any) {
-      toast.error(error?.message || "PDF generation failed")
+      toast.error(
+        error?.message || t("organization.templates.report.pdfFailed")
+      )
     } finally {
       setIsDownloading(false)
     }
@@ -116,7 +123,9 @@ const TemplateReportPage = () => {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-          <p className="mt-4 text-muted-foreground">Loading template...</p>
+          <p className="mt-4 text-muted-foreground">
+            {t("organization.templates.report.loading")}
+          </p>
         </div>
       </div>
     )
@@ -125,7 +134,7 @@ const TemplateReportPage = () => {
   if (!template) {
     return (
       <div className="p-8 text-center text-destructive">
-        Template not found.
+        {t("organization.templates.report.notFound")}
       </div>
     )
   }
@@ -144,12 +153,12 @@ const TemplateReportPage = () => {
             {isDownloading ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Generating Report...
+                {t("organization.templates.report.generating")}
               </>
             ) : (
               <>
                 <Download className="h-5 w-5" />
-                Download PDF Report
+                {t("organization.templates.report.downloadPdf")}
               </>
             )}
           </Button>
@@ -163,7 +172,7 @@ const TemplateReportPage = () => {
               {template?.templateLogo ? (
                 <img
                   src={template.templateLogo}
-                  alt="Logo"
+                  alt={t("organization.templates.report.logoAlt")}
                   className="h-full w-full rounded-2xl object-cover"
                 />
               ) : (
@@ -181,7 +190,9 @@ const TemplateReportPage = () => {
               </p>
             )}
             <p className="mt-8 text-sm text-white/70">
-              Professional Report • {new Date().getFullYear()}
+              {t("organization.templates.report.coverFooter", {
+                year: new Date().getFullYear(),
+              })}
             </p>
           </div>
 
@@ -194,7 +205,9 @@ const TemplateReportPage = () => {
               <div className="mb-6 flex items-center gap-4">
                 <div className="h-px flex-1 bg-border" />
                 <span className="rounded-md bg-emerald-100 px-5 py-1 text-sm font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                  SECTION - {idx + 1}
+                  {t("organization.templates.report.section", {
+                    number: idx + 1,
+                  })}
                 </span>
               </div>
 
@@ -223,7 +236,7 @@ const TemplateReportPage = () => {
 
                       {q.answerType === "media" && (
                         <div className="mt-6 text-center text-xs text-muted-foreground">
-                          Click or drag files here to upload
+                          {t("organization.templates.report.mediaUploadHint")}
                         </div>
                       )}
 
@@ -242,10 +255,13 @@ const TemplateReportPage = () => {
           {/* Sign-off Section */}
           <div className="rounded-2xl border border-border bg-card p-10">
             <h3 className="mb-8 text-2xl font-semibold text-foreground">
-              Approval & Sign-off
+              {t("organization.templates.report.signOffTitle")}
             </h3>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              {["Authorized By", "Signature & Date"].map((label, i) => (
+              {[
+                t("organization.templates.report.authorizedBy"),
+                t("organization.templates.report.signatureDate"),
+              ].map((label, i) => (
                 <div
                   key={i}
                   className="rounded-2xl border border-border bg-card p-6 text-center"
@@ -256,7 +272,7 @@ const TemplateReportPage = () => {
               ))}
             </div>
             <p className="mt-10 text-center text-xs text-muted-foreground">
-              This document was generated from the template system.
+              {t("organization.templates.report.generatedNote")}
             </p>
           </div>
         </div>

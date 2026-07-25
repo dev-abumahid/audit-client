@@ -104,20 +104,20 @@ describe("EditSortableQuestionRow - order-not-saved indicator masking", () => {
 
   it("shows the persistent indicator when orderSyncFailed is true and nothing else is happening", () => {
     render(<Harness orderSyncFailed />)
-    expect(screen.getByText("Order not saved")).toBeInTheDocument()
+    expect(screen.getByText("organization.templates.builder.orderNotSaved")).toBeInTheDocument()
   })
 
   it("shows no indicator when orderSyncFailed is false", () => {
     render(<Harness orderSyncFailed={false} />)
-    expect(screen.queryByText("Order not saved")).not.toBeInTheDocument()
+    expect(screen.queryByText("organization.templates.builder.orderNotSaved")).not.toBeInTheDocument()
   })
 
   it("hides the order-not-saved indicator while dragging, and shows it again once dragging ends", () => {
     const { rerender } = render(<Harness orderSyncFailed isDraggingGlobal />)
-    expect(screen.queryByText("Order not saved")).not.toBeInTheDocument()
+    expect(screen.queryByText("organization.templates.builder.orderNotSaved")).not.toBeInTheDocument()
 
     rerender(<Harness orderSyncFailed isDraggingGlobal={false} />)
-    expect(screen.getByText("Order not saved")).toBeInTheDocument()
+    expect(screen.getByText("organization.templates.builder.orderNotSaved")).toBeInTheDocument()
   })
 
   it("prioritizes the in-progress 'Saving...' indicator over a stale order-not-saved flag, then reveals the flag again once that sync finishes", async () => {
@@ -128,10 +128,10 @@ describe("EditSortableQuestionRow - order-not-saved indicator masking", () => {
     // doesn't get confused with the sync we're about to control below.
     await waitFor(() => expect(mockUpdateOrCreateQuestion).toHaveBeenCalled())
     await waitFor(() =>
-      expect(screen.queryByText("Saving...")).not.toBeInTheDocument()
+      expect(screen.queryByText("organization.templates.builder.saving")).not.toBeInTheDocument()
     )
     mockUpdateOrCreateQuestion.mockClear()
-    expect(screen.getByText("Order not saved")).toBeInTheDocument()
+    expect(screen.getByText("organization.templates.builder.orderNotSaved")).toBeInTheDocument()
 
     // Now make the next sync hang so we can observe it masking the
     // order-not-saved flag while in flight.
@@ -147,9 +147,9 @@ describe("EditSortableQuestionRow - order-not-saved indicator masking", () => {
     await userEvent.click(screen.getByRole("checkbox"))
 
     await waitFor(() =>
-      expect(screen.getByText("Saving...")).toBeInTheDocument()
+      expect(screen.getByText("organization.templates.builder.saving")).toBeInTheDocument()
     )
-    expect(screen.queryByText("Order not saved")).not.toBeInTheDocument()
+    expect(screen.queryByText("organization.templates.builder.orderNotSaved")).not.toBeInTheDocument()
 
     await act(async () => {
       resolveSync({})
@@ -157,8 +157,8 @@ describe("EditSortableQuestionRow - order-not-saved indicator masking", () => {
     })
 
     await waitFor(() =>
-      expect(screen.getByText("Order not saved")).toBeInTheDocument()
+      expect(screen.getByText("organization.templates.builder.orderNotSaved")).toBeInTheDocument()
     )
-    expect(screen.queryByText("Saving...")).not.toBeInTheDocument()
+    expect(screen.queryByText("organization.templates.builder.saving")).not.toBeInTheDocument()
   })
 })

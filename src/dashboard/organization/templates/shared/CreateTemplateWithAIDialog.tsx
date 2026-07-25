@@ -27,8 +27,10 @@ import type { Risk } from "@/types/organization"
 import { AnimatePresence, motion } from "framer-motion"
 import { AlertCircleIcon, Brain, FileText, Upload } from "lucide-react"
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
+import type { TFunction } from "i18next"
 
 type CreationMode = "prompt" | "file" | "risk" | null
 
@@ -37,35 +39,37 @@ interface CreateTemplateWithAIDialogProps {
   setOpen: (open: boolean) => void
 }
 
-const getLoadingMessages = (mode: CreationMode) => {
+const getLoadingMessages = (mode: CreationMode, t: TFunction) => {
+  const generating = t("organization.templates.ai.loading.generating")
   switch (mode) {
     case "prompt":
-      return ["Reviewing your prompt...", "Generating your template..."]
+      return [t("organization.templates.ai.loading.reviewingPrompt"), generating]
 
     case "risk":
       return [
-        "Reviewing risk data...",
-        "Gathering equivalent context...",
-        "Generating your template...",
+        t("organization.templates.ai.loading.reviewingRisk"),
+        t("organization.templates.ai.loading.gatheringContext"),
+        generating,
       ]
 
     case "file":
       return [
-        "Reviewing your file...",
-        "Extracting content...",
-        "Performing OCR...",
-        "Rewriting and optimizing...",
-        "Generating your template...",
+        t("organization.templates.ai.loading.reviewingFile"),
+        t("organization.templates.ai.loading.extracting"),
+        t("organization.templates.ai.loading.ocr"),
+        t("organization.templates.ai.loading.optimizing"),
+        generating,
       ]
 
     default:
-      return ["Generating your template..."]
+      return [generating]
   }
 }
 export default function CreateTemplateWithAIDialog({
   open,
   setOpen,
 }: CreateTemplateWithAIDialogProps) {
+  const { t } = useTranslation()
   const [mode, setMode] = useState<CreationMode>(null)
   const [messageIndex, setMessageIndex] = useState(0)
   const [prompt, setPrompt] = useState("")
@@ -73,7 +77,7 @@ export default function CreateTemplateWithAIDialog({
   const [file, setFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const navigate = useNavigate()
-  const loadingMessages = getLoadingMessages(mode)
+  const loadingMessages = getLoadingMessages(mode, t)
 
   // RTK query state
   const { data: riskData } = useGetAllRisksQuery({
@@ -134,13 +138,13 @@ export default function CreateTemplateWithAIDialog({
       }
 
       if (response?.success) {
-        toast.success("Template created successfully")
+        toast.success(t("organization.templates.ai.createSuccess"))
         navigate("/organization/audit/templates")
       }
 
       handleClose()
     } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to create template")
+      toast.error(error?.data?.message || t("organization.templates.ai.createFailed"))
     } finally {
       setIsLoading(false)
     }
@@ -152,7 +156,7 @@ export default function CreateTemplateWithAIDialog({
       return
     }
 
-    const messages = getLoadingMessages(mode)
+    const messages = getLoadingMessages(mode, t)
 
     const interval = setInterval(() => {
       setMessageIndex((prev) => {
@@ -165,7 +169,7 @@ export default function CreateTemplateWithAIDialog({
     }, 2000)
 
     return () => clearInterval(interval)
-  }, [isLoading, mode])
+  }, [isLoading, mode, t])
 
   useEffect(() => {
     setMessageIndex(0)
@@ -209,10 +213,10 @@ export default function CreateTemplateWithAIDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5" />
-            Create Template with AI
+            {t("organization.templates.ai.title")}
           </DialogTitle>
           <DialogDescription>
-            Choose one method to generate your template
+            {t("organization.templates.ai.subtitle")}
           </DialogDescription>
         </DialogHeader>
 
@@ -228,9 +232,9 @@ export default function CreateTemplateWithAIDialog({
           >
             <FileText className="h-6 w-6 text-primary" />
             <div>
-              <p className="font-medium">Template with Prompt</p>
+              <p className="font-medium">{t("organization.templates.ai.promptOption.title")}</p>
               <p className="text-sm text-muted-foreground">
-                Describe in detail what you need
+                {t("organization.templates.ai.promptOption.desc")}
               </p>
             </div>
           </button>
@@ -244,9 +248,9 @@ export default function CreateTemplateWithAIDialog({
           >
             <Upload className="h-6 w-6 text-primary" />
             <div>
-              <p className="font-medium">Template with File</p>
+              <p className="font-medium">{t("organization.templates.ai.fileOption.title")}</p>
               <p className="text-sm text-muted-foreground">
-                Upload existing document or checklist
+                {t("organization.templates.ai.fileOption.desc")}
               </p>
             </div>
           </button>
@@ -260,9 +264,9 @@ export default function CreateTemplateWithAIDialog({
           >
             <AlertCircleIcon className="h-6 w-6 text-primary" />
             <div>
-              <p className="font-medium">Template with Risk</p>
+              <p className="font-medium">{t("organization.templates.ai.riskOption.title")}</p>
               <p className="text-sm text-muted-foreground">
-                Generate based on existing risk
+                {t("organization.templates.ai.riskOption.desc")}
               </p>
             </div>
           </button>
@@ -270,12 +274,12 @@ export default function CreateTemplateWithAIDialog({
           {/* Conditional Input Fields */}
           {mode === "prompt" && (
             <div className="pt-2">
-              <Label htmlFor="prompt">Write Detailed Prompt</Label>
+              <Label htmlFor="prompt">{t("organization.templates.ai.promptLabel")}</Label>
               <Textarea
                 id="prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Create a comprehensive daily safety inspection checklist for construction sites including PPE, tools, emergency procedures..."
+                placeholder={t("organization.templates.ai.promptPlaceholder")}
                 rows={5}
                 className="mt-2"
               />
@@ -288,7 +292,7 @@ export default function CreateTemplateWithAIDialog({
                 htmlFor="file"
                 className="block text-sm text-gray-500 dark:text-gray-300"
               >
-                Upload File
+                {t("organization.templates.ai.uploadFile")}
               </label>
 
               <label
@@ -311,11 +315,11 @@ export default function CreateTemplateWithAIDialog({
                 </svg>
 
                 <h2 className="mt-1 font-medium tracking-wide text-gray-700 dark:text-gray-200">
-                  Any File
+                  {t("organization.templates.ai.anyFile")}
                 </h2>
 
                 <p className="mt-2 text-xs tracking-wide text-gray-500 dark:text-gray-400">
-                  Upload or darg & drop your file SVG, PNG, JPG or GIF.{" "}
+                  {t("organization.templates.ai.dropHint")}{" "}
                 </p>
 
                 <input
@@ -327,7 +331,7 @@ export default function CreateTemplateWithAIDialog({
               </label>
               {file && (
                 <p className="mt-1 text-xs text-green-600">
-                  Selected: {file.name}
+                  {t("organization.templates.ai.selectedFile", { name: file.name })}
                 </p>
               )}
             </div>
@@ -335,11 +339,11 @@ export default function CreateTemplateWithAIDialog({
 
           {mode === "risk" && (
             <div className="w-full pt-2">
-              <Label>Select Risk</Label>
+              <Label>{t("organization.templates.ai.selectRisk")}</Label>
 
               <Select value={selectedRisk} onValueChange={setSelectedRisk}>
                 <SelectTrigger className="mt-2 w-full">
-                  <SelectValue placeholder="Choose a risk..." />
+                  <SelectValue placeholder={t("organization.templates.ai.chooseRisk")} />
                 </SelectTrigger>
 
                 <SelectContent className="rounded-lg">
@@ -356,10 +360,12 @@ export default function CreateTemplateWithAIDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            Cancel
+            {t("organization.templates.create.cancel")}
           </Button>
           <Button onClick={handleCreate} disabled={!mode || isLoading}>
-            {isLoading ? "Generating..." : "Generate Template"}
+            {isLoading
+              ? t("organization.templates.ai.generating")
+              : t("organization.templates.ai.generateTemplate")}
           </Button>
         </DialogFooter>
       </DialogContent>

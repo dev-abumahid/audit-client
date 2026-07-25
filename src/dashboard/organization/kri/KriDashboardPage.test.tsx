@@ -74,12 +74,12 @@ describe("KriDashboardPage", () => {
       error: { status: 500 },
     })
     render(<KriDashboardPage />)
-    expect(screen.getByText(/failed to load kris/i)).toBeInTheDocument()
+    expect(screen.getByText("organization.kri.loadError")).toBeInTheDocument()
   })
 
   it("shows the empty state when there are no KRIs", () => {
     render(<KriDashboardPage />)
-    expect(screen.getByText("No KRIs found")).toBeInTheDocument()
+    expect(screen.getByText("organization.kri.noKris")).toBeInTheDocument()
   })
 
   it("renders a KRI with its real risk name and status", () => {
@@ -112,9 +112,9 @@ describe("KriDashboardPage", () => {
 
     // Summary labels ("Alert"/"Warning"/"OK") also appear as per-card status
     // badges, so scope to the summary row specifically.
-    expect(screen.getByText("Alert").previousSibling).toHaveTextContent("1")
-    expect(screen.getByText("Warning").previousSibling).toHaveTextContent("1")
-    const okLabels = screen.getAllByText("OK")
+    expect(screen.getByText("organization.kri.status.alert").previousSibling).toHaveTextContent("1")
+    expect(screen.getByText("organization.kri.status.warning").previousSibling).toHaveTextContent("1")
+    const okLabels = screen.getAllByText("organization.kri.status.ok")
     const summaryOkLabel = okLabels.find(
       (el) => el.className.includes("text-muted-foreground")
     )
@@ -125,9 +125,9 @@ describe("KriDashboardPage", () => {
     mockCreateKri.mockReturnValue({ unwrap: () => Promise.resolve({}) })
 
     render(<KriDashboardPage />)
-    await userEvent.click(screen.getByRole("button", { name: /new kri/i }))
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.newKri/i }))
 
-    await userEvent.type(screen.getByPlaceholderText("Enter KRI name"), "New KRI")
+    await userEvent.type(screen.getByPlaceholderText("organization.kri.form.namePlaceholder"), "New KRI")
     const [riskSelect] = screen.getAllByRole("combobox")
     await userEvent.selectOptions(riskSelect, "risk-1")
     // target_value/alert_threshold both default to 0 — set them apart so
@@ -135,27 +135,27 @@ describe("KriDashboardPage", () => {
     // Order in the form: Current Value, Alert Threshold, Target.
     const numberInputs = screen.getAllByRole("spinbutton")
     await userEvent.type(numberInputs[2], "10")
-    await userEvent.click(screen.getByRole("button", { name: /create kri/i }))
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.createKri/i }))
 
     await waitFor(() =>
       expect(mockCreateKri).toHaveBeenCalledWith(
         expect.objectContaining({ name: "New KRI", risk_id: "risk-1" })
       )
     )
-    expect(mockToastSuccess).toHaveBeenCalledWith("KRI created successfully")
+    expect(mockToastSuccess).toHaveBeenCalledWith("organization.kri.toast.created")
   })
 
   it("rejects creating a KRI when target and alert threshold are equal", async () => {
     render(<KriDashboardPage />)
-    await userEvent.click(screen.getByRole("button", { name: /new kri/i }))
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.newKri/i }))
 
-    await userEvent.type(screen.getByPlaceholderText("Enter KRI name"), "Bad KRI")
+    await userEvent.type(screen.getByPlaceholderText("organization.kri.form.namePlaceholder"), "Bad KRI")
     const [riskSelect] = screen.getAllByRole("combobox")
     await userEvent.selectOptions(riskSelect, "risk-1")
-    await userEvent.click(screen.getByRole("button", { name: /create kri/i }))
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.createKri/i }))
 
     expect(mockToastError).toHaveBeenCalledWith(
-      "Target and alert threshold must be different"
+      "organization.kri.toast.thresholdMustDiffer"
     )
     expect(mockCreateKri).not.toHaveBeenCalled()
   })
@@ -168,12 +168,12 @@ describe("KriDashboardPage", () => {
     mockSubmitKriValue.mockReturnValue({ unwrap: () => Promise.resolve({}) })
 
     render(<KriDashboardPage />)
-    await userEvent.click(screen.getByTitle("Update value"))
+    await userEvent.click(screen.getByTitle("organization.kri.updateValueTooltip"))
 
     const input = screen.getByDisplayValue("50")
     await userEvent.clear(input)
     await userEvent.type(input, "75")
-    await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.save/i }))
 
     await waitFor(() =>
       expect(mockSubmitKriValue).toHaveBeenCalledWith({
@@ -181,7 +181,7 @@ describe("KriDashboardPage", () => {
         current_value: 75,
       })
     )
-    expect(mockToastSuccess).toHaveBeenCalledWith("KRI value updated")
+    expect(mockToastSuccess).toHaveBeenCalledWith("organization.kri.toast.valueUpdated")
   })
 
   it("rejects an emptied value instead of silently submitting 0", async () => {
@@ -191,13 +191,13 @@ describe("KriDashboardPage", () => {
     })
 
     render(<KriDashboardPage />)
-    await userEvent.click(screen.getByTitle("Update value"))
+    await userEvent.click(screen.getByTitle("organization.kri.updateValueTooltip"))
 
     const input = screen.getByDisplayValue("50")
     await userEvent.clear(input)
-    await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.save/i }))
 
-    expect(mockToastError).toHaveBeenCalledWith("Enter a valid number")
+    expect(mockToastError).toHaveBeenCalledWith("organization.kri.toast.enterValidNumber")
     expect(mockSubmitKriValue).not.toHaveBeenCalled()
   })
 })

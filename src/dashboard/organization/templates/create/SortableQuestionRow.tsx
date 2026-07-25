@@ -1,30 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import {
-  Calendar,
-  CheckSquare,
-  ChevronDown,
-  GripVertical,
-  Image,
-  MapPinned,
-  PenTool,
-  Sliders,
-  Trash2,
-} from "lucide-react"
+import { ChevronDown, GripVertical, Trash2 } from "lucide-react"
 import { Controller, useWatch } from "react-hook-form"
-
-const ANSWER_TYPES = [
-  { value: "input", label: "Input", icon: CheckSquare },
-  { value: "checkbox", label: "Check Box", icon: CheckSquare },
-  { value: "date", label: "Date", icon: Calendar },
-  { value: "media", label: "Media", icon: Image },
-  { value: "slider", label: "Slider", icon: Sliders },
-  { value: "annotation", label: "Annotation", icon: PenTool },
-  { value: "signature", label: "Signature", icon: PenTool },
-  { value: "location", label: "Location", icon: MapPinned },
-  { value: "instruction", label: "Instruction", icon: MapPinned },
-] as const
+import { useTranslation } from "react-i18next"
 
 interface SortableQuestionRowProps {
   sortableId: string
@@ -45,6 +24,7 @@ function SortableQuestionRow({
   remove,
   onOpenAnswerPanel,
 }: SortableQuestionRowProps) {
+  const { t } = useTranslation()
   const {
     attributes,
     listeners,
@@ -66,10 +46,15 @@ function SortableQuestionRow({
   })
 
   const answerLabel = (() => {
-    if (!answerType) return "Select Type"
+    if (!answerType) return t("organization.templates.builder.selectType")
     const at = answerType.answerType
-    if (at === "input") return `Input (${answerType.value ?? "text"})`
-    return ANSWER_TYPES.find((t) => t.value === at)?.label ?? at
+    if (at === "input")
+      return t("organization.templates.builder.inputWithValue", {
+        value: answerType.value ?? "text",
+      })
+    return t(`organization.templates.builder.answerTypes.${at}`, {
+      defaultValue: at,
+    })
   })()
 
   return (
@@ -83,7 +68,7 @@ function SortableQuestionRow({
         type="button"
         onClick={() => remove(questionIndex)}
         className="absolute top-4 left-2 z-10 rounded-full bg-red-500 p-1 text-white opacity-0 transition-all group-hover:opacity-100 hover:bg-red-600"
-        title="Delete Question"
+        title={t("organization.templates.builder.deleteQuestion")}
       >
         <Trash2 size={12} />
       </button>
@@ -109,7 +94,7 @@ function SortableQuestionRow({
                 <textarea
                   {...field}
                   rows={2}
-                  placeholder="Enter question…"
+                  placeholder={t("organization.templates.builder.enterQuestion")}
                   className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                 />
               )}
@@ -134,7 +119,7 @@ function SortableQuestionRow({
                 htmlFor={`req-${sortableId}`}
                 className="cursor-pointer text-xs text-muted-foreground select-none"
               >
-                Required
+                {t("organization.templates.builder.required")}
               </label>
             </div>
           </div>

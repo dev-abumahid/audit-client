@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle2, Loader2, Save } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 interface SaveStatusIndicatorProps {
   status: "idle" | "saving" | "saved" | "error"
@@ -9,24 +10,25 @@ export function SaveStatusIndicator({
   status,
   hasChanges,
 }: SaveStatusIndicatorProps) {
+  const { t } = useTranslation()
   const getStatusConfig = () => {
     switch (status) {
       case "saving":
         return {
           icon: <Loader2 className="h-4 w-4 animate-spin" />,
-          text: "Saving changes...",
+          text: t("organization.templates.builder.savingChanges"),
           className: "text-blue-600",
         }
       case "saved":
         return {
           icon: <CheckCircle2 className="h-4 w-4" />,
-          text: "All changes saved",
+          text: t("organization.templates.builder.allChangesSaved"),
           className: "text-green-600",
         }
       case "error":
         return {
           icon: <AlertCircle className="h-4 w-4" />,
-          text: "Auto-save failed",
+          text: t("organization.templates.builder.autoSaveFailed"),
           className: "text-red-600",
         }
       default:
@@ -36,7 +38,9 @@ export function SaveStatusIndicator({
           ) : (
             <CheckCircle2 className="h-4 w-4 opacity-50" />
           ),
-          text: hasChanges ? "Unsaved changes" : "All changes saved",
+          text: hasChanges
+            ? t("organization.templates.builder.unsavedChanges")
+            : t("organization.templates.builder.allChangesSaved"),
           className: hasChanges ? "text-yellow-600" : "text-gray-500",
         }
     }

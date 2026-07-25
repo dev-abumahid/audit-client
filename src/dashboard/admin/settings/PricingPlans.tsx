@@ -4,6 +4,7 @@ import EditPricingModal from "@/components/dashboard/admin/EditPricingModal"
 import PricingCard from "@/components/dashboard/admin/PricingCard"
 import { Button } from "@/components/ui/button"
 import React, { useState } from "react"
+import { useTranslation } from "react-i18next"
 
 export interface PricingPlan {
   _id: string
@@ -17,6 +18,7 @@ export interface PricingPlan {
 }
 
 const PricingPlans: React.FC = () => {
+  const { t } = useTranslation()
   const [openAdd, setOpenAdd] = useState(false)
   const [openEdit, setOpenEdit] = useState(false)
   const [openDelete, setOpenDelete] = useState(false)
@@ -90,17 +92,17 @@ const PricingPlans: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-foreground">
-            Subscription Plans
+            {t("admin.settings.pricing.title")}
           </h2>
           <p className="mt-1 text-muted-foreground">
-            Manage pricing tiers and features for your customers
+            {t("admin.settings.pricing.subtitle")}
           </p>
         </div>
         <Button
           onClick={() => setOpenAdd(true)}
           className="flex items-center gap-2"
         >
-          Add New Plan
+          {t("admin.settings.pricing.addPlan")}
         </Button>
       </div>
 
@@ -119,7 +121,7 @@ const PricingPlans: React.FC = () => {
       {/* Empty State */}
       {pricingPlans.length === 0 && (
         <div className="py-12 text-center text-muted-foreground">
-          No pricing plans found. Click "Add New Plan" to create one.
+          {t("admin.settings.pricing.empty")}
         </div>
       )}
 

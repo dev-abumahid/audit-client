@@ -1,15 +1,23 @@
 import React, { useState } from "react"
+import { useTranslation } from "react-i18next"
 import GeneralInformation from "./GeneralInformation"
 import PricingPlans from "./PricingPlans"
 
 const AdminSettings: React.FC = () => {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<
     "Company Settings" | "Subscription & Plans"
   >("Company Settings")
 
   const tabs = [
-    { label: "Company Settings", value: "Company Settings" as const },
-    { label: "Subscription & Plans", value: "Subscription & Plans" as const },
+    {
+      label: t("admin.settings.tabCompany"),
+      value: "Company Settings" as const,
+    },
+    {
+      label: t("admin.settings.tabSubscription"),
+      value: "Subscription & Plans" as const,
+    },
   ] as const
 
   const renderContent = () => {
@@ -28,9 +36,11 @@ const AdminSettings: React.FC = () => {
       <div className="mx-auto max-w-5xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-foreground">Settings</h1>
+          <h1 className="text-3xl font-semibold text-foreground">
+            {t("admin.settings.title")}
+          </h1>
           <p className="mt-1 text-muted-foreground">
-            Manage your platform configuration and preferences
+            {t("admin.settings.subtitle")}
           </p>
         </div>
 

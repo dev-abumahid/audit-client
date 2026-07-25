@@ -6,6 +6,7 @@ import {
   Settings,
   Users,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 import {
   Area,
@@ -19,39 +20,40 @@ import {
 import CustomTooltip from "./CustomTooltip"
 
 const AdminOverview = () => {
+  const { t } = useTranslation()
   // Dummy Stats
   const stats = [
     {
       icon: <DollarSign className="h-5 w-5 text-white" />,
       iconBg: "bg-primary",
-      label: "Total Revenue",
+      label: t("admin.overview.stats.totalRevenue"),
       value: "$124,890",
       change: "+12.5",
-      changeLabel: "from last month",
+      changeLabel: t("admin.overview.stats.fromLastMonth"),
     },
     {
       icon: <Users className="h-5 w-5 text-white" />,
       iconBg: "bg-blue-600",
-      label: "Total Users",
+      label: t("admin.overview.stats.totalUsers"),
       value: "8,472",
       change: "+8.2",
-      changeLabel: "from last month",
+      changeLabel: t("admin.overview.stats.fromLastMonth"),
     },
     {
       icon: <Building2 className="h-5 w-5 text-white" />,
       iconBg: "bg-emerald-600",
-      label: "Active Organizations",
+      label: t("admin.overview.stats.activeOrganizations"),
       value: "243",
       change: "+5.1",
-      changeLabel: "from last month",
+      changeLabel: t("admin.overview.stats.fromLastMonth"),
     },
     {
       icon: <Activity className="h-5 w-5 text-white" />,
       iconBg: "bg-teal-600",
-      label: "Active Subscriptions",
+      label: t("admin.overview.stats.activeSubscriptions"),
       value: "1,892",
       change: "+14.3",
-      changeLabel: "from last month",
+      changeLabel: t("admin.overview.stats.fromLastMonth"),
     },
   ]
 
@@ -135,10 +137,10 @@ const AdminOverview = () => {
         <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-3xl font-semibold text-foreground">
-              Dashboard
+              {t("admin.overview.title")}
             </h1>
             <p className="text-muted-foreground">
-              Overview of your platform's performance
+              {t("admin.overview.subtitle")}
             </p>
           </div>
         </div>
@@ -181,16 +183,16 @@ const AdminOverview = () => {
             <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
               <div>
                 <h2 className="text-xl font-semibold text-foreground">
-                  Revenue Growth
+                  {t("admin.overview.revenueGrowth")}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Monthly revenue trend • 2025
+                  {t("admin.overview.revenueSubtitle")}
                 </p>
               </div>
               <select className="rounded-xl border border-input bg-background px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none">
-                <option>Last 12 Months</option>
-                <option>Last 6 Months</option>
-                <option>Last 30 Days</option>
+                <option>{t("admin.overview.last12Months")}</option>
+                <option>{t("admin.overview.last6Months")}</option>
+                <option>{t("admin.overview.last30Days")}</option>
               </select>
             </div>
 
@@ -263,14 +265,14 @@ const AdminOverview = () => {
             {/* Quick Actions */}
             <div className="rounded-2xl border border-border bg-card p-6">
               <h3 className="mb-5 text-lg font-semibold text-foreground">
-                Quick Actions
+                {t("admin.overview.quickActions")}
               </h3>
               <div className="space-y-3">
                 <Link to="/admin-dashboard/settings">
                   <button className="flex w-full items-center gap-3 rounded-2xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted">
                     <Settings className="h-5 w-5 text-muted-foreground" />
                     <span className="font-medium text-foreground">
-                      Manage Plans
+                      {t("admin.overview.managePlans")}
                     </span>
                   </button>
                 </Link>
@@ -279,7 +281,7 @@ const AdminOverview = () => {
                   <button className="flex w-full items-center gap-3 rounded-2xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted">
                     <File className="h-5 w-5 text-muted-foreground" />
                     <span className="font-medium text-foreground">
-                      View Transactions
+                      {t("admin.overview.viewTransactions")}
                     </span>
                   </button>
                 </Link>
@@ -288,12 +290,12 @@ const AdminOverview = () => {
 
             {/* Total Revenue Card */}
             <div className="rounded-3xl bg-gradient-to-br from-primary to-primary/90 p-6 text-primary-foreground">
-              <div className="text-sm opacity-90">Total Revenue (2025)</div>
+              <div className="text-sm opacity-90">{t("admin.overview.totalRevenueCard")}</div>
               <div className="mt-2 text-4xl font-bold">
                 ${totalRevenue.toLocaleString()}
               </div>
               <div className="mt-1 text-sm opacity-75">
-                Across {chartData.length} months
+                {t("admin.overview.acrossMonths", { count: chartData.length })}
               </div>
             </div>
           </div>
@@ -303,11 +305,11 @@ const AdminOverview = () => {
         <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border bg-muted/50 px-6 py-5">
             <h2 className="text-xl font-semibold text-foreground">
-              Recent Payments
+              {t("admin.overview.recentPayments")}
             </h2>
             <Link to="/admin-dashboard/transaction">
               <button className="rounded-xl border border-border bg-background px-5 py-2 text-sm font-medium transition-colors hover:bg-muted">
-                View All
+                {t("admin.overview.viewAll")}
               </button>
             </Link>
           </div>
@@ -318,22 +320,22 @@ const AdminOverview = () => {
               <thead>
                 <tr className="border-b border-border">
                   <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground">
-                    Organization
+                    {t("admin.overview.colOrganization")}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground">
-                    Plan
+                    {t("admin.overview.colPlan")}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground">
-                    Type
+                    {t("admin.overview.colType")}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground">
-                    Amount
+                    {t("admin.overview.colAmount")}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground">
-                    Status
+                    {t("admin.overview.colStatus")}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground">
-                    Date
+                    {t("admin.overview.colDate")}
                   </th>
                 </tr>
               </thead>
@@ -397,13 +399,13 @@ const AdminOverview = () => {
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-xs text-muted-foreground">Plan</p>
+                    <p className="text-xs text-muted-foreground">{t("admin.overview.colPlan")}</p>
                     <p className="font-medium text-foreground">
                       {payment.planName}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Amount</p>
+                    <p className="text-xs text-muted-foreground">{t("admin.overview.colAmount")}</p>
                     <p className="font-semibold text-foreground">
                       {formatAmount(payment.amount)}
                     </p>
@@ -419,7 +421,7 @@ const AdminOverview = () => {
                     })}
                   </span>
                   <button className="text-primary hover:underline">
-                    View Details
+                    {t("admin.overview.viewDetails")}
                   </button>
                 </div>
               </div>

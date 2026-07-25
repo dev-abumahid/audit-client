@@ -41,13 +41,13 @@ describe("CreateTemplateWithAIDialog", () => {
 
     render(<CreateTemplateWithAIDialog open setOpen={vi.fn()} />)
 
-    await userEvent.click(screen.getByText("Template with Prompt"))
+    await userEvent.click(screen.getByText("organization.templates.ai.promptOption.title"))
     await userEvent.type(
-      screen.getByPlaceholderText(/Create a comprehensive/i),
+      screen.getByPlaceholderText("organization.templates.ai.promptPlaceholder"),
       "A safety checklist"
     )
     await userEvent.click(
-      screen.getByRole("button", { name: /generate template/i })
+      screen.getByRole("button", { name: /organization\.templates\.ai\.generateTemplate/i })
     )
 
     await waitFor(() =>
@@ -62,17 +62,17 @@ describe("CreateTemplateWithAIDialog", () => {
 
     render(<CreateTemplateWithAIDialog open setOpen={vi.fn()} />)
 
-    await userEvent.click(screen.getByText("Template with Prompt"))
+    await userEvent.click(screen.getByText("organization.templates.ai.promptOption.title"))
     await userEvent.type(
-      screen.getByPlaceholderText(/Create a comprehensive/i),
+      screen.getByPlaceholderText("organization.templates.ai.promptPlaceholder"),
       "A safety checklist"
     )
     await userEvent.click(
-      screen.getByRole("button", { name: /generate template/i })
+      screen.getByRole("button", { name: /organization\.templates\.ai\.generateTemplate/i })
     )
 
     await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith("Failed to create template")
+      expect(mockToastError).toHaveBeenCalledWith("organization.templates.ai.createFailed")
     )
   })
 })

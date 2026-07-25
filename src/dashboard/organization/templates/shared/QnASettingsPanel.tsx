@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 
 interface QnASettingsPanelProps {
   onClose: () => void
@@ -91,6 +92,7 @@ function QnASettingsPanel({
   onSelectInput,
   onSelectResponseSet,
 }: QnASettingsPanelProps) {
+  const { t } = useTranslation()
   const [responseSets, setResponseSets] = useState<ResponseSet[]>(
     DEFAULT_RESPONSE_SETS
   )
@@ -137,7 +139,7 @@ function QnASettingsPanel({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">
-            QnA Settings
+            {t("organization.templates.qna.title")}
           </h2>
           <button
             type="button"
@@ -153,10 +155,10 @@ function QnASettingsPanel({
           {/* Multiple Choice Responses */}
           <div>
             <h3 className="mb-1 text-sm font-semibold text-foreground">
-              Multiple Choice Responses
+              {t("organization.templates.qna.multipleChoice")}
             </h3>
             <p className="mb-4 text-xs text-muted-foreground">
-              Predefined options like Yes/No/N/A
+              {t("organization.templates.qna.multipleChoiceDesc")}
             </p>
 
             <div className="space-y-4">
@@ -204,7 +206,7 @@ function QnASettingsPanel({
                   {editingId === set.id && (
                     <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/50 p-4">
                       <p className="text-xs font-medium text-muted-foreground">
-                        Edit Options
+                        {t("organization.templates.qna.editOptions")}
                       </p>
 
                       {editOptions.map((opt, idx) => (
@@ -226,7 +228,9 @@ function QnASettingsPanel({
                               )
                             }
                             className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"
-                            placeholder={`Option ${idx + 1}`}
+                            placeholder={t("organization.templates.qna.optionPlaceholder", {
+                              number: idx + 1,
+                            })}
                           />
                           <button
                             type="button"
@@ -254,19 +258,19 @@ function QnASettingsPanel({
                         }}
                         className="mt-2 flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-700"
                       >
-                        <Plus size={14} /> Add Option
+                        <Plus size={14} /> {t("organization.templates.qna.addOption")}
                       </button>
 
                       <div className="flex gap-2 pt-2">
                         <Button size="sm" onClick={saveEdit}>
-                          Save Changes
+                          {t("organization.templates.edit.saveChanges")}
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={cancelEdit}
                         >
-                          Cancel
+                          {t("organization.templates.create.cancel")}
                         </Button>
                       </div>
                     </div>
@@ -281,7 +285,7 @@ function QnASettingsPanel({
               className="mt-6 w-full"
             >
               <Plus className="mr-2 h-4 w-4" />
-              Add New Response Set
+              {t("organization.templates.qna.addResponseSet")}
             </Button>
           </div>
 
@@ -290,18 +294,22 @@ function QnASettingsPanel({
           {/* Input Types */}
           <div>
             <h3 className="mb-3 text-sm font-semibold text-foreground">
-              Input Types
+              {t("organization.templates.qna.inputTypes")}
             </h3>
             <div className="space-y-1">
-              {ANSWER_TYPES.map((t) => (
+              {ANSWER_TYPES.map((type) => (
                 <button
-                  key={t.value}
+                  key={type.value}
                   type="button"
-                  onClick={() => onSelectInput(t.value)}
+                  onClick={() => onSelectInput(type.value)}
                   className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-colors hover:bg-accent"
                 >
-                  <t.icon size={18} className="text-muted-foreground" />
-                  <span className="font-medium">{t.label}</span>
+                  <type.icon size={18} className="text-muted-foreground" />
+                  <span className="font-medium">
+                    {t(`organization.templates.builder.answerTypes.${type.value}`, {
+                      defaultValue: type.label,
+                    })}
+                  </span>
                 </button>
               ))}
             </div>
@@ -311,7 +319,7 @@ function QnASettingsPanel({
         {/* Footer */}
         <div className="border-t border-border bg-muted/50 px-5 py-4">
           <Button onClick={onClose} className="w-full">
-            Close
+            {t("organization.templates.qna.close")}
           </Button>
         </div>
       </div>

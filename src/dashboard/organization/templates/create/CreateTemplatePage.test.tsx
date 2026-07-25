@@ -64,7 +64,7 @@ describe("CreateTemplatePage", () => {
     })
 
     renderPage()
-    await userEvent.click(screen.getByRole("button", { name: /save template/i }))
+    await userEvent.click(screen.getByRole("button", { name: /organization\.templates\.create\.saveTemplate/i }))
 
     await waitFor(() => expect(mockCreateNewTemplate).toHaveBeenCalled())
     await waitFor(() =>
@@ -80,7 +80,7 @@ describe("CreateTemplatePage", () => {
     })
 
     renderPage()
-    await userEvent.click(screen.getByRole("button", { name: /save template/i }))
+    await userEvent.click(screen.getByRole("button", { name: /organization\.templates\.create\.saveTemplate/i }))
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Template name taken")
@@ -95,7 +95,7 @@ describe("CreateTemplatePage", () => {
     })
 
     renderPage()
-    await userEvent.click(screen.getByRole("button", { name: /save template/i }))
+    await userEvent.click(screen.getByRole("button", { name: /organization\.templates\.create\.saveTemplate/i }))
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Server unavailable")
@@ -104,7 +104,7 @@ describe("CreateTemplatePage", () => {
     // The page (and its filled-in form values) should still be here, not
     // replaced/unmounted by a failed submit.
     expect(
-      screen.getByRole("button", { name: /save template/i })
+      screen.getByRole("button", { name: /organization\.templates\.create\.saveTemplate/i })
     ).toBeInTheDocument()
   })
 })

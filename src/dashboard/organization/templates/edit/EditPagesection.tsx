@@ -23,6 +23,7 @@ import { debounce } from "lodash"
 import { Plus, Trash2 } from "lucide-react"
 import { memo, useCallback, useEffect, useRef, useState } from "react"
 import { Controller, useFieldArray, useWatch } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import EditSortableQuestionRow from "./EditSortableQuestionRow"
 
@@ -56,6 +57,7 @@ const EditPageSection = memo(
     setValue,
     isEditMode = false,
   }: PageSectionProps) => {
+    const { t } = useTranslation()
     const [updateOrCreatePage, { isLoading: isUpdatingPage }] =
       useUpdateOrCreatePageMutation()
     const [deletePage, { isLoading: isDeletingPage }] = useDeletePageMutation()
@@ -265,9 +267,9 @@ const EditPageSection = memo(
         const failedCount = results.filter((r) => !r.ok).length
         if (failedCount > 0) {
           toast.error(
-            failedCount === 1
-              ? "Failed to save the new order for 1 question"
-              : `Failed to save the new order for ${failedCount} questions`
+            t("organization.templates.builder.reorderFailed", {
+              count: failedCount,
+            })
           )
         }
       }, 500),
@@ -279,6 +281,7 @@ const EditPageSection = memo(
         getValues,
         setValue,
         updateOrCreateQuestion,
+        t,
       ]
     )
 
@@ -325,7 +328,7 @@ const EditPageSection = memo(
 
           lastSyncedTitle.current = pageTitle
         } catch (error: any) {
-          toast.error(error?.message || "Error syncing page")
+          toast.error(error?.message || t("organization.templates.builder.syncPageError"))
         } finally {
           setIsSyncing(false)
         }
@@ -340,18 +343,19 @@ const EditPageSection = memo(
       pageId,
       pageIndex,
       updateOrCreatePage,
+      t,
     ])
 
     const handleDeletePage = async () => {
-      if (window.confirm("Are you sure you want to delete this section?")) {
+      if (window.confirm(t("organization.templates.builder.confirmDeleteSection"))) {
         try {
           if (pageId) {
             await deletePage(pageId).unwrap()
-            toast.success("Section deleted successfully")
+            toast.success(t("organization.templates.builder.sectionDeleted"))
           }
           removePage(pageIndex)
         } catch (error: any) {
-          toast.error(error?.message || "Failed to delete section")
+          toast.error(error?.message || t("organization.templates.builder.deleteSectionFailed"))
         }
       }
     }
@@ -365,7 +369,7 @@ const EditPageSection = memo(
             onClick={handleDeletePage}
             disabled={isDeletingPage || isUpdatingPage}
             className="absolute -top-3 -right-3 z-10 rounded-full bg-red-500 p-1.5 text-white shadow-md transition-colors hover:bg-red-600 disabled:opacity-50"
-            title="Delete Section"
+            title={t("organization.templates.builder.deleteSection")}
           >
             <Trash2 size={14} />
           </button>
@@ -374,7 +378,7 @@ const EditPageSection = memo(
         {/* Sync Status */}
         {isSyncing && !isDragging && (
           <div className="absolute top-3 right-3 z-10 text-xs text-muted-foreground">
-            Syncing...
+            {t("organization.templates.builder.syncing")}
           </div>
         )}
 
@@ -388,12 +392,14 @@ const EditPageSection = memo(
                 {...field}
                 type="text"
                 className="w-full rounded-xl border border-border bg-card px-5 py-4 text-xl font-semibold text-foreground focus:border-transparent focus:ring-2 focus:ring-primary focus:outline-none"
-                placeholder="Section Title"
+                placeholder={t("organization.templates.builder.sectionTitlePlaceholder")}
               />
             )}
           />
           <p className="mt-1 pl-5 text-sm text-muted-foreground">
-            Section {pageIndex + 1} of your inspection report.
+            {t("organization.templates.builder.sectionSubtitle", {
+              number: pageIndex + 1,
+            })}
           </p>
         </div>
 
@@ -401,8 +407,8 @@ const EditPageSection = memo(
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           {/* Table Header */}
           <div className="grid grid-cols-12 border-b border-border bg-muted/50 px-4 py-3 text-sm font-medium text-muted-foreground">
-            <div className="col-span-8">Question</div>
-            <div className="col-span-4">Type of Question</div>
+            <div className="col-span-8">{t("organization.templates.builder.questionHeader")}</div>
+            <div className="col-span-4">{t("organization.templates.builder.typeHeader")}</div>
           </div>
 
           {/* Sortable Questions */}
@@ -418,7 +424,7 @@ const EditPageSection = memo(
             >
               {fields.length === 0 ? (
                 <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-                  No questions yet. Click "Add New" below to get started.
+                  {t("organization.templates.builder.noQuestions")}
                 </div>
               ) : (
                 fields.map((field, qIndex) => (
@@ -453,7 +459,7 @@ const EditPageSection = memo(
               onClick={() => onOpenAddModal(pageIndex)}
             >
               <Plus className="h-4 w-4" />
-              Add New Question
+              {t("organization.templates.builder.addNewQuestion")}
             </Button>
           </div>
         </div>

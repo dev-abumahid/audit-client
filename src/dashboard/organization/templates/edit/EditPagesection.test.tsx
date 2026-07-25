@@ -239,7 +239,7 @@ describe("EditPageSection - drag reorder sync", () => {
     // and doesn't silently swallow the rejection as an unhandled promise.
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith(
-        "Failed to save the new order for 1 question"
+        "organization.templates.builder.reorderFailed"
       )
     )
   })

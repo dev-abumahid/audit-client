@@ -7,6 +7,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import React, { useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import {
   useGetAdminOrganizationsQuery,
@@ -15,6 +16,7 @@ import {
 import OnboardingWizard from "./OnboardingWizard"
 
 const AdminOrganization: React.FC = () => {
+  const { t } = useTranslation()
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [isWizardOpen, setIsWizardOpen] = useState(false)
@@ -65,7 +67,9 @@ const AdminOrganization: React.FC = () => {
   // real, meaningful signal we do have: whether the org account is verified
   // (and therefore usable). Admin-provisioned orgs are created verified.
   const getStatusInfo = (isVerified: boolean) => ({
-    text: isVerified ? "Active" : "Pending",
+    text: isVerified
+      ? t("admin.organizations.statusActive")
+      : t("admin.organizations.statusPending"),
     color: isVerified
       ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
       : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
@@ -81,10 +85,10 @@ const AdminOrganization: React.FC = () => {
         <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-3xl font-semibold text-foreground">
-              Organizations
+              {t("admin.organizations.title")}
             </h1>
             <p className="mt-1 text-muted-foreground">
-              Manage all organizations and their subscriptions
+              {t("admin.organizations.subtitle")}
             </p>
           </div>
 
@@ -93,7 +97,7 @@ const AdminOrganization: React.FC = () => {
             className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Sparkles className="h-4 w-4" />
-            Add Organization
+            {t("admin.organizations.addOrganization")}
           </button>
         </div>
 
@@ -104,7 +108,7 @@ const AdminOrganization: React.FC = () => {
               <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search organizations..."
+                placeholder={t("admin.organizations.searchPlaceholder")}
                 value={searchTerm}
                 onChange={handleSearchChange}
                 className="w-full rounded-xl border border-input bg-background py-2.5 pr-4 pl-10 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
@@ -118,16 +122,16 @@ const AdminOrganization: React.FC = () => {
               <thead>
                 <tr className="border-b border-border bg-muted/50">
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
-                    Organization
+                    {t("admin.organizations.colOrganization")}
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
-                    Status
+                    {t("admin.organizations.colStatus")}
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
-                    Sector / Region
+                    {t("admin.organizations.colSectorRegion")}
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
-                    Created Date
+                    {t("admin.organizations.colCreatedDate")}
                   </th>
                   <th className="w-12 px-6 py-4"></th>
                 </tr>
@@ -145,7 +149,7 @@ const AdminOrganization: React.FC = () => {
                       colSpan={5}
                       className="py-12 text-center text-muted-foreground"
                     >
-                      No organizations found
+                      {t("admin.organizations.noResults")}
                     </td>
                   </tr>
                 ) : (
@@ -207,7 +211,7 @@ const AdminOrganization: React.FC = () => {
               </div>
             ) : organizations.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
-                No organizations found
+                {t("admin.organizations.noResults")}
               </div>
             ) : (
               organizations.map((org) => {
@@ -253,9 +257,11 @@ const AdminOrganization: React.FC = () => {
           {totalPages > 1 && (
             <div className="flex flex-col items-center justify-between gap-4 border-t border-border px-6 py-4 sm:flex-row">
               <div className="text-sm text-muted-foreground">
-                Showing {(currentPage - 1) * limit + 1} to{" "}
-                {Math.min(currentPage * limit, totalItems)} of {totalItems}{" "}
-                organizations
+                {t("admin.organizations.pagination", {
+                  from: (currentPage - 1) * limit + 1,
+                  to: Math.min(currentPage * limit, totalItems),
+                  total: totalItems,
+                })}
                 {isFetching && (
                   <Loader className="ml-2 inline h-3 w-3 animate-spin" />
                 )}

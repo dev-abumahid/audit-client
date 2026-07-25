@@ -27,6 +27,7 @@ import {
   Trash2,
 } from "lucide-react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 import { toast } from "sonner"
 import CreateTemplateWithAIDialog from "./shared/CreateTemplateWithAIDialog"
@@ -65,6 +66,7 @@ function TableSkeleton() {
 }
 
 export default function TemplatesPage() {
+  const { t } = useTranslation()
   const [deleteTemplate] = useDeleteTemplateMutation()
 
   const [searchInput, setSearchInput] = useState("")
@@ -110,7 +112,7 @@ export default function TemplatesPage() {
         setSelectedTemplateId(null)
       }
     } catch (err: any) {
-      toast.error(err?.message || "Failed to delete template")
+      toast.error(err?.message || t("organization.templates.list.deleteFailed"))
     }
   }
 
@@ -124,9 +126,11 @@ export default function TemplatesPage() {
       {/* -------- Header -------- */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Templates</h1>
+          <h1 className="text-3xl font-bold">
+            {t("organization.templates.list.title")}
+          </h1>
           <p className="text-muted-foreground">
-            Manage all your inspection and checklist templates
+            {t("organization.templates.list.description")}
           </p>
         </div>
 
@@ -134,7 +138,7 @@ export default function TemplatesPage() {
           <div className="relative w-full sm:w-80">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search templates..."
+              placeholder={t("organization.templates.list.searchPlaceholder")}
               value={searchInput}
               onChange={(e) => {
                 setSearchInput(e.target.value)
@@ -146,13 +150,13 @@ export default function TemplatesPage() {
 
           <Button onClick={() => setCreateTemplateModalOpen(true)}>
             <Brain className="mr-2 h-4 w-4" />
-            Generate Template
+            {t("organization.templates.list.generateTemplate")}
           </Button>
 
           <Link to="/organization/audit/template/create">
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Create Template
+              {t("organization.templates.list.createTemplate")}
             </Button>
           </Link>
         </div>
@@ -163,13 +167,21 @@ export default function TemplatesPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Template</TableHead>
-              <TableHead className="hidden md:table-cell">
-                Description
+              <TableHead>
+                {t("organization.templates.list.colTemplate")}
               </TableHead>
-              <TableHead className="hidden sm:table-cell">Created</TableHead>
-              <TableHead className="hidden md:table-cell">Updated</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="hidden md:table-cell">
+                {t("organization.templates.list.colDescription")}
+              </TableHead>
+              <TableHead className="hidden sm:table-cell">
+                {t("organization.templates.list.colCreated")}
+              </TableHead>
+              <TableHead className="hidden md:table-cell">
+                {t("organization.templates.list.colUpdated")}
+              </TableHead>
+              <TableHead className="text-right">
+                {t("organization.templates.list.colActions")}
+              </TableHead>
             </TableRow>
           </TableHeader>
 
@@ -179,7 +191,7 @@ export default function TemplatesPage() {
             ) : templates.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
-                  No templates found
+                  {t("organization.templates.list.noTemplates")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -246,8 +258,11 @@ export default function TemplatesPage() {
       {totalPages > 1 && (
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
           <p className="text-sm text-muted-foreground">
-            Showing {(page - 1) * limit + 1} to {Math.min(page * limit, total)}{" "}
-            of {total}
+            {t("organization.templates.list.pagination", {
+              from: (page - 1) * limit + 1,
+              to: Math.min(page * limit, total),
+              total,
+            })}
           </p>
 
           <div className="flex gap-2">
@@ -280,8 +295,8 @@ export default function TemplatesPage() {
       <DeleteAlertModal
         open={deleteModalOpen}
         setOpen={setDeleteModalOpen}
-        title="Delete Template?"
-        description="You can't recover this template once deleted."
+        title={t("organization.templates.list.deleteTitle")}
+        description={t("organization.templates.list.deleteDescription")}
         onConfirm={handleConfirmDelete}
       />
       <CreateTemplateWithAIDialog

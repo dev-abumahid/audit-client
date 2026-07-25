@@ -1,7 +1,9 @@
 import { ChevronDown, Upload, X } from "lucide-react"
 import React, { useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 const GeneralInformation = () => {
+  const { t } = useTranslation()
   const [formData, setFormData] = useState({
     platFormName: "RiskGuard Pro",
     platformEmail: "support@riskguard.com",
@@ -39,12 +41,12 @@ const GeneralInformation = () => {
       "image/gif",
     ]
     if (!validTypes.includes(file.type)) {
-      alert("Please upload a valid image file (JPEG, PNG, SVG, GIF)")
+      alert(t("admin.settings.general.invalidImage"))
       return
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert("File size should be less than 5MB")
+      alert(t("admin.settings.general.fileTooLarge"))
       return
     }
 
@@ -70,12 +72,12 @@ const GeneralInformation = () => {
   // Handle form submit (simulated - will be replaced with backend call)
   const handleSubmit = async () => {
     if (!formData.platFormName.trim()) {
-      alert("Platform name is required")
+      alert(t("admin.settings.general.nameRequired"))
       return
     }
 
     if (!formData.platformEmail.trim()) {
-      alert("Email is required")
+      alert(t("admin.settings.general.emailRequired"))
       return
     }
 
@@ -83,7 +85,7 @@ const GeneralInformation = () => {
 
     // Simulate API call
     setTimeout(() => {
-      alert("Settings updated successfully!")
+      alert(t("admin.settings.general.updateSuccess"))
       setIsSubmitting(false)
       // In real implementation, call your update API here
     }, 800)
@@ -94,10 +96,10 @@ const GeneralInformation = () => {
       {/* Section Header */}
       <div>
         <h2 className="text-xl font-semibold text-foreground">
-          General Information
+          {t("admin.settings.general.title")}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Update your platform's basic details and branding
+          {t("admin.settings.general.subtitle")}
         </p>
       </div>
 
@@ -108,7 +110,8 @@ const GeneralInformation = () => {
             htmlFor="platFormName"
             className="mb-1.5 block text-sm font-medium text-muted-foreground"
           >
-            Platform Name <span className="text-red-500">*</span>
+            {t("admin.settings.general.platformName")}{" "}
+            <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -116,14 +119,14 @@ const GeneralInformation = () => {
             value={formData.platFormName}
             onChange={handleInputChange}
             className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-            placeholder="Enter platform name"
+            placeholder={t("admin.settings.general.platformNamePlaceholder")}
           />
         </div>
 
         {/* Logo Upload */}
         <div>
           <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-            Platform Logo
+            {t("admin.settings.general.platformLogo")}
           </label>
 
           <div className="flex items-center gap-6">
@@ -132,7 +135,7 @@ const GeneralInformation = () => {
               {logoPreview && (
                 <img
                   src={logoPreview}
-                  alt="Logo preview"
+                  alt={t("admin.settings.general.logoAlt")}
                   className="h-full w-full object-cover"
                 />
               )}
@@ -154,10 +157,12 @@ const GeneralInformation = () => {
                 className="flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
               >
                 <Upload className="h-4 w-4" />
-                {logoFile || logoPreview ? "Change Logo" : "Upload Logo"}
+                {logoFile || logoPreview
+                  ? t("admin.settings.general.changeLogo")
+                  : t("admin.settings.general.uploadLogo")}
               </button>
               <p className="mt-2 text-xs text-muted-foreground">
-                Recommended: Square image (PNG, JPG, SVG). Max 5MB
+                {t("admin.settings.general.logoHint")}
               </p>
             </div>
 
@@ -178,7 +183,8 @@ const GeneralInformation = () => {
               htmlFor="platformEmail"
               className="mb-1.5 block text-sm font-medium text-muted-foreground"
             >
-              Contact Email <span className="text-red-500">*</span>
+              {t("admin.settings.general.contactEmail")}{" "}
+              <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
@@ -186,7 +192,7 @@ const GeneralInformation = () => {
               value={formData.platformEmail}
               onChange={handleInputChange}
               className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-              placeholder="support@yourcompany.com"
+              placeholder={t("admin.settings.general.emailPlaceholder")}
             />
           </div>
 
@@ -195,7 +201,8 @@ const GeneralInformation = () => {
               htmlFor="platformPhone"
               className="mb-1.5 block text-sm font-medium text-muted-foreground"
             >
-              Phone Number <span className="text-red-500">*</span>
+              {t("admin.settings.general.phoneNumber")}{" "}
+              <span className="text-red-500">*</span>
             </label>
             <input
               type="tel"
@@ -203,7 +210,7 @@ const GeneralInformation = () => {
               value={formData.platformPhone}
               onChange={handleInputChange}
               className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-              placeholder="+880 1234-567890"
+              placeholder={t("admin.settings.general.phonePlaceholder")}
             />
           </div>
         </div>
@@ -215,7 +222,7 @@ const GeneralInformation = () => {
               htmlFor="platformAddress"
               className="mb-1.5 block text-sm font-medium text-muted-foreground"
             >
-              Address
+              {t("admin.settings.general.address")}
             </label>
             <input
               type="text"
@@ -223,7 +230,7 @@ const GeneralInformation = () => {
               value={formData.platformAddress}
               onChange={handleInputChange}
               className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-              placeholder="123 Business Street, Dhaka"
+              placeholder={t("admin.settings.general.addressPlaceholder")}
             />
           </div>
 
@@ -232,7 +239,7 @@ const GeneralInformation = () => {
               htmlFor="platformCurrency"
               className="mb-1.5 block text-sm font-medium text-muted-foreground"
             >
-              Default Currency
+              {t("admin.settings.general.defaultCurrency")}
             </label>
             <div className="relative">
               <select
@@ -268,10 +275,10 @@ const GeneralInformation = () => {
           {isSubmitting ? (
             <>
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              Saving Changes...
+              {t("admin.settings.general.saving")}
             </>
           ) : (
-            "Save Changes"
+            t("admin.settings.general.saveChanges")
           )}
         </button>
       </div>
