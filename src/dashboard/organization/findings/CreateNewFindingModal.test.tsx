@@ -160,11 +160,11 @@ describe("CreateNewFindingModal", () => {
     )
 
     await userEvent.type(
-      screen.getByPlaceholderText("Enter action title..."),
+      screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
       "New finding"
     )
     await userEvent.click(
-      screen.getByRole("button", { name: /create finding/i })
+      screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
     )
 
     await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
@@ -191,7 +191,7 @@ describe("CreateNewFindingModal", () => {
 
     // Title comes pre-filled from additionalData — no typing needed.
     await userEvent.click(
-      screen.getByRole("button", { name: /create finding/i })
+      screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
     )
 
     await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
@@ -220,7 +220,7 @@ describe("CreateNewFindingModal", () => {
     )
 
     await userEvent.click(
-      screen.getByRole("button", { name: /update finding/i })
+      screen.getByRole("button", { name: "organization.findings.updateFindingBtn" })
     )
 
     await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
@@ -241,7 +241,7 @@ describe("CreateNewFindingModal", () => {
     render(<CreateNewFindingModal open onClose={vi.fn()} />)
 
     await userEvent.type(
-      screen.getByPlaceholderText("Enter action title..."),
+      screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
       "New finding with media"
     )
 
@@ -254,7 +254,7 @@ describe("CreateNewFindingModal", () => {
     await waitFor(() => expect(mockUploadFile).toHaveBeenCalled())
 
     await userEvent.click(
-      screen.getByRole("button", { name: /create finding/i })
+      screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
     )
 
     await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
@@ -293,7 +293,7 @@ describe("CreateNewFindingModal", () => {
     )
 
     const assigneesTrigger = screen
-      .getByText("Assignees")
+      .getByText("organization.findings.assignees")
       .closest("div")
       ?.querySelector("button") as HTMLButtonElement
     await userEvent.click(assigneesTrigger)
@@ -314,7 +314,7 @@ describe("CreateNewFindingModal", () => {
     expect(bobCheckbox.checked).toBe(false)
 
     await userEvent.click(
-      screen.getByRole("button", { name: /update finding/i })
+      screen.getByRole("button", { name: "organization.findings.updateFindingBtn" })
     )
 
     await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
@@ -341,7 +341,7 @@ describe("CreateNewFindingModal", () => {
     )
 
     await userEvent.click(
-      screen.getByRole("button", { name: /update finding/i })
+      screen.getByRole("button", { name: "organization.findings.updateFindingBtn" })
     )
 
     await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
@@ -376,7 +376,7 @@ describe("CreateNewFindingModal", () => {
     render(<CreateNewFindingModal open onClose={vi.fn()} />)
 
     const assigneesTrigger = screen
-      .getByText("Assignees")
+      .getByText("organization.findings.assignees")
       .closest("div")
       ?.querySelector("button") as HTMLButtonElement
     await userEvent.click(assigneesTrigger)
@@ -394,11 +394,11 @@ describe("CreateNewFindingModal", () => {
     await userEvent.click(memberOneCheckbox)
 
     await userEvent.type(
-      screen.getByPlaceholderText("Enter action title..."),
+      screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
       "Finding with real member shape"
     )
     await userEvent.click(
-      screen.getByRole("button", { name: /create finding/i })
+      screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
     )
 
     await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
@@ -457,11 +457,11 @@ describe("CreateNewFindingModal", () => {
     )
 
     await userEvent.type(
-      screen.getByPlaceholderText("Add an update"),
+      screen.getByPlaceholderText("organization.findings.addUpdatePlaceholder"),
       "New comment on edit"
     )
     await userEvent.click(
-      screen.getByRole("button", { name: /update finding/i })
+      screen.getByRole("button", { name: "organization.findings.updateFindingBtn" })
     )
 
     await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
@@ -496,7 +496,7 @@ describe("CreateNewFindingModal", () => {
     )
 
     await userEvent.click(
-      screen.getByRole("button", { name: /update finding/i })
+      screen.getByRole("button", { name: "organization.findings.updateFindingBtn" })
     )
 
     await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
@@ -526,23 +526,23 @@ describe("CreateNewFindingModal", () => {
     )
 
     await userEvent.type(
-      screen.getByPlaceholderText("Add an update"),
+      screen.getByPlaceholderText("organization.findings.addUpdatePlaceholder"),
       "Comment that will fail to save"
     )
     await userEvent.click(
-      screen.getByRole("button", { name: /update finding/i })
+      screen.getByRole("button", { name: "organization.findings.updateFindingBtn" })
     )
 
     await waitFor(() => expect(mockAddFindingMessage).toHaveBeenCalled())
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
-        "Action updated, but the comment failed to save."
+        "organization.findings.commentFailed"
       )
     )
     // The action's own fields genuinely saved (PATCH succeeded) -- the
-    // generic "Failed to update action." full-failure message must not
+    // generic "organization.findings.updateFailed" full-failure message must not
     // fire, and neither must the success toast (only the comment failed).
-    expect(toast.error).not.toHaveBeenCalledWith("Failed to update action.")
+    expect(toast.error).not.toHaveBeenCalledWith("organization.findings.updateFailed")
     expect(toast.success).not.toHaveBeenCalled()
     // Modal stays open and the typed comment isn't cleared, so the user can
     // see what failed and retry instead of silently losing it.
@@ -560,15 +560,15 @@ describe("CreateNewFindingModal", () => {
     render(<CreateNewFindingModal open onClose={vi.fn()} />)
 
     await userEvent.type(
-      screen.getByPlaceholderText("Enter action title..."),
+      screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
       "Finding with initial comment"
     )
     await userEvent.type(
-      screen.getByPlaceholderText("Add an update"),
+      screen.getByPlaceholderText("organization.findings.addUpdatePlaceholder"),
       "First comment"
     )
     await userEvent.click(
-      screen.getByRole("button", { name: /create finding/i })
+      screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
     )
 
     await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())

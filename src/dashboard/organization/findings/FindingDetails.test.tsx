@@ -107,7 +107,7 @@ describe("FindingDetails", () => {
   it("Edit button opens the modal pre-filled with the finding", async () => {
     renderPage()
 
-    await userEvent.click(screen.getByRole("button", { name: /^edit$/i }))
+    await userEvent.click(screen.getByRole("button", { name: "organization.findings.edit" }))
 
     expect(screen.getByTestId("edit-finding-modal")).toHaveTextContent(
       "Editing: Fix broken railing"
@@ -130,7 +130,7 @@ describe("FindingDetails", () => {
   it("Delete button opens the confirm modal", async () => {
     renderPage()
 
-    await userEvent.click(screen.getByRole("button", { name: /^delete$/i }))
+    await userEvent.click(screen.getByRole("button", { name: "organization.findings.delete" }))
 
     expect(
       screen.getByRole("button", { name: /confirm delete/i })
@@ -143,7 +143,7 @@ describe("FindingDetails", () => {
     })
     renderPage()
 
-    await userEvent.click(screen.getByRole("button", { name: /^delete$/i }))
+    await userEvent.click(screen.getByRole("button", { name: "organization.findings.delete" }))
     await userEvent.click(
       screen.getByRole("button", { name: /confirm delete/i })
     )
@@ -162,7 +162,7 @@ describe("FindingDetails", () => {
     })
     renderPage()
 
-    await userEvent.click(screen.getByRole("button", { name: /^delete$/i }))
+    await userEvent.click(screen.getByRole("button", { name: "organization.findings.delete" }))
     await userEvent.click(
       screen.getByRole("button", { name: /confirm delete/i })
     )
@@ -176,7 +176,7 @@ describe("FindingDetails", () => {
   describe("attachments", () => {
     async function openFilesTab() {
       await userEvent.click(
-        screen.getByRole("button", { name: /attachments/i })
+        screen.getByRole("button", { name: /tabAttachments/ })
       )
     }
 
@@ -184,7 +184,7 @@ describe("FindingDetails", () => {
       renderPage()
       await openFilesTab()
 
-      expect(screen.getByText("No attachments")).toBeInTheDocument()
+      expect(screen.getByText("organization.findings.noAttachments")).toBeInTheDocument()
     })
 
     it("renders existing attachments split into images and files", async () => {
@@ -230,7 +230,7 @@ describe("FindingDetails", () => {
           body: { attachments: ["https://cdn.example.com/new.png"] },
         })
       )
-      expect(mockToastSuccess).toHaveBeenCalledWith("Attachment uploaded")
+      expect(mockToastSuccess).toHaveBeenCalledWith("organization.findings.attachmentUploaded")
     })
 
     it("appends the new URL to existing attachments rather than replacing them", async () => {
@@ -331,14 +331,14 @@ describe("FindingDetails", () => {
       await waitFor(() => expect(mockUpdateFinding).toHaveBeenCalled())
       await waitFor(() =>
         expect(mockToastError).toHaveBeenCalledWith(
-          "File uploaded, but failed to attach it to the finding. Please try uploading it again."
+          "organization.findings.attachFailed"
         )
       )
       // The file itself genuinely uploaded -- the generic "Failed to upload
       // attachment" full-failure message must not fire, and neither must the
       // success toast (only attaching the URL to the finding failed).
       expect(mockToastError).not.toHaveBeenCalledWith(
-        "Failed to upload attachment"
+        "organization.findings.uploadAttachmentFailed"
       )
       expect(mockToastSuccess).not.toHaveBeenCalled()
     })
@@ -359,7 +359,7 @@ describe("FindingDetails", () => {
       renderPage()
       await openFilesTab()
 
-      const removeButtons = screen.getAllByTitle("Remove")
+      const removeButtons = screen.getAllByTitle("organization.findings.remove")
       await userEvent.click(removeButtons[0])
 
       await waitFor(() =>
@@ -368,7 +368,7 @@ describe("FindingDetails", () => {
           body: { attachments: ["https://cdn.example.com/remove.png"] },
         })
       )
-      expect(mockToastSuccess).toHaveBeenCalledWith("Attachment removed")
+      expect(mockToastSuccess).toHaveBeenCalledWith("organization.findings.attachmentRemoved")
     })
 
     it("blocks a second remove while one is still in flight, preventing a lost-update race", async () => {
@@ -393,7 +393,7 @@ describe("FindingDetails", () => {
       renderPage()
       await openFilesTab()
 
-      const removeButtons = screen.getAllByTitle("Remove")
+      const removeButtons = screen.getAllByTitle("organization.findings.remove")
       await userEvent.click(removeButtons[0])
 
       // Second attachment's remove button must be disabled while the first
@@ -401,8 +401,8 @@ describe("FindingDetails", () => {
       // from the same render's `action.attachments` closure, so allowing a
       // second remove to start here would race and could silently undo the
       // first removal (whichever PATCH resolves last wins).
-      expect(screen.getAllByTitle("Remove")[1]).toBeDisabled()
-      await userEvent.click(screen.getAllByTitle("Remove")[1])
+      expect(screen.getAllByTitle("organization.findings.remove")[1]).toBeDisabled()
+      await userEvent.click(screen.getAllByTitle("organization.findings.remove")[1])
       expect(mockUpdateFinding).toHaveBeenCalledTimes(1)
 
       resolveFirstRemove({})

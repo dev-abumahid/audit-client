@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Link, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
 import type { IAction } from "@/types/finding"
@@ -53,11 +54,13 @@ const formatDate = (dateString: string) => {
   }
 }
 
-const STATUS_DISPLAY: Record<string, string> = {
-  TO_DO: "To Do",
-  IN_PROGRESS: "In Progress",
-  COMPLETE: "Complete",
-  CANT_DO: "Can't Do",
+// Backend status enum -> i18n key. Resolved with t() at render time; the raw
+// enum is used as a fallback for any unmapped value.
+const STATUS_DISPLAY_KEYS: Record<string, string> = {
+  TO_DO: "organization.findings.statusToDo",
+  IN_PROGRESS: "organization.findings.statusInProgress",
+  COMPLETE: "organization.findings.statusComplete",
+  CANT_DO: "organization.findings.statusCantDo",
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -65,6 +68,12 @@ const STATUS_STYLE: Record<string, string> = {
   IN_PROGRESS: "bg-risk-info/10 text-risk-info border-risk-info/20",
   COMPLETE: "bg-risk-low/10 text-risk-low border-risk-low/20",
   CANT_DO: "bg-risk-critical/10 text-risk-critical border-risk-critical/20",
+}
+
+const PRIORITY_DISPLAY_KEYS: Record<string, string> = {
+  Low: "organization.findings.priorityLow",
+  Medium: "organization.findings.priorityMedium",
+  High: "organization.findings.priorityHigh",
 }
 
 const PRIORITY_STYLE: Record<string, string> = {
@@ -116,6 +125,7 @@ const PreviewModal = ({
   url: string
   onClose: () => void
 }) => {
+  const { t } = useTranslation()
   const type = fileType(url)
 
   return (
@@ -144,7 +154,8 @@ const PreviewModal = ({
               onClick={() => downloadFile(url)}
               className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90"
             >
-              <Download className="h-4 w-4" /> Download
+              <Download className="h-4 w-4" />{" "}
+              {t("organization.findings.download")}
             </button>
             <button
               onClick={onClose}
@@ -159,21 +170,21 @@ const PreviewModal = ({
           {type === "image" && (
             <img
               src={url || "/placeholder.svg"}
-              alt="Preview"
+              alt={t("organization.findings.preview")}
               className="max-h-[70vh] max-w-full rounded object-contain"
             />
           )}
           {type === "video" && (
             <video controls className="max-h-[70vh] max-w-full rounded">
               <source src={url} />
-              Your browser does not support video preview.
+              {t("organization.findings.videoUnsupported")}
             </video>
           )}
           {type === "document" && url.endsWith(".pdf") && (
             <iframe
               src={url}
               className="h-[70vh] w-full rounded border-0"
-              title="PDF Preview"
+              title={t("organization.findings.pdfPreview")}
             />
           )}
           {(type === "file" ||
@@ -181,16 +192,17 @@ const PreviewModal = ({
             <div className="py-12 text-center">
               <File className="mx-auto h-12 w-12 text-muted-foreground" />
               <p className="mt-3 font-medium text-foreground">
-                Preview not available
+                {t("organization.findings.previewUnavailable")}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Download to view this file
+                {t("organization.findings.downloadToView")}
               </p>
               <button
                 onClick={() => downloadFile(url)}
                 className="mx-auto mt-4 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                <Download className="h-4 w-4" /> Download File
+                <Download className="h-4 w-4" />{" "}
+                {t("organization.findings.downloadFile")}
               </button>
             </div>
           )}
@@ -201,6 +213,7 @@ const PreviewModal = ({
 }
 
 export default function FindingDetails() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const { data, isLoading } = useGetFindingByIdQuery(id as string)
@@ -241,10 +254,12 @@ export default function FindingDetails() {
     if (!id) return
     try {
       await deleteFinding(id).unwrap()
-      toast.success("Finding deleted successfully!")
+      toast.success(t("organization.findings.deleteSuccess"))
       navigate(-1)
     } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to delete finding")
+      toast.error(
+        err?.data?.message || t("organization.findings.deleteFailed")
+      )
     }
   }
 
@@ -253,7 +268,9 @@ export default function FindingDetails() {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <div className="mx-auto mb-3 h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">
+            {t("organization.findings.loading")}
+          </p>
         </div>
       </div>
     )
@@ -267,13 +284,14 @@ export default function FindingDetails() {
         <div className="text-center">
           <AlertCircle className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
           <h2 className="mb-2 text-xl font-semibold text-foreground">
-            Finding Not Found
+            {t("organization.findings.notFound")}
           </h2>
           <button
             onClick={() => navigate(-1)}
             className="mx-auto flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            <ChevronLeft className="h-4 w-4" /> Go Back
+            <ChevronLeft className="h-4 w-4" />{" "}
+            {t("organization.findings.goBack")}
           </button>
         </div>
       </div>
@@ -288,7 +306,7 @@ export default function FindingDetails() {
       const uploadRes = await uploadAttachment(formData).unwrap()
       const url: string | undefined = uploadRes?.data?.url
       if (!url) {
-        toast.error("Upload failed")
+        toast.error(t("organization.findings.uploadFailedShort"))
         return
       }
       // Separate try/catch from the upload above: by this point the file
@@ -310,13 +328,15 @@ export default function FindingDetails() {
       } catch (attachErr: any) {
         toast.error(
           attachErr?.data?.message ||
-            "File uploaded, but failed to attach it to the finding. Please try uploading it again."
+            t("organization.findings.attachFailed")
         )
         return
       }
-      toast.success("Attachment uploaded")
+      toast.success(t("organization.findings.attachmentUploaded"))
     } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to upload attachment")
+      toast.error(
+        err?.data?.message || t("organization.findings.uploadAttachmentFailed")
+      )
     } finally {
       setIsUploadingAttachment(false)
     }
@@ -333,9 +353,11 @@ export default function FindingDetails() {
           ),
         },
       }).unwrap()
-      toast.success("Attachment removed")
+      toast.success(t("organization.findings.attachmentRemoved"))
     } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to remove attachment")
+      toast.error(
+        err?.data?.message || t("organization.findings.removeAttachmentFailed")
+      )
     } finally {
       setRemovingAttachmentUrl(null)
     }
@@ -349,18 +371,18 @@ export default function FindingDetails() {
   }[] = [
     {
       key: "details",
-      label: "Details",
+      label: t("organization.findings.tabDetails"),
       icon: <FileText className="h-4 w-4" />,
     },
     {
       key: "messages",
-      label: "Messages",
+      label: t("organization.findings.tabMessages"),
       icon: <MessageSquare className="h-4 w-4" />,
       count: action.messages?.length,
     },
     {
       key: "files",
-      label: "Attachments",
+      label: t("organization.findings.tabAttachments"),
       icon: <Paperclip className="h-4 w-4" />,
       count: action.attachments.length,
     },
@@ -376,7 +398,7 @@ export default function FindingDetails() {
               onClick={() => navigate(-1)}
               className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
-              <ChevronLeft className="h-4 w-4" /> Back
+              <ChevronLeft className="h-4 w-4" /> {t("organization.findings.back")}
             </button>
             <h1 className="mb-3 text-2xl font-bold text-foreground">
               {action.actionTitle}
@@ -386,13 +408,18 @@ export default function FindingDetails() {
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${STATUS_STYLE[action.status]}`}
               >
                 <StatusIcon status={action.status} />
-                {STATUS_DISPLAY[action.status]}
+                {STATUS_DISPLAY_KEYS[action.status]
+                  ? t(STATUS_DISPLAY_KEYS[action.status])
+                  : action.status}
               </span>
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${PRIORITY_STYLE[action.priority]}`}
               >
                 <AlertCircle className="h-3.5 w-3.5" />
-                {action.priority} Priority
+                {PRIORITY_DISPLAY_KEYS[action.priority]
+                  ? t(PRIORITY_DISPLAY_KEYS[action.priority])
+                  : action.priority}{" "}
+                {t("organization.findings.priority")}
               </span>
             </div>
           </div>
@@ -403,14 +430,14 @@ export default function FindingDetails() {
               disabled={isDeleting}
               className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
-              <Edit size={18} /> Edit
+              <Edit size={18} /> {t("organization.findings.edit")}
             </button>
             <button
               onClick={handleDelete}
               disabled={isDeleting}
               className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
             >
-              <Trash2 size={18} /> Delete
+              <Trash2 size={18} /> {t("organization.findings.delete")}
             </button>
           </div>
         </div>
@@ -451,7 +478,7 @@ export default function FindingDetails() {
                   <div className="space-y-5">
                     <div>
                       <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                        Description
+                        {t("organization.findings.descriptionLabel")}
                       </p>
                       <div className="prose prose-sm dark:prose-invert max-w-none text-foreground">
                         {action.actionDisc ? (
@@ -460,7 +487,7 @@ export default function FindingDetails() {
                           </div>
                         ) : (
                           <p className="text-muted-foreground">
-                            No description provided.
+                            {t("organization.findings.noDescription")}
                           </p>
                         )}
                       </div>
@@ -470,7 +497,7 @@ export default function FindingDetails() {
 
                     <div>
                       <p className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                        Timeline
+                        {t("organization.findings.timeline")}
                       </p>
                       <div className="space-y-3">
                         <div className="flex items-center gap-3 text-sm">
@@ -479,7 +506,7 @@ export default function FindingDetails() {
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">
-                              Due Date
+                              {t("organization.findings.dueDate")}
                             </p>
                             <p className="font-medium text-foreground">
                               {formatDate(action.dueDate)}
@@ -492,7 +519,7 @@ export default function FindingDetails() {
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">
-                              Created
+                              {t("organization.findings.createdLabel")}
                             </p>
                             <p className="font-medium text-foreground">
                               {formatDate(action.createdAt)}
@@ -505,7 +532,7 @@ export default function FindingDetails() {
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">
-                              Last Updated
+                              {t("organization.findings.lastUpdated")}
                             </p>
                             <p className="font-medium text-foreground">
                               {formatDate(action.updatedAt)}
@@ -532,7 +559,7 @@ export default function FindingDetails() {
                                 {msg.account?.profile?.fullName ||
                                   msg.account?.organizationProfile
                                     ?.organizationName ||
-                                  "Unknown"}
+                                  t("organization.findings.unknownUser")}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {formatDate(msg.createdAt)}
@@ -548,7 +575,7 @@ export default function FindingDetails() {
                       <div className="py-12 text-center">
                         <MessageSquare className="mx-auto mb-3 h-12 w-12 text-muted-foreground/30" />
                         <p className="text-sm text-muted-foreground">
-                          No messages yet
+                          {t("organization.findings.noMessages")}
                         </p>
                       </div>
                     )}
@@ -565,7 +592,7 @@ export default function FindingDetails() {
                         ) : (
                           <Upload className="h-4 w-4" />
                         )}
-                        Upload file
+                        {t("organization.findings.uploadFile")}
                         <input
                           type="file"
                           className="hidden"
@@ -583,7 +610,7 @@ export default function FindingDetails() {
                       <div className="py-12 text-center">
                         <Paperclip className="mx-auto mb-3 h-12 w-12 text-muted-foreground/30" />
                         <p className="text-sm text-muted-foreground">
-                          No attachments
+                          {t("organization.findings.noAttachments")}
                         </p>
                       </div>
                     ) : (
@@ -594,7 +621,7 @@ export default function FindingDetails() {
                         ).length > 0 && (
                           <div>
                             <p className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                              <ImageIcon className="h-4 w-4" /> Images
+                              <ImageIcon className="h-4 w-4" /> {t("organization.findings.images")}
                             </p>
                             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                               {action.attachments
@@ -613,14 +640,14 @@ export default function FindingDetails() {
                                       <button
                                         onClick={() => setPreviewUrl(url)}
                                         className="rounded-lg bg-background p-2 transition-colors hover:bg-muted"
-                                        title="Preview"
+                                        title={t("organization.findings.preview")}
                                       >
                                         <Eye className="h-4 w-4 text-foreground" />
                                       </button>
                                       <button
                                         onClick={() => downloadFile(url)}
                                         className="rounded-lg bg-background p-2 transition-colors hover:bg-muted"
-                                        title="Download"
+                                        title={t("organization.findings.download")}
                                       >
                                         <Download className="h-4 w-4 text-foreground" />
                                       </button>
@@ -630,7 +657,7 @@ export default function FindingDetails() {
                                         }
                                         disabled={isMutatingAttachments}
                                         className="rounded-lg bg-background p-2 transition-colors hover:bg-destructive/10 disabled:opacity-50"
-                                        title="Remove"
+                                        title={t("organization.findings.remove")}
                                       >
                                         {removingAttachmentUrl === url ? (
                                           <Loader2 className="h-4 w-4 animate-spin text-destructive" />
@@ -651,7 +678,7 @@ export default function FindingDetails() {
                         ).length > 0 && (
                           <div>
                             <p className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                              <File className="h-4 w-4" /> Files
+                              <File className="h-4 w-4" /> {t("organization.findings.files")}
                             </p>
                             <div className="space-y-2">
                               {action.attachments
@@ -676,14 +703,14 @@ export default function FindingDetails() {
                                       <button
                                         onClick={() => setPreviewUrl(url)}
                                         className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                                        title="Preview"
+                                        title={t("organization.findings.preview")}
                                       >
                                         <Eye className="h-4 w-4" />
                                       </button>
                                       <button
                                         onClick={() => downloadFile(url)}
                                         className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                                        title="Download"
+                                        title={t("organization.findings.download")}
                                       >
                                         <Download className="h-4 w-4" />
                                       </button>
@@ -693,7 +720,7 @@ export default function FindingDetails() {
                                         }
                                         disabled={isMutatingAttachments}
                                         className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-                                        title="Remove"
+                                        title={t("organization.findings.remove")}
                                       >
                                         {removingAttachmentUrl === url ? (
                                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -720,25 +747,25 @@ export default function FindingDetails() {
             {/* Site Info */}
             <div className="rounded-xl border border-border bg-card p-5">
               <p className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                <MapPin className="h-4 w-4" /> Site
+                <MapPin className="h-4 w-4" /> {t("organization.findings.site")}
               </p>
               <p className="text-sm font-semibold text-foreground">
-                {action.site?.name || "Not specified"}
+                {action.site?.name || t("organization.findings.notSpecified")}
               </p>
             </div>
             {/* Inspection Info - Placeholder */}
             <div className="rounded-xl border border-border bg-card p-5">
               <p className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                <AlertCircle className="h-4 w-4" /> Inspection
+                <AlertCircle className="h-4 w-4" /> {t("organization.findings.inspectionLabel")}
               </p>
               <p className="text-sm font-medium text-foreground">
                 {action.inspectionId
-                  ? "Linked to Inspection"
-                  : "No inspection linked"}
+                  ? t("organization.findings.linkedToInspection")
+                  : t("organization.findings.noInspectionLinked")}
               </p>
               {action.inspectionId && (
                 <p className="mt-1 font-mono text-xs text-muted-foreground hover:underline hover:decoration-primary">
-                  ID:{" "}
+                  {t("organization.findings.idLabel")}:{" "}
                   <Link
                     to={`/organization/audit/inspections/report/${action.inspectionId}`}
                   >
@@ -751,11 +778,11 @@ export default function FindingDetails() {
             {/* Assigned Users - Placeholder */}
             <div className="rounded-xl border border-border bg-card p-5">
               <p className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                <Users className="h-4 w-4" /> Assigned Responsible
+                <Users className="h-4 w-4" /> {t("organization.findings.assignedResponsible")}
               </p>
               <div className="py-3 text-center">
                 <p className="text-sm text-muted-foreground">
-                  No users assigned yet
+                  {t("organization.findings.noUsersAssigned")}
                 </p>
               </div>
             </div>
@@ -779,8 +806,8 @@ export default function FindingDetails() {
         setOpen={setDeleteConfirmOpen}
         onConfirm={confirmDelete}
         loading={isDeleting}
-        title="Delete Finding?"
-        description="This will permanently remove this finding."
+        title={t("organization.findings.deleteConfirmTitle")}
+        description={t("organization.findings.deleteConfirmDesc")}
       />
     </div>
   )

@@ -65,7 +65,7 @@ describe("KnowledgeBaseUploadingForm", () => {
 
   it("shows the empty state when there are no documents", () => {
     render(<KnowledgeBaseUploadingForm />)
-    expect(screen.getByText("No documents yet")).toBeInTheDocument()
+    expect(screen.getByText("organization.knowledgeBase.noDocuments")).toBeInTheDocument()
   })
 
   it("renders existing documents", () => {
@@ -92,7 +92,7 @@ describe("KnowledgeBaseUploadingForm", () => {
     await uploadFile()
 
     await waitFor(() =>
-      expect(mockToastInfo).toHaveBeenCalledWith("new.pdf queued — processing…")
+      expect(mockToastInfo).toHaveBeenCalledWith("organization.knowledgeBase.queued")
     )
     // A poller instance mounts for this fileId with no `skip` option (it's
     // only rendered while tracked, unlike the old single-scalar version).
@@ -118,7 +118,7 @@ describe("KnowledgeBaseUploadingForm", () => {
 
     await waitFor(() =>
       expect(mockToastSuccess).toHaveBeenCalledWith(
-        "new.pdf finished processing"
+        "organization.knowledgeBase.processingDone"
       )
     )
   })
@@ -158,8 +158,8 @@ describe("KnowledgeBaseUploadingForm", () => {
     render(<KnowledgeBaseUploadingForm />)
     await uploadFile()
 
-    await waitFor(() => expect(screen.getByTitle("Delete")).toBeDisabled())
-    expect(screen.getByText("Processing…")).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTitle("organization.knowledgeBase.delete")).toBeDisabled())
+    expect(screen.getByText("organization.knowledgeBase.processing")).toBeInTheDocument()
   })
 
   it("tracks two concurrent uploads independently — the first's completion isn't dropped by starting a second", async () => {
@@ -200,13 +200,13 @@ describe("KnowledgeBaseUploadingForm", () => {
     await uploadFile("b.pdf")
 
     await waitFor(() => {
-      const deleteButtons = screen.getAllByTitle("Delete")
+      const deleteButtons = screen.getAllByTitle("organization.knowledgeBase.delete")
       expect(deleteButtons[0]).toBeDisabled()
       expect(deleteButtons[1]).toBeDisabled()
     })
     // Both docs still show as processing — neither upload's tracking was
     // silently overwritten by the other starting.
-    expect(screen.getAllByText("Processing…")).toHaveLength(2)
+    expect(screen.getAllByText("organization.knowledgeBase.processing")).toHaveLength(2)
   })
 
   it("shows an error toast for a non-PDF file without calling the upload mutation", async () => {
@@ -222,7 +222,7 @@ describe("KnowledgeBaseUploadingForm", () => {
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith(
-        "Please upload only PDF files"
+        "organization.knowledgeBase.uploadPdfOnly"
       )
     )
     expect(mockUploadDocument).not.toHaveBeenCalled()

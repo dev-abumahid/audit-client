@@ -28,6 +28,7 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 import TextareaAutosize from "react-textarea-autosize"
 import { toast } from "sonner"
 
@@ -82,6 +83,7 @@ export default function CreateNewFindingModal({
   editData,
   additionalData,
 }: CreateActionModalProps) {
+  const { t } = useTranslation()
   const isEdit = !!editData
   // ── API hooks ──────────────────────────────────────────────────────────────
   const [uploadFIle] = useUploadAnyFileAwsMutation()
@@ -135,9 +137,9 @@ export default function CreateNewFindingModal({
       formData.append("file", files[0])
       const res = await uploadFIle(formData).unwrap()
       setMediaFiles((prev) => [...prev, res.data])
-      toast.success(`File uploaded`)
+      toast.success(t("organization.findings.fileUploaded"))
     } catch {
-      toast.error("Media upload failed.")
+      toast.error(t("organization.findings.mediaUploadFailed"))
     } finally {
       setIsUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -300,12 +302,12 @@ export default function CreateNewFindingModal({
           } catch (msgErr: any) {
             toast.error(
               msgErr?.data?.message ||
-                "Action updated, but the comment failed to save."
+                t("organization.findings.commentFailed")
             )
             return
           }
         }
-        toast.success("Action updated successfully!")
+        toast.success(t("organization.findings.updateSuccess"))
       } else {
         // complianceObligationId is only ever sent on create — the backend
         // sets this FK once at creation and its update handler never reads it
@@ -316,14 +318,16 @@ export default function CreateNewFindingModal({
           ...payload,
           complianceObligationId: additionalData?.complianceObligationId,
         }).unwrap()
-        toast.success("Action created successfully!")
+        toast.success(t("organization.findings.createSuccess"))
       }
       setMessageInput("")
       onClose()
     } catch (err: any) {
       toast.error(
         err?.data?.message ||
-          `Failed to ${isEdit ? "update" : "create"} action.`
+          (isEdit
+            ? t("organization.findings.updateFailed")
+            : t("organization.findings.createFailed"))
       )
     }
   }
@@ -343,7 +347,9 @@ export default function CreateNewFindingModal({
             </div>
             <div>
               <DialogTitle className="text-lg font-semibold text-foreground">
-                {isEdit ? "Edit Finding" : "Create Finding"}
+                {isEdit
+                  ? t("organization.findings.editTitle")
+                  : t("organization.findings.createTitle")}
               </DialogTitle>
             </div>
           </div>
@@ -354,13 +360,13 @@ export default function CreateNewFindingModal({
           {/* Action Title */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Action Title *
+              {t("organization.findings.actionTitleLabel")}
             </label>
             <input
               {...register("actionTitle", {
-                required: "Action title is required",
+                required: t("organization.findings.actionTitleRequired"),
               })}
-              placeholder="Enter action title..."
+              placeholder={t("organization.findings.actionTitlePlaceholder")}
               className={`w-full rounded-lg border px-4 py-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none ${
                 errors.actionTitle
                   ? "border-destructive bg-destructive/10"
@@ -377,11 +383,11 @@ export default function CreateNewFindingModal({
           {/* Description */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Description (Optional)
+              {t("organization.findings.descriptionOptional")}
             </label>
             <TextareaAutosize
               {...register("actionDisc")}
-              placeholder="Add Description"
+              placeholder={t("organization.findings.descriptionPlaceholder")}
               rows={1}
               className="w-full resize-none rounded-lg border border-input bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
             />
@@ -390,20 +396,23 @@ export default function CreateNewFindingModal({
           {/* Inspection */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Inspection
+              {t("organization.findings.inspectionLabel")}
             </label>
             <select
               value={selectedInspectionId}
               onChange={(e) => handleInspectionChange(e.target.value)}
               className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
             >
-              <option value="">Select an inspection...</option>
+              <option value="">
+                {t("organization.findings.selectInspection")}
+              </option>
               {inspectionsLoading ? (
-                <option disabled>Loading...</option>
+                <option disabled>{t("organization.findings.loading")}</option>
               ) : (
                 inspectionList.map((ins) => (
                   <option key={ins.id} value={ins.id}>
-                    {ins?.template?.templateName || "Unnamed Inspection"}
+                    {ins?.template?.templateName ||
+                      t("organization.findings.unnamedInspection")}
                   </option>
                 ))
               )}
@@ -413,13 +422,13 @@ export default function CreateNewFindingModal({
           {/* ── Action Details card ── */}
           <div className="space-y-4 rounded-lg border border-border bg-card p-5">
             <h3 className="text-base font-semibold text-card-foreground">
-              Action Details
+              {t("organization.findings.actionDetails")}
             </h3>
 
             {/* Priority */}
             <div className="flex items-center justify-between gap-4">
               <label className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-                <AlertCircle size={16} /> Priority
+                <AlertCircle size={16} /> {t("organization.findings.priority")}
               </label>
               <Controller
                 control={control}
@@ -430,19 +439,19 @@ export default function CreateNewFindingModal({
                     className={`w-full max-w-55 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:outline-none ${PRIORITY_STYLES[field.value]}`}
                   >
                     <option className={`${PRIORITY_STYLES["Low"]}`} value="Low">
-                      Low
+                      {t("organization.findings.priorityLow")}
                     </option>
                     <option
                       className={`${PRIORITY_STYLES["Medium"]}`}
                       value="Medium"
                     >
-                      Medium
+                      {t("organization.findings.priorityMedium")}
                     </option>
                     <option
                       className={`${PRIORITY_STYLES["High"]}`}
                       value="High"
                     >
-                      High
+                      {t("organization.findings.priorityHigh")}
                     </option>
                   </select>
                 )}
@@ -452,7 +461,8 @@ export default function CreateNewFindingModal({
             {/* Status */}
             <div className="flex items-center justify-between gap-4">
               <label className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-                <AlertCircle size={16} /> Status
+                <AlertCircle size={16} />{" "}
+                {t("organization.findings.statusLabel")}
               </label>
               <Controller
                 control={control}
@@ -466,25 +476,25 @@ export default function CreateNewFindingModal({
                       className={`${STATUS_STYLES["TO_DO"]}`}
                       value="TO_DO"
                     >
-                      To Do
+                      {t("organization.findings.statusToDo")}
                     </option>
                     <option
                       className={`${STATUS_STYLES["IN_PROGRESS"]}`}
                       value="IN_PROGRESS"
                     >
-                      In Progress
+                      {t("organization.findings.statusInProgress")}
                     </option>
                     <option
                       className={`${STATUS_STYLES["COMPLETE"]}`}
                       value="COMPLETE"
                     >
-                      Complete
+                      {t("organization.findings.statusComplete")}
                     </option>
                     <option
                       className={`${STATUS_STYLES["CANT_DO"]}`}
                       value="CANT_DO"
                     >
-                      Can't Do
+                      {t("organization.findings.statusCantDo")}
                     </option>
                   </select>
                 )}
@@ -494,16 +504,16 @@ export default function CreateNewFindingModal({
             {/* Due Date */}
             <div className="flex items-start justify-between gap-4">
               <label className="mt-2 flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-                <Calendar size={16} /> Due Date *
+                <Calendar size={16} /> {t("organization.findings.dueDateLabel")}
               </label>
               <div className="flex w-full max-w-55 flex-col items-end gap-1">
                 <input
                   type="datetime-local"
                   {...register("dueDate", {
-                    required: "Due date is required",
+                    required: t("organization.findings.dueDateRequired"),
                     validate: (v) =>
                       new Date(v) > new Date() ||
-                      "Due date cannot be in the past",
+                      t("organization.findings.dueDatePast"),
                   })}
                   className={`w-full rounded-lg border px-3 py-2 text-sm focus:ring-1 focus:ring-primary focus:outline-none ${
                     errors.dueDate
@@ -522,7 +532,7 @@ export default function CreateNewFindingModal({
             {/* Assignees */}
             <div className="flex items-start justify-between gap-4">
               <label className="mt-2 flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-                <User size={16} /> Assignees
+                <User size={16} /> {t("organization.findings.assignees")}
               </label>
               <Controller
                 control={control}
@@ -559,7 +569,7 @@ export default function CreateNewFindingModal({
                           <div className="space-y-0.5 p-2">
                             {usersLoading ? (
                               <p className="p-3 text-center text-sm text-muted-foreground">
-                                Loading...
+                                {t("organization.findings.loading")}
                               </p>
                             ) : (
                               users.map((user: any) => (
@@ -669,7 +679,7 @@ export default function CreateNewFindingModal({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              title="Upload media"
+              title={t("organization.findings.uploadMedia")}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-input bg-background text-primary transition-colors hover:border-primary hover:bg-primary/10 disabled:opacity-50"
             >
               {isUploading ? (
@@ -684,7 +694,7 @@ export default function CreateNewFindingModal({
               type="text"
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
-              placeholder="Add an update"
+              placeholder={t("organization.findings.addUpdatePlaceholder")}
               className="flex-1 rounded-lg border border-input bg-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
@@ -697,12 +707,14 @@ export default function CreateNewFindingModal({
             {isSaving ? (
               <>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                {isEdit ? "Updating..." : "Creating..."}
+                {isEdit
+                  ? t("organization.findings.updating")
+                  : t("organization.findings.creating")}
               </>
             ) : isEdit ? (
-              "Update Finding"
+              t("organization.findings.updateFindingBtn")
             ) : (
-              "Create Finding"
+              t("organization.findings.createFindingBtn")
             )}
           </button>
         </div>

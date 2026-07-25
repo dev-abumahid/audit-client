@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 import TextareaAutosize from "react-textarea-autosize"
 import CreateNewFindingModal from "../findings/CreateNewFindingModal"
 import { toast } from "sonner"
@@ -41,6 +42,7 @@ export default function ViewAndEditRecommendation({
 }: {
   inspectionId: string
 }) {
+  const { t } = useTranslation()
   const [saveStatus, setSaveStatus] = useState<{
     type: "success" | "error" | "saving" | null
     message: string
@@ -108,7 +110,10 @@ export default function ViewAndEditRecommendation({
       }
 
       try {
-        setSaveStatus({ type: "saving", message: "Saving summary..." })
+        setSaveStatus({
+          type: "saving",
+          message: t("organization.recommendation.savingSummary"),
+        })
 
         await updateRecommendationSummary({
           id: recommendation.id,
@@ -116,11 +121,19 @@ export default function ViewAndEditRecommendation({
         }).unwrap()
 
         lastSavedSummaryRef.current = summary
-        setSaveStatus({ type: "success", message: "Summary saved" })
+        setSaveStatus({
+          type: "success",
+          message: t("organization.recommendation.summarySaved"),
+        })
         setTimeout(() => setSaveStatus({ type: null, message: "" }), 1500)
       } catch (error: any) {
-        toast.error(error?.message || "Summary save error")
-        setSaveStatus({ type: "error", message: "Failed to save summary" })
+        toast.error(
+          error?.message || t("organization.recommendation.summarySaveError")
+        )
+        setSaveStatus({
+          type: "error",
+          message: t("organization.recommendation.summarySaveFailed"),
+        })
         setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
       }
     }, 1500)
@@ -175,10 +188,15 @@ export default function ViewAndEditRecommendation({
             }).unwrap()
 
             lastSavedQuestionRef.current[questionData.id] = currentState
-            setSaveStatus({ type: "success", message: "Question saved" })
+            setSaveStatus({
+              type: "success",
+              message: t("organization.recommendation.questionSaved"),
+            })
             setTimeout(() => setSaveStatus({ type: null, message: "" }), 1500)
           } catch (error: any) {
-            const message = error?.data?.message || "Save failed"
+            const message =
+              error?.data?.message ||
+              t("organization.recommendation.saveFailed")
             setSaveStatus({ type: "error", message })
             toast.error(message)
             setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
@@ -215,20 +233,25 @@ export default function ViewAndEditRecommendation({
 
   const handleGenerateRecommendation = async () => {
     setIsGenerating(true)
-    setSaveStatus({ type: "saving", message: "Generating recommendation..." })
+    setSaveStatus({
+      type: "saving",
+      message: t("organization.recommendation.generating"),
+    })
 
     try {
       await generateRecommendation({ inspectionId }).unwrap()
       await refetch()
       setSaveStatus({
         type: "success",
-        message: "Recommendation generated successfully!",
+        message: t("organization.recommendation.generateSuccess"),
       })
       setTimeout(() => setSaveStatus({ type: null, message: "" }), 2000)
     } catch (error: any) {
       setSaveStatus({
         type: "error",
-        message: error?.data?.message || "Failed to generate",
+        message:
+          error?.data?.message ||
+          t("organization.recommendation.generateFailed"),
       })
       setTimeout(() => setSaveStatus({ type: null, message: "" }), 3000)
     } finally {
@@ -253,7 +276,7 @@ export default function ViewAndEditRecommendation({
   useEffect(() => {
     const missingIds = questions.length > 0 && !questions.every((q) => q.id)
     if (missingIds && !warnedMissingIdsRef.current) {
-      toast.error("Some questions are missing IDs")
+      toast.error(t("organization.recommendation.missingIds"))
     }
     warnedMissingIdsRef.current = missingIds
   }, [questions])
@@ -272,11 +295,10 @@ export default function ViewAndEditRecommendation({
                   <Sparkles className="h-8 w-8 text-[#6EC075]" />
                 </div>
                 <h2 className="mb-2 text-2xl font-bold">
-                  No Recommendation Available
+                  {t("organization.recommendation.noRecommendation")}
                 </h2>
                 <p className="mb-6 text-gray-600">
-                  Generate an AI-powered recommendation based on inspection
-                  findings
+                  {t("organization.recommendation.noRecommendationDesc")}
                 </p>
                 <Button
                   size="lg"
@@ -287,12 +309,12 @@ export default function ViewAndEditRecommendation({
                   {isGenerating ? (
                     <>
                       <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-                      Generating...
+                      {t("organization.recommendation.generatingShort")}
                     </>
                   ) : (
                     <>
                       <Sparkles className="h-4 w-4" />
-                      Generate Recommendation Now
+                      {t("organization.recommendation.generateNow")}
                     </>
                   )}
                 </Button>
@@ -314,7 +336,7 @@ export default function ViewAndEditRecommendation({
         <div className="mb-6 md:mb-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <h1 className="text-2xl font-bold md:text-3xl">
-              View and Edit Recommendation
+              {t("organization.recommendation.title")}
             </h1>
 
             {/* Save Status */}
@@ -354,7 +376,9 @@ export default function ViewAndEditRecommendation({
                   <FileText className="h-5 w-5 text-[#6EC075]" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Total Findings</p>
+                  <p className="text-sm text-gray-500">
+                    {t("organization.recommendation.totalFindings")}
+                  </p>
                   <p className="text-xl font-semibold">{questions.length}</p>
                 </div>
               </div>
@@ -366,7 +390,9 @@ export default function ViewAndEditRecommendation({
                   <Sparkles className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Created</p>
+                  <p className="text-sm text-gray-500">
+                    {t("organization.recommendation.created")}
+                  </p>
                   <p className="text-sm font-medium">
                     {new Date(recommendation.createdAt).toLocaleDateString(
                       "en-US",
@@ -387,8 +413,12 @@ export default function ViewAndEditRecommendation({
                   <AlertCircle className="h-5 w-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Auto-Save</p>
-                  <p className="text-sm font-medium text-green-600">Active</p>
+                  <p className="text-sm text-gray-500">
+                    {t("organization.recommendation.autoSave")}
+                  </p>
+                  <p className="text-sm font-medium text-green-600">
+                    {t("organization.recommendation.active")}
+                  </p>
                 </div>
               </div>
             </div>
@@ -427,7 +457,9 @@ export default function ViewAndEditRecommendation({
                         type="text"
                         className="flex-1 border-none bg-transparent text-lg font-semibold outline-none focus:ring-0"
                         disabled
-                        placeholder="Question title"
+                        placeholder={t(
+                          "organization.recommendation.questionTitlePlaceholder"
+                        )}
                       />
                     </div>
                   </div>
@@ -439,7 +471,9 @@ export default function ViewAndEditRecommendation({
                   <div>
                     <div className="mb-3 flex items-center gap-2">
                       <AlertCircle className="h-5 w-5 text-[#6EC075]" />
-                      <h4 className="font-semibold">AI Observation</h4>
+                      <h4 className="font-semibold">
+                        {t("organization.recommendation.aiObservation")}
+                      </h4>
                     </div>
                     <TextareaAutosize
                       value={question.observation || ""}
@@ -452,7 +486,9 @@ export default function ViewAndEditRecommendation({
                       }
                       rows={1}
                       className="w-full rounded-lg border border-border p-4 outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Enter observation..."
+                      placeholder={t(
+                        "organization.recommendation.observationPlaceholder"
+                      )}
                     />
                   </div>
 
@@ -460,7 +496,9 @@ export default function ViewAndEditRecommendation({
                   <div>
                     <div className="mb-3 flex items-center gap-2">
                       <CheckCircle className="h-5 w-5 text-[#6EC075]" />
-                      <h4 className="font-semibold">AI Recommendation</h4>
+                      <h4 className="font-semibold">
+                        {t("organization.recommendation.aiRecommendation")}
+                      </h4>
                     </div>
                     <TextareaAutosize
                       value={question.recommendation || ""}
@@ -473,7 +511,9 @@ export default function ViewAndEditRecommendation({
                       }
                       rows={2}
                       className="w-full rounded-lg border border-border p-4 outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Enter recommendation..."
+                      placeholder={t(
+                        "organization.recommendation.recommendationPlaceholder"
+                      )}
                     />
                   </div>
 
@@ -481,7 +521,9 @@ export default function ViewAndEditRecommendation({
                   <div>
                     <div className="mb-3 flex items-center gap-2">
                       <Star className="h-5 w-5 text-[#6EC075]" />
-                      <h4 className="font-semibold">Applicable Standard</h4>
+                      <h4 className="font-semibold">
+                        {t("organization.recommendation.applicableStandard")}
+                      </h4>
                     </div>
                     <TextareaAutosize
                       value={question.standard || ""}
@@ -494,7 +536,9 @@ export default function ViewAndEditRecommendation({
                       }
                       rows={2}
                       className="w-full rounded-lg border border-border p-4 outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Enter standard reference..."
+                      placeholder={t(
+                        "organization.recommendation.standardPlaceholder"
+                      )}
                     />
                   </div>
                 </div>
@@ -516,7 +560,8 @@ export default function ViewAndEditRecommendation({
                     type="button"
                     className="flex items-center gap-1 text-sm text-primary hover:text-primary/80"
                   >
-                    <CopyCheck className="w-4" /> Add To Finding
+                    <CopyCheck className="w-4" />{" "}
+                    {t("organization.recommendation.addToFinding")}
                   </button>
                 </div>
               </div>
@@ -528,10 +573,10 @@ export default function ViewAndEditRecommendation({
             <div className="sticky top-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
               <div className="border-b border-border p-4 md:p-6">
                 <h2 className="text-lg font-semibold md:text-xl">
-                  Executive Summary
+                  {t("organization.recommendation.executiveSummary")}
                 </h2>
                 <p className="mt-1 text-sm text-gray-600">
-                  Auto-saves as you type
+                  {t("organization.recommendation.autoSavesHint")}
                 </p>
               </div>
 
@@ -540,7 +585,9 @@ export default function ViewAndEditRecommendation({
                   {...register("summary")}
                   rows={1}
                   className="w-full resize-none rounded-lg border border-border px-3 py-3 font-mono text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-[#6EC075]"
-                  placeholder="Enter executive summary..."
+                  placeholder={t(
+                    "organization.recommendation.summaryPlaceholder"
+                  )}
                 />
               </div>
             </div>

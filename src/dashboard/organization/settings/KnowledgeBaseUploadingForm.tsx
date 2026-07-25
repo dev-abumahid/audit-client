@@ -9,6 +9,7 @@ import type { PineconeDocument } from "@/types/knowledgeBase"
 import { FileText, Loader2, Trash2, Upload } from "lucide-react"
 import type { ChangeEvent, DragEvent } from "react"
 import { useEffect, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 // One instance per concurrently-polling upload — a single scalar
@@ -49,6 +50,7 @@ function UploadStatusPoller({
 }
 
 const KnowledgeBaseUploadingForm = () => {
+  const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -78,9 +80,14 @@ const KnowledgeBaseUploadingForm = () => {
   ) => {
     const fileName = pollingUploads.get(fileId) ?? "File"
     if (outcome === "completed") {
-      toast.success(`${fileName} finished processing`)
+      toast.success(
+        t("organization.knowledgeBase.processingDone", { name: fileName })
+      )
     } else {
-      toast.error(message ?? `${fileName} failed to process`)
+      toast.error(
+        message ??
+          t("organization.knowledgeBase.processingFailed", { name: fileName })
+      )
     }
     setPollingUploads((prev) => {
       const next = new Map(prev)
@@ -102,9 +109,10 @@ const KnowledgeBaseUploadingForm = () => {
 
   const formatFileSize = (size: string | null): string => {
     const bytes = parseInt(size ?? "")
-    if (isNaN(bytes) || bytes === 0) return "0 Bytes"
+    const bytesUnit = t("organization.knowledgeBase.bytesUnit")
+    if (isNaN(bytes) || bytes === 0) return `0 ${bytesUnit}`
     const k = 1024
-    const sizes = ["Bytes", "KB", "MB", "GB"]
+    const sizes = [bytesUnit, "KB", "MB", "GB"]
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
   }
@@ -133,7 +141,7 @@ const KnowledgeBaseUploadingForm = () => {
 
   const handleFileUpload = async (file: File) => {
     if (file.type !== "application/pdf") {
-      toast.error("Please upload only PDF files")
+      toast.error(t("organization.knowledgeBase.uploadPdfOnly"))
       return
     }
 
@@ -149,38 +157,53 @@ const KnowledgeBaseUploadingForm = () => {
         await refetch()
         const fileId = result?.data?.fileId ?? undefined
         if (fileId) {
-          toast.info(`${file.name} queued — processing…`)
+          toast.info(
+            t("organization.knowledgeBase.queued", { name: file.name })
+          )
           setPollingUploads((prev) => new Map(prev).set(fileId, file.name))
         } else {
           // No fileId to poll status for — fall back to the old
           // assume-it-worked toast rather than silently saying nothing.
-          toast.success(result.message || "File uploaded successfully!")
+          toast.success(
+            result.message || t("organization.knowledgeBase.uploadSuccess")
+          )
         }
       } else {
-        toast.error(result.message || "Upload failed")
+        toast.error(
+          result.message || t("organization.knowledgeBase.uploadFailedShort")
+        )
       }
     } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to upload file")
+      toast.error(
+        error?.data?.message || t("organization.knowledgeBase.uploadFailed")
+      )
     } finally {
       setUploading(false)
     }
   }
 
   const handleDeleteDocument = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"?`)) return
+    if (!confirm(t("organization.knowledgeBase.confirmDelete", { name })))
+      return
 
     setDeletingId(id)
 
     try {
       const result = await deleteDocument(name).unwrap()
       if (result.success) {
-        toast.success(result.message || "Document deleted successfully")
+        toast.success(
+          result.message || t("organization.knowledgeBase.deleteSuccess")
+        )
         await refetch()
       } else {
-        toast.error(result.message || "Failed to delete document")
+        toast.error(
+          result.message || t("organization.knowledgeBase.deleteFailed")
+        )
       }
     } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to delete document")
+      toast.error(
+        error?.data?.message || t("organization.knowledgeBase.deleteFailed")
+      )
     } finally {
       setDeletingId(null)
     }
@@ -199,13 +222,15 @@ const KnowledgeBaseUploadingForm = () => {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-foreground">
-          Knowledge Base
+          {t("organization.knowledgeBase.heading")}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Upload and manage PDF documents for AI training
+          {t("organization.knowledgeBase.subtitle")}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Total: {totalItems} document{totalItems !== 1 ? "s" : ""}
+          {t("organization.knowledgeBase.totalDocuments", {
+            count: totalItems,
+          })}
         </p>
       </div>
 
@@ -234,7 +259,9 @@ const KnowledgeBaseUploadingForm = () => {
           {uploading ? (
             <>
               <Loader2 className="mb-3 h-10 w-10 animate-spin text-primary" />
-              <p className="text-sm text-foreground">Uploading...</p>
+              <p className="text-sm text-foreground">
+                {t("organization.knowledgeBase.uploading")}
+              </p>
             </>
           ) : (
             <>
@@ -243,10 +270,10 @@ const KnowledgeBaseUploadingForm = () => {
                 strokeWidth={1.5}
               />
               <p className="text-sm text-foreground">
-                Click or drag PDF to upload
+                {t("organization.knowledgeBase.dropHint")}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                PDF files only
+                {t("organization.knowledgeBase.pdfOnly")}
               </p>
             </>
           )}
@@ -258,7 +285,9 @@ const KnowledgeBaseUploadingForm = () => {
         {documents.length === 0 ? (
           <div className="rounded-lg border border-border bg-card py-12 text-center">
             <FileText className="mx-auto mb-3 h-12 w-12 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">No documents yet</p>
+            <p className="text-sm text-muted-foreground">
+              {t("organization.knowledgeBase.noDocuments")}
+            </p>
           </div>
         ) : (
           documents.map((doc: PineconeDocument) => (
@@ -273,13 +302,14 @@ const KnowledgeBaseUploadingForm = () => {
                 />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground">
-                    {doc.fileName ?? "Untitled"}
+                    {doc.fileName ?? t("organization.knowledgeBase.untitled")}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {formatFileSize(doc.fileSize)}
                     {!!doc.fileId && pollingUploads.has(doc.fileId) && (
                       <span className="ml-2 inline-flex items-center gap-1 text-primary">
-                        <Loader2 className="h-3 w-3 animate-spin" /> Processing…
+                        <Loader2 className="h-3 w-3 animate-spin" />{" "}
+                        {t("organization.knowledgeBase.processing")}
                       </span>
                     )}
                   </p>
@@ -305,7 +335,7 @@ const KnowledgeBaseUploadingForm = () => {
                     (!!doc.fileId && pollingUploads.has(doc.fileId))
                   }
                   className="rounded-md p-1.5 text-risk-critical transition-colors hover:bg-risk-critical/10 disabled:opacity-50"
-                  title="Delete"
+                  title={t("organization.knowledgeBase.delete")}
                 >
                   {deletingId === doc.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

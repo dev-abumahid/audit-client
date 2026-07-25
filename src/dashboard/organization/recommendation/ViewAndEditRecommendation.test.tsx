@@ -91,9 +91,9 @@ describe("ViewAndEditRecommendation", () => {
 
     render(<ViewAndEditRecommendation inspectionId="insp-1" />)
 
-    expect(screen.getByText("No Recommendation Available")).toBeInTheDocument()
+    expect(screen.getByText("organization.recommendation.noRecommendation")).toBeInTheDocument()
     expect(
-      screen.getByRole("button", { name: /generate recommendation now/i })
+      screen.getByRole("button", { name: "organization.recommendation.generateNow" })
     ).toBeInTheDocument()
   })
 
@@ -110,7 +110,7 @@ describe("ViewAndEditRecommendation", () => {
 
     render(<ViewAndEditRecommendation inspectionId="insp-77" />)
     await userEvent.click(
-      screen.getByRole("button", { name: /generate recommendation now/i })
+      screen.getByRole("button", { name: "organization.recommendation.generateNow" })
     )
 
     await waitFor(() =>
@@ -201,7 +201,7 @@ describe("ViewAndEditRecommendation", () => {
 
     render(<ViewAndEditRecommendation inspectionId="insp-1" />)
     const button = screen.getByRole("button", {
-      name: /generate recommendation now/i,
+      name: "organization.recommendation.generateNow",
     })
     await userEvent.click(button)
 
@@ -228,7 +228,7 @@ describe("ViewAndEditRecommendation", () => {
     await userEvent.type(observationField, "!")
 
     await waitFor(() =>
-      expect(screen.getByText("Save failed")).toBeInTheDocument()
+      expect(screen.getByText("organization.recommendation.saveFailed")).toBeInTheDocument()
     )
   })
 
@@ -249,7 +249,7 @@ describe("ViewAndEditRecommendation", () => {
     await userEvent.type(summaryField, "!")
 
     await waitFor(() =>
-      expect(screen.getByText("Failed to save summary")).toBeInTheDocument()
+      expect(screen.getByText("organization.recommendation.summarySaveFailed")).toBeInTheDocument()
     )
   })
 
@@ -262,7 +262,7 @@ describe("ViewAndEditRecommendation", () => {
 
     render(<ViewAndEditRecommendation inspectionId="insp-1" />)
     await userEvent.click(
-      screen.getByRole("button", { name: /add to finding/i })
+      screen.getByRole("button", { name: "organization.recommendation.addToFinding" })
     )
 
     expect(screen.getByText("Finding modal open")).toBeInTheDocument()

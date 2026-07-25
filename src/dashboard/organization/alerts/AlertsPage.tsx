@@ -5,9 +5,11 @@ import {
   useMarkAlertReadMutation,
 } from "@/redux/apis/organization/alert.api"
 import { Bell, Clock, Loader2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 export default function AlertsPage() {
+  const { t } = useTranslation()
   const {
     data: alertResponse,
     isLoading,
@@ -29,7 +31,9 @@ export default function AlertsPage() {
     try {
       await markAlertRead(id).unwrap()
     } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to mark alert as read")
+      toast.error(
+        err?.data?.message || t("organization.alerts.markReadFailed")
+      )
     }
   }
 
@@ -45,7 +49,7 @@ export default function AlertsPage() {
     return (
       <div className="p-6">
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-center text-sm text-destructive">
-          Failed to load alerts. Please try again later.
+          {t("organization.alerts.loadFailed")}
         </div>
       </div>
     )
@@ -56,10 +60,10 @@ export default function AlertsPage() {
       <div className="animate-fade-in flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Risk Alerts
+            {t("organization.alerts.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {alerts.length} active alert{alerts.length !== 1 ? "s" : ""}
+            {t("organization.alerts.activeCount", { count: alerts.length })}
           </p>
         </div>
       </div>
@@ -136,12 +140,12 @@ export default function AlertsPage() {
                   )}
                   {alert.ai_generated && (
                     <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                      AI Generated
+                      {t("organization.alerts.aiGenerated")}
                     </span>
                   )}
                   {!alert.is_read && (
                     <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
-                      New
+                      {t("organization.alerts.new")}
                     </span>
                   )}
                 </div>
@@ -172,7 +176,7 @@ export default function AlertsPage() {
                       disabled={isMarkingRead}
                       className="rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
                     >
-                      Mark as read
+                      {t("organization.alerts.markAsRead")}
                     </button>
                   )}
                 </div>
@@ -184,7 +188,9 @@ export default function AlertsPage() {
         {alerts.length === 0 && (
           <div className="py-12 text-center">
             <Bell className="mx-auto h-8 w-8 text-muted-foreground/50" />
-            <p className="mt-2 text-sm text-muted-foreground">No alerts yet</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t("organization.alerts.empty")}
+            </p>
           </div>
         )}
       </div>

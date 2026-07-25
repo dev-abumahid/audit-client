@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import {
   useGetAllOrgUsersQuery,
@@ -22,17 +23,21 @@ import type { OrgMember, PendingInvitation } from "@/types/organizationMember"
 
 type InviteFormValues = InviteMemberPayload
 
-const ROLE_LABELS: Record<string, string> = {
-  ADMIN: "Admin",
-  LEAD_AUDITOR: "Lead Auditor",
-  LIGHT_USER: "Light User",
-  VIEWER: "Viewer",
+// Maps a backend role enum to its i18n key. Falls back to the raw value for
+// any unmapped role so an unexpected enum still renders something readable.
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  ADMIN: "organization.teamMembers.roleAdmin",
+  LEAD_AUDITOR: "organization.teamMembers.roleLeadAuditor",
+  LIGHT_USER: "organization.teamMembers.roleLightUser",
+  VIEWER: "organization.teamMembers.roleViewer",
 }
 
 function RoleBadge({ role }: { role: string }) {
+  const { t } = useTranslation()
+  const key = ROLE_LABEL_KEYS[role]
   return (
     <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-      {ROLE_LABELS[role] ?? role}
+      {key ? t(key) : role}
     </span>
   )
 }
@@ -44,28 +49,30 @@ function StatusBadge({
   status: string
   isExpired?: boolean
 }) {
+  const { t } = useTranslation()
   if (isExpired) {
     return (
       <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-        Expired
+        {t("organization.teamMembers.statusExpired")}
       </span>
     )
   }
   if (status === "SUSPENDED") {
     return (
       <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
-        Suspended
+        {t("organization.teamMembers.statusSuspended")}
       </span>
     )
   }
   return (
     <span className="rounded-full bg-green-500/10 px-2.5 py-1 text-xs font-medium text-green-600 dark:text-green-400">
-      Active
+      {t("organization.teamMembers.statusActive")}
     </span>
   )
 }
 
 export default function TeamMembersTab() {
+  const { t } = useTranslation()
   const [showInviteForm, setShowInviteForm] = useState(false)
   // Keyed by member/invitation id, not a single flag — suspending one member
   // shouldn't disable the reactivate button on a different row.
@@ -99,13 +106,15 @@ export default function TeamMembersTab() {
     try {
       const res = await inviteMember(values).unwrap()
       if (res?.success !== false) {
-        toast.success(`Invitation sent to ${values.email}`)
+        toast.success(
+          t("organization.teamMembers.invitationSent", { email: values.email })
+        )
         setShowInviteForm(false)
       }
     } catch (err: unknown) {
       const message =
         (err as { data?: { message?: string } })?.data?.message ||
-        "Failed to send invitation"
+        t("organization.teamMembers.inviteFailed")
       toast.error(message)
     }
   }
@@ -119,12 +128,14 @@ export default function TeamMembersTab() {
         body: { status: nextStatus },
       }).unwrap()
       toast.success(
-        nextStatus === "SUSPENDED" ? "Member suspended" : "Member reactivated"
+        nextStatus === "SUSPENDED"
+          ? t("organization.teamMembers.memberSuspended")
+          : t("organization.teamMembers.memberReactivated")
       )
     } catch (err: unknown) {
       const message =
         (err as { data?: { message?: string } })?.data?.message ||
-        "Failed to update member status"
+        t("organization.teamMembers.updateStatusFailed")
       toast.error(message)
     } finally {
       setMutatingMemberId(null)
@@ -135,11 +146,15 @@ export default function TeamMembersTab() {
     setResendingId(invitation.id)
     try {
       await resendInvitation(invitation.id).unwrap()
-      toast.success(`Invitation resent to ${invitation.email}`)
+      toast.success(
+        t("organization.teamMembers.invitationResent", {
+          email: invitation.email,
+        })
+      )
     } catch (err: unknown) {
       const message =
         (err as { data?: { message?: string } })?.data?.message ||
-        "Failed to resend invitation"
+        t("organization.teamMembers.resendFailed")
       toast.error(message)
     } finally {
       setResendingId(null)
@@ -157,7 +172,7 @@ export default function TeamMembersTab() {
   if (membersError) {
     return (
       <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-destructive">
-        Failed to load team members. Please try again later.
+        {t("organization.teamMembers.loadFailed")}
       </div>
     )
   }
@@ -167,11 +182,12 @@ export default function TeamMembersTab() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-foreground">
-            Team Members
+            {t("organization.teamMembers.heading")}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {members.length} {members.length === 1 ? "member" : "members"} in
-            your organization
+            {t("organization.teamMembers.memberCount", {
+              count: members.length,
+            })}
           </p>
         </div>
         <button
@@ -179,7 +195,7 @@ export default function TeamMembersTab() {
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           <UserPlus className="h-4 w-4" />
-          Invite Member
+          {t("organization.teamMembers.inviteMember")}
         </button>
       </div>
 
@@ -187,11 +203,21 @@ export default function TeamMembersTab() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30 text-left text-xs text-muted-foreground uppercase">
-              <th className="px-5 py-3 font-medium">Name</th>
-              <th className="px-5 py-3 font-medium">Email</th>
-              <th className="px-5 py-3 font-medium">Role</th>
-              <th className="px-5 py-3 font-medium">Status</th>
-              <th className="px-5 py-3 font-medium">Actions</th>
+              <th className="px-5 py-3 font-medium">
+                {t("organization.teamMembers.colName")}
+              </th>
+              <th className="px-5 py-3 font-medium">
+                {t("organization.teamMembers.colEmail")}
+              </th>
+              <th className="px-5 py-3 font-medium">
+                {t("organization.teamMembers.colRole")}
+              </th>
+              <th className="px-5 py-3 font-medium">
+                {t("organization.teamMembers.colStatus")}
+              </th>
+              <th className="px-5 py-3 font-medium">
+                {t("organization.teamMembers.colActions")}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -231,7 +257,7 @@ export default function TeamMembersTab() {
                       disabled={isMutating || reactivateBlockedByExpiry}
                       title={
                         reactivateBlockedByExpiry
-                          ? "This member's access window has also expired — reactivating won't restore access."
+                          ? t("organization.teamMembers.reactivateBlocked")
                           : undefined
                       }
                       className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
@@ -243,7 +269,9 @@ export default function TeamMembersTab() {
                       ) : (
                         <ShieldOff className="h-3.5 w-3.5" />
                       )}
-                      {member.status === "SUSPENDED" ? "Reactivate" : "Suspend"}
+                      {member.status === "SUSPENDED"
+                        ? t("organization.teamMembers.reactivate")
+                        : t("organization.teamMembers.suspend")}
                     </button>
                   </td>
                 </tr>
@@ -255,7 +283,7 @@ export default function TeamMembersTab() {
                   colSpan={5}
                   className="px-5 py-8 text-center text-muted-foreground"
                 >
-                  No team members yet.
+                  {t("organization.teamMembers.noMembers")}
                 </td>
               </tr>
             )}
@@ -267,16 +295,24 @@ export default function TeamMembersTab() {
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div className="border-b border-border bg-muted/30 px-5 py-3">
             <h4 className="text-sm font-semibold text-foreground">
-              Pending Invitations
+              {t("organization.teamMembers.pendingInvitations")}
             </h4>
           </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground uppercase">
-                <th className="px-5 py-3 font-medium">Email</th>
-                <th className="px-5 py-3 font-medium">Role</th>
-                <th className="px-5 py-3 font-medium">Expires</th>
-                <th className="px-5 py-3 font-medium">Actions</th>
+                <th className="px-5 py-3 font-medium">
+                  {t("organization.teamMembers.colEmail")}
+                </th>
+                <th className="px-5 py-3 font-medium">
+                  {t("organization.teamMembers.colRole")}
+                </th>
+                <th className="px-5 py-3 font-medium">
+                  {t("organization.teamMembers.colExpires")}
+                </th>
+                <th className="px-5 py-3 font-medium">
+                  {t("organization.teamMembers.colActions")}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -293,7 +329,9 @@ export default function TeamMembersTab() {
                     <RoleBadge role={invite.role} />
                   </td>
                   <td className="px-5 py-3 text-xs text-muted-foreground">
-                    Expires {new Date(invite.expiresAt).toLocaleDateString()}
+                    {t("organization.teamMembers.expiresOn", {
+                      date: new Date(invite.expiresAt).toLocaleDateString(),
+                    })}
                   </td>
                   <td className="px-5 py-3">
                     <button
@@ -306,7 +344,7 @@ export default function TeamMembersTab() {
                       ) : (
                         <RotateCcw className="h-3.5 w-3.5" />
                       )}
-                      Resend
+                      {t("organization.teamMembers.resend")}
                     </button>
                   </td>
                 </tr>
@@ -327,11 +365,11 @@ export default function TeamMembersTab() {
           >
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-foreground">
-                Invite Team Member
+                {t("organization.teamMembers.inviteTeamMember")}
               </h2>
               <button
                 onClick={() => setShowInviteForm(false)}
-                aria-label="Close"
+                aria-label={t("organization.teamMembers.close")}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <X className="h-6 w-6" />
@@ -342,18 +380,18 @@ export default function TeamMembersTab() {
               <div className="space-y-4">
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                    Email Address *
+                    {t("organization.teamMembers.emailLabel")}
                   </label>
                   <input
                     type="email"
                     {...inviteForm.register("email", {
-                      required: "Email is required",
+                      required: t("organization.teamMembers.emailRequired"),
                       pattern: {
                         value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                        message: "Enter a valid email address",
+                        message: t("organization.teamMembers.emailInvalid"),
                       },
                     })}
-                    placeholder="teammate@company.com"
+                    placeholder={t("organization.teamMembers.emailPlaceholder")}
                     className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
                   />
                   {inviteForm.formState.errors.email && (
@@ -365,16 +403,24 @@ export default function TeamMembersTab() {
 
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                    Role *
+                    {t("organization.teamMembers.roleLabel")}
                   </label>
                   <select
                     {...inviteForm.register("role", { required: true })}
                     className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
                   >
-                    <option value="ADMIN">Admin</option>
-                    <option value="LEAD_AUDITOR">Lead Auditor</option>
-                    <option value="LIGHT_USER">Light User</option>
-                    <option value="VIEWER">Viewer</option>
+                    <option value="ADMIN">
+                      {t("organization.teamMembers.roleAdmin")}
+                    </option>
+                    <option value="LEAD_AUDITOR">
+                      {t("organization.teamMembers.roleLeadAuditor")}
+                    </option>
+                    <option value="LIGHT_USER">
+                      {t("organization.teamMembers.roleLightUser")}
+                    </option>
+                    <option value="VIEWER">
+                      {t("organization.teamMembers.roleViewer")}
+                    </option>
                   </select>
                 </div>
               </div>
@@ -385,7 +431,7 @@ export default function TeamMembersTab() {
                   onClick={() => setShowInviteForm(false)}
                   className="rounded-lg px-5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted"
                 >
-                  Cancel
+                  {t("organization.teamMembers.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -397,7 +443,7 @@ export default function TeamMembersTab() {
                   ) : (
                     <Plus className="h-4 w-4" />
                   )}
-                  Send Invitation
+                  {t("organization.teamMembers.sendInvitation")}
                 </button>
               </div>
             </form>

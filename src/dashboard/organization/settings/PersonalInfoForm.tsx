@@ -3,6 +3,7 @@ import { useUpdateProfileMutation } from "@/redux/apis/profile.api"
 import { Upload } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 interface PersonalInfoFormData {
@@ -18,6 +19,7 @@ export default function PersonalInfoForm({
   initialFullName,
   profilePhoto,
 }: PersonalInfoFormProps) {
+  const { t } = useTranslation()
   const [updateProfile, { isLoading }] = useUpdateProfileMutation()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -47,7 +49,7 @@ export default function PersonalInfoForm({
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith("image/")) {
-      toast.error("Please choose an image file")
+      toast.error(t("organization.personalInfo.chooseImage"))
       return
     }
     setSelectedFile(file)
@@ -62,7 +64,7 @@ export default function PersonalInfoForm({
         formData.append("file", selectedFile)
       }
       await updateProfile(formData).unwrap()
-      toast.success("Profile updated successfully")
+      toast.success(t("organization.personalInfo.updateSuccess"))
       setSelectedFile(null)
       setPreviewUrl(null)
       // Re-baseline isDirty against what was just saved — without this,
@@ -73,7 +75,9 @@ export default function PersonalInfoForm({
       // independent review.
       reset({ fullName: data.fullName })
     } catch (error: any) {
-      toast.error(error?.data?.message ?? "Failed to update profile")
+      toast.error(
+        error?.data?.message ?? t("organization.personalInfo.updateFailed")
+      )
     }
   }
 
@@ -82,12 +86,12 @@ export default function PersonalInfoForm({
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <h3 className="mb-4 text-lg font-semibold text-foreground">
-        Personal Information
+        {t("organization.personalInfo.heading")}
       </h3>
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="space-y-4"
-        aria-label="Personal information form"
+        aria-label={t("organization.personalInfo.formLabel")}
       >
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -95,7 +99,7 @@ export default function PersonalInfoForm({
               {avatarSrc ? (
                 <img
                   src={avatarSrc}
-                  alt="Profile photo"
+                  alt={t("organization.personalInfo.profilePhotoAlt")}
                   className="h-full w-full object-cover"
                 />
               ) : (
@@ -107,7 +111,7 @@ export default function PersonalInfoForm({
             <button
               type="button"
               onClick={handleAvatarClick}
-              aria-label="Change profile photo"
+              aria-label={t("organization.personalInfo.changePhoto")}
               disabled={isLoading}
               className="absolute right-0 bottom-0 rounded-full bg-primary p-1.5 text-primary-foreground shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -122,7 +126,7 @@ export default function PersonalInfoForm({
               ref={fileInputRef}
               type="file"
               accept="image/*"
-              aria-label="Upload profile photo"
+              aria-label={t("organization.personalInfo.uploadPhoto")}
               onChange={handleFileChange}
               disabled={isLoading}
               className="hidden"
@@ -130,7 +134,9 @@ export default function PersonalInfoForm({
           </div>
           {selectedFile && (
             <span className="text-xs text-muted-foreground">
-              {selectedFile.name} selected — save to upload
+              {t("organization.personalInfo.fileSelected", {
+                name: selectedFile.name,
+              })}
             </span>
           )}
         </div>
@@ -140,12 +146,14 @@ export default function PersonalInfoForm({
             htmlFor="fullName"
             className="mb-1.5 block text-sm font-medium text-muted-foreground"
           >
-            Full Name
+            {t("organization.personalInfo.fullName")}
           </label>
           <input
             id="fullName"
             type="text"
-            {...register("fullName", { required: "Full name is required" })}
+            {...register("fullName", {
+              required: t("organization.personalInfo.fullNameRequired"),
+            })}
             className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
             disabled={isLoading}
           />
@@ -161,7 +169,9 @@ export default function PersonalInfoForm({
           disabled={isLoading || (!isDirty && !selectedFile)}
           className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isLoading ? "Saving..." : "Save Changes"}
+          {isLoading
+            ? t("organization.personalInfo.saving")
+            : t("organization.personalInfo.saveChanges")}
         </button>
       </form>
     </div>

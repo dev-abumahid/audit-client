@@ -23,7 +23,7 @@ describe("PersonalInfoForm", () => {
 
   it("pre-fills the full name field from initialFullName", () => {
     render(<PersonalInfoForm initialFullName="Jane Doe" />)
-    expect(screen.getByLabelText("Full Name")).toHaveValue("Jane Doe")
+    expect(screen.getByLabelText("organization.personalInfo.fullName")).toHaveValue("Jane Doe")
   })
 
   it("shows initials when no profilePhoto is provided", () => {
@@ -38,10 +38,10 @@ describe("PersonalInfoForm", () => {
     })
 
     render(<PersonalInfoForm initialFullName="Jane Doe" />)
-    const input = screen.getByLabelText("Full Name")
+    const input = screen.getByLabelText("organization.personalInfo.fullName")
     await user.clear(input)
     await user.type(input, "Jane Smith")
-    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+    await user.click(screen.getByRole("button", { name: "organization.personalInfo.saveChanges" }))
 
     await waitFor(() => expect(mockUpdateProfileTrigger).toHaveBeenCalled())
     const submittedFormData = mockUpdateProfileTrigger.mock.calls[0][0] as FormData
@@ -55,7 +55,7 @@ describe("PersonalInfoForm", () => {
 
   it("disables the save button when nothing has changed", () => {
     render(<PersonalInfoForm initialFullName="Jane Doe" />)
-    expect(screen.getByRole("button", { name: "Save Changes" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "organization.personalInfo.saveChanges" })).toBeDisabled()
   })
 
   it("surfaces the backend error message on rejection", async () => {
@@ -66,10 +66,10 @@ describe("PersonalInfoForm", () => {
     })
 
     render(<PersonalInfoForm initialFullName="Jane Doe" />)
-    const input = screen.getByLabelText("Full Name")
+    const input = screen.getByLabelText("organization.personalInfo.fullName")
     await user.clear(input)
     await user.type(input, "Jane Smith")
-    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+    await user.click(screen.getByRole("button", { name: "organization.personalInfo.saveChanges" }))
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("Upload failed")
@@ -86,8 +86,8 @@ describe("PersonalInfoForm", () => {
     })
 
     render(<PersonalInfoForm initialFullName="Jane Doe" />)
-    await user.upload(screen.getByLabelText("Upload profile photo"), file)
-    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+    await user.upload(screen.getByLabelText("organization.personalInfo.uploadPhoto"), file)
+    await user.click(screen.getByRole("button", { name: "organization.personalInfo.saveChanges" }))
 
     await waitFor(() => expect(mockUpdateProfileTrigger).toHaveBeenCalled())
     const submittedFormData = mockUpdateProfileTrigger.mock.calls[0][0] as FormData
@@ -101,10 +101,10 @@ describe("PersonalInfoForm", () => {
     })
 
     render(<PersonalInfoForm initialFullName="Jane Doe" />)
-    const input = screen.getByLabelText("Full Name")
+    const input = screen.getByLabelText("organization.personalInfo.fullName")
     await user.clear(input)
     await user.type(input, "Jane Smith")
-    const saveButton = screen.getByRole("button", { name: "Save Changes" })
+    const saveButton = screen.getByRole("button", { name: "organization.personalInfo.saveChanges" })
     expect(saveButton).toBeEnabled()
 
     await user.click(saveButton)
@@ -117,9 +117,9 @@ describe("PersonalInfoForm", () => {
     render(<PersonalInfoForm initialFullName="Jane Doe" />)
 
     expect(
-      screen.getByRole("button", { name: "Change profile photo" })
+      screen.getByRole("button", { name: "organization.personalInfo.changePhoto" })
     ).toBeDisabled()
-    expect(screen.getByLabelText("Upload profile photo")).toBeDisabled()
+    expect(screen.getByLabelText("organization.personalInfo.uploadPhoto")).toBeDisabled()
   })
 
   it("disables the avatar controls when isLoading transitions to true mid-lifecycle", () => {
@@ -130,15 +130,15 @@ describe("PersonalInfoForm", () => {
     // independent review — round 1's test only covered the static case.
     const { rerender } = render(<PersonalInfoForm initialFullName="Jane Doe" />)
     expect(
-      screen.getByRole("button", { name: "Change profile photo" })
+      screen.getByRole("button", { name: "organization.personalInfo.changePhoto" })
     ).toBeEnabled()
 
     mockIsLoading = true
     rerender(<PersonalInfoForm initialFullName="Jane Doe" />)
 
     expect(
-      screen.getByRole("button", { name: "Change profile photo" })
+      screen.getByRole("button", { name: "organization.personalInfo.changePhoto" })
     ).toBeDisabled()
-    expect(screen.getByLabelText("Upload profile photo")).toBeDisabled()
+    expect(screen.getByLabelText("organization.personalInfo.uploadPhoto")).toBeDisabled()
   })
 })

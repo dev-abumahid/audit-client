@@ -60,12 +60,12 @@ describe("AlertsPage", () => {
       error: { status: 500 },
     })
     render(<AlertsPage />)
-    expect(screen.getByText(/failed to load alerts/i)).toBeInTheDocument()
+    expect(screen.getByText("organization.alerts.loadFailed")).toBeInTheDocument()
   })
 
   it("shows the empty state when there are no alerts", () => {
     render(<AlertsPage />)
-    expect(screen.getByText("No alerts yet")).toBeInTheDocument()
+    expect(screen.getByText("organization.alerts.empty")).toBeInTheDocument()
   })
 
   it("renders an alert's title, description, and source", () => {
@@ -89,9 +89,9 @@ describe("AlertsPage", () => {
     })
     render(<AlertsPage />)
 
-    expect(screen.getByText("New")).toBeInTheDocument()
+    expect(screen.getByText("organization.alerts.new")).toBeInTheDocument()
     expect(
-      screen.getByRole("button", { name: /mark as read/i })
+      screen.getByRole("button", { name: "organization.alerts.markAsRead" })
     ).toBeInTheDocument()
   })
 
@@ -102,9 +102,9 @@ describe("AlertsPage", () => {
     })
     render(<AlertsPage />)
 
-    expect(screen.queryByText("New")).not.toBeInTheDocument()
+    expect(screen.queryByText("organization.alerts.new")).not.toBeInTheDocument()
     expect(
-      screen.queryByRole("button", { name: /mark as read/i })
+      screen.queryByRole("button", { name: "organization.alerts.markAsRead" })
     ).not.toBeInTheDocument()
   })
 
@@ -116,7 +116,7 @@ describe("AlertsPage", () => {
     mockMarkAlertRead.mockReturnValue({ unwrap: () => Promise.resolve({}) })
 
     render(<AlertsPage />)
-    await userEvent.click(screen.getByRole("button", { name: /mark as read/i }))
+    await userEvent.click(screen.getByRole("button", { name: "organization.alerts.markAsRead" }))
 
     await waitFor(() =>
       expect(mockMarkAlertRead).toHaveBeenCalledWith("alert-1")
@@ -133,7 +133,7 @@ describe("AlertsPage", () => {
     })
 
     render(<AlertsPage />)
-    await userEvent.click(screen.getByRole("button", { name: /mark as read/i }))
+    await userEvent.click(screen.getByRole("button", { name: "organization.alerts.markAsRead" }))
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Failed to update")
@@ -154,6 +154,6 @@ describe("AlertsPage", () => {
     })
     render(<AlertsPage />)
 
-    expect(screen.getByText("4 active alerts")).toBeInTheDocument()
+    expect(screen.getByText("organization.alerts.activeCount")).toBeInTheDocument()
   })
 })

@@ -62,8 +62,8 @@ describe("TeamMembersTab", () => {
 
     expect(screen.getByText("Auditor One")).toBeInTheDocument()
     expect(screen.getByText("auditor@test.com")).toBeInTheDocument()
-    expect(screen.getByText("Lead Auditor")).toBeInTheDocument()
-    expect(screen.getByText("Active")).toBeInTheDocument()
+    expect(screen.getByText("organization.teamMembers.roleLeadAuditor")).toBeInTheDocument()
+    expect(screen.getByText("organization.teamMembers.statusActive")).toBeInTheDocument()
   })
 
   it("shows a suspended member as Suspended, not Active", () => {
@@ -74,8 +74,8 @@ describe("TeamMembersTab", () => {
 
     render(<TeamMembersTab />)
 
-    expect(screen.getByText("Suspended")).toBeInTheDocument()
-    expect(screen.queryByText("Active")).not.toBeInTheDocument()
+    expect(screen.getByText("organization.teamMembers.statusSuspended")).toBeInTheDocument()
+    expect(screen.queryByText("organization.teamMembers.statusActive")).not.toBeInTheDocument()
   })
 
   it("shows an expired member as Expired even if status is still ACTIVE", () => {
@@ -86,7 +86,7 @@ describe("TeamMembersTab", () => {
 
     render(<TeamMembersTab />)
 
-    expect(screen.getByText("Expired")).toBeInTheDocument()
+    expect(screen.getByText("organization.teamMembers.statusExpired")).toBeInTheDocument()
   })
 
   it("falls back to an em dash when a member has no fullName set", () => {
@@ -123,7 +123,7 @@ describe("TeamMembersTab", () => {
 
     render(<TeamMembersTab />)
 
-    expect(screen.getByText("Pending Invitations")).toBeInTheDocument()
+    expect(screen.getByText("organization.teamMembers.pendingInvitations")).toBeInTheDocument()
     expect(screen.getByText("pending@test.com")).toBeInTheDocument()
   })
 
@@ -135,7 +135,7 @@ describe("TeamMembersTab", () => {
 
     render(<TeamMembersTab />)
 
-    expect(screen.queryByText("Pending Invitations")).not.toBeInTheDocument()
+    expect(screen.queryByText("organization.teamMembers.pendingInvitations")).not.toBeInTheDocument()
   })
 
   it("submits an invite with email and role, shows a success toast, and closes the form", async () => {
@@ -150,14 +150,14 @@ describe("TeamMembersTab", () => {
     render(<TeamMembersTab />)
 
     await userEvent.click(
-      screen.getByRole("button", { name: /invite member/i })
+      screen.getByRole("button", { name: "organization.teamMembers.inviteMember" })
     )
     await userEvent.type(
-      screen.getByPlaceholderText("teammate@company.com"),
+      screen.getByPlaceholderText("organization.teamMembers.emailPlaceholder"),
       "newperson@test.com"
     )
     await userEvent.click(
-      screen.getByRole("button", { name: /send invitation/i })
+      screen.getByRole("button", { name: "organization.teamMembers.sendInvitation" })
     )
 
     await waitFor(() => expect(mockInviteMember).toHaveBeenCalledWith({
@@ -166,7 +166,7 @@ describe("TeamMembersTab", () => {
     }))
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled())
     expect(
-      screen.queryByRole("button", { name: /send invitation/i })
+      screen.queryByRole("button", { name: "organization.teamMembers.sendInvitation" })
     ).not.toBeInTheDocument()
   })
 
@@ -185,14 +185,14 @@ describe("TeamMembersTab", () => {
     render(<TeamMembersTab />)
 
     await userEvent.click(
-      screen.getByRole("button", { name: /invite member/i })
+      screen.getByRole("button", { name: "organization.teamMembers.inviteMember" })
     )
     await userEvent.type(
-      screen.getByPlaceholderText("teammate@company.com"),
+      screen.getByPlaceholderText("organization.teamMembers.emailPlaceholder"),
       "newperson@test.com"
     )
     await userEvent.click(
-      screen.getByRole("button", { name: /send invitation/i })
+      screen.getByRole("button", { name: "organization.teamMembers.sendInvitation" })
     )
 
     await waitFor(() =>
@@ -211,13 +211,13 @@ describe("TeamMembersTab", () => {
     render(<TeamMembersTab />)
 
     await userEvent.click(
-      screen.getByRole("button", { name: /invite member/i })
+      screen.getByRole("button", { name: "organization.teamMembers.inviteMember" })
     )
     await userEvent.click(
-      screen.getByRole("button", { name: /send invitation/i })
+      screen.getByRole("button", { name: "organization.teamMembers.sendInvitation" })
     )
 
-    expect(screen.getByText("Email is required")).toBeInTheDocument()
+    expect(screen.getByText("organization.teamMembers.emailRequired")).toBeInTheDocument()
     expect(mockInviteMember).not.toHaveBeenCalled()
   })
 
@@ -230,7 +230,7 @@ describe("TeamMembersTab", () => {
 
     render(<TeamMembersTab />)
 
-    expect(screen.getByText(/failed to load team members/i)).toBeInTheDocument()
+    expect(screen.getByText("organization.teamMembers.loadFailed")).toBeInTheDocument()
   })
 
   describe("suspend/reactivate", () => {
@@ -242,7 +242,7 @@ describe("TeamMembersTab", () => {
       mockUpdateOrgMember.mockReturnValue({ unwrap: () => Promise.resolve({}) })
 
       render(<TeamMembersTab />)
-      await userEvent.click(screen.getByRole("button", { name: /suspend/i }))
+      await userEvent.click(screen.getByRole("button", { name: "organization.teamMembers.suspend" }))
 
       await waitFor(() =>
         expect(mockUpdateOrgMember).toHaveBeenCalledWith({
@@ -250,7 +250,7 @@ describe("TeamMembersTab", () => {
           body: { status: "SUSPENDED" },
         })
       )
-      expect(mockToastSuccess).toHaveBeenCalledWith("Member suspended")
+      expect(mockToastSuccess).toHaveBeenCalledWith("organization.teamMembers.memberSuspended")
     })
 
     it("reactivates a suspended (non-expired) member", async () => {
@@ -261,7 +261,7 @@ describe("TeamMembersTab", () => {
       mockUpdateOrgMember.mockReturnValue({ unwrap: () => Promise.resolve({}) })
 
       render(<TeamMembersTab />)
-      await userEvent.click(screen.getByRole("button", { name: /reactivate/i }))
+      await userEvent.click(screen.getByRole("button", { name: "organization.teamMembers.reactivate" }))
 
       await waitFor(() =>
         expect(mockUpdateOrgMember).toHaveBeenCalledWith({
@@ -269,7 +269,7 @@ describe("TeamMembersTab", () => {
           body: { status: "ACTIVE" },
         })
       )
-      expect(mockToastSuccess).toHaveBeenCalledWith("Member reactivated")
+      expect(mockToastSuccess).toHaveBeenCalledWith("organization.teamMembers.memberReactivated")
     })
 
     it("disables reactivate for a suspended member whose access window has also expired", () => {
@@ -282,7 +282,7 @@ describe("TeamMembersTab", () => {
 
       render(<TeamMembersTab />)
 
-      expect(screen.getByRole("button", { name: /reactivate/i })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "organization.teamMembers.reactivate" })).toBeDisabled()
       expect(mockUpdateOrgMember).not.toHaveBeenCalled()
     })
 
@@ -299,7 +299,7 @@ describe("TeamMembersTab", () => {
       })
 
       render(<TeamMembersTab />)
-      await userEvent.click(screen.getByRole("button", { name: /suspend/i }))
+      await userEvent.click(screen.getByRole("button", { name: "organization.teamMembers.suspend" }))
 
       await waitFor(() =>
         expect(mockToastError).toHaveBeenCalledWith(
@@ -332,13 +332,13 @@ describe("TeamMembersTab", () => {
       mockResendInvitation.mockReturnValue({ unwrap: () => Promise.resolve({}) })
 
       render(<TeamMembersTab />)
-      await userEvent.click(screen.getByRole("button", { name: /resend/i }))
+      await userEvent.click(screen.getByRole("button", { name: "organization.teamMembers.resend" }))
 
       await waitFor(() =>
         expect(mockResendInvitation).toHaveBeenCalledWith("inv-1")
       )
       expect(mockToastSuccess).toHaveBeenCalledWith(
-        "Invitation resent to pending@test.com"
+        "organization.teamMembers.invitationResent"
       )
     })
 
@@ -357,7 +357,7 @@ describe("TeamMembersTab", () => {
       })
 
       render(<TeamMembersTab />)
-      await userEvent.click(screen.getByRole("button", { name: /resend/i }))
+      await userEvent.click(screen.getByRole("button", { name: "organization.teamMembers.resend" }))
 
       await waitFor(() =>
         expect(mockToastError).toHaveBeenCalledWith(
