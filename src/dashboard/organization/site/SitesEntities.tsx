@@ -237,13 +237,13 @@ export default function SitesEntities() {
       if (res.success) {
         toast.success(
           editingSite
-            ? "Site updated successfully"
-            : "Site created successfully"
+            ? t("organization.site&entities.siteUpdatedSuccess")
+            : t("organization.site&entities.siteCreatedSuccess")
         )
         setShowForm(false)
       }
     } catch (error: any) {
-      toast.error("Failed to save site")
+      toast.error(t("organization.site&entities.saveSiteFailed"))
     }
   }
   const handleDeleteModalOpen = (siteId: string) => {
@@ -256,12 +256,12 @@ export default function SitesEntities() {
     try {
       const res = await deleteSite(deleteSiteId).unwrap()
       if (res.success) {
-        toast.success("Site deleted successfully")
+        toast.success(t("organization.site&entities.siteDeletedSuccess"))
         setIsDeleteModalOpen(false)
         setDeleteSiteId(null)
       }
     } catch (error) {
-      toast.error("Failed to delete site")
+      toast.error(t("organization.site&entities.deleteSiteFailed"))
     }
   }
 
@@ -284,11 +284,14 @@ export default function SitesEntities() {
       const risks: RiskSuggestion[] = res?.data ?? []
       setSuggestions(risks)
       if (risks.length === 0) {
-        toast("AI analysis found no additional risks to suggest for this site")
+        toast(t("organization.site&entities.noAdditionalRisks"))
       }
     } catch (error: any) {
       if (latestAnalysisRequestRef.current !== site.id) return
-      toast.error(error?.data?.message || "AI risk analysis failed")
+      toast.error(
+        error?.data?.message ||
+          t("organization.site&entities.aiRiskAnalysisFailed"),
+      )
       setAnalyzingSiteId(null)
     } finally {
       if (latestAnalysisRequestRef.current === site.id) {
@@ -338,15 +341,21 @@ export default function SitesEntities() {
           importedCount += 1
         }
       } catch {
-        toast.error(`Failed to import "${suggestion.title}"`)
+        toast.error(
+          t("organization.site&entities.importRiskFailed", {
+            title: suggestion.title,
+          }),
+        )
       }
     }
     setImportingIds(new Set())
     if (importedCount > 0) {
       toast.success(
         importedCount === 1
-          ? "Risk imported into the register"
-          : `${importedCount} risks imported into the register`
+          ? t("organization.site&entities.riskImportedSingle")
+          : t("organization.site&entities.riskImportedMultiple", {
+              count: importedCount,
+            })
       )
     }
     // Remove imported suggestions from the list; leave unselected ones
@@ -365,15 +374,17 @@ export default function SitesEntities() {
     try {
       const res = await createNewRisk(payload).unwrap()
       if (res?.success) {
-        toast.success("Risk created successfully")
+        toast.success(t("organization.site&entities.riskCreatedSuccess"))
         setShowRiskForm(null)
       } else {
-        toast.error("Failed to create risk")
+        toast.error(t("organization.site&entities.createRiskFailed"))
       }
     } catch (error: any) {
       // Keep the inline risk form open on failure so the user doesn't lose
       // what they typed and can retry, same as handleSave above.
-      toast.error(error?.data?.message || "Failed to create risk")
+      toast.error(
+        error?.data?.message || t("organization.site&entities.createRiskFailed"),
+      )
     }
   }
 
@@ -388,14 +399,16 @@ export default function SitesEntities() {
     try {
       const res = await deleteRisk(id).unwrap()
       if (res?.success) {
-        toast.success("Risk deleted successfully")
+        toast.success(t("organization.site&entities.riskDeletedSuccess"))
       } else {
-        toast.error("Failed to delete risk")
+        toast.error(t("organization.site&entities.deleteRiskFailed"))
       }
     } catch (error: any) {
       // Direct action button, no confirmation modal/form state to reset here
       // (unlike handleSave/handleConfirmDelete above).
-      toast.error(error?.data?.message || "Failed to delete risk")
+      toast.error(
+        error?.data?.message || t("organization.site&entities.deleteRiskFailed"),
+      )
     }
   }
 
@@ -450,7 +463,7 @@ export default function SitesEntities() {
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search sites..."
+              placeholder={t("organization.site&entities.searchPlaceholder")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="h-9 w-full rounded-md border border-input bg-background pr-4 pl-10 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
@@ -582,7 +595,9 @@ export default function SitesEntities() {
                       </label>
                       <input
                         {...riskForm.register("name", { required: true })}
-                        placeholder="Enter risk name"
+                        placeholder={t(
+                          "organization.site&entities.enterRiskNamePlaceholder",
+                        )}
                         className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm transition-colors placeholder:text-muted-foreground/50 hover:border-primary/30 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                       />
                     </div>
@@ -625,7 +640,9 @@ export default function SitesEntities() {
                     </label>
                     <textarea
                       {...riskForm.register("description")}
-                      placeholder="Describe the risk in detail..."
+                      placeholder={t(
+                        "organization.site&entities.describeRiskPlaceholder",
+                      )}
                       rows={3}
                       className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors placeholder:text-muted-foreground/50 hover:border-primary/30 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                     />
@@ -877,7 +894,9 @@ export default function SitesEntities() {
                       required: "Name is required",
                     })}
                     className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
-                    placeholder="Example Site"
+                    placeholder={t(
+                      "organization.site&entities.exampleSitePlaceholder",
+                    )}
                   />
                   {siteForm.formState.errors.name && (
                     <p className="mt-1 text-xs text-destructive">

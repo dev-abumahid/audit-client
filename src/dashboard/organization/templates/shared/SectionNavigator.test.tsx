@@ -28,7 +28,7 @@ describe("SectionNavigator (ticket #62)", () => {
     expect(screen.getByText("2")).toBeInTheDocument()
   })
 
-  it("falls back to 'Section N' when a section has no title yet (e.g. mid-typing, or a title watch that hasn't resolved)", () => {
+  it("falls back to the sectionFallback key when a section has no title yet (e.g. mid-typing, or a title watch that hasn't resolved)", () => {
     render(
       <SectionNavigator
         sections={[{ id: "p1", title: "" }]}
@@ -37,7 +37,11 @@ describe("SectionNavigator (ticket #62)", () => {
       />
     )
 
-    expect(screen.getByText("Section 1")).toBeInTheDocument()
+    // sectionFallback interpolates {{number}}, but the uninitialized test
+    // t() echoes just the key without interpolation.
+    expect(
+      screen.getByText("organization.templates.shared.sectionFallback")
+    ).toBeInTheDocument()
   })
 
   it("calls onSelect with the clicked section's index", async () => {

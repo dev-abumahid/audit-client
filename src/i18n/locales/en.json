@@ -397,6 +397,10 @@
                     "ocr": "Performing OCR...",
                     "optimizing": "Rewriting and optimizing..."
                 }
+            },
+            "shared": {
+                "sectionsLabel": "Sections",
+                "sectionFallback": "Section {{number}}"
             }
         },
         "inspection":{
@@ -663,7 +667,25 @@
             "warehouse":"Warehouse",
             "other":"Other",
             "activity":"Activity",
-            "update":"Update Site"
+            "update":"Update Site",
+            "searchPlaceholder":"Search sites...",
+            "enterRiskNamePlaceholder":"Enter risk name",
+            "describeRiskPlaceholder":"Describe the risk in detail...",
+            "exampleSitePlaceholder":"Example Site",
+            "siteUpdatedSuccess":"Site updated successfully",
+            "siteCreatedSuccess":"Site created successfully",
+            "saveSiteFailed":"Failed to save site",
+            "siteDeletedSuccess":"Site deleted successfully",
+            "deleteSiteFailed":"Failed to delete site",
+            "noAdditionalRisks":"AI analysis found no additional risks to suggest for this site",
+            "aiRiskAnalysisFailed":"AI risk analysis failed",
+            "importRiskFailed":"Failed to import \"{{title}}\"",
+            "riskImportedSingle":"Risk imported into the register",
+            "riskImportedMultiple":"{{count}} risks imported into the register",
+            "riskCreatedSuccess":"Risk created successfully",
+            "createRiskFailed":"Failed to create risk",
+            "riskDeletedSuccess":"Risk deleted successfully",
+            "deleteRiskFailed":"Failed to delete risk"
         },
         "riskRegister":{
             "title":"Risk Register",
@@ -882,7 +904,10 @@
             "passwordChange":{
                 "oldPasswordReqText":"Current password is required",
                 "newPasswordReqText":"New password is required",
-                "confirmPasswordReqText":"Please confirm your new password"
+                "confirmPasswordReqText":"Please confirm your new password",
+                "formAriaLabel":"Change password form",
+                "successMessage":"Password changed successfully",
+                "failedMessage":"Failed to change password"
             },
             "title":"Organization Settings",
             "subtitle":"Manage your organization profile, team members, and preferences",

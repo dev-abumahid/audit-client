@@ -347,7 +347,9 @@ describe("SitesEntities", () => {
     )
 
     await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith("Failed to save site")
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.site&entities.saveSiteFailed"
+      )
     )
     expect(screen.getByText("Add New Site")).toBeInTheDocument()
   })
@@ -373,7 +375,9 @@ describe("SitesEntities", () => {
     )
 
     await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith("Failed to delete site")
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.site&entities.deleteSiteFailed"
+      )
     )
     // The mocked DeleteAlertModal only renders while `open` is still true
     expect(
@@ -412,7 +416,9 @@ describe("SitesEntities", () => {
     await userEvent.click(screen.getByRole("button", { name: /delete/i }))
 
     await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith("Failed to delete risk")
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.site&entities.deleteRiskFailed"
+      )
     )
   })
 
@@ -520,7 +526,9 @@ describe("SitesEntities", () => {
     )
 
     await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith("Failed to create risk")
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.site&entities.createRiskFailed"
+      )
     )
   })
 

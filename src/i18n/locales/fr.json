@@ -397,6 +397,10 @@
                     "ocr": "Reconnaissance optique de caractères...",
                     "optimizing": "Réécriture et optimisation..."
                 }
+            },
+            "shared": {
+                "sectionsLabel": "Sections",
+                "sectionFallback": "Section {{number}}"
             }
         },
         "inspection":{
@@ -663,7 +667,25 @@
             "warehouse": "Entrepôt",
             "other": "Autre",
             "activity": "Activité",
-            "update": "Mettre à jour le site"
+            "update": "Mettre à jour le site",
+            "searchPlaceholder": "Rechercher des sites...",
+            "enterRiskNamePlaceholder": "Saisir le nom du risque",
+            "describeRiskPlaceholder": "Décrivez le risque en détail...",
+            "exampleSitePlaceholder": "Site exemple",
+            "siteUpdatedSuccess": "Site mis à jour avec succès",
+            "siteCreatedSuccess": "Site créé avec succès",
+            "saveSiteFailed": "Échec de l'enregistrement du site",
+            "siteDeletedSuccess": "Site supprimé avec succès",
+            "deleteSiteFailed": "Échec de la suppression du site",
+            "noAdditionalRisks": "L'analyse IA n'a trouvé aucun risque supplémentaire à suggérer pour ce site",
+            "aiRiskAnalysisFailed": "Échec de l'analyse des risques par l'IA",
+            "importRiskFailed": "Échec de l'importation de « {{title}} »",
+            "riskImportedSingle": "Risque importé dans le registre",
+            "riskImportedMultiple": "{{count}} risques importés dans le registre",
+            "riskCreatedSuccess": "Risque créé avec succès",
+            "createRiskFailed": "Échec de la création du risque",
+            "riskDeletedSuccess": "Risque supprimé avec succès",
+            "deleteRiskFailed": "Échec de la suppression du risque"
         },
         "riskRegister":{
             "title":"Registre des risques",
@@ -881,7 +903,10 @@
             "passwordChange":{
                 "oldPasswordReqText":"Le mot de passe actuel est requis.",
                 "newPasswordReqText":"Le nouveau mot de passe est requis.",
-                "confirmPasswordReqText":"Veuillez confirmer votre nouveau mot de passe."
+                "confirmPasswordReqText":"Veuillez confirmer votre nouveau mot de passe.",
+                "formAriaLabel":"Formulaire de changement de mot de passe",
+                "successMessage":"Mot de passe changé avec succès",
+                "failedMessage":"Échec du changement de mot de passe"
             },
             "title":"Paramètres de l'organisation",
             "subtitle":"Gérez le profil de votre organisation, les membres de l'équipe et les préférences",

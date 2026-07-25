@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next"
+
 interface SectionNavigatorProps {
   sections: { id: string; title: string }[]
   activeIndex: number
@@ -14,14 +16,19 @@ export default function SectionNavigator({
   activeIndex,
   onSelect,
 }: SectionNavigatorProps) {
+  const { t } = useTranslation()
+
   if (sections.length === 0) return null
 
   return (
     <aside className="sticky top-24 hidden h-fit max-h-[calc(100vh-6rem)] w-64 shrink-0 flex-col overflow-y-auto lg:flex">
       <p className="mb-2 px-3 text-xs font-bold tracking-widest text-muted-foreground uppercase">
-        Sections
+        {t("organization.templates.shared.sectionsLabel")}
       </p>
-      <nav className="space-y-1" aria-label="Sections">
+      <nav
+        className="space-y-1"
+        aria-label={t("organization.templates.shared.sectionsLabel")}
+      >
         {sections.map((section, idx) => {
           const isActive = activeIndex === idx
           return (
@@ -46,7 +53,10 @@ export default function SectionNavigator({
                 {idx + 1}
               </span>
               <span className="line-clamp-2 flex-1 text-xs leading-tight font-medium">
-                {section.title || `Section ${idx + 1}`}
+                {section.title ||
+                  t("organization.templates.shared.sectionFallback", {
+                    number: idx + 1,
+                  })}
               </span>
             </button>
           )

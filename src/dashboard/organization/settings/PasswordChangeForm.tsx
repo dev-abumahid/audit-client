@@ -29,13 +29,16 @@ export default function PasswordChangeForm() {
         oldPassword: data.oldPassword,
         newPassword: data.newPassword,
       }).unwrap()
-      toast.success("Password changed successfully")
+      toast.success(t("organization.settings.passwordChange.successMessage"))
       reset()
     } catch (error: any) {
       // Surfaces the backend's specific messages as-is (e.g. "Incorrect
       // password", "Old and new password are same, Please provide
       // different password") rather than a generic failure string.
-      toast.error(error?.data?.message ?? "Failed to change password")
+      toast.error(
+        error?.data?.message ??
+          t("organization.settings.passwordChange.failedMessage"),
+      )
     }
   }
 
@@ -47,7 +50,7 @@ export default function PasswordChangeForm() {
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="max-w-sm space-y-4"
-        aria-label="Change password form"
+        aria-label={t("organization.settings.passwordChange.formAriaLabel")}
       >
         <div>
           <label
