@@ -2,6 +2,16 @@ import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
 
+// A real Risk record linked to an engagement, as flattened by aexa-server's
+// audit GET responses (aexa-frontend#165). Replaces the former free-text
+// `linked_risk_refs` tag strings — these carry a real risk `id` (so the UI can
+// link through to the Risk Register) plus a human-readable name and category.
+export interface LinkedRisk {
+  id: string
+  name: string
+  category: string
+}
+
 // Real response shape returned by aexa-server's /api/audit endpoints (the
 // Prisma AuditEngagement model), not the old mockAuditEngagements fixture
 // shape. Notably the backend uses `org_account_id` (not `organization_id`),
@@ -22,10 +32,24 @@ export interface AuditEngagement {
   closed_at: string | null
   ai_generated: boolean
   is_edited: boolean
-  linked_risk_refs: string[]
+  // aexa-frontend#165: real many-to-many links to Risk records, returned
+  // flattened by the backend. Replaces the old `linked_risk_refs: string[]`
+  // free-text tags. Writes go through `riskIds` on the create/update payload
+  // (see AuditEngagementWrite), reads come back here as resolved records.
+  linked_risks: LinkedRisk[]
   report_url: string | null
   createdAt: string
   updatedAt: string
+}
+
+// Write payload for create/update. The linked-risk relation is written as a
+// plain array of Risk ids (`riskIds`); the backend validates each id belongs to
+// the caller's org and replaces the link set. Every other field mirrors the
+// AuditEngagement model (minus the server-managed/read-only ones).
+export type AuditEngagementWrite = Partial<
+  Omit<AuditEngagement, "linked_risks">
+> & {
+  riskIds?: string[]
 }
 
 interface GetAllAuditEngagementsArgs {
@@ -55,7 +79,7 @@ const auditApi = baseApi.injectEndpoints({
     }),
     createAuditEngagement: builder.mutation<
       ApiResponse<AuditEngagement>,
-      Partial<AuditEngagement>
+      AuditEngagementWrite
     >({
       query: (data) => ({
         url: `/audit`,
@@ -66,7 +90,7 @@ const auditApi = baseApi.injectEndpoints({
     }),
     updateAuditEngagement: builder.mutation<
       ApiResponse<AuditEngagement>,
-      { data: Partial<AuditEngagement>; id: string }
+      { data: AuditEngagementWrite; id: string }
     >({
       query: ({ data, id }) => ({
         url: `/audit/${id}`,

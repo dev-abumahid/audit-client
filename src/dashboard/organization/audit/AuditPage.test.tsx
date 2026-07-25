@@ -12,6 +12,8 @@ const mockUseGetAllAuditEngagementsQuery = vi.fn()
 const mockCreateAuditEngagement = vi.fn()
 const mockUpdateAuditEngagement = vi.fn()
 const mockDeleteAuditEngagement = vi.fn()
+const mockUseGetAllRisksQuery = vi.fn()
+const mockNavigate = vi.fn()
 
 vi.mock("@/redux/apis/organization/audit.api", () => ({
   useGetAllAuditEngagementsQuery: (...args: unknown[]) =>
@@ -27,6 +29,22 @@ vi.mock("@/redux/apis/organization/audit.api", () => ({
   ],
   useDeleteAuditEngagementMutation: () => [mockDeleteAuditEngagement],
 }))
+
+// aexa-frontend#165: the linked-risks multi-select fetches the org's real risks.
+vi.mock("@/redux/apis/organization/risk.api", () => ({
+  useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
+}))
+
+vi.mock("react-router", () => ({
+  useNavigate: () => mockNavigate,
+}))
+
+// A small pool of org risks the multi-select renders as checkbox options.
+const RISK_OPTIONS = [
+  { id: "risk-1", name: "Data breach", category: "Cyber" },
+  { id: "risk-2", name: "Supplier default", category: "Operational" },
+  { id: "risk-3", name: "Flood damage", category: "Physical" },
+]
 
 // The Title label isn't associated with its input via htmlFor, so locate it
 // through the label's wrapping <div>.
@@ -50,7 +68,7 @@ function makeEngagement(overrides = {}) {
     closed_at: null,
     ai_generated: false,
     is_edited: true,
-    linked_risk_refs: ["RISK-001"],
+    linked_risks: [{ id: "risk-1", name: "Data breach", category: "Cyber" }],
     report_url: null,
     createdAt: "2026-02-20T10:00:00.000Z",
     updatedAt: "2026-03-10T12:00:00.000Z",
@@ -66,6 +84,14 @@ describe("AuditPage", () => {
     mockDeleteAuditEngagement.mockReset()
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
+    mockUseGetAllRisksQuery.mockReset()
+    mockNavigate.mockReset()
+    // Default: the org's risks are available to the picker unless a test
+    // overrides this.
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: RISK_OPTIONS },
+      isLoading: false,
+    })
   })
 
   it("shows a loading spinner while the query is loading", () => {
@@ -395,6 +421,106 @@ describe("AuditPage", () => {
       expect(
         screen.queryByRole("button", { name: /Next page/i })
       ).not.toBeInTheDocument()
+    })
+  })
+
+  describe("linked-risks multi-select (aexa-frontend#165)", () => {
+    it("renders the org's available risks as options in the create form", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      render(<AuditPage />)
+
+      await user.click(
+        screen.getByRole("button", { name: /New Audit Mission/i })
+      )
+      // Open the risk picker dropdown.
+      await user.click(screen.getByRole("button", { name: /Select linked risks/i }))
+
+      // Every org risk shows up as a selectable option.
+      expect(screen.getByText("Data breach")).toBeInTheDocument()
+      expect(screen.getByText("Supplier default")).toBeInTheDocument()
+      expect(screen.getByText("Flood damage")).toBeInTheDocument()
+    })
+
+    it("persists the selected risk ids to createAuditEngagement on save", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      mockCreateAuditEngagement.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Audit engagement created" }),
+      })
+
+      render(<AuditPage />)
+
+      await user.click(
+        screen.getByRole("button", { name: /New Audit Mission/i })
+      )
+      await user.type(titleInput(), "Audit with linked risk")
+      await user.click(screen.getByRole("button", { name: /Select linked risks/i }))
+      // Select two risks from the dropdown.
+      await user.click(screen.getByText("Data breach"))
+      await user.click(screen.getByText("Flood damage"))
+      await user.click(screen.getByRole("button", { name: "Create" }))
+
+      await waitFor(() => expect(mockCreateAuditEngagement).toHaveBeenCalled())
+      const submitted = mockCreateAuditEngagement.mock.calls[0][0]
+      expect(submitted.riskIds).toEqual(["risk-1", "risk-3"])
+    })
+
+    it("pre-fills the multi-select with the engagement's existing linked risks on edit", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [makeEngagement()] },
+        isLoading: false,
+      })
+      mockUpdateAuditEngagement.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Audit engagement updated" }),
+      })
+
+      render(<AuditPage />)
+
+      const card = screen
+        .getByText("Supply Chain Risk Audit")
+        .closest("[class*='rounded-xl']")! as HTMLElement
+      await user.click(within(card).getAllByRole("button")[0])
+
+      // The existing link (risk-1 "Data breach") is shown as a selected chip in
+      // the modal, with a remove control — proving edit round-trips it.
+      expect(
+        screen.getByRole("button", { name: /Remove Data breach/i })
+      ).toBeInTheDocument()
+
+      // Saving without touching the picker sends the existing link back.
+      await user.click(screen.getByRole("button", { name: "Update" }))
+      await waitFor(() => expect(mockUpdateAuditEngagement).toHaveBeenCalled())
+      const callArg = mockUpdateAuditEngagement.mock.calls[0][0]
+      expect(callArg.data.riskIds).toEqual(["risk-1"])
+    })
+
+    it("navigates to the Risk Register when a linked risk in a card is clicked", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [makeEngagement()] },
+        isLoading: false,
+      })
+
+      render(<AuditPage />)
+
+      const card = screen
+        .getByText("Supply Chain Risk Audit")
+        .closest("[class*='rounded-xl']")! as HTMLElement
+      // The card's "Linked Risks: Data breach" is a clickable button.
+      await user.click(within(card).getByRole("button", { name: "Data breach" }))
+
+      expect(mockNavigate).toHaveBeenCalledWith("/organization/risks")
     })
   })
 })

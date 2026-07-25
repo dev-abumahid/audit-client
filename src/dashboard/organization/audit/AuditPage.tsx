@@ -1,11 +1,15 @@
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
-import type { AuditEngagement } from "@/redux/apis/organization/audit.api"
+import type {
+  AuditEngagement,
+  AuditEngagementWrite,
+} from "@/redux/apis/organization/audit.api"
 import {
   useCreateAuditEngagementMutation,
   useDeleteAuditEngagementMutation,
   useGetAllAuditEngagementsQuery,
   useUpdateAuditEngagementMutation,
 } from "@/redux/apis/organization/audit.api"
+import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import {
   CheckCircle2,
   ChevronLeft,
@@ -22,7 +26,9 @@ import {
   Upload,
 } from "lucide-react"
 import { useState } from "react"
+import { useNavigate } from "react-router"
 import { toast } from "sonner"
+import RiskMultiSelect from "./RiskMultiSelect"
 
 // Same base-URL convention the Compliance module uses for its direct
 // attachment upload: RTK Query's baseApi is for JSON endpoints, so the
@@ -47,10 +53,17 @@ const EMPTY_FORM = {
   lead_auditor: "",
   priority_score: 50,
   findings_count: 0,
-  linked_risk_refs: "",
+  // aexa-frontend#165: real Risk record ids (a many-to-many relation), replacing
+  // the old comma-separated free-text `linked_risk_refs` string.
+  riskIds: [] as string[],
   started_at: "",
   closed_at: "",
 }
+
+// Upper bound for the risk-picker fetch. The register is org-scoped and risks
+// are a bounded, human-curated set, so one generous page covers the picker
+// without building an incremental loader into the dropdown.
+const RISK_PICKER_LIMIT = 500
 
 export default function AuditPage() {
   // Search box (title / ref / lead_auditor — the backend searches all three)
@@ -59,12 +72,29 @@ export default function AuditPage() {
   // capped at 100 rows with no way to reach the rest and no way to filter.
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
+  const navigate = useNavigate()
 
   const { data: auditData, isLoading } = useGetAllAuditEngagementsQuery({
     page,
     limit: PAGE_SIZE,
     searchTerm: search,
   })
+
+  // All org risks, for the linked-risks picker. Fetched once here (not per-row)
+  // so the create/edit modal can offer a real multi-select of actual Risk
+  // records instead of the old free-text tag input (aexa-frontend#165).
+  const { data: risksData, isLoading: isRisksLoading } = useGetAllRisksQuery({
+    page: 1,
+    limit: RISK_PICKER_LIMIT,
+    searchTerm: "",
+    siteId: "",
+    category: "",
+  })
+  const riskOptions = (risksData?.data ?? []).map((r) => ({
+    id: r.id,
+    name: r.name,
+    category: r.category,
+  }))
   const [createAuditEngagement, { isLoading: isCreating }] =
     useCreateAuditEngagementMutation()
   const [updateAuditEngagement, { isLoading: isUpdating }] =
@@ -130,9 +160,9 @@ export default function AuditPage() {
       lead_auditor: eng.lead_auditor || "",
       priority_score: eng.priority_score ?? 0,
       findings_count: eng.findings_count,
-      linked_risk_refs: eng.linked_risk_refs
-        ? eng.linked_risk_refs.join(", ")
-        : "",
+      // Pre-fill the multi-select with the ids of the engagement's existing
+      // linked risks so an edit round-trips them unchanged (aexa-frontend#165).
+      riskIds: (eng.linked_risks ?? []).map((r) => r.id),
       // The date inputs want a yyyy-mm-dd value; the API returns a full ISO
       // timestamp, so slice off the time portion.
       started_at: eng.started_at ? eng.started_at.slice(0, 10) : "",
@@ -144,16 +174,7 @@ export default function AuditPage() {
   const handleSave = async () => {
     if (!form.title) return
 
-    // linked_risk_refs is a comma-separated string in the form but a string[]
-    // on the model; normalize it here.
-    const linkedRiskRefs = form.linked_risk_refs
-      ? form.linked_risk_refs
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : []
-
-    const payload: Partial<AuditEngagement> = {
+    const payload: AuditEngagementWrite = {
       ref: form.ref,
       title: form.title,
       scope: form.scope,
@@ -161,7 +182,9 @@ export default function AuditPage() {
       lead_auditor: form.lead_auditor,
       priority_score: form.priority_score,
       findings_count: form.findings_count,
-      linked_risk_refs: linkedRiskRefs,
+      // aexa-frontend#165: real linked-risk ids. Sent as an explicit array so
+      // the backend replaces the whole link set (an empty array clears links).
+      riskIds: form.riskIds,
       // Send null (not "") for unset dates so the backend stores NULL rather
       // than having to coerce an empty string.
       started_at: form.started_at || null,
@@ -447,12 +470,29 @@ export default function AuditPage() {
                     {eng.findings_count}
                   </span>
                 </span>
-                {eng.linked_risk_refs && eng.linked_risk_refs.length > 0 && (
-                  <span>
+                {eng.linked_risks && eng.linked_risks.length > 0 && (
+                  <span className="flex flex-wrap items-center gap-1">
                     Linked Risks:{" "}
-                    <span className="font-mono text-primary">
-                      {eng.linked_risk_refs.join(", ")}
-                    </span>
+                    {eng.linked_risks.map((risk, i) => (
+                      <span key={risk.id} className="flex items-center">
+                        <button
+                          type="button"
+                          // The Risk Register doesn't support deep-linking to a
+                          // single risk by id (its filters are local state, not
+                          // URL params), so this navigates to the register list
+                          // rather than a per-risk detail view that doesn't
+                          // exist. See aexa-frontend#165.
+                          onClick={() => navigate("/organization/risks")}
+                          title="Open in Risk Register"
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {risk.name}
+                        </button>
+                        {i < eng.linked_risks.length - 1 && (
+                          <span className="text-muted-foreground">,</span>
+                        )}
+                      </span>
+                    ))}
                   </span>
                 )}
               </div>
@@ -645,16 +685,16 @@ export default function AuditPage() {
 
             <div>
               <label className="text-xs font-medium text-muted-foreground">
-                Linked Risk References
+                Linked Risks
               </label>
-              <input
-                value={form.linked_risk_refs}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, linked_risk_refs: e.target.value }))
-                }
-                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
-                placeholder="CY-01, OP-02"
-              />
+              <div className="mt-1">
+                <RiskMultiSelect
+                  options={riskOptions}
+                  selectedIds={form.riskIds}
+                  onChange={(ids) => setForm((f) => ({ ...f, riskIds: ids }))}
+                  isLoading={isRisksLoading}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
