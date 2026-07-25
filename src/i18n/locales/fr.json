@@ -121,6 +121,7 @@
       "title": "Créer un compte",
       "subTitle": "Créez votre compte pour commencer",
       "organizationName": "Nom de l’organisation",
+      "organizationNamePlaceholder": "Exemple d’organisation",
       "userName": "Nom d’utilisateur",
       "email": "Adresse e-mail",
       "password": "Mot de passe",
@@ -616,7 +617,8 @@
       "findings": "Constats",
       "boardReports": "Rapports du conseil",
       "settings": "Paramètres",
-      "logout": "Déconnexion"
+      "logout": "Déconnexion",
+      "loggedOut": "Déconnecté"
     },
     "overview": {
       "title": "Tableau de bord exécutif",

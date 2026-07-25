@@ -65,7 +65,7 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
           onClick={handleClose}
           className="absolute top-3 right-3 z-10 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           disabled={isSubmitting}
-          aria-label="Close"
+          aria-label={t("common.close")}
         >
           <X size={18} />
         </button>

@@ -41,7 +41,7 @@ export default function OrganizationLayout() {
   const logOutHandler = () => {
     dispatch(removeUser())
     navigate("/")
-    toast.success("Logged out")
+    toast.success(t("organization.nav.loggedOut"))
   }
 
   const NAV_SECTIONS = [

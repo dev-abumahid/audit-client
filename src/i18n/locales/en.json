@@ -121,6 +121,7 @@
       "title": "Get Started with Us",
       "subTitle": "Create your account to get started",
       "organizationName": "Organization Name",
+      "organizationNamePlaceholder": "Example Organization",
       "userName": "Username",
       "email": "Email",
       "password": "Password",
@@ -616,7 +617,8 @@
       "findings": "Findings",
       "boardReports": "Board Reports",
       "settings": "Settings",
-      "logout": "Logout"
+      "logout": "Logout",
+      "loggedOut": "Logged out"
     },
     "overview": {
       "title": "Executive Dashboard",
