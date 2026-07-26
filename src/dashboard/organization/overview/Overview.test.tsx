@@ -6,10 +6,16 @@ const mockUseGetAllKriQuery = vi.fn()
 const mockUseGetAllAlertsQuery = vi.fn()
 const mockUseGetAllFindingsQuery = vi.fn()
 const mockUseGetAllInspectionQuery = vi.fn()
+const mockUseGetCorrelationMatrixDataQuery = vi.fn()
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) =>
     mockUseGetAllRisksQuery(...args),
+}))
+
+vi.mock("@/redux/apis/organization/riskLink.api", () => ({
+  useGetCorrelationMatrixDataQuery: (...args: unknown[]) =>
+    mockUseGetCorrelationMatrixDataQuery(...args),
 }))
 
 vi.mock("@/redux/apis/organization/kri.api", () => ({
@@ -41,6 +47,7 @@ function makeRisk(overrides = {}) {
   return {
     id: "risk-1",
     org_account_id: "org-1",
+    ref: "RSK-001",
     name: "Supply Chain Disruption",
     description: "Delays in raw material delivery",
     category: "supply_chain",
@@ -128,15 +135,29 @@ describe("Overview", () => {
     mockUseGetAllAlertsQuery.mockReset()
     mockUseGetAllFindingsQuery.mockReset()
     mockUseGetAllInspectionQuery.mockReset()
+    mockUseGetCorrelationMatrixDataQuery.mockReset()
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     mockUseGetAllKriQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     mockUseGetAllAlertsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     mockUseGetAllFindingsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     mockUseGetAllInspectionQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: { data: { risks: [], riskLinks: [], actions: [] } },
+      isLoading: false,
+    })
   })
 
   it("shows a loading state while any of risks/KRIs/alerts/actions/inspections are loading", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: undefined, isLoading: true })
+    render(<Overview />)
+    expect(document.querySelector(".animate-spin")).toBeInTheDocument()
+  })
+
+  it("shows a loading state while the risk-correlation graph is loading", () => {
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    })
     render(<Overview />)
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
@@ -242,18 +263,93 @@ describe("Overview", () => {
     expect(screen.getByText("KRI Monitor")).toBeInTheDocument()
   })
 
+  it("shows the risk most linked-to by others in Tipping Points, ranked above a less-connected risk", () => {
+    // Tipping Points reads its risk list from the correlation-matrix response
+    // (unpaginated), not the useGetAllRisksQuery one (capped at limit:100 for
+    // the other cards on this page) — see Overview.tsx's own comment on why.
+    const tippingRisks = [
+      makeRisk({ id: "r1", ref: "CYB-001", name: "Central Cyber Risk" }),
+      makeRisk({ id: "r2", ref: "OPS-001", name: "Peripheral Ops Risk" }),
+      makeRisk({ id: "r3", ref: "FIN-001", name: "Another Feeder Risk" }),
+      makeRisk({ id: "r4", ref: "LEG-001", name: "Yet Another Feeder" }),
+    ]
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: tippingRisks },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          risks: tippingRisks,
+          riskLinks: [
+            { id: "l1", org_account_id: "org-1", source_ref: "OPS-001", target_ref: "CYB-001", link_type: "CAUSES", createdAt: "2026-06-01T00:00:00.000Z" },
+            { id: "l2", org_account_id: "org-1", source_ref: "FIN-001", target_ref: "CYB-001", link_type: "AMPLIFIES", createdAt: "2026-06-01T00:00:00.000Z" },
+            { id: "l3", org_account_id: "org-1", source_ref: "LEG-001", target_ref: "CYB-001", link_type: "CAUSES", createdAt: "2026-06-01T00:00:00.000Z" },
+          ],
+          actions: [],
+        },
+      },
+      isLoading: false,
+    })
+
+    render(<Overview />)
+
+    expect(screen.getByText("Central Cyber Risk")).toBeInTheDocument()
+    expect(screen.queryByText("Peripheral Ops Risk")).not.toBeInTheDocument()
+  })
+
+  it("still surfaces a linked hub risk in Tipping Points even when it falls outside the paginated risks list (review fix)", () => {
+    // useGetAllRisksQuery is capped at limit:100 for the other cards on this
+    // page; GET /risk/correlation-matrix (useGetCorrelationMatrixDataQuery)
+    // returns every risk in the org with no such cap. A risk beyond the
+    // paginated page-1 window must still be computable/renderable as a
+    // tipping point from the correlation-matrix response alone.
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ id: "r1", ref: "CYB-001" })] },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          risks: [
+            makeRisk({ id: "r1", ref: "CYB-001" }),
+            makeRisk({
+              id: "r101",
+              ref: "HUB-101",
+              name: "Hub Beyond The Page Limit",
+            }),
+            makeRisk({ id: "r102", ref: "FEEDER-102" }),
+          ],
+          riskLinks: [
+            { id: "l1", org_account_id: "org-1", source_ref: "FEEDER-102", target_ref: "HUB-101", link_type: "CAUSES", createdAt: "2026-06-01T00:00:00.000Z" },
+          ],
+          actions: [],
+        },
+      },
+      isLoading: false,
+    })
+
+    render(<Overview />)
+
+    expect(screen.getByText("Hub Beyond The Page Limit")).toBeInTheDocument()
+  })
+
   it("groups real risks by category for the category breakdown chart", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: {
         data: [
-          makeRisk({ id: "r1", category: "cyber" }),
-          makeRisk({ id: "r2", category: "cyber" }),
+          makeRisk({ id: "r1", ref: "CYB-001", category: "cyber" }),
+          makeRisk({ id: "r2", ref: "CYB-002", category: "cyber" }),
         ],
       },
       isLoading: false,
     })
     render(<Overview />)
 
-    expect(screen.getByText("Cyber")).toBeInTheDocument()
+    // Both the category chart's legend and the Tipping Points card (one of
+    // these two same-category risks always qualifies as a tipping point,
+    // absent any real ranking signal between them) render a "Cyber" label —
+    // assert at least one rather than pinning down which element it is.
+    expect(screen.getAllByText("Cyber").length).toBeGreaterThan(0)
   })
 })

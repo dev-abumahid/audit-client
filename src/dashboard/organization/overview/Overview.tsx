@@ -2,15 +2,19 @@
 import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAlertBanner"
 import MetricCard from "@/components/dashboard/organization/MetricCard"
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
-// mockRisks is still used for the one thing below (Tipping Points) that
-// has no real backend equivalent — see the comment at that section.
-import { mockRisks, riskCategories } from "@/data/mockData"
+import { riskCategories } from "@/data/mockData"
 import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
 import { useGetAllFindingsQuery } from "@/redux/apis/organization/findings.api"
 import { useGetAllInspectionQuery } from "@/redux/apis/organization/inspection.api"
 import { useGetAllKriQuery } from "@/redux/apis/organization/kri.api"
+import { useGetCorrelationMatrixDataQuery } from "@/redux/apis/organization/riskLink.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import type { Alert, Risk } from "@/types/organization"
+import {
+  buildRiskCorrelationEdges,
+  computePageRank,
+  topPercentileByPageRank,
+} from "@/utils/pageRank"
 import {
   Activity,
   AlertTriangle,
@@ -80,6 +84,11 @@ export default function Overview() {
       status: "",
       siteId: "",
     })
+  // Reuses the same endpoint the Correlation Matrix page (#142) calls — just
+  // for its riskLinks here, to compute real PageRank over the risk-causality
+  // graph for the Tipping Points section below (#25).
+  const { data: correlationMatrixResponse, isLoading: correlationLoading } =
+    useGetCorrelationMatrixDataQuery()
 
   const risks: Risk[] = riskResponse?.data ?? []
   const kris = kriResponse?.data ?? []
@@ -114,12 +123,42 @@ export default function Overview() {
     (i) => i.status === "DRAFT" || i.status === "IN_PROGRESS"
   ).length
 
+  // Systemic Tipping Points: real PageRank computed over this org's
+  // RiskLink graph (CAUSES/AMPLIFIES/CORRELATES edges between risks,
+  // resolved by ref, matching how RiskLink itself references risks — see
+  // risk.prisma's RiskLink comment), not the manually-entered
+  // Risk.pagerank_score field (that field is never derived from anything
+  // today — see risk.validation.ts — so it isn't a real centrality
+  // measure). Top 15% by score, matching this section's own copy
+  // ("Top 15% PageRank — maximum spread risks").
+  //
+  // Deliberately uses correlationMatrixResponse's own `risks` (unpaginated
+  // — GET /risk/correlation-matrix returns every risk in the org), not the
+  // `risks` variable above (capped at limit:100 for the other cards on
+  // this page). PageRank needs the full graph: a risk past the first 100
+  // could be exactly the kind of highly-linked hub this section exists to
+  // surface, and silently dropping its edges would both hide it and skew
+  // every other risk's score (found during this PR's own review).
+  const allRisksForCorrelation = correlationMatrixResponse?.data?.risks ?? []
+  const riskLinks = correlationMatrixResponse?.data?.riskLinks ?? []
+  const riskRefs = allRisksForCorrelation.map((r) => r.ref)
+  const correlationEdges = buildRiskCorrelationEdges(riskLinks)
+  const pageRankScores = computePageRank(riskRefs, correlationEdges)
+  const maxPageRankScore = Math.max(0, ...Object.values(pageRankScores))
+  const tippingPointRefs = new Set(
+    topPercentileByPageRank(riskRefs, correlationEdges, 0.15)
+  )
+  const tippingPointRisks = allRisksForCorrelation
+    .filter((r) => tippingPointRefs.has(r.ref))
+    .sort((a, b) => pageRankScores[b.ref] - pageRankScores[a.ref])
+
   if (
     risksLoading ||
     krisLoading ||
     alertsLoading ||
     findingsLoading ||
-    inspectionsLoading
+    inspectionsLoading ||
+    correlationLoading
   ) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
@@ -351,49 +390,46 @@ export default function Overview() {
             <Zap className="h-4 w-4 text-accent" />
           </div>
           <div className="mt-4 space-y-3">
-            {/* Still mock data, deliberately: is_tipping_point has no
-                equivalent field on the real Risk type/backend at all — this
-                isn't a data-source swap like the rest of this page, it's a
-                missing concept. Left as-is rather than guessing at a
-                substitute (e.g. highest pagerank_score) since that's a
-                product decision, not a wiring one. */}
-            {mockRisks
-              .filter((r: any) => r.is_tipping_point)
-              .map((risk) => (
-                <div
-                  key={risk.id}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-background p-3"
-                >
-                  <div className="font-mono-data flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold">
-                    {risk.id}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {risk.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {riskCategories[risk.category]?.label}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-mono-data text-sm font-bold text-foreground">
-                      {risk.pagerank_score?.toFixed(1)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      PageRank
-                    </p>
-                  </div>
-                  <RiskBadge
-                    level={
-                      risk?.residual_score > 12
-                        ? "critical"
-                        : risk?.residual_score > 8
-                          ? "high"
-                          : "medium"
-                    }
-                  />
+            {tippingPointRisks.map((risk) => (
+              <div
+                key={risk.id}
+                className="flex items-center gap-3 rounded-lg border border-border bg-background p-3"
+              >
+                <div className="font-mono-data flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold">
+                  {risk.ref}
                 </div>
-              ))}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {risk.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {riskCategories[risk.category]?.label}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-mono-data text-sm font-bold text-foreground">
+                    {maxPageRankScore > 0
+                      ? (
+                          (pageRankScores[risk.ref] / maxPageRankScore) *
+                          100
+                        ).toFixed(1)
+                      : "0.0"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    PageRank
+                  </p>
+                </div>
+                <RiskBadge
+                  level={
+                    risk.residual_score > 12
+                      ? "critical"
+                      : risk.residual_score > 8
+                        ? "high"
+                        : "medium"
+                  }
+                />
+              </div>
+            ))}
           </div>
         </div>
 
