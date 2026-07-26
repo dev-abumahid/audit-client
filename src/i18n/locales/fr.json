@@ -1447,7 +1447,12 @@
       "aiOwnerLabel": "Responsable : {{owner}}",
       "aiEstRiskReductionLabel": "Réduction de risque estimée : {{value}}%",
       "aiDominoRiskLabel": "Risque domino : {{risk}}",
-      "aiFindingRefsLabel": "{{count}} constats"
+      "aiFindingRefsLabel": "{{count}} constats",
+      "sendToFinding": "Envoyer vers Constat",
+      "sendToFindingSending": "Envoi en cours…",
+      "sendToFindingSent": "Envoyé vers Constat",
+      "sendToFindingSuccess": "Groupe envoyé vers Constat.",
+      "sendToFindingFailed": "Échec de l'envoi du groupe vers Constat."
     }
   },
   "alert": {

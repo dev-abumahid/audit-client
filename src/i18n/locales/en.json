@@ -1447,7 +1447,12 @@
       "aiOwnerLabel": "Owner: {{owner}}",
       "aiEstRiskReductionLabel": "Est. risk reduction: {{value}}%",
       "aiDominoRiskLabel": "Domino risk: {{risk}}",
-      "aiFindingRefsLabel": "{{count}} findings"
+      "aiFindingRefsLabel": "{{count}} findings",
+      "sendToFinding": "Send to Finding",
+      "sendToFindingSending": "Sending…",
+      "sendToFindingSent": "Sent to Finding",
+      "sendToFindingSuccess": "Bucket sent to Finding.",
+      "sendToFindingFailed": "Failed to send bucket to Finding."
     }
   },
   "alert": {

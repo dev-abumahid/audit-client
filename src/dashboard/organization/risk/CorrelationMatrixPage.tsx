@@ -2,6 +2,7 @@ import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SiteFilter from "@/components/dashboard/organization/SiteFilter"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
+  useCreateActionFromBucketMutation,
   useCreateRiskLinkMutation,
   useDeleteRiskLinkMutation,
   useGetCorrelationMatrixDataQuery,
@@ -18,6 +19,7 @@ import type {
   RootCauseRiskBucket,
 } from "@/types/organization"
 import {
+  Check,
   ChevronDown,
   ChevronUp,
   GitBranch,
@@ -25,6 +27,7 @@ import {
   Loader2,
   MapPin,
   Plus,
+  Send,
   Sparkles,
   Trash2,
   X,
@@ -165,6 +168,7 @@ export default function CorrelationMatrixPage() {
   const [deleteRiskLink] = useDeleteRiskLinkMutation()
   const [runRootCauseBucketing, { isLoading: isAILoading }] =
     useRunRootCauseBucketingMutation()
+  const [createActionFromBucket] = useCreateActionFromBucketMutation()
 
   const [siteFilter, setSiteFilter] = useState<string | null>(null)
   const [selectedCell, setSelectedCell] = useState<{
@@ -177,6 +181,21 @@ export default function CorrelationMatrixPage() {
   const [expandedBucket, setExpandedBucket] = useState<string | null>(null)
   const [aiResult, setAiResult] = useState<RootCauseBucketingResult | null>(
     null
+  )
+  // "Send to Finding" per-bucket state (#191). AI riskBuckets are ephemeral
+  // per-analysis-run data with no persisted id -- there's nothing to store
+  // an "already converted" flag against on the bucket itself, and a fresh
+  // "Analyze" run returns entirely new bucket objects anyway. Tracked here
+  // as local component state keyed by bucketName (unique within one
+  // aiResult, same key used for expandedBucket above) instead: disables a
+  // bucket's button after its own successful send, and resets whenever
+  // aiResult itself changes (a new AI run) so a stale "sent" flag never
+  // survives into buckets from a different analysis.
+  const [sendingBucketName, setSendingBucketName] = useState<string | null>(
+    null
+  )
+  const [sentBucketNames, setSentBucketNames] = useState<Set<string>>(
+    new Set()
   )
 
   const [showLinkForm, setShowLinkForm] = useState(false)
@@ -313,12 +332,35 @@ export default function CorrelationMatrixPage() {
       const res = await runRootCauseBucketing().unwrap()
       if (res.success) {
         setAiResult(res.data)
+        // New analysis run -- last run's "sent" flags no longer refer to
+        // any bucket that still exists.
+        setSentBucketNames(new Set())
         setViewMode("ai-buckets")
       } else {
         toast.error(res.message || t(`${NS}.aiBucketingFailed`))
       }
     } catch (err) {
       toast.error(errorMessage(err, t(`${NS}.aiBucketingFailed`)))
+    }
+  }
+
+  const handleSendToFinding = async (bucket: RootCauseRiskBucket) => {
+    setSendingBucketName(bucket.bucketName)
+    try {
+      const res = await createActionFromBucket({
+        ...bucket.groupedAction,
+        riskRefs: bucket.riskRefs,
+      }).unwrap()
+      if (res.success) {
+        toast.success(t(`${NS}.sendToFindingSuccess`))
+        setSentBucketNames((prev) => new Set(prev).add(bucket.bucketName))
+      } else {
+        toast.error(res.message || t(`${NS}.sendToFindingFailed`))
+      }
+    } catch (err) {
+      toast.error(errorMessage(err, t(`${NS}.sendToFindingFailed`)))
+    } finally {
+      setSendingBucketName(null)
     }
   }
 
@@ -870,6 +912,10 @@ export default function CorrelationMatrixPage() {
                           bucket={bucket}
                           expanded={expandedBucket === bucket.bucketName}
                           onToggle={() => toggleBucket(bucket.bucketName)}
+                          canSendToFinding={canManageLinks}
+                          isSending={sendingBucketName === bucket.bucketName}
+                          isSent={sentBucketNames.has(bucket.bucketName)}
+                          onSendToFinding={() => handleSendToFinding(bucket)}
                         />
                       ))}
                     </div>
@@ -1038,10 +1084,18 @@ function AIRiskBucketCard({
   bucket,
   expanded,
   onToggle,
+  canSendToFinding,
+  isSending,
+  isSent,
+  onSendToFinding,
 }: {
   bucket: RootCauseRiskBucket
   expanded: boolean
   onToggle: () => void
+  canSendToFinding: boolean
+  isSending: boolean
+  isSent: boolean
+  onSendToFinding: () => void
 }) {
   const { t } = useTranslation()
   return (
@@ -1093,6 +1147,29 @@ function AIRiskBucketCard({
           {bucket.dominoRisk && (
             <div className="rounded bg-red-500/10 p-2 text-red-700">
               {t(`${NS}.aiDominoRiskLabel`, { risk: bucket.dominoRisk })}
+            </div>
+          )}
+
+          {canSendToFinding && (
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={onSendToFinding}
+                disabled={isSending || isSent}
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {isSending ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : isSent ? (
+                  <Check className="h-3 w-3" />
+                ) : (
+                  <Send className="h-3 w-3" />
+                )}
+                {isSending
+                  ? t(`${NS}.sendToFindingSending`)
+                  : isSent
+                    ? t(`${NS}.sendToFindingSent`)
+                    : t(`${NS}.sendToFinding`)}
+              </button>
             </div>
           )}
         </div>

@@ -26,6 +26,7 @@ const mockUseGetAllSitesQuery = vi.fn()
 const mockCreateRiskLink = vi.fn()
 const mockDeleteRiskLink = vi.fn()
 const mockRunRootCauseBucketing = vi.fn()
+const mockCreateActionFromBucket = vi.fn()
 // Mutable so a test can flip the real loading state the component reads off
 // the mutation hook (not local component state) -- see the "shows a loading
 // state" test below.
@@ -43,6 +44,7 @@ vi.mock("@/redux/apis/organization/riskLink.api", () => ({
     mockRunRootCauseBucketing,
     { isLoading: mockIsRunningBucketing },
   ],
+  useCreateActionFromBucketMutation: () => [mockCreateActionFromBucket, {}],
 }))
 
 vi.mock("@/redux/apis/organization/sites.api", () => ({
@@ -110,6 +112,67 @@ function makeAction(overrides = {}) {
   }
 }
 
+function makeAiRiskBucket(overrides = {}) {
+  return {
+    bucketName: "Supplier concentration",
+    rootCause: "Single-source dependency",
+    rootCauseCategory: "process",
+    category: "operational",
+    riskRefs: ["OPS-002", "CYB-001"],
+    pageRankScore: 88,
+    aggregatedImpactMin: 100000,
+    aggregatedImpactMax: 500000,
+    groupedAction: {
+      description: "Diversify suppliers",
+      normReference: "ISO 28000",
+      owner: "Supply Chain Manager",
+      priority: "short_term",
+      estimatedRiskReduction: 40,
+      estimatedCost: "medium",
+      timeline: "6 months",
+    },
+    dominoRisk: null,
+    ...overrides,
+  }
+}
+
+// Runs the AI analysis (resolving to a single risk bucket) and expands it,
+// landing on the expanded AIRiskBucketCard where the "Send to Finding"
+// button lives -- shared setup for every send-to-finding test below.
+async function renderWithExpandedAiBucket(
+  bucket = makeAiRiskBucket()
+) {
+  mockRunRootCauseBucketing.mockReturnValue({
+    unwrap: () =>
+      Promise.resolve({
+        success: true,
+        message: "ok",
+        data: {
+          methodology: "PageRank clustering",
+          riskBuckets: [bucket],
+          findingBuckets: [],
+        },
+      }),
+  })
+
+  render(<CorrelationMatrixPage />)
+
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "organization.correlationMatrix.viewAiBuckets",
+    })
+  )
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "organization.correlationMatrix.aiRunAnalysis",
+    })
+  )
+  await waitFor(() =>
+    expect(screen.getByText(bucket.bucketName)).toBeInTheDocument()
+  )
+  await userEvent.click(screen.getByText(bucket.bucketName))
+}
+
 function setMatrixData({
   risks = [makeRisk()],
   riskLinks = [] as ReturnType<typeof makeLink>[],
@@ -129,6 +192,7 @@ describe("CorrelationMatrixPage", () => {
     mockCreateRiskLink.mockReset()
     mockDeleteRiskLink.mockReset()
     mockRunRootCauseBucketing.mockReset()
+    mockCreateActionFromBucket.mockReset()
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
     mockRole = "ADMIN"
@@ -538,6 +602,185 @@ describe("CorrelationMatrixPage", () => {
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("AI service error: 502")
     )
+  })
+
+  it("shows the Send to Finding button for ADMIN and calls the mutation with the bucket's groupedAction + riskRefs", async () => {
+    mockRole = "ADMIN"
+    mockCreateActionFromBucket.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ success: true, message: "ok", data: makeAction() }),
+    })
+    const bucket = makeAiRiskBucket()
+    await renderWithExpandedAiBucket(bucket)
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.sendToFinding",
+      })
+    )
+
+    await waitFor(() =>
+      expect(mockCreateActionFromBucket).toHaveBeenCalledWith({
+        ...bucket.groupedAction,
+        riskRefs: bucket.riskRefs,
+      })
+    )
+  })
+
+  it("shows the Send to Finding button for LEAD_AUDITOR", async () => {
+    mockRole = "LEAD_AUDITOR"
+    await renderWithExpandedAiBucket()
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.sendToFinding",
+      })
+    ).toBeInTheDocument()
+  })
+
+  it("hides the Send to Finding button for LIGHT_USER", async () => {
+    mockRole = "LIGHT_USER"
+    await renderWithExpandedAiBucket()
+
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.correlationMatrix.sendToFinding",
+      })
+    ).not.toBeInTheDocument()
+  })
+
+  it("hides the Send to Finding button for VIEWER", async () => {
+    mockRole = "VIEWER"
+    await renderWithExpandedAiBucket()
+
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.correlationMatrix.sendToFinding",
+      })
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows a success toast and disables the button after sending a bucket to Finding", async () => {
+    mockCreateActionFromBucket.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ success: true, message: "ok", data: makeAction() }),
+    })
+    await renderWithExpandedAiBucket()
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.sendToFinding",
+      })
+    )
+
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled())
+    // Post-success state: the button disables and relabels to reflect
+    // "already sent" for this bucket (local-state flag, see the component's
+    // sentBucketNames comment -- no persisted id exists on an ephemeral AI
+    // bucket to track this against server-side).
+    const sentButton = await screen.findByRole("button", {
+      name: "organization.correlationMatrix.sendToFindingSent",
+    })
+    expect(sentButton).toBeDisabled()
+  })
+
+  it("shows a toast with the real backend error message when sending to Finding fails", async () => {
+    mockCreateActionFromBucket.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({
+          data: { message: "Risk ref(s) not found in this organization: OPS-999" },
+        }),
+    })
+    await renderWithExpandedAiBucket()
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.sendToFinding",
+      })
+    )
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(
+        "Risk ref(s) not found in this organization: OPS-999"
+      )
+    )
+    // Failure doesn't mark the bucket as sent -- the button stays actionable.
+    expect(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.sendToFinding",
+      })
+    ).not.toBeDisabled()
+  })
+
+  it("sending one bucket to Finding does not mark a different bucket as sent (round-1 review gap)", async () => {
+    const bucketA = makeAiRiskBucket({ bucketName: "Supplier concentration" })
+    const bucketB = makeAiRiskBucket({
+      bucketName: "Access control gaps",
+      rootCause: "Weak MFA enforcement",
+      groupedAction: {
+        ...makeAiRiskBucket().groupedAction,
+        description: "Enforce MFA org-wide",
+      },
+    })
+    mockCreateActionFromBucket.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ success: true, message: "ok", data: makeAction() }),
+    })
+    mockRunRootCauseBucketing.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          message: "ok",
+          data: {
+            methodology: "PageRank clustering",
+            riskBuckets: [bucketA, bucketB],
+            findingBuckets: [],
+          },
+        }),
+    })
+
+    render(<CorrelationMatrixPage />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewAiBuckets",
+      })
+    )
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.aiRunAnalysis",
+      })
+    )
+    await waitFor(() =>
+      expect(screen.getByText(bucketA.bucketName)).toBeInTheDocument()
+    )
+
+    // Expand bucket A, send it, confirm it's now marked sent.
+    await userEvent.click(screen.getByText(bucketA.bucketName))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.sendToFinding",
+      })
+    )
+    await screen.findByRole("button", {
+      name: "organization.correlationMatrix.sendToFindingSent",
+    })
+    // Collapse A (only one bucket's detail is expanded at a time).
+    await userEvent.click(screen.getByText(bucketA.bucketName))
+
+    // Expand bucket B -- it must show as still actionable, not "sent",
+    // proving the sent-state is genuinely isolated per bucket rather than
+    // a single shared flag that any successful send flips for every bucket.
+    await userEvent.click(screen.getByText(bucketB.bucketName))
+    expect(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.sendToFinding",
+      })
+    ).not.toBeDisabled()
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.correlationMatrix.sendToFindingSent",
+      })
+    ).not.toBeInTheDocument()
   })
 
   it("groups findings from real Action rows in the findings view", () => {
