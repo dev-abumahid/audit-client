@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import CorrelationMatrixPage from "./CorrelationMatrixPage"
 
@@ -778,6 +784,85 @@ describe("CorrelationMatrixPage", () => {
     ).not.toBeDisabled()
     expect(
       screen.queryByRole("button", {
+        name: "organization.correlationMatrix.sendToFindingSent",
+      })
+    ).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend#194: bucketName is AI-generated free text with no
+  // uniqueness guarantee -- nothing stops a single response from returning
+  // two distinct buckets that happen to share the exact same name. State
+  // keyed by bucketName would conflate them; this proves the fix (keying by
+  // array index instead) actually isolates them even when the name collides,
+  // not just when it happens to differ (the test above).
+  it("sending one bucket to Finding does not mark a same-named bucket as sent", async () => {
+    const bucketA = makeAiRiskBucket({ bucketName: "Cyber risk cluster" })
+    const bucketB = makeAiRiskBucket({
+      bucketName: "Cyber risk cluster",
+      rootCause: "A completely different root cause",
+      groupedAction: {
+        ...makeAiRiskBucket().groupedAction,
+        description: "A completely different action",
+      },
+    })
+    mockCreateActionFromBucket.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ success: true, message: "ok", data: makeAction() }),
+    })
+    mockRunRootCauseBucketing.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          message: "ok",
+          data: {
+            methodology: "PageRank clustering",
+            riskBuckets: [bucketA, bucketB],
+            findingBuckets: [],
+          },
+        }),
+    })
+
+    render(<CorrelationMatrixPage />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewAiBuckets",
+      })
+    )
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.aiRunAnalysis",
+      })
+    )
+    const headers = await waitFor(() => {
+      const found = screen.getAllByText("Cyber risk cluster")
+      expect(found).toHaveLength(2)
+      return found
+    })
+    const cardA = headers[0].closest(".rounded-lg") as HTMLElement
+    const cardB = headers[1].closest(".rounded-lg") as HTMLElement
+
+    // Expand and send bucket A only.
+    await userEvent.click(headers[0])
+    await userEvent.click(
+      within(cardA).getByRole("button", {
+        name: "organization.correlationMatrix.sendToFinding",
+      })
+    )
+    await within(cardA).findByRole("button", {
+      name: "organization.correlationMatrix.sendToFindingSent",
+    })
+
+    // Bucket B, despite sharing bucketA's exact name, must still be
+    // actionable -- proving the sent-state is isolated by index, not
+    // conflated by the two buckets' identical name.
+    await userEvent.click(headers[1])
+    expect(
+      within(cardB).getByRole("button", {
+        name: "organization.correlationMatrix.sendToFinding",
+      })
+    ).not.toBeDisabled()
+    expect(
+      within(cardB).queryByRole("button", {
         name: "organization.correlationMatrix.sendToFindingSent",
       })
     ).not.toBeInTheDocument()

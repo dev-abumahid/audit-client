@@ -178,23 +178,30 @@ export default function CorrelationMatrixPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("risks")
   const [groupMode, setGroupMode] = useState<GroupMode>("none")
   const [matrixSize, setMatrixSize] = useState<MatrixSize>(5)
+  // Keyed by array index, not bucketName (aexa-frontend#194): bucketName is
+  // AI-generated free text with no uniqueness guarantee, either within one
+  // list or across the risk/finding lists (nothing stops the model from
+  // reusing the same string for both), so name-keyed state could conflate
+  // two distinct buckets. Index is safe here specifically because aiResult
+  // is only ever replaced wholesale by a fresh "Analyze" run (setAiResult
+  // below) -- never mutated, reordered, or partially updated in place --
+  // so the array position stays stable for the entire lifetime of a given
+  // aiResult. The risk/finding lists share this one expandedBucket state,
+  // so a "risk-"/"finding-" prefix keeps their indices from colliding with
+  // each other the same way a shared bucketName could.
   const [expandedBucket, setExpandedBucket] = useState<string | null>(null)
   const [aiResult, setAiResult] = useState<RootCauseBucketingResult | null>(
     null
   )
-  // "Send to Finding" per-bucket state (#191). AI riskBuckets are ephemeral
-  // per-analysis-run data with no persisted id -- there's nothing to store
-  // an "already converted" flag against on the bucket itself, and a fresh
-  // "Analyze" run returns entirely new bucket objects anyway. Tracked here
-  // as local component state keyed by bucketName (unique within one
-  // aiResult, same key used for expandedBucket above) instead: disables a
-  // bucket's button after its own successful send, and resets whenever
-  // aiResult itself changes (a new AI run) so a stale "sent" flag never
-  // survives into buckets from a different analysis.
-  const [sendingBucketName, setSendingBucketName] = useState<string | null>(
+  // "Send to Finding" per-bucket state (#191), riskBuckets only -- see the
+  // comment above on why index instead of bucketName. Disables a bucket's
+  // button after its own successful send, and resets whenever aiResult
+  // itself changes (a new AI run) so a stale "sent" flag never survives
+  // into buckets from a different analysis.
+  const [sendingBucketIndex, setSendingBucketIndex] = useState<number | null>(
     null
   )
-  const [sentBucketNames, setSentBucketNames] = useState<Set<string>>(
+  const [sentBucketIndexes, setSentBucketIndexes] = useState<Set<number>>(
     new Set()
   )
 
@@ -334,7 +341,7 @@ export default function CorrelationMatrixPage() {
         setAiResult(res.data)
         // New analysis run -- last run's "sent" flags no longer refer to
         // any bucket that still exists.
-        setSentBucketNames(new Set())
+        setSentBucketIndexes(new Set())
         setViewMode("ai-buckets")
       } else {
         toast.error(res.message || t(`${NS}.aiBucketingFailed`))
@@ -344,8 +351,11 @@ export default function CorrelationMatrixPage() {
     }
   }
 
-  const handleSendToFinding = async (bucket: RootCauseRiskBucket) => {
-    setSendingBucketName(bucket.bucketName)
+  const handleSendToFinding = async (
+    bucket: RootCauseRiskBucket,
+    index: number
+  ) => {
+    setSendingBucketIndex(index)
     try {
       const res = await createActionFromBucket({
         ...bucket.groupedAction,
@@ -353,14 +363,14 @@ export default function CorrelationMatrixPage() {
       }).unwrap()
       if (res.success) {
         toast.success(t(`${NS}.sendToFindingSuccess`))
-        setSentBucketNames((prev) => new Set(prev).add(bucket.bucketName))
+        setSentBucketIndexes((prev) => new Set(prev).add(index))
       } else {
         toast.error(res.message || t(`${NS}.sendToFindingFailed`))
       }
     } catch (err) {
       toast.error(errorMessage(err, t(`${NS}.sendToFindingFailed`)))
     } finally {
-      setSendingBucketName(null)
+      setSendingBucketIndex(null)
     }
   }
 
@@ -906,16 +916,18 @@ export default function CorrelationMatrixPage() {
                       {t(`${NS}.aiRiskBucketsHeading`)}
                     </h4>
                     <div className="space-y-2">
-                      {aiResult.riskBuckets.map((bucket) => (
+                      {aiResult.riskBuckets.map((bucket, index) => (
                         <AIRiskBucketCard
-                          key={bucket.bucketName}
+                          key={index}
                           bucket={bucket}
-                          expanded={expandedBucket === bucket.bucketName}
-                          onToggle={() => toggleBucket(bucket.bucketName)}
+                          expanded={expandedBucket === `risk-${index}`}
+                          onToggle={() => toggleBucket(`risk-${index}`)}
                           canSendToFinding={canManageLinks}
-                          isSending={sendingBucketName === bucket.bucketName}
-                          isSent={sentBucketNames.has(bucket.bucketName)}
-                          onSendToFinding={() => handleSendToFinding(bucket)}
+                          isSending={sendingBucketIndex === index}
+                          isSent={sentBucketIndexes.has(index)}
+                          onSendToFinding={() =>
+                            handleSendToFinding(bucket, index)
+                          }
                         />
                       ))}
                     </div>
@@ -926,12 +938,12 @@ export default function CorrelationMatrixPage() {
                       {t(`${NS}.aiFindingBucketsHeading`)}
                     </h4>
                     <div className="space-y-2">
-                      {aiResult.findingBuckets.map((bucket) => (
+                      {aiResult.findingBuckets.map((bucket, index) => (
                         <AIFindingBucketCard
-                          key={bucket.bucketName}
+                          key={index}
                           bucket={bucket}
-                          expanded={expandedBucket === bucket.bucketName}
-                          onToggle={() => toggleBucket(bucket.bucketName)}
+                          expanded={expandedBucket === `finding-${index}`}
+                          onToggle={() => toggleBucket(`finding-${index}`)}
                         />
                       ))}
                     </div>
