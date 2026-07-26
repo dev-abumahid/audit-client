@@ -176,7 +176,7 @@ export const buildTemplatePdfHtml = ({
   const initial = escapeHtml(templateName.trim().charAt(0).toUpperCase() || "M")
 
   const logoHtml = logoBase64
-    ? `<img src="${logoBase64}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:16px;" />`
+    ? `<img src="${escapeHtml(logoBase64)}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:16px;" />`
     : `<span style="font-size:64px;font-weight:800;color:${PRIMARY};">${initial}</span>`
 
   // Cover
@@ -343,7 +343,7 @@ export const buildInspectionPdfHtml = ({
   const safeSiteName = escapeHtml(siteName)
   const safeStatus = escapeHtml(status)
   const logoHtml = logoBase64
-    ? `<img src="${logoBase64}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:16px;" />`
+    ? `<img src="${escapeHtml(logoBase64)}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:16px;" />`
     : `<span style="font-size:52px;font-weight:800;color:${PRIMARY};">${initial}</span>`
 
   // ── Build answer lookup: questionId → { answer, note, mediaFiles }
@@ -381,9 +381,9 @@ export const buildInspectionPdfHtml = ({
         return `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:${answer ? "#dcfce7" : "#f3f4f6"};color:${answer ? "#166534" : "#6b7280"};">${answer ? `✓ ${labels.yes}` : `✗ ${labels.no}`}</span>`
       case "slider":
         return `<div style="margin-top:4px;">
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:#9ca3af;margin-bottom:4px;"><span>0</span><span style="font-weight:700;color:${PRIMARY};">${escapeHtml(answer)}</span><span>100</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#9ca3af;margin-bottom:4px;"><span>0</span><span style="font-weight:700;color:${PRIMARY};">${escapeHtml(answer)}</span><span>10</span></div>
           <div style="height:6px;background:#e5e7eb;border-radius:4px;overflow:hidden;">
-            <div style="height:100%;width:${escapeHtml(answer)}%;background:${PRIMARY};border-radius:4px;"></div>
+            <div style="height:100%;width:${Number(answer) * 10}%;background:${PRIMARY};border-radius:4px;"></div>
           </div>
         </div>`
       case "date":

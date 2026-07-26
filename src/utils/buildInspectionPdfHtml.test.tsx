@@ -160,10 +160,10 @@ describe("buildInspectionPdfHtml (ticket #63)", () => {
       })
     )
 
-    // The slider renderer draws a 0/value/100 scale; the default (input) renderer would not.
+    // The slider renderer draws a 0/value/10 scale (matching the live in-app view); the default (input) renderer would not.
     expect(html).toContain(">80<")
     expect(html).toContain(">0<")
-    expect(html).toContain(">100<")
+    expect(html).toContain(">10<")
   })
 
   it("matches related actions to their question by question text, mirroring InspectionReport.tsx's own actionsByQuestion grouping", () => {
@@ -282,6 +282,15 @@ describe("buildInspectionPdfHtml (ticket #63)", () => {
     expect(html).not.toContain("<script>alert")
     expect(html).toContain("&lt;script&gt;")
   })
+
+  it("escapes logoBase64 instead of interpolating it raw into the img src attribute", () => {
+    const html = buildInspectionPdfHtml(
+      baseOptions({ logoBase64: '"><script>alert("logo")</script>' })
+    )
+
+    expect(html).not.toContain("<script>alert")
+    expect(html).toContain("&lt;script&gt;")
+  })
 })
 
 // The blank-template preview builder shares buildInspectionPdfHtml's
@@ -330,6 +339,15 @@ describe("buildTemplatePdfHtml (phase-1 sweep, 2026-07-16)", () => {
 
   it("does not throw and does not inject raw markup when pages is empty", () => {
     expect(() => buildTemplatePdfHtml(baseTemplateOptions())).not.toThrow()
+  })
+
+  it("escapes logoBase64 instead of interpolating it raw into the img src attribute", () => {
+    const html = buildTemplatePdfHtml(
+      baseTemplateOptions({ logoBase64: '"><script>alert("logo")</script>' })
+    )
+
+    expect(html).not.toContain("<script>alert")
+    expect(html).toContain("&lt;script&gt;")
   })
 })
 
