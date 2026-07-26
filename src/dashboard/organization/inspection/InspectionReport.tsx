@@ -4,7 +4,10 @@
 import { useGetSingleInspectionQuery } from "@/redux/apis/organization/inspection.api"
 import type { PageDef } from "@/types/inspection"
 import { attachmentFileName } from "@/utils/attachmentFileName"
-import { buildInspectionPdfHtml } from "@/utils/buildInspectionPdfHtml"
+import {
+  buildInspectionPdfHtml,
+  type PdfLabels,
+} from "@/utils/buildInspectionPdfHtml"
 import { A4_WIDTH_MM, computePdfPagePlacements } from "@/utils/pdfPageMath"
 import html2canvas from "html2canvas-pro"
 import jsPDF from "jspdf"
@@ -639,6 +642,51 @@ const InspectionReport = () => {
     if (!inspection) return
     setIsDownloading(true)
     try {
+      const labels: PdfLabels = {
+        section: (num) => t("organization.inspection.section", { num }),
+        sectionOfTotal: (num, total) =>
+          t("organization.inspection.sectionOfTotal", { num, total }),
+        generatedOn: (date) =>
+          t("organization.inspection.pdfGeneratedOn", { date }),
+        actionsCount: (count) =>
+          t("organization.inspection.actionsCount", { count }),
+        relatedActionsCount: (count) =>
+          t("organization.inspection.pdfRelatedActionsCount", { count }),
+        mediaFilesAttached: (count) =>
+          t("organization.inspection.pdfMediaFilesAttached", { count }),
+        organizationName: t("organization.inspection.pdfOrganizationName"),
+        authorName: t("organization.inspection.pdfAuthorName"),
+        date: t("organization.inspection.pdfDateLabel"),
+        site: t("organization.inspection.siteLabel"),
+        status: t("organization.inspection.statusLabel"),
+        reportId: t("organization.inspection.pdfReportId"),
+        type: t("organization.inspection.pdfTypeLabel"),
+        answer: t("organization.inspection.pdfAnswerHeading"),
+        noAnswerPlaceholder: t("organization.inspection.answerLabel"),
+        noAnswerProvided: t("organization.inspection.noAnswerProvided"),
+        approvalSignOff: t("organization.inspection.pdfApprovalSignOff"),
+        colAuthorizedSignature: t(
+          "organization.inspection.pdfColAuthorizedSignature"
+        ),
+        colSignature: t("organization.inspection.pdfColSignature"),
+        colDate: t("organization.inspection.pdfColDate"),
+        colPrintName: t("organization.inspection.pdfColPrintName"),
+        colPositionTitle: t("organization.inspection.pdfColPositionTitle"),
+        colTitle: t("organization.inspection.colTitle"),
+        colPriority: t("organization.inspection.colPriority"),
+        colDueDate: t("organization.inspection.colDueDate"),
+        colQuestion: t("organization.inspection.pdfColQuestion"),
+        colStatus: t("organization.inspection.colStatus"),
+        signOffDisclaimerTemplate: t(
+          "organization.inspection.pdfSignOffDisclaimerTemplate"
+        ),
+        signOffDisclaimerInspection: t(
+          "organization.inspection.pdfSignOffDisclaimerInspection"
+        ),
+        reportTitleFallback: t("organization.inspection.reportTitleFallback"),
+        yes: t("organization.inspection.yes"),
+        no: t("organization.inspection.no"),
+      }
       const html = buildInspectionPdfHtml({
         inspectionId: inspection.id,
         templateName,
@@ -650,6 +698,7 @@ const InspectionReport = () => {
         templatePages,
         questionAndAnswers: inspection.questionAnswers ?? [],
         actions,
+        labels,
       })
       await renderHtmlToPdf(html, `${templateName}-report.pdf`)
     } catch (err: any) {
@@ -659,7 +708,7 @@ const InspectionReport = () => {
     } finally {
       setIsDownloading(false)
     }
-  }, [inspection, template, templateName, templatePages, actions])
+  }, [inspection, template, templateName, templatePages, actions, t])
 
   if (!inspection) {
     return (

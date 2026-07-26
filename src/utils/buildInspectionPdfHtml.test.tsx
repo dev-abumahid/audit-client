@@ -1,4 +1,60 @@
-import { buildInspectionPdfHtml, buildTemplatePdfHtml } from "./buildInspectionPdfHtml"
+import {
+  buildInspectionPdfHtml,
+  buildTemplatePdfHtml,
+  type PdfLabels,
+} from "./buildInspectionPdfHtml"
+
+// Mirrors the English strings the real caller (InspectionReport.tsx's
+// downloadPdf) resolves via t() — kept in sync with src/i18n/locales/en.json's
+// organization.inspection.* keys so existing assertions on rendered English
+// text ("No answer provided", "Related Actions (1)", etc.) still hold.
+const enLabels: PdfLabels = {
+  section: (num) => `Section ${num}`,
+  sectionOfTotal: (num, total) => `Section ${num} of ${total}`,
+  generatedOn: (date) => `Generated on ${date}`,
+  actionsCount: (count) => `Actions (${count})`,
+  relatedActionsCount: (count) => `Related Actions (${count})`,
+  mediaFilesAttached: (count) => `${count} media file(s) attached`,
+  organizationName: "Organization Name:",
+  authorName: "Author Name:",
+  date: "Date:",
+  site: "Site:",
+  status: "Status:",
+  reportId: "Report ID:",
+  type: "Type:",
+  answer: "Answer",
+  noAnswerPlaceholder: "Answer:",
+  noAnswerProvided: "No answer provided",
+  approvalSignOff: "Approval &amp; Sign-off",
+  colAuthorizedSignature: "Authorized Signature",
+  colSignature: "Signature",
+  colDate: "Date",
+  colPrintName: "Print Name",
+  colPositionTitle: "Position/Title",
+  colTitle: "Title",
+  colPriority: "Priority",
+  colDueDate: "Due Date",
+  colQuestion: "Question",
+  colStatus: "Status",
+  signOffDisclaimerTemplate:
+    "Note: By signing this document, you acknowledge that you have reviewed and approved the contents of this template.",
+  signOffDisclaimerInspection:
+    "By signing this document you acknowledge that you have reviewed and approved the contents of this inspection report.",
+  reportTitleFallback: "Inspection Report",
+  yes: "Yes",
+  no: "No",
+}
+
+// A second, deliberately distinct set of label values — used to prove the
+// builder actually renders whatever `labels` it's given (i.e. localizes),
+// rather than falling back to hardcoded English internally.
+const frLikeLabels: PdfLabels = {
+  ...enLabels,
+  section: (num) => `Section FR ${num}`,
+  noAnswerProvided: "Aucune réponse fournie",
+  approvalSignOff: "Approbation et signature",
+  relatedActionsCount: (count) => `Actions liées (${count})`,
+}
 
 function baseOptions(overrides: Partial<Parameters<typeof buildInspectionPdfHtml>[0]> = {}) {
   return {
@@ -11,6 +67,7 @@ function baseOptions(overrides: Partial<Parameters<typeof buildInspectionPdfHtml
     templatePages: [],
     questionAndAnswers: [],
     actions: [],
+    labels: enLabels,
     ...overrides,
   }
 }
@@ -227,22 +284,23 @@ describe("buildInspectionPdfHtml (ticket #63)", () => {
   })
 })
 
-describe("buildTemplatePdfHtml (phase-1 sweep, 2026-07-16)", () => {
-  // The blank-template preview builder shares buildInspectionPdfHtml's
-  // iframe-srcdoc mechanism (see file-level comment on escapeHtml) but had
-  // never had escaping applied — found during the 2026-07-16 audit sweep.
-  function baseTemplateOptions(
-    overrides: Partial<Parameters<typeof buildTemplatePdfHtml>[0]> = {}
-  ) {
-    return {
-      templateName: "Fire Safety Audit",
-      userName: "Acme Org",
-      createdAt: "2026-07-01",
-      pages: [],
-      ...overrides,
-    }
+// The blank-template preview builder shares buildInspectionPdfHtml's
+// iframe-srcdoc mechanism (see file-level comment on escapeHtml) but had
+// never had escaping applied — found during the 2026-07-16 audit sweep.
+function baseTemplateOptions(
+  overrides: Partial<Parameters<typeof buildTemplatePdfHtml>[0]> = {}
+) {
+  return {
+    templateName: "Fire Safety Audit",
+    userName: "Acme Org",
+    createdAt: "2026-07-01",
+    pages: [],
+    labels: enLabels,
+    ...overrides,
   }
+}
 
+describe("buildTemplatePdfHtml (phase-1 sweep, 2026-07-16)", () => {
   it("escapes HTML in templateName, templateDisc, userName, and question/answer text instead of injecting them raw", () => {
     const html = buildTemplatePdfHtml(
       baseTemplateOptions({
@@ -272,5 +330,61 @@ describe("buildTemplatePdfHtml (phase-1 sweep, 2026-07-16)", () => {
 
   it("does not throw and does not inject raw markup when pages is empty", () => {
     expect(() => buildTemplatePdfHtml(baseTemplateOptions())).not.toThrow()
+  })
+})
+
+describe("PDF label localization (issue #187)", () => {
+  it("buildInspectionPdfHtml renders the passed-in labels, not hardcoded English", () => {
+    const html = buildInspectionPdfHtml(
+      baseOptions({
+        templatePages: [
+          {
+            title: "Section 1",
+            questions: [{ id: "q1", question: "Are exits clear?", answerType: "input" }],
+          },
+        ],
+        questionAndAnswers: [],
+        actions: [
+          {
+            _id: "a1",
+            actionTitle: "Clear the north exit",
+            priority: "High",
+            state: "To do",
+            question: "Are exits clear?",
+          },
+        ],
+        labels: frLikeLabels,
+      })
+    )
+
+    expect(html).toContain("Aucune réponse fournie")
+    expect(html).toContain("Actions liées (1)")
+    expect(html).toContain("Approbation et signature")
+    expect(html).not.toContain("No answer provided")
+    expect(html).not.toContain("Related Actions (1)")
+    expect(html).not.toContain("Approval &amp; Sign-off")
+  })
+
+  it("buildTemplatePdfHtml renders the passed-in labels, not hardcoded English", () => {
+    const html = buildTemplatePdfHtml(
+      baseTemplateOptions({
+        pages: [
+          {
+            title: "Section 1",
+            questions: [
+              {
+                question: "Are extinguishers charged?",
+                answerType: { value: "input" },
+                answer: "",
+              },
+            ],
+          },
+        ],
+        labels: frLikeLabels,
+      })
+    )
+
+    expect(html).toContain("Approbation et signature")
+    expect(html).not.toContain("Approval &amp; Sign-off")
   })
 })

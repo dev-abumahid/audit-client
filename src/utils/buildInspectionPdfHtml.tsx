@@ -17,6 +17,75 @@ const escapeHtml = (value: unknown): string =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
   )
 
+// ─── Labels ────────────────────────────────────────────────────────────────────
+//
+// This file is a plain function module (no React, no `useTranslation`), so it
+// cannot resolve i18n keys itself. Every user-visible string is instead passed
+// in by the caller (which does have `t()` access) via this shared `PdfLabels`
+// shape. Both builders below accept the same shape rather than two divergent
+// ones, since several labels genuinely overlap ("Section N", "Answer", the
+// sign-off table columns) — see src/dashboard/organization/inspection/InspectionReport.tsx
+// for the real call site building this object with `t()`.
+//
+// Strings with an interpolated value (section number, generated-at date,
+// counts) are resolved functions rather than raw strings: the number/date is
+// only known inside the builder's loops, so the caller hands over a closure
+// like `(n) => t("organization.inspection.section", { num: n })` instead of a
+// pre-baked string.
+//
+// Labels are interpolated into the HTML raw, NOT passed through escapeHtml
+// above — deliberately, not an oversight. escapeHtml exists for org-authored
+// content (question text, notes, action titles) that could contain anything;
+// labels are translator-controlled strings from en.json/fr.json, not user
+// input, so there's nothing here for escapeHtml to guard against.
+export interface PdfLabels {
+  /** "Section {{num}}" — bare per-page marker (template PDF breadcrumb). */
+  section: (num: number) => string
+  /** "Section {{num}} of {{total}}" — per-page marker with a total page count
+   * (template PDF footer; inspection PDF breadcrumb + footer). */
+  sectionOfTotal: (num: number, total: number) => string
+  /** "Generated on {{date}}" (both footers). */
+  generatedOn: (date: string) => string
+  /** "Actions ({{count}})" (inspection PDF actions-page heading). */
+  actionsCount: (count: number) => string
+  /** "Related Actions ({{count}})" (inspection PDF per-question actions). */
+  relatedActionsCount: (count: number) => string
+  /** "{{count}} media file(s) attached" (inspection PDF per-question media note). */
+  mediaFilesAttached: (count: number) => string
+  organizationName: string
+  authorName: string
+  date: string
+  site: string
+  status: string
+  reportId: string
+  type: string
+  /** "Answer" — heading above the answer box (inspection PDF). */
+  answer: string
+  /** "Answer:" — template PDF's placeholder text shown when a question has
+   * no answer yet (pre-existing template-preview behavior, unchanged here). */
+  noAnswerPlaceholder: string
+  /** "No answer provided" (inspection PDF's empty-answer state). */
+  noAnswerProvided: string
+  approvalSignOff: string
+  colAuthorizedSignature: string
+  colSignature: string
+  colDate: string
+  colPrintName: string
+  colPositionTitle: string
+  colTitle: string
+  colPriority: string
+  colDueDate: string
+  colQuestion: string
+  colStatus: string
+  signOffDisclaimerTemplate: string
+  signOffDisclaimerInspection: string
+  /** "Yes" / "No" — checkbox answer rendering (inspection PDF). */
+  yes: string
+  no: string
+  /** "Inspection Report" — fallback title when templateName is empty. */
+  reportTitleFallback: string
+}
+
 const sharedCss = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @page { margin: 0; size: A4; }
@@ -39,12 +108,12 @@ const sharedCss = `
   }
 `
 
-const breadcrumb = (title: string, pageNum: number) => `
+const breadcrumb = (title: string, pageNum: number, labels: PdfLabels) => `
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
     <span style="font-size:12px;color:${PRIMARY};font-weight:600;border-bottom:2px solid ${PRIMARY};padding-bottom:2px;">
       ${title}
     </span>
-    <span style="font-size:12px;color:#9ca3af;white-space:nowrap;">Section ${pageNum}</span>
+    <span style="font-size:12px;color:#9ca3af;white-space:nowrap;">${labels.section(pageNum)}</span>
   </div>
 `
 
@@ -52,7 +121,8 @@ const footer = (
   title: string,
   pageNum: number,
   totalPages: number,
-  generatedAt: string
+  generatedAt: string,
+  labels: PdfLabels
 ) => `
   <div style="
     margin:0 32px 24px;padding-top:10px;
@@ -61,7 +131,7 @@ const footer = (
     font-size:10px;color:#9ca3af;
   ">
     <span>${title}</span>
-    <span>Generated on ${generatedAt}&nbsp;&nbsp;Section ${pageNum} of ${totalPages}</span>
+    <span>${labels.generatedOn(generatedAt)}&nbsp;&nbsp;${labels.sectionOfTotal(pageNum, totalPages)}</span>
   </div>
 `
 
@@ -85,6 +155,7 @@ export interface TemplatePdfOptions {
   createdAt: string
   pages: any[]
   logoBase64?: string | null
+  labels: PdfLabels
 }
 
 export const buildTemplatePdfHtml = ({
@@ -94,6 +165,7 @@ export const buildTemplatePdfHtml = ({
   createdAt,
   pages,
   logoBase64,
+  labels,
 }: TemplatePdfOptions): string => {
   const generatedAt = new Date()
     .toISOString()
@@ -120,9 +192,9 @@ export const buildTemplatePdfHtml = ({
         ${escapeHtml(templateDisc.slice(0, 200))}
       </p>
       <div style="background:#fff;border-radius:16px;padding:22px 44px;display:inline-block;min-width:260px;text-align:center;">
-        <p style="margin:6px 0;font-size:13px;color:#6b7280;">Organization Name: <strong style="color:#111827;">${escapeHtml(userName)}</strong></p>
-        <p style="margin:6px 0;font-size:13px;color:#6b7280;">Author Name: <strong style="color:#111827;">${escapeHtml(userName)}</strong></p>
-        <p style="margin:6px 0;font-size:13px;color:#6b7280;">Date: <strong style="color:#111827;">${escapeHtml(createdAt)}</strong></p>
+        <p style="margin:6px 0;font-size:13px;color:#6b7280;">${labels.organizationName} <strong style="color:#111827;">${escapeHtml(userName)}</strong></p>
+        <p style="margin:6px 0;font-size:13px;color:#6b7280;">${labels.authorName} <strong style="color:#111827;">${escapeHtml(userName)}</strong></p>
+        <p style="margin:6px 0;font-size:13px;color:#6b7280;">${labels.date} <strong style="color:#111827;">${escapeHtml(createdAt)}</strong></p>
       </div>
     </div>
   `
@@ -146,13 +218,13 @@ export const buildTemplatePdfHtml = ({
               ${escapeHtml(q?.question ?? "")}
             </p>
             <span style="display:inline-block;background:#dbeafe;color:#3b82f6;font-size:11px;font-weight:700;padding:3px 10px;border-radius:6px;margin-bottom:12px;">
-              Type: ${escapeHtml(q?.answerType?.value ?? q?.type ?? "")}
+              ${labels.type} ${escapeHtml(q?.answerType?.value ?? q?.type ?? "")}
             </span>
             <div style="border:2px solid #e5e7eb;border-radius:8px;padding:12px 14px;min-height:80px;font-size:13px;background:#f9fafb;">
               ${
                 q?.answer
                   ? `<span style="color:#374151;">${escapeHtml(q.answer)}</span>`
-                  : `<span style="color:#9ca3af;font-style:italic;">Answer:</span>`
+                  : `<span style="color:#9ca3af;font-style:italic;">${labels.noAnswerPlaceholder}</span>`
               }
             </div>
           </div>
@@ -165,15 +237,15 @@ export const buildTemplatePdfHtml = ({
       return `
       <div class="page" style="background:#f9fafb;display:flex;flex-direction:column;">
         <div style="padding:24px 32px 0;">
-          ${breadcrumb(safeTemplateName, pageNum)}
+          ${breadcrumb(safeTemplateName, pageNum, labels)}
           <div style="background:${PRIMARY};border-radius:12px;padding:20px 24px;margin-bottom:20px;">
             <h2 style="font-size:22px;font-weight:800;color:#fff;margin:0;line-height:1.35;">
-              ${escapeHtml(page?.title ?? `Section ${pageIdx + 1}`)}
+              ${escapeHtml(page?.title ?? labels.section(pageIdx + 1))}
             </h2>
           </div>
         </div>
         <div style="padding:0 32px;flex:1;">${questionsHtml}</div>
-        ${footer(safeTemplateName, pageNum, totalPages, generatedAt)}
+        ${footer(safeTemplateName, pageNum, totalPages, generatedAt, labels)}
       </div>
     `
     })
@@ -184,19 +256,19 @@ export const buildTemplatePdfHtml = ({
     <div class="page" style="background:#fff;display:flex;flex-direction:column;">
       <div style="background:${PRIMARY};display:flex;justify-content:space-between;align-items:center;padding:10px 32px;">
         <span style="font-size:13px;font-weight:600;color:#fff;">${safeTemplateName}</span>
-        <span style="font-size:12px;color:#fff;opacity:0.8;">Section ${totalPages}</span>
+        <span style="font-size:12px;color:#fff;opacity:0.8;">${labels.section(totalPages)}</span>
       </div>
       <div style="padding:32px;">
-        <h2 style="font-size:18px;font-weight:700;color:#111827;margin:0 0 24px;">Approval &amp; Sign-off</h2>
+        <h2 style="font-size:18px;font-weight:700;color:#111827;margin:0 0 24px;">${labels.approvalSignOff}</h2>
         <table style="width:100%;border-collapse:collapse;">
           <thead>
             <tr style="background:#f3f4f6;">
               ${[
-                "Authorized Signature",
-                "Signature",
-                "Date",
-                "Print Name",
-                "Position/Title",
+                labels.colAuthorizedSignature,
+                labels.colSignature,
+                labels.colDate,
+                labels.colPrintName,
+                labels.colPositionTitle,
               ]
                 .map(
                   (h) =>
@@ -216,7 +288,7 @@ export const buildTemplatePdfHtml = ({
           </tbody>
         </table>
         <p style="margin-top:16px;font-size:11px;color:#6b7280;font-style:italic;">
-          Note: By signing this document, you acknowledge that you have reviewed and approved the contents of this template.
+          ${labels.signOffDisclaimerTemplate}
         </p>
       </div>
     </div>
@@ -240,6 +312,7 @@ export interface InspectionPdfOptions {
   templatePages: any[] // full template pages with questions
   questionAndAnswers: any[] // flat answered Q&A from inspection
   actions: any[]
+  labels: PdfLabels
 }
 
 export const buildInspectionPdfHtml = ({
@@ -254,15 +327,16 @@ export const buildInspectionPdfHtml = ({
   templatePages,
   questionAndAnswers,
   actions,
+  labels,
 }: InspectionPdfOptions): string => {
   const generatedAt = new Date()
     .toISOString()
     .replace("T", " ")
     .substring(0, 19)
   const shortId = inspectionId.slice(-8)
-  const title = escapeHtml(templateName || "Inspection Report")
+  const title = escapeHtml(templateName || labels.reportTitleFallback)
   const initial = escapeHtml(
-    (templateName || "Inspection Report").trim().charAt(0).toUpperCase() ||
+    (templateName || labels.reportTitleFallback).trim().charAt(0).toUpperCase() ||
       "I"
   )
   const safeOrgName = escapeHtml(orgName)
@@ -300,11 +374,11 @@ export const buildInspectionPdfHtml = ({
   const renderAnswerHtml = (answer: any, answerType: string): string => {
     const isEmpty = answer === null || answer === undefined || answer === ""
     if (isEmpty) {
-      return `<span style="color:#9ca3af;font-style:italic;font-size:13px;">No answer provided</span>`
+      return `<span style="color:#9ca3af;font-style:italic;font-size:13px;">${labels.noAnswerProvided}</span>`
     }
     switch (answerType) {
       case "checkbox":
-        return `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:${answer ? "#dcfce7" : "#f3f4f6"};color:${answer ? "#166534" : "#6b7280"};">${answer ? "✓ Yes" : "✗ No"}</span>`
+        return `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:${answer ? "#dcfce7" : "#f3f4f6"};color:${answer ? "#166534" : "#6b7280"};">${answer ? `✓ ${labels.yes}` : `✗ ${labels.no}`}</span>`
       case "slider":
         return `<div style="margin-top:4px;">
           <div style="display:flex;justify-content:space-between;font-size:11px;color:#9ca3af;margin-bottom:4px;"><span>0</span><span style="font-weight:700;color:${PRIMARY};">${escapeHtml(answer)}</span><span>100</span></div>
@@ -352,6 +426,11 @@ export const buildInspectionPdfHtml = ({
   }
 
   // ── Cover page — same style as template PDF cover ─────────────────────────
+  // Note: the created-date below (and the due-date in the actions table
+  // further down) are formatted via toLocaleDateString("en-US", ...) --
+  // deliberately not localized. #187 scoped this file to label text only,
+  // not date formatting; tracked as a separate, explicit scope boundary
+  // rather than an oversight.
   const coverPage = `
     <div class="page" style="
       background-color:${PRIMARY};
@@ -383,19 +462,19 @@ export const buildInspectionPdfHtml = ({
         display:inline-block;min-width:260px;text-align:center;
       ">
         <p style="margin:6px 0;font-size:13px;color:#6b7280;">
-          Organization Name: <strong style="color:#111827;">${safeOrgName}</strong>
+          ${labels.organizationName} <strong style="color:#111827;">${safeOrgName}</strong>
         </p>
         <p style="margin:6px 0;font-size:13px;color:#6b7280;">
-          Site: <strong style="color:#111827;">${safeSiteName}</strong>
+          ${labels.site} <strong style="color:#111827;">${safeSiteName}</strong>
         </p>
         <p style="margin:6px 0;font-size:13px;color:#6b7280;">
-          Status: <strong style="color:#111827;">${safeStatus}</strong>
+          ${labels.status} <strong style="color:#111827;">${safeStatus}</strong>
         </p>
         <p style="margin:6px 0;font-size:13px;color:#6b7280;">
-          Report ID: <strong style="color:#111827;font-family:monospace;">${shortId}</strong>
+          ${labels.reportId} <strong style="color:#111827;font-family:monospace;">${shortId}</strong>
         </p>
         <p style="margin:6px 0;font-size:13px;color:#6b7280;">
-          Date: <strong style="color:#111827;">${new Date(createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</strong>
+          ${labels.date} <strong style="color:#111827;">${new Date(createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</strong>
         </p>
       </div>
     </div>
@@ -436,7 +515,7 @@ export const buildInspectionPdfHtml = ({
 
           <!-- Answer box -->
           <div style="margin-left:42px;">
-            <p style="font-size:10px;color:#9ca3af;font-weight:600;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">Answer</p>
+            <p style="font-size:10px;color:#9ca3af;font-weight:600;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">${labels.answer}</p>
             <div style="border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 14px;background:#f9fafb;min-height:40px;">
               ${renderAnswerHtml(answer, answerType)}
             </div>
@@ -453,7 +532,7 @@ export const buildInspectionPdfHtml = ({
             ${
               mediaFiles.length > 0
                 ? `
-            <p style="margin-top:6px;font-size:10px;color:#6b7280;font-weight:600;">📎 ${mediaFiles.length} media file(s) attached</p>`
+            <p style="margin-top:6px;font-size:10px;color:#6b7280;font-weight:600;">📎 ${labels.mediaFilesAttached(mediaFiles.length)}</p>`
                 : ""
             }
 
@@ -461,7 +540,7 @@ export const buildInspectionPdfHtml = ({
               relActions.length > 0
                 ? `
             <div style="margin-top:8px;padding-top:8px;border-top:1px solid #f3f4f6;">
-              <p style="font-size:10px;color:#f97316;font-weight:600;margin:0 0 4px;">⚠ Related Actions (${relActions.length})</p>
+              <p style="font-size:10px;color:#f97316;font-weight:600;margin:0 0 4px;">⚠ ${labels.relatedActionsCount(relActions.length)}</p>
               ${relActions
                 .map(
                   (a: any) => `
@@ -488,17 +567,17 @@ export const buildInspectionPdfHtml = ({
           <!-- Breadcrumb -->
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
             <span style="font-size:12px;color:${PRIMARY};font-weight:600;border-bottom:2px solid ${PRIMARY};padding-bottom:2px;">${title}</span>
-            <span style="font-size:11px;color:#9ca3af;">Section ${pageNum} of ${totalPages}</span>
+            <span style="font-size:11px;color:#9ca3af;">${labels.sectionOfTotal(pageNum, totalPages)}</span>
           </div>
           <!-- Green section title -->
           <div style="background:${PRIMARY};border-radius:10px;padding:16px 20px;margin-bottom:16px;">
             <h3 style="font-size:18px;font-weight:800;color:#fff;margin:0;line-height:1.3;">
-              ${page.title ? escapeHtml(page.title) : `Section ${pageIdx + 1}`}
+              ${page.title ? escapeHtml(page.title) : labels.section(pageIdx + 1)}
             </h3>
           </div>
         </div>
         <div style="padding:0 28px;flex:1;">${questionsHtml}</div>
-        ${footer(title, pageNum, totalPages, generatedAt)}
+        ${footer(title, pageNum, totalPages, generatedAt, labels)}
       </div>
     `
     })
@@ -513,17 +592,24 @@ export const buildInspectionPdfHtml = ({
       <div style="padding:20px 28px 0;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
           <span style="font-size:12px;color:${PRIMARY};font-weight:600;border-bottom:2px solid ${PRIMARY};padding-bottom:2px;">${title}</span>
-          <span style="font-size:11px;color:#9ca3af;">Section ${actionsPageNum} of ${totalPages}</span>
+          <span style="font-size:11px;color:#9ca3af;">${labels.sectionOfTotal(actionsPageNum, totalPages)}</span>
         </div>
         <div style="background:#f97316;border-radius:10px;padding:16px 20px;margin-bottom:16px;">
-          <h3 style="font-size:18px;font-weight:800;color:#fff;margin:0;">Actions (${totalAct})</h3>
+          <h3 style="font-size:18px;font-weight:800;color:#fff;margin:0;">${labels.actionsCount(totalAct)}</h3>
         </div>
       </div>
       <div style="padding:0 28px;flex:1;">
         <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px;">
           <thead>
             <tr style="background:${PRIMARY};">
-              ${["#", "Title", "Priority", "Status", "Due Date", "Question"]
+              ${[
+                "#",
+                labels.colTitle,
+                labels.colPriority,
+                labels.colStatus,
+                labels.colDueDate,
+                labels.colQuestion,
+              ]
                 .map(
                   (h) =>
                     `<th style="padding:7px 10px;text-align:left;color:#fff;font-weight:700;">${h}</th>`
@@ -549,7 +635,7 @@ export const buildInspectionPdfHtml = ({
           </tbody>
         </table>
       </div>
-      ${footer(title, actionsPageNum, totalPages, generatedAt)}
+      ${footer(title, actionsPageNum, totalPages, generatedAt, labels)}
     </div>
   `
       : ""
@@ -559,19 +645,19 @@ export const buildInspectionPdfHtml = ({
     <div class="page" style="background:#fff;display:flex;flex-direction:column;">
       <div style="background:${PRIMARY};display:flex;justify-content:space-between;align-items:center;padding:10px 28px;">
         <span style="font-size:13px;font-weight:600;color:#fff;">${title}</span>
-        <span style="font-size:11px;color:#fff;opacity:0.8;">Section ${totalPages} of ${totalPages}</span>
+        <span style="font-size:11px;color:#fff;opacity:0.8;">${labels.sectionOfTotal(totalPages, totalPages)}</span>
       </div>
       <div style="padding:28px;">
-        <h2 style="font-size:18px;font-weight:700;color:#111827;margin:0 0 20px;">Approval &amp; Sign-off</h2>
+        <h2 style="font-size:18px;font-weight:700;color:#111827;margin:0 0 20px;">${labels.approvalSignOff}</h2>
         <table style="width:100%;border-collapse:collapse;">
           <thead>
             <tr style="background:#f3f4f6;">
               ${[
-                "Authorized Signature",
-                "Signature",
-                "Date",
-                "Print Name",
-                "Position/Title",
+                labels.colAuthorizedSignature,
+                labels.colSignature,
+                labels.colDate,
+                labels.colPrintName,
+                labels.colPositionTitle,
               ]
                 .map(
                   (h) =>
@@ -591,7 +677,7 @@ export const buildInspectionPdfHtml = ({
           </tbody>
         </table>
         <p style="margin-top:14px;font-size:11px;color:#6b7280;font-style:italic;">
-          By signing this document you acknowledge that you have reviewed and approved the contents of this inspection report.
+          ${labels.signOffDisclaimerInspection}
         </p>
       </div>
     </div>
