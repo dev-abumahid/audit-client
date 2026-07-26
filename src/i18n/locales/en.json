@@ -630,7 +630,7 @@
       "alerts": "Alerts",
       "governance": "Governance",
       "regulatoryCompliance": "Regulatory Compliance",
-      "threeLinesOfDefense": "Three Lines of Defense",
+      "threeLinesOfDefense": "Three Lines Model",
       "auditMissions": "Audit Missions",
       "templates": "Templates",
       "inspections": "Inspections",
@@ -904,7 +904,7 @@
       }
     },
     "threeLinesOfDefense": {
-      "title": "Three Lines of Defense",
+      "title": "Three Lines Model",
       "subtitle": "Governance classification board across risks, controls, KRIs, compliance and audits",
       "loading": "Loading classification board...",
       "empty": "No items in this line yet",
@@ -914,9 +914,9 @@
       "moveToSecond": "Move to 2nd Line",
       "moveToThird": "Move to 3rd Line",
       "lines": {
-        "first": "1st Line of Defense",
-        "second": "2nd Line of Defense",
-        "third": "3rd Line of Defense"
+        "first": "1st Line",
+        "second": "2nd Line",
+        "third": "3rd Line"
       },
       "sections": {
         "risks": "Risks",
@@ -927,7 +927,7 @@
       },
       "unclassified": {
         "title": "Unclassified Actions",
-        "subtitle": "Actions created before line-of-defense classification was required",
+        "subtitle": "Actions created before line classification was required",
         "empty": "No unclassified actions"
       },
       "toast": {

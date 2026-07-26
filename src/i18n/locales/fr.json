@@ -630,7 +630,7 @@
       "alerts": "Alertes",
       "governance": "Gouvernance",
       "regulatoryCompliance": "Conformité réglementaire",
-      "threeLinesOfDefense": "Trois lignes de défense",
+      "threeLinesOfDefense": "Modèle des trois lignes",
       "auditMissions": "Missions d'audit",
       "templates": "Modèles",
       "inspections": "Inspections",
@@ -904,7 +904,7 @@
       }
     },
     "threeLinesOfDefense": {
-      "title": "Trois lignes de défense",
+      "title": "Modèle des trois lignes",
       "subtitle": "Tableau de classification de la gouvernance pour les risques, contrôles, KRI, conformité et audits",
       "loading": "Chargement du tableau de classification...",
       "empty": "Aucun élément dans cette ligne pour le moment",
@@ -914,9 +914,9 @@
       "moveToSecond": "Déplacer vers la 2e ligne",
       "moveToThird": "Déplacer vers la 3e ligne",
       "lines": {
-        "first": "1re ligne de défense",
-        "second": "2e ligne de défense",
-        "third": "3e ligne de défense"
+        "first": "1re ligne",
+        "second": "2e ligne",
+        "third": "3e ligne"
       },
       "sections": {
         "risks": "Risques",
@@ -927,7 +927,7 @@
       },
       "unclassified": {
         "title": "Actions non classées",
-        "subtitle": "Actions créées avant que la classification par ligne de défense ne soit requise",
+        "subtitle": "Actions créées avant que la classification par ligne ne soit requise",
         "empty": "Aucune action non classée"
       },
       "toast": {
