@@ -1,4 +1,5 @@
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { useGetMeQuery } from "@/redux/apis/auth.api"
 import {
   useApproveRiskMutation,
   useRejectRiskMutation,
@@ -47,6 +48,7 @@ interface Props {
 export default function RiskApprovalControls({ risk }: Props) {
   const { t } = useTranslation()
   const role = useMyOrgRole()
+  const { data: me, isLoading: isMeLoading } = useGetMeQuery()
 
   const [submitForApproval, { isLoading: isSubmitting }] =
     useSubmitRiskForApprovalMutation()
@@ -63,6 +65,23 @@ export default function RiskApprovalControls({ risk }: Props) {
   const isAdmin = role === "ADMIN"
   const canResubmit = status === "NOT_SUBMITTED" || status === "REJECTED"
   const isPending = status === "PENDING_APPROVAL"
+  // Server-side self-approval guard (risk.approval.service.ts) already blocks
+  // this with a 403 -- without this check, an admin who submitted their own
+  // risk would still see live Approve/Reject buttons that 403 on every click,
+  // reading as a bug to exactly the user this control is meant to protect.
+  // Both isSubmitter and canDecide default to false while `me` is still
+  // loading, so this window shows neither the buttons (which could 403 for
+  // the real submitter) nor the "awaiting another admin" message (which
+  // would be a false claim for a real non-submitter reviewer) -- same
+  // conservative-default pattern useMyOrgRole already uses for its own
+  // loading state, just applied one level up since this component can't
+  // tell submitter apart from reviewer until `me` resolves.
+  const isSubmitter =
+    !isMeLoading &&
+    !!me?.data?.id &&
+    me.data.id === risk.approval?.submittedById
+  const canDecide = !isMeLoading && isAdmin && isPending && !isSubmitter
+  const showAwaitingReviewer = !isMeLoading && isAdmin && isPending && isSubmitter
 
   const handleSubmit = async () => {
     try {
@@ -150,7 +169,7 @@ export default function RiskApprovalControls({ risk }: Props) {
           </button>
         )}
 
-        {isAdmin && isPending && (
+        {canDecide && (
           <>
             <button
               type="button"
@@ -173,6 +192,29 @@ export default function RiskApprovalControls({ risk }: Props) {
           </>
         )}
       </div>
+
+      {showAwaitingReviewer && (
+        <p className="max-w-[220px] text-[10px] text-muted-foreground italic">
+          {t("organization.riskRegister.approval.awaitingOtherReviewer")}
+        </p>
+      )}
+
+      {status === "REJECTED" && risk.approval?.decisionNote && (
+        <p className="max-w-[220px] text-[10px] text-destructive">
+          {t("organization.riskRegister.approval.rejectionReason", {
+            reason: risk.approval.decisionNote,
+          })}
+        </p>
+      )}
+
+      {(status === "APPROVED" || status === "REJECTED") &&
+        risk.approval?.decidedAt && (
+          <p className="text-[10px] text-muted-foreground">
+            {t("organization.riskRegister.approval.decidedOn", {
+              date: new Date(risk.approval.decidedAt).toLocaleDateString(),
+            })}
+          </p>
+        )}
 
       {showRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">

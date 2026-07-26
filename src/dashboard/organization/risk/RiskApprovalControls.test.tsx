@@ -14,6 +14,19 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
   useMyOrgRole: () => mockRole,
 }))
 
+// The current account's id, mocked per-test via this mutable holder. Default
+// is a different account than makeRisk's default submittedById ("acc-1"), so
+// existing tests (written before the self-approval guard existed) keep
+// exercising the "not the submitter" path unless a test opts into "acc-1".
+let mockMyAccountId = "acc-2"
+let mockMeLoading = false
+vi.mock("@/redux/apis/auth.api", () => ({
+  useGetMeQuery: () => ({
+    data: mockMeLoading ? undefined : { data: { id: mockMyAccountId } },
+    isLoading: mockMeLoading,
+  }),
+}))
+
 const mockSubmit = vi.fn()
 const mockApprove = vi.fn()
 const mockReject = vi.fn()
@@ -55,6 +68,8 @@ function makeRisk(
 describe("RiskApprovalControls", () => {
   beforeEach(() => {
     mockRole = "ADMIN"
+    mockMyAccountId = "acc-2"
+    mockMeLoading = false
     mockSubmit.mockReset()
     mockApprove.mockReset()
     mockReject.mockReset()
@@ -127,6 +142,66 @@ describe("RiskApprovalControls", () => {
       ).not.toBeInTheDocument()
       expect(
         screen.queryByRole("button", { name: REJECT })
+      ).not.toBeInTheDocument()
+    })
+
+    // Server-side (risk.approval.service.ts) already blocks self-approval
+    // with a 403 -- these prove the UI doesn't show a dead-end button to the
+    // exact user the control is meant to protect (round-1 methodology audit
+    // finding).
+    it("ADMIN who submitted the risk does NOT see Approve/Reject, sees the awaiting-reviewer message instead", () => {
+      mockRole = "ADMIN"
+      mockMyAccountId = "acc-1" // matches makeRisk's default submittedById
+      render(<RiskApprovalControls risk={makeRisk("PENDING_APPROVAL")} />)
+
+      expect(
+        screen.queryByRole("button", { name: APPROVE })
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("button", { name: REJECT })
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByText(
+          "organization.riskRegister.approval.awaitingOtherReviewer"
+        )
+      ).toBeInTheDocument()
+    })
+
+    it("ADMIN who did NOT submit the risk still sees Approve/Reject", () => {
+      mockRole = "ADMIN"
+      mockMyAccountId = "acc-2" // does not match submittedById "acc-1"
+      render(<RiskApprovalControls risk={makeRisk("PENDING_APPROVAL")} />)
+
+      expect(screen.getByRole("button", { name: APPROVE })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: REJECT })).toBeInTheDocument()
+      expect(
+        screen.queryByText(
+          "organization.riskRegister.approval.awaitingOtherReviewer"
+        )
+      ).not.toBeInTheDocument()
+    })
+
+    // Round-2 review gap: isSubmitter used to default to `false` while
+    // useGetMeQuery was still loading, so a genuine self-submitter would
+    // briefly see the live (403-doomed) Approve/Reject buttons before `me`
+    // resolved. Neither the buttons nor the "awaiting another admin"
+    // message (a false claim for a real non-submitter reviewer) should
+    // render until we can actually tell submitter and reviewer apart.
+    it("shows neither the decide buttons nor the awaiting-reviewer message while the current account is still loading", () => {
+      mockRole = "ADMIN"
+      mockMeLoading = true
+      render(<RiskApprovalControls risk={makeRisk("PENDING_APPROVAL")} />)
+
+      expect(
+        screen.queryByRole("button", { name: APPROVE })
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("button", { name: REJECT })
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByText(
+          "organization.riskRegister.approval.awaitingOtherReviewer"
+        )
       ).not.toBeInTheDocument()
     })
 
@@ -251,6 +326,51 @@ describe("RiskApprovalControls", () => {
       await waitFor(() =>
         expect(mockToastError).toHaveBeenCalledWith("already pending")
       )
+    })
+  })
+
+  // Round-1 methodology audit finding: submittedById/decidedById/decisionNote
+  // were already on the wire but nothing in the UI rendered them, so a
+  // checker approved without seeing who made the submission, and a rejected
+  // submitter never saw the reason anywhere in the product.
+  describe("audit trail display", () => {
+    it("shows the rejection reason when the risk was rejected with a decision note", () => {
+      const risk = {
+        id: "risk-1",
+        approvalStatus: "REJECTED",
+        approval: {
+          id: "ra-1",
+          riskId: "risk-1",
+          status: "REJECTED",
+          submittedById: "acc-1",
+          decidedById: "acc-2",
+          decidedAt: "2026-07-10T00:00:00.000Z",
+          decisionNote: "Residual score too high",
+          invalidatedAt: null,
+          invalidatedById: null,
+          createdAt: "2026-07-01T00:00:00.000Z",
+          updatedAt: "2026-07-10T00:00:00.000Z",
+        },
+      } as unknown as Risk
+      render(<RiskApprovalControls risk={risk} />)
+
+      // t() returns the raw key in this test environment (no i18n instance
+      // initialized), so this only proves the rejection-reason element
+      // rendered at all -- the interpolated {{reason}} value itself is
+      // covered by the component reading risk.approval.decisionNote, not by
+      // string-matching translated output.
+      expect(
+        screen.getByText(
+          "organization.riskRegister.approval.rejectionReason"
+        )
+      ).toBeInTheDocument()
+    })
+
+    it("does not show a rejection reason when the risk is pending (no decision yet)", () => {
+      render(<RiskApprovalControls risk={makeRisk("PENDING_APPROVAL")} />)
+      expect(
+        screen.queryByText(/organization.riskRegister.approval.rejectionReason/)
+      ).not.toBeInTheDocument()
     })
   })
 })

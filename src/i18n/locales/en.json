@@ -819,7 +819,10 @@
         "approveSuccess": "Risk approval approved.",
         "approveFailed": "Could not approve this risk.",
         "rejectSuccess": "Risk approval rejected.",
-        "rejectFailed": "Could not reject this risk."
+        "rejectFailed": "Could not reject this risk.",
+        "awaitingOtherReviewer": "Awaiting another admin's review — you can't approve your own submission.",
+        "rejectionReason": "Reason: {{reason}}",
+        "decidedOn": "Decided {{date}}"
       }
     },
     "compliance": {

@@ -819,7 +819,10 @@
         "approveSuccess": "Approbation du risque approuvée.",
         "approveFailed": "Impossible d'approuver ce risque.",
         "rejectSuccess": "Approbation du risque rejetée.",
-        "rejectFailed": "Impossible de rejeter ce risque."
+        "rejectFailed": "Impossible de rejeter ce risque.",
+        "awaitingOtherReviewer": "En attente de l'examen d'un autre administrateur — vous ne pouvez pas approuver votre propre soumission.",
+        "rejectionReason": "Motif : {{reason}}",
+        "decidedOn": "Décidé le {{date}}"
       }
     },
     "compliance": {
