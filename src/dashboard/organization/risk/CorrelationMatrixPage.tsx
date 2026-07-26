@@ -10,6 +10,7 @@ import {
 } from "@/redux/apis/organization/riskLink.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { IAction } from "@/types/finding"
+import { getRiskSeverityLevel } from "@/utils/riskScoring"
 import type {
   Risk,
   RiskLink,
@@ -985,13 +986,7 @@ function RiskDetailCard({
           <p className="text-sm font-medium">{risk.name}</p>
         </div>
         <RiskBadge
-          level={
-            risk.residual_score > 12
-              ? "critical"
-              : risk.residual_score > 8
-                ? "high"
-                : "medium"
-          }
+          level={getRiskSeverityLevel(risk.residual_score)}
           size="sm"
         />
       </div>

@@ -15,6 +15,7 @@ import {
   computePageRank,
   topPercentileByPageRank,
 } from "@/utils/pageRank"
+import { getRiskSeverityLevel } from "@/utils/riskScoring"
 import {
   Activity,
   AlertTriangle,
@@ -425,13 +426,7 @@ export default function Overview() {
                   </p>
                 </div>
                 <RiskBadge
-                  level={
-                    risk.residual_score > 12
-                      ? "critical"
-                      : risk.residual_score > 8
-                        ? "high"
-                        : "medium"
-                  }
+                  level={getRiskSeverityLevel(risk.residual_score)}
                 />
               </div>
             ))}

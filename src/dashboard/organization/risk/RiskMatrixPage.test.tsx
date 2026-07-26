@@ -22,12 +22,12 @@ function makeRisk(overrides = {}) {
     name: "Supply Chain Disruption",
     description: "Delays in raw material delivery",
     category: "supply_chain",
-    inherent_score: 20,
+    inherent_score: 80,
     residual_score: 5,
     pagerank_score: 0.72,
     financial_impact_min: 50000,
     financial_impact_max: 200000,
-    probability: 1,
+    probability: 85,
     velocity: "Medium",
     trend: "Increasing",
     status: "open",
@@ -65,10 +65,11 @@ describe("RiskMatrixPage", () => {
     })
     render(<RiskMatrixPage />)
 
-    // probability 1 -> row 4 ("Very Likely"); inherent_score 20/25=0.8 -> col
-    // round(0.8*4)=3 ("Major", not "Catastrophic" at col 4)
+    // probability/inherent_score are both a 0-100 scale, normalized to 0-1
+    // before mapping onto the grid: 85/100=0.85 -> row round(0.85*4)=3
+    // ("Probable"); 80/100=0.8 -> col round(0.8*4)=3 ("Major")
     expect(
-      screen.getByTitle(/Very Likely × Major : 1 risque/)
+      screen.getByTitle(/Probable × Major : 1 risque/)
     ).toBeInTheDocument()
   })
 
@@ -82,6 +83,32 @@ describe("RiskMatrixPage", () => {
     // probability 0, inherent_score 0 -> bottom-left cell (row 0, col 0)
     expect(
       screen.getByTitle(/Very Unlikely × Negligible : 1 risque/)
+    ).toBeInTheDocument()
+  })
+
+  // Regression: probability/inherent_score are a 0-100 scale, not 0-1 or
+  // 1-25. The old code multiplied a 0-100 probability directly by the grid's
+  // max index (any probability >= ~13 clamped straight to the top row) and
+  // divided inherent_score by 25 then multiplied by max again (double-scaled,
+  // clamping to the max column for any inherent_score >= 32) -- between the
+  // two, a genuinely low/moderate risk like this one used to render as
+  // maximum likelihood AND maximum impact.
+  it("does not clamp a low-probability, low-impact risk to the matrix's top row/column (aexa-frontend#194-adjacent scale bug)", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: 15, inherent_score: 40 })] },
+      isLoading: false,
+    })
+    render(<RiskMatrixPage />)
+
+    // 15/100=0.15 -> row round(0.15*4)=1 ("Unlikely");
+    // 40/100=0.4 -> col round(0.4*4)=2 ("Moderate")
+    expect(
+      screen.getByTitle(/Unlikely × Moderate : 1 risque/)
+    ).toBeInTheDocument()
+    // The grid always renders all cells (even empty ones), so check the
+    // top-right cell specifically shows 0 risks, not 1.
+    expect(
+      screen.getByTitle(/Very Likely × Catastrophic : 0 risque/)
     ).toBeInTheDocument()
   })
 

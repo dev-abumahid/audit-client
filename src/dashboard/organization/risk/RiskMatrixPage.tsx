@@ -5,6 +5,7 @@ import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { Risk } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
+import { getRiskSeverityLevel } from "@/utils/riskScoring"
 import { Grid3X3, Loader2, MapPin } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -14,7 +15,7 @@ type GroupMode = "none" | "category"
 
 const LABELS: Record<MatrixSize, { likelihood: string[]; impact: string[] }> = {
   3: {
-    likelihood: ["Weak", "Moderate", "Pupil"],
+    likelihood: ["Unlikely", "Possible", "Likely"],
     impact: ["Minor", "Moderate", "Major"],
   },
   4: {
@@ -45,8 +46,16 @@ function mapRiskToCell(
   risk: Risk,
   size: MatrixSize
 ): { row: number; col: number } {
-  const prob = Number(risk.probability) || 0
-  const impact = (Number(risk.inherent_score) || 0) / 25
+  // probability and inherent_score are both a 0-100 scale (aexa-ai's
+  // risk-generation prompts spec both as "number 0-100"), not 0-1 or 1-25 --
+  // normalize each to a 0-1 fraction before mapping onto the grid. This used
+  // to multiply a 0-100 probability directly by `max` (any risk with
+  // probability >= ~13 clamped straight to the top likelihood row) and
+  // divide inherent_score by 25 then multiply by max again (double-scaled,
+  // clamping to the max impact column for any inherent_score >= 32) --
+  // between the two, nearly every real risk piled into one corner cell.
+  const prob = (Number(risk.probability) || 0) / 100
+  const impact = (Number(risk.inherent_score) || 0) / 100
   const max = size - 1
   const row = Math.min(max, Math.max(0, Math.round(prob * max)))
   const col = Math.min(max, Math.max(0, Math.round(impact * max)))
@@ -378,15 +387,7 @@ function RiskCard({
           <p className="text-sm font-medium">{risk.name}</p>
         </div>
         <RiskBadge
-          level={
-            Number(risk.residual_score) > 12
-              ? "critical"
-              : Number(risk.residual_score) > 8
-                ? "high"
-                : Number(risk.residual_score) > 4
-                  ? "medium"
-                  : "low"
-          }
+          level={getRiskSeverityLevel(risk.residual_score)}
           size="sm"
         />
       </div>

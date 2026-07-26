@@ -21,6 +21,7 @@ import {
 import type { RiskSuggestion } from "@/types/ai"
 import type { Risk, SiteSummary } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
+import { getRiskSeverityLevel } from "@/utils/riskScoring"
 import {
   Brain,
   Building,
@@ -405,13 +406,6 @@ export default function SitesEntities() {
     }
   }
 
-  // For risk
-
-  const getRiskLevel = (
-    score: number
-  ): "critical" | "high" | "medium" | "low" =>
-    score > 14 ? "critical" : score > 10 ? "high" : score > 6 ? "medium" : "low"
-
   const handleRiskDelete = async (id: string) => {
     try {
       const res = await deleteRisk(id).unwrap()
@@ -795,7 +789,7 @@ export default function SitesEntities() {
 
                         <div className="flex items-center gap-2">
                           <RiskBadge
-                            level={getRiskLevel(Number(risk.residual_score))}
+                            level={getRiskSeverityLevel(risk.residual_score)}
                             label={Number(risk.residual_score).toFixed(1)}
                             size="sm"
                           />
