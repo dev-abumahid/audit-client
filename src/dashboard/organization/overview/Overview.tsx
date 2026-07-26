@@ -105,7 +105,9 @@ export default function Overview() {
       {} as Record<string, number>
     )
   ).map(([key, value]) => ({
-    name: riskCategories[key]?.label || key,
+    name: riskCategories[key]
+      ? t(`organization.riskCategories.${riskCategories[key].labelKey}`)
+      : key,
     value,
     color: riskCategories[key]?.color || "#888",
   }))
@@ -403,7 +405,10 @@ export default function Overview() {
                     {risk.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {riskCategories[risk.category]?.label}
+                    {riskCategories[risk.category] &&
+                      t(
+                        `organization.riskCategories.${riskCategories[risk.category].labelKey}`
+                      )}
                   </p>
                 </div>
                 <div className="text-right">

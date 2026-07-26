@@ -1,15 +1,20 @@
 import type { RiskLink } from "@/types/organization"
 
-export const riskCategories: Record<string, { label: string; color: string }> =
+// Colors aren't language-dependent, so they stay in a plain lookup here.
+// Labels are i18n keys under organization.riskCategories.<labelKey> in
+// en.json/fr.json, resolved with t() at the call site (Overview.tsx) --
+// this table used to hardcode the labels directly with a mix of English
+// and French strings that never went through i18n at all (aexa-frontend#197).
+export const riskCategories: Record<string, { labelKey: string; color: string }> =
   {
-    supply_chain: { label: "Supply Chain", color: "#EF4444" },
-    financial: { label: "Financier", color: "#F97316" },
-    regulatory: { label: "Réglementaire", color: "#8B5CF6" },
-    cyber: { label: "Cyber", color: "#06B6D4" },
-    operational: { label: "Opérationnel", color: "#EAB308" },
-    hr: { label: "Ressources Humaines", color: "#EC4899" },
-    strategic: { label: "Stratégique", color: "#6366F1" },
-    ehs: { label: "EHS / Environnement", color: "#22C55E" },
+    supply_chain: { labelKey: "catSupplyChain", color: "#EF4444" },
+    financial: { labelKey: "catFinancial", color: "#F97316" },
+    regulatory: { labelKey: "catRegulatory", color: "#8B5CF6" },
+    cyber: { labelKey: "catCyber", color: "#06B6D4" },
+    operational: { labelKey: "catOperational", color: "#EAB308" },
+    hr: { labelKey: "catHr", color: "#EC4899" },
+    strategic: { labelKey: "catStrategic", color: "#6366F1" },
+    ehs: { labelKey: "catEhs", color: "#22C55E" },
   }
 export const DUMMY_LINKS: RiskLink[] = [
   {

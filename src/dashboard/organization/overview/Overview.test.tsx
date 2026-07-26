@@ -346,10 +346,16 @@ describe("Overview", () => {
     })
     render(<Overview />)
 
-    // Both the category chart's legend and the Tipping Points card (one of
-    // these two same-category risks always qualifies as a tipping point,
-    // absent any real ranking signal between them) render a "Cyber" label —
-    // assert at least one rather than pinning down which element it is.
-    expect(screen.getAllByText("Cyber").length).toBeGreaterThan(0)
+    // Category labels resolve through t() (organization.riskCategories.*, not
+    // a hardcoded string — aexa-frontend#197); this repo's tests assert the
+    // raw i18n key since translation isn't wired up in the test environment
+    // (matches the convention elsewhere, e.g. OrgSettingPage.test.tsx). Both
+    // the category chart's legend and the Tipping Points card (one of these
+    // two same-category risks always qualifies as a tipping point, absent any
+    // real ranking signal between them) render this key — assert at least
+    // one rather than pinning down which element it is.
+    expect(
+      screen.getAllByText("organization.riskCategories.catCyber").length
+    ).toBeGreaterThan(0)
   })
 })

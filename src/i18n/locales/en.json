@@ -1453,6 +1453,16 @@
       "sendToFindingSent": "Sent to Finding",
       "sendToFindingSuccess": "Bucket sent to Finding.",
       "sendToFindingFailed": "Failed to send bucket to Finding."
+    },
+    "riskCategories": {
+      "catSupplyChain": "Supply Chain",
+      "catFinancial": "Financial",
+      "catRegulatory": "Regulatory",
+      "catCyber": "Cyber",
+      "catOperational": "Operational",
+      "catHr": "Human Resources",
+      "catStrategic": "Strategic",
+      "catEhs": "EHS / Environment"
     }
   },
   "alert": {

@@ -1453,6 +1453,16 @@
       "sendToFindingSent": "Envoyé vers Constat",
       "sendToFindingSuccess": "Groupe envoyé vers Constat.",
       "sendToFindingFailed": "Échec de l'envoi du groupe vers Constat."
+    },
+    "riskCategories": {
+      "catSupplyChain": "Chaîne d'approvisionnement",
+      "catFinancial": "Financier",
+      "catRegulatory": "Réglementaire",
+      "catCyber": "Cyber",
+      "catOperational": "Opérationnel",
+      "catHr": "Ressources Humaines",
+      "catStrategic": "Stratégique",
+      "catEhs": "EHS / Environnement"
     }
   },
   "alert": {
