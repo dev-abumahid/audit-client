@@ -691,6 +691,50 @@ describe("SitesEntities", () => {
     })
   })
 
+  // Regression test for the labelKey refactor (aexa-frontend#199): matching
+  // now resolves each category's label from en.json rather than a hardcoded
+  // string, so this exercises the actual label-substring match path (not
+  // just the trivial key === normalized case every category also satisfies
+  // when the AI happens to return the exact key) — "Cybersecurity" only
+  // matches "cyber" through its English label, per the code's own comment.
+  it("matches an AI category to a known category by label, not just by exact key", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockAnalyzeSiteRisks.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: [makeSuggestion({ category: "Cybersecurity" })],
+        }),
+    })
+    mockCreateNewRisk.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+    )
+    await waitFor(() =>
+      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+    )
+    await userEvent.click(screen.getByRole("checkbox"))
+    await userEvent.click(
+      screen.getByRole("button", { name: /import selected/i })
+    )
+
+    await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
+    expect(mockCreateNewRisk.mock.calls[0][0]).toMatchObject({
+      category: "cyber",
+    })
+  })
+
   it("does not let a slow analysis for one site overwrite the suggestions already shown for another", async () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,

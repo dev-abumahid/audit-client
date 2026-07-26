@@ -1,29 +1,41 @@
-export const RISK_CATEGORIES: Record<string, { label: string; color: string }> =
+// Labels are i18n keys under organization.riskCategories.<labelKey> in
+// en.json/fr.json, resolved with t() at each call site -- this table used to
+// hardcode every label directly in English with no i18n at all, despite
+// being the canonical category list for RiskGraphPage/RiskRegisterPage/
+// RiskMatrixPage/SitesEntities (aexa-frontend#199). Colors aren't
+// language-dependent, so they stay in this plain lookup.
+export const RISK_CATEGORIES: Record<string, { labelKey: string; color: string }> =
   {
-    supply_chain: { label: "Supply Chain", color: "hsl(0, 72%, 51%)" },
-    financial: { label: "Financial", color: "hsl(25, 95%, 53%)" },
-    regulatory: { label: "Regulatory", color: "hsl(280, 65%, 60%)" },
-    cyber: { label: "Cyber", color: "hsl(199, 89%, 48%)" },
-    operational: { label: "Operational", color: "hsl(38, 92%, 50%)" },
-    hr: { label: "Human Resources", color: "hsl(330, 80%, 60%)" },
-    strategic: { label: "Strategic", color: "hsl(240, 60%, 60%)" },
-    ehs: { label: "EHS / Environment", color: "hsl(142, 71%, 45%)" },
-    geopolitical: { label: "Geopolitical", color: "hsl(210, 70%, 50%)" },
+    supply_chain: { labelKey: "catSupplyChain", color: "hsl(0, 72%, 51%)" },
+    financial: { labelKey: "catFinancial", color: "hsl(25, 95%, 53%)" },
+    regulatory: { labelKey: "catRegulatory", color: "hsl(280, 65%, 60%)" },
+    cyber: { labelKey: "catCyber", color: "hsl(199, 89%, 48%)" },
+    operational: { labelKey: "catOperational", color: "hsl(38, 92%, 50%)" },
+    hr: { labelKey: "catHr", color: "hsl(330, 80%, 60%)" },
+    strategic: { labelKey: "catStrategic", color: "hsl(240, 60%, 60%)" },
+    ehs: { labelKey: "catEhs", color: "hsl(142, 71%, 45%)" },
+    geopolitical: { labelKey: "catGeopolitical", color: "hsl(210, 70%, 50%)" },
     natural_disaster: {
-      label: "Natural Disasters",
+      labelKey: "catNaturalDisaster",
       color: "hsl(30, 80%, 45%)",
     },
-    technology: { label: "Technology", color: "hsl(190, 75%, 45%)" },
-    reputational: { label: "Reputation", color: "hsl(350, 70%, 55%)" },
-    compliance: { label: "Compliance", color: "hsl(270, 55%, 50%)" },
-    ai_emerging: { label: "AI & Emerging Risks", color: "hsl(160, 60%, 40%)" },
-    fire: { label: "Fire", color: "hsl(10, 85%, 50%)" },
-    electrical: { label: "Electrical", color: "hsl(45, 90%, 50%)" },
-    atex: { label: "ATEX / Explosive", color: "hsl(15, 90%, 55%)" },
-    machine_safety: { label: "Machine Safety", color: "hsl(200, 60%, 50%)" },
-    environmental: { label: "Environmental", color: "hsl(120, 55%, 40%)" },
+    technology: { labelKey: "catTechnology", color: "hsl(190, 75%, 45%)" },
+    reputational: { labelKey: "catReputational", color: "hsl(350, 70%, 55%)" },
+    compliance: { labelKey: "catCompliance", color: "hsl(270, 55%, 50%)" },
+    ai_emerging: {
+      labelKey: "catAiEmerging",
+      color: "hsl(160, 60%, 40%)",
+    },
+    fire: { labelKey: "catFire", color: "hsl(10, 85%, 50%)" },
+    electrical: { labelKey: "catElectrical", color: "hsl(45, 90%, 50%)" },
+    atex: { labelKey: "catAtex", color: "hsl(15, 90%, 55%)" },
+    machine_safety: {
+      labelKey: "catMachineSafety",
+      color: "hsl(200, 60%, 50%)",
+    },
+    environmental: { labelKey: "catEnvironmental", color: "hsl(120, 55%, 40%)" },
     security_physical: {
-      label: "Physical Security",
+      labelKey: "catSecurityPhysical",
       color: "hsl(0, 50%, 40%)",
     },
   }

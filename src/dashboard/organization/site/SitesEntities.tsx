@@ -5,6 +5,7 @@ import SourceBadge from "@/components/dashboard/organization/SourceBadge"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { Button } from "@/components/ui/button"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
+import enTranslations from "@/i18n/locales/en.json"
 import { useAnalyzeSiteRisksMutation } from "@/redux/apis/organization/ai.api"
 import {
   useCreateNewRiskMutation,
@@ -49,15 +50,31 @@ import { toast } from "sonner"
 // real category badge/color instead of falling through to the unstyled
 // default; falls back to the raw AI string if nothing matches; nothing is
 // lost either way since risk.category on the backend is a free string.
+// This is a plain function outside any component, so it can't use the
+// useTranslation() hook — it resolves each label straight from the English
+// locale resource instead (the AI is always prompted in English, regardless
+// of the UI's active language), without needing a live i18next instance.
 const matchKnownCategory = (aiCategory: string): string => {
   const normalized = aiCategory.trim().toLowerCase()
-  const match = Object.entries(RISK_CATEGORIES).find(
-    ([key, cat]) =>
+  const match = Object.entries(RISK_CATEGORIES).find(([key, cat]) => {
+    // Falls back to the key match alone if a labelKey ever has no matching
+    // en.json entry, rather than crashing on .toLowerCase() of undefined —
+    // this function's whole point is a safe fallback, so a key-parity slip
+    // must degrade gracefully here too, not become a harder failure than
+    // the "no match at all" case it's designed to already tolerate.
+    const label = (
+      enTranslations.organization.riskCategories as Record<
+        string,
+        string | undefined
+      >
+    )[cat.labelKey]?.toLowerCase()
+    return (
       key.toLowerCase() === normalized ||
-      cat.label.toLowerCase() === normalized ||
-      cat.label.toLowerCase().includes(normalized) ||
-      normalized.includes(cat.label.toLowerCase())
-  )
+      label === normalized ||
+      label?.includes(normalized) ||
+      (label !== undefined && normalized.includes(label))
+    )
+  })
   return match ? match[0] : aiCategory
 }
 
@@ -627,7 +644,7 @@ export default function SitesEntities() {
                       >
                         {Object.entries(RISK_CATEGORIES).map(([key, cat]) => (
                           <option key={key} value={key}>
-                            {cat.label}
+                            {t(`organization.riskCategories.${cat.labelKey}`)}
                           </option>
                         ))}
                       </select>

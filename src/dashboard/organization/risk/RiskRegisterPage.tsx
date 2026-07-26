@@ -223,7 +223,7 @@ export default function RiskRegisterPage() {
           </option>
           {Object.entries(RISK_CATEGORIES).map(([k, v]) => (
             <option key={k} value={k}>
-              {v.label}
+              {t(`organization.riskCategories.${v.labelKey}`)}
             </option>
           ))}
         </select>
@@ -411,7 +411,7 @@ export default function RiskRegisterPage() {
                     </option>
                     {Object.entries(RISK_CATEGORIES).map(([k, v]) => (
                       <option key={k} value={k}>
-                        {v.label}
+                        {t(`organization.riskCategories.${v.labelKey}`)}
                       </option>
                     ))}
                   </select>

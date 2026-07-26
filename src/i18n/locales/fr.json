@@ -1462,7 +1462,19 @@
       "catOperational": "Opérationnel",
       "catHr": "Ressources Humaines",
       "catStrategic": "Stratégique",
-      "catEhs": "EHS / Environnement"
+      "catEhs": "EHS / Environnement",
+      "catGeopolitical": "Géopolitique",
+      "catNaturalDisaster": "Catastrophes naturelles",
+      "catTechnology": "Technologie",
+      "catReputational": "Réputation",
+      "catCompliance": "Conformité",
+      "catAiEmerging": "IA et risques émergents",
+      "catFire": "Incendie",
+      "catElectrical": "Électrique",
+      "catAtex": "ATEX / Explosif",
+      "catMachineSafety": "Sécurité des machines",
+      "catEnvironmental": "Environnemental",
+      "catSecurityPhysical": "Sécurité physique"
     }
   },
   "alert": {

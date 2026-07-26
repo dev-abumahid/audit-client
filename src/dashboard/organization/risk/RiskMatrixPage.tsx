@@ -316,8 +316,15 @@ export default function RiskMatrixPage() {
                           }}
                         />
                         <span className="text-xs font-semibold">
-                          {RISK_CATEGORIES[cat as keyof typeof RISK_CATEGORIES]
-                            ?.label || cat}{" "}
+                          {(() => {
+                            const labelKey =
+                              RISK_CATEGORIES[
+                                cat as keyof typeof RISK_CATEGORIES
+                              ]?.labelKey
+                            return labelKey
+                              ? t(`organization.riskCategories.${labelKey}`)
+                              : cat
+                          })()}{" "}
                           ({catRisks.length})
                         </span>
                       </div>
@@ -353,6 +360,7 @@ function RiskCard({
   risk: Risk
   sites: { id: string; name: string }[]
 }) {
+  const { t } = useTranslation()
   const siteName = sites.find((s) => s.id === risk.site_id)?.name
 
   return (
@@ -404,10 +412,14 @@ function RiskCard({
                   ?.color,
             }}
           />
-          {
-            RISK_CATEGORIES[risk.category as keyof typeof RISK_CATEGORIES]
-              ?.label
-          }
+          {(() => {
+            const labelKey =
+              RISK_CATEGORIES[risk.category as keyof typeof RISK_CATEGORIES]
+                ?.labelKey
+            return labelKey
+              ? t(`organization.riskCategories.${labelKey}`)
+              : undefined
+          })()}
         </span>
         <span>PR: {Number(risk.pagerank_score).toFixed(0)}</span>
       </div>
