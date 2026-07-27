@@ -1191,6 +1191,8 @@
       "fileUploaded": "File uploaded",
       "mediaUploadFailed": "Media upload failed.",
       "commentFailed": "Action updated, but the comment failed to save.",
+      "sendMessageFailed": "Failed to send message.",
+      "sendMessage": "Send message",
       "updateSuccess": "Action updated successfully!",
       "createSuccess": "Action created successfully!",
       "updateFailed": "Failed to update action.",

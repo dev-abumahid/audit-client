@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import {
+  useAddFindingMessageMutation,
   useDeleteFindingByIdMutation,
   useGetFindingByIdQuery,
   useUpdateFindingByIdMutation,
@@ -22,6 +23,7 @@ import {
   MapPin,
   MessageSquare,
   Paperclip,
+  Send,
   Trash2,
   Upload,
   User,
@@ -221,6 +223,14 @@ export default function FindingDetails() {
     useDeleteFindingByIdMutation()
   const [updateFinding] = useUpdateFindingByIdMutation()
   const [uploadAttachment] = useUploadFindingAttachmentMutation()
+  // #170/#215: update_action_into_db (PATCH, used for edits) never persists
+  // body.messages -- a new comment on an existing finding has to go through
+  // this dedicated PUT endpoint instead. CreateNewFindingModal.tsx already
+  // does this from its own edit flow; this page's Messages tab never called
+  // it at all, so posting a message here was silently impossible.
+  const [addMessage, { isLoading: isSendingMessage }] =
+    useAddFindingMessageMutation()
+  const [newMessageText, setNewMessageText] = useState("")
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>("details")
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -259,6 +269,22 @@ export default function FindingDetails() {
     } catch (err: any) {
       toast.error(
         err?.data?.message || t("organization.findings.deleteFailed")
+      )
+    }
+  }
+
+  const handleSendMessage = async () => {
+    const message = newMessageText.trim()
+    if (!id || !message) return
+    try {
+      await addMessage({ id, message }).unwrap()
+      // No local state to update -- addFindingMessage's invalidatesTags
+      // refetches getFindingById (providesTags: ["FINDINGS"]), which brings
+      // the new message back in `action.messages`.
+      setNewMessageText("")
+    } catch (err: any) {
+      toast.error(
+        err?.data?.message || t("organization.findings.sendMessageFailed")
       )
     }
   }
@@ -605,6 +631,7 @@ export default function FindingDetails() {
 
                 {/* Messages Tab */}
                 {activeTab === "messages" && (
+                  <div className="space-y-4">
                   <div className="max-h-120 space-y-3 overflow-y-auto">
                     {action.messages && action.messages.length > 0 ? (
                       action.messages.map((msg, i) => (
@@ -638,6 +665,38 @@ export default function FindingDetails() {
                         </p>
                       </div>
                     )}
+                  </div>
+
+                  {/* Compose box (#170/#215) */}
+                  <div className="flex items-center gap-2 border-t border-border pt-4">
+                    <input
+                      type="text"
+                      value={newMessageText}
+                      onChange={(e) => setNewMessageText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault()
+                          handleSendMessage()
+                        }
+                      }}
+                      placeholder={t("organization.findings.addUpdatePlaceholder")}
+                      disabled={isSendingMessage}
+                      className="flex-1 rounded-lg border border-input bg-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSendMessage}
+                      disabled={isSendingMessage || !newMessageText.trim()}
+                      aria-label={t("organization.findings.sendMessage")}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {isSendingMessage ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                   </div>
                 )}
 
@@ -834,16 +893,32 @@ export default function FindingDetails() {
               )}
             </div>
 
-            {/* Assigned Users - Placeholder */}
+            {/* Assigned Users (#215 -- this used to always render the empty
+                state, never reading action.assignBy at all) */}
             <div className="rounded-xl border border-border bg-card p-5">
               <p className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 <Users className="h-4 w-4" /> {t("organization.findings.assignedResponsible")}
               </p>
-              <div className="py-3 text-center">
-                <p className="text-sm text-muted-foreground">
-                  {t("organization.findings.noUsersAssigned")}
-                </p>
-              </div>
+              {action.assignBy && action.assignBy.length > 0 ? (
+                <div className="space-y-2">
+                  {action.assignBy.map((user) => (
+                    <div key={user.id} className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
+                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      </div>
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {user.name}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-3 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    {t("organization.findings.noUsersAssigned")}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

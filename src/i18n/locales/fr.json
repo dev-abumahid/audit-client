@@ -1191,6 +1191,8 @@
       "fileUploaded": "Fichier téléversé",
       "mediaUploadFailed": "Échec du téléversement du média.",
       "commentFailed": "Action mise à jour, mais le commentaire n'a pas pu être enregistré.",
+      "sendMessageFailed": "Échec de l'envoi du message.",
+      "sendMessage": "Envoyer le message",
       "updateSuccess": "Action mise à jour avec succès !",
       "createSuccess": "Action créée avec succès !",
       "updateFailed": "Échec de la mise à jour de l'action.",

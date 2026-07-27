@@ -21,6 +21,7 @@ const mockUseGetFindingByIdQuery = vi.fn()
 const mockDeleteFinding = vi.fn()
 const mockUpdateFinding = vi.fn()
 const mockUploadAttachment = vi.fn()
+const mockAddFindingMessage = vi.fn()
 
 vi.mock("@/redux/apis/organization/findings.api", () => ({
   useGetFindingByIdQuery: (...args: unknown[]) =>
@@ -32,6 +33,10 @@ vi.mock("@/redux/apis/organization/findings.api", () => ({
   useUpdateFindingByIdMutation: () => [mockUpdateFinding, { isLoading: false }],
   useUploadFindingAttachmentMutation: () => [
     mockUploadAttachment,
+    { isLoading: false },
+  ],
+  useAddFindingMessageMutation: () => [
+    mockAddFindingMessage,
     { isLoading: false },
   ],
 }))
@@ -96,6 +101,7 @@ describe("FindingDetails", () => {
     mockDeleteFinding.mockReset()
     mockUpdateFinding.mockReset()
     mockUploadAttachment.mockReset()
+    mockAddFindingMessage.mockReset()
     mockToastError.mockReset()
     mockToastSuccess.mockReset()
     mockUseGetFindingByIdQuery.mockReturnValue({
@@ -125,6 +131,101 @@ describe("FindingDetails", () => {
 
     expect(container.querySelector("img")).toBeNull()
     expect(screen.getByText(payload)).toBeInTheDocument()
+  })
+
+  // #170/#215: this compose box didn't exist at all before -- the Messages
+  // tab only ever displayed existing messages.
+  describe("sending a message (#215)", () => {
+    it("sends a trimmed message via addFindingMessage and clears the input on success", async () => {
+      mockAddFindingMessage.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /tabMessages/ })
+      )
+      const input = screen.getByPlaceholderText(
+        "organization.findings.addUpdatePlaceholder"
+      )
+      await userEvent.type(input, "  Looks fixed now  ")
+      await userEvent.click(screen.getByRole("button", { name: "organization.findings.sendMessage" }))
+
+      await waitFor(() =>
+        expect(mockAddFindingMessage).toHaveBeenCalledWith({
+          id: "finding-1",
+          message: "Looks fixed now",
+        })
+      )
+      await waitFor(() => expect(input).toHaveValue(""))
+    })
+
+    it("does not call addFindingMessage for a blank/whitespace-only message", async () => {
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /tabMessages/ })
+      )
+      await userEvent.type(
+        screen.getByPlaceholderText("organization.findings.addUpdatePlaceholder"),
+        "   "
+      )
+      await userEvent.click(screen.getByRole("button", { name: "organization.findings.sendMessage" }))
+
+      expect(mockAddFindingMessage).not.toHaveBeenCalled()
+    })
+
+    it("shows an error toast and keeps the input text when sending fails", async () => {
+      mockAddFindingMessage.mockReturnValue({
+        unwrap: () => Promise.reject({ data: { message: "Server exploded" } }),
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /tabMessages/ })
+      )
+      const input = screen.getByPlaceholderText(
+        "organization.findings.addUpdatePlaceholder"
+      )
+      await userEvent.type(input, "Trying again")
+      await userEvent.click(screen.getByRole("button", { name: "organization.findings.sendMessage" }))
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith("Server exploded")
+      )
+      expect(input).toHaveValue("Trying again")
+    })
+  })
+
+  // #215: this panel previously always rendered the empty state, never
+  // reading action.assignBy at all.
+  describe("Assigned Users panel (#215)", () => {
+    it("renders each assigned user's name when assignBy is populated", async () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            assignBy: [
+              { id: "user-1", name: "Auditor One" },
+              { id: "user-2", name: "Auditor Two" },
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+      renderPage()
+
+      expect(await screen.findByText("Auditor One")).toBeInTheDocument()
+      expect(screen.getByText("Auditor Two")).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.findings.noUsersAssigned")
+      ).not.toBeInTheDocument()
+    })
+
+    it("still shows the empty state when assignBy is empty", async () => {
+      renderPage()
+
+      expect(
+        await screen.findByText("organization.findings.noUsersAssigned")
+      ).toBeInTheDocument()
+    })
   })
 
   // aexa-server#244 / aexa-frontend#213
