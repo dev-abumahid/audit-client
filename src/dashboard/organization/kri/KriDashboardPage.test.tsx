@@ -13,11 +13,14 @@ const mockUseGetAllKriQuery = vi.fn()
 const mockUseGetAllRisksQuery = vi.fn()
 const mockCreateKri = vi.fn()
 const mockSubmitKriValue = vi.fn()
+const mockUseGetKriReadingsQuery = vi.fn()
 
 vi.mock("@/redux/apis/organization/kri.api", () => ({
   useGetAllKriQuery: (...args: unknown[]) => mockUseGetAllKriQuery(...args),
   useCreateNewKriMutation: () => [mockCreateKri],
   useSubmitKriValueMutation: () => [mockSubmitKriValue],
+  useGetKriReadingsQuery: (...args: unknown[]) =>
+    mockUseGetKriReadingsQuery(...args),
 }))
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
@@ -35,6 +38,8 @@ function makeKri(overrides = {}) {
     target_value: 10,
     frequency: "monthly",
     status: "OK",
+    last_measured_at: null,
+    overdue: false,
     ...overrides,
   }
 }
@@ -49,6 +54,7 @@ describe("KriDashboardPage", () => {
     mockUseGetAllRisksQuery.mockReset()
     mockCreateKri.mockReset()
     mockSubmitKriValue.mockReset()
+    mockUseGetKriReadingsQuery.mockReset()
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
 
@@ -58,6 +64,10 @@ describe("KriDashboardPage", () => {
     })
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: [makeRisk()] },
+    })
+    mockUseGetKriReadingsQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
     })
   })
 
@@ -199,5 +209,130 @@ describe("KriDashboardPage", () => {
 
     expect(mockToastError).toHaveBeenCalledWith("organization.kri.toast.enterValidNumber")
     expect(mockSubmitKriValue).not.toHaveBeenCalled()
+  })
+
+  // aexa-server#242 / aexa-frontend#211
+  describe("trend history", () => {
+    it("skips the readings query until the trend modal is opened", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+
+      render(<KriDashboardPage />)
+
+      expect(mockUseGetKriReadingsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "" }),
+        expect.objectContaining({ skip: true })
+      )
+    })
+
+    it("fetches readings scoped to the clicked KRI when the trend modal opens", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+
+      render(<KriDashboardPage />)
+      await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
+
+      expect(mockUseGetKriReadingsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "kri-1" }),
+        expect.objectContaining({ skip: false })
+      )
+    })
+
+    it("shows the empty state when there are no readings yet", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+
+      render(<KriDashboardPage />)
+      await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
+
+      expect(
+        screen.getByText("organization.kri.trend.empty")
+      ).toBeInTheDocument()
+    })
+
+    it("renders a chart (not the empty state) once readings resolve", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      mockUseGetKriReadingsQuery.mockReturnValue({
+        data: {
+          data: [
+            { id: "r-2", kri_id: "kri-1", value: 60, recorded_at: "2026-06-15T00:00:00.000Z" },
+            { id: "r-1", kri_id: "kri-1", value: 50, recorded_at: "2026-05-15T00:00:00.000Z" },
+          ],
+        },
+        isLoading: false,
+      })
+
+      const { container } = render(<KriDashboardPage />)
+      await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
+
+      // recharts' ResponsiveContainer never measures a real size under
+      // jsdom (0x0 layout), so it renders no SVG at all -- this only proves
+      // data reached the chart branch instead of the empty/loading state,
+      // not that recharts itself rendered correctly.
+      expect(
+        screen.queryByText("organization.kri.trend.empty")
+      ).not.toBeInTheDocument()
+      expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument()
+    })
+
+    it("closes the trend modal via the close button", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+
+      render(<KriDashboardPage />)
+      await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
+      expect(
+        screen.getByText("organization.kri.trend.empty")
+      ).toBeInTheDocument()
+
+      // The X close button has no accessible name of its own; it's the only
+      // button inside the modal's header row alongside the title.
+      const modalHeading = screen.getByText(/organization\.kri\.trend\.modalTitle/)
+      const closeButton = modalHeading.parentElement!.querySelector("button")!
+      await userEvent.click(closeButton)
+
+      expect(
+        screen.queryByText("organization.kri.trend.empty")
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  describe("overdue badge", () => {
+    it("shows the overdue badge when the server reports overdue", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ overdue: true })] },
+        isLoading: false,
+      })
+
+      render(<KriDashboardPage />)
+
+      expect(
+        screen.getByText("organization.kri.overdueLabel")
+      ).toBeInTheDocument()
+    })
+
+    it("does not show the overdue badge when overdue is false", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ overdue: false })] },
+        isLoading: false,
+      })
+
+      render(<KriDashboardPage />)
+
+      expect(
+        screen.queryByText("organization.kri.overdueLabel")
+      ).not.toBeInTheDocument()
+    })
   })
 })

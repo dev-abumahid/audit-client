@@ -232,8 +232,14 @@
       "cancel": "Cancel",
       "targetLabel": "Target",
       "thresholdLabel": "Alert threshold",
+      "overdueLabel": "Overdue",
       "updateValueTitle": "Update value",
       "updateValueTooltip": "Update current value",
+      "trend": {
+        "viewTooltip": "View trend",
+        "modalTitle": "Trend — {{name}}",
+        "empty": "No readings recorded yet"
+      },
       "status": {
         "alert": "Alert",
         "warning": "Warning",

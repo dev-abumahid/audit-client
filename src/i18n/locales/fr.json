@@ -232,8 +232,14 @@
       "cancel": "Annuler",
       "targetLabel": "Cible",
       "thresholdLabel": "Seuil d'alerte",
+      "overdueLabel": "En retard",
       "updateValueTitle": "Mettre à jour la valeur",
       "updateValueTooltip": "Mettre à jour la valeur actuelle",
+      "trend": {
+        "viewTooltip": "Voir la tendance",
+        "modalTitle": "Tendance — {{name}}",
+        "empty": "Aucune mesure enregistrée pour le moment"
+      },
       "status": {
         "alert": "Alerte",
         "warning": "Avertissement",

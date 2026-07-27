@@ -240,6 +240,24 @@ export interface KRI {
   status: "OK" | "WARNING" | "ALERT"
   // Issue #97. Always set — DB default is SECOND for pre-existing rows.
   line_of_defense: LineOfDefense
+  // aexa-server#242 — when current_value was last recorded (set at
+  // creation and on every value submission).
+  last_measured_at: string | null
+  // aexa-server#242 — computed on every read from frequency +
+  // last_measured_at (never a stored column). Always false when frequency
+  // is unset, since there's no cadence to be overdue against.
+  overdue: boolean
+}
+
+// aexa-server#242 — an append-only history of every value a KRI has ever
+// been recorded at, never updated/deleted once written. GET /kri/:id/readings
+// returns these newest-first.
+export interface KriReading {
+  id: string
+  org_account_id: string
+  kri_id: string
+  value: number
+  recorded_at: string
 }
 
 // Confirmed against the real Alert Prisma model + alert.service.ts (issue

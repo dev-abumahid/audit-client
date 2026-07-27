@@ -2,12 +2,15 @@
 import {
   useCreateNewKriMutation,
   useGetAllKriQuery,
+  useGetKriReadingsQuery,
   useSubmitKriValueMutation,
 } from "@/redux/apis/organization/kri.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import {
   AlertTriangle,
+  ChartLine,
   CheckCircle2,
+  Clock,
   Loader2,
   Pencil,
   Plus,
@@ -17,6 +20,15 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import {
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 import { toast } from "sonner"
 
 const EMPTY_KRI = {
@@ -56,6 +68,16 @@ export default function KriDashboardPage() {
   const [updatingKriId, setUpdatingKriId] = useState<string | null>(null)
   const [updateValue, setUpdateValue] = useState("")
   const [isUpdatingValue, setIsUpdatingValue] = useState(false)
+
+  // aexa-server#242 / aexa-frontend#211 — GET /kri/:id/readings existed with
+  // no frontend consumer at all; this is the trend view. Only fetched while
+  // the modal is actually open for a given KRI (skip otherwise).
+  const [trendKriId, setTrendKriId] = useState<string | null>(null)
+  const { data: readingsResponse, isLoading: isLoadingReadings } =
+    useGetKriReadingsQuery(
+      { id: trendKriId ?? "", page: 1, limit: 50 },
+      { skip: !trendKriId }
+    )
 
   const handleSave = async () => {
     if (!form.name || !form.risk_id) return
@@ -121,6 +143,20 @@ export default function KriDashboardPage() {
       setIsUpdatingValue(false)
     }
   }
+
+  const trendKri = trendKriId ? kris.find((k: any) => k.id === trendKriId) : null
+  // Backend returns newest-first (see kri.api.ts's own comment); a
+  // left-to-right chronological chart needs the reverse.
+  const trendChartData = (readingsResponse?.data ?? [])
+    .slice()
+    .reverse()
+    .map((r: { value: number; recorded_at: string }) => ({
+      value: r.value,
+      recorded_at: new Date(r.recorded_at).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+    }))
 
   const alertCount = kris.filter((k: any) => k.status === "ALERT").length
   const warningCount = kris.filter((k: any) => k.status === "WARNING").length
@@ -245,8 +281,15 @@ export default function KriDashboardPage() {
                   {kri.unit}
                 </span>
                 <button
-                  onClick={() => openUpdateValue(kri)}
+                  onClick={() => setTrendKriId(kri.id)}
                   className="ml-auto rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title={t("organization.kri.trend.viewTooltip")}
+                >
+                  <ChartLine className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => openUpdateValue(kri)}
+                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title={t("organization.kri.updateValueTooltip")}
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -266,6 +309,15 @@ export default function KriDashboardPage() {
                     {Number(kri.target_value)}
                   </span>
                 </span>
+                {/* aexa-server#242 — overdue is computed server-side from
+                    frequency + last_measured_at; always false with no
+                    frequency, so this never shows on a KRI with no cadence. */}
+                {kri.overdue && (
+                  <span className="ml-auto flex items-center gap-1 font-medium text-risk-critical">
+                    <Clock className="h-3 w-3" />
+                    {t("organization.kri.overdueLabel")}
+                  </span>
+                )}
               </div>
             </div>
           )
@@ -504,6 +556,103 @@ export default function KriDashboardPage() {
                 {t("organization.kri.createKri")}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trend modal (aexa-server#242 / aexa-frontend#211) */}
+      {trendKriId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setTrendKriId(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-xl border border-border bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-foreground">
+                {t("organization.kri.trend.modalTitle", {
+                  name: trendKri?.name ?? "",
+                })}
+              </h2>
+              <button
+                onClick={() => setTrendKriId(null)}
+                className="rounded p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {isLoadingReadings && (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+
+            {!isLoadingReadings && trendChartData.length === 0 && (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                {t("organization.kri.trend.empty")}
+              </p>
+            )}
+
+            {!isLoadingReadings && trendChartData.length > 0 && (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trendChartData}>
+                    <XAxis
+                      dataKey="recorded_at"
+                      tick={{ fontSize: 11 }}
+                      stroke="hsl(220, 10%, 46%)"
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      stroke="hsl(220, 10%, 46%)"
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "hsl(222, 22%, 11%)",
+                        border: "1px solid hsl(220, 18%, 18%)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                      labelStyle={{ color: "hsl(220, 14%, 70%)" }}
+                    />
+                    {trendKri && (
+                      <ReferenceLine
+                        y={Number(trendKri.alert_threshold)}
+                        stroke="hsl(0, 72%, 51%)"
+                        strokeDasharray="4 4"
+                        label={{
+                          value: t("organization.kri.thresholdLabel"),
+                          fontSize: 10,
+                          fill: "hsl(0, 72%, 51%)",
+                        }}
+                      />
+                    )}
+                    {trendKri && (
+                      <ReferenceLine
+                        y={Number(trendKri.target_value)}
+                        stroke="hsl(142, 71%, 45%)"
+                        strokeDasharray="4 4"
+                        label={{
+                          value: t("organization.kri.targetLabel"),
+                          fontSize: 10,
+                          fill: "hsl(142, 71%, 45%)",
+                        }}
+                      />
+                    )}
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="hsl(168, 60%, 36%)"
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
+import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
-import type { KRI, LineOfDefense } from "@/types/organization"
+import type { KRI, KriReading, LineOfDefense } from "@/types/organization"
 
 // Mirrors kri.validation.ts's create_kri zod schema on aexa-server exactly
 // -- frequency is optional there, and target_value/alert_threshold must
@@ -85,6 +86,20 @@ const kriApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["KRI"],
     }),
+    // aexa-server#242 / aexa-frontend#211 — the append-only reading history
+    // this endpoint exposes existed for a while with no frontend consumer at
+    // all. Newest-first from the backend; callers that chart a trend need to
+    // reverse it for chronological order.
+    getKriReadings: builder.query<
+      PaginatedApiResponse<KriReading>,
+      { id: string; page: number; limit: number }
+    >({
+      query: ({ id, page, limit }) => ({
+        url: `/kri/${id}/readings?${buildQueryString({ page, limit })}`,
+        method: "GET",
+      }),
+      providesTags: ["KRI"],
+    }),
   }),
 })
 
@@ -94,4 +109,5 @@ export const {
   useUpdateKriMutation,
   useSubmitKriValueMutation,
   useDeleteKriMutation,
+  useGetKriReadingsQuery,
 } = kriApi
