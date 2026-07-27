@@ -875,7 +875,27 @@
         "dueDate": "DUE DATE",
         "status": "STATUS",
         "owner": "OWNER",
-        "source": "SOURCE"
+        "source": "SOURCE",
+        "regulationRefShort": "Reg",
+        "nextReviewShort": "Next review"
+      },
+      "overdueLabel": "Overdue",
+      "recurrence": {
+        "oneTime": "One-time (no recurrence)",
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "annual": "Annual"
+      },
+      "attest": {
+        "button": "Re-attest",
+        "historyButton": "Attestation history",
+        "modalTitle": "Re-attest Obligation",
+        "modalSubtitle": "Confirm that \"{{title}}\" has been reconfirmed as of today.",
+        "noteLabel": "Note (optional)",
+        "notePlaceholder": "e.g. Confirmed with legal counsel",
+        "confirmButton": "Confirm Attestation",
+        "historyModalTitle": "Attestation History — {{title}}",
+        "historyEmpty": "No attestations recorded yet"
       },
       "form": {
         "newTitle": "New Compliance Obligation",
@@ -885,9 +905,14 @@
         "site": "Site",
         "orgWide": "Org-wide (no site)",
         "description": "Description",
+        "regulationReference": "Regulatory Source",
+        "regulationReferencePlaceholder": "e.g. GDPR Art. 30(1)",
         "status": "Status",
         "dueDate": "Due Date",
         "owner": "Owner",
+        "recurrence": "Re-attestation Cadence",
+        "nextReview": "Next review due",
+        "evidenceRequiredWarning": "Marking this Compliant requires at least one evidence attachment — the server will reject this save without one.",
         "attachments": "Evidence Attachments",
         "uploadEvidence": "Upload Evidence",
         "cancel": "Cancel",
@@ -900,7 +925,9 @@
         "deleteSuccess": "Compliance obligation deleted",
         "saveFailed": "Failed to save compliance obligation",
         "deleteFailed": "Failed to delete compliance obligation",
-        "uploadFailed": "Failed to upload attachment"
+        "uploadFailed": "Failed to upload attachment",
+        "attestSuccess": "Obligation re-attested",
+        "attestFailed": "Failed to record attestation"
       }
     },
     "threeLinesOfDefense": {

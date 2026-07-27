@@ -13,6 +13,8 @@ const mockUseGetComplianceScorecardQuery = vi.fn()
 const mockCreateCompliance = vi.fn()
 const mockUpdateCompliance = vi.fn()
 const mockDeleteCompliance = vi.fn()
+const mockAttestCompliance = vi.fn()
+const mockUseGetComplianceAttestationsQuery = vi.fn()
 
 vi.mock("@/redux/apis/organization/compliance.api", () => ({
   useGetAllComplianceQuery: (...args: unknown[]) =>
@@ -23,6 +25,9 @@ vi.mock("@/redux/apis/organization/compliance.api", () => ({
   useCreateComplianceMutation: () => [mockCreateCompliance, { isLoading: false }],
   useUpdateComplianceMutation: () => [mockUpdateCompliance, { isLoading: false }],
   useDeleteComplianceMutation: () => [mockDeleteCompliance],
+  useAttestComplianceMutation: () => [mockAttestCompliance, { isLoading: false }],
+  useGetComplianceAttestationsQuery: (...args: unknown[]) =>
+    mockUseGetComplianceAttestationsQuery(...args),
 }))
 
 const mockUseGetAllSitesQuery = vi.fn()
@@ -73,6 +78,11 @@ function makeObligation(overrides = {}) {
     is_edited: true,
     createdAt: "2026-02-20T10:00:00.000Z",
     updatedAt: "2026-03-10T12:00:00.000Z",
+    line_of_defense: "SECOND",
+    regulation_reference: null,
+    recurrence: null,
+    next_review_date: null,
+    overdue: false,
     ...overrides,
   }
 }
@@ -91,6 +101,8 @@ describe("CompliancePage", () => {
     mockCreateCompliance.mockReset()
     mockUpdateCompliance.mockReset()
     mockDeleteCompliance.mockReset()
+    mockAttestCompliance.mockReset()
+    mockUseGetComplianceAttestationsQuery.mockReset()
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
     mockUseGetAllSitesQuery.mockReset()
@@ -100,6 +112,10 @@ describe("CompliancePage", () => {
       data: { data: emptyScorecard },
     })
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [] } })
+    mockUseGetComplianceAttestationsQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
   })
 
   it("shows a loading spinner while the query is loading", () => {
@@ -283,7 +299,7 @@ describe("CompliancePage", () => {
     render(<CompliancePage />)
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
-    await user.click(within(row).getAllByRole("button")[1])
+    await user.click(within(row).getAllByRole("button")[3])
 
     await waitFor(() =>
       expect(mockDeleteCompliance).toHaveBeenCalledWith("comp-1")
@@ -303,7 +319,7 @@ describe("CompliancePage", () => {
     render(<CompliancePage />)
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
-    await user.click(within(row).getAllByRole("button")[1])
+    await user.click(within(row).getAllByRole("button")[3])
 
     expect(mockDeleteCompliance).not.toHaveBeenCalled()
     confirmSpy.mockRestore()
@@ -597,5 +613,411 @@ describe("CompliancePage", () => {
     expect(props.additionalData.actionDisc).toContain(
       "GDPR Article 30 records"
     )
+  })
+
+  // aexa-server#250 / aexa-frontend#212
+  describe("recurrence, regulation reference, and re-attestation", () => {
+    it("submits regulation_reference and recurrence on create", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      mockCreateCompliance.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      render(<CompliancePage />)
+
+      await user.click(
+        screen.getByRole("button", {
+          name: /organization\.compliance\.newObligation/i,
+        })
+      )
+      await user.type(titleInput(), "SOX annual filing")
+
+      const regInput = screen
+        .getByText("organization.compliance.form.regulationReference")
+        .parentElement!.querySelector("input")!
+      await user.type(regInput, "SOX Section 404")
+
+      const recurrenceSelect = screen
+        .getByText("organization.compliance.form.recurrence")
+        .parentElement!.querySelector("select")!
+      await user.selectOptions(recurrenceSelect, "annual")
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.form.create",
+        })
+      )
+
+      await waitFor(() => expect(mockCreateCompliance).toHaveBeenCalled())
+      const submitted = mockCreateCompliance.mock.calls[0][0]
+      expect(submitted.regulation_reference).toBe("SOX Section 404")
+      expect(submitted.recurrence).toBe("annual")
+    })
+
+    it("sends null recurrence for the default one-time option", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      mockCreateCompliance.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      render(<CompliancePage />)
+
+      await user.click(
+        screen.getByRole("button", {
+          name: /organization\.compliance\.newObligation/i,
+        })
+      )
+      await user.type(titleInput(), "One-time obligation")
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.form.create",
+        })
+      )
+
+      await waitFor(() => expect(mockCreateCompliance).toHaveBeenCalled())
+      const submitted = mockCreateCompliance.mock.calls[0][0]
+      expect(submitted.recurrence).toBeNull()
+      expect(submitted.regulation_reference).toBeNull()
+    })
+
+    it("pre-fills regulation_reference and recurrence on edit, and shows next_review_date read-only", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              regulation_reference: "GDPR Art. 30(1)",
+              recurrence: "annual",
+              next_review_date: "2027-01-15T00:00:00.000Z",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+      await user.click(within(row).getAllByRole("button")[0])
+
+      const regInput = screen
+        .getByText("organization.compliance.form.regulationReference")
+        .parentElement!.querySelector("input")!
+      expect(regInput).toHaveValue("GDPR Art. 30(1)")
+
+      const recurrenceSelect = screen
+        .getByText("organization.compliance.form.recurrence")
+        .parentElement!.querySelector("select")!
+      expect(recurrenceSelect).toHaveValue("annual")
+
+      expect(
+        screen.getByText(/organization\.compliance\.form\.nextReview/)
+      ).toBeInTheDocument()
+    })
+
+    it("shows an overdue badge driven by the server-computed overdue flag, not a client-side due_date check", () => {
+      // due_date is in the future, but the server says overdue anyway (e.g. a
+      // recurring obligation whose next_review_date has lapsed) -- if the
+      // component still re-derived this from due_date alone, this would fail.
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              due_date: "2099-01-01T00:00:00.000Z",
+              overdue: true,
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      expect(
+        screen.getByText("organization.compliance.overdueLabel")
+      ).toBeInTheDocument()
+    })
+
+    it("does not show the overdue badge when overdue is false, even with a past due_date", () => {
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              due_date: "2020-01-01T00:00:00.000Z",
+              overdue: false,
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      expect(
+        screen.queryByText("organization.compliance.overdueLabel")
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows the evidence-required warning when status is compliant with no attachments", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      await user.click(
+        screen.getByRole("button", {
+          name: /organization\.compliance\.newObligation/i,
+        })
+      )
+
+      expect(
+        screen.queryByText(
+          "organization.compliance.form.evidenceRequiredWarning"
+        )
+      ).not.toBeInTheDocument()
+
+      const statusSelect = screen
+        .getByText("organization.compliance.form.status")
+        .parentElement!.querySelector("select")!
+      await user.selectOptions(statusSelect, "compliant")
+
+      expect(
+        screen.getByText(
+          "organization.compliance.form.evidenceRequiredWarning"
+        )
+      ).toBeInTheDocument()
+    })
+
+    it("opens the re-attest modal and calls attestCompliance with a trimmed note", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockAttestCompliance.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      render(<CompliancePage />)
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.button",
+        })
+      )
+      const noteInput = screen.getByPlaceholderText(
+        "organization.compliance.attest.notePlaceholder"
+      )
+      await user.type(noteInput, "  Confirmed with legal  ")
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.confirmButton",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockAttestCompliance).toHaveBeenCalledWith({
+          id: "comp-1",
+          note: "Confirmed with legal",
+        })
+      )
+      expect(mockToastSuccess).toHaveBeenCalled()
+    })
+
+    it("sends undefined (not an empty string) for note when the re-attest modal is confirmed blank", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockAttestCompliance.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      render(<CompliancePage />)
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.button",
+        })
+      )
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.confirmButton",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockAttestCompliance).toHaveBeenCalledWith({
+          id: "comp-1",
+          note: undefined,
+        })
+      )
+    })
+
+    it("shows an error toast when attestCompliance fails", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockAttestCompliance.mockReturnValue({
+        unwrap: () =>
+          Promise.reject({ data: { message: "Obligation not found" } }),
+      })
+
+      render(<CompliancePage />)
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.button",
+        })
+      )
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.confirmButton",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith("Obligation not found")
+      )
+    })
+
+    it("opens the attestation history modal and renders entries from the query", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockUseGetComplianceAttestationsQuery.mockReturnValue({
+        data: {
+          data: [
+            {
+              id: "att-1",
+              org_account_id: "org-a",
+              obligation_id: "comp-1",
+              attested_by: "acct-9",
+              attested_at: "2026-06-01T10:00:00.000Z",
+              status_at_attestation: "compliant",
+              note: "Confirmed with legal counsel",
+              createdAt: "2026-06-01T10:00:00.000Z",
+            },
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.historyButton",
+        })
+      )
+
+      expect(
+        screen.getByText("Confirmed with legal counsel")
+      ).toBeInTheDocument()
+      // The query should be scoped to this specific obligation, not skipped.
+      expect(mockUseGetComplianceAttestationsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "comp-1" }),
+        expect.objectContaining({ skip: false })
+      )
+    })
+
+    it("shows the empty state in the history modal when there are no attestations", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.historyButton",
+        })
+      )
+
+      expect(
+        screen.getByText("organization.compliance.attest.historyEmpty")
+      ).toBeInTheDocument()
+    })
+
+    it("skips the attestations query until the history modal is opened", () => {
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      expect(mockUseGetComplianceAttestationsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "" }),
+        expect.objectContaining({ skip: true })
+      )
+    })
+
+    // Regression for a round-1 review finding: actionObligation/
+    // attestObligation/historyObligation used to be independent state, so
+    // opening one modal without dismissing another left the first one
+    // stacked underneath, invisible but still mounted.
+    it("closes the re-attest modal when the history modal is opened for a different row", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({ id: "comp-1", title: "GDPR Article 30 records" }),
+            makeObligation({ id: "comp-2", title: "SOX annual filing" }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      const rowA = screen.getByText("GDPR Article 30 records").closest("tr")!
+      await user.click(
+        within(rowA).getByRole("button", {
+          name: "organization.compliance.attest.button",
+        })
+      )
+      expect(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.confirmButton",
+        })
+      ).toBeInTheDocument()
+
+      const rowB = screen.getByText("SOX annual filing").closest("tr")!
+      await user.click(
+        within(rowB).getByRole("button", {
+          name: "organization.compliance.attest.historyButton",
+        })
+      )
+
+      // History modal (row B) is open...
+      expect(
+        screen.getByText("organization.compliance.attest.historyEmpty")
+      ).toBeInTheDocument()
+      // ...and the re-attest modal (row A) is gone, not just hidden behind it.
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.compliance.attest.confirmButton",
+        })
+      ).not.toBeInTheDocument()
+    })
   })
 })

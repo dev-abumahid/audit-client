@@ -5,25 +5,30 @@ import type {
   ComplianceScoreBand,
 } from "@/redux/apis/organization/compliance.api"
 import {
+  useAttestComplianceMutation,
   useCreateComplianceMutation,
   useDeleteComplianceMutation,
   useGetAllComplianceQuery,
+  useGetComplianceAttestationsQuery,
   useGetComplianceScorecardQuery,
   useUpdateComplianceMutation,
 } from "@/redux/apis/organization/compliance.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { COMPLIANCE_DOMAINS } from "@/utils/complianceConfig"
 import {
+  AlertTriangle,
   Ban,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
+  History,
   Loader2,
   MinusCircle,
   Paperclip,
   Pencil,
   Plus,
+  RotateCw,
   Save,
   Trash2,
   Upload,
@@ -57,6 +62,10 @@ const STATUS_BADGE: Record<string, string> = {
   not_applicable: "bg-muted text-muted-foreground",
 }
 
+// aexa-server#250 — declared re-attestation cadence. Empty string maps to
+// null (non-recurring) on submit, same convention as site_id's "" -> null.
+const RECURRENCE_KEYS = ["", "monthly", "quarterly", "annual"] as const
+
 // Red/orange/green banding from the scorecard endpoint (CDC 7.7 thresholds).
 const BAND_CLASSES: Record<ComplianceScoreBand, string> = {
   green: "bg-risk-low/10 text-risk-low border-risk-low/30",
@@ -80,6 +89,8 @@ const EMPTY_FORM = {
   owner: "",
   due_date: "",
   attachments: [] as string[],
+  regulation_reference: "",
+  recurrence: "" as string,
 }
 
 export default function CompliancePage() {
@@ -112,6 +123,8 @@ export default function CompliancePage() {
   const [updateCompliance, { isLoading: isUpdating }] =
     useUpdateComplianceMutation()
   const [deleteCompliance] = useDeleteComplianceMutation()
+  const [attestCompliance, { isLoading: isAttesting }] =
+    useAttestComplianceMutation()
 
   const obligations: ComplianceObligation[] = useMemo(
     () => complianceData?.data || [],
@@ -132,6 +145,23 @@ export default function CompliancePage() {
   // real complianceObligationId FK the backend (aexa-server#226) links on save.
   const [actionObligation, setActionObligation] =
     useState<ComplianceObligation | null>(null)
+
+  // aexa-server#250 -- the obligation currently open in the re-attest
+  // confirm dialog / attestation history modal, respectively. Non-null
+  // means that modal is open, same convention as actionObligation above.
+  const [attestObligation, setAttestObligation] =
+    useState<ComplianceObligation | null>(null)
+  const [attestNote, setAttestNote] = useState("")
+  const [historyObligation, setHistoryObligation] =
+    useState<ComplianceObligation | null>(null)
+  // Only fetched while the history modal is actually open for a given
+  // obligation (skip otherwise), same idle-until-opened convention as the
+  // reused CreateNewFindingModal below.
+  const { data: attestationsData, isLoading: isLoadingAttestations } =
+    useGetComplianceAttestationsQuery(
+      { id: historyObligation?.id ?? "", page: 1, limit: 20 },
+      { skip: !historyObligation }
+    )
 
   // Changing any filter resets to page 1 so the user never lands on an
   // out-of-range page for the newly-filtered result set.
@@ -191,6 +221,8 @@ export default function CompliancePage() {
       // date input wants yyyy-mm-dd; the API returns a full ISO timestamp.
       due_date: obl.due_date ? obl.due_date.slice(0, 10) : "",
       attachments: obl.attachments || [],
+      regulation_reference: obl.regulation_reference || "",
+      recurrence: obl.recurrence && obl.recurrence !== "one_time" ? obl.recurrence : "",
     })
     setShowForm(true)
   }
@@ -240,6 +272,8 @@ export default function CompliancePage() {
       owner: form.owner,
       due_date: form.due_date || null,
       attachments: form.attachments,
+      regulation_reference: form.regulation_reference || null,
+      recurrence: form.recurrence || null,
     }
 
     try {
@@ -289,6 +323,53 @@ export default function CompliancePage() {
       const message =
         (err as { data?: { message?: string } })?.data?.message ||
         t("organization.compliance.toast.deleteFailed")
+      toast.error(message)
+    }
+  }
+
+  // Found in review: actionObligation/attestObligation/historyObligation are
+  // three independent state variables, each backing its own always-mounted-
+  // when-set overlay -- opening one without clearing the other two let a
+  // user stack two modals (e.g. Re-attest on one row, then History on
+  // another without dismissing the first), leaving a stale dialog hidden
+  // underneath. Every opener below clears the other two first.
+  const openCreateAction = (obl: ComplianceObligation) => {
+    setAttestObligation(null)
+    setHistoryObligation(null)
+    setActionObligation(obl)
+  }
+
+  const openAttest = (obl: ComplianceObligation) => {
+    setActionObligation(null)
+    setHistoryObligation(null)
+    setAttestObligation(obl)
+    setAttestNote("")
+  }
+
+  const openHistory = (obl: ComplianceObligation) => {
+    setActionObligation(null)
+    setAttestObligation(null)
+    setHistoryObligation(obl)
+  }
+
+  const confirmAttest = async () => {
+    if (!attestObligation) return
+    try {
+      const res = await attestCompliance({
+        id: attestObligation.id,
+        note: attestNote.trim() || undefined,
+      }).unwrap()
+      if (res.success) {
+        toast.success(t("organization.compliance.toast.attestSuccess"))
+        setAttestObligation(null)
+        setAttestNote("")
+      } else {
+        toast.error(res.message || t("organization.compliance.toast.attestFailed"))
+      }
+    } catch (err) {
+      const message =
+        (err as { data?: { message?: string } })?.data?.message ||
+        t("organization.compliance.toast.attestFailed")
       toast.error(message)
     }
   }
@@ -521,11 +602,12 @@ export default function CompliancePage() {
           <tbody>
             {obligations.map((obl) => {
               const StatusIcon = STATUS_ICONS[obl.status] || Clock
-              const isOverdue =
-                obl.due_date &&
-                new Date(obl.due_date) < new Date() &&
-                obl.status !== "compliant" &&
-                obl.status !== "not_applicable"
+              // aexa-server#250 -- `overdue` is computed server-side from
+              // next_review_date (falling back to due_date when unset), so a
+              // recurring obligation reconfirmed on schedule stops reading as
+              // overdue even though its original due_date already passed.
+              // Prefer this over re-deriving overdue-ness from due_date alone.
+              const isOverdue = obl.overdue
 
               return (
                 <tr
@@ -542,6 +624,12 @@ export default function CompliancePage() {
                     <p className="hidden max-w-xs truncate text-[10px] text-muted-foreground sm:block">
                       {obl.description}
                     </p>
+                    {obl.regulation_reference && (
+                      <p className="hidden max-w-xs truncate text-[10px] text-muted-foreground/80 sm:block">
+                        {t("organization.compliance.col.regulationRefShort")}:{" "}
+                        {obl.regulation_reference}
+                      </p>
+                    )}
                   </td>
                   <td className="hidden px-3 py-3 text-xs text-muted-foreground sm:table-cell">
                     {domainLabel(obl.domain)}
@@ -562,6 +650,21 @@ export default function CompliancePage() {
                           })
                         : "—"}
                     </span>
+                    {isOverdue && (
+                      <span className="mt-0.5 flex items-center justify-center gap-1 text-[10px] font-medium text-risk-critical">
+                        <AlertTriangle className="h-2.5 w-2.5" />
+                        {t("organization.compliance.overdueLabel")}
+                      </span>
+                    )}
+                    {obl.recurrence && obl.next_review_date && (
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {t("organization.compliance.col.nextReviewShort")}:{" "}
+                        {new Date(obl.next_review_date).toLocaleDateString(
+                          "en-US",
+                          { day: "numeric", month: "short", year: "numeric" }
+                        )}
+                      </p>
+                    )}
                   </td>
                   <td className="px-3 py-3 text-center">
                     <span
@@ -592,7 +695,7 @@ export default function CompliancePage() {
                           is actually discoverable. */}
                       {obl.status === "non_compliant" && (
                         <button
-                          onClick={() => setActionObligation(obl)}
+                          onClick={() => openCreateAction(obl)}
                           className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/20"
                         >
                           <Plus className="h-3 w-3" />
@@ -605,6 +708,24 @@ export default function CompliancePage() {
                           className="rounded p-1 text-muted-foreground hover:bg-muted"
                         >
                           <Pencil className="h-3 w-3" />
+                        </button>
+                        {/* aexa-server#250: re-attest is legitimate for any
+                            obligation, recurring or not -- the history entry
+                            itself is a real audit-trail fact independent of
+                            whether there's a cadence to advance. */}
+                        <button
+                          onClick={() => openAttest(obl)}
+                          aria-label={t("organization.compliance.attest.button")}
+                          className="rounded p-1 text-muted-foreground hover:bg-muted"
+                        >
+                          <RotateCw className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => openHistory(obl)}
+                          aria-label={t("organization.compliance.attest.historyButton")}
+                          className="rounded p-1 text-muted-foreground hover:bg-muted"
+                        >
+                          <History className="h-3 w-3" />
                         </button>
                         <button
                           onClick={() => handleDelete(obl.id)}
@@ -766,6 +887,25 @@ export default function CompliancePage() {
                 />
               </div>
 
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("organization.compliance.form.regulationReference")}
+                </label>
+                <input
+                  value={form.regulation_reference}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      regulation_reference: e.target.value,
+                    }))
+                  }
+                  placeholder={t(
+                    "organization.compliance.form.regulationReferencePlaceholder"
+                  )}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+              </div>
+
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">
@@ -811,6 +951,56 @@ export default function CompliancePage() {
                   />
                 </div>
               </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("organization.compliance.form.recurrence")}
+                </label>
+                <select
+                  value={form.recurrence}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, recurrence: e.target.value }))
+                  }
+                  className="h-9 w-full max-w-50 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  {RECURRENCE_KEYS.map((key) => (
+                    <option key={key} value={key}>
+                      {key
+                        ? t(`organization.compliance.recurrence.${key}`)
+                        : t("organization.compliance.recurrence.oneTime")}
+                    </option>
+                  ))}
+                </select>
+                {/* next_review_date is derived server-side, never editable
+                    here -- see the ComplianceObligation type's own comment. */}
+                {editingId &&
+                  obligations.find((o) => o.id === editingId)
+                    ?.next_review_date && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t("organization.compliance.form.nextReview")}:{" "}
+                      {new Date(
+                        obligations.find((o) => o.id === editingId)!
+                          .next_review_date!
+                      ).toLocaleDateString("en-US", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
+                  )}
+              </div>
+
+              {/* aexa-server#243: status "compliant" is server-side hard-gated
+                  on at least one attachment. Client-side warning only -- the
+                  actual enforcement (and the source of truth for whether this
+                  would actually be rejected) is assertCompliantHasEvidence on
+                  the backend. */}
+              {form.status === "compliant" && form.attachments.length === 0 && (
+                <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {t("organization.compliance.form.evidenceRequiredWarning")}
+                </div>
+              )}
 
               {/* Evidence attachments */}
               <div>
@@ -908,6 +1098,138 @@ export default function CompliancePage() {
             complianceObligationId: actionObligation.id,
           }}
         />
+      )}
+
+      {/* Re-attest confirm modal (aexa-server#250). Legal for any obligation,
+          recurring or not -- see the row action's own comment. */}
+      {attestObligation && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setAttestObligation(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="mb-1 text-lg font-bold text-foreground">
+              {t("organization.compliance.attest.modalTitle")}
+            </h2>
+            <p className="mb-3 text-sm text-muted-foreground">
+              {t("organization.compliance.attest.modalSubtitle", {
+                title: attestObligation.title,
+              })}
+            </p>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              {t("organization.compliance.attest.noteLabel")}
+            </label>
+            <textarea
+              value={attestNote}
+              onChange={(e) => setAttestNote(e.target.value)}
+              rows={3}
+              placeholder={t("organization.compliance.attest.notePlaceholder")}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setAttestObligation(null)}
+                className="rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+              >
+                {t("organization.compliance.form.cancel")}
+              </button>
+              <button
+                onClick={confirmAttest}
+                disabled={isAttesting}
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              >
+                {isAttesting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RotateCw className="h-4 w-4" />
+                )}
+                {t("organization.compliance.attest.confirmButton")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attestation history modal (aexa-server#250). attested_by is shown
+          as-is (a raw accountId) -- OrgMember's own shape only exposes
+          account.email/profile, not the underlying accountId to resolve a
+          display name against, so name resolution isn't possible with the
+          endpoints this frontend currently has. */}
+      {historyObligation && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setHistoryObligation(null)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-foreground">
+                {t("organization.compliance.attest.historyModalTitle", {
+                  title: historyObligation.title,
+                })}
+              </h2>
+              <button
+                onClick={() => setHistoryObligation(null)}
+                className="rounded p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {isLoadingAttestations && (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+
+            {!isLoadingAttestations &&
+              (attestationsData?.data?.length ?? 0) === 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  {t("organization.compliance.attest.historyEmpty")}
+                </p>
+              )}
+
+            <div className="space-y-2">
+              {attestationsData?.data?.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        STATUS_BADGE[entry.status_at_attestation] ||
+                        "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {statusLabel(entry.status_at_attestation)}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {new Date(entry.attested_at).toLocaleDateString(
+                        "en-US",
+                        {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
+                      )}
+                    </span>
+                  </div>
+                  {entry.note && (
+                    <p className="mt-1 text-muted-foreground">{entry.note}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

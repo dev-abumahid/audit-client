@@ -28,6 +28,44 @@ export interface ComplianceObligation {
   updatedAt: string
   // Issue #97. Always set — DB default is SECOND for pre-existing rows.
   line_of_defense: LineOfDefense
+  // aexa-server#243 — which specific law/regulation/clause this obligation
+  // derives from. Free text (see the backend's own schema comment).
+  regulation_reference: string | null
+  // aexa-server#250 — declared re-attestation cadence: "monthly" |
+  // "quarterly" | "annual", or null/"one_time" for non-recurring.
+  recurrence: string | null
+  // aexa-server#250 — derived, never client-settable (stripped from
+  // create/update payloads server-side even if sent). Seeded from due_date
+  // at creation when a recurrence is set, then recomputed from
+  // attested_at + the cadence's interval on every new attestation.
+  next_review_date: string | null
+  // aexa-server#250 — computed on every read from next_review_date
+  // (falling back to due_date when unset), NOT a stored column. Prefer
+  // this over re-deriving overdue-ness client-side (see with_overdue on
+  // the backend) since it already accounts for next_review_date.
+  overdue: boolean
+}
+
+// aexa-server#250 — a permanent, append-only re-attestation record. Never
+// updated/deleted once written; note is optional.
+export interface ComplianceAttestation {
+  id: string
+  org_account_id: string
+  obligation_id: string
+  // accountId of whoever attested — plain string, not resolvable to a
+  // display name through any endpoint this frontend currently has access
+  // to (OrgMember's own shape only exposes account.email/profile, not the
+  // underlying accountId to join against). Shown as-is for now.
+  attested_by: string
+  attested_at: string
+  // A snapshot of ComplianceObligation.status at the moment this row was
+  // written (backend: `status_at_attestation: current.status`, same
+  // transaction) -- always the exact same value vocabulary as `status`
+  // above, not a separate status enum, so reusing STATUS_BADGE/statusLabel
+  // in the attestation-history UI is safe rather than a coincidental match.
+  status_at_attestation: string
+  note: string | null
+  createdAt: string
 }
 
 // Computed scorecard returned by GET /compliance/scorecard. A cell's `band`
@@ -140,6 +178,31 @@ const complianceApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["COMPLIANCE"],
     }),
+    // aexa-server#250. Response carries both the new attestation row and the
+    // updated obligation (with its recomputed next_review_date/overdue), so
+    // invalidating COMPLIANCE to refetch the list is enough -- no need to
+    // hand-patch the cache from this mutation's own response.
+    attestCompliance: builder.mutation<
+      ApiResponse<{ attestation: ComplianceAttestation; obligation: ComplianceObligation }>,
+      { id: string; note?: string }
+    >({
+      query: ({ id, note }) => ({
+        url: `/compliance/${id}/attest`,
+        method: "POST",
+        body: note ? { note } : undefined,
+      }),
+      invalidatesTags: ["COMPLIANCE"],
+    }),
+    getComplianceAttestations: builder.query<
+      PaginatedApiResponse<ComplianceAttestation>,
+      { id: string; page: number; limit: number }
+    >({
+      query: ({ id, page, limit }) => ({
+        url: `/compliance/${id}/attestations?${buildQueryString({ page, limit })}`,
+        method: "GET",
+      }),
+      providesTags: ["COMPLIANCE"],
+    }),
   }),
 })
 
@@ -150,4 +213,6 @@ export const {
   useCreateComplianceMutation,
   useUpdateComplianceMutation,
   useDeleteComplianceMutation,
+  useAttestComplianceMutation,
+  useGetComplianceAttestationsQuery,
 } = complianceApi
