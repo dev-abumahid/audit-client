@@ -31,6 +31,8 @@ import OrganizationLayout from "@/layouts/OrganizationLayout"
 import RootLayout from "@/layouts/RootLayout"
 import ErrorPage from "@/pages/error/ErrorPage"
 import ResetPasswordPage from "@/pages/auth/ResetPasswordPage"
+import ExternalLoginPage from "@/pages/external/ExternalLoginPage"
+import ExternalPortalPage from "@/pages/external/ExternalPortalPage"
 import Home from "@/pages/home/Home"
 import InspectionActions from "@/pages/inspection/InspectionActions"
 import InspectionNote from "@/pages/inspection/InspectionNote"
@@ -39,6 +41,7 @@ import RunInspection from "@/pages/inspection/RunInspection"
 import PrivacyPolicy from "@/pages/policy/PrivacyPolicy"
 import TermsAndConditions from "@/pages/policy/Terms"
 import { createBrowserRouter } from "react-router"
+import ExternalProtectedRoute from "./ExternalProtectedRoute"
 import ProtectedRoute from "./ProtectedRoute"
 
 export const mainRoute = createBrowserRouter([
@@ -51,7 +54,24 @@ export const mainRoute = createBrowserRouter([
       { path: "terms", element: <TermsAndConditions /> },
       { path: "privacy", element: <PrivacyPolicy /> },
       { path: "reset-password", element: <ResetPasswordPage /> },
+      {
+        path: "external-login/:organizationId",
+        element: <ExternalLoginPage />,
+      },
     ],
+  },
+  // External Light-User Routes (aexa-frontend#216). Deliberately its own
+  // top-level tree, not nested under /organization -- ExternalProtectedRoute
+  // checks a wholly separate session (externalUser slice), not the internal
+  // `user` slice ProtectedRoute reads.
+  {
+    path: "/external",
+    element: (
+      <ExternalProtectedRoute>
+        <ExternalPortalPage />
+      </ExternalProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
   },
   // Organization Routes
   {

@@ -185,6 +185,36 @@
       "verifiedSubTitle": "Your account is ready. You can now sign in."
     }
   },
+  "externalAuth": {
+    "login": {
+      "title": "External Reviewer Sign In",
+      "subTitle": "Enter your email to receive a one-time sign-in code",
+      "invalidLink": "This sign-in link is invalid or incomplete.",
+      "btnGoHome": "Go to homepage",
+      "emailLabel": "Email address",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Enter a valid email address",
+      "sending": "Sending...",
+      "btnSendCode": "Send code",
+      "codeSentToast": "If that email is registered, a code has been sent",
+      "requestFailed": "Something went wrong. Please try again in a moment.",
+      "codeSubTitle": "Enter the 6-digit code sent to",
+      "codeLabel": "Verification code",
+      "codeRequired": "Verification code is required",
+      "codeLength": "Enter the 6-digit code",
+      "verifying": "Verifying...",
+      "btnVerify": "Verify",
+      "verifyFailed": "Invalid code, or your access is not active.",
+      "noCodeText": "Didn't get a code?",
+      "btnResend": "Resend code",
+      "resending": "Resending..."
+    },
+    "portal": {
+      "greeting": "Welcome, {{name}}",
+      "placeholder": "Your assigned findings will appear here soon.",
+      "signOut": "Sign out"
+    }
+  },
   "dashboard": {
     "criticalAlertsBanner": "critical alert",
     "criticalAlertsBannerPlural": "critical alerts"
@@ -1364,6 +1394,36 @@
       "roleViewer": "Viewer",
       "cancel": "Cancel",
       "sendInvitation": "Send Invitation"
+    },
+    "externalMembers": {
+      "heading": "External Reviewers",
+      "subheading": "Light-access reviewers outside your organization, scoped to the findings assigned to them",
+      "inviteButton": "Invite Reviewer",
+      "loadFailed": "Failed to load external reviewers. Please try again later.",
+      "colName": "Name",
+      "colEmail": "Email",
+      "colStatus": "Status",
+      "colActions": "Actions",
+      "statusActive": "Active",
+      "statusInactive": "Inactive",
+      "statusExpired": "Expired",
+      "copyLink": "Copy sign-in link",
+      "copied": "Copied",
+      "linkCopied": "Sign-in link copied to clipboard",
+      "copyFailed": "Failed to copy link",
+      "noMembers": "No external reviewers yet.",
+      "invitationAdded": "{{email}} can now sign in — copy their link below and share it with them",
+      "inviteFailed": "Failed to invite external reviewer",
+      "inviteTitle": "Invite an External Reviewer",
+      "close": "Close",
+      "emailLabel": "Email Address *",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Enter a valid email address",
+      "emailPlaceholder": "reviewer@partnerfirm.com",
+      "nameLabel": "Name (optional)",
+      "namePlaceholder": "Jane Reviewer",
+      "cancel": "Cancel",
+      "sendInvite": "Add Reviewer"
     },
     "recommendation": {
       "savingSummary": "Saving summary...",

@@ -20,6 +20,7 @@ import {
 } from "@/redux/apis/organization/org.user.api"
 import type { InviteMemberPayload } from "@/redux/apis/organization/org.user.api"
 import type { OrgMember, PendingInvitation } from "@/types/organizationMember"
+import ExternalMembersSection from "./ExternalMembersSection"
 
 type InviteFormValues = InviteMemberPayload
 
@@ -353,6 +354,10 @@ export default function TeamMembersTab() {
           </table>
         </div>
       )}
+
+      <div className="border-t border-border pt-6">
+        <ExternalMembersSection />
+      </div>
 
       {showInviteForm && (
         <div

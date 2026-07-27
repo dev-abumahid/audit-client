@@ -185,6 +185,36 @@
       "verifiedSubTitle": "Votre compte est prêt. Vous pouvez maintenant vous connecter."
     }
   },
+  "externalAuth": {
+    "login": {
+      "title": "Connexion réviseur externe",
+      "subTitle": "Entrez votre e-mail pour recevoir un code de connexion à usage unique",
+      "invalidLink": "Ce lien de connexion est invalide ou incomplet.",
+      "btnGoHome": "Retour à l'accueil",
+      "emailLabel": "Adresse e-mail",
+      "emailRequired": "L'e-mail est requis",
+      "emailInvalid": "Entrez une adresse e-mail valide",
+      "sending": "Envoi...",
+      "btnSendCode": "Envoyer le code",
+      "codeSentToast": "Si cet e-mail est enregistré, un code a été envoyé",
+      "requestFailed": "Une erreur s'est produite. Veuillez réessayer dans un instant.",
+      "codeSubTitle": "Entrez le code à 6 chiffres envoyé à",
+      "codeLabel": "Code de vérification",
+      "codeRequired": "Le code de vérification est requis",
+      "codeLength": "Entrez le code à 6 chiffres",
+      "verifying": "Vérification...",
+      "btnVerify": "Vérifier",
+      "verifyFailed": "Code invalide, ou votre accès n'est pas actif.",
+      "noCodeText": "Vous n'avez pas reçu de code ?",
+      "btnResend": "Renvoyer le code",
+      "resending": "Renvoi..."
+    },
+    "portal": {
+      "greeting": "Bienvenue, {{name}}",
+      "placeholder": "Vos constats assignés apparaîtront ici bientôt.",
+      "signOut": "Se déconnecter"
+    }
+  },
   "dashboard": {
     "criticalAlertsBanner": "alerte critique",
     "criticalAlertsBannerPlural": "alertes critiques"
@@ -1364,6 +1394,36 @@
       "roleViewer": "Observateur",
       "cancel": "Annuler",
       "sendInvitation": "Envoyer l'invitation"
+    },
+    "externalMembers": {
+      "heading": "Réviseurs externes",
+      "subheading": "Réviseurs à accès limité en dehors de votre organisation, restreints aux constats qui leur sont assignés",
+      "inviteButton": "Inviter un réviseur",
+      "loadFailed": "Échec du chargement des réviseurs externes. Veuillez réessayer plus tard.",
+      "colName": "Nom",
+      "colEmail": "E-mail",
+      "colStatus": "Statut",
+      "colActions": "Actions",
+      "statusActive": "Actif",
+      "statusInactive": "Inactif",
+      "statusExpired": "Expiré",
+      "copyLink": "Copier le lien de connexion",
+      "copied": "Copié",
+      "linkCopied": "Lien de connexion copié dans le presse-papiers",
+      "copyFailed": "Échec de la copie du lien",
+      "noMembers": "Aucun réviseur externe pour le moment.",
+      "invitationAdded": "{{email}} peut désormais se connecter — copiez son lien ci-dessous et partagez-le",
+      "inviteFailed": "Échec de l'invitation du réviseur externe",
+      "inviteTitle": "Inviter un réviseur externe",
+      "close": "Fermer",
+      "emailLabel": "Adresse e-mail *",
+      "emailRequired": "L'e-mail est requis",
+      "emailInvalid": "Saisissez une adresse e-mail valide",
+      "emailPlaceholder": "reviewer@partnerfirm.com",
+      "nameLabel": "Nom (facultatif)",
+      "namePlaceholder": "Jane Reviewer",
+      "cancel": "Annuler",
+      "sendInvite": "Ajouter le réviseur"
     },
     "recommendation": {
       "savingSummary": "Enregistrement du résumé...",

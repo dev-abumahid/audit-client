@@ -55,3 +55,26 @@ export interface InviteResult {
   status: OrgInvitationStatus
   expiresAt: string
 }
+
+// aexa-server#55 slice 5 / aexa-frontend#216 -- ExternalOrgMember, a
+// non-Account identity scoped to one org, restricted to LIGHT_USER only
+// (external VIEWER is schema-modeled but rejected server-side, see the
+// invite endpoint's own comment). `organizationId` here is the real
+// Organization.id (NOT the anchor Account.id CallerOrgContext.organizationId
+// usually means) -- it's the exact value the /external-login/:organizationId
+// route embeds, confirmed against external-auth.validation.ts's own comment.
+// No invite email/token/link is ever generated server-side; an admin shares
+// that route manually. GET /organization/external-members returns a plain
+// array, same no-pagination convention as OrgMember above.
+export interface ExternalOrgMember {
+  id: string
+  organizationId: string
+  email: string
+  fullName: string | null
+  role: "LIGHT_USER"
+  isActive: boolean
+  expiresAt: string | null
+  createdAt: string
+  updatedAt: string
+  isExpired: boolean
+}

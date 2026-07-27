@@ -28,6 +28,15 @@ vi.mock("@/redux/apis/organization/org.user.api", () => ({
   ],
 }))
 
+// aexa-frontend#216 -- has its own dedicated RTK Query hooks and test file
+// (ExternalMembersSection.test.tsx); mocked as a black box here so this
+// suite's existing assertions about the internal-member table aren't
+// coupled to it, same pattern FindingDetails.test.tsx uses for
+// CreateNewFindingModal.
+vi.mock("./ExternalMembersSection", () => ({
+  default: () => <div data-testid="external-members-section" />,
+}))
+
 function member(overrides = {}) {
   return {
     id: "member-1",

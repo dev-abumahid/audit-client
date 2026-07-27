@@ -1,5 +1,6 @@
 import { configureStore } from "@reduxjs/toolkit"
 import { baseApi, baseQueryWithLogout } from "./baseApi"
+import { externalUserReducer, removeExternalUser } from "./slices/externalUser.slice"
 import { removeUser, userReducer } from "./slices/user.slice"
 
 const mockFetch = vi.fn()
@@ -24,6 +25,7 @@ function setupStore() {
     reducer: {
       [baseApi.reducerPath]: baseApi.reducer,
       user: userReducer,
+      externalUser: externalUserReducer,
     },
     middleware: (getDefaultMiddlewares) =>
       getDefaultMiddlewares().concat(baseApi.middleware),
@@ -73,6 +75,11 @@ describe("baseQueryWithLogout", () => {
 
     expect(result.error).toMatchObject({ status: 401 })
     expect(dispatchSpy).toHaveBeenCalledWith(removeUser())
+    // aexa-frontend#216 -- found in review: a global 401 must also clear the
+    // external session, otherwise a stale externalUser (with PII) lingers in
+    // persisted localStorage indefinitely once any /external/* endpoint
+    // starts returning real 401s.
+    expect(dispatchSpy).toHaveBeenCalledWith(removeExternalUser())
     expect(dispatchSpy).toHaveBeenCalledWith(baseApi.util.resetApiState())
     expect(window.location.href).toBe("/")
 
@@ -129,6 +136,34 @@ describe("baseQueryWithLogout", () => {
         getState: store.getState,
         extra: undefined,
         endpoint: "signInUser",
+        type: "mutation",
+      } as never,
+      {}
+    )
+
+    expect(result.error).toMatchObject({ status: 401 })
+    expect(dispatchSpy).not.toHaveBeenCalledWith(removeUser())
+    expect(dispatchSpy).not.toHaveBeenCalledWith(baseApi.util.resetApiState())
+    expect(window.location.href).toBe("")
+  })
+
+  // aexa-frontend#216
+  it("does not dispatch removeUser, reset the cache, or redirect on a 401 from an external-auth endpoint", async () => {
+    mockFetch.mockResolvedValue(
+      makeResponse({ message: "Invalid code, or your access is not active." }, 401)
+    )
+
+    const store = setupStore()
+    const dispatchSpy = vi.spyOn(store, "dispatch")
+
+    const result = await baseQueryWithLogout(
+      { url: "/external-auth/verify-code", method: "POST", body: {} },
+      {
+        signal: new AbortController().signal,
+        dispatch: store.dispatch,
+        getState: store.getState,
+        extra: undefined,
+        endpoint: "verifyExternalCode",
         type: "mutation",
       } as never,
       {}

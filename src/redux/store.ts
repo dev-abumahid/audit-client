@@ -11,6 +11,7 @@ import {
 } from "redux-persist"
 import storage from "redux-persist/lib/storage"
 import { baseApi } from "./baseApi"
+import { externalUserReducer } from "./slices/externalUser.slice"
 import { userReducer } from "./slices/user.slice"
 
 // persist config
@@ -19,12 +20,25 @@ const persistConfig = {
   storage,
 }
 
+// aexa-frontend#216 -- separate persisted key from "user" above, since an
+// external Light User's session is entirely independent of an internal
+// account's (see externalUser.slice.ts's own comment).
+const externalUserPersistConfig = {
+  key: "externalUser",
+  storage,
+}
+
 const userPersistReducer = persistReducer(persistConfig, userReducer)
+const externalUserPersistReducer = persistReducer(
+  externalUserPersistConfig,
+  externalUserReducer
+)
 
 export const store = configureStore({
   reducer: {
     [baseApi.reducerPath]: baseApi.reducer,
     user: userPersistReducer,
+    externalUser: externalUserPersistReducer,
   },
   middleware: (getDefaultMiddlewares) =>
     getDefaultMiddlewares({
