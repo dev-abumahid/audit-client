@@ -493,6 +493,65 @@ export default function FindingDetails() {
                       </div>
                     </div>
 
+                    {/* Five Cs (aexa-server#244) — optional formal finding
+                        details; only rendered when at least one is set, so a
+                        plain remediation task's Details tab stays unchanged. */}
+                    {(action.criteria ||
+                      action.condition ||
+                      action.cause ||
+                      action.effect) && (
+                      <>
+                        <hr className="border-border" />
+                        <div>
+                          <p className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            {t("organization.findings.fiveCsSectionTitle")}
+                          </p>
+                          <div className="space-y-3 text-sm">
+                            {action.criteria && (
+                              <div>
+                                <p className="font-medium text-foreground">
+                                  {t("organization.findings.criteriaLabel")}
+                                </p>
+                                <p className="whitespace-pre-wrap text-muted-foreground">
+                                  {action.criteria}
+                                </p>
+                              </div>
+                            )}
+                            {action.condition && (
+                              <div>
+                                <p className="font-medium text-foreground">
+                                  {t("organization.findings.conditionLabel")}
+                                </p>
+                                <p className="whitespace-pre-wrap text-muted-foreground">
+                                  {action.condition}
+                                </p>
+                              </div>
+                            )}
+                            {action.cause && (
+                              <div>
+                                <p className="font-medium text-foreground">
+                                  {t("organization.findings.causeLabel")}
+                                </p>
+                                <p className="whitespace-pre-wrap text-muted-foreground">
+                                  {action.cause}
+                                </p>
+                              </div>
+                            )}
+                            {action.effect && (
+                              <div>
+                                <p className="font-medium text-foreground">
+                                  {t("organization.findings.effectLabel")}
+                                </p>
+                                <p className="whitespace-pre-wrap text-muted-foreground">
+                                  {action.effect}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
                     <hr className="border-border" />
 
                     <div>

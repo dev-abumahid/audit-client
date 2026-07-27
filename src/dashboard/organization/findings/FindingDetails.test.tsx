@@ -127,6 +127,43 @@ describe("FindingDetails", () => {
     expect(screen.getByText(payload)).toBeInTheDocument()
   })
 
+  // aexa-server#244 / aexa-frontend#213
+  it("does not render the Five Cs section when none of criteria/condition/cause/effect are set", async () => {
+    renderPage()
+
+    await screen.findByText("Fix broken railing")
+    expect(
+      screen.queryByText("organization.findings.fiveCsSectionTitle")
+    ).not.toBeInTheDocument()
+  })
+
+  it("renders only the Five Cs fields that are actually set", async () => {
+    mockUseGetFindingByIdQuery.mockReturnValue({
+      data: {
+        data: makeAction({
+          criteria: "OSHA walking-working surfaces standard",
+          condition: null,
+          cause: null,
+          effect: "Increased fall risk",
+        }),
+      },
+      isLoading: false,
+    })
+    renderPage()
+
+    await screen.findByText("organization.findings.fiveCsSectionTitle")
+    expect(
+      screen.getByText("OSHA walking-working surfaces standard")
+    ).toBeInTheDocument()
+    expect(screen.getByText("Increased fall risk")).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.findings.conditionLabel")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.findings.causeLabel")
+    ).not.toBeInTheDocument()
+  })
+
   it("Delete button opens the confirm modal", async () => {
     renderPage()
 

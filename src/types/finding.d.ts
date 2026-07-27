@@ -24,6 +24,17 @@ export interface IAction {
   dueDate: string
   status: "TO_DO" | "IN_PROGRESS" | "COMPLETE" | "CANT_DO"
 
+  // aexa-server#244: IIA's "Five Cs" for a defensible finding record
+  // (Criteria, Condition, Cause, Consequence/Effect — actionTitle/
+  // actionDisc/priority/dueDate above already serve as the fifth C,
+  // Corrective Action). All optional/nullable at the DB level: plenty of
+  // legitimate findings are still plain remediation tasks, not formal
+  // audit findings, so nothing is forced to classify.
+  criteria?: string | null
+  condition?: string | null
+  cause?: string | null
+  effect?: string | null
+
   // Relations
   site?: Site | null
   messages: IActionMessage[]

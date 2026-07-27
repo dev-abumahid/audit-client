@@ -406,6 +406,108 @@ describe("CreateNewFindingModal", () => {
     expect(payload.assignBy).toEqual(["member-1"])
   })
 
+  // aexa-server#244 / aexa-frontend#213: IIA's "Five Cs" fields on a finding.
+  it("does not send criteria/condition/cause/effect when the Five Cs section is left untouched (create)", async () => {
+    mockCreateNewFinding.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
+      "Plain remediation task"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
+    )
+
+    await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
+    const payload = mockCreateNewFinding.mock.calls[0][0]
+    expect(payload.criteria).toBeUndefined()
+    expect(payload.condition).toBeUndefined()
+    expect(payload.cause).toBeUndefined()
+    expect(payload.effect).toBeUndefined()
+  })
+
+  it("sends trimmed criteria/condition/cause/effect when the Five Cs section is filled in (create)", async () => {
+    mockCreateNewFinding.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    await userEvent.click(
+      screen.getByText("organization.findings.fiveCsSectionTitle")
+    )
+
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
+      "Formal audit finding"
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.findings.criteriaPlaceholder"),
+      "  OSHA walking-working surfaces standard  "
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.findings.conditionPlaceholder"),
+      "Railing found damaged"
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.findings.causePlaceholder"),
+      "Struck by a forklift"
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.findings.effectPlaceholder"),
+      "Increased fall risk"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
+    )
+
+    await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
+    const payload = mockCreateNewFinding.mock.calls[0][0]
+    expect(payload.criteria).toBe("OSHA walking-working surfaces standard")
+    expect(payload.condition).toBe("Railing found damaged")
+    expect(payload.cause).toBe("Struck by a forklift")
+    expect(payload.effect).toBe("Increased fall risk")
+  })
+
+  it("auto-expands the Five Cs section and pre-fills it when editing a finding that already has one of the fields set", async () => {
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={
+          makeEditData({
+            criteria: "ISO 37301 clause 4.6",
+            condition: null,
+            cause: null,
+            effect: null,
+          }) as any
+        }
+      />
+    )
+
+    expect(
+      screen.getByDisplayValue("ISO 37301 clause 4.6")
+    ).toBeInTheDocument()
+  })
+
+  it("keeps the Five Cs section collapsed by default when editing a finding with none of the fields set", () => {
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={makeEditData() as any}
+      />
+    )
+
+    expect(
+      screen.queryByPlaceholderText("organization.findings.criteriaPlaceholder")
+    ).not.toBeInTheDocument()
+  })
+
   it("fetches the single action detail (GET /action/:id) when opened for edit, and skips it when creating", async () => {
     render(
       <CreateNewFindingModal

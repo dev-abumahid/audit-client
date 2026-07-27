@@ -38,6 +38,11 @@ interface FindingRequestBody {
   // through a request body.
   messages?: { message: string }[]
   attachments?: string[]
+  // aexa-server#244 — IIA's Five Cs. All optional, same as actionDisc.
+  criteria?: string
+  condition?: string
+  cause?: string
+  effect?: string
   // Issue #97 — Three Lines of Defense reassignment. update_action_into_db
   // gates this specifically to ADMIN/LEAD_AUDITOR (403 otherwise); the
   // frontend hides the control for other roles rather than duplicating that

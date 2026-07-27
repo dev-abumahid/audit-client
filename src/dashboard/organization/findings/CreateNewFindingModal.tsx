@@ -128,6 +128,12 @@ export default function CreateNewFindingModal({
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Five Cs (aexa-server#244) are optional and mostly relevant to formal
+  // audit findings, not plain remediation tasks — collapsed by default so
+  // the common case stays uncluttered, expanded automatically when editing
+  // a finding that already has one of these set.
+  const [showFiveCs, setShowFiveCs] = useState(false)
+
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files as FileList
     if (!files || files.length === 0) return
@@ -170,6 +176,10 @@ export default function CreateNewFindingModal({
       inspectionId: additionalData?.inspectionId || "",
       questionId: additionalData?.questionId || "",
       messages: [],
+      criteria: "",
+      condition: "",
+      cause: "",
+      effect: "",
     },
   })
 
@@ -187,6 +197,14 @@ export default function CreateNewFindingModal({
       // a brief empty state beats a flash of blank/undefined message text.
       setMessages([])
       setMediaFiles(editData.attachments ?? [])
+      setShowFiveCs(
+        !!(
+          editData.criteria ||
+          editData.condition ||
+          editData.cause ||
+          editData.effect
+        )
+      )
       reset({
         actionTitle: editData.actionTitle,
         actionDisc: editData.actionDisc ?? "",
@@ -197,11 +215,16 @@ export default function CreateNewFindingModal({
         questionId: editData.questionId ?? "",
         messages: [],
         assignBy: (editData.assignBy ?? []).map((a) => a.id),
+        criteria: editData.criteria ?? "",
+        condition: editData.condition ?? "",
+        cause: editData.cause ?? "",
+        effect: editData.effect ?? "",
       })
     } else {
       setSelectedInspectionId(additionalData?.inspectionId ?? "")
       setMessages([])
       setMediaFiles([])
+      setShowFiveCs(false)
       reset({
         actionTitle: additionalData?.actionTitle || "",
         actionDisc: additionalData?.actionDisc || "",
@@ -212,6 +235,10 @@ export default function CreateNewFindingModal({
         inspectionId: additionalData?.inspectionId ?? "",
         messages: [],
         questionId: additionalData?.questionId ?? "",
+        criteria: "",
+        condition: "",
+        cause: "",
+        effect: "",
       })
     }
   }, [open, editData, reset])
@@ -281,6 +308,20 @@ export default function CreateNewFindingModal({
         // on aexa-server) — sending `mediaFiles` here used to be silently
         // dropped by the backend, which only reads body.attachments.
         attachments: mediaFiles,
+        // Five Cs (aexa-server#244) — optional, omitted rather than sent as
+        // an empty string so an untouched field doesn't overwrite an
+        // existing value with "" on edit. Same tradeoff as actionDisc just
+        // above: clearing a field back to blank via this form is a no-op
+        // (the empty value never round-trips), not just leaving it
+        // untouched — a pre-existing limitation, not new to these four
+        // fields. Left as-is rather than diverging actionDisc/Five-Cs
+        // clear-semantics from each other; fixing it for real needs a
+        // deliberate explicit-null-vs-omitted design across both, out of
+        // scope here (found during review, aexa-frontend#213).
+        criteria: values.criteria?.trim() || undefined,
+        condition: values.condition?.trim() || undefined,
+        cause: values.cause?.trim() || undefined,
+        effect: values.effect?.trim() || undefined,
       }
 
       if (isEdit) {
@@ -618,6 +659,74 @@ export default function CreateNewFindingModal({
                 )}
               />
             </div>
+          </div>
+
+          {/* ── Five Cs (formal finding details, optional) ── */}
+          <div className="rounded-lg border border-border bg-card">
+            <button
+              type="button"
+              onClick={() => setShowFiveCs((p) => !p)}
+              className="flex w-full items-center justify-between px-5 py-3 text-left"
+            >
+              <h3 className="text-base font-semibold text-card-foreground">
+                {t("organization.findings.fiveCsSectionTitle")}
+              </h3>
+              <ChevronDown
+                size={16}
+                className={`text-muted-foreground transition-transform ${
+                  showFiveCs ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {showFiveCs && (
+              <div className="space-y-4 border-t border-border p-5">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    {t("organization.findings.criteriaLabel")}
+                  </label>
+                  <TextareaAutosize
+                    {...register("criteria")}
+                    placeholder={t("organization.findings.criteriaPlaceholder")}
+                    rows={1}
+                    className="w-full resize-none rounded-lg border border-input bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    {t("organization.findings.conditionLabel")}
+                  </label>
+                  <TextareaAutosize
+                    {...register("condition")}
+                    placeholder={t("organization.findings.conditionPlaceholder")}
+                    rows={1}
+                    className="w-full resize-none rounded-lg border border-input bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    {t("organization.findings.causeLabel")}
+                  </label>
+                  <TextareaAutosize
+                    {...register("cause")}
+                    placeholder={t("organization.findings.causePlaceholder")}
+                    rows={1}
+                    className="w-full resize-none rounded-lg border border-input bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    {t("organization.findings.effectLabel")}
+                  </label>
+                  <TextareaAutosize
+                    {...register("effect")}
+                    placeholder={t("organization.findings.effectPlaceholder")}
+                    rows={1}
+                    className="w-full resize-none rounded-lg border border-input bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── Updates / Messages section ── */}
