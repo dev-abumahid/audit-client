@@ -1,9 +1,10 @@
-// aexa-frontend#271 -- integration check that the real route table (not just
-// the WriteGuardRoute component in isolation, see WriteGuardRoute.test.tsx)
-// actually wires the guard onto all 5 named routes, and leaves every other
-// /organization route reachable exactly as before. Every page component is
-// stubbed to a trivial div so this test only exercises the router/guard
-// wiring, not each page's own data-fetching internals.
+// aexa-frontend#271 / #278 -- integration check that the real route table
+// (not just the WriteGuardRoute component in isolation, see
+// WriteGuardRoute.test.tsx) actually wires the guard onto all 8 named routes,
+// and leaves every other /organization route reachable exactly as before.
+// Every page component is stubbed to a trivial div so this test only
+// exercises the router/guard wiring, not each page's own data-fetching
+// internals.
 import { render, screen } from "@testing-library/react"
 import { Outlet, RouterProvider, createMemoryRouter } from "react-router"
 
@@ -148,6 +149,23 @@ const GUARDED_ROUTES: Array<[path: string, formLabel: string, listLabel: string]
     "InspectionTable",
   ],
   ["/organization/audit/inspections/i1", "RunInspection", "InspectionTable"],
+  // aexa-frontend#278 -- these three were missed when #271 wired the guard
+  // onto their sibling routes above.
+  [
+    "/organization/audit/inspections/i1/note",
+    "InspectionNote",
+    "InspectionTable",
+  ],
+  [
+    "/organization/audit/inspections/i1/recommendations",
+    "InspectionRecommendations",
+    "InspectionTable",
+  ],
+  [
+    "/organization/audit/inspections/i1/actions",
+    "InspectionActions",
+    "InspectionTable",
+  ],
 ]
 
 describe("MainRoute write-guarded routes (ticket #271)", () => {

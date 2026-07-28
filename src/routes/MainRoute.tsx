@@ -149,12 +149,35 @@ export const mainRoute = createBrowserRouter([
           </WriteGuardRoute>
         ),
       },
-      { path: "audit/inspections/:id/note", element: <InspectionNote /> },
+      // aexa-frontend#278 -- these three sibling routes hold the same kind of
+      // live mutations (finding CRUD, recommendation summary updates, AI note
+      // splitting) as the routes guarded above in #271, but were missed when
+      // that guard was wired in. Guarded the same way, with the same
+      // inspections-list fallback.
+      {
+        path: "audit/inspections/:id/note",
+        element: (
+          <WriteGuardRoute fallback="/organization/audit/inspections">
+            <InspectionNote />
+          </WriteGuardRoute>
+        ),
+      },
       {
         path: "audit/inspections/:id/recommendations",
-        element: <InspectionRecommendations />,
+        element: (
+          <WriteGuardRoute fallback="/organization/audit/inspections">
+            <InspectionRecommendations />
+          </WriteGuardRoute>
+        ),
       },
-      { path: "audit/inspections/:id/actions", element: <InspectionActions /> },
+      {
+        path: "audit/inspections/:id/actions",
+        element: (
+          <WriteGuardRoute fallback="/organization/audit/inspections">
+            <InspectionActions />
+          </WriteGuardRoute>
+        ),
+      },
       { path: "reports", element: <ReportsPage /> },
       { path: "settings", element: <OrgSettingPage /> },
     ],
