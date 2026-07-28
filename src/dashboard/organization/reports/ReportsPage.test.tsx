@@ -22,6 +22,8 @@ vi.mock("@/redux/apis/organization/report.api", () => ({
 const mockUseMyOrgRole = vi.fn()
 vi.mock("@/hooks/useMyOrgRole", () => ({
   useMyOrgRole: () => mockUseMyOrgRole(),
+  canWriteOrgResource: (role: string | undefined) =>
+    role === "ADMIN" || role === "LEAD_AUDITOR",
 }))
 
 function makeReport(overrides = {}) {
@@ -57,6 +59,38 @@ describe("ReportsPage", () => {
     mockToastError.mockReset()
     mockUseMyOrgRole.mockReset()
     mockUseMyOrgRole.mockReturnValue("ADMIN")
+  })
+
+  it("shows the Generate section for an ADMIN", () => {
+    mockUseGetAllReportsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+
+    render(<ReportsPage />)
+
+    expect(
+      screen.getByRole("button", { name: /organization\.reports\.generate/i })
+    ).toBeInTheDocument()
+  })
+
+  it("hides the Generate section for a VIEWER", () => {
+    mockUseMyOrgRole.mockReturnValue("VIEWER")
+    mockUseGetAllReportsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+
+    render(<ReportsPage />)
+
+    expect(
+      screen.queryByRole("button", { name: /organization\.reports\.generate/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it("hides the Generate section for a LIGHT_USER", () => {
+    mockUseMyOrgRole.mockReturnValue("LIGHT_USER")
+    mockUseGetAllReportsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+
+    render(<ReportsPage />)
+
+    expect(
+      screen.queryByRole("button", { name: /organization\.reports\.generate/i })
+    ).not.toBeInTheDocument()
   })
 
   it("shows a loading spinner while the query is loading", () => {

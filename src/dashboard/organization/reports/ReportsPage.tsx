@@ -1,4 +1,4 @@
-import { useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { Report, ReportType } from "@/redux/apis/organization/report.api"
 import {
   useGenerateReportMutation,
@@ -50,7 +50,11 @@ const STATUS_STYLES: Record<Report["status"], string> = {
 export default function ReportsPage() {
   const { t } = useTranslation()
   const role = useMyOrgRole()
+  // Two intentionally different gates, not an oversight: Publish is
+  // ADMIN-only (a stricter human-review step), while Generate follows the
+  // standard ADMIN-or-LEAD_AUDITOR write gate used everywhere else (#227).
   const isAdmin = role === "ADMIN"
+  const canWrite = canWriteOrgResource(role)
 
   // Reactive polling interval: driven off the data below. 0 = no polling.
   const [pollingInterval, setPollingInterval] = useState(0)
@@ -136,6 +140,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Generate Section */}
+      {canWrite && (
       <div className="animate-slide-up flex flex-col items-start gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center">
         <select
           aria-label={t("organization.reports.typeLabel")}
@@ -180,6 +185,7 @@ export default function ReportsPage() {
           </span>
         )}
       </div>
+      )}
 
       {/* Reports Grid */}
       <div className="animate-slide-up stagger-2 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
