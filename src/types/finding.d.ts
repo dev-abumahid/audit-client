@@ -60,6 +60,45 @@ export interface IAction {
   updatedAt: string
 }
 
+// aexa-server#252: finding closure maker-checker workflow. A finding only
+// ever reaches COMPLETE/CANT_DO via an approved closure request; a direct
+// PATCH /action/:id sending either status as `status` is rejected (400) --
+// even a no-op resend of an already-terminal status, which is why
+// CreateNewFindingModal.tsx must never include `status` in its payload for
+// a finding that's already COMPLETE/CANT_DO.
+export type ActionClosureApprovalStatus = "PENDING_APPROVAL" | "APPROVED" | "REJECTED"
+
+// The display state GET /action/:id/closure derives (deriveClosureState on
+// the backend): NOT_SUBMITTED covers both "never submitted" and "was
+// pending/approved but a later edit invalidated it, so it needs
+// resubmission" -- same collapsing convention as Risk's approval state.
+export type ClosureDisplayState = "NOT_SUBMITTED" | ActionClosureApprovalStatus
+
+export interface ActionClosureApproval {
+  id: string
+  actionId: string
+  status: ActionClosureApprovalStatus
+  // The terminal status this cycle is requesting -- only ever COMPLETE or
+  // CANT_DO (enforced server-side), typed as the full STATUS union since
+  // that's what the field's own Prisma type is.
+  requestedStatus: IAction["status"]
+  submittedById: string
+  decidedById: string | null
+  decidedAt: string | null
+  decisionNote: string | null
+  invalidatedAt: string | null
+  invalidatedById: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// GET /action/:id/closure response shape (get_action_closure_state).
+export interface ActionClosureState {
+  actionId: string
+  status: ClosureDisplayState
+  closure: ActionClosureApproval | null
+}
+
 // Matches aexa-server's MESSAGES_INCLUDE (action.service.ts) exactly — that
 // select does NOT include actionId or a back-reference to the parent
 // Action, and it DOES include the sender's account/profile so the UI can

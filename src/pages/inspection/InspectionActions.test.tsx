@@ -420,6 +420,65 @@ describe("InspectionActions", () => {
     )
   })
 
+  // aexa-server#252 / aexa-frontend#214: COMPLETE/CANT_DO can now only be
+  // reached via an approved closure request -- a direct PATCH sending
+  // either as `status` 400s, even as a no-op resend of the finding's own
+  // current value. Found during review of #214 -- this file wasn't fixed
+  // when CreateNewFindingModal.tsx got the equivalent fix.
+  describe("closed findings (#214)", () => {
+    it("shows status read-only (no select) for an already-COMPLETE finding", async () => {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: { ...emptyResponse, data: [makeAction({ status: "COMPLETE" })] },
+        isLoading: false,
+        isError: false,
+      })
+      renderPage()
+      await waitFor(() =>
+        expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
+      )
+
+      expect(
+        screen.getByText("pages.inspection.actions.statusComplete")
+      ).toBeInTheDocument()
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+    })
+
+    it("shows status read-only (no select) for an already-CANT_DO finding", async () => {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: { ...emptyResponse, data: [makeAction({ status: "CANT_DO" })] },
+        isLoading: false,
+        isError: false,
+      })
+      renderPage()
+      await waitFor(() =>
+        expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
+      )
+
+      expect(
+        screen.getByText("pages.inspection.actions.statusCantDo")
+      ).toBeInTheDocument()
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+    })
+
+    it("only offers TO_DO and IN_PROGRESS for a non-closed finding -- no COMPLETE/CANT_DO option exists", async () => {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: { ...emptyResponse, data: [makeAction({ status: "IN_PROGRESS" })] },
+        isLoading: false,
+        isError: false,
+      })
+      renderPage()
+      await waitFor(() =>
+        expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
+      )
+
+      const select = screen.getByDisplayValue(
+        "pages.inspection.actions.statusInProgress"
+      ) as HTMLSelectElement
+      const optionValues = Array.from(select.options).map((o) => o.value)
+      expect(optionValues).toEqual(["TO_DO", "IN_PROGRESS"])
+    })
+  })
+
   it("shows a subtle refreshing indicator during a background refetch (not just initial load)", async () => {
     mockUseGetAllFindingsQuery.mockReturnValue({
       data: { ...emptyResponse, data: [makeAction()] },

@@ -777,4 +777,130 @@ describe("CreateNewFindingModal", () => {
       screen.getByDisplayValue("Fix broken railing urgently")
     ).toBeInTheDocument()
   })
+
+  // aexa-server#252 / aexa-frontend#214: COMPLETE/CANT_DO can now only be
+  // reached via an approved closure request -- a direct PATCH sending
+  // either as `status` 400s, even as a no-op resend of the finding's own
+  // current value.
+  describe("status field and closure-gated statuses (#214)", () => {
+    it("only offers TO_DO and IN_PROGRESS on create -- no COMPLETE/CANT_DO option exists", () => {
+      render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+      const statusSelect = screen
+        .getByText("organization.findings.statusLabel")
+        .closest("div")!
+        .querySelector("select")!
+      const optionValues = Array.from(statusSelect.options).map((o) => o.value)
+
+      expect(optionValues).toEqual(["TO_DO", "IN_PROGRESS"])
+    })
+
+    it("only offers TO_DO and IN_PROGRESS when editing a non-closed finding", () => {
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ status: "IN_PROGRESS" }) as any}
+        />
+      )
+
+      const statusSelect = screen
+        .getByText("organization.findings.statusLabel")
+        .closest("div")!
+        .querySelector("select")!
+      const optionValues = Array.from(statusSelect.options).map((o) => o.value)
+
+      expect(optionValues).toEqual(["TO_DO", "IN_PROGRESS"])
+    })
+
+    it("sends the selected status for a non-closed finding", async () => {
+      mockUpdateFindingById.mockReturnValue({
+        unwrap: () => Promise.resolve({}),
+      })
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ status: "TO_DO" }) as any}
+        />
+      )
+
+      const statusSelect = screen
+        .getByText("organization.findings.statusLabel")
+        .closest("div")!
+        .querySelector("select")!
+      await userEvent.selectOptions(statusSelect, "IN_PROGRESS")
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.findings.updateFindingBtn",
+        })
+      )
+
+      await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
+      const call = mockUpdateFindingById.mock.calls[0][0]
+      expect(call.body.status).toBe("IN_PROGRESS")
+    })
+
+    it("shows status read-only (no select) and omits status from the payload when editing an already-COMPLETE finding", async () => {
+      mockUpdateFindingById.mockReturnValue({
+        unwrap: () => Promise.resolve({}),
+      })
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ status: "COMPLETE" }) as any}
+        />
+      )
+
+      expect(
+        screen.queryByText("organization.findings.statusLabel")
+          ? screen
+              .getByText("organization.findings.statusLabel")
+              .closest("div")!
+              .querySelector("select")
+          : null
+      ).toBeNull()
+      expect(
+        screen.getByText("organization.findings.statusClosedHint")
+      ).toBeInTheDocument()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.findings.updateFindingBtn",
+        })
+      )
+
+      await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
+      const call = mockUpdateFindingById.mock.calls[0][0]
+      expect(call.body.status).toBeUndefined()
+    })
+
+    it("shows status read-only and omits status from the payload when editing an already-CANT_DO finding", async () => {
+      mockUpdateFindingById.mockReturnValue({
+        unwrap: () => Promise.resolve({}),
+      })
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ status: "CANT_DO" }) as any}
+        />
+      )
+
+      expect(
+        screen.getByText("organization.findings.statusClosedHint")
+      ).toBeInTheDocument()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.findings.updateFindingBtn",
+        })
+      )
+
+      await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
+      const call = mockUpdateFindingById.mock.calls[0][0]
+      expect(call.body.status).toBeUndefined()
+    })
+  })
 })

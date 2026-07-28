@@ -38,6 +38,7 @@ import { toast } from "sonner"
 import type { IAction } from "@/types/finding"
 import { attachmentFileName } from "@/utils/attachmentFileName"
 import CreateNewFindingModal from "./CreateNewFindingModal"
+import FindingClosureControls from "./FindingClosureControls"
 
 type Tab = "details" | "messages" | "files"
 
@@ -447,6 +448,9 @@ export default function FindingDetails() {
                   : action.priority}{" "}
                 {t("organization.findings.priority")}
               </span>
+            </div>
+            <div className="mt-3">
+              <FindingClosureControls action={action} />
             </div>
           </div>
 

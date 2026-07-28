@@ -669,20 +669,35 @@ export default function InspectionActions() {
               )}
 
               <div className="flex items-center justify-between">
-                <select
-                  value={action.status}
-                  disabled={updatingStatusId === action.id}
-                  onChange={(e) =>
-                    updateStatus(action.id, e.target.value as ActionStatus)
-                  }
-                  className={`rounded-full border-0 px-2.5 py-0.5 text-xs font-medium focus:ring-1 focus:ring-ring focus:outline-none disabled:opacity-60 ${STATUS_CLASSES[action.status]}`}
-                >
-                  {(Object.keys(STATUS_LABELS) as ActionStatus[]).map((s) => (
-                    <option key={s} value={s}>
-                      {STATUS_LABELS[s]}
+                {/* aexa-server#252 / aexa-frontend#214: COMPLETE/CANT_DO can
+                    now only be reached via an approved closure request --
+                    a direct PATCH sending either as `status` 400s, even as
+                    a no-op resend of the finding's own current value. Once
+                    a finding is already closed, show its status read-only
+                    instead of offering a select that would just 400 on
+                    every change (including re-picking the same value). */}
+                {action.status === "COMPLETE" || action.status === "CANT_DO" ? (
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASSES[action.status]}`}
+                    title={t("pages.inspection.actions.statusClosedHint")}
+                  >
+                    {STATUS_LABELS[action.status]}
+                  </span>
+                ) : (
+                  <select
+                    value={action.status}
+                    disabled={updatingStatusId === action.id}
+                    onChange={(e) =>
+                      updateStatus(action.id, e.target.value as ActionStatus)
+                    }
+                    className={`rounded-full border-0 px-2.5 py-0.5 text-xs font-medium focus:ring-1 focus:ring-ring focus:outline-none disabled:opacity-60 ${STATUS_CLASSES[action.status]}`}
+                  >
+                    <option value="TO_DO">{STATUS_LABELS.TO_DO}</option>
+                    <option value="IN_PROGRESS">
+                      {STATUS_LABELS.IN_PROGRESS}
                     </option>
-                  ))}
-                </select>
+                  </select>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {t("pages.inspection.actions.due", {
                     date: new Date(action.dueDate).toLocaleDateString(),

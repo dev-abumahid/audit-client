@@ -92,6 +92,7 @@ export const baseApi = createApi({
     "INTELLIGENCE_RUN",
     "CORRELATION_MATRIX",
     "EXTERNAL_MEMBER",
+    "ACTION_CLOSURE",
   ],
   endpoints: () => ({}),
 })

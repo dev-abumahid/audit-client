@@ -56,6 +56,14 @@ vi.mock("./CreateNewFindingModal", () => ({
     ) : null,
 }))
 
+// aexa-frontend#214 -- has its own dedicated RTK Query hooks (useMyOrgRole,
+// useGetFindingClosureStateQuery) and test file (FindingClosureControls.test.tsx);
+// mocked as a black box here, same pattern as CreateNewFindingModal above, so
+// this suite's assertions aren't coupled to it and don't need a Redux Provider.
+vi.mock("./FindingClosureControls", () => ({
+  default: () => <div data-testid="finding-closure-controls" />,
+}))
+
 vi.mock("@/components/shared/DeleteAlertModal", () => ({
   default: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
     open ? <button onClick={onConfirm}>Confirm delete</button> : null,

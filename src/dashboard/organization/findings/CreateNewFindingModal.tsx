@@ -85,6 +85,15 @@ export default function CreateNewFindingModal({
 }: CreateActionModalProps) {
   const { t } = useTranslation()
   const isEdit = !!editData
+  // aexa-server#252: COMPLETE/CANT_DO can now only be reached via an approved
+  // closure request (FindingClosureControls.tsx) -- a direct PATCH sending
+  // either as `status` 400s, even as a no-op resend of the finding's own
+  // current value. Once a finding is already closed, this form must not
+  // offer those two values or include `status` in its payload at all; there
+  // is no "reopen" endpoint on the backend, so a closed finding's status is
+  // shown read-only here instead of editable.
+  const isClosed =
+    isEdit && (editData?.status === "COMPLETE" || editData?.status === "CANT_DO")
   // ── API hooks ──────────────────────────────────────────────────────────────
   const [uploadFIle] = useUploadAnyFileAwsMutation()
   const { data: usersData, isLoading: usersLoading } =
@@ -291,7 +300,12 @@ export default function CreateNewFindingModal({
         // though this form's own defaultValues always seed "" for it.
         actionDisc: values.actionDisc?.trim() || undefined,
         priority: values.priority,
-        status: values.status,
+        // aexa-server#252: never resend `status` for an already-closed
+        // finding -- even the finding's own current COMPLETE/CANT_DO value
+        // is rejected (400) by a direct PATCH now that closure is
+        // maker-checker-gated. Not applicable on create (isClosed is always
+        // false there).
+        status: isClosed ? undefined : values.status,
         dueDate: new Date(values.dueDate).toISOString(),
         assignBy: values.assignBy.length ? values.assignBy : undefined,
         questionId: values.questionId || undefined,
@@ -505,41 +519,44 @@ export default function CreateNewFindingModal({
                 <AlertCircle size={16} />{" "}
                 {t("organization.findings.statusLabel")}
               </label>
-              <Controller
-                control={control}
-                name="status"
-                render={({ field }) => (
-                  <select
-                    {...field}
-                    className={`w-full max-w-55 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none ${STATUS_STYLES[field.value]}`}
+              {isClosed ? (
+                <div className="flex w-full max-w-55 flex-col items-end gap-1">
+                  <span
+                    className={`w-full rounded-lg px-4 py-2 text-right text-sm font-medium ${STATUS_STYLES[editData!.status]}`}
                   >
-                    <option
-                      className={`${STATUS_STYLES["TO_DO"]}`}
-                      value="TO_DO"
+                    {editData!.status === "COMPLETE"
+                      ? t("organization.findings.statusComplete")
+                      : t("organization.findings.statusCantDo")}
+                  </span>
+                  <p className="text-right text-[11px] text-muted-foreground">
+                    {t("organization.findings.statusClosedHint")}
+                  </p>
+                </div>
+              ) : (
+                <Controller
+                  control={control}
+                  name="status"
+                  render={({ field }) => (
+                    <select
+                      {...field}
+                      className={`w-full max-w-55 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none ${STATUS_STYLES[field.value]}`}
                     >
-                      {t("organization.findings.statusToDo")}
-                    </option>
-                    <option
-                      className={`${STATUS_STYLES["IN_PROGRESS"]}`}
-                      value="IN_PROGRESS"
-                    >
-                      {t("organization.findings.statusInProgress")}
-                    </option>
-                    <option
-                      className={`${STATUS_STYLES["COMPLETE"]}`}
-                      value="COMPLETE"
-                    >
-                      {t("organization.findings.statusComplete")}
-                    </option>
-                    <option
-                      className={`${STATUS_STYLES["CANT_DO"]}`}
-                      value="CANT_DO"
-                    >
-                      {t("organization.findings.statusCantDo")}
-                    </option>
-                  </select>
-                )}
-              />
+                      <option
+                        className={`${STATUS_STYLES["TO_DO"]}`}
+                        value="TO_DO"
+                      >
+                        {t("organization.findings.statusToDo")}
+                      </option>
+                      <option
+                        className={`${STATUS_STYLES["IN_PROGRESS"]}`}
+                        value="IN_PROGRESS"
+                      >
+                        {t("organization.findings.statusInProgress")}
+                      </option>
+                    </select>
+                  )}
+                />
+              )}
             </div>
 
             {/* Due Date */}
