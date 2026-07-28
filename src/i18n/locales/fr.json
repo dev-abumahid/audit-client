@@ -976,10 +976,12 @@
       "moveToFirst": "Déplacer vers la 1re ligne",
       "moveToSecond": "Déplacer vers la 2e ligne",
       "moveToThird": "Déplacer vers la 3e ligne",
+      "moveToGoverningBody": "Déplacer vers l'organe de gouvernance",
       "lines": {
         "first": "1re ligne",
         "second": "2e ligne",
-        "third": "3e ligne"
+        "third": "3e ligne",
+        "governingBody": "Organe de gouvernance"
       },
       "sections": {
         "risks": "Risques",

@@ -5,7 +5,16 @@ import type { IAction } from "./finding"
 // / action.validation.ts's LINE_OF_DEFENSE_ENUM). Risk and Kri always have a
 // value (DB defaults FIRST / SECOND respectively); it's nullable only on
 // Action (see finding.d.ts's IAction).
-export type LineOfDefense = "FIRST" | "SECOND" | "THIRD"
+//
+// aexa-frontend#208/#209: GOVERNING_BODY added on top of the original three
+// values, matching the 2020 IIA Three Lines Model's headline structural
+// addition over the 2013 Three Lines of Defense (which #97 originally
+// modeled) -- an explicit governing body sitting above the three lines, to
+// which internal audit reports directly and independently of management
+// (confirmed against the IIA's own published materials). No existing
+// entity's default changes; this is purely an additional explicit
+// selection for items that genuinely sit at governing-body oversight.
+export type LineOfDefense = "FIRST" | "SECOND" | "THIRD" | "GOVERNING_BODY"
 
 export interface Organization {
   id: string

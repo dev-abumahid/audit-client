@@ -976,10 +976,12 @@
       "moveToFirst": "Move to 1st Line",
       "moveToSecond": "Move to 2nd Line",
       "moveToThird": "Move to 3rd Line",
+      "moveToGoverningBody": "Move to Governing Body",
       "lines": {
         "first": "1st Line",
         "second": "2nd Line",
-        "third": "3rd Line"
+        "third": "3rd Line",
+        "governingBody": "Governing Body"
       },
       "sections": {
         "risks": "Risks",

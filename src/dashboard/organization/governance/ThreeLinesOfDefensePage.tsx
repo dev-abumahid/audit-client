@@ -27,18 +27,49 @@ import { toast } from "sonner"
 
 type EntityKind = "risk" | "action" | "kri" | "compliance" | "audit"
 
-const LINES: LineOfDefense[] = ["FIRST", "SECOND", "THIRD"]
+// aexa-frontend#208/#209: GOVERNING_BODY added as a 4th column -- the IIA's
+// 2020 update's headline structural addition, an explicit governing body
+// sitting above the three lines.
+const LINES: LineOfDefense[] = ["FIRST", "SECOND", "THIRD", "GOVERNING_BODY"]
 
 const LINE_TITLE_KEY: Record<LineOfDefense, string> = {
   FIRST: "organization.threeLinesOfDefense.lines.first",
   SECOND: "organization.threeLinesOfDefense.lines.second",
   THIRD: "organization.threeLinesOfDefense.lines.third",
+  GOVERNING_BODY: "organization.threeLinesOfDefense.lines.governingBody",
 }
 
 const MOVE_TO_KEY: Record<LineOfDefense, string> = {
   FIRST: "organization.threeLinesOfDefense.moveToFirst",
   SECOND: "organization.threeLinesOfDefense.moveToSecond",
   THIRD: "organization.threeLinesOfDefense.moveToThird",
+  GOVERNING_BODY: "organization.threeLinesOfDefense.moveToGoverningBody",
+}
+
+// aexa-server#208: reassigning line_of_defense is no longer a single
+// ADMIN-or-LEAD_AUDITOR check for every entity type. Risk/Kri/Compliance
+// ("management line") now require ADMIN specifically
+// (assertCanReassignLineOfDefense(ctx, 'MANAGEMENT_LINE')); AuditEngagement
+// ("audit line") now requires LEAD_AUDITOR specifically
+// (..., 'AUDIT_LINE') -- preserving internal audit's independent reporting
+// line to the governing body, per the IIA Three Lines Model, rather than
+// letting the same admin who owns operational risk also reclassify audit
+// engagements. Action is unchanged (still ADMIN-or-LEAD_AUDITOR via
+// assertCanWriteOrgResource) since it covers both first- and third-line-like
+// items by design. Gating the button on the caller's real permission (rather
+// than showing it and letting a 403 happen) is the "graceful handling" this
+// ticket asked for.
+function canReassignEntity(entityType: EntityKind, role: string | undefined): boolean {
+  switch (entityType) {
+    case "risk":
+    case "kri":
+    case "compliance":
+      return role === "ADMIN"
+    case "audit":
+      return role === "LEAD_AUDITOR"
+    case "action":
+      return role === "ADMIN" || role === "LEAD_AUDITOR"
+  }
 }
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -131,7 +162,11 @@ function Section({
 export default function ThreeLinesOfDefensePage() {
   const { t } = useTranslation()
   const role = useMyOrgRole()
-  const canReassign = role === "ADMIN" || role === "LEAD_AUDITOR"
+  const canReassignRisk = canReassignEntity("risk", role)
+  const canReassignKri = canReassignEntity("kri", role)
+  const canReassignCompliance = canReassignEntity("compliance", role)
+  const canReassignAudit = canReassignEntity("audit", role)
+  const canReassignAction = canReassignEntity("action", role)
 
   const { data, isLoading } = useGetThreeLinesOfDefenseQuery()
   const [updateRisk] = useUpdateRiskMutation()
@@ -198,7 +233,7 @@ export default function ThreeLinesOfDefensePage() {
         </p>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {LINES.map((line) => {
               const lineRisks = risks.filter((r) => r.line_of_defense === line)
               const lineActions = classifiedActions.filter(
@@ -241,7 +276,7 @@ export default function ThreeLinesOfDefensePage() {
                           title={risk.title}
                           meta={`${risk.category} · ${risk.status}`}
                           currentLine={risk.line_of_defense}
-                          canReassign={canReassign}
+                          canReassign={canReassignRisk}
                           isPending={pendingId === risk.id}
                           onReassign={(nextLine) =>
                             reassign("risk", risk.id, nextLine)
@@ -262,7 +297,7 @@ export default function ThreeLinesOfDefensePage() {
                           title={action.title}
                           meta={`${action.priority} · ${action.status}`}
                           currentLine={action.line_of_defense}
-                          canReassign={canReassign}
+                          canReassign={canReassignAction}
                           isPending={pendingId === action.id}
                           onReassign={(nextLine) =>
                             reassign("action", action.id, nextLine)
@@ -283,7 +318,7 @@ export default function ThreeLinesOfDefensePage() {
                           title={kri.title}
                           meta={`${kri.unit} · ${kri.status}`}
                           currentLine={kri.line_of_defense}
-                          canReassign={canReassign}
+                          canReassign={canReassignKri}
                           isPending={pendingId === kri.id}
                           onReassign={(nextLine) =>
                             reassign("kri", kri.id, nextLine)
@@ -304,7 +339,7 @@ export default function ThreeLinesOfDefensePage() {
                           title={obligation.title}
                           meta={`${obligation.domain} · ${obligation.status}`}
                           currentLine={obligation.line_of_defense}
-                          canReassign={canReassign}
+                          canReassign={canReassignCompliance}
                           isPending={pendingId === obligation.id}
                           onReassign={(nextLine) =>
                             reassign("compliance", obligation.id, nextLine)
@@ -325,7 +360,7 @@ export default function ThreeLinesOfDefensePage() {
                           title={engagement.title}
                           meta={`${engagement.lead_auditor ?? t("organization.threeLinesOfDefense.noLeadAuditor")} · ${engagement.status}`}
                           currentLine={engagement.line_of_defense}
-                          canReassign={canReassign}
+                          canReassign={canReassignAudit}
                           isPending={pendingId === engagement.id}
                           onReassign={(nextLine) =>
                             reassign("audit", engagement.id, nextLine)
@@ -364,7 +399,7 @@ export default function ThreeLinesOfDefensePage() {
                     title={action.title}
                     meta={`${action.priority} · ${action.status}`}
                     currentLine={null}
-                    canReassign={canReassign}
+                    canReassign={canReassignAction}
                     isPending={pendingId === action.id}
                     onReassign={(nextLine) =>
                       reassign("action", action.id, nextLine)

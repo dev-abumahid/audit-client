@@ -324,6 +324,170 @@ describe("ThreeLinesOfDefensePage", () => {
     ).toBeInTheDocument()
   })
 
+  // aexa-server#208 / aexa-frontend#209: GOVERNING_BODY column + the
+  // per-entity-type permission split (Risk/Kri/Compliance now require ADMIN
+  // specifically; AuditEngagement now requires LEAD_AUDITOR specifically;
+  // Action is unchanged).
+  describe("GOVERNING_BODY column (#209)", () => {
+    it("renders a 4th Governing Body column alongside the original three", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      render(<ThreeLinesOfDefensePage />)
+
+      expect(
+        screen.getByText("organization.threeLinesOfDefense.lines.governingBody")
+      ).toBeInTheDocument()
+    })
+
+    it("offers Move to Governing Body as a reassignment option for an ADMIN", () => {
+      mockRole = "ADMIN"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      render(<ThreeLinesOfDefensePage />)
+
+      expect(
+        screen.getAllByRole("button", {
+          name: "organization.threeLinesOfDefense.moveToGoverningBody",
+        }).length
+      ).toBeGreaterThan(0)
+    })
+
+    it("reassigns a risk to GOVERNING_BODY", async () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+      mockUpdateRisk.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      render(<ThreeLinesOfDefensePage />)
+
+      const moveButtons = screen.getAllByRole("button", {
+        name: "organization.threeLinesOfDefense.moveToGoverningBody",
+      })
+      await userEvent.click(moveButtons[0])
+
+      await waitFor(() =>
+        expect(mockUpdateRisk).toHaveBeenCalledWith({
+          id: "risk-1",
+          data: { line_of_defense: "GOVERNING_BODY" },
+        })
+      )
+    })
+  })
+
+  describe("per-entity-type reassignment permissions (#208)", () => {
+    it("ADMIN can reassign Risk/Kri/Compliance (management line)", () => {
+      mockRole = "ADMIN"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      render(<ThreeLinesOfDefensePage />)
+
+      const riskRow = screen.getByText("Supply chain disruption").closest("div")!
+        .parentElement!
+      const kriRow = screen.getByText("Supplier Lead Time").closest("div")!
+        .parentElement!
+      const complianceRow = screen.getByText("GDPR data mapping").closest("div")!
+        .parentElement!
+      expect(riskRow.querySelector("button")).toBeInTheDocument()
+      expect(kriRow.querySelector("button")).toBeInTheDocument()
+      expect(complianceRow.querySelector("button")).toBeInTheDocument()
+    })
+
+    it("LEAD_AUDITOR cannot reassign Risk/Kri/Compliance (management line requires ADMIN specifically)", () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      render(<ThreeLinesOfDefensePage />)
+
+      const riskRow = screen.getByText("Supply chain disruption").closest("div")!
+        .parentElement!
+      const kriRow = screen.getByText("Supplier Lead Time").closest("div")!
+        .parentElement!
+      const complianceRow = screen.getByText("GDPR data mapping").closest("div")!
+        .parentElement!
+      expect(riskRow.querySelector("button")).not.toBeInTheDocument()
+      expect(kriRow.querySelector("button")).not.toBeInTheDocument()
+      expect(complianceRow.querySelector("button")).not.toBeInTheDocument()
+    })
+
+    it("LEAD_AUDITOR CAN reassign an AuditEngagement (audit line)", () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      render(<ThreeLinesOfDefensePage />)
+
+      const auditRow = screen.getByText("Q3 internal audit").closest("div")!
+        .parentElement!
+      expect(auditRow.querySelector("button")).toBeInTheDocument()
+    })
+
+    it("ADMIN cannot reassign an AuditEngagement (audit line requires LEAD_AUDITOR specifically)", () => {
+      mockRole = "ADMIN"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      render(<ThreeLinesOfDefensePage />)
+
+      const auditRow = screen.getByText("Q3 internal audit").closest("div")!
+        .parentElement!
+      expect(auditRow.querySelector("button")).not.toBeInTheDocument()
+    })
+
+    it("both ADMIN and LEAD_AUDITOR can reassign an Action (unchanged)", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      mockRole = "ADMIN"
+      const { unmount } = render(<ThreeLinesOfDefensePage />)
+      let actionRow = screen.getByText("Patch critical vulnerability").closest("div")!
+        .parentElement!
+      expect(actionRow.querySelector("button")).toBeInTheDocument()
+      unmount()
+
+      mockRole = "LEAD_AUDITOR"
+      render(<ThreeLinesOfDefensePage />)
+      actionRow = screen.getByText("Patch critical vulnerability").closest("div")!
+        .parentElement!
+      expect(actionRow.querySelector("button")).toBeInTheDocument()
+    })
+
+    it("does not attempt updateCompliance when a LEAD_AUDITOR has no button to click (server 403 avoided client-side)", () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      render(<ThreeLinesOfDefensePage />)
+
+      expect(mockUpdateCompliance).not.toHaveBeenCalled()
+      const complianceRow = screen.getByText("GDPR data mapping").closest("div")!
+        .parentElement!
+      expect(complianceRow.querySelector("button")).toBeNull()
+    })
+  })
+
   it("shows empty-state text for a line with no items", () => {
     mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
       data: makeData({ risks: [], kris: [], complianceObligations: [] }),
