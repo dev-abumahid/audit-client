@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   useDeleteTemplateMutation,
   useGetAllTemplatesQuery,
@@ -67,6 +68,8 @@ function TableSkeleton() {
 
 export default function TemplatesPage() {
   const { t } = useTranslation()
+  const role = useMyOrgRole()
+  const canWrite = canWriteOrgResource(role)
   const [deleteTemplate] = useDeleteTemplateMutation()
 
   const [searchInput, setSearchInput] = useState("")
@@ -148,17 +151,21 @@ export default function TemplatesPage() {
             />
           </div>
 
-          <Button onClick={() => setCreateTemplateModalOpen(true)}>
-            <Brain className="mr-2 h-4 w-4" />
-            {t("organization.templates.list.generateTemplate")}
-          </Button>
-
-          <Link to="/organization/audit/template/create">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              {t("organization.templates.list.createTemplate")}
+          {canWrite && (
+            <Button onClick={() => setCreateTemplateModalOpen(true)}>
+              <Brain className="mr-2 h-4 w-4" />
+              {t("organization.templates.list.generateTemplate")}
             </Button>
-          </Link>
+          )}
+
+          {canWrite && (
+            <Link to="/organization/audit/template/create">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("organization.templates.list.createTemplate")}
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -229,22 +236,26 @@ export default function TemplatesPage() {
 
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Link
-                        to={`/organization/audit/template/edit/${template.id}`}
-                      >
-                        <Button variant="ghost" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </Link>
+                      {canWrite && (
+                        <>
+                          <Link
+                            to={`/organization/audit/template/edit/${template.id}`}
+                          >
+                            <Button variant="ghost" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </Link>
 
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteClick(template.id)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteClick(template.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

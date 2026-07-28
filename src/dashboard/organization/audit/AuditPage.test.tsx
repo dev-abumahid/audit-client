@@ -39,6 +39,15 @@ vi.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
 }))
 
+// aexa-frontend#226 -- role hook mocked per-test via this mutable holder,
+// same convention as RiskRegisterPage.test.tsx.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+  canWriteOrgResource: (role: string | undefined) =>
+    role === "ADMIN" || role === "LEAD_AUDITOR",
+}))
+
 // A small pool of org risks the multi-select renders as checkbox options.
 const RISK_OPTIONS = [
   { id: "risk-1", name: "Data breach", category: "Cyber" },
@@ -79,6 +88,7 @@ function makeEngagement(overrides = {}) {
 
 describe("AuditPage", () => {
   beforeEach(() => {
+    mockRole = "ADMIN"
     mockUseGetAllAuditEngagementsQuery.mockReset()
     mockCreateAuditEngagement.mockReset()
     mockUpdateAuditEngagement.mockReset()
@@ -93,6 +103,59 @@ describe("AuditPage", () => {
       data: { data: RISK_OPTIONS },
       isLoading: false,
     })
+  })
+
+  it("shows New Mission, Edit and Delete for an ADMIN", () => {
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [makeEngagement()] },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    expect(
+      screen.getByText("organization.audit.newMission")
+    ).toBeInTheDocument()
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pencil"))
+    ).toBe(true)
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-trash2"))
+    ).toBe(true)
+  })
+
+  it("hides New Mission, Edit and Delete for a VIEWER", () => {
+    mockRole = "VIEWER"
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [makeEngagement()] },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    expect(
+      screen.queryByText("organization.audit.newMission")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryAllByRole("button").some((b) => b.querySelector("svg.lucide-pencil"))
+    ).toBe(false)
+    expect(
+      screen.queryAllByRole("button").some((b) => b.querySelector("svg.lucide-trash2"))
+    ).toBe(false)
+  })
+
+  it("hides write controls for a LIGHT_USER", () => {
+    mockRole = "LIGHT_USER"
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [makeEngagement()] },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    expect(
+      screen.queryByText("organization.audit.newMission")
+    ).not.toBeInTheDocument()
   })
 
   it("shows a loading spinner while the query is loading", () => {

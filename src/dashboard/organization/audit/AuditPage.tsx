@@ -9,6 +9,7 @@ import {
   useGetAllAuditEngagementsQuery,
   useUpdateAuditEngagementMutation,
 } from "@/redux/apis/organization/audit.api"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import {
   CheckCircle2,
@@ -75,6 +76,8 @@ export default function AuditPage() {
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
   const navigate = useNavigate()
+  const role = useMyOrgRole()
+  const canWrite = canWriteOrgResource(role)
 
   const { data: auditData, isLoading } = useGetAllAuditEngagementsQuery({
     page,
@@ -321,12 +324,14 @@ export default function AuditPage() {
             {t("organization.audit.subtitle")}
           </p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" /> {t("organization.audit.newMission")}
-        </button>
+        {canWrite && (
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" /> {t("organization.audit.newMission")}
+          </button>
+        )}
       </div>
 
       {/* Summary Stats */}
@@ -451,18 +456,22 @@ export default function AuditPage() {
                     </label>
                   )}
 
-                  <button
-                    onClick={() => openEdit(eng)}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(eng.id)}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {canWrite && (
+                    <>
+                      <button
+                        onClick={() => openEdit(eng)}
+                        className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(eng.id)}
+                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
