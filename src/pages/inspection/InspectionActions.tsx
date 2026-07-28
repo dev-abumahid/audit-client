@@ -338,9 +338,13 @@ export default function InspectionActions() {
       if (!res.ok) throw new Error("Upload failed")
       const json = await res.json()
       const url: string = json.data?.url ?? json.url ?? ""
-      if (url) onUrl(url)
+      if (url) {
+        onUrl(url)
+      } else {
+        toast.error(t("pages.inspection.actions.uploadFailed"))
+      }
     } catch {
-      // silent — no UI error for now, attachment just won't appear
+      toast.error(t("pages.inspection.actions.uploadFailed"))
     } finally {
       setUploading(false)
     }

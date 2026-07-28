@@ -24,6 +24,7 @@ import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { InspectionSummary } from "@/types/inspection"
 
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   ChevronLeft,
   ChevronRight,
@@ -42,6 +43,14 @@ import StartInspectionModal from "./StartInspectionModal"
 const InspectionTable = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  // aexa-frontend#242 -- Inspection had zero role gating, unlike every
+  // sibling entity (Audit/Templates/Reports/Risk/Sites/Findings/KRI/
+  // Compliance), which are already gated via useMyOrgRole()/
+  // canWriteOrgResource(role) per #217 (extended in #226/#227/#239). A
+  // VIEWER/LIGHT_USER saw the same Start New/Edit/Delete affordances as an
+  // ADMIN and only found out they couldn't act via a 403 toast.
+  const role = useMyOrgRole()
+  const canWrite = canWriteOrgResource(role)
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
@@ -157,10 +166,12 @@ const InspectionTable = () => {
             </p>
           </div>
 
-          <Button onClick={() => setOpen(true)} className="">
-            <Plus className="mr-2 h-4 w-4" />
-            {t("organization.inspection.startNew")}
-          </Button>
+          {canWrite && (
+            <Button onClick={() => setOpen(true)} className="">
+              <Plus className="mr-2 h-4 w-4" />
+              {t("organization.inspection.startNew")}
+            </Button>
+          )}
         </div>
 
         {/* Filters */}
@@ -288,21 +299,25 @@ const InspectionTable = () => {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(item.id)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteConfirmModal(item.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canWrite && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(item.id)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canWrite && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteConfirmModal(item.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

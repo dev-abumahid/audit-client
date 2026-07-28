@@ -20,6 +20,15 @@ vi.mock("react-router", async (importOriginal) => {
 // ── sonner ────────────────────────────────────────────────────────────────────
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+// ── role gating (aexa-frontend#242) — mocked per-test via this mutable
+// holder, same convention as RiskRegisterPage.test.tsx/CompliancePage.test.tsx ──
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+  canWriteOrgResource: (role: string | undefined) =>
+    role === "ADMIN" || role === "LEAD_AUDITOR",
+}))
+
 // ── RTK Query inspection API ──────────────────────────────────────────────────
 const mockUseGetAllInspectionQuery = vi.fn()
 const mockDeleteInspectionTrigger = vi.fn()
@@ -163,6 +172,7 @@ describe("InspectionTable", () => {
     mockDeleteInspectionTrigger.mockReset()
     mockUseGetAllSitesQuery.mockReset()
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [] } })
+    mockRole = "ADMIN"
   })
 
   it("renders the inspection table with data", async () => {
@@ -284,6 +294,93 @@ describe("InspectionTable", () => {
         screen.getByText("organization.inspection.empty")
       ).toBeInTheDocument()
     )
+  })
+
+  // aexa-frontend#242: Inspection had zero role gating, unlike every sibling
+  // entity (Audit/Templates/Reports/Risk/Sites/Findings/KRI/Compliance),
+  // already gated via useMyOrgRole()/canWriteOrgResource(role) per #217.
+  describe("role gating (#242)", () => {
+    it("shows Start New/Edit/Delete for ADMIN", async () => {
+      mockRole = "ADMIN"
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection()],
+          meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+      expect(
+        screen.getByText("organization.inspection.startNew")
+      ).toBeInTheDocument()
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+      ).toBe(true)
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-trash2"))
+      ).toBe(true)
+    })
+
+    it("hides Start New/Edit/Delete for a VIEWER", async () => {
+      mockRole = "VIEWER"
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection()],
+          meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+      expect(
+        screen.queryByText("organization.inspection.startNew")
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+      ).toBe(false)
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-trash2"))
+      ).toBe(false)
+      // View report stays visible for every role.
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-eye"))
+      ).toBe(true)
+    })
+
+    it("hides Start New/Edit/Delete for a LIGHT_USER", async () => {
+      mockRole = "LIGHT_USER"
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection()],
+          meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+      expect(
+        screen.queryByText("organization.inspection.startNew")
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+      ).toBe(false)
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-trash2"))
+      ).toBe(false)
+    })
   })
 
   describe("aexa-frontend#243: debounced search query", () => {

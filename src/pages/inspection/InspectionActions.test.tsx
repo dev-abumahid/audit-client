@@ -565,7 +565,8 @@ describe("InspectionActions", () => {
 
     fetchSpy.mockRestore()
   })
-  it("handles upload failure gracefully", async () => {
+  it("shows a toast error when an attachment upload throws (aexa-frontend#242 -- this used to fail silently, leaving the user thinking the file attached when it didn't)", async () => {
+    const { toast } = await import("sonner")
     mockUseGetAllFindingsQuery.mockReturnValue({
       data: emptyResponse,
       isLoading: false,
@@ -595,6 +596,45 @@ describe("InspectionActions", () => {
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalled()
     })
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "pages.inspection.actions.uploadFailed"
+      )
+    )
+
+    fetchSpy.mockRestore()
+  })
+
+  it("shows a toast error when the upload response has no ok flag (aexa-frontend#242)", async () => {
+    const { toast } = await import("sonner")
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: emptyResponse,
+      isLoading: false,
+      isError: false,
+    })
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      json: async () => ({}),
+    } as Response)
+
+    renderPage()
+
+    await waitFor(() => screen.getByText("pages.inspection.actions.empty"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.newAction"))
+
+    const input = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+    const file = new File(["hello"], "test.png", { type: "image/png" })
+
+    await userEvent.upload(input, file)
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "pages.inspection.actions.uploadFailed"
+      )
+    )
 
     fetchSpy.mockRestore()
   })

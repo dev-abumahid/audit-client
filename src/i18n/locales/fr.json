@@ -1894,7 +1894,8 @@
         "statusUpdateFailed": "Échec de la mise à jour du statut",
         "statusClosedHint": "Ce constat est clôturé. Le statut ne peut désormais changer que via une demande de clôture.",
         "title": "Actions correctives",
-        "updateFailed": "Échec de la mise à jour de l'action"
+        "updateFailed": "Échec de la mise à jour de l'action",
+        "uploadFailed": "Échec du téléchargement de la pièce jointe"
       },
       "list": {
         "allStatuses": "Tous les statuts",

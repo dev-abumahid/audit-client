@@ -1894,7 +1894,8 @@
         "statusUpdateFailed": "Failed to update status",
         "statusClosedHint": "This finding is closed. Status can only change via a closure request now.",
         "title": "Corrective actions",
-        "updateFailed": "Failed to update action"
+        "updateFailed": "Failed to update action",
+        "uploadFailed": "Failed to upload attachment"
       },
       "list": {
         "allStatuses": "All statuses",
