@@ -9,13 +9,22 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 
 // aexa-frontend#216. No "role" field on the invite form -- the backend
 // hard-rejects anything but LIGHT_USER today (see
 // InviteExternalMemberPayload's own comment), so offering a choice here
 // would just be an option that always 400s.
+//
+// aexa-frontend#239 -- gated the invite affordance the same way #217 gates
+// base entity CRUD: a VIEWER/LIGHT_USER previously saw a fully interactive
+// external-invite form with no client-side check. copyLink is left ungated
+// deliberately -- it only reads an already-visible field to the clipboard
+// and performs no server mutation, so there's nothing to protect.
 export default function ExternalMembersSection() {
   const { t } = useTranslation()
+  const role = useMyOrgRole()
+  const canWrite = canWriteOrgResource(role)
   const [showInviteForm, setShowInviteForm] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
@@ -103,13 +112,15 @@ export default function ExternalMembersSection() {
             {t("organization.externalMembers.subheading")}
           </p>
         </div>
-        <button
-          onClick={openInvite}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          <UserPlus className="h-4 w-4" />
-          {t("organization.externalMembers.inviteButton")}
-        </button>
+        {canWrite && (
+          <button
+            onClick={openInvite}
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <UserPlus className="h-4 w-4" />
+            {t("organization.externalMembers.inviteButton")}
+          </button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -185,7 +196,7 @@ export default function ExternalMembersSection() {
         </table>
       </div>
 
-      {showInviteForm && (
+      {canWrite && showInviteForm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           onClick={() => !isInviting && setShowInviteForm(false)}

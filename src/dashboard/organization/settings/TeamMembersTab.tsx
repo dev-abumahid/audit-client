@@ -11,6 +11,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   useGetAllOrgUsersQuery,
   useGetPendingInvitationsQuery,
@@ -74,6 +75,15 @@ function StatusBadge({
 
 export default function TeamMembersTab() {
   const { t } = useTranslation()
+  // aexa-frontend#239 -- same gate as base entity CRUD (#217): member
+  // management (invite/suspend/reactivate/resend) had no client-side role
+  // check at all, so a VIEWER/LIGHT_USER saw fully interactive admin
+  // controls -- including an ADMIN role option in the invite form and a
+  // Suspend button on the org's own ADMIN row -- that only failed via a
+  // 403 toast on click. Gating is a UX convenience only; every mutation is
+  // re-checked server-side.
+  const role = useMyOrgRole()
+  const canWrite = canWriteOrgResource(role)
   const [showInviteForm, setShowInviteForm] = useState(false)
   // Keyed by member/invitation id, not a single flag — suspending one member
   // shouldn't disable the reactivate button on a different row.
@@ -191,13 +201,15 @@ export default function TeamMembersTab() {
             })}
           </p>
         </div>
-        <button
-          onClick={openInvite}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          <UserPlus className="h-4 w-4" />
-          {t("organization.teamMembers.inviteMember")}
-        </button>
+        {canWrite && (
+          <button
+            onClick={openInvite}
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <UserPlus className="h-4 w-4" />
+            {t("organization.teamMembers.inviteMember")}
+          </button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -253,27 +265,29 @@ export default function TeamMembersTab() {
                     />
                   </td>
                   <td className="px-5 py-3">
-                    <button
-                      onClick={() => handleToggleStatus(member)}
-                      disabled={isMutating || reactivateBlockedByExpiry}
-                      title={
-                        reactivateBlockedByExpiry
-                          ? t("organization.teamMembers.reactivateBlocked")
-                          : undefined
-                      }
-                      className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {isMutating ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : member.status === "SUSPENDED" ? (
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      ) : (
-                        <ShieldOff className="h-3.5 w-3.5" />
-                      )}
-                      {member.status === "SUSPENDED"
-                        ? t("organization.teamMembers.reactivate")
-                        : t("organization.teamMembers.suspend")}
-                    </button>
+                    {canWrite && (
+                      <button
+                        onClick={() => handleToggleStatus(member)}
+                        disabled={isMutating || reactivateBlockedByExpiry}
+                        title={
+                          reactivateBlockedByExpiry
+                            ? t("organization.teamMembers.reactivateBlocked")
+                            : undefined
+                        }
+                        className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isMutating ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : member.status === "SUSPENDED" ? (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        ) : (
+                          <ShieldOff className="h-3.5 w-3.5" />
+                        )}
+                        {member.status === "SUSPENDED"
+                          ? t("organization.teamMembers.reactivate")
+                          : t("organization.teamMembers.suspend")}
+                      </button>
+                    )}
                   </td>
                 </tr>
               )
@@ -335,18 +349,20 @@ export default function TeamMembersTab() {
                     })}
                   </td>
                   <td className="px-5 py-3">
-                    <button
-                      onClick={() => handleResend(invite)}
-                      disabled={resendingId === invite.id}
-                      className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {resendingId === invite.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      )}
-                      {t("organization.teamMembers.resend")}
-                    </button>
+                    {canWrite && (
+                      <button
+                        onClick={() => handleResend(invite)}
+                        disabled={resendingId === invite.id}
+                        className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {resendingId === invite.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        )}
+                        {t("organization.teamMembers.resend")}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -359,7 +375,7 @@ export default function TeamMembersTab() {
         <ExternalMembersSection />
       </div>
 
-      {showInviteForm && (
+      {canWrite && showInviteForm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           onClick={() => setShowInviteForm(false)}

@@ -6,6 +6,15 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }))
 import { toast } from "sonner"
+
+// aexa-frontend#239 -- role hook mocked per-test via this mutable holder,
+// same convention as RiskRegisterPage.test.tsx / RiskApprovalControls.test.tsx.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+  canWriteOrgResource: (role: string | undefined) =>
+    role === "ADMIN" || role === "LEAD_AUDITOR",
+}))
 const mockToastSuccess = vi.mocked(toast.success)
 const mockToastError = vi.mocked(toast.error)
 
@@ -50,6 +59,7 @@ function member(overrides = {}) {
 
 describe("TeamMembersTab", () => {
   beforeEach(() => {
+    mockRole = "ADMIN"
     mockInviteMember.mockReset()
     mockUpdateOrgMember.mockReset()
     mockResendInvitation.mockReset()
@@ -373,6 +383,118 @@ describe("TeamMembersTab", () => {
           "Only pending invitations can be resent."
         )
       )
+    })
+  })
+
+  describe("role gating (aexa-frontend#239)", () => {
+    it("shows Invite member and Suspend/Resend controls for an ADMIN", () => {
+      mockRole = "ADMIN"
+      mockUseGetAllOrgUsersQuery.mockReturnValue({
+        data: { data: [member()] },
+        isLoading: false,
+      })
+      mockUseGetPendingInvitationsQuery.mockReturnValue({
+        data: {
+          data: [
+            {
+              id: "inv-1",
+              email: "pending@test.com",
+              role: "VIEWER",
+              expiresAt: "2026-08-01T00:00:00.000Z",
+            },
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<TeamMembersTab />)
+
+      expect(
+        screen.getByRole("button", {
+          name: "organization.teamMembers.inviteMember",
+        })
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", { name: "organization.teamMembers.suspend" })
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", { name: "organization.teamMembers.resend" })
+      ).toBeInTheDocument()
+    })
+
+    it("hides Invite member and Suspend/Resend controls for a VIEWER", () => {
+      mockRole = "VIEWER"
+      mockUseGetAllOrgUsersQuery.mockReturnValue({
+        data: { data: [member()] },
+        isLoading: false,
+      })
+      mockUseGetPendingInvitationsQuery.mockReturnValue({
+        data: {
+          data: [
+            {
+              id: "inv-1",
+              email: "pending@test.com",
+              role: "VIEWER",
+              expiresAt: "2026-08-01T00:00:00.000Z",
+            },
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<TeamMembersTab />)
+
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.teamMembers.inviteMember",
+        })
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("button", { name: "organization.teamMembers.suspend" })
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("button", { name: "organization.teamMembers.resend" })
+      ).not.toBeInTheDocument()
+    })
+
+    it("hides Invite member and Suspend/Resend controls for a LIGHT_USER", () => {
+      mockRole = "LIGHT_USER"
+      mockUseGetAllOrgUsersQuery.mockReturnValue({
+        data: { data: [member()] },
+        isLoading: false,
+      })
+      mockUseGetPendingInvitationsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      render(<TeamMembersTab />)
+
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.teamMembers.inviteMember",
+        })
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("button", { name: "organization.teamMembers.suspend" })
+      ).not.toBeInTheDocument()
+    })
+
+    it("still shows read-only member/status/role info for a VIEWER", () => {
+      mockRole = "VIEWER"
+      mockUseGetAllOrgUsersQuery.mockReturnValue({
+        data: { data: [member()] },
+        isLoading: false,
+      })
+      mockUseGetPendingInvitationsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      render(<TeamMembersTab />)
+
+      expect(screen.getByText("Auditor One")).toBeInTheDocument()
+      expect(screen.getByText("auditor@test.com")).toBeInTheDocument()
     })
   })
 })

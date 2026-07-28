@@ -4,6 +4,15 @@ import ExternalMembersSection from "./ExternalMembersSection"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 import { toast } from "sonner"
+
+// aexa-frontend#239 -- role hook mocked per-test via this mutable holder,
+// same convention as RiskRegisterPage.test.tsx / RiskApprovalControls.test.tsx.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+  canWriteOrgResource: (role: string | undefined) =>
+    role === "ADMIN" || role === "LEAD_AUDITOR",
+}))
 const mockToastSuccess = vi.mocked(toast.success)
 const mockToastError = vi.mocked(toast.error)
 
@@ -35,6 +44,7 @@ function makeMember(overrides = {}) {
 
 describe("ExternalMembersSection", () => {
   beforeEach(() => {
+    mockRole = "ADMIN"
     mockInviteExternalMember.mockReset()
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
@@ -190,5 +200,51 @@ describe("ExternalMembersSection", () => {
         "This email is already an external member of your organization."
       )
     )
+  })
+
+  describe("role gating (aexa-frontend#239)", () => {
+    it("shows the invite button for an ADMIN", () => {
+      mockRole = "ADMIN"
+      render(<ExternalMembersSection />)
+      expect(
+        screen.getByRole("button", {
+          name: "organization.externalMembers.inviteButton",
+        })
+      ).toBeInTheDocument()
+    })
+
+    it("hides the invite button for a VIEWER", () => {
+      mockRole = "VIEWER"
+      render(<ExternalMembersSection />)
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.externalMembers.inviteButton",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("hides the invite button for a LIGHT_USER", () => {
+      mockRole = "LIGHT_USER"
+      render(<ExternalMembersSection />)
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.externalMembers.inviteButton",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("still shows the read-only copy-link control for a VIEWER (no mutation to gate)", () => {
+      mockRole = "VIEWER"
+      mockUseGetExternalMembersQuery.mockReturnValue({
+        data: { data: [makeMember()] },
+        isLoading: false,
+      })
+      render(<ExternalMembersSection />)
+      expect(
+        screen.getByRole("button", {
+          name: "organization.externalMembers.copyLink",
+        })
+      ).toBeInTheDocument()
+    })
   })
 })
