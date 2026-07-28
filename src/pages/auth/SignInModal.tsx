@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useSignInUserMutation } from "@/redux/apis/auth.api"
 import type { SignInPayload } from "@/redux/apis/auth.api"
+import { baseApi } from "@/redux/baseApi"
 import { useAppDispatch } from "@/redux/hooks"
 import { setUser } from "@/redux/slices/user.slice"
 import { X } from "lucide-react"
@@ -49,6 +50,11 @@ const SignInModal: React.FC<SignInModalProps> = ({
       }
       const res = await signInUser(payload).unwrap()
       if (res?.success) {
+        // Clear any RTK Query cache left over from a previous account in
+        // this tab before loading the new one in -- otherwise a quick
+        // account switch within RTK Query's default 60s cache retention can
+        // serve the previous user's cached data (aexa-frontend#249).
+        dispatch(baseApi.util.resetApiState())
         dispatch(setUser(res?.data))
         toast.success(res?.message)
         navigate("/" + res?.data?.role?.toLowerCase())

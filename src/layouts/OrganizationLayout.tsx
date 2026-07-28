@@ -1,4 +1,5 @@
 import LanguageSwitcher from "@/components/shared/LanguageSwitcher"
+import { baseApi } from "@/redux/baseApi"
 import { useAppDispatch, useAppSelector } from "@/redux/hooks"
 import { removeUser } from "@/redux/slices/user.slice"
 import {
@@ -41,6 +42,7 @@ export default function OrganizationLayout() {
   // handlers
   const logOutHandler = () => {
     dispatch(removeUser())
+    dispatch(baseApi.util.resetApiState())
     navigate("/")
     toast.success(t("organization.nav.loggedOut"))
   }

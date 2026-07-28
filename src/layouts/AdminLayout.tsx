@@ -1,4 +1,7 @@
 import LanguageSwitcher from "@/components/shared/LanguageSwitcher"
+import { baseApi } from "@/redux/baseApi"
+import { useAppDispatch } from "@/redux/hooks"
+import { removeUser } from "@/redux/slices/user.slice"
 import {
   Bell,
   Building2,
@@ -14,13 +17,24 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Link, Outlet, useLocation } from "react-router"
+import { Link, Outlet, useLocation, useNavigate } from "react-router"
+import { toast } from "sonner"
 
 export default function AdminLayout() {
+  const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
   const { t } = useTranslation()
+
+  // handlers
+  const logOutHandler = () => {
+    dispatch(removeUser())
+    dispatch(baseApi.util.resetApiState())
+    navigate("/")
+    toast.success(t("organization.nav.loggedOut"))
+  }
 
   const NAV_SECTIONS = [
     {
@@ -138,13 +152,13 @@ export default function AdminLayout() {
           {!collapsed && <span>{t("organization.nav.settings")}</span>}
         </Link>
 
-        <Link
-          to="/"
+        <button
+          onClick={logOutHandler}
           className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span>{t("organization.nav.logout")}</span>}
-        </Link>
+        </button>
 
         {/* Collapse Toggle (Desktop) */}
         <button

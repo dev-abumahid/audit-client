@@ -134,6 +134,43 @@ describe("SignInModal", () => {
     )
   })
 
+  it("resets the RTK Query cache before loading the new user in on successful sign-in", async () => {
+    const user = userEvent.setup()
+
+    mockSignInTrigger.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          message: "Signed in",
+          data: { role: "ORGANIZATION" },
+        }),
+    })
+
+    renderModal()
+
+    await user.type(screen.getByLabelText("Email"), "test@example.com")
+    await user.type(screen.getByLabelText("Password"), "secret123")
+    await user.click(screen.getByRole("button", { name: "Sign In" }))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalled())
+
+    // Regression check for aexa-frontend#249 -- without this, a quick
+    // account switch in the same tab could serve the previous user's
+    // cached RTK Query data (e.g. cross-tenant org data) to the new user.
+    const resetApiStateCallIndex = mockDispatch.mock.calls.findIndex(
+      (call) => call[0]?.type === "baseApi/resetApiState"
+    )
+    const setUserCallIndex = mockDispatch.mock.calls.findIndex(
+      (call) => call[0]?.type === "user/setUser"
+    )
+    expect(resetApiStateCallIndex).toBeGreaterThanOrEqual(0)
+    expect(setUserCallIndex).toBeGreaterThanOrEqual(0)
+    // The test name promises resetApiState fires *before* the new user is
+    // loaded in -- assert the ordering itself, not just that both dispatches
+    // happened, so a future refactor that swaps the order fails this test.
+    expect(resetApiStateCallIndex).toBeLessThan(setUserCallIndex)
+  })
+
   it("shows the translated loading label while the sign-in request is pending", async () => {
     const user = userEvent.setup()
 
