@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { StrictMode } from "react"
 import { MemoryRouter } from "react-router"
 import RunInspection from "./RunInspection"
 
@@ -132,6 +133,16 @@ function renderPage() {
     <MemoryRouter>
       <RunInspection />
     </MemoryRouter>
+  )
+}
+
+function renderPageInStrictMode() {
+  return render(
+    <StrictMode>
+      <MemoryRouter>
+        <RunInspection />
+      </MemoryRouter>
+    </StrictMode>
   )
 }
 
@@ -566,6 +577,276 @@ describe("RunInspection", () => {
       data: { answer: "2026-07-01" },
     })
     expect(mockUpdateInspectionQuestionAnswer).toHaveBeenCalledTimes(2)
+  })
+
+  it("flushes a pending debounced save when the component unmounts before the debounce timer fires (regression for #267)", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
+    const { container, unmount } = renderPage()
+    await screen.findByText("Location?")
+
+    vi.useFakeTimers()
+    try {
+      const textInput = container.querySelector(
+        'input[type="text"]'
+      ) as HTMLInputElement
+      expect(textInput).toBeTruthy()
+
+      // Answer the question, then navigate away (unmount) well within the
+      // 600ms debounce window -- before the fix, the unmount cleanup just
+      // cleared this pending timer and the answer was lost silently, with
+      // no save call and no error shown.
+      fireEvent.change(textInput, { target: { value: "Paris" } })
+      fireEvent.blur(textInput)
+
+      await act(async () => {
+        vi.advanceTimersByTime(200)
+      })
+      expect(mockUpdateInspectionQuestionAnswer).not.toHaveBeenCalled()
+
+      unmount()
+
+      // The unmount cleanup fires flushPendingSaves() itself (not a
+      // setTimeout callback), so its mutation call happens on the
+      // microtask queue rather than the fake clock -- flush microtasks
+      // without advancing the timer.
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+
+    expect(mockUpdateInspectionQuestionAnswer).toHaveBeenCalledWith({
+      id: "qa-1",
+      data: { answer: "Paris" },
+    })
+  })
+
+  it("does not double-submit a pending answer when handleComplete's flush and the unmount cleanup's flush overlap", async () => {
+    // Regression test for the concurrent-flush race flagged in review:
+    // handleComplete() calls flushPendingSaves() and awaits it; if the
+    // component unmounts (e.g. a fast double-navigation) while that flush
+    // is still in flight, the unmount cleanup fires its own
+    // flushPendingSaves() call. Both calls must share the same in-flight
+    // work rather than each independently reading saveTimeouts.current and
+    // re-submitting the same pending answer.
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
+
+    let resolveSave: () => void = () => {}
+    mockUpdateInspectionQuestionAnswer.mockReturnValue({
+      unwrap: () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve
+        }),
+    })
+    mockUpdateInspection.mockReturnValue({
+      unwrap: () => new Promise(() => {}), // never resolves; not relevant to this test
+    })
+
+    const { container, unmount } = renderPage()
+    await screen.findByText("Location?")
+
+    const textInput = container.querySelector(
+      'input[type="text"]'
+    ) as HTMLInputElement
+    fireEvent.change(textInput, { target: { value: "Paris" } })
+    fireEvent.blur(textInput)
+
+    const completeButton = screen
+      .getByText("pages.inspection.run.markComplete")
+      .closest("button")!
+
+    // handleComplete() calls flushPendingSaves(), which is now in flight
+    // (held open by the unresolved mock above) -- exactly one call so far.
+    await act(async () => {
+      fireEvent.click(completeButton)
+      await Promise.resolve()
+    })
+    expect(mockUpdateInspectionQuestionAnswer).toHaveBeenCalledTimes(1)
+
+    // Unmount while that flush is still unresolved -- its cleanup fires a
+    // second flushPendingSaves() call. Without the dedup fix, this would
+    // read the still-pending qa-1 entry (only cleared on save *success*)
+    // and re-submit it, double-saving the same answer.
+    unmount()
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(mockUpdateInspectionQuestionAnswer).toHaveBeenCalledTimes(1)
+
+    // Resolve the shared in-flight save; still only one call total.
+    await act(async () => {
+      resolveSave()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(mockUpdateInspectionQuestionAnswer).toHaveBeenCalledTimes(1)
+  })
+
+  it("still shows the save indicator after React 18 StrictMode's dev-only synthetic mount/cleanup/remount", async () => {
+    // StrictMode (enabled app-wide in src/main.tsx) intentionally
+    // mounts, cleans up, and remounts every component once in dev to
+    // surface effects that aren't idempotent. The unmount cleanup effect
+    // sets isMountedRef.current = false; without resetting it back to
+    // true on the following (re-)setup, that synthetic first cleanup
+    // would permanently pin isMountedRef.current to false for the rest
+    // of the component's real lifetime, silently breaking the
+    // isMountedRef-guarded "saved"/"error" indicator from the very first
+    // real render onward.
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
+
+    const { container } = renderPageInStrictMode()
+    await screen.findByText("Location?")
+
+    const textInput = container.querySelector(
+      'input[type="text"]'
+    ) as HTMLInputElement
+    fireEvent.change(textInput, { target: { value: "Paris" } })
+    fireEvent.blur(textInput)
+
+    await act(async () => {
+      vi.useFakeTimers()
+      vi.advanceTimersByTime(600)
+      vi.useRealTimers()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    await waitFor(() =>
+      expect(screen.getByText("pages.inspection.run.saved")).toBeInTheDocument()
+    )
+  })
+
+  it("does not warn about setting state on an unmounted component when the ordinary debounce timer's own save resolves after unmount", async () => {
+    // Distinct from the flush-path tests above: here the 600ms debounce
+    // timer fires normally *while still mounted*, kicking off the save's
+    // own .then/.catch (handleAnswerChange's, not flushPendingSaves'). The
+    // component then unmounts before that save's promise settles, so this
+    // covers the other place setSaveState can fire post-unmount.
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
+
+    let resolveSave: () => void = () => {}
+    mockUpdateInspectionQuestionAnswer.mockReturnValue({
+      unwrap: () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve
+        }),
+    })
+
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {})
+
+    const { container, unmount } = renderPage()
+    await screen.findByText("Location?")
+
+    vi.useFakeTimers()
+    try {
+      const textInput = container.querySelector(
+        'input[type="text"]'
+      ) as HTMLInputElement
+      fireEvent.change(textInput, { target: { value: "Paris" } })
+      fireEvent.blur(textInput)
+
+      // Let the debounce timer fire on its own (component still mounted),
+      // kicking off the save mutation -- which we're holding unresolved.
+      await act(async () => {
+        vi.advanceTimersByTime(600)
+      })
+      expect(mockUpdateInspectionQuestionAnswer).toHaveBeenCalledWith({
+        id: "qa-1",
+        data: { answer: "Paris" },
+      })
+
+      // Navigate away before the in-flight save resolves.
+      unmount()
+
+      // Now let the save resolve, well after unmount.
+      await act(async () => {
+        resolveSave()
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+
+    const reactStateWarning = consoleErrorSpy.mock.calls.find((call) =>
+      String(call[0]).includes(
+        "Can't perform a React state update on an unmounted component"
+      )
+    )
+    expect(reactStateWarning).toBeUndefined()
+
+    consoleErrorSpy.mockRestore()
+  })
+
+  it("does not warn about setting state on an unmounted component when a flushed save fails after unmount", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
+    mockUpdateInspectionQuestionAnswer.mockReturnValue({
+      unwrap: () => Promise.reject(new Error("network error")),
+    })
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {})
+
+    const { container, unmount } = renderPage()
+    await screen.findByText("Location?")
+
+    vi.useFakeTimers()
+    try {
+      const textInput = container.querySelector(
+        'input[type="text"]'
+      ) as HTMLInputElement
+      fireEvent.change(textInput, { target: { value: "Paris" } })
+      fireEvent.blur(textInput)
+
+      await act(async () => {
+        vi.advanceTimersByTime(200)
+      })
+
+      unmount()
+
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+
+    const reactStateWarning = consoleErrorSpy.mock.calls.find((call) =>
+      String(call[0]).includes(
+        "Can't perform a React state update on an unmounted component"
+      )
+    )
+    expect(reactStateWarning).toBeUndefined()
+
+    consoleErrorSpy.mockRestore()
   })
 
   it("flushes a pending debounced save before completing the inspection", async () => {

@@ -105,12 +105,42 @@ export default function RunInspection() {
     Map<string, { timeout: ReturnType<typeof setTimeout>; answer: unknown }>
   >(new Map())
 
+  // Guards state updates that can land after unmount — specifically the
+  // flushPendingSaves() call fired from the cleanup effect below, whose
+  // mutation requests are still in flight when the component tears down.
+  const isMountedRef = useRef(true)
+
   useEffect(() => {
-    const timeouts = saveTimeouts.current
+    // Reset (rather than rely on the useRef initializer alone) so this
+    // stays correct under React 18 StrictMode's dev-only synthetic
+    // mount -> cleanup -> remount: without this, that first synthetic
+    // cleanup would permanently pin isMountedRef.current to false for the
+    // remainder of the component's real lifetime, since the initializer
+    // only ever runs once per ref.
+    isMountedRef.current = true
     return () => {
-      timeouts.forEach(({ timeout }) => clearTimeout(timeout))
-      timeouts.clear()
+      isMountedRef.current = false
+      // Flush every pending debounced save instead of cancelling it (issue
+      // #267). The pre-existing clearTimeout+clear-the-map cleanup here
+      // silently dropped any answer typed within the 600ms debounce window
+      // right before navigating away, with no error surfaced to the user.
+      // This is a synchronous cleanup function so it can't be awaited —
+      // flushPendingSaves is fired and left to run in the background; its
+      // mutation requests complete after unmount the same way any other
+      // in-flight fetch would. Any state updates it triggers are guarded
+      // by isMountedRef so React doesn't warn about setting state on an
+      // unmounted component. flushPendingSaves throws when a save fails
+      // (so handleComplete's caller can abort completion) -- there's no
+      // component left here to abort or show an error to, so that
+      // rejection is caught and just logged rather than left unhandled.
+      flushPendingSaves().catch((err) => {
+        console.error(
+          "Failed to flush pending answer save(s) on unmount:",
+          err
+        )
+      })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleAnswerChange = useCallback(
@@ -130,13 +160,33 @@ export default function RunInspection() {
         saveTimeouts.current.delete(qaId)
         updateInspectionQuestionAnswer({ id: qaId, data: { answer } })
           .unwrap()
-          .then(() => setSaveState("saved"))
-          .catch(() => setSaveState("error"))
+          .then(() => {
+            // This timer only fires while still mounted (unmount now
+            // flushes and clears it via flushPendingSaves instead — see
+            // the cleanup effect above), but the mutation it kicks off can
+            // still resolve/reject after a *later* unmount, so this is
+            // guarded the same way flushPendingSaves' own setSaveState
+            // call is, to avoid a state update on an unmounted component.
+            if (isMountedRef.current) setSaveState("saved")
+          })
+          .catch(() => {
+            if (isMountedRef.current) setSaveState("error")
+          })
       }, 600)
       saveTimeouts.current.set(qaId, { timeout, answer })
     },
     [updateInspectionQuestionAnswer]
   )
+
+  // Ensures overlapping callers (e.g. handleComplete's flush racing the
+  // unmount cleanup's flush, if unmount happens to fire while a completion
+  // is still in flight) share a single in-progress flush instead of each
+  // independently reading saveTimeouts.current and double-submitting the
+  // same pending answer. Entries are only removed from the map once their
+  // save succeeds (see below), not when a flush starts, so without this a
+  // second concurrent call would re-send an answer that the first call is
+  // already busy saving.
+  const inFlightFlushRef = useRef<Promise<void> | null>(null)
 
   // Fires and awaits every pending debounced save immediately, so that
   // completing the inspection right after answering a question (within the
@@ -148,7 +198,16 @@ export default function RunInspection() {
   // to save, so we surface saveState "error" and throw to abort completion,
   // rather than silently proceeding to mark the inspection COMPLETED with a
   // lost answer (the exact bug this flush exists to prevent).
-  async function flushPendingSaves() {
+  function flushPendingSaves(): Promise<void> {
+    if (inFlightFlushRef.current) return inFlightFlushRef.current
+    const promise = doFlushPendingSaves().finally(() => {
+      inFlightFlushRef.current = null
+    })
+    inFlightFlushRef.current = promise
+    return promise
+  }
+
+  async function doFlushPendingSaves() {
     const pending = Array.from(saveTimeouts.current.entries())
     if (pending.length === 0) return
 
@@ -185,7 +244,7 @@ export default function RunInspection() {
         "Failed to flush pending answer save(s) before completing inspection:",
         failures.map((f) => f.reason)
       )
-      setSaveState("error")
+      if (isMountedRef.current) setSaveState("error")
       throw new Error("Failed to save one or more pending answers")
     }
   }
