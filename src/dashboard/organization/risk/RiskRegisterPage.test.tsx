@@ -153,6 +153,18 @@ describe("RiskRegisterPage", () => {
     expect(screen.getByText("5")).toBeInTheDocument() // residual_score badge
   })
 
+  it("aexa-frontend#236: formats financial_impact_max in millions, not thousands", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ financial_impact_max: 500000 })] },
+    })
+
+    render(<RiskRegisterPage />)
+
+    // 500,000 / 1,000,000 = 0.5 -- previously this divided by 1,000 instead,
+    // which rendered "500.0M" (a 1000x overstatement).
+    expect(screen.getByText("0.5M")).toBeInTheDocument()
+  })
+
   it("shows empty state when there are no risks", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 

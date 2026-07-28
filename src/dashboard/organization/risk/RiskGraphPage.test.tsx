@@ -86,6 +86,29 @@ describe("RiskGraphPage", () => {
     expect(fullId.tagName.toLowerCase()).toBe("title")
   })
 
+  it("aexa-frontend#236: shows selected risk's max impact in millions, not thousands", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event")
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ id: "risk-real-1", financial_impact_max: 500000 })] },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />)
+
+    const nodeLabel = screen
+      .getAllByText("risk-real-1")
+      .find((el) => el.tagName.toLowerCase() === "text")!
+    await userEvent.click(nodeLabel)
+
+    // 500,000 / 1,000,000 = 0.5 -- previously this divided by 1,000 instead,
+    // which rendered "500.0M€" (a 1000x overstatement), same class of bug as
+    // RiskRegisterPage's financial_impact_max formatting. The value and "M€"
+    // suffix render as separate text nodes within the same <p>, so match on
+    // the element's combined textContent rather than getByText's per-node text.
+    expect(
+      screen.getByText((_, el) => el?.textContent === "0.5M€")
+    ).toBeInTheDocument()
+  })
+
   it("shows zero correlations rather than fabricated links against real risk data", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: [makeRisk({ id: "risk-real-1" }), makeRisk({ id: "risk-real-2" })] },

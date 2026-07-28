@@ -326,7 +326,7 @@ export default function RiskRegisterPage() {
                       {risk.pagerank_score}
                     </td>
                     <td className="hidden px-3 py-2.5 text-center font-mono lg:table-cell">
-                      {(risk.financial_impact_max / 1000).toFixed(1)}M
+                      {(risk.financial_impact_max / 1000000).toFixed(1)}M
                     </td>
                     <td className="px-3 py-2.5 text-[10px] text-muted-foreground">
                       {risk.ai_generated

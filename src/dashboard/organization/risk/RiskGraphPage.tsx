@@ -398,7 +398,7 @@ export default function RiskGraphPage() {
                   </span>
                   <p className="font-mono font-bold text-foreground">
                     {(
-                      Number(selectedRiskData.financial_impact_max) / 1000
+                      Number(selectedRiskData.financial_impact_max) / 1000000
                     ).toFixed(1)}
                     M€
                   </p>
@@ -457,7 +457,7 @@ export default function RiskGraphPage() {
                           })}
                         </span>
                         <span className="font-mono text-[10px] font-bold text-destructive">
-                          {(chain.totalImpact / 1000).toFixed(1)}M€
+                          {(chain.totalImpact / 1000000).toFixed(1)}M€
                         </span>
                       </div>
                       <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
