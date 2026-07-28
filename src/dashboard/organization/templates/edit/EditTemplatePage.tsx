@@ -40,10 +40,21 @@ const EditTemplatePage = () => {
   const [addModalTarget, setAddModalTarget] = useState<number | null>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [logoObjectUrl, setLogoObjectUrl] = useState<string | null>(null)
   const [answerPanel, setAnswerPanel] = useState<{
     pageIndex: number
     questionIndex: number
   } | null>(null)
+
+  // Revoke the previous object URL whenever it's replaced (a new file is
+  // chosen, the logo is removed, or the page unmounts) — createObjectURL
+  // holds a reference to the File's blob until explicitly revoked,
+  // otherwise it leaks memory. Mirrors the pattern in PersonalInfoForm.tsx.
+  useEffect(() => {
+    return () => {
+      if (logoObjectUrl) URL.revokeObjectURL(logoObjectUrl)
+    }
+  }, [logoObjectUrl])
 
   const initialLoadComplete = useRef(false)
   const { data: templateData, isLoading: isFetchingTemplate } =
@@ -308,7 +319,7 @@ const EditTemplatePage = () => {
                 {logoFile ? (
                   <div className="relative h-20 w-20">
                     <img
-                      src={URL.createObjectURL(logoFile)}
+                      src={logoObjectUrl ?? undefined}
                       className="h-20 w-20 rounded-xl border object-cover"
                       alt={t("organization.templates.edit.logoAlt")}
                     />
@@ -316,6 +327,7 @@ const EditTemplatePage = () => {
                       type="button"
                       onClick={() => {
                         setLogoFile(null)
+                        setLogoObjectUrl(null)
                         setLogoPreview(null)
                       }}
                       className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
@@ -351,6 +363,7 @@ const EditTemplatePage = () => {
                         const file = e.target.files?.[0]
                         if (file) {
                           setLogoFile(file)
+                          setLogoObjectUrl(URL.createObjectURL(file))
                           setLogoPreview(null)
                           // Mark form as dirty to trigger auto-save
                           form.setValue(

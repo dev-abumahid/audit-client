@@ -11,7 +11,7 @@ import type {
 } from "@/types/template"
 import { transformValuesToString } from "@/utils/transformValuesToString"
 import { Loader2, Plus, Sliders, Upload, X } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { Link, useNavigate } from "react-router"
@@ -29,10 +29,21 @@ const CreateTemplatePage = () => {
   const navigate = useNavigate()
   const [addModalTarget, setAddModalTarget] = useState<number | null>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null)
   const [answerPanel, setAnswerPanel] = useState<{
     pageIndex: number
     questionIndex: number
   } | null>(null)
+
+  // Revoke the previous object URL whenever it's replaced (a new file is
+  // chosen, the logo is removed, or the page unmounts) — createObjectURL
+  // holds a reference to the File's blob until explicitly revoked,
+  // otherwise it leaks memory. Mirrors the pattern in PersonalInfoForm.tsx.
+  useEffect(() => {
+    return () => {
+      if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl)
+    }
+  }, [logoPreviewUrl])
 
   const { control, register, handleSubmit, getValues, setValue } =
     useForm<TemplateFormValues>({
@@ -201,14 +212,17 @@ const CreateTemplatePage = () => {
                 {logoFile ? (
                   <div className="relative h-20 w-20">
                     <img
-                      src={URL.createObjectURL(logoFile)}
+                      src={logoPreviewUrl ?? undefined}
                       className="h-20 w-20 rounded-xl border object-cover"
                     />
 
                     {/* remove button */}
                     <button
                       type="button"
-                      onClick={() => setLogoFile(null)}
+                      onClick={() => {
+                        setLogoFile(null)
+                        setLogoPreviewUrl(null)
+                      }}
                       className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white"
                     >
                       <X className="h-3 w-3" />
@@ -226,7 +240,10 @@ const CreateTemplatePage = () => {
                       accept="image/*"
                       onChange={(e) => {
                         const file = e.target.files?.[0]
-                        if (file) setLogoFile(file)
+                        if (file) {
+                          setLogoFile(file)
+                          setLogoPreviewUrl(URL.createObjectURL(file))
+                        }
                       }}
                       className="hidden"
                     />

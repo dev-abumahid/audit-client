@@ -57,6 +57,94 @@ describe("CreateTemplatePage", () => {
     mockCreateNewTemplate.mockReset()
   })
 
+  describe("logo preview object URL lifecycle", () => {
+    // Regression test for #259: URL.createObjectURL(logoFile) was called
+    // inline during render, minting a new (never-revoked) blob URL on every
+    // re-render instead of once per selected file.
+    let createObjectURLSpy: ReturnType<typeof vi.spyOn>
+    let revokeObjectURLSpy: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+      let counter = 0
+      createObjectURLSpy = vi
+        .spyOn(URL, "createObjectURL")
+        .mockImplementation(() => `blob:mock-${++counter}`)
+      revokeObjectURLSpy = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => {})
+    })
+
+    afterEach(() => {
+      createObjectURLSpy.mockRestore()
+      revokeObjectURLSpy.mockRestore()
+    })
+
+    it("creates the object URL once per selected file, not once per re-render", async () => {
+      const user = userEvent.setup()
+      const file = new File(["fake-image-bytes"], "logo.png", {
+        type: "image/png",
+      })
+
+      renderPage()
+      await user.upload(screen.getByLabelText(/organization\.templates\.create\.upload/i), file)
+
+      await waitFor(() => expect(createObjectURLSpy).toHaveBeenCalledTimes(1))
+      expect(createObjectURLSpy).toHaveBeenCalledWith(file)
+
+      // Trigger unrelated re-renders (typing elsewhere in the form) — the
+      // object URL must not be re-minted on each keystroke.
+      const nameInput = screen.getByPlaceholderText(
+        /organization\.templates\.create\.namePlaceholder/i
+      )
+      await user.type(nameInput, "My Template")
+
+      expect(createObjectURLSpy).toHaveBeenCalledTimes(1)
+    })
+
+    it("revokes the previous object URL when the file is replaced", async () => {
+      const user = userEvent.setup()
+      const file1 = new File(["a"], "logo1.png", { type: "image/png" })
+      const file2 = new File(["b"], "logo2.png", { type: "image/png" })
+
+      const { container } = renderPage()
+      await user.upload(screen.getByLabelText(/organization\.templates\.create\.upload/i), file1)
+      await waitFor(() => expect(createObjectURLSpy).toHaveBeenCalledTimes(1))
+      const firstUrl = createObjectURLSpy.mock.results[0].value
+
+      // Remove the current logo (the small round X button overlaid on the
+      // preview, identified by its position class rather than an accessible
+      // name — it has none), which re-exposes the upload input, then pick a
+      // second file.
+      const removeButton = container.querySelector(
+        "button.absolute.-top-2"
+      ) as HTMLElement
+      await user.click(removeButton)
+      const uploadInput = screen.getByLabelText(
+        /organization\.templates\.create\.upload/i
+      )
+      await user.upload(uploadInput, file2)
+
+      await waitFor(() => expect(createObjectURLSpy).toHaveBeenCalledTimes(2))
+      expect(revokeObjectURLSpy).toHaveBeenCalledWith(firstUrl)
+    })
+
+    it("revokes the object URL on unmount", async () => {
+      const user = userEvent.setup()
+      const file = new File(["fake-image-bytes"], "logo.png", {
+        type: "image/png",
+      })
+
+      const { unmount } = renderPage()
+      await user.upload(screen.getByLabelText(/organization\.templates\.create\.upload/i), file)
+      await waitFor(() => expect(createObjectURLSpy).toHaveBeenCalledTimes(1))
+      const url = createObjectURLSpy.mock.results[0].value
+
+      unmount()
+
+      expect(revokeObjectURLSpy).toHaveBeenCalledWith(url)
+    })
+  })
+
   it("submits the template and navigates away on success", async () => {
     mockCreateNewTemplate.mockReturnValue({
       unwrap: () =>
