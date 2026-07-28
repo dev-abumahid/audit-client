@@ -12,6 +12,7 @@ import type { Risk, SiteSummary } from "@/types/organization"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import RiskApprovalControls from "./RiskApprovalControls"
+import RiskOverrideBadge from "./RiskOverrideBadge"
 import { Clock, Loader, Pencil, Plus, Search, Trash2 } from "lucide-react"
 import { useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
@@ -24,7 +25,11 @@ const EMPTY_RISK: Partial<Risk> = {
   description: "",
   category: "",
   inherent_score: 0,
+  inherent_is_override: false,
+  inherent_override_reason: "",
   residual_score: 0,
+  residual_is_override: false,
+  residual_override_reason: "",
   pagerank_score: 0,
   financial_impact_min: 0,
   financial_impact_max: 0,
@@ -88,10 +93,13 @@ export default function RiskRegisterPage() {
     register,
     handleSubmit,
     reset,
-    formState: { errors },
+    watch,
+    formState: { errors, dirtyFields },
   } = useForm<Risk>({
     defaultValues: EMPTY_RISK,
   })
+  const inherentIsOverride = watch("inherent_is_override")
+  const residualIsOverride = watch("residual_is_override")
 
   const openCreate = () => {
     setEditId(null)
@@ -104,7 +112,11 @@ export default function RiskRegisterPage() {
     reset({
       ...risk,
       inherent_score: Number(risk.inherent_score) || 0,
+      inherent_is_override: !!risk.inherent_is_override,
+      inherent_override_reason: risk.inherent_override_reason || "",
       residual_score: Number(risk.residual_score) || 0,
+      residual_is_override: !!risk.residual_is_override,
+      residual_override_reason: risk.residual_override_reason || "",
       pagerank_score: Number(risk.pagerank_score) || 0,
       financial_impact_min: Number(risk.financial_impact_min) || 0,
       financial_impact_max: Number(risk.financial_impact_max) || 0,
@@ -117,7 +129,84 @@ export default function RiskRegisterPage() {
   }
 
   const onSubmit: SubmitHandler<Risk> = async (data) => {
-    const filteredData = removeNulls(data)
+    // aexa-frontend#269 -- translate this form's client-facing
+    // `*_is_override`/`*_override_reason` fields (named to match the stored
+    // Risk row, for display/pre-fill purposes) into the request keys
+    // POST/PATCH /risk actually expect (`*_override`, not `*_is_override` --
+    // confirmed against aexa-server risk_scoring.ts's
+    // InherentOverrideRequest/ResidualOverrideRequest shapes and
+    // risk.service.ts's create/update handlers, which read
+    // `payload.inherent_override`/`payload.residual_override`). The
+    // *_overridden_by/*_overridden_at/*_override_stale fields are
+    // server-derived and never sent -- the server would ignore a
+    // client-supplied value for them anyway (risk_scoring.ts's
+    // resolveInherentFields/resolveResidualFields always compute them),
+    // sending them would just be misleading dead weight in the request.
+    const payload: Record<string, unknown> = { ...data }
+    // Server-owned audit fields -- the server always recomputes these
+    // (risk_scoring.ts's resolveInherentFields/resolveResidualFields), so
+    // sending them back is dead weight that could misleadingly imply the
+    // client controls them.
+    delete payload.inherent_overridden_by
+    delete payload.inherent_overridden_at
+    delete payload.inherent_override_stale
+    delete payload.residual_overridden_by
+    delete payload.residual_overridden_at
+    delete payload.residual_override_stale
+    // Rename this form's client-facing `*_is_override` field to the
+    // `*_override` request key POST/PATCH /risk actually expect (confirmed
+    // against risk_scoring.ts's InherentOverrideRequest/
+    // ResidualOverrideRequest and risk.service.ts's create/update handlers).
+    //
+    // Only sent when the user actually touched this override control in this
+    // editing session (formState.dirtyFields) -- risk_scoring.ts's
+    // resolveInherentFields/resolveResidualFields treat an *omitted*
+    // *_override key as "no explicit instruction, preserve existing
+    // override/staleness as-is," but treat an *explicit* `true` as "fresh
+    // override, reset overridden_by/overridden_at to now and clear
+    // override_stale." Since this form always pre-populates the toggle from
+    // the current row, sending it unconditionally on every submit -- even
+    // for an edit to an unrelated field like the risk's name -- would
+    // silently reassign who "overrode" the score and clear any staleness
+    // flag nobody actually reviewed. Gating on dirtyFields keeps an
+    // untouched override's audit trail and staleness intact through
+    // unrelated edits, and still lets a deliberate toggle/reason/score
+    // change take the "fresh override" branch as intended.
+    const inherentOverrideTouched =
+      !!dirtyFields.inherent_is_override ||
+      !!dirtyFields.inherent_override_reason ||
+      !!dirtyFields.inherent_score
+    const residualOverrideTouched =
+      !!dirtyFields.residual_is_override ||
+      !!dirtyFields.residual_override_reason ||
+      !!dirtyFields.residual_score
+
+    if (inherentOverrideTouched) {
+      payload.inherent_override = data.inherent_is_override
+      // Don't ship stale reason text for a toggle that's off -- the server
+      // requires a non-empty reason only when *_override is true, but an
+      // unrelated leftover string here would be confusing on the next read.
+      payload.inherent_override_reason = data.inherent_is_override
+        ? data.inherent_override_reason
+        : undefined
+    } else {
+      delete payload.inherent_override
+      delete payload.inherent_override_reason
+    }
+    delete payload.inherent_is_override
+
+    if (residualOverrideTouched) {
+      payload.residual_override = data.residual_is_override
+      payload.residual_override_reason = data.residual_is_override
+        ? data.residual_override_reason
+        : undefined
+    } else {
+      delete payload.residual_override
+      delete payload.residual_override_reason
+    }
+    delete payload.residual_is_override
+
+    const filteredData = removeNulls(payload)
 
     try {
       let res
@@ -308,19 +397,35 @@ export default function RiskRegisterPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-center">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          risk.velocity === "critical"
-                            ? "bg-destructive/15 text-destructive"
-                            : risk.velocity === "high"
-                              ? "bg-orange-500/15 text-orange-600"
-                              : risk.velocity === "medium"
-                                ? "bg-yellow-500/15 text-yellow-600"
-                                : "bg-green-500/15 text-green-600"
-                        }`}
-                      >
-                        {risk.residual_score}
-                      </span>
+                      <div className="flex flex-col items-center gap-1">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            risk.velocity === "critical"
+                              ? "bg-destructive/15 text-destructive"
+                              : risk.velocity === "high"
+                                ? "bg-orange-500/15 text-orange-600"
+                                : risk.velocity === "medium"
+                                  ? "bg-yellow-500/15 text-yellow-600"
+                                  : "bg-green-500/15 text-green-600"
+                          }`}
+                        >
+                          {risk.residual_score}
+                        </span>
+                        {/* aexa-frontend#269 -- the list-view half of "not
+                            buried": the score column is the one place every
+                            row's residual score already renders, so the
+                            override/staleness badge for it lives right
+                            underneath rather than requiring a row expand. */}
+                        <RiskOverrideBadge
+                          isOverride={!!risk.residual_is_override}
+                          isStale={!!risk.residual_override_stale}
+                          overriddenBy={risk.residual_overridden_by}
+                          overriddenAt={risk.residual_overridden_at}
+                          label={t(
+                            "organization.riskRegister.residualScoreLabel"
+                          )}
+                        />
+                      </div>
                     </td>
                     <td className="hidden px-3 py-2.5 text-center font-mono font-bold lg:table-cell">
                       {risk.pagerank_score}
@@ -502,6 +607,120 @@ export default function RiskRegisterPage() {
                     />
                   </div>
                 </div>
+
+                {/* aexa-frontend#269 -- derive-with-override-and-staleness
+                    controls, one block per score, right under the score
+                    inputs they apply to (rather than a shared block further
+                    down the form) so the override is visually anchored to
+                    the exact number it's overriding. The reason field is
+                    only rendered -- and only required -- while the toggle is
+                    checked, mirroring the server's own conditional
+                    requirement (risk_scoring.ts's resolveInherentFields /
+                    resolveResidualFields: `*_override_reason` is required
+                    only when `*_override === true`). RHF's `validate`
+                    callback re-reads the live checkbox value on every
+                    validation pass (via `watch`), so toggling the checkbox
+                    off after typing a reason clears the requirement without
+                    needing a manual re-validate call. */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5 rounded-lg border border-dashed p-2.5">
+                    <label className="flex items-center gap-2 text-xs font-medium">
+                      <input
+                        type="checkbox"
+                        {...register("inherent_is_override")}
+                        className="h-3.5 w-3.5"
+                      />
+                      {t("organization.riskRegister.inherentOverrideLabel")}
+                    </label>
+                    {inherentIsOverride && (
+                      <div>
+                        <textarea
+                          {...register("inherent_override_reason", {
+                            validate: (value) =>
+                              !watch("inherent_is_override") ||
+                              !!value?.trim() ||
+                              t(
+                                "organization.riskRegister.overrideReasonRequired"
+                              ),
+                          })}
+                          placeholder={t(
+                            "organization.riskRegister.inherentOverrideReasonPlaceholder"
+                          )}
+                          rows={2}
+                          className="w-full rounded-lg border bg-muted px-2 py-1.5 text-xs"
+                        />
+                        {errors.inherent_override_reason && (
+                          <p className="mt-1 text-xs text-destructive">
+                            {errors.inherent_override_reason.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1.5 rounded-lg border border-dashed p-2.5">
+                    <label className="flex items-center gap-2 text-xs font-medium">
+                      <input
+                        type="checkbox"
+                        {...register("residual_is_override")}
+                        className="h-3.5 w-3.5"
+                      />
+                      {t("organization.riskRegister.residualOverrideLabel")}
+                    </label>
+                    {residualIsOverride && (
+                      <div>
+                        <textarea
+                          {...register("residual_override_reason", {
+                            validate: (value) =>
+                              !watch("residual_is_override") ||
+                              !!value?.trim() ||
+                              t(
+                                "organization.riskRegister.overrideReasonRequired"
+                              ),
+                          })}
+                          placeholder={t(
+                            "organization.riskRegister.residualOverrideReasonPlaceholder"
+                          )}
+                          rows={2}
+                          className="w-full rounded-lg border bg-muted px-2 py-1.5 text-xs"
+                        />
+                        {errors.residual_override_reason && (
+                          <p className="mt-1 text-xs text-destructive">
+                            {errors.residual_override_reason.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Staleness badges: visible in the edit modal whenever this
+                    risk's stored override is stale (an underlying input
+                    changed since it was set), not just on the list view --
+                    see the table's SCORE column for the other half of "not
+                    buried". Only shown on edit (editId set), since a
+                    brand-new risk can't have a stale override yet. */}
+                {editId && (
+                  <div className="flex flex-wrap gap-2">
+                    <RiskOverrideBadge
+                      isOverride={!!watch("inherent_is_override")}
+                      isStale={!!watch("inherent_override_stale")}
+                      overriddenBy={watch("inherent_overridden_by")}
+                      overriddenAt={watch("inherent_overridden_at")}
+                      label={t(
+                        "organization.riskRegister.inherentScoreLabel"
+                      )}
+                    />
+                    <RiskOverrideBadge
+                      isOverride={!!watch("residual_is_override")}
+                      isStale={!!watch("residual_override_stale")}
+                      overriddenBy={watch("residual_overridden_by")}
+                      overriddenAt={watch("residual_overridden_at")}
+                      label={t(
+                        "organization.riskRegister.residualScoreLabel"
+                      )}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Financial Impact Section */}

@@ -861,7 +861,17 @@
         "awaitingOtherReviewer": "Awaiting another admin's review — you can't approve your own submission.",
         "rejectionReason": "Reason: {{reason}}",
         "decidedOn": "Decided {{date}}"
-      }
+      },
+      "inherentOverrideLabel": "Override inherent score",
+      "residualOverrideLabel": "Override residual score",
+      "inherentOverrideReasonPlaceholder": "Why are you overriding the inherent score?",
+      "residualOverrideReasonPlaceholder": "Why are you overriding the residual score?",
+      "overrideReasonRequired": "A reason is required to override this score.",
+      "overrideStaleBadge": "{{label}} override stale",
+      "overrideActiveBadge": "{{label}} overridden",
+      "overrideTooltip": "{{label}} overridden by {{by}} on {{date}}",
+      "overrideUnknownActor": "unknown user",
+      "overrideUnknownDate": "an unknown date"
     },
     "compliance": {
       "title": "Compliance Obligations",

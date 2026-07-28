@@ -861,7 +861,17 @@
         "awaitingOtherReviewer": "En attente de l'examen d'un autre administrateur — vous ne pouvez pas approuver votre propre soumission.",
         "rejectionReason": "Motif : {{reason}}",
         "decidedOn": "Décidé le {{date}}"
-      }
+      },
+      "inherentOverrideLabel": "Remplacer le score inhérent",
+      "residualOverrideLabel": "Remplacer le score résiduel",
+      "inherentOverrideReasonPlaceholder": "Pourquoi remplacez-vous le score inhérent ?",
+      "residualOverrideReasonPlaceholder": "Pourquoi remplacez-vous le score résiduel ?",
+      "overrideReasonRequired": "Un motif est requis pour remplacer ce score.",
+      "overrideStaleBadge": "{{label}} remplacement obsolète",
+      "overrideActiveBadge": "{{label}} remplacé",
+      "overrideTooltip": "{{label}} remplacé par {{by}} le {{date}}",
+      "overrideUnknownActor": "utilisateur inconnu",
+      "overrideUnknownDate": "une date inconnue"
     },
     "compliance": {
       "title": "Obligations de conformité",

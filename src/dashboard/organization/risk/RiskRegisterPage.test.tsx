@@ -484,6 +484,295 @@ describe("RiskRegisterPage", () => {
     expect(screen.queryByText("Never submitted")).not.toBeInTheDocument()
   })
 
+  // aexa-frontend#269 -- derive-with-override-and-staleness controls.
+  describe("score override + staleness", () => {
+    it("requires a reason before an inherent-score override can be submitted, then submits it once provided", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockCreateNewRisk.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Risk created" }),
+      })
+
+      const { container } = render(<RiskRegisterPage />)
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.addNewRisk",
+        })
+      )
+      await userEvent.selectOptions(
+        container.querySelector('[name="site_id"]')!,
+        "site-1"
+      )
+      await userEvent.type(
+        container.querySelector('[name="name"]')!,
+        "Overridden risk"
+      )
+      await userEvent.selectOptions(
+        container.querySelector('[name="status"]')!,
+        "open"
+      )
+
+      // Toggle the inherent-score override on, but submit without a reason.
+      await userEvent.click(
+        container.querySelector('[name="inherent_is_override"]')!
+      )
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.addRisk",
+        })
+      )
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            "organization.riskRegister.overrideReasonRequired"
+          )
+        ).toBeInTheDocument()
+      })
+      expect(mockCreateNewRisk).not.toHaveBeenCalled()
+
+      // Provide the reason and resubmit -- matches the server's own
+      // requirement (risk_scoring.ts's resolveInherentFields: reason is
+      // required only when inherent_override is true).
+      await userEvent.type(
+        container.querySelector('[name="inherent_override_reason"]')!,
+        "Board directed a manual uplift pending remediation."
+      )
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.addRisk",
+        })
+      )
+
+      await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
+      const submitted = mockCreateNewRisk.mock.calls[0][0]
+      // The client-facing `inherent_is_override` field is translated to the
+      // `inherent_override` request key the API actually expects (confirmed
+      // against aexa-server risk.service.ts's create_risk_into_db, which
+      // reads payload.inherent_override, not payload.inherent_is_override).
+      expect(submitted).toMatchObject({
+        inherent_override: true,
+        inherent_override_reason:
+          "Board directed a manual uplift pending remediation.",
+      })
+      expect(submitted).not.toHaveProperty("inherent_is_override")
+    })
+
+    it("does not require a reason when the override toggle is left off", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockCreateNewRisk.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Risk created" }),
+      })
+
+      const { container } = render(<RiskRegisterPage />)
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.addNewRisk",
+        })
+      )
+      await userEvent.selectOptions(
+        container.querySelector('[name="site_id"]')!,
+        "site-1"
+      )
+      await userEvent.type(
+        container.querySelector('[name="name"]')!,
+        "Auto-derived risk"
+      )
+      await userEvent.selectOptions(
+        container.querySelector('[name="status"]')!,
+        "open"
+      )
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.addRisk",
+        })
+      )
+
+      await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
+      const submitted = mockCreateNewRisk.mock.calls[0][0]
+      // The override toggle was never touched, so inherent_override is
+      // omitted entirely rather than sent as an explicit `false` -- the
+      // server's resolveInherentFields treats a create request with no
+      // override instruction (`!existing`) the same way either way, always
+      // taking the auto-compute path, so omitting it here is equivalent to
+      // sending `false` and matches the untouched-override contract the
+      // update path also relies on (see the two tests below).
+      expect(submitted.inherent_override).toBeUndefined()
+    })
+
+    it("re-submitting a fresh override supersedes an existing staleness flag rather than preserving it", async () => {
+      // Existing risk with a STALE inherent-score override already in place.
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({
+              inherent_score: 72,
+              inherent_is_override: true,
+              inherent_override_reason: "Old override reason",
+              inherent_overridden_by: "acc-1",
+              inherent_overridden_at: "2026-06-01T00:00:00.000Z",
+              inherent_override_stale: true,
+            }),
+          ],
+        },
+      })
+      mockUpdateRisk.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Risk updated" }),
+      })
+
+      const { container } = render(<RiskRegisterPage />)
+      const editButtons = screen
+        .getAllByRole("button")
+        .filter((b) => b.querySelector("svg.lucide-pencil"))
+      await userEvent.click(editButtons[0])
+
+      // The toggle and reason pre-fill from the existing (stale) override.
+      expect(
+        container.querySelector('[name="inherent_is_override"]')
+      ).toBeChecked()
+
+      // Replace the reason with a fresh justification and resubmit -- this
+      // is a brand-new override request (inherent_override: true + a new
+      // reason), which the server's resolveInherentFields always resets
+      // inherent_override_stale to false for (a fresh override always wins
+      // over a prior staleness flag; see risk_scoring.ts's `true` branch,
+      // which unconditionally sets `inherent_override_stale: false`). The
+      // client doesn't send inherent_override_stale at all -- confirming
+      // that below is how this test proves the client defers entirely to
+      // the server for that flag rather than trying to compute/preserve it.
+      const reasonField = container.querySelector(
+        '[name="inherent_override_reason"]'
+      )!
+      await userEvent.clear(reasonField)
+      await userEvent.type(reasonField, "Re-confirmed after remediation review.")
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.updateRisk",
+        })
+      )
+
+      await waitFor(() => expect(mockUpdateRisk).toHaveBeenCalled())
+      const { data: submitted } = mockUpdateRisk.mock.calls[0][0]
+      expect(submitted).toMatchObject({
+        inherent_override: true,
+        inherent_override_reason: "Re-confirmed after remediation review.",
+      })
+      expect(submitted).not.toHaveProperty("inherent_override_stale")
+      expect(submitted).not.toHaveProperty("inherent_overridden_by")
+      expect(submitted).not.toHaveProperty("inherent_overridden_at")
+    })
+
+    it("editing an unrelated field does not resend an untouched override, preserving its audit trail and staleness", async () => {
+      // Same stale, already-overridden risk as above, but this time the user
+      // only edits the risk's name -- never touching the override toggle,
+      // reason, or inherent_score. Resending inherent_override:true here
+      // would make the server reset overridden_by/overridden_at to the
+      // current actor/time and clear override_stale, even though nobody
+      // reviewed the override -- that's the bug this test guards against.
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({
+              inherent_score: 72,
+              inherent_is_override: true,
+              inherent_override_reason: "Old override reason",
+              inherent_overridden_by: "acc-1",
+              inherent_overridden_at: "2026-06-01T00:00:00.000Z",
+              inherent_override_stale: true,
+            }),
+          ],
+        },
+      })
+      mockUpdateRisk.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Risk updated" }),
+      })
+
+      const { container } = render(<RiskRegisterPage />)
+      const editButtons = screen
+        .getAllByRole("button")
+        .filter((b) => b.querySelector("svg.lucide-pencil"))
+      await userEvent.click(editButtons[0])
+
+      const nameField = container.querySelector('[name="name"]')!
+      await userEvent.clear(nameField)
+      await userEvent.type(nameField, "Renamed risk")
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.updateRisk",
+        })
+      )
+
+      await waitFor(() => expect(mockUpdateRisk).toHaveBeenCalled())
+      const { data: submitted } = mockUpdateRisk.mock.calls[0][0]
+      expect(submitted.name).toBe("Renamed risk")
+      expect(submitted).not.toHaveProperty("inherent_override")
+      expect(submitted).not.toHaveProperty("inherent_override_reason")
+    })
+  })
+
+  describe("score override staleness badge", () => {
+    it("shows the stale badge in the list view when residual_override_stale is true", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({
+              residual_is_override: true,
+              residual_override_stale: true,
+              residual_overridden_by: "acc-9",
+              residual_overridden_at: "2026-07-01T00:00:00.000Z",
+            }),
+          ],
+        },
+      })
+
+      render(<RiskRegisterPage />)
+
+      expect(screen.getByTestId("override-stale-badge")).toBeInTheDocument()
+    })
+
+    it("does not show the stale badge in the list view when residual_override_stale is false", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({
+              residual_is_override: true,
+              residual_override_stale: false,
+              residual_overridden_by: "acc-9",
+              residual_overridden_at: "2026-07-01T00:00:00.000Z",
+            }),
+          ],
+        },
+      })
+
+      render(<RiskRegisterPage />)
+
+      expect(
+        screen.queryByTestId("override-stale-badge")
+      ).not.toBeInTheDocument()
+      // A fresh (non-stale) override still surfaces via the "active" badge --
+      // not buried, just a visually distinct, less alarming state.
+      expect(screen.getByTestId("override-active-badge")).toBeInTheDocument()
+    })
+
+    it("shows neither override badge when the score was never overridden", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ residual_is_override: false })] },
+      })
+
+      render(<RiskRegisterPage />)
+
+      expect(
+        screen.queryByTestId("override-stale-badge")
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId("override-active-badge")
+      ).not.toBeInTheDocument()
+    })
+  })
+
   it("filters risks by search term via the query hook", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 

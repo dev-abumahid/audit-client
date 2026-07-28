@@ -88,7 +88,29 @@ export interface Risk {
   description: string
   category: string
   inherent_score: number
+  // aexa-frontend#269 -- derive-with-override-and-staleness pattern, mirroring
+  // aexa-server#247's inherent_score. Confirmed against the real
+  // prisma/schema/risk.prisma Risk model: the four override-metadata columns
+  // are all nullable (no override yet is the common case), the two booleans
+  // both default to false. `inherent_overridden_by` is the raw accountId of
+  // the overriding user (a plain string column, not an Account relation) --
+  // there is no server endpoint to resolve it to a display name, matching the
+  // same constraint CompliancePage.tsx's attested_by rendering already
+  // documents for RiskApproval's submittedById/decidedById.
+  inherent_is_override: boolean
+  inherent_override_reason: string | null
+  inherent_overridden_by: string | null
+  inherent_overridden_at: string | null
+  inherent_override_stale: boolean
   residual_score: number
+  // aexa-frontend#269 -- same derive-with-override-and-staleness pattern,
+  // mirroring aexa-server#241's residual_score. Same field shapes as the
+  // inherent_* set above.
+  residual_is_override: boolean
+  residual_override_reason: string | null
+  residual_overridden_by: string | null
+  residual_overridden_at: string | null
+  residual_override_stale: boolean
   pagerank_score: number
   financial_impact_min: number
   financial_impact_max: number
