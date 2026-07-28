@@ -192,6 +192,28 @@ describe("RiskRegisterPage", () => {
     ).toBeInTheDocument()
   })
 
+  it("aexa-frontend#228: constrains inherent_score, residual_score and probability to 0-100", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+
+    const { container } = render(<RiskRegisterPage />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    )
+
+    for (const name of ["inherent_score", "residual_score", "probability"]) {
+      const input = container.querySelector(`[name="${name}"]`)
+      expect(input).toHaveAttribute("min", "0")
+      expect(input).toHaveAttribute("max", "100")
+    }
+    // pagerank_score is deliberately NOT a 0-100 field server-side (a graph
+    // centrality score, not a percentage) -- must stay unbounded.
+    const pagerankInput = container.querySelector('[name="pagerank_score"]')
+    expect(pagerankInput).not.toHaveAttribute("min")
+    expect(pagerankInput).not.toHaveAttribute("max")
+  })
+
   it("shows validation errors when submitting with required fields empty", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 

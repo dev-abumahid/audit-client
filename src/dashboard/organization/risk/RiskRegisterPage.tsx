@@ -473,6 +473,8 @@ export default function RiskRegisterPage() {
                     </label>
                     <input
                       type="number"
+                      min="0"
+                      max="100"
                       {...register("inherent_score", { valueAsNumber: true })}
                       className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
                     />
@@ -483,6 +485,8 @@ export default function RiskRegisterPage() {
                     </label>
                     <input
                       type="number"
+                      min="0"
+                      max="100"
                       {...register("residual_score", { valueAsNumber: true })}
                       className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
                     />
@@ -545,6 +549,8 @@ export default function RiskRegisterPage() {
                     </label>
                     <input
                       type="number"
+                      min="0"
+                      max="100"
                       {...register("probability", { valueAsNumber: true })}
                       className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
                     />
