@@ -16,6 +16,7 @@ import {
 import { useGetAllInspectionQuery } from "@/redux/apis/organization/inspection.api"
 import { useGetAllOrgUsersQuery } from "@/redux/apis/organization/org.user.api"
 import type { IAction, IActionMessage } from "@/types/finding"
+import { toLocalDatetimeInputValue } from "./dueDateInput"
 import {
   AlertCircle,
   AlertTriangle,
@@ -61,7 +62,7 @@ type FindingFormValues = Omit<IAction, "assignBy"> & { assignBy: string[] }
 const defaultDueDate = () => {
   const d = new Date()
   d.setDate(d.getDate() + 7)
-  return d.toISOString().slice(0, 16)
+  return toLocalDatetimeInputValue(d)
 }
 
 const PRIORITY_STYLES: Record<string, string> = {
@@ -219,7 +220,9 @@ export default function CreateNewFindingModal({
         actionDisc: editData.actionDisc ?? "",
         priority: editData.priority,
         status: editData.status ?? "TO_DO",
-        dueDate: editData.dueDate?.slice(0, 16) ?? defaultDueDate(),
+        dueDate: editData.dueDate
+          ? toLocalDatetimeInputValue(new Date(editData.dueDate))
+          : defaultDueDate(),
         inspectionId: insId,
         questionId: editData.questionId ?? "",
         messages: [],

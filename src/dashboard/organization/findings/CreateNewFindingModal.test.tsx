@@ -2,6 +2,7 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import CreateNewFindingModal from "./CreateNewFindingModal"
+import { toLocalDatetimeInputValue } from "./dueDateInput"
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -901,6 +902,135 @@ describe("CreateNewFindingModal", () => {
       await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
       const call = mockUpdateFindingById.mock.calls[0][0]
       expect(call.body.status).toBeUndefined()
+    })
+  })
+
+  // aexa-frontend#238: dueDate round-trips through a `datetime-local` input
+  // (local wall-clock, no offset) on both sides -- reading a UTC ISO string
+  // back into that input, and converting the input's value back to UTC on
+  // submit. Getting either conversion wrong shifts the date by the local
+  // UTC offset every edit, and can flip the future-date validator too.
+  describe("due date timezone round-trip (#238)", () => {
+    it("toLocalDatetimeInputValue converts a UTC instant to the correct local wall-clock value for a non-UTC, non-whole-hour offset", () => {
+      // IST, UTC+5:30 -- getTimezoneOffset() is negative for zones east of UTC.
+      const offsetSpy = vi
+        .spyOn(Date.prototype, "getTimezoneOffset")
+        .mockReturnValue(-330)
+
+      expect(
+        toLocalDatetimeInputValue(new Date("2026-08-15T18:30:00.000Z"))
+      ).toBe("2026-08-16T00:00")
+
+      offsetSpy.mockRestore()
+    })
+
+    it("toLocalDatetimeInputValue converts a UTC instant to the correct local wall-clock value west of UTC", () => {
+      // EST, UTC-5.
+      const offsetSpy = vi
+        .spyOn(Date.prototype, "getTimezoneOffset")
+        .mockReturnValue(300)
+
+      expect(
+        toLocalDatetimeInputValue(new Date("2026-08-15T18:30:00.000Z"))
+      ).toBe("2026-08-15T13:30")
+
+      offsetSpy.mockRestore()
+    })
+
+    // Exercises the real end-to-end path: editData.dueDate (server UTC ISO)
+    // -> reset()'s dueDate via toLocalDatetimeInputValue (edit re-init,
+    // ~line 222) -> the datetime-local input's displayed value -> back
+    // through `new Date(values.dueDate).toISOString()` on submit (~line
+    // 309+). Uses a real, fixed-offset (no DST) IANA zone rather than a
+    // mocked getTimezoneOffset, because the submit side re-parses the
+    // input's plain local-time string with `new Date(...)`, which consults
+    // the actual host timezone, not a mocked prototype method.
+    describe("with the process timezone pinned to a fixed non-UTC offset", () => {
+      beforeAll(() => {
+        // Arizona does not observe DST, so this is deterministic year-round.
+        vi.stubEnv("TZ", "America/Phoenix") // UTC-7
+      })
+
+      afterAll(() => {
+        vi.unstubAllEnvs()
+      })
+
+      it("resubmitting an edited finding without touching the due date sends back the exact same UTC instant", async () => {
+        mockUpdateFindingById.mockReturnValue({
+          unwrap: () => Promise.resolve({}),
+        })
+        const originalDueDate = "2099-08-15T18:30:00.000Z"
+
+        render(
+          <CreateNewFindingModal
+            open
+            onClose={vi.fn()}
+            editData={makeEditData({ dueDate: originalDueDate }) as any}
+          />
+        )
+
+        await waitFor(() =>
+          expect(
+            screen.getByDisplayValue("Fix broken railing")
+          ).toBeInTheDocument()
+        )
+
+        // Reflects the local wall-clock time (UTC-7): 18:30 UTC -> 11:30.
+        const dueDateInput = document.querySelector(
+          'input[type="datetime-local"]'
+        ) as HTMLInputElement
+        expect(dueDateInput.value).toBe("2099-08-15T11:30")
+
+        await userEvent.click(
+          screen.getByRole("button", {
+            name: "organization.findings.updateFindingBtn",
+          })
+        )
+
+        await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
+        const call = mockUpdateFindingById.mock.calls[0][0]
+        // The bug: a raw `.slice(0, 16)` on the edit re-init, with no offset
+        // correction, would have displayed "2099-08-15T18:30" above and then
+        // resubmitted as a UTC instant 7 hours later than the original.
+        expect(call.body.dueDate).toBe(originalDueDate)
+      })
+
+      it("a finding due only a few hours from now still passes the future-date validator after being reopened for edit", async () => {
+        mockUpdateFindingById.mockReturnValue({
+          unwrap: () => Promise.resolve({}),
+        })
+        const nearFutureDueDate = new Date(
+          Date.now() + 3 * 60 * 60 * 1000
+        ).toISOString()
+
+        render(
+          <CreateNewFindingModal
+            open
+            onClose={vi.fn()}
+            editData={makeEditData({ dueDate: nearFutureDueDate }) as any}
+          />
+        )
+
+        await waitFor(() =>
+          expect(
+            screen.getByDisplayValue("Fix broken railing")
+          ).toBeInTheDocument()
+        )
+
+        await userEvent.click(
+          screen.getByRole("button", {
+            name: "organization.findings.updateFindingBtn",
+          })
+        )
+
+        // With the bug, the mis-converted value would read as 7 hours
+        // earlier than the real due date -- possibly now "in the past" --
+        // and the future-date validator would block the submit entirely.
+        await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
+        expect(
+          screen.queryByText("organization.findings.dueDatePast")
+        ).not.toBeInTheDocument()
+      })
     })
   })
 })
