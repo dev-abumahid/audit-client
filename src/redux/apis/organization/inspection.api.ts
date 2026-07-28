@@ -126,3 +126,9 @@ export const {
   useUpdateInspectionQuestionAnswerMutation,
   useSplitInspectionNoteMutation,
 } = inspectionApi
+
+// aexa-frontend#229: exported so note.api.test.ts can dispatch
+// getSingleInspection.initiate directly against a real store, to verify
+// cache-invalidation behavior with a real store + mocked fetch rather than
+// introspecting RTK Query's internal endpoint config.
+export { inspectionApi }

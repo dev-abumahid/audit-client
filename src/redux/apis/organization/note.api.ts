@@ -65,7 +65,13 @@ const noteApi = baseApi.injectEndpoints({
         url: `/note/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["NOTE"],
+      // aexa-frontend#229: saveRawNote/extractNoteFromFile both invalidate
+      // INSPECTION too since they change inspection.note's existence --
+      // deleting the note changes that same field and must invalidate the
+      // same way, or the parent inspection page's cached "note.id" (driving
+      // its View Note / Upload Note button label) goes stale until an
+      // unrelated navigation forces a refetch.
+      invalidatesTags: ["NOTE", "INSPECTION"],
     }),
   }),
 })
@@ -77,3 +83,9 @@ export const {
   useUpdateNoteMutation,
   useDeleteNoteByIdMutation,
 } = noteApi
+
+// aexa-frontend#229: exported so note.api.test.ts can dispatch
+// deleteNoteById.initiate directly against a real store, to verify
+// cache-invalidation behavior with a real store + mocked fetch rather than
+// introspecting RTK Query's internal endpoint config.
+export { noteApi }
