@@ -666,6 +666,73 @@ describe("RunInspection", () => {
     )
   })
 
+  it("re-attempts a previously failed save on a second Complete click and only then completes (regression for #255)", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
+    renderPage()
+    await screen.findByText("pages.inspection.run.next")
+    await userEvent.click(screen.getByText("pages.inspection.run.next"))
+    await screen.findByText("Extinguisher ok?")
+
+    // First flush attempt fails (transient network error).
+    mockUpdateInspectionQuestionAnswer.mockReturnValue({
+      unwrap: () => Promise.reject(new Error("network error")),
+    })
+
+    const checkbox = document.querySelector(
+      'input[type="checkbox"]'
+    ) as HTMLInputElement
+    fireEvent.click(checkbox)
+
+    const completeButton = screen
+      .getByText("pages.inspection.run.completeInspection")
+      .closest("button")!
+
+    await act(async () => {
+      fireEvent.click(completeButton)
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    // Sanity check: first attempt genuinely failed and did not complete.
+    expect(mockUpdateInspection).not.toHaveBeenCalled()
+    expect(mockUpdateInspectionQuestionAnswer).toHaveBeenCalledTimes(1)
+
+    // Network issue is now fixed -- the save will succeed if re-attempted.
+    mockUpdateInspectionQuestionAnswer.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+
+    await act(async () => {
+      fireEvent.click(completeButton)
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    // The previously-failed answer must genuinely be re-sent (not just
+    // silently skipped because it was already cleared from the pending
+    // map on the first, failed attempt).
+    expect(mockUpdateInspectionQuestionAnswer).toHaveBeenCalledTimes(2)
+    expect(mockUpdateInspectionQuestionAnswer).toHaveBeenNthCalledWith(2, {
+      id: "qa-3",
+      data: { answer: ["Yes"] },
+    })
+
+    await waitFor(() =>
+      expect(mockUpdateInspection).toHaveBeenCalledWith({
+        id: "insp-1",
+        data: { status: "COMPLETED" },
+      })
+    )
+  })
+
   it("disables question inputs while completion is in flight", async () => {
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: { data: mockInspection },

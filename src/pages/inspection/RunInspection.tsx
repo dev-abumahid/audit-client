@@ -152,14 +152,24 @@ export default function RunInspection() {
     const pending = Array.from(saveTimeouts.current.entries())
     if (pending.length === 0) return
 
-    saveTimeouts.current.clear()
     const results = await Promise.allSettled(
       pending.map(([qaId, { timeout, answer }]) => {
         clearTimeout(timeout)
         return updateInspectionQuestionAnswer({
           id: qaId,
           data: { answer },
-        }).unwrap()
+        })
+          .unwrap()
+          .then(() => {
+            // Only drop this entry from the map once its save has actually
+            // succeeded. If it fails, it stays queued (with its original
+            // answer) so the next flushPendingSaves call — e.g. from a
+            // retried "Complete" click after a transient network error —
+            // attempts it again instead of silently losing it (the #255
+            // regression: clearing the whole map upfront meant a failed
+            // save was gone for good even though completion was aborted).
+            saveTimeouts.current.delete(qaId)
+          })
       })
     )
 
