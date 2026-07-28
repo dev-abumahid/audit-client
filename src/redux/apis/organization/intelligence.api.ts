@@ -132,7 +132,11 @@ const intelligenceApi = baseApi.injectEndpoints({
         method: "POST",
         body: siteId ? { siteId } : {},
       }),
-      invalidatesTags: ["INTELLIGENCE_ITEM"],
+      // aexa-frontend#261: also invalidates RISK -- this endpoint creates a
+      // Risk server-side (see the returned { id, name }), so Risk Register's
+      // getAllRisks and Three Lines board both cache-read RISK and must
+      // refetch to show the newly-promoted risk without a manual reload.
+      invalidatesTags: ["INTELLIGENCE_ITEM", "RISK"],
     }),
   }),
 })
@@ -148,3 +152,10 @@ export const {
   useGetIntelligenceRunsQuery,
   useCreateRiskFromItemMutation,
 } = intelligenceApi
+
+// aexa-frontend#261: exported so intelligence.api.test.ts can dispatch
+// createRiskFromItem.initiate directly against a real store, matching
+// note.api.ts's #229 precedent for verifying cache-invalidation behavior
+// with a real store + mocked fetch rather than introspecting RTK Query's
+// internal endpoint config.
+export { intelligenceApi }

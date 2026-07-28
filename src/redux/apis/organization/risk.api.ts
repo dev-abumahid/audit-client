@@ -20,21 +20,32 @@ const risksApi = baseApi.injectEndpoints({
       }),
       providesTags: ["RISK"],
     }),
+    // aexa-frontend#261: also invalidates CORRELATION_MATRIX -- deleting a
+    // Risk removes it (and any RiskLink/Action rows keyed on its `ref`) from
+    // getCorrelationMatrixData's cached result too. Without this, a deleted
+    // risk persists as a phantom row on CorrelationMatrixPage.tsx until a
+    // hard reload.
     deleteRisk: builder.mutation<ApiResponse<Risk>, string>({
       query: (id) => ({
         url: `/risk/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["RISK"],
+      invalidatesTags: ["RISK", "CORRELATION_MATRIX"],
     }),
+    // aexa-frontend#261: also invalidates CORRELATION_MATRIX -- a newly
+    // created Risk can immediately be linked/bucketed on the correlation
+    // matrix, so that page's cached data must refetch to pick it up.
     createNewRisk: builder.mutation<ApiResponse<Risk>, Partial<Risk>>({
       query: (data) => ({
         url: `/risk`,
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["RISK"],
+      invalidatesTags: ["RISK", "CORRELATION_MATRIX"],
     }),
+    // aexa-frontend#261: also invalidates CORRELATION_MATRIX -- edits to a
+    // risk's fields (e.g. category, title) are reflected in the matrix's
+    // risk axis, which otherwise stays stale until a hard reload.
     updateRisk: builder.mutation<
       ApiResponse<Risk>,
       { data: Partial<Risk>; id: string }
@@ -44,7 +55,7 @@ const risksApi = baseApi.injectEndpoints({
         method: "PATCH",
         body: data,
       }),
-      invalidatesTags: ["RISK"],
+      invalidatesTags: ["RISK", "CORRELATION_MATRIX"],
     }),
   }),
 })
@@ -55,3 +66,10 @@ export const {
   useCreateNewRiskMutation,
   useUpdateRiskMutation,
 } = risksApi
+
+// aexa-frontend#261: exported so risk.api.test.ts can dispatch
+// deleteRisk/createNewRisk/updateRisk.initiate directly against a real
+// store, matching note.api.ts's #229 precedent for verifying
+// cache-invalidation behavior with a real store + mocked fetch rather than
+// introspecting RTK Query's internal endpoint config.
+export { risksApi }

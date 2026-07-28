@@ -78,14 +78,16 @@ const riskLinkApi = baseApi.injectEndpoints({
     // the page hides the button for other roles via useMyOrgRole, same
     // convention as the "Add Link" control above.
     //
-    // Invalidates FINDINGS (not CORRELATION_MATRIX): the new Action isn't
-    // one this page's own GET /risk/correlation-matrix query needs to
-    // refetch to keep working (the AI bucket that produced it is ephemeral
-    // client state, not refetched data), but the Findings page's
+    // Invalidates FINDINGS *and* CORRELATION_MATRIX: the Findings page's
     // useGetAllFindingsQuery (findings.api.ts) tags its list with FINDINGS
     // exactly like createNewFinding there -- invalidating the same tag here
     // means a user who navigates to Findings after sending a bucket sees
-    // the new action without a manual refresh.
+    // the new action without a manual refresh. aexa-frontend#261: the new
+    // Action is also one this page's own getCorrelationMatrixData query
+    // needs to refetch -- CorrelationMatrixPage.tsx renders that query's
+    // actions as its findings view, so without invalidating
+    // CORRELATION_MATRIX too the newly-created action stays missing from
+    // the matrix until a hard reload.
     createActionFromBucket: builder.mutation<
       ApiResponse<IAction>,
       RootCauseGroupedAction & { riskRefs: string[] }
@@ -95,7 +97,7 @@ const riskLinkApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["FINDINGS"],
+      invalidatesTags: ["FINDINGS", "CORRELATION_MATRIX"],
     }),
   }),
 })
@@ -107,3 +109,10 @@ export const {
   useRunRootCauseBucketingMutation,
   useCreateActionFromBucketMutation,
 } = riskLinkApi
+
+// aexa-frontend#261: exported so riskLink.api.test.ts can dispatch
+// createActionFromBucket.initiate directly against a real store, matching
+// note.api.ts's #229 precedent for verifying cache-invalidation behavior
+// with a real store + mocked fetch rather than introspecting RTK Query's
+// internal endpoint config.
+export { riskLinkApi }
