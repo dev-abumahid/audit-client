@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   useAddFindingMessageMutation,
   useDeleteFindingByIdMutation,
@@ -218,6 +219,9 @@ const PreviewModal = ({
 export default function FindingDetails() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  // aexa-frontend#217
+  const role = useMyOrgRole()
+  const canWrite = canWriteOrgResource(role)
   const { id } = useParams<{ id: string }>()
   const { data, isLoading } = useGetFindingByIdQuery(id as string)
   const [deleteFinding, { isLoading: isDeleting }] =
@@ -454,22 +458,27 @@ export default function FindingDetails() {
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={handleEdit}
-              disabled={isDeleting}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-            >
-              <Edit size={18} /> {t("organization.findings.edit")}
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
-            >
-              <Trash2 size={18} /> {t("organization.findings.delete")}
-            </button>
-          </div>
+          {/* #217: same coarse ADMIN/LEAD_AUDITOR gate as AllFindingsPage --
+              see that file's comment for why full per-assignment gating
+              isn't done here yet. */}
+          {canWrite && (
+            <div className="flex gap-2">
+              <button
+                onClick={handleEdit}
+                disabled={isDeleting}
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                <Edit size={18} /> {t("organization.findings.edit")}
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
+              >
+                <Trash2 size={18} /> {t("organization.findings.delete")}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

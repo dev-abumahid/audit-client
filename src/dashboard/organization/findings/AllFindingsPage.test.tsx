@@ -4,6 +4,15 @@ import AllFindingsPage from "./AllFindingsPage"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+// aexa-frontend#217 -- role hook mocked per-test via this mutable holder,
+// same convention as RiskApprovalControls.test.tsx.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+  canWriteOrgResource: (role: string | undefined) =>
+    role === "ADMIN" || role === "LEAD_AUDITOR",
+}))
+
 const mockNavigate = vi.fn()
 vi.mock("react-router", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-router")>()
@@ -64,6 +73,7 @@ function makeAction(overrides = {}) {
 
 describe("AllFindingsPage", () => {
   beforeEach(() => {
+    mockRole = "ADMIN"
     mockNavigate.mockReset()
     mockUseGetAllFindingsQuery.mockReset()
     mockUseGetAllSitesQuery.mockReset()
@@ -78,6 +88,39 @@ describe("AllFindingsPage", () => {
       isLoading: false,
       refetch: vi.fn(),
     })
+  })
+
+  it("shows Create Finding, Edit and Delete for an ADMIN", () => {
+    mockRole = "ADMIN"
+    render(<AllFindingsPage />)
+
+    expect(
+      screen.getByText("organization.findings.createTitle")
+    ).toBeInTheDocument()
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+    ).toBe(true)
+  })
+
+  it("hides Create Finding, Edit and Delete for a VIEWER", () => {
+    mockRole = "VIEWER"
+    render(<AllFindingsPage />)
+
+    expect(
+      screen.queryByText("organization.findings.createTitle")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+    ).toBe(false)
+  })
+
+  it("hides write controls for a LIGHT_USER", () => {
+    mockRole = "LIGHT_USER"
+    render(<AllFindingsPage />)
+
+    expect(
+      screen.queryByText("organization.findings.createTitle")
+    ).not.toBeInTheDocument()
   })
 
   it("clicking Edit opens the modal with the correct editData and does not navigate", async () => {

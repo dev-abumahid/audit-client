@@ -6,6 +6,7 @@ import {
   useSubmitKriValueMutation,
 } from "@/redux/apis/organization/kri.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   AlertTriangle,
   ChartLine,
@@ -43,6 +44,9 @@ const EMPTY_KRI = {
 
 export default function KriDashboardPage() {
   const { t } = useTranslation()
+  // aexa-frontend#217
+  const role = useMyOrgRole()
+  const canWrite = canWriteOrgResource(role)
   const {
     data: kriResponse,
     isLoading: krisLoading,
@@ -191,15 +195,17 @@ export default function KriDashboardPage() {
             {t("organization.kri.description")}
           </p>
         </div>
-        <button
-          onClick={() => {
-            setForm(EMPTY_KRI)
-            setShowForm(true)
-          }}
-          className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
-        >
-          <Plus className="h-3.5 w-3.5" /> {t("organization.kri.newKri")}
-        </button>
+        {canWrite && (
+          <button
+            onClick={() => {
+              setForm(EMPTY_KRI)
+              setShowForm(true)
+            }}
+            className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
+          >
+            <Plus className="h-3.5 w-3.5" /> {t("organization.kri.newKri")}
+          </button>
+        )}
       </div>
 
       {/* Status Summary Cards */}
@@ -287,13 +293,15 @@ export default function KriDashboardPage() {
                 >
                   <ChartLine className="h-3.5 w-3.5" />
                 </button>
-                <button
-                  onClick={() => openUpdateValue(kri)}
-                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  title={t("organization.kri.updateValueTooltip")}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
+                {canWrite && (
+                  <button
+                    onClick={() => openUpdateValue(kri)}
+                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    title={t("organization.kri.updateValueTooltip")}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
 
               <div className="mt-1 flex items-center gap-4 text-[11px] text-muted-foreground">

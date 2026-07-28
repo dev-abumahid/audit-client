@@ -5,6 +5,16 @@ import KriDashboardPage from "./KriDashboardPage"
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }))
+
+// aexa-frontend#217 -- role hook mocked per-test via this mutable holder,
+// same convention as RiskApprovalControls.test.tsx.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+  canWriteOrgResource: (role: string | undefined) =>
+    role === "ADMIN" || role === "LEAD_AUDITOR",
+}))
+
 import { toast } from "sonner"
 const mockToastSuccess = vi.mocked(toast.success)
 const mockToastError = vi.mocked(toast.error)
@@ -50,6 +60,7 @@ function makeRisk(overrides = {}) {
 
 describe("KriDashboardPage", () => {
   beforeEach(() => {
+    mockRole = "ADMIN"
     mockUseGetAllKriQuery.mockReset()
     mockUseGetAllRisksQuery.mockReset()
     mockCreateKri.mockReset()
@@ -69,6 +80,60 @@ describe("KriDashboardPage", () => {
       data: { data: [] },
       isLoading: false,
     })
+  })
+
+  it("shows New KRI and update-value controls for an ADMIN, plus the read-only trend button", () => {
+    mockRole = "ADMIN"
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: { data: [makeKri()] },
+      isLoading: false,
+    })
+
+    render(<KriDashboardPage />)
+
+    expect(
+      screen.getByText("organization.kri.newKri")
+    ).toBeInTheDocument()
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pencil"))
+    ).toBe(true)
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-chart-line"))
+    ).toBe(true)
+  })
+
+  it("hides New KRI and update-value controls for a VIEWER but keeps the trend button", () => {
+    mockRole = "VIEWER"
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: { data: [makeKri()] },
+      isLoading: false,
+    })
+
+    render(<KriDashboardPage />)
+
+    expect(
+      screen.queryByText("organization.kri.newKri")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pencil"))
+    ).toBe(false)
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-chart-line"))
+    ).toBe(true)
+  })
+
+  it("hides write controls for a LIGHT_USER", () => {
+    mockRole = "LIGHT_USER"
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: { data: [makeKri()] },
+      isLoading: false,
+    })
+
+    render(<KriDashboardPage />)
+
+    expect(
+      screen.queryByText("organization.kri.newKri")
+    ).not.toBeInTheDocument()
   })
 
   it("shows a loading state", () => {

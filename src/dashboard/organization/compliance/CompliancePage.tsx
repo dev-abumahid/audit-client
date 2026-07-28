@@ -14,6 +14,7 @@ import {
   useUpdateComplianceMutation,
 } from "@/redux/apis/organization/compliance.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { COMPLIANCE_DOMAINS } from "@/utils/complianceConfig"
 import {
   AlertTriangle,
@@ -95,6 +96,9 @@ const EMPTY_FORM = {
 
 export default function CompliancePage() {
   const { t } = useTranslation()
+  // aexa-frontend#217
+  const role = useMyOrgRole()
+  const canWrite = canWriteOrgResource(role)
 
   const [filterDomain, setFilterDomain] = useState("")
   const [filterStatus, setFilterStatus] = useState("")
@@ -421,13 +425,15 @@ export default function CompliancePage() {
             })}
           </p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
-        >
-          <Plus className="h-3.5 w-3.5" />{" "}
-          {t("organization.compliance.newObligation")}
-        </button>
+        {canWrite && (
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
+          >
+            <Plus className="h-3.5 w-3.5" />{" "}
+            {t("organization.compliance.newObligation")}
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -690,10 +696,12 @@ export default function CompliancePage() {
                     <div className="flex items-center justify-end gap-1">
                       {/* Remediation path for a failing obligation (#166):
                           only non-compliant rows are a dead end that needs a
-                          "Create Action" affordance. Kept always-visible (not
-                          hover-gated like edit/delete) so the remediation nudge
-                          is actually discoverable. */}
-                      {obl.status === "non_compliant" && (
+                          "Create Action" affordance. Kept always-visible-on-hover
+                          -group (not further hover-gated like edit/delete) so the
+                          remediation nudge is actually discoverable -- but #217
+                          still gates it on canWrite since it creates a Finding,
+                          the same write action gated everywhere else. */}
+                      {obl.status === "non_compliant" && canWrite && (
                         <button
                           onClick={() => openCreateAction(obl)}
                           className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/20"
@@ -703,23 +711,29 @@ export default function CompliancePage() {
                         </button>
                       )}
                       <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button
-                          onClick={() => openEdit(obl)}
-                          className="rounded p-1 text-muted-foreground hover:bg-muted"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                        {/* aexa-server#250: re-attest is legitimate for any
-                            obligation, recurring or not -- the history entry
-                            itself is a real audit-trail fact independent of
-                            whether there's a cadence to advance. */}
-                        <button
-                          onClick={() => openAttest(obl)}
-                          aria-label={t("organization.compliance.attest.button")}
-                          className="rounded p-1 text-muted-foreground hover:bg-muted"
-                        >
-                          <RotateCw className="h-3 w-3" />
-                        </button>
+                        {canWrite && (
+                          <>
+                            <button
+                              onClick={() => openEdit(obl)}
+                              className="rounded p-1 text-muted-foreground hover:bg-muted"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                            {/* aexa-server#250: re-attest is legitimate for
+                                any obligation, recurring or not -- the
+                                history entry itself is a real audit-trail
+                                fact independent of whether there's a
+                                cadence to advance. Same write gate as
+                                edit/delete (assertCanWriteOrgResource). */}
+                            <button
+                              onClick={() => openAttest(obl)}
+                              aria-label={t("organization.compliance.attest.button")}
+                              className="rounded p-1 text-muted-foreground hover:bg-muted"
+                            >
+                              <RotateCw className="h-3 w-3" />
+                            </button>
+                          </>
+                        )}
                         <button
                           onClick={() => openHistory(obl)}
                           aria-label={t("organization.compliance.attest.historyButton")}
@@ -727,12 +741,14 @@ export default function CompliancePage() {
                         >
                           <History className="h-3 w-3" />
                         </button>
-                        <button
-                          onClick={() => handleDelete(obl.id)}
-                          className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
+                        {canWrite && (
+                          <button
+                            onClick={() => handleDelete(obl.id)}
+                            className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </td>

@@ -7,6 +7,7 @@ import {
   useUpdateRiskMutation,
 } from "@/redux/apis/organization/risk.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { Risk, SiteSummary } from "@/types/organization"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
@@ -39,6 +40,11 @@ const EMPTY_RISK: Partial<Risk> = {
 
 export default function RiskRegisterPage() {
   const { t } = useTranslation()
+  // aexa-frontend#217 -- base CRUD had no client-side role gating at all;
+  // a VIEWER/LIGHT_USER saw the same Create/Edit/Delete affordances as an
+  // ADMIN and only found out they couldn't act via a 403 toast.
+  const role = useMyOrgRole()
+  const canWrite = canWriteOrgResource(role)
   const [filterCat, setFilterCat] = useState("")
   const [search, setSearch] = useState("")
   const [siteFilter, setSiteFilter] = useState<string>("")
@@ -179,13 +185,15 @@ export default function RiskRegisterPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
-          >
-            <Plus className="h-3.5 w-3.5" />{" "}
-            {t("organization.riskRegister.addNewRisk")}
-          </button>
+          {canWrite && (
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
+            >
+              <Plus className="h-3.5 w-3.5" />{" "}
+              {t("organization.riskRegister.addNewRisk")}
+            </button>
+          )}
         </div>
       </div>
       {/* Filters */}
@@ -329,20 +337,22 @@ export default function RiskRegisterPage() {
                       <RiskApprovalControls risk={risk} />
                     </td>
                     <td className="px-3 py-2.5">
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => openEdit(risk)}
-                          className="rounded p-1 hover:bg-muted"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                        <button
-                          onClick={() => openDeleteModal(risk.id)}
-                          className="rounded p-1 hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
+                      {canWrite && (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => openEdit(risk)}
+                            className="rounded p-1 hover:bg-muted"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => openDeleteModal(risk.id)}
+                            className="rounded p-1 hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )

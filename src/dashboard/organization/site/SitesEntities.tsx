@@ -5,6 +5,7 @@ import SourceBadge from "@/components/dashboard/organization/SourceBadge"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { Button } from "@/components/ui/button"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import enTranslations from "@/i18n/locales/en.json"
 import { useAnalyzeSiteRisksMutation } from "@/redux/apis/organization/ai.api"
 import {
@@ -114,6 +115,9 @@ interface RiskFormValues {
 
 export default function SitesEntities() {
   const { t } = useTranslation()
+  // aexa-frontend#217
+  const role = useMyOrgRole()
+  const canWrite = canWriteOrgResource(role)
 
   // Search and pagination state
   const [searchTerm, setSearchTerm] = useState("")
@@ -483,13 +487,15 @@ export default function SitesEntities() {
               <Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
             )}
           </div>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" />{" "}
-            {t("organization.site&entities.newSite")}
-          </button>
+          {canWrite && (
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4" />{" "}
+              {t("organization.site&entities.newSite")}
+            </button>
+          )}
         </div>
       </div>
 
@@ -529,21 +535,23 @@ export default function SitesEntities() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setShowRiskForm(site.id)
-                      riskForm.reset({
-                        status: "",
-                        name: "",
-                        category: "operational",
-                        description: "",
-                      })
-                    }}
-                    className="flex items-center gap-1.5 rounded-lg border border-input px-3 py-2 text-xs hover:bg-muted"
-                  >
-                    <PlusCircle className="h-4 w-4" />{" "}
-                    {t("organization.site&entities.addRisk")}
-                  </button>
+                  {canWrite && (
+                    <button
+                      onClick={() => {
+                        setShowRiskForm(site.id)
+                        riskForm.reset({
+                          status: "",
+                          name: "",
+                          category: "operational",
+                          description: "",
+                        })
+                      }}
+                      className="flex items-center gap-1.5 rounded-lg border border-input px-3 py-2 text-xs hover:bg-muted"
+                    >
+                      <PlusCircle className="h-4 w-4" />{" "}
+                      {t("organization.site&entities.addRisk")}
+                    </button>
+                  )}
 
                   <button
                     onClick={() => handleAnalyzeSite(site)}
@@ -558,18 +566,22 @@ export default function SitesEntities() {
                     {t("organization.site&entities.analyzeAi")}
                   </button>
 
-                  <button
-                    onClick={() => openEdit(site)}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteModalOpen(site.id)}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {canWrite && (
+                    <>
+                      <button
+                        onClick={() => openEdit(site)}
+                        className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteModalOpen(site.id)}
+                        className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
 
                   <button
                     onClick={() => setExpandedSite(isExpanded ? null : site.id)}
@@ -689,21 +701,23 @@ export default function SitesEntities() {
                         <Sparkles className="h-3.5 w-3.5" />
                         AI-suggested risks — review before importing
                       </p>
-                      <button
-                        onClick={() => handleImportSuggestions(site.id)}
-                        disabled={
-                          selectedSuggestionIds.size === 0 ||
-                          importingIds.size > 0
-                        }
-                        className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                      >
-                        {importingIds.size > 0 ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Check className="h-3.5 w-3.5" />
-                        )}
-                        Import selected ({selectedSuggestionIds.size})
-                      </button>
+                      {canWrite && (
+                        <button
+                          onClick={() => handleImportSuggestions(site.id)}
+                          disabled={
+                            selectedSuggestionIds.size === 0 ||
+                            importingIds.size > 0
+                          }
+                          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                        >
+                          {importingIds.size > 0 ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Check className="h-3.5 w-3.5" />
+                          )}
+                          Import selected ({selectedSuggestionIds.size})
+                        </button>
+                      )}
                     </div>
 
                     <div className="space-y-2 text-start">
@@ -798,14 +812,16 @@ export default function SitesEntities() {
                           >
                             {risk.ai_generated ? "🤖 AI" : "👤 Manual"}
                           </span>
-                          <Button
-                            onClick={() => handleRiskDelete(risk.id)}
-                            variant="destructive"
-                            size="sm"
-                          >
-                            Delete
-                            <Trash2 />
-                          </Button>
+                          {canWrite && (
+                            <Button
+                              onClick={() => handleRiskDelete(risk.id)}
+                              variant="destructive"
+                              size="sm"
+                            >
+                              Delete
+                              <Trash2 />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}

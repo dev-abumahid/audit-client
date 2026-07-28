@@ -36,3 +36,20 @@ export function useMyOrgRole(): OrgRole | undefined {
 
   return myMembership?.role ?? "ADMIN"
 }
+
+// aexa-frontend#217 — the base entity write gate shared by Risk/Compliance/
+// KRI/Sites/Findings CRUD (all backed by assertCanWriteOrgResource or, for
+// Findings, assertCanWriteToInspection/assertCanWriteToAction, which are
+// each at least as permissive as ADMIN/LEAD_AUDITOR and only *narrower* for
+// a specific LEAD_AUDITOR/LIGHT_USER row based on inspection/finding
+// assignment data this frontend doesn't have yet -- see FindingAssignment's
+// own tracking issue. Hiding the affordance entirely for VIEWER/LIGHT_USER
+// (who can never write via these base CRUD paths) fixes the "looks broken"
+// UX gap #217 describes; it deliberately does NOT attempt row-level
+// LEAD_AUDITOR/LIGHT_USER assignment gating, which needs data this hook
+// doesn't have access to. `undefined` (role still loading) is treated as
+// "hide" — same conservative-default convention as every other
+// useMyOrgRole() consumer in this codebase (e.g. RiskApprovalControls).
+export function canWriteOrgResource(role: OrgRole | undefined): boolean {
+  return role === "ADMIN" || role === "LEAD_AUDITOR"
+}

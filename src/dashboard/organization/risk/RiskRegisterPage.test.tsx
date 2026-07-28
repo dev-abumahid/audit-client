@@ -4,6 +4,15 @@ import RiskRegisterPage from "./RiskRegisterPage"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+// aexa-frontend#217 -- role hook mocked per-test via this mutable holder,
+// same convention as RiskApprovalControls.test.tsx.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+  canWriteOrgResource: (role: string | undefined) =>
+    role === "ADMIN" || role === "LEAD_AUDITOR",
+}))
+
 import { toast } from "sonner"
 const mockToastError = vi.mocked(toast.error)
 
@@ -69,6 +78,7 @@ function makeSite(overrides = {}) {
 
 describe("RiskRegisterPage", () => {
   beforeEach(() => {
+    mockRole = "ADMIN"
     mockUseGetAllRisksQuery.mockReset()
     mockUseGetAllSitesQuery.mockReset()
     mockCreateNewRisk.mockReset()
@@ -76,6 +86,57 @@ describe("RiskRegisterPage", () => {
     mockDeleteRisk.mockReset()
     mockToastError.mockReset()
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [makeSite()] } })
+  })
+
+  it("shows Add/Edit/Delete controls for an ADMIN", () => {
+    mockRole = "ADMIN"
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+
+    render(<RiskRegisterPage />)
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pencil"))
+    ).toBe(true)
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-trash2"))
+    ).toBe(true)
+  })
+
+  it("hides Add/Edit/Delete controls for a VIEWER", () => {
+    mockRole = "VIEWER"
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+
+    render(<RiskRegisterPage />)
+
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pencil"))
+    ).toBe(false)
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-trash2"))
+    ).toBe(false)
+  })
+
+  it("hides Add/Edit/Delete controls for a LIGHT_USER", () => {
+    mockRole = "LIGHT_USER"
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+
+    render(<RiskRegisterPage />)
+
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    ).not.toBeInTheDocument()
   })
 
   it("renders risk rows with name, site, category and score", async () => {

@@ -4,6 +4,15 @@ import CompliancePage from "./CompliancePage"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+// aexa-frontend#217 -- role hook mocked per-test via this mutable holder,
+// same convention as RiskApprovalControls.test.tsx.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+  canWriteOrgResource: (role: string | undefined) =>
+    role === "ADMIN" || role === "LEAD_AUDITOR",
+}))
+
 import { toast } from "sonner"
 const mockToastSuccess = vi.mocked(toast.success)
 const mockToastError = vi.mocked(toast.error)
@@ -96,6 +105,7 @@ const emptyScorecard = {
 
 describe("CompliancePage", () => {
   beforeEach(() => {
+    mockRole = "ADMIN"
     mockUseGetAllComplianceQuery.mockReset()
     mockUseGetComplianceScorecardQuery.mockReset()
     mockCreateCompliance.mockReset()
@@ -116,6 +126,61 @@ describe("CompliancePage", () => {
       data: { data: [] },
       isLoading: false,
     })
+  })
+
+  it("shows New Obligation, Edit, Attest and Delete for an ADMIN", () => {
+    mockRole = "ADMIN"
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [makeObligation()] },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    expect(
+      screen.getByText("organization.compliance.newObligation")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.compliance.attest.button")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.compliance.attest.historyButton")
+    ).toBeInTheDocument()
+  })
+
+  it("hides New Obligation, Edit, Attest and Delete for a VIEWER but keeps History", () => {
+    mockRole = "VIEWER"
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [makeObligation()] },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    expect(
+      screen.queryByText("organization.compliance.newObligation")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByLabelText("organization.compliance.attest.button")
+    ).not.toBeInTheDocument()
+    // History (read-only) stays visible regardless of role.
+    expect(
+      screen.getByLabelText("organization.compliance.attest.historyButton")
+    ).toBeInTheDocument()
+  })
+
+  it("hides write controls for a LIGHT_USER", () => {
+    mockRole = "LIGHT_USER"
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [makeObligation()] },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    expect(
+      screen.queryByText("organization.compliance.newObligation")
+    ).not.toBeInTheDocument()
   })
 
   it("shows a loading spinner while the query is loading", () => {
@@ -479,6 +544,30 @@ describe("CompliancePage", () => {
   })
 
   // ── Create Action from a non-compliant obligation (#166) ──────────────────
+
+  it("hides the Create Action button on a non-compliant row for a VIEWER", () => {
+    mockRole = "VIEWER"
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [
+          makeObligation({
+            id: "comp-fail",
+            title: "Failing obligation",
+            status: "non_compliant",
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    expect(
+      screen.queryByRole("button", {
+        name: /organization\.compliance\.createAction\.button/i,
+      })
+    ).not.toBeInTheDocument()
+  })
 
   it("shows a Create Action button ONLY on non-compliant rows", () => {
     mockUseGetAllComplianceQuery.mockReturnValue({

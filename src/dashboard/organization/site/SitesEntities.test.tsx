@@ -14,6 +14,15 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }))
 
+// aexa-frontend#217 -- role hook mocked per-test via this mutable holder,
+// same convention as RiskApprovalControls.test.tsx.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+  canWriteOrgResource: (role: string | undefined) =>
+    role === "ADMIN" || role === "LEAD_AUDITOR",
+}))
+
 const mockUseGetAllSitesQuery = vi.fn()
 const mockCreateNewSite = vi.fn()
 const mockUpdateSite = vi.fn()
@@ -83,6 +92,7 @@ function makeSite(overrides = {}) {
 
 describe("SitesEntities", () => {
   beforeEach(() => {
+    mockRole = "ADMIN"
     mockUseGetAllSitesQuery.mockReset()
     mockCreateNewSite.mockReset()
     mockUpdateSite.mockReset()
@@ -93,6 +103,71 @@ describe("SitesEntities", () => {
     mockAnalyzeSiteRisks.mockReset()
     mockToastError.mockReset()
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+  })
+
+  it("shows New Site, Add Risk, Edit and Delete for an ADMIN, plus the read-only Analyze button", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+
+    expect(
+      screen.getByText("organization.site&entities.newSite")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.addRisk")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.analyzeAi")
+    ).toBeInTheDocument()
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pencil"))
+    ).toBe(true)
+  })
+
+  it("hides New Site, Add Risk, Edit and Delete for a VIEWER but keeps Analyze", () => {
+    mockRole = "VIEWER"
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+
+    expect(
+      screen.queryByText("organization.site&entities.newSite")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.site&entities.addRisk")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.analyzeAi")
+    ).toBeInTheDocument()
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pencil"))
+    ).toBe(false)
+  })
+
+  it("hides write controls for a LIGHT_USER", () => {
+    mockRole = "LIGHT_USER"
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+
+    expect(
+      screen.queryByText("organization.site&entities.newSite")
+    ).not.toBeInTheDocument()
   })
 
   it("shows a loading spinner while sites are loading", () => {
@@ -385,6 +460,38 @@ describe("SitesEntities", () => {
     ).toBeInTheDocument()
   })
 
+  it("hides the confirmed-risk Delete button for a VIEWER", async () => {
+    mockRole = "VIEWER"
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "risk-99",
+            name: "Flooding",
+            residual_score: 12,
+            ai_generated: false,
+          },
+        ],
+      },
+    })
+
+    render(<SitesEntities />)
+    const [expandButton] = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-chevron-down"))
+    await userEvent.click(expandButton)
+
+    expect(
+      screen.queryByRole("button", { name: /delete/i })
+    ).not.toBeInTheDocument()
+  })
+
   it("shows an error toast when the risk-delete response indicates failure", async () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,
@@ -574,6 +681,31 @@ describe("SitesEntities", () => {
       expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
     )
     expect(mockAnalyzeSiteRisks).toHaveBeenCalledWith("site-1")
+  })
+
+  it("hides the Import selected button for a VIEWER even with suggestions shown", async () => {
+    mockRole = "VIEWER"
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockAnalyzeSiteRisks.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+    )
+    expect(screen.queryByText(/Import selected/i)).not.toBeInTheDocument()
   })
 
   it("shows an error toast and no suggestions panel when AI analysis fails", async () => {

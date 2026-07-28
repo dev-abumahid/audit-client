@@ -7,6 +7,15 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }))
 
+// aexa-frontend#217 -- role hook mocked per-test via this mutable holder,
+// same convention as RiskApprovalControls.test.tsx.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+  canWriteOrgResource: (role: string | undefined) =>
+    role === "ADMIN" || role === "LEAD_AUDITOR",
+}))
+
 const mockNavigate = vi.fn()
 vi.mock("react-router", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-router")>()
@@ -104,6 +113,7 @@ function renderPage() {
 
 describe("FindingDetails", () => {
   beforeEach(() => {
+    mockRole = "ADMIN"
     mockNavigate.mockReset()
     mockUseGetFindingByIdQuery.mockReset()
     mockDeleteFinding.mockReset()
@@ -116,6 +126,39 @@ describe("FindingDetails", () => {
       data: { data: makeAction() },
       isLoading: false,
     })
+  })
+
+  it("shows Edit and Delete for an ADMIN", () => {
+    mockRole = "ADMIN"
+    renderPage()
+
+    expect(
+      screen.getByRole("button", { name: "organization.findings.edit" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "organization.findings.delete" })
+    ).toBeInTheDocument()
+  })
+
+  it("hides Edit and Delete for a VIEWER", () => {
+    mockRole = "VIEWER"
+    renderPage()
+
+    expect(
+      screen.queryByRole("button", { name: "organization.findings.edit" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "organization.findings.delete" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("hides Edit and Delete for a LIGHT_USER", () => {
+    mockRole = "LIGHT_USER"
+    renderPage()
+
+    expect(
+      screen.queryByRole("button", { name: "organization.findings.edit" })
+    ).not.toBeInTheDocument()
   })
 
   it("Edit button opens the modal pre-filled with the finding", async () => {

@@ -6,6 +6,7 @@ import {
   useGetAllFindingsQuery,
 } from "@/redux/apis/organization/findings.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { IAction } from "@/types/finding"
 import type { TFunction } from "i18next"
 import {
@@ -75,6 +76,9 @@ const getRelativeTime = (dateString: string, t: TFunction) => {
 export default function AllFindingsPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  // aexa-frontend#217
+  const role = useMyOrgRole()
+  const canWrite = canWriteOrgResource(role)
   const [search, setSearch] = useState("")
   const [selectedSiteId, setSelectedSiteId] = useState<string>("")
   const [page, setPage] = useState(1)
@@ -177,12 +181,14 @@ export default function AllFindingsPage() {
               })}
             </span>
           </div>
-          <button
-            onClick={() => setModalState({ open: true, editData: null })}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            <Plus size={18} /> {t("organization.findings.createTitle")}
-          </button>
+          {canWrite && (
+            <button
+              onClick={() => setModalState({ open: true, editData: null })}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <Plus size={18} /> {t("organization.findings.createTitle")}
+            </button>
+          )}
         </div>
       </div>
 
@@ -388,34 +394,43 @@ export default function AllFindingsPage() {
                           </span>
                         </td>
 
-                        {/* Actions */}
+                        {/* Actions -- #217: LIGHT_USER's real write access is
+                            per-FindingAssignment (see #215/related issues),
+                            which this list doesn't have data for yet, so
+                            this is the same coarse ADMIN/LEAD_AUDITOR gate
+                            as the other base-CRUD pages, not full per-row
+                            assignment gating. */}
                         <td className="flex justify-end gap-3 px-4 py-3 text-right whitespace-nowrap">
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setModalState({ open: true, editData: action })
-                            }}
-                            disabled={
-                              isDeleting && deleteTargetId === action.id
-                            }
-                            variant="ghost"
-                            size="icon-lg"
-                          >
-                            <Edit2 />
-                          </Button>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setDeleteTargetId(action.id)
-                            }}
-                            disabled={
-                              isDeleting && deleteTargetId === action.id
-                            }
-                            variant="destructive"
-                            size="icon-lg"
-                          >
-                            <Trash2 />
-                          </Button>
+                          {canWrite && (
+                            <>
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setModalState({ open: true, editData: action })
+                                }}
+                                disabled={
+                                  isDeleting && deleteTargetId === action.id
+                                }
+                                variant="ghost"
+                                size="icon-lg"
+                              >
+                                <Edit2 />
+                              </Button>
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setDeleteTargetId(action.id)
+                                }}
+                                disabled={
+                                  isDeleting && deleteTargetId === action.id
+                                }
+                                variant="destructive"
+                                size="icon-lg"
+                              >
+                                <Trash2 />
+                              </Button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))
