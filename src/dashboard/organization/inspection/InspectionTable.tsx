@@ -78,6 +78,28 @@ const InspectionTable = () => {
     return () => clearTimeout(timer)
   }, [searchTerm])
 
+  // aexa-frontend#234: statusFilter/siteFilter feed the same paginated
+  // query as searchTerm but never reset currentPage, unlike every sibling
+  // list page (AllFindingsPage/CompliancePage/SitesEntities/AuditPage all
+  // reset to page 1 on every filter change). A user paged deep into one
+  // filtered set, then applying a NEW filter with fewer total pages, landed
+  // on an out-of-range page -- an empty "no inspections found" state with
+  // the pagination controls also hidden (they're gated on totalPages > 1),
+  // leaving no way back to page 1 short of clearing the filter or
+  // reloading. Set directly in the handler (matching AllFindingsPage's
+  // handleSiteFilter convention) rather than a useEffect, since a
+  // synchronous setState inside an effect risks a cascading-render lint
+  // error.
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value)
+    setCurrentPage(1)
+  }
+
+  const handleSiteFilterChange = (value: string) => {
+    setSiteFilter(value)
+    setCurrentPage(1)
+  }
+
   const handleViewReport = (inspectionId: string) => {
     navigate(`/organization/audit/inspections/report/${inspectionId}`)
   }
@@ -140,7 +162,7 @@ const InspectionTable = () => {
             />
           </div>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
             <SelectTrigger className="w-full md:w-48">
               <SelectValue placeholder={t("organization.inspection.statusAll")} />
             </SelectTrigger>
@@ -164,7 +186,7 @@ const InspectionTable = () => {
             </SelectContent>
           </Select>
 
-          <Select value={siteFilter} onValueChange={setSiteFilter}>
+          <Select value={siteFilter} onValueChange={handleSiteFilterChange}>
             <SelectTrigger className="w-full md:w-48">
               <SelectValue placeholder={t("organization.inspection.allSites")} />
             </SelectTrigger>

@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import React from "react"
 import { MemoryRouter } from "react-router"
 import InspectionTable from "./InspectionTable"
@@ -24,8 +25,13 @@ vi.mock("@/redux/apis/organization/inspection.api", () => ({
 }))
 
 // ── RTK Query sites API ───────────────────────────────────────────────────────
+const mockUseGetAllSitesQuery = vi.fn(
+  (): { data: { data: { id: string; name: string }[] } } => ({
+    data: { data: [] },
+  })
+)
 vi.mock("@/redux/apis/organization/sites.api", () => ({
-  useGetAllSitesQuery: () => ({ data: { data: [] } }),
+  useGetAllSitesQuery: () => mockUseGetAllSitesQuery(),
 }))
 
 // ── StartInspectionModal — avoid pulling in its own RTK deps ──────────────────
@@ -149,6 +155,8 @@ describe("InspectionTable", () => {
   beforeEach(() => {
     mockNavigate.mockReset()
     mockDeleteInspectionTrigger.mockReset()
+    mockUseGetAllSitesQuery.mockReset()
+    mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [] } })
   })
 
   it("renders the inspection table with data", async () => {
@@ -169,6 +177,74 @@ describe("InspectionTable", () => {
     expect(screen.getByText("Youssef Benali")).toBeInTheDocument()
     // Status appears in both the filter dropdown option and the table badge
     expect(screen.getAllByText("IN_PROGRESS").length).toBeGreaterThan(0)
+  })
+
+  it("aexa-frontend#234: resets to page 1 when the status filter changes", async () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: {
+        data: [makeInspection()],
+        meta: { page: 1, limit: 10, total: 25, totalPage: 3 },
+      },
+      isLoading: false,
+    })
+
+    renderTable()
+    await waitFor(() =>
+      expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+    )
+
+    // Page to page 2.
+    await userEvent.click(screen.getAllByRole("button").find((b) => b.querySelector("svg.lucide-chevron-right"))!)
+    await waitFor(() =>
+      expect(mockUseGetAllInspectionQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2 })
+      )
+    )
+
+    // Applying a status filter must reset back to page 1, not stay on the
+    // now-out-of-range page 2 of a differently-sized filtered set.
+    const statusSelect = screen.getAllByRole("combobox")[0]
+    await userEvent.selectOptions(statusSelect, "DRAFT")
+
+    await waitFor(() =>
+      expect(mockUseGetAllInspectionQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 1, status: "DRAFT" })
+      )
+    )
+  })
+
+  it("aexa-frontend#234: resets to page 1 when the site filter changes", async () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: {
+        data: [makeInspection()],
+        meta: { page: 1, limit: 10, total: 25, totalPage: 3 },
+      },
+      isLoading: false,
+    })
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: { data: [{ id: "s-1", name: "HQ Casablanca" }] },
+    })
+
+    renderTable()
+    await waitFor(() =>
+      expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+    )
+
+    await userEvent.click(screen.getAllByRole("button").find((b) => b.querySelector("svg.lucide-chevron-right"))!)
+    await waitFor(() =>
+      expect(mockUseGetAllInspectionQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2 })
+      )
+    )
+
+    const siteSelect = screen.getAllByRole("combobox")[1]
+    await userEvent.selectOptions(siteSelect, "s-1")
+
+    await waitFor(() =>
+      expect(mockUseGetAllInspectionQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 1, siteId: "s-1" })
+      )
+    )
   })
 
   it("shows loading state", () => {
