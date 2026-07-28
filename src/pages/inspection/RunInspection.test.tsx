@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import RunInspection from "./RunInspection"
@@ -514,5 +514,193 @@ describe("RunInspection", () => {
     ) as HTMLImageElement
     expect(img).toBeInTheDocument()
     expect(img.src).toBe("https://cdn.example.com/photo.png")
+  })
+
+  it("saves both answers when two different questions are answered within the debounce window", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
+    const { container } = renderPage()
+    await screen.findByText("Location?")
+
+    vi.useFakeTimers()
+    try {
+      const textInput = container.querySelector(
+        'input[type="text"]'
+      ) as HTMLInputElement
+      const dateInput = container.querySelector(
+        'input[type="date"]'
+      ) as HTMLInputElement
+      expect(textInput).toBeTruthy()
+      expect(dateInput).toBeTruthy()
+
+      // Answer question A (q-1 / qa-1)...
+      fireEvent.change(textInput, { target: { value: "Paris" } })
+      fireEvent.blur(textInput)
+
+      // ...then, within the 600ms debounce window, answer question B
+      // (q-2 / qa-2). Before the fix, this cleared the shared timer and
+      // qa-1's save was silently dropped.
+      await act(async () => {
+        vi.advanceTimersByTime(300)
+      })
+      fireEvent.change(dateInput, { target: { value: "2026-07-01" } })
+      fireEvent.blur(dateInput)
+
+      // Let both independent per-question timers fire.
+      await act(async () => {
+        vi.advanceTimersByTime(600)
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+
+    expect(mockUpdateInspectionQuestionAnswer).toHaveBeenCalledWith({
+      id: "qa-1",
+      data: { answer: "Paris" },
+    })
+    expect(mockUpdateInspectionQuestionAnswer).toHaveBeenCalledWith({
+      id: "qa-2",
+      data: { answer: "2026-07-01" },
+    })
+    expect(mockUpdateInspectionQuestionAnswer).toHaveBeenCalledTimes(2)
+  })
+
+  it("flushes a pending debounced save before completing the inspection", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
+    renderPage()
+    await screen.findByText("pages.inspection.run.next")
+    await userEvent.click(screen.getByText("pages.inspection.run.next"))
+    await screen.findByText("Extinguisher ok?")
+
+    const checkbox = document.querySelector(
+      'input[type="checkbox"]'
+    ) as HTMLInputElement
+    expect(checkbox).toBeTruthy()
+
+    // Answer the final question, then immediately hit Complete — well
+    // within the 600ms debounce window — without ever letting the
+    // debounce timer fire on its own.
+    fireEvent.click(checkbox)
+
+    const completeButton = screen
+      .getByText("pages.inspection.run.completeInspection")
+      .closest("button")!
+
+    await act(async () => {
+      fireEvent.click(completeButton)
+      // Flush the microtask queue so the awaited flush + completion
+      // mutation promises resolve without relying on real timers.
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockUpdateInspectionQuestionAnswer).toHaveBeenCalledWith({
+      id: "qa-3",
+      data: { answer: ["Yes"] },
+    })
+    await waitFor(() =>
+      expect(mockUpdateInspection).toHaveBeenCalledWith({
+        id: "insp-1",
+        data: { status: "COMPLETED" },
+      })
+    )
+
+    // The flushed save must be ordered before (or at worst alongside) the
+    // completion mutation — never after — so the server never marks the
+    // inspection COMPLETED while a newer answer is still unsaved.
+    const saveCallOrder = mockUpdateInspectionQuestionAnswer.mock
+      .invocationCallOrder[0]
+    const completeCallOrder =
+      mockUpdateInspection.mock.invocationCallOrder[0]
+    expect(saveCallOrder).toBeLessThan(completeCallOrder)
+  })
+
+  it("does not mark the inspection complete if a flushed pending save fails", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
+    renderPage()
+    await screen.findByText("pages.inspection.run.next")
+    await userEvent.click(screen.getByText("pages.inspection.run.next"))
+    await screen.findByText("Extinguisher ok?")
+
+    // The pending save for this answer will fail once flushed.
+    mockUpdateInspectionQuestionAnswer.mockReturnValue({
+      unwrap: () => Promise.reject(new Error("network error")),
+    })
+
+    const checkbox = document.querySelector(
+      'input[type="checkbox"]'
+    ) as HTMLInputElement
+    fireEvent.click(checkbox)
+
+    const completeButton = screen
+      .getByText("pages.inspection.run.completeInspection")
+      .closest("button")!
+
+    await act(async () => {
+      fireEvent.click(completeButton)
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    // The completion mutation must never fire once the flush reports a
+    // failed save -- otherwise the inspection would be marked COMPLETED
+    // while an answer was silently lost.
+    expect(mockUpdateInspection).not.toHaveBeenCalled()
+    expect(mockNavigate).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(screen.getByText("pages.inspection.run.saveFailed")).toBeInTheDocument()
+    )
+  })
+
+  it("disables question inputs while completion is in flight", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: mockInspection },
+      isLoading: false,
+      isError: false,
+    })
+
+    let resolveComplete: () => void = () => {}
+    mockUpdateInspection.mockReturnValue({
+      unwrap: () =>
+        new Promise<void>((resolve) => {
+          resolveComplete = resolve
+        }),
+    })
+
+    renderPage()
+    await screen.findByText("pages.inspection.run.markComplete")
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("pages.inspection.run.markComplete"))
+      await Promise.resolve()
+    })
+
+    // Completion mutation hasn't resolved yet -- inputs must stay disabled
+    // so an in-flight edit can't create a save that never gets re-flushed
+    // before the inspection is marked COMPLETED.
+    const textInput = document.querySelector(
+      'input[type="text"]'
+    ) as HTMLInputElement
+    expect(textInput).toBeDisabled()
+
+    await act(async () => {
+      resolveComplete()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
   })
 })

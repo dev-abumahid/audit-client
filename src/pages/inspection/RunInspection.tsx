@@ -96,11 +96,20 @@ export default function RunInspection() {
     return map
   }, [inspection])
 
-  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Debounced autosave timers, keyed by qaId — each question gets its own
+  // independent timer (and remembers the answer it's about to save) so
+  // answering question A doesn't clear/cancel a still-pending save for
+  // question B (a normal fast-tapping pattern where the user answers
+  // multiple questions within the 600ms debounce window).
+  const saveTimeouts = useRef<
+    Map<string, { timeout: ReturnType<typeof setTimeout>; answer: unknown }>
+  >(new Map())
 
   useEffect(() => {
+    const timeouts = saveTimeouts.current
     return () => {
-      if (saveTimeout.current) clearTimeout(saveTimeout.current)
+      timeouts.forEach(({ timeout }) => clearTimeout(timeout))
+      timeouts.clear()
     }
   }, [])
 
@@ -114,22 +123,68 @@ export default function RunInspection() {
       })
 
       setSaveState("saving")
-      if (saveTimeout.current) clearTimeout(saveTimeout.current)
+      const existing = saveTimeouts.current.get(qaId)
+      if (existing) clearTimeout(existing.timeout)
 
-      saveTimeout.current = setTimeout(() => {
+      const timeout = setTimeout(() => {
+        saveTimeouts.current.delete(qaId)
         updateInspectionQuestionAnswer({ id: qaId, data: { answer } })
           .unwrap()
           .then(() => setSaveState("saved"))
           .catch(() => setSaveState("error"))
       }, 600)
+      saveTimeouts.current.set(qaId, { timeout, answer })
     },
     [updateInspectionQuestionAnswer]
   )
+
+  // Fires and awaits every pending debounced save immediately, so that
+  // completing the inspection right after answering a question (within the
+  // 600ms debounce window) never loses that answer. The flushed saves are
+  // independent of each other (different qaIds, no shared state) so they run
+  // concurrently rather than serially — but we use allSettled (not
+  // Promise.all) so one broken save can't block the others from persisting,
+  // then explicitly check the results: any rejection means an answer failed
+  // to save, so we surface saveState "error" and throw to abort completion,
+  // rather than silently proceeding to mark the inspection COMPLETED with a
+  // lost answer (the exact bug this flush exists to prevent).
+  async function flushPendingSaves() {
+    const pending = Array.from(saveTimeouts.current.entries())
+    if (pending.length === 0) return
+
+    saveTimeouts.current.clear()
+    const results = await Promise.allSettled(
+      pending.map(([qaId, { timeout, answer }]) => {
+        clearTimeout(timeout)
+        return updateInspectionQuestionAnswer({
+          id: qaId,
+          data: { answer },
+        }).unwrap()
+      })
+    )
+
+    const failures = results.filter(
+      (result): result is PromiseRejectedResult => result.status === "rejected"
+    )
+    if (failures.length > 0) {
+      // Logged distinctly from the completion mutation's own failure so
+      // it's possible to tell, from logs/monitoring alone, whether an
+      // aborted "complete" action was caused by a lost answer here or by
+      // the updateInspection call itself failing.
+      console.error(
+        "Failed to flush pending answer save(s) before completing inspection:",
+        failures.map((f) => f.reason)
+      )
+      setSaveState("error")
+      throw new Error("Failed to save one or more pending answers")
+    }
+  }
 
   async function handleComplete() {
     if (!id) return
     setCompleting(true)
     try {
+      await flushPendingSaves()
       await updateInspection({ id, data: { status: "COMPLETED" } }).unwrap()
       navigate("/organization/audit/inspections")
     } catch {
@@ -371,7 +426,7 @@ export default function RunInspection() {
                           question={question}
                           answer={qa}
                           onChange={handleAnswerChange}
-                          disabled={isCompleted}
+                          disabled={isCompleted || completing}
                         />
                         {files.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-2">
