@@ -13,6 +13,13 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
     role === "ADMIN" || role === "LEAD_AUDITOR",
 }))
 
+// aexa-frontend#270 -- mutable holder, same convention as mockRole above.
+let mockAssignedInspectionIds: Set<string> | undefined = new Set()
+vi.mock("@/hooks/useMyAssignments", () => ({
+  useMyAssignedInspectionIds: () => mockAssignedInspectionIds,
+  useMyActiveFindingAssignmentIds: () => new Set(),
+}))
+
 const mockNavigate = vi.fn()
 vi.mock("react-router", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-router")>()
@@ -59,6 +66,7 @@ const mockToastError = vi.mocked(toast.error)
 function makeAction(overrides = {}) {
   return {
     id: "finding-1",
+    inspectionId: "insp-1",
     actionTitle: "Fix broken railing",
     actionDisc: "Railing on level 2 is loose.",
     priority: "High",
@@ -74,6 +82,7 @@ function makeAction(overrides = {}) {
 describe("AllFindingsPage", () => {
   beforeEach(() => {
     mockRole = "ADMIN"
+    mockAssignedInspectionIds = new Set()
     mockNavigate.mockReset()
     mockUseGetAllFindingsQuery.mockReset()
     mockUseGetAllSitesQuery.mockReset()
@@ -121,6 +130,40 @@ describe("AllFindingsPage", () => {
     expect(
       screen.queryByText("organization.findings.createTitle")
     ).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend#270: per-row narrowing on top of the #217 role gate above
+  // -- a LEAD_AUDITOR only gets Edit/Delete on findings whose parent
+  // inspection ("insp-1", makeAction's default) they're actually assigned
+  // to, mirroring org_scope.ts's assertCanWriteToAction.
+  it("hides Edit/Delete for an unassigned LEAD_AUDITOR", () => {
+    mockRole = "LEAD_AUDITOR"
+    mockAssignedInspectionIds = new Set()
+    render(<AllFindingsPage />)
+
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+    ).toBe(false)
+  })
+
+  it("shows Edit/Delete for a LEAD_AUDITOR assigned to the finding's parent inspection", () => {
+    mockRole = "LEAD_AUDITOR"
+    mockAssignedInspectionIds = new Set(["insp-1"])
+    render(<AllFindingsPage />)
+
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+    ).toBe(true)
+  })
+
+  it("degrades a LEAD_AUDITOR back to allowed when assignment data is unavailable", () => {
+    mockRole = "LEAD_AUDITOR"
+    mockAssignedInspectionIds = undefined
+    render(<AllFindingsPage />)
+
+    expect(
+      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+    ).toBe(true)
   })
 
   it("clicking Edit opens the modal with the correct editData and does not navigate", async () => {

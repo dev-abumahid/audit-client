@@ -29,6 +29,16 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
     role === "ADMIN" || role === "LEAD_AUDITOR",
 }))
 
+// ── assignment gating (aexa-frontend#270) — mutable holder, same convention
+// as mockRole above. `undefined` means "assignment data unavailable" (the
+// same meaning useMyAssignedInspectionIds gives it), so tests can exercise
+// the graceful-degradation path explicitly.
+let mockAssignedInspectionIds: Set<string> | undefined = new Set()
+vi.mock("@/hooks/useMyAssignments", () => ({
+  useMyAssignedInspectionIds: () => mockAssignedInspectionIds,
+  useMyActiveFindingAssignmentIds: () => new Set(),
+}))
+
 // ── RTK Query inspection API ──────────────────────────────────────────────────
 const mockUseGetAllInspectionQuery = vi.fn()
 const mockDeleteInspectionTrigger = vi.fn()
@@ -174,6 +184,7 @@ describe("InspectionTable", () => {
     mockUseGetAllSitesQuery.mockReset()
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [] } })
     mockRole = "ADMIN"
+    mockAssignedInspectionIds = new Set()
   })
 
   it("renders the inspection table with data", async () => {
@@ -381,6 +392,124 @@ describe("InspectionTable", () => {
       expect(
         screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-trash2"))
       ).toBe(false)
+    })
+  })
+
+  // aexa-frontend#270: per-row narrowing on top of the #242 role gate above —
+  // a LEAD_AUDITOR only gets Edit/Delete on rows they're actually assigned
+  // to (mirrors org_scope.ts's assertCanWriteToInspection).
+  describe("assignment gating (#270)", () => {
+    it("hides Edit/Delete for a LEAD_AUDITOR with no assignment on this inspection", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockAssignedInspectionIds = new Set()
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection({ id: "insp-1" })],
+          meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+      ).toBe(false)
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-trash2"))
+      ).toBe(false)
+    })
+
+    it("shows Edit/Delete for a LEAD_AUDITOR with an active assignment on this inspection", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockAssignedInspectionIds = new Set(["insp-1"])
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection({ id: "insp-1" })],
+          meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+      ).toBe(true)
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-trash2"))
+      ).toBe(true)
+    })
+
+    it("does not narrow a LEAD_AUDITOR's row assigned on a DIFFERENT inspection", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockAssignedInspectionIds = new Set(["some-other-inspection"])
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection({ id: "insp-1" })],
+          meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+      ).toBe(false)
+    })
+
+    it("degrades to the pre-#270 role-only behavior when assignment data is unavailable", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockAssignedInspectionIds = undefined
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection({ id: "insp-1" })],
+          meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+      // Never breaks the page, and never denies more than the pre-#270
+      // role-only gate did.
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+      ).toBe(true)
+    })
+
+    it("never grants an ADMIN's row-level access based on assignment state", async () => {
+      mockRole = "ADMIN"
+      mockAssignedInspectionIds = new Set()
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection({ id: "insp-1" })],
+          meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+      expect(
+        screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
+      ).toBe(true)
     })
   })
 

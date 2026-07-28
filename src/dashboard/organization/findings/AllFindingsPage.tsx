@@ -7,8 +7,10 @@ import {
 } from "@/redux/apis/organization/findings.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
+import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { IAction } from "@/types/finding"
+import { canWriteInspection } from "@/utils/assignmentScope"
 import type { TFunction } from "i18next"
 import {
   ChevronLeft,
@@ -80,6 +82,12 @@ export default function AllFindingsPage() {
   // aexa-frontend#217
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
+  // aexa-frontend#270: assignment data for narrowing per-row Edit/Delete
+  // below -- `canWrite` above stays role-only for the page-level "Create
+  // new" affordance (creating a finding needs no assignment to narrow by;
+  // it's inspection-scoped only, same reasoning as InspectionTable.tsx's
+  // "Start New").
+  const assignedInspectionIds = useMyAssignedInspectionIds()
   const [search, setSearch] = useState("")
   const [selectedSiteId, setSelectedSiteId] = useState<string>("")
   const [page, setPage] = useState(1)
@@ -318,7 +326,13 @@ export default function AllFindingsPage() {
                 </thead>
                 <tbody>
                   {actions.length > 0 ? (
-                    actions.map((action) => (
+                    actions.map((action) => {
+                      const canWriteThisFinding = canWriteInspection(
+                        role,
+                        action.inspectionId,
+                        assignedInspectionIds
+                      )
+                      return (
                       <tr
                         key={action.id}
                         className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/30"
@@ -401,14 +415,16 @@ export default function AllFindingsPage() {
                           </span>
                         </td>
 
-                        {/* Actions -- #217: LIGHT_USER's real write access is
-                            per-FindingAssignment (see #215/related issues),
-                            which this list doesn't have data for yet, so
-                            this is the same coarse ADMIN/LEAD_AUDITOR gate
-                            as the other base-CRUD pages, not full per-row
-                            assignment gating. */}
+                        {/* Actions -- aexa-frontend#270: per-row
+                            ADMIN/assigned-LEAD_AUDITOR gate (canWriteInspection,
+                            keyed by action.inspectionId) replacing the old
+                            coarse role-only canWrite. LIGHT_USER's real
+                            write access is the separate, narrower
+                            per-FindingAssignment submit-for-closure surface
+                            (FindingClosureControls.tsx), not this raw
+                            Edit/Delete control. */}
                         <td className="flex justify-end gap-3 px-4 py-3 text-right whitespace-nowrap">
-                          {canWrite && (
+                          {canWriteThisFinding && (
                             <>
                               <Button
                                 onClick={(e) => {
@@ -440,7 +456,8 @@ export default function AllFindingsPage() {
                           )}
                         </td>
                       </tr>
-                    ))
+                      )
+                    })
                   ) : (
                     <tr>
                       <td colSpan={8} className="px-4 py-12 text-center">

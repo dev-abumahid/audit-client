@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
-import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
+import { useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { canWriteInspection } from "@/utils/assignmentScope"
 import {
   useAddFindingMessageMutation,
   useDeleteFindingByIdMutation,
@@ -221,7 +223,12 @@ export default function FindingDetails() {
   const navigate = useNavigate()
   // aexa-frontend#217
   const role = useMyOrgRole()
-  const canWrite = canWriteOrgResource(role)
+  // aexa-frontend#270: assignment data is fetched unconditionally here
+  // (hooks can't be called after the early returns below) and combined with
+  // `action.inspectionId` once `action` is known, to narrow LEAD_AUDITOR's
+  // Edit/Delete below to only findings on an inspection they're actually
+  // assigned to -- see canWrite's new definition after the `action` guard.
+  const assignedInspectionIds = useMyAssignedInspectionIds()
   const { id } = useParams<{ id: string }>()
   const { data, isLoading } = useGetFindingByIdQuery(id as string)
   const [deleteFinding, { isLoading: isDeleting }] =
@@ -308,6 +315,18 @@ export default function FindingDetails() {
   }
 
   const action: IAction | undefined = data?.data
+
+  // aexa-frontend#270: replaces the old canWriteOrgResource(role) coarse
+  // gate -- ADMIN is unaffected, LEAD_AUDITOR now additionally needs to be
+  // assigned to this finding's parent inspection (mirrors
+  // assertCanWriteToAction's LEAD_AUDITOR branch server-side), and
+  // VIEWER/LIGHT_USER stay excluded exactly as before (LIGHT_USER's
+  // FindingAssignment-based finding-edit access is a separate, narrower
+  // surface -- see FindingClosureControls.tsx -- not extended to this raw
+  // Edit/Delete control in this issue).
+  const canWrite = action
+    ? canWriteInspection(role, action.inspectionId, assignedInspectionIds)
+    : false
 
   if (!action) {
     return (

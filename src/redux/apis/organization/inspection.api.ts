@@ -48,6 +48,20 @@ interface UpdateInspectionQuestionAnswerArgs {
   }
 }
 
+// aexa-frontend#270: mirrors aexa-server's InspectionAssignment row shape
+// (select: { id, inspectionId, revokedAt, createdAt }) returned by the new
+// self-scoped GET /inspection/assignments/mine (aexa-server, same PR) --
+// added specifically so the frontend can narrow LEAD_AUDITOR's write
+// affordances by real assignment state instead of role alone. Returns every
+// row (active and revoked), not just active ones, mirroring
+// getInspectionAssignmentState server-side.
+export interface MyInspectionAssignment {
+  id: string
+  inspectionId: string
+  revokedAt: string | null
+  createdAt: string
+}
+
 const inspectionApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getAllInspection: builder.query<
@@ -114,6 +128,18 @@ const inspectionApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["INSPECTION"],
     }),
+    // aexa-frontend#270 -- self-scoped, no args. Used by
+    // useMyAssignments.ts to derive LEAD_AUDITOR's real write scope.
+    getMyInspectionAssignments: builder.query<
+      ApiResponse<MyInspectionAssignment[]>,
+      void
+    >({
+      query: () => ({
+        url: `/inspection/assignments/mine`,
+        method: "GET",
+      }),
+      providesTags: ["INSPECTION"],
+    }),
   }),
 })
 
@@ -125,6 +151,7 @@ export const {
   useUpdateInspectionMutation,
   useUpdateInspectionQuestionAnswerMutation,
   useSplitInspectionNoteMutation,
+  useGetMyInspectionAssignmentsQuery,
 } = inspectionApi
 
 // aexa-frontend#229: exported so note.api.test.ts can dispatch

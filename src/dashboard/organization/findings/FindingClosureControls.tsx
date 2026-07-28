@@ -1,3 +1,7 @@
+import {
+  useMyActiveFindingAssignmentIds,
+  useMyAssignedInspectionIds,
+} from "@/hooks/useMyAssignments"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useGetMeQuery } from "@/redux/apis/auth.api"
 import {
@@ -7,6 +11,7 @@ import {
   useSubmitFindingForClosureMutation,
 } from "@/redux/apis/organization/findingClosure.api"
 import type { ClosureDisplayState, IAction } from "@/types/finding"
+import { canWriteFinding } from "@/utils/assignmentScope"
 import { AlertTriangle, Check, Send, X } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -76,8 +81,29 @@ export default function FindingClosureControls({ action }: Props) {
   const closure = closureData?.data?.closure ?? null
   const badge = BADGE_STYLES[status]
 
-  const canSubmit =
-    role === "ADMIN" || role === "LEAD_AUDITOR" || role === "LIGHT_USER"
+  // aexa-frontend#270: canSubmit used to be role-only (ADMIN/LEAD_AUDITOR/
+  // LIGHT_USER unconditionally), so an unassigned LEAD_AUDITOR or a
+  // LIGHT_USER with no (or a revoked/pending) FindingAssignment for THIS
+  // finding saw a Submit control the server's assertCanWriteToAction would
+  // 403 on. canWriteFinding mirrors that exact server rule: ADMIN always;
+  // LEAD_AUDITOR only if assigned to the finding's parent inspection;
+  // LIGHT_USER only with a live (ACTIVE, non-revoked) FindingAssignment for
+  // this exact finding. `lightUserDegradeDefault: true` preserves this
+  // component's own pre-#270 default (any LIGHT_USER could submit) for the
+  // "assignment data hasn't loaded/failed" case, matching this issue's
+  // graceful-degradation requirement -- other call sites that previously
+  // excluded LIGHT_USER entirely keep `false` (canWriteFinding's own
+  // default) instead.
+  const assignedInspectionIds = useMyAssignedInspectionIds()
+  const activeFindingAssignmentIds = useMyActiveFindingAssignmentIds()
+  const canSubmit = canWriteFinding(
+    role,
+    action.id,
+    action.inspectionId,
+    assignedInspectionIds,
+    activeFindingAssignmentIds,
+    true
+  )
   const canDecideRole = role === "ADMIN" || role === "LEAD_AUDITOR"
   const canResubmit = status === "NOT_SUBMITTED" || status === "REJECTED"
   const isPending = status === "PENDING_APPROVAL"

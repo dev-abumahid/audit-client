@@ -50,6 +50,24 @@ interface FindingRequestBody {
   line_of_defense?: LineOfDefense
 }
 
+// aexa-frontend#270: mirrors aexa-server's FindingAssignment row shape
+// returned by get_my_finding_assignments (action.service.ts) --
+// { id, orgMemberId, actionId, status, revokedAt, createdAt, action: {...} }.
+// Only the fields the frontend actually reads are declared.
+export interface MyFindingAssignment {
+  id: string
+  actionId: string
+  status: "PENDING_APPROVAL" | "ACTIVE" | "REJECTED"
+  revokedAt: string | null
+  createdAt: string
+  action: {
+    id: string
+    actionTitle: string
+    inspectionId: string
+    status: IAction["status"]
+  }
+}
+
 const findingsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getAllFindings: builder.query<
@@ -131,6 +149,24 @@ const findingsApi = baseApi.injectEndpoints({
         body: formData,
       }),
     }),
+    // aexa-frontend#270 -- self-scoped, no args. GET /action/assignments/mine
+    // already existed server-side (added for a Light User's own "pending vs
+    // active vs rejected" sub-assignment view) but had no frontend caller;
+    // reused here to derive LIGHT_USER's real write scope for
+    // useMyAssignments.ts. Returns every status (PENDING_APPROVAL/ACTIVE/
+    // REJECTED) and revoked rows, not just active ones -- narrowing to
+    // ACTIVE + non-revoked happens client-side in assignmentScope.ts, same
+    // split the server itself does in getAssignedActionIds.
+    getMyFindingAssignments: builder.query<
+      ApiResponse<MyFindingAssignment[]>,
+      void
+    >({
+      query: () => ({
+        url: `/action/assignments/mine`,
+        method: "GET",
+      }),
+      providesTags: ["FINDINGS"],
+    }),
   }),
 })
 
@@ -142,4 +178,5 @@ export const {
   useAddFindingMessageMutation,
   useGetFindingByIdQuery,
   useUploadFindingAttachmentMutation,
+  useGetMyFindingAssignmentsQuery,
 } = findingsApi

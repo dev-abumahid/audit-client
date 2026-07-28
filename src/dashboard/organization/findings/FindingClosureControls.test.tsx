@@ -13,6 +13,19 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
   useMyOrgRole: () => mockRole,
 }))
 
+// aexa-frontend#270: `undefined` (the default here) means "assignment data
+// unavailable" -- FindingClosureControls degrades LIGHT_USER's canSubmit to
+// `true` in that case (its own pre-#270 default, see canWriteFinding's
+// `lightUserDegradeDefault` param), which is exactly what the pre-existing
+// "LIGHT_USER sees submit controls" test below already expects without
+// having to know about assignment data at all.
+let mockAssignedInspectionIds: Set<string> | undefined = undefined
+let mockActiveFindingAssignmentIds: Set<string> | undefined = undefined
+vi.mock("@/hooks/useMyAssignments", () => ({
+  useMyAssignedInspectionIds: () => mockAssignedInspectionIds,
+  useMyActiveFindingAssignmentIds: () => mockActiveFindingAssignmentIds,
+}))
+
 let mockMyAccountId = "acc-2"
 let mockMeLoading = false
 vi.mock("@/redux/apis/auth.api", () => ({
@@ -101,6 +114,8 @@ describe("FindingClosureControls", () => {
     mockToastSuccess.mockReset()
     mockUseGetFindingClosureStateQuery.mockReset()
     mockClosureState("NOT_SUBMITTED")
+    mockAssignedInspectionIds = undefined
+    mockActiveFindingAssignmentIds = undefined
   })
 
   it("renders nothing while the closure state is loading", () => {
@@ -259,6 +274,59 @@ describe("FindingClosureControls", () => {
       expect(
         screen.queryByText("organization.findings.closure.awaitingOtherReviewer")
       ).not.toBeInTheDocument()
+    })
+  })
+
+  // aexa-frontend#270: canSubmit narrows LEAD_AUDITOR/LIGHT_USER's role-only
+  // gate above by real InspectionAssignment/FindingAssignment state
+  // (mirrors org_scope.ts's assertCanWriteToAction).
+  describe("assignment gating (#270)", () => {
+    it("hides submit controls for a LIGHT_USER with a revoked FindingAssignment", () => {
+      mockRole = "LIGHT_USER"
+      mockActiveFindingAssignmentIds = new Set() // known empty, not "unavailable"
+      render(<FindingClosureControls action={makeAction()} />)
+      expect(
+        screen.queryByRole("button", { name: SUBMIT_COMPLETE })
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows submit controls for a LIGHT_USER with an active FindingAssignment on this exact finding", () => {
+      mockRole = "LIGHT_USER"
+      mockActiveFindingAssignmentIds = new Set(["finding-1"])
+      render(<FindingClosureControls action={makeAction()} />)
+      expect(screen.getByRole("button", { name: SUBMIT_COMPLETE })).toBeInTheDocument()
+    })
+
+    it("hides submit controls for a LIGHT_USER assigned to a DIFFERENT finding", () => {
+      mockRole = "LIGHT_USER"
+      mockActiveFindingAssignmentIds = new Set(["some-other-finding"])
+      render(<FindingClosureControls action={makeAction()} />)
+      expect(
+        screen.queryByRole("button", { name: SUBMIT_COMPLETE })
+      ).not.toBeInTheDocument()
+    })
+
+    it("hides submit controls for an unassigned LEAD_AUDITOR (known assignment data)", () => {
+      mockRole = "LEAD_AUDITOR"
+      mockAssignedInspectionIds = new Set()
+      render(<FindingClosureControls action={makeAction({ inspectionId: "insp-1" })} />)
+      expect(
+        screen.queryByRole("button", { name: SUBMIT_COMPLETE })
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows submit controls for a LEAD_AUDITOR assigned to the finding's parent inspection", () => {
+      mockRole = "LEAD_AUDITOR"
+      mockAssignedInspectionIds = new Set(["insp-1"])
+      render(<FindingClosureControls action={makeAction({ inspectionId: "insp-1" })} />)
+      expect(screen.getByRole("button", { name: SUBMIT_COMPLETE })).toBeInTheDocument()
+    })
+
+    it("degrades LIGHT_USER back to the pre-#270 default (allowed) when assignment data is unavailable", () => {
+      mockRole = "LIGHT_USER"
+      mockActiveFindingAssignmentIds = undefined
+      render(<FindingClosureControls action={makeAction()} />)
+      expect(screen.getByRole("button", { name: SUBMIT_COMPLETE })).toBeInTheDocument()
     })
   })
 

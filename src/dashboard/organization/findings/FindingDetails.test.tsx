@@ -16,6 +16,13 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
     role === "ADMIN" || role === "LEAD_AUDITOR",
 }))
 
+// aexa-frontend#270 -- mutable holder, same convention as mockRole above.
+let mockAssignedInspectionIds: Set<string> | undefined = new Set()
+vi.mock("@/hooks/useMyAssignments", () => ({
+  useMyAssignedInspectionIds: () => mockAssignedInspectionIds,
+  useMyActiveFindingAssignmentIds: () => new Set(),
+}))
+
 const mockNavigate = vi.fn()
 vi.mock("react-router", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-router")>()
@@ -114,6 +121,7 @@ function renderPage() {
 describe("FindingDetails", () => {
   beforeEach(() => {
     mockRole = "ADMIN"
+    mockAssignedInspectionIds = new Set()
     mockNavigate.mockReset()
     mockUseGetFindingByIdQuery.mockReset()
     mockDeleteFinding.mockReset()
@@ -159,6 +167,45 @@ describe("FindingDetails", () => {
     expect(
       screen.queryByRole("button", { name: "organization.findings.edit" })
     ).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend#270: LEAD_AUDITOR's Edit/Delete is additionally narrowed
+  // by real assignment on the finding's parent inspection ("insp-1", per
+  // makeAction's default), mirroring org_scope.ts's assertCanWriteToAction.
+  it("hides Edit and Delete for an unassigned LEAD_AUDITOR", () => {
+    mockRole = "LEAD_AUDITOR"
+    mockAssignedInspectionIds = new Set()
+    renderPage()
+
+    expect(
+      screen.queryByRole("button", { name: "organization.findings.edit" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "organization.findings.delete" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows Edit and Delete for a LEAD_AUDITOR assigned to the finding's parent inspection", () => {
+    mockRole = "LEAD_AUDITOR"
+    mockAssignedInspectionIds = new Set(["insp-1"])
+    renderPage()
+
+    expect(
+      screen.getByRole("button", { name: "organization.findings.edit" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "organization.findings.delete" })
+    ).toBeInTheDocument()
+  })
+
+  it("degrades a LEAD_AUDITOR back to allowed when assignment data is unavailable", () => {
+    mockRole = "LEAD_AUDITOR"
+    mockAssignedInspectionIds = undefined
+    renderPage()
+
+    expect(
+      screen.getByRole("button", { name: "organization.findings.edit" })
+    ).toBeInTheDocument()
   })
 
   it("Edit button opens the modal pre-filled with the finding", async () => {

@@ -25,7 +25,9 @@ import type { InspectionSummary } from "@/types/inspection"
 
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
+import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { canWriteInspection } from "@/utils/assignmentScope"
 import {
   ChevronLeft,
   ChevronRight,
@@ -52,6 +54,14 @@ const InspectionTable = () => {
   // ADMIN and only found out they couldn't act via a 403 toast.
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
+  // aexa-frontend#270: canWrite above stays role-only for the page-level
+  // "Start New" affordance (inspection creation has no InspectionAssignment
+  // to narrow by -- see inspection.service.ts's create_inspection_into_db
+  // comment). Per-row Edit/Delete narrow further for LEAD_AUDITOR using the
+  // caller's real assignment state; `undefined` (still loading / fetch
+  // failed) degrades canWriteInspection back to the same role-only
+  // behavior as before this issue.
+  const assignedInspectionIds = useMyAssignedInspectionIds()
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
@@ -275,7 +285,13 @@ const InspectionTable = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                inspections.map((item: InspectionSummary) => (
+                inspections.map((item: InspectionSummary) => {
+                  const canWriteThisInspection = canWriteInspection(
+                    role,
+                    item.id,
+                    assignedInspectionIds
+                  )
+                  return (
                   <TableRow key={item.id} className="hover:bg-muted/50">
                     <TableCell>{item.template?.templateName || "—"}</TableCell>
                     <TableCell>{item.site?.name || "—"}</TableCell>
@@ -312,7 +328,7 @@ const InspectionTable = () => {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {canWrite && (
+                        {canWriteThisInspection && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -321,7 +337,7 @@ const InspectionTable = () => {
                             <Edit2 className="h-4 w-4" />
                           </Button>
                         )}
-                        {canWrite && (
+                        {canWriteThisInspection && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -334,7 +350,8 @@ const InspectionTable = () => {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
+                  )
+                })
               )}
             </TableBody>
           </Table>
