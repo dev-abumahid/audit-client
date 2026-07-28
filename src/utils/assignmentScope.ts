@@ -69,6 +69,14 @@ export function deriveAssignmentState<T extends AssignmentRow>(
  * deliberately distinct return values -- collapsing them would reintroduce
  * exactly the never-assigned-vs-revoked bug getInspectionAssignmentState's
  * own docstring warns about.
+ *
+ * Not called anywhere yet (aexa-frontend#270): that ticket scoped only
+ * write-gating (canWriteInspection/canWriteFinding, both wired in). Viewer
+ * *read* scoping is still left entirely to the server, which already
+ * applies this same rule server-side. This function exists so a future
+ * client-side read-scoping pass (e.g. hiding rows a Viewer's own fallback
+ * wouldn't include) has a ready, already-tested implementation to call
+ * rather than re-deriving the fallback-vs-deny logic from scratch.
  */
 export function resolveViewerVisibleIds(
   state: AssignmentState
