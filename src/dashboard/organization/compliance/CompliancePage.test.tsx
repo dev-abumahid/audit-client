@@ -1109,4 +1109,112 @@ describe("CompliancePage", () => {
       ).not.toBeInTheDocument()
     })
   })
+
+  // aexa-frontend#244: due_date/next_review_date are date-only values -- the
+  // backend's DATE columns serialize as UTC-midnight ISO strings (see
+  // makeObligation's "...T00:00:00.000Z" fixtures above, matching the real
+  // /api/compliance response shape). `new Date(obl.due_date).toLocaleDateString()`
+  // parses that as a UTC instant but formats in the *local* timezone, which
+  // rolls the displayed day back one for anyone at a negative UTC offset.
+  // Same root cause as #238 (already fixed for the findings due-date
+  // datetime-local input), different mechanism (date-only, not datetime).
+  describe("due date / next review date rendering is timezone-safe (#244)", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
+    it("renders the correct calendar day for due_date and next_review_date at a negative UTC offset (west of UTC)", () => {
+      // Pacific/Honolulu is UTC-10 with no DST -- deterministic year-round.
+      // Under the bug, a UTC-midnight due_date would display one day early.
+      vi.stubEnv("TZ", "Pacific/Honolulu")
+
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              due_date: "2026-12-31T00:00:00.000Z",
+              recurrence: "annual",
+              next_review_date: "2027-06-15T00:00:00.000Z",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      expect(screen.getByText("Dec 31, 2026")).toBeInTheDocument()
+      expect(screen.getByText(/Jun 15, 2027/)).toBeInTheDocument()
+    })
+
+    it("renders the correct calendar day for due_date at a positive UTC offset (east of UTC)", () => {
+      // IST, UTC+5:30 -- a positive offset wouldn't have shown the #244 bug
+      // (it rolls the day *forward*, not backward), but it must still
+      // render correctly, not just avoid the specific failure direction.
+      vi.stubEnv("TZ", "Asia/Kolkata")
+
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [makeObligation({ due_date: "2026-01-01T00:00:00.000Z" })],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      expect(screen.getByText("Jan 1, 2026")).toBeInTheDocument()
+    })
+
+    it("renders the correct calendar day in the edit form's derived next-review note at a negative UTC offset", async () => {
+      const user = userEvent.setup()
+      vi.stubEnv("TZ", "Pacific/Honolulu")
+
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              recurrence: "annual",
+              next_review_date: "2026-03-01T00:00:00.000Z",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+      await user.click(within(row).getAllByRole("button")[0])
+
+      expect(
+        screen.getByText(/organization\.compliance\.form\.nextReview/)
+      ).toHaveTextContent("Mar 1, 2026")
+    })
+
+    it("still renders the correct calendar day for a next_review_date with a real, non-midnight time-of-day", () => {
+      // aexa-server's attest_compliance_into_db recomputes next_review_date
+      // from the actual attestation clock time, not midnight (see
+      // dueDateInput.ts's comment) -- unlike due_date, this field genuinely
+      // carries a non-zero time-of-day in production. formatDateOnlyForDisplay
+      // still truncates to a single UTC calendar day rather than letting that
+      // time-of-day leak into the display or interact with the local offset.
+      vi.stubEnv("TZ", "Pacific/Honolulu")
+
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              recurrence: "annual",
+              next_review_date: "2027-03-01T23:50:00.000Z",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      expect(screen.getByText(/Mar 1, 2027/)).toBeInTheDocument()
+    })
+  })
 })

@@ -1,5 +1,6 @@
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
 import CreateNewFindingModal from "@/dashboard/organization/findings/CreateNewFindingModal"
+import { formatDateOnlyForDisplay } from "@/dashboard/organization/findings/dueDateInput"
 import type {
   ComplianceObligation,
   ComplianceScoreBand,
@@ -649,11 +650,7 @@ export default function CompliancePage() {
                       }`}
                     >
                       {obl.due_date
-                        ? new Date(obl.due_date).toLocaleDateString("en-US", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })
+                        ? formatDateOnlyForDisplay(obl.due_date)
                         : "—"}
                     </span>
                     {isOverdue && (
@@ -665,10 +662,7 @@ export default function CompliancePage() {
                     {obl.recurrence && obl.next_review_date && (
                       <p className="mt-0.5 text-[10px] text-muted-foreground">
                         {t("organization.compliance.col.nextReviewShort")}:{" "}
-                        {new Date(obl.next_review_date).toLocaleDateString(
-                          "en-US",
-                          { day: "numeric", month: "short", year: "numeric" }
-                        )}
+                        {formatDateOnlyForDisplay(obl.next_review_date)}
                       </p>
                     )}
                   </td>
@@ -994,14 +988,10 @@ export default function CompliancePage() {
                     ?.next_review_date && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       {t("organization.compliance.form.nextReview")}:{" "}
-                      {new Date(
+                      {formatDateOnlyForDisplay(
                         obligations.find((o) => o.id === editingId)!
                           .next_review_date!
-                      ).toLocaleDateString("en-US", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      )}
                     </p>
                   )}
               </div>
