@@ -56,7 +56,8 @@ vi.mock("./StartInspectionModal", () => ({
 
 // ── DeleteAlertModal ──────────────────────────────────────────────────────────
 vi.mock("@/components/shared/DeleteAlertModal", () => ({
-  default: () => null,
+  default: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
+    open ? <button onClick={onConfirm}>Confirm delete</button> : null,
 }))
 
 // ── UI primitives — bypass the duplicate-export bug in button.tsx ─────────────
@@ -475,5 +476,63 @@ describe("InspectionTable", () => {
         expect.objectContaining({ searchTerm: "fire", page: 1 })
       )
     })
+  })
+
+  // aexa-frontend#265: the delete-path counterpart to #234/#243 above. Those
+  // fixed page state going stale when a FILTER change shrinks totalPages;
+  // this covers a delete alone shrinking totalPages with no filter touched.
+  it("aexa-frontend#265: clamps the page back into range after a delete shrinks totalPages", async () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: {
+        data: [makeInspection()],
+        meta: { page: 1, limit: 10, total: 25, totalPage: 3 },
+      },
+      isLoading: false,
+    })
+    mockDeleteInspectionTrigger.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    renderTable()
+    await waitFor(() =>
+      expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+    )
+
+    const nextButton = () =>
+      screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-chevron-right"))!
+
+    await userEvent.click(nextButton())
+    await userEvent.click(nextButton())
+    await waitFor(() =>
+      expect(mockUseGetAllInspectionQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 3 })
+      )
+    )
+
+    // Deleting the last inspection on page 3 drops total to 20 -> totalPage 2,
+    // stranding page 3 out of range.
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: {
+        data: [],
+        meta: { page: 3, limit: 10, total: 20, totalPage: 2 },
+      },
+      isLoading: false,
+    })
+
+    const deleteButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-trash2"))!
+    await userEvent.click(deleteButton)
+    await userEvent.click(
+      screen.getByRole("button", { name: /confirm delete/i })
+    )
+
+    await waitFor(() =>
+      expect(mockUseGetAllInspectionQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2 })
+      )
+    )
   })
 })

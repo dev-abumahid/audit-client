@@ -24,6 +24,7 @@ import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { InspectionSummary } from "@/types/inspection"
 
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   ChevronLeft,
@@ -79,6 +80,18 @@ const InspectionTable = () => {
   const inspections = data?.data || []
   const meta = data?.meta
   const totalPages = meta?.totalPage || 1
+
+  // aexa-frontend#265: deleting the last inspection on the last page shrinks
+  // totalPages without touching any filter, stranding currentPage out of
+  // range (empty list, pagination hidden since it's gated on totalPages > 1)
+  // -- the delete-path counterpart to #234/#243 below. Deliberately clamps
+  // against meta?.totalPage directly (not the `|| 1` fallback above): that
+  // fallback exists only so the "page X / totalPages" label and the
+  // totalPages > 1 gate have a sane value while `meta` is momentarily
+  // undefined during a loading/refetching query, and treating that
+  // placeholder 1 as real here would clamp the user back to page 1 mid
+  // navigation any time a page change causes a brief loading state.
+  useClampPageToTotal(currentPage, meta?.totalPage ?? 0, setCurrentPage)
 
   // aexa-frontend#243: searchTerm was passed straight into
   // useGetAllInspectionQuery on every keystroke while this effect only

@@ -15,6 +15,7 @@ import {
   useUpdateComplianceMutation,
 } from "@/redux/apis/organization/compliance.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
+import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { COMPLIANCE_DOMAINS } from "@/utils/complianceConfig"
 import {
@@ -139,6 +140,13 @@ export default function CompliancePage() {
   const totalPages = meta?.totalPage ?? 0
   const scorecard = scorecardData?.data
   const sites = sitesData?.data || []
+
+  // aexa-frontend#265: deleting the last obligation on the last page shrinks
+  // totalPages without a filter change (handleSearchChange/handleDomainChange/
+  // handleStatusChange below only reset page on filter changes), stranding
+  // the user on an out-of-range empty page. Delete-path counterpart to
+  // #234/#243.
+  useClampPageToTotal(page, totalPages, setPage)
 
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)

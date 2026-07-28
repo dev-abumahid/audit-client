@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import TemplatesPage from "./TemplatesPage"
 
@@ -28,8 +29,8 @@ vi.mock("./shared/CreateTemplateWithAIDialog", () => ({
 }))
 
 vi.mock("@/components/shared/DeleteAlertModal", () => ({
-  default: ({ open }: { open: boolean }) =>
-    open ? <button>Confirm delete</button> : null,
+  default: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
+    open ? <button onClick={onConfirm}>Confirm delete</button> : null,
 }))
 
 function makeTemplate(overrides = {}) {
@@ -97,5 +98,55 @@ describe("TemplatesPage", () => {
     expect(
       screen.queryByText("organization.templates.list.createTemplate")
     ).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend#265: the delete-path counterpart to #234/#243. Those fixed
+  // page state going stale when a FILTER change shrinks totalPages; this
+  // covers a delete alone shrinking totalPages with no filter touched.
+  it("aexa-frontend#265: clamps the page back into range after a delete shrinks totalPages", async () => {
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: { data: [makeTemplate()], meta: { total: 25 } },
+      isLoading: false,
+    })
+    mockDeleteTemplate.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true, message: "Deleted" }),
+    })
+
+    render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+    const nextButton = () =>
+      screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-chevron-right"))!
+
+    // totalPages = ceil(25/10) = 3 -- page to the last page.
+    await userEvent.click(nextButton())
+    await userEvent.click(nextButton())
+    await waitFor(() =>
+      expect(mockUseGetAllTemplatesQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 3 })
+      )
+    )
+
+    // Deleting the last template on page 3 drops total to 20 -> totalPages 2,
+    // stranding page 3 out of range.
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: { data: [], meta: { total: 20 } },
+      isLoading: false,
+    })
+
+    const deleteButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-trash2"))!
+    await userEvent.click(deleteButton)
+    await userEvent.click(
+      screen.getByRole("button", { name: /confirm delete/i })
+    )
+
+    await waitFor(() =>
+      expect(mockUseGetAllTemplatesQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2 })
+      )
+    )
   })
 })

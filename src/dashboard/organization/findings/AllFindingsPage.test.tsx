@@ -190,6 +190,63 @@ describe("AllFindingsPage", () => {
     )
   })
 
+  // aexa-frontend#265: the delete-path counterpart to #234/#243 (this file's
+  // own handleSiteFilter/clearFilters reset page on a filter change, but
+  // nothing resets it when a delete alone shrinks totalPages).
+  it("aexa-frontend#265: clamps the page back into range after a delete shrinks totalPages", async () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        data: [makeAction()],
+        meta: { page: 1, limit: 20, total: 41, totalPage: 3 },
+      },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+    mockDeleteAction.mockReturnValue({
+      unwrap: () => Promise.resolve({ message: "Deleted" }),
+    })
+
+    render(<AllFindingsPage />)
+
+    const nextButton = () =>
+      screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-chevron-right"))!
+
+    await userEvent.click(nextButton())
+    await userEvent.click(nextButton())
+    await waitFor(() =>
+      expect(mockUseGetAllFindingsQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 3 })
+      )
+    )
+
+    // Deleting the last finding on page 3 drops total to 21 -> totalPage 2,
+    // stranding page 3 out of range.
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        data: [],
+        meta: { page: 3, limit: 20, total: 21, totalPage: 2 },
+      },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+
+    const deleteButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-trash2"))!
+    await userEvent.click(deleteButton)
+    await userEvent.click(
+      screen.getByRole("button", { name: /confirm delete/i })
+    )
+
+    await waitFor(() =>
+      expect(mockUseGetAllFindingsQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2 })
+      )
+    )
+  })
+
   it("navigates to the detail page when a row (not the action buttons) is clicked", async () => {
     render(<AllFindingsPage />)
 

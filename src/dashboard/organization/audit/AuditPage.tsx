@@ -9,6 +9,7 @@ import {
   useGetAllAuditEngagementsQuery,
   useUpdateAuditEngagementMutation,
 } from "@/redux/apis/organization/audit.api"
+import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import {
@@ -109,6 +110,12 @@ export default function AuditPage() {
   const engagements: AuditEngagement[] = auditData?.data || []
   const meta = auditData?.meta
   const totalPages = meta?.totalPage || 0
+
+  // aexa-frontend#265: deleting the last engagement on the last page shrinks
+  // totalPages without a search change (handleSearchChange below only resets
+  // page on a search change), stranding the user on an out-of-range empty
+  // page. Delete-path counterpart to #234/#243.
+  useClampPageToTotal(page, totalPages, setPage)
 
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)

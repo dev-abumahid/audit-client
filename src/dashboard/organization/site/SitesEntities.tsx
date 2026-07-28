@@ -4,6 +4,7 @@ import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { Button } from "@/components/ui/button"
+import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import enTranslations from "@/i18n/locales/en.json"
@@ -214,6 +215,12 @@ export default function SitesEntities() {
   const sites = sitesData?.data || []
   const meta = sitesData?.meta || { page: 1, limit: 10, total: 0 }
   const totalPages = Math.ceil(meta.total / meta.limit)
+
+  // aexa-frontend#265: deleting the last site on the last page shrinks
+  // totalPages without any filter change (the debouncedSearch effect above
+  // only resets page on a SEARCH change), stranding the user on an
+  // out-of-range empty page. Delete-path counterpart to #234/#243.
+  useClampPageToTotal(page, totalPages, setPage)
 
   const openCreate = () => {
     setEditingSite(null)

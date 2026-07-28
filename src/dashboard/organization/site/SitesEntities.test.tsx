@@ -922,6 +922,60 @@ describe("SitesEntities", () => {
     expect(screen.getByText("Flood exposure")).toBeInTheDocument()
   })
 
+  // aexa-frontend#265: the delete-path counterpart to #234/#243 (this file's
+  // own debouncedSearch effect resets page on a search change, but nothing
+  // resets it when a delete alone shrinks totalPages).
+  it("aexa-frontend#265: clamps the page back into range after deleting the last site on the last page", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 25 } },
+      error: undefined,
+    })
+    mockDeleteSite.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    render(<SitesEntities />)
+
+    const nextButton = () =>
+      screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-chevron-right"))!
+
+    // totalPages = ceil(25/10) = 3 -- page to the last page.
+    await userEvent.click(nextButton())
+    await userEvent.click(nextButton())
+    await waitFor(() =>
+      expect(mockUseGetAllSitesQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 3 })
+      )
+    )
+
+    // Deleting the last site on page 3 drops total to 15 -> totalPages 2,
+    // stranding page 3 out of range.
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 3, limit: 10, total: 15 } },
+      error: undefined,
+    })
+
+    const deleteButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-trash2"))
+    await userEvent.click(deleteButtons[0])
+    await userEvent.click(
+      screen.getByRole("button", { name: /confirm delete/i })
+    )
+
+    await waitFor(() =>
+      expect(mockUseGetAllSitesQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2 })
+      )
+    )
+  })
+
   it("removes an imported suggestion from the panel but keeps unselected ones", async () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,

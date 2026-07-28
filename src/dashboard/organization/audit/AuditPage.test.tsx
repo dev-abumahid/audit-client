@@ -499,6 +499,75 @@ describe("AuditPage", () => {
       expect(lastCall.page).toBe(2)
     })
 
+    // aexa-frontend#265: the delete-path counterpart to #234/#243 (this
+    // file's own handleSearchChange resets page on a search change, but
+    // nothing resets it when a delete alone shrinks totalPages).
+    it("aexa-frontend#265: clamps the page back into range after deleting the last engagement on the last page", async () => {
+      const user = userEvent.setup()
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true)
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: {
+          data: [makeEngagement()],
+          meta: { total: 45, totalPage: 3, page: 1, limit: 20 },
+        },
+        isLoading: false,
+      })
+      mockDeleteAuditEngagement.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      const { rerender } = render(<AuditPage />)
+
+      await user.click(
+        screen.getByRole("button", { name: /organization\.audit\.nextPage/i })
+      )
+      await user.click(
+        screen.getByRole("button", { name: /organization\.audit\.nextPage/i })
+      )
+
+      let lastCall =
+        mockUseGetAllAuditEngagementsQuery.mock.calls[
+          mockUseGetAllAuditEngagementsQuery.mock.calls.length - 1
+        ][0]
+      expect(lastCall.page).toBe(3)
+
+      const card = screen
+        .getByText("Supply Chain Risk Audit")
+        .closest("[class*='rounded-xl']")! as HTMLElement
+      await user.click(within(card).getAllByRole("button")[1])
+
+      await waitFor(() =>
+        expect(mockDeleteAuditEngagement).toHaveBeenCalledWith("audit-1")
+      )
+
+      // Deleting the last engagement on page 3 drops total to 25 ->
+      // totalPage 2, stranding page 3 out of range. Unlike the other 5 list
+      // pages, AuditPage's handleDelete has no local setState on success --
+      // in the real app the re-render comes from RTK Query's own cache
+      // subscription reacting to the invalidated list query, which this
+      // fully-mocked hook can't reproduce on its own, so the refreshed
+      // (smaller) result is applied via an explicit rerender here, standing
+      // in for that cache-driven re-render.
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: {
+          data: [],
+          meta: { total: 25, totalPage: 2, page: 3, limit: 20 },
+        },
+        isLoading: false,
+      })
+      rerender(<AuditPage />)
+
+      await waitFor(() => {
+        lastCall =
+          mockUseGetAllAuditEngagementsQuery.mock.calls[
+            mockUseGetAllAuditEngagementsQuery.mock.calls.length - 1
+          ][0]
+        expect(lastCall.page).toBe(2)
+      })
+
+      confirmSpy.mockRestore()
+    })
+
     it("does not render pagination when there is only one page", () => {
       mockUseGetAllAuditEngagementsQuery.mockReturnValue({
         data: { data: [makeEngagement()], meta: { total: 1, totalPage: 1 } },

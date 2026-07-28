@@ -6,6 +6,7 @@ import {
   useGetAllFindingsQuery,
 } from "@/redux/apis/organization/findings.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
+import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { IAction } from "@/types/finding"
 import type { TFunction } from "i18next"
@@ -111,6 +112,12 @@ export default function AllFindingsPage() {
   const actions: IAction[] = data?.data || []
   const meta = data?.meta
   const totalPages = meta?.totalPage || 0
+
+  // aexa-frontend#265: deleting the last finding on the last page shrinks
+  // totalPages without a filter change (handleSiteFilter/clearFilters below
+  // only reset page on filter changes), stranding the user on an
+  // out-of-range empty page. Delete-path counterpart to #234/#243.
+  useClampPageToTotal(page, totalPages, setPage)
 
   const handleDelete = async (id: string) => {
     try {

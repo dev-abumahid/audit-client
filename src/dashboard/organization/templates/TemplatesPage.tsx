@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
@@ -96,6 +97,12 @@ export default function TemplatesPage() {
   const templates: TemplateSummary[] = data?.data || []
   const total = data?.meta?.total || 0
   const totalPages = Math.ceil(total / limit)
+
+  // aexa-frontend#265: a delete that removes the last item on the last page
+  // shrinks totalPages without any filter change to trigger the existing
+  // setPage(1) resets above, stranding the user on an out-of-range empty
+  // page. Safety net, complementary to (not a replacement for) those resets.
+  useClampPageToTotal(page, totalPages, setPage)
 
   // -------- Handlers --------
   const handleDeleteClick = (id: string) => {

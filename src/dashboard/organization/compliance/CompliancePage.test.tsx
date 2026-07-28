@@ -488,6 +488,74 @@ describe("CompliancePage", () => {
     expect(lastArgs.page).toBe(2)
   })
 
+  // aexa-frontend#265: the delete-path counterpart to #234/#243 (this file's
+  // own handleSearchChange/handleDomainChange/handleStatusChange reset page
+  // on a filter change, but nothing resets it when a delete alone shrinks
+  // totalPages).
+  it("aexa-frontend#265: clamps the page back into range after deleting the last obligation on the last page", async () => {
+    const user = userEvent.setup()
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true)
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [makeObligation()],
+        meta: { page: 1, limit: 20, total: 45, totalPage: 3 },
+      },
+      isLoading: false,
+    })
+    mockDeleteCompliance.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    const { rerender } = render(<CompliancePage />)
+
+    await user.click(
+      screen.getByLabelText("organization.compliance.pagination.next")
+    )
+    await user.click(
+      screen.getByLabelText("organization.compliance.pagination.next")
+    )
+
+    let lastArgs =
+      mockUseGetAllComplianceQuery.mock.calls[
+        mockUseGetAllComplianceQuery.mock.calls.length - 1
+      ][0]
+    expect(lastArgs.page).toBe(3)
+
+    const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+    await user.click(within(row).getAllByRole("button")[3])
+
+    await waitFor(() =>
+      expect(mockDeleteCompliance).toHaveBeenCalledWith("comp-1")
+    )
+
+    // Deleting the last obligation on page 3 drops total to 25 -> totalPage
+    // 2, stranding page 3 out of range. Unlike the other 5 list pages,
+    // CompliancePage's handleDelete has no local setState on success -- in
+    // the real app the re-render comes from RTK Query's own cache
+    // subscription reacting to the invalidated list query, which this
+    // fully-mocked hook can't reproduce on its own, so the refreshed
+    // (smaller) result is applied via an explicit rerender here, standing in
+    // for that cache-driven re-render.
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [],
+        meta: { page: 3, limit: 20, total: 25, totalPage: 2 },
+      },
+      isLoading: false,
+    })
+    rerender(<CompliancePage />)
+
+    await waitFor(() => {
+      lastArgs =
+        mockUseGetAllComplianceQuery.mock.calls[
+          mockUseGetAllComplianceQuery.mock.calls.length - 1
+        ][0]
+      expect(lastArgs.page).toBe(2)
+    })
+
+    confirmSpy.mockRestore()
+  })
+
   it("passes the selected domain filter to the query and resets to page 1", async () => {
     const user = userEvent.setup()
     mockUseGetAllComplianceQuery.mockReturnValue({
