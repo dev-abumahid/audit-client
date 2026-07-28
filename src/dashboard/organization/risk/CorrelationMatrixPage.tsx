@@ -34,7 +34,7 @@ import {
   X,
 } from "lucide-react"
 import type { FormEvent } from "react"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -210,6 +210,18 @@ export default function CorrelationMatrixPage() {
   const [sourceRef, setSourceRef] = useState("")
   const [targetRef, setTargetRef] = useState("")
   const [linkType, setLinkType] = useState<RiskLinkType>("CAUSES")
+
+  // riskGrid's cells are keyed by mapToAxis(matrixSize)-space coordinates,
+  // which is a different coordinate space per matrixSize (3x3 buckets
+  // consequences/root-causes into 3 bins, 5x5 into 5), and filteredRisks
+  // (hence riskGrid's contents) changes with siteFilter too. A selectedCell
+  // picked under one matrixSize/siteFilter can point at a row/col that is
+  // out-of-range or simply means something different after either changes,
+  // so any stale selection needs to be cleared rather than carried over
+  // (aexa-frontend#257).
+  useEffect(() => {
+    setSelectedCell(null)
+  }, [matrixSize, siteFilter])
 
   const filteredRisks = useMemo(() => {
     if (!siteFilter) return risks

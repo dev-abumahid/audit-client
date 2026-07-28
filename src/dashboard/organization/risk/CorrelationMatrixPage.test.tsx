@@ -10,15 +10,54 @@ import CorrelationMatrixPage from "./CorrelationMatrixPage"
 
 // SiteFilter independently calls useGetAllSitesQuery for its dropdown --
 // stubbed out so this test file stays scoped to the page's own data wiring,
-// same pattern RiskGraphPage.test.tsx / RiskRegisterPage.test.tsx use.
+// same pattern RiskGraphPage.test.tsx / RiskRegisterPage.test.tsx use. A
+// minimal button (rather than the real `null`-only stub) exposes just enough
+// of its onChange contract to drive the selectedCell-reset-on-filter-change
+// test (aexa-frontend#257) without pulling in the real dropdown/query.
 vi.mock("@/components/dashboard/organization/SiteFilter", () => ({
-  default: () => null,
+  default: ({ onChange }: { onChange: (siteId: string | null) => void }) => (
+    <button onClick={() => onChange("site1")}>mock-site-filter-change</button>
+  ),
 }))
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 import { toast } from "sonner"
 const mockToastSuccess = vi.mocked(toast.success)
 const mockToastError = vi.mocked(toast.error)
+
+// This file never triggers src/i18n/i18n.ts's side-effect init, so
+// react-i18next's real t() falls back to returning the raw key with no
+// interpolation for every other assertion here. That fallback can't
+// reproduce aexa-frontend#257 (a raw literal "{{rootCause}}"/"{{consequence}}"
+// placeholder left in the *interpolated* string when the value passed in is
+// undefined) since the raw-key fallback never contains those placeholders to
+// begin with. Overriding just the one real key under test, with the same
+// "leave the placeholder in when the interpolation value is undefined"
+// behavior i18next itself has with no missingInterpolationHandler configured
+// (src/i18n/i18n.ts), lets the test tell an out-of-range selectedCell (bug)
+// apart from a null one (clean empty state) -- every other key still falls
+// back to itself unchanged, so no existing assertion elsewhere in this file
+// is affected. Same technique as IntelligencePage.test.tsx.
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => ({
+      t: (key: string, opts?: Record<string, unknown>) => {
+        if (key === "organization.correlationMatrix.cellRisksHeading") {
+          const rootCause = opts?.rootCause
+          const consequence = opts?.consequence
+          return `${opts?.count} risk(s) — ${
+            rootCause === undefined ? "{{rootCause}}" : String(rootCause)
+          } / ${
+            consequence === undefined ? "{{consequence}}" : String(consequence)
+          }`
+        }
+        return key
+      },
+    }),
+  }
+})
 
 // Role hook mocked per-test via this mutable holder, same convention as
 // IntelligencePage.test.tsx / RiskApprovalControls.test.tsx.
@@ -886,6 +925,85 @@ describe("CorrelationMatrixPage", () => {
 
     expect(
       screen.getByText("organization.correlationMatrix.findingPriorityBucketName")
+    ).toBeInTheDocument()
+  })
+
+  // aexa-frontend#257: riskGrid's keys are in mapToAxis(matrixSize)-space,
+  // which is a different coordinate space per matrixSize/site filter, so a
+  // selectedCell picked under one of those can point at a row/col that's out
+  // of range (or just means something different) after either changes.
+  // Builds a risk with 4 root causes and 4 consequences so it lands in the
+  // (row 4, col 4) corner cell of the default 5x5 matrix -- the one that
+  // becomes out of range the moment the matrix drops to 3x3 (whose rows/cols
+  // only go up to index 2).
+  function setCornerCellMatrixData() {
+    const target = makeRisk({ id: "tgt", ref: "TGT-001" })
+    const sources = [1, 2, 3, 4].map((n) =>
+      makeRisk({ id: `src${n}`, ref: `OPS-SRC-${n}` })
+    )
+    const dests = [1, 2, 3, 4].map((n) =>
+      makeRisk({ id: `dst${n}`, ref: `OPS-DST-${n}` })
+    )
+    setMatrixData({
+      risks: [target, ...sources, ...dests],
+      riskLinks: [
+        ...sources.map((s) => makeLink({ source_ref: s.ref, target_ref: target.ref })),
+        ...dests.map((d) => makeLink({ source_ref: target.ref, target_ref: d.ref })),
+      ],
+    })
+  }
+
+  it("resets selectedCell when matrixSize changes, instead of showing a raw {{...}} placeholder for an out-of-range cell", async () => {
+    setCornerCellMatrixData()
+    render(<CorrelationMatrixPage />)
+
+    // The (row 4, col 4) corner cell holds exactly TGT-001 (4 root causes,
+    // 4 consequences) -- select it.
+    await userEvent.click(
+      screen.getByRole("button", { name: /1.*organization\.correlationMatrix\.riskWord/ })
+    )
+    expect(screen.getByText(/1 risk\(s\) —/)).toBeInTheDocument()
+
+    // Drop to a 3x3 matrix -- row/col index 4 no longer exists in that
+    // axis's label array.
+    await userEvent.click(screen.getByRole("button", { name: "3×3" }))
+
+    // Pre-fix, selectedCell survives the resize unreset and the heading
+    // renders with `axisLabels.rootCause[4]`/`.consequence[4]` both
+    // `undefined`, which the (unconfigured) i18n interpolation leaves as a
+    // raw literal placeholder. Post-fix, selectedCell is cleared back to the
+    // clean "select a cell" empty state instead.
+    expect(screen.queryByText(/\{\{rootCause\}\}/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\{\{consequence\}\}/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText("organization.correlationMatrix.selectCellHeading")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.correlationMatrix.clickCellHint")
+    ).toBeInTheDocument()
+  })
+
+  it("resets selectedCell when the site filter changes, instead of showing a raw {{...}} placeholder for a stale cell", async () => {
+    setCornerCellMatrixData()
+    render(<CorrelationMatrixPage />)
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /1.*organization\.correlationMatrix\.riskWord/ })
+    )
+    expect(screen.getByText(/1 risk\(s\) —/)).toBeInTheDocument()
+
+    // Mocked SiteFilter's onChange -- see the module mock above.
+    await userEvent.click(
+      screen.getByRole("button", { name: "mock-site-filter-change" })
+    )
+
+    expect(screen.queryByText(/\{\{rootCause\}\}/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\{\{consequence\}\}/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText("organization.correlationMatrix.selectCellHeading")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.correlationMatrix.clickCellHint")
     ).toBeInTheDocument()
   })
 })
