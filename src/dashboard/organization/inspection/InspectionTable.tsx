@@ -44,6 +44,7 @@ const InspectionTable = () => {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [siteFilter, setSiteFilter] = useState("ALL")
   const [currentPage, setCurrentPage] = useState(1)
@@ -55,7 +56,7 @@ const InspectionTable = () => {
   const { data, isLoading } = useGetAllInspectionQuery({
     page: currentPage,
     limit,
-    searchTerm,
+    searchTerm: debouncedSearchTerm,
     status: statusFilter === "ALL" ? "" : statusFilter,
     siteId: siteFilter === "ALL" ? "" : siteFilter,
   })
@@ -70,9 +71,21 @@ const InspectionTable = () => {
   const meta = data?.meta
   const totalPages = meta?.totalPage || 1
 
-  // Debounced Search
+  // aexa-frontend#243: searchTerm was passed straight into
+  // useGetAllInspectionQuery on every keystroke while this effect only
+  // debounced the page-1 reset, not the query value itself. On a deep page
+  // with an active filter, typing a character fired e.g. {page: 3,
+  // searchTerm: "x"} against the new filtered set before the reset landed --
+  // an out-of-range page producing the same false empty state (pagination
+  // hidden) that #234 fixed for the status/site filters. Unlike those
+  // Select-driven filters, a text input can't reset the page synchronously
+  // on every change (that would defeat the point of debouncing), so both the
+  // query value and the page reset are now committed together, after the
+  // delay, from a single effect -- the query never sees a fresh searchTerm
+  // paired with a stale page.
   useEffect(() => {
     const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
       setCurrentPage(1)
     }, 500)
     return () => clearTimeout(timer)

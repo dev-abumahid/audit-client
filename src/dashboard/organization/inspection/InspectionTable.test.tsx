@@ -1,4 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import React from "react"
 import { MemoryRouter } from "react-router"
@@ -278,5 +284,99 @@ describe("InspectionTable", () => {
         screen.getByText("organization.inspection.empty")
       ).toBeInTheDocument()
     )
+  })
+
+  describe("aexa-frontend#243: debounced search query", () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it("does not fire the query with the new search term immediately on keystroke", async () => {
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection()],
+          meta: { page: 1, limit: 10, total: 25, totalPage: 3 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      const searchInput = screen.getByPlaceholderText(
+        "organization.inspection.searchPlaceholder"
+      )
+
+      act(() => {
+        fireEvent.change(searchInput, { target: { value: "x" } })
+      })
+
+      // Immediately after the keystroke, the query must still be called with
+      // the previous (empty) searchTerm -- not "x" -- since the debounce
+      // hasn't elapsed yet.
+      expect(mockUseGetAllInspectionQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ searchTerm: "" })
+      )
+
+      // Advance partway through the debounce window -- still should not have
+      // fired with the new term.
+      act(() => {
+        vi.advanceTimersByTime(300)
+      })
+      expect(mockUseGetAllInspectionQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ searchTerm: "" })
+      )
+    })
+
+    it("commits the debounced search term and page reset together in the same query call", async () => {
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection()],
+          meta: { page: 1, limit: 10, total: 25, totalPage: 3 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      // Page to page 2 first, mirroring the #234 scenario: a deep page with
+      // an active result set.
+      act(() => {
+        fireEvent.click(
+          screen
+            .getAllByRole("button")
+            .find((b) => b.querySelector("svg.lucide-chevron-right"))!
+        )
+      })
+      expect(mockUseGetAllInspectionQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2 })
+      )
+
+      const searchInput = screen.getByPlaceholderText(
+        "organization.inspection.searchPlaceholder"
+      )
+      act(() => {
+        fireEvent.change(searchInput, { target: { value: "fire" } })
+      })
+
+      // While still within the debounce window, the query must not have been
+      // called with searchTerm "fire" paired with the stale page: 2 -- that
+      // out-of-range combination is exactly the bug being fixed.
+      expect(mockUseGetAllInspectionQuery).not.toHaveBeenCalledWith(
+        expect.objectContaining({ searchTerm: "fire", page: 2 })
+      )
+
+      // Once the debounce fires, both the new search term and the page reset
+      // must land in the same call.
+      act(() => {
+        vi.advanceTimersByTime(500)
+      })
+      expect(mockUseGetAllInspectionQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ searchTerm: "fire", page: 1 })
+      )
+    })
   })
 })
