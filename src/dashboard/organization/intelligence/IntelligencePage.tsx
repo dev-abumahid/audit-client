@@ -1,4 +1,5 @@
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
+import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   useAnalyzeIntelligenceMutation,
@@ -27,7 +28,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 import { toast } from "sonner"
@@ -52,18 +53,31 @@ export default function IntelligencePage() {
   const canCreateRisk = role === "ADMIN" || role === "LEAD_AUDITOR"
 
   const [search, setSearch] = useState("")
+  const debouncedSearch = useDebouncedValue(search, 500)
   const [filterSeverity, setFilterSeverity] = useState<SeverityFilter>("all")
   const [page, setPage] = useState(1)
   const [creatingRiskId, setCreatingRiskId] = useState<string | null>(null)
 
+  // Reset to page 1 whenever the debounced search term changes, same
+  // convention as SitesEntities.tsx.
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch])
+
   // Main displayed list -- all items (any analysis state), newest scraped
-  // first (server default order). Filtered client-side by search/severity,
-  // same UX as the page's previous dummy version.
+  // first (server default order). Search/severity filtering now happens
+  // server-side (aexa-server#293/PR #295) -- the query results ARE the
+  // filtered results, so no client-side filtering here.
   const {
     data: itemsData,
     isLoading: itemsLoading,
     isFetching: itemsFetching,
-  } = useGetIntelligenceItemsQuery({ page, limit: 20 })
+  } = useGetIntelligenceItemsQuery({
+    page,
+    limit: 20,
+    searchTerm: debouncedSearch || undefined,
+    severity: filterSeverity === "all" ? undefined : filterSeverity,
+  })
 
   // Separate, small query just for the un-analyzed count so the "Analyze"
   // button's label is accurate regardless of what's currently paginated in
@@ -257,15 +271,7 @@ export default function IntelligencePage() {
 
   const items = itemsData?.data ?? []
   const meta = itemsData?.meta
-  const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1
-
-  const filteredItems = items.filter((item) => {
-    if (filterSeverity !== "all" && item.severity !== filterSeverity)
-      return false
-    if (search && !item.title.toLowerCase().includes(search.toLowerCase()))
-      return false
-    return true
-  })
+  const totalPages = meta?.totalPage ?? 1
 
   const predictResult = predictRuns?.data[0]
   const mitigationsResult = mitigationsRuns?.data[0]
@@ -671,7 +677,10 @@ export default function IntelligencePage() {
           {SEVERITIES.map((sev) => (
             <button
               key={sev}
-              onClick={() => setFilterSeverity(sev)}
+              onClick={() => {
+                setFilterSeverity(sev)
+                setPage(1)
+              }}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 filterSeverity === sev
                   ? "bg-primary text-primary-foreground"
@@ -691,7 +700,7 @@ export default function IntelligencePage() {
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-foreground">
           {t("organization.intelligence.sections.itemsCount", {
-            count: filteredItems.length,
+            count: meta?.total ?? 0,
           })}
         </h3>
 
@@ -699,7 +708,7 @@ export default function IntelligencePage() {
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : filteredItems.length === 0 ? (
+        ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <Shield className="mb-3 h-12 w-12 opacity-20" />
             <p className="text-sm font-medium">
@@ -711,7 +720,7 @@ export default function IntelligencePage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {filteredItems.map((item) => (
+            {items.map((item) => (
               <div
                 key={item.id}
                 className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-border/80"

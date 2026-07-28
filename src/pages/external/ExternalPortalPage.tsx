@@ -1,4 +1,5 @@
 import logo from "@/assets/images/logo.png"
+import { baseApi } from "@/redux/baseApi"
 import { useAppDispatch, useAppSelector } from "@/redux/hooks"
 import { removeExternalUser } from "@/redux/slices/externalUser.slice"
 import { LogOut } from "lucide-react"
@@ -18,6 +19,11 @@ export default function ExternalPortalPage() {
 
   const handleLogout = () => {
     dispatch(removeExternalUser())
+    // Clear cached RTK Query data (findings, sites, etc.) so a subsequent
+    // login -- by this or another external user -- never sees stale
+    // responses from the previous session, matching the pattern established
+    // in #249 (OrganizationLayout's logOutHandler).
+    dispatch(baseApi.util.resetApiState())
     // No backend sign-out call yet -- the httpOnly external_access_token
     // cookie expires on its own (12h); this only clears the client-side
     // session hint. Re-entry requires the same login link the admin

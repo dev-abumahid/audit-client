@@ -19,6 +19,29 @@ import { toast } from "sonner"
 const mockToastSuccess = vi.mocked(toast.success)
 const mockToastError = vi.mocked(toast.error)
 
+// This file never triggers src/i18n/i18n.ts's side-effect init, so
+// react-i18next's real t() falls back to returning the raw key with no
+// interpolation -- fine for every other assertion here, which only checks
+// for the literal key text. But that means a test asserting on
+// sections.itemsCount can't actually distinguish `count: meta.total` from
+// `count: items.length` by text alone (both render the same key). Only
+// override that one key so the count value becomes visible in the
+// rendered text; every other key still falls back to itself unchanged,
+// so no existing assertion elsewhere in this file is affected.
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod =
+    await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => ({
+      t: (key: string, opts?: Record<string, unknown>) =>
+        key === "organization.intelligence.sections.itemsCount"
+          ? `${key}:${opts?.count}`
+          : key,
+    }),
+  }
+})
+
 // Role hook is mocked per-test via this mutable holder, same convention as
 // RiskApprovalControls.test.tsx.
 let mockRole: string | undefined = "ADMIN"
@@ -747,6 +770,151 @@ describe("IntelligencePage", () => {
         screen.queryByText("Single-source supplier")
       ).not.toBeInTheDocument()
     })
+  })
+
+  // aexa-frontend#253: search/severity are now server-side filters passed
+  // through to the query hook, not a client-side re-filter of the current
+  // page's items.
+  it("passes the debounced search term to the query hook as searchTerm", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime,
+    })
+    renderPage()
+    mockUseGetIntelligenceItemsQuery.mockClear()
+
+    const searchInput = screen.getByPlaceholderText(
+      "organization.intelligence.filters.searchPlaceholder"
+    )
+    await user.type(searchInput, "ransomware")
+    vi.advanceTimersByTime(500)
+
+    await waitFor(() =>
+      expect(mockUseGetIntelligenceItemsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ searchTerm: "ransomware" })
+      )
+    )
+    vi.useRealTimers()
+  })
+
+  it("passes the selected severity to the query hook as severity", async () => {
+    renderPage()
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.filters.severity_critical",
+      })
+    )
+
+    await waitFor(() =>
+      expect(mockUseGetIntelligenceItemsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ severity: "critical" })
+      )
+    )
+  })
+
+  it("does not pass a severity filter when 'all' is selected", () => {
+    renderPage()
+
+    expect(mockUseGetIntelligenceItemsQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: undefined })
+    )
+  })
+
+  it("resets to page 1 when the search term changes", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime,
+    })
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [],
+                meta: { page: 1, limit: 20, total: 0, totalPage: 3 },
+              },
+            }
+    )
+    renderPage()
+
+    // Go to page 2 first.
+    await user.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.pagination.next",
+      })
+    )
+    mockUseGetIntelligenceItemsQuery.mockClear()
+
+    const searchInput = screen.getByPlaceholderText(
+      "organization.intelligence.filters.searchPlaceholder"
+    )
+    await user.type(searchInput, "x")
+    vi.advanceTimersByTime(500)
+
+    await waitFor(() =>
+      expect(mockUseGetIntelligenceItemsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1 })
+      )
+    )
+    vi.useRealTimers()
+  })
+
+  it("resets to page 1 when the severity filter changes", async () => {
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [],
+                meta: { page: 1, limit: 20, total: 0, totalPage: 3 },
+              },
+            }
+    )
+    renderPage()
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.pagination.next",
+      })
+    )
+    mockUseGetIntelligenceItemsQuery.mockClear()
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.filters.severity_high",
+      })
+    )
+
+    await waitFor(() =>
+      expect(mockUseGetIntelligenceItemsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1 })
+      )
+    )
+  })
+
+  it("shows the item count from server meta.total, not a client-computed length", () => {
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem()],
+                meta: { page: 1, limit: 20, total: 47, totalPage: 3 },
+              },
+            }
+    )
+
+    renderPage()
+
+    expect(
+      screen.getByText(
+        "organization.intelligence.sections.itemsCount:47"
+      )
+    ).toBeInTheDocument()
   })
 
   it("does not show Create Risk for an item that has not been analyzed yet", () => {

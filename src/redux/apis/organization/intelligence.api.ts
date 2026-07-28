@@ -11,6 +11,13 @@ import type { IntelligenceItem, IntelligenceRun } from "@/types/organization"
 
 interface GetIntelligenceItemsArgs {
   analyzed?: boolean
+  // aexa-frontend#253: server-side search/severity filtering, matching
+  // aexa-server#293/PR #295's new GET /intelligence/items query params --
+  // searchTerm does a case-insensitive substring match OR'd across
+  // title/description, severity is an exact match. Both are optional and
+  // additive to the org-scoped where clause on the backend.
+  searchTerm?: string
+  severity?: string
   page: number
   limit: number
 }
@@ -90,9 +97,11 @@ const intelligenceApi = baseApi.injectEndpoints({
       PaginatedApiResponse<IntelligenceItem>,
       GetIntelligenceItemsArgs
     >({
-      query: ({ analyzed, page, limit }) => ({
+      query: ({ analyzed, searchTerm, severity, page, limit }) => ({
         url: `/intelligence/items?${buildQueryString({
           analyzed: analyzed === undefined ? undefined : String(analyzed),
+          searchTerm: searchTerm || undefined,
+          severity: severity || undefined,
           page,
           limit,
         })}`,

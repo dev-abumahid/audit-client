@@ -1,3 +1,4 @@
+import { baseApi } from "@/redux/baseApi"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import ExternalPortalPage from "./ExternalPortalPage"
@@ -67,5 +68,20 @@ describe("ExternalPortalPage", () => {
 
     expect(mockDispatch).toHaveBeenCalled()
     expect(mockNavigate).toHaveBeenCalledWith("/")
+  })
+
+  // aexa-frontend#253: without this, cached RTK Query data from the
+  // previous external session (e.g. another reviewer's findings) could
+  // leak into the next login on the same browser, matching the fix
+  // already applied to OrganizationLayout's logOutHandler in #249.
+  it("resets the RTK Query API state on sign out", async () => {
+    const user = userEvent.setup()
+    render(<ExternalPortalPage />)
+
+    await user.click(screen.getByRole("button", { name: "Sign out" }))
+
+    expect(mockDispatch).toHaveBeenCalledWith(
+      baseApi.util.resetApiState()
+    )
   })
 })
