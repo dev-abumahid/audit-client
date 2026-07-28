@@ -749,7 +749,9 @@
       "riskCreatedSuccess": "Risque créé avec succès",
       "createRiskFailed": "Échec de la création du risque",
       "riskDeletedSuccess": "Risque supprimé avec succès",
-      "deleteRiskFailed": "Échec de la suppression du risque"
+      "deleteRiskFailed": "Échec de la suppression du risque",
+      "deleteSiteConfirmTitle": "Êtes-vous sûr ?",
+      "deleteSiteConfirmDescription": "Cette action supprimera définitivement ce site du système."
     },
     "riskRegister": {
       "title": "Registre des risques",
@@ -1846,7 +1848,14 @@
     "dark": "Sombre",
     "light": "Clair",
     "system": "Système",
-    "toggleTheme": "Changer de thème"
+    "toggleTheme": "Changer de thème",
+    "deleteAlertModal": {
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "deleting": "Suppression...",
+      "defaultTitle": "Supprimer cet élément ?",
+      "defaultDescription": "Cette action supprimera définitivement cet élément du système."
+    }
   },
   "pages": {
     "inspection": {

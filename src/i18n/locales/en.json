@@ -749,7 +749,9 @@
       "riskCreatedSuccess": "Risk created successfully",
       "createRiskFailed": "Failed to create risk",
       "riskDeletedSuccess": "Risk deleted successfully",
-      "deleteRiskFailed": "Failed to delete risk"
+      "deleteRiskFailed": "Failed to delete risk",
+      "deleteSiteConfirmTitle": "Are you sure?",
+      "deleteSiteConfirmDescription": "This will permanently remove this site from the system."
     },
     "riskRegister": {
       "title": "Risk Register",
@@ -1846,7 +1848,14 @@
     "dark": "Dark",
     "light": "Light",
     "system": "System",
-    "toggleTheme": "Toggle theme"
+    "toggleTheme": "Toggle theme",
+    "deleteAlertModal": {
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleting": "Deleting...",
+      "defaultTitle": "Delete this item?",
+      "defaultDescription": "This will permanently remove this item from the system."
+    }
   },
   "pages": {
     "inspection": {

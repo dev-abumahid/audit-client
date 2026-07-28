@@ -1045,8 +1045,8 @@ export default function SitesEntities() {
         setOpen={setIsDeleteModalOpen}
         onConfirm={handleConfirmDelete}
         loading={isSiteDeleting}
-        title="Are you sure ?"
-        description="This will permanently remove this site from the system."
+        title={t("organization.site&entities.deleteSiteConfirmTitle")}
+        description={t("organization.site&entities.deleteSiteConfirmDescription")}
       />
     </div>
   )

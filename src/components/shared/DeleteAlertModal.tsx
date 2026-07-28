@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { AlertCircle } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 type DeleteAlertModalProps = {
   title?: string
@@ -20,13 +21,18 @@ type DeleteAlertModalProps = {
 }
 
 export default function DeleteAlertModal({
-  title = "Delete Risk?",
-  description = "This will permanently remove this Risk from the system.",
+  title,
+  description,
   onConfirm,
   loading = false,
   open,
   setOpen,
 }: DeleteAlertModalProps) {
+  const { t } = useTranslation()
+  const resolvedTitle = title ?? t("common.deleteAlertModal.defaultTitle")
+  const resolvedDescription =
+    description ?? t("common.deleteAlertModal.defaultDescription")
+
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogContent className="flex max-w-sm flex-col items-center justify-center rounded-3xl p-6 sm:p-8">
@@ -37,10 +43,10 @@ export default function DeleteAlertModal({
               strokeWidth={2}
             />
             <AlertDialogTitle className="max-w-full text-xl font-semibold wrap-break-word">
-              {title}
+              {resolvedTitle}
             </AlertDialogTitle>
             <AlertDialogDescription className="max-w-full wrap-break-word">
-              {description}
+              {resolvedDescription}
             </AlertDialogDescription>
           </div>
         </AlertDialogHeader>
@@ -48,7 +54,7 @@ export default function DeleteAlertModal({
         <AlertDialogFooter className="mt-6 flex w-full flex-row gap-3 sm:justify-between sm:space-x-0">
           {/* Cancel Button */}
           <AlertDialogCancel className="mt-0 flex-1 cursor-pointer rounded-xl border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
-            Cancel
+            {t("common.deleteAlertModal.cancel")}
           </AlertDialogCancel>
 
           {/* Delete Button */}
@@ -57,7 +63,9 @@ export default function DeleteAlertModal({
             className="flex-1 cursor-pointer rounded-xl border-none bg-red-600 text-white shadow-sm hover:bg-red-700"
             disabled={loading}
           >
-            {loading ? "Deleting..." : "Delete"}
+            {loading
+              ? t("common.deleteAlertModal.deleting")
+              : t("common.deleteAlertModal.delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
