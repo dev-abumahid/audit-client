@@ -43,6 +43,7 @@ import TermsAndConditions from "@/pages/policy/Terms"
 import { createBrowserRouter } from "react-router"
 import ExternalProtectedRoute from "./ExternalProtectedRoute"
 import ProtectedRoute from "./ProtectedRoute"
+import WriteGuardRoute from "./WriteGuardRoute"
 
 export const mainRoute = createBrowserRouter([
   {
@@ -98,15 +99,56 @@ export const mainRoute = createBrowserRouter([
       { path: "three-lines-of-defense", element: <ThreeLinesOfDefensePage /> },
       { path: "audit", element: <AuditPage /> },
       { path: "audit/templates", element: <TemplatesPage /> },
-      { path: "audit/template/create", element: <CreateTemplatePage /> },
-      { path: "audit/template/edit/:id", element: <EditTemplatePage /> },
+      {
+        path: "audit/template/create",
+        element: (
+          <WriteGuardRoute fallback="/organization/audit/templates">
+            <CreateTemplatePage />
+          </WriteGuardRoute>
+        ),
+      },
+      {
+        path: "audit/template/edit/:id",
+        element: (
+          <WriteGuardRoute fallback="/organization/audit/templates">
+            <EditTemplatePage />
+          </WriteGuardRoute>
+        ),
+      },
       { path: "audit/template/report/:id", element: <TemplateReportPage /> },
       { path: "audit/inspections", element: <InspectionTable /> },
-      { path: "audit/inspection/create", element: <CreateNewInspection /> },
-      { path: "audit/inspection/update/:id", element: <UpdateInspection /> },
+      {
+        path: "audit/inspection/create",
+        element: (
+          <WriteGuardRoute fallback="/organization/audit/inspections">
+            <CreateNewInspection />
+          </WriteGuardRoute>
+        ),
+      },
+      {
+        path: "audit/inspection/update/:id",
+        element: (
+          <WriteGuardRoute fallback="/organization/audit/inspections">
+            <UpdateInspection />
+          </WriteGuardRoute>
+        ),
+      },
       { path: "audit/inspections/report/:id", element: <InspectionReport /> },
-      // Inspection run workflow (from main PR #32)
-      { path: "audit/inspections/:id", element: <RunInspection /> },
+      // Inspection run workflow (from main PR #32). #271 -- guarded the same
+      // way as template/inspection create-edit; #270 (assignment-based
+      // client-side scoping) is still open as of this change, so this only
+      // enforces the role-level canWriteOrgResource check for now. Once #270
+      // lands, this should also deny a write-capable role (e.g.
+      // LEAD_AUDITOR) with no assignment on this specific inspection --
+      // tracked as a fast-follow rather than blocking this PR on it.
+      {
+        path: "audit/inspections/:id",
+        element: (
+          <WriteGuardRoute fallback="/organization/audit/inspections">
+            <RunInspection />
+          </WriteGuardRoute>
+        ),
+      },
       { path: "audit/inspections/:id/note", element: <InspectionNote /> },
       {
         path: "audit/inspections/:id/recommendations",
