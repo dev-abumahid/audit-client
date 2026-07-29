@@ -466,10 +466,11 @@ export default function FindingDetails() {
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${PRIORITY_STYLE[action.priority]}`}
               >
                 <AlertCircle className="h-3.5 w-3.5" />
-                {PRIORITY_DISPLAY_KEYS[action.priority]
-                  ? t(PRIORITY_DISPLAY_KEYS[action.priority])
-                  : action.priority}{" "}
-                {t("organization.findings.priority")}
+                {t("organization.findings.priorityLabel", {
+                  level: PRIORITY_DISPLAY_KEYS[action.priority]
+                    ? t(PRIORITY_DISPLAY_KEYS[action.priority])
+                    : action.priority,
+                })}
               </span>
             </div>
             <div className="mt-3">

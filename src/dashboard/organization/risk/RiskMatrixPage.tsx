@@ -167,8 +167,8 @@ export default function RiskMatrixPage() {
           {/* Group Mode */}
           <div className="flex overflow-hidden rounded-lg border border-border">
             {[
-              ["none", "Tous"],
-              ["category", "Par type"],
+              ["none", t("organization.correlationMatrix.groupAll")],
+              ["category", t("organization.correlationMatrix.groupByType")],
             ].map(([mode, label]) => (
               <button
                 key={mode}

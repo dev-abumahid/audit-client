@@ -45,7 +45,7 @@ export default function PasswordChangeForm() {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <h3 className="mb-4 text-lg font-semibold text-foreground">
-        Change Password
+        {t("organization.settings.passwordChange.heading")}
       </h3>
       <form
         onSubmit={handleSubmit(onSubmit)}
@@ -57,7 +57,7 @@ export default function PasswordChangeForm() {
             htmlFor="oldPassword"
             className="mb-1.5 block text-sm font-medium text-muted-foreground"
           >
-            Current Password
+            {t("organization.settings.passwordChange.oldPasswordLabel")}
           </label>
           <input
             id="oldPassword"
@@ -80,7 +80,7 @@ export default function PasswordChangeForm() {
             htmlFor="newPassword"
             className="mb-1.5 block text-sm font-medium text-muted-foreground"
           >
-            New Password
+            {t("organization.settings.passwordChange.newPasswordLabel")}
           </label>
           <input
             id="newPassword"
@@ -107,7 +107,7 @@ export default function PasswordChangeForm() {
             htmlFor="confirmPassword"
             className="mb-1.5 block text-sm font-medium text-muted-foreground"
           >
-            Confirm New Password
+            {t("organization.settings.passwordChange.confirmPasswordLabel")}
           </label>
           <input
             id="confirmPassword"
@@ -135,7 +135,9 @@ export default function PasswordChangeForm() {
           disabled={isLoading}
           className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isLoading ? "Changing..." : "Change Password"}
+          {isLoading
+            ? t("organization.settings.passwordChange.submittingLabel")
+            : t("organization.settings.passwordChange.submitLabel")}
         </button>
       </form>
     </div>

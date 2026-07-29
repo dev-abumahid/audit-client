@@ -64,6 +64,7 @@
     "testimonials": {
       "title1": "Trusted by Teams Who",
       "title2": "Value Reliability",
+      "description": "Real feedback from teams using Qiyrix to manage risk, inspections, and compliance every day.",
       "reviews": [
         {
           "quote": "This platform made our inspections 3× faster. Our team loves how easy it is to use.",
@@ -875,7 +876,8 @@
     },
     "compliance": {
       "title": "Compliance Obligations",
-      "subtitle": "{{count}} obligations tracked",
+      "subtitle_one": "{{count}} obligation tracked",
+      "subtitle_other": "{{count}} obligations tracked",
       "newObligation": "New Obligation",
       "createAction": {
         "button": "Create Action"
@@ -1012,6 +1014,9 @@
         "reassignFailed": "Failed to reassign item"
       }
     },
+    "siteFilter": {
+      "groupView": "Group View (all sites)"
+    },
     "riskMatrix": {
       "title": "ISO 31000 Risk Matrix",
       "des": "Risks positioned — Click on a cell to see details",
@@ -1041,6 +1046,12 @@
     },
     "settings": {
       "passwordChange": {
+        "heading": "Change Password",
+        "oldPasswordLabel": "Current Password",
+        "newPasswordLabel": "New Password",
+        "confirmPasswordLabel": "Confirm New Password",
+        "submitLabel": "Change Password",
+        "submittingLabel": "Changing...",
         "oldPasswordReqText": "Current password is required",
         "newPasswordReqText": "New password is required",
         "confirmPasswordReqText": "Please confirm your new password",
@@ -1263,6 +1274,7 @@
       "priorityLow": "Low",
       "priorityMedium": "Medium",
       "priorityHigh": "High",
+      "priorityLabel": "{{level}} Priority",
       "statusLabel": "Status",
       "statusToDo": "To Do",
       "statusInProgress": "In Progress",

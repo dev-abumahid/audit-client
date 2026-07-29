@@ -13,6 +13,36 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
     role === "ADMIN" || role === "LEAD_AUDITOR",
 }))
 
+// This file never triggers src/i18n/i18n.ts's side-effect init, so
+// react-i18next's real t() falls back to returning the raw key with no
+// interpolation for every other assertion here. That fallback can't
+// reproduce the "1 obligations tracked" pluralization bug (organization.
+// compliance.subtitle_one/_other), since i18next's plural-suffix resolution
+// only kicks in once real resources/pluralization rules are loaded.
+// Overriding just this one key, with the same singular/plural behavior the
+// real en.json resource now has, lets the test tell the fixed
+// subtitle_one/_other split apart from the old un-pluralized "subtitle" key
+// -- every other key still falls back to itself unchanged, so no existing
+// assertion elsewhere in this file is affected. Same technique as
+// CorrelationMatrixPage.test.tsx.
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => ({
+      t: (key: string, opts?: Record<string, unknown>) => {
+        if (key === "organization.compliance.subtitle") {
+          const count = Number(opts?.count ?? 0)
+          return count === 1
+            ? `${count} obligation tracked`
+            : `${count} obligations tracked`
+        }
+        return key
+      },
+    }),
+  }
+})
+
 import { toast } from "sonner"
 const mockToastSuccess = vi.mocked(toast.success)
 const mockToastError = vi.mocked(toast.error)
@@ -211,6 +241,34 @@ describe("CompliancePage", () => {
     expect(
       within(row).getByText("organization.compliance.domains.data_protection")
     ).toBeInTheDocument()
+  })
+
+  // Regression: "{{count}} obligations tracked" was a single un-pluralized
+  // key, so it rendered "1 obligations tracked" for a single obligation.
+  it("renders the singular subtitle for a single obligation", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [makeObligation()], meta: { page: 1, limit: 20, total: 1, totalPage: 1 } },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    expect(screen.getByText("1 obligation tracked")).toBeInTheDocument()
+    expect(screen.queryByText("1 obligations tracked")).not.toBeInTheDocument()
+  })
+
+  it("renders the plural subtitle for multiple obligations", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [makeObligation(), makeObligation({ id: "comp-2" })],
+        meta: { page: 1, limit: 20, total: 2, totalPage: 1 },
+      },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    expect(screen.getByText("2 obligations tracked")).toBeInTheDocument()
   })
 
   it("shows the empty state when there are no obligations", () => {

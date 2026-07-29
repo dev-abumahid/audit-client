@@ -148,6 +148,24 @@ describe("FindingDetails", () => {
     ).toBeInTheDocument()
   })
 
+  // Regression: the priority badge used to concatenate two separately-
+  // translated fragments (t(priorityHigh) + " " + t("...priority")), which
+  // reads backwards in French ("Élevée Priorité" instead of "Priorité
+  // Élevée"). It's now a single interpolated key so each locale controls its
+  // own word order. i18next isn't initialized with resources in this test
+  // file, so t() returns the raw key -- this asserts the new single-key
+  // interpolation call is what's rendered, not the old two-fragment shape.
+  it("renders the priority badge as a single interpolated label, not two concatenated fragments", () => {
+    renderPage()
+
+    expect(
+      screen.getByText("organization.findings.priorityLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/organization\.findings\.priority$/)
+    ).not.toBeInTheDocument()
+  })
+
   it("hides Edit and Delete for a VIEWER", () => {
     mockRole = "VIEWER"
     renderPage()

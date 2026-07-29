@@ -64,6 +64,7 @@
     "testimonials": {
       "title1": "Adopté par des équipes qui",
       "title2": "misent sur la fiabilité",
+      "description": "De vrais retours d'équipes qui utilisent Qiyrix au quotidien pour gérer les risques, les inspections et la conformité.",
       "reviews": [
         {
           "quote": "Cette plateforme a rendu nos inspections trois fois plus rapides. Notre équipe apprécie sa simplicité d’utilisation.",
@@ -875,7 +876,8 @@
     },
     "compliance": {
       "title": "Obligations de conformité",
-      "subtitle": "{{count}} obligations suivies",
+      "subtitle_one": "{{count}} obligation suivie",
+      "subtitle_other": "{{count}} obligations suivies",
       "newObligation": "Nouvelle obligation",
       "createAction": {
         "button": "Créer une action"
@@ -1012,6 +1014,9 @@
         "reassignFailed": "Échec de la réassignation de l'élément"
       }
     },
+    "siteFilter": {
+      "groupView": "Vue Groupe (tous sites)"
+    },
     "riskMatrix": {
       "title": "Matrice des risques ISO 31000",
       "des": "Risques positionnés — Cliquez sur une cellule pour voir les détails",
@@ -1041,6 +1046,12 @@
     },
     "settings": {
       "passwordChange": {
+        "heading": "Changer le mot de passe",
+        "oldPasswordLabel": "Mot de passe actuel",
+        "newPasswordLabel": "Nouveau mot de passe",
+        "confirmPasswordLabel": "Confirmer le nouveau mot de passe",
+        "submitLabel": "Changer le mot de passe",
+        "submittingLabel": "Changement en cours...",
         "oldPasswordReqText": "Le mot de passe actuel est requis.",
         "newPasswordReqText": "Le nouveau mot de passe est requis.",
         "confirmPasswordReqText": "Veuillez confirmer votre nouveau mot de passe.",
@@ -1263,6 +1274,7 @@
       "priorityLow": "Faible",
       "priorityMedium": "Moyenne",
       "priorityHigh": "Élevée",
+      "priorityLabel": "Priorité {{level}}",
       "statusLabel": "Statut",
       "statusToDo": "À faire",
       "statusInProgress": "En cours",

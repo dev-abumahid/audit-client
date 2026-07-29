@@ -11,6 +11,14 @@ import PasswordChangeForm from "./PasswordChangeForm"
 const { mockT } = vi.hoisted(() => ({
   mockT: vi.fn((key: string) => {
     const map: Record<string, string> = {
+      "organization.settings.passwordChange.heading": "Change Password",
+      "organization.settings.passwordChange.oldPasswordLabel":
+        "Current Password",
+      "organization.settings.passwordChange.newPasswordLabel": "New Password",
+      "organization.settings.passwordChange.confirmPasswordLabel":
+        "Confirm New Password",
+      "organization.settings.passwordChange.submitLabel": "Change Password",
+      "organization.settings.passwordChange.submittingLabel": "Changing...",
       "organization.settings.passwordChange.oldPasswordReqText":
         "Current password is required",
       "organization.settings.passwordChange.newPasswordReqText":
@@ -29,11 +37,14 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
-const mockChangePasswordTrigger = vi.fn()
+const { mockChangePasswordTrigger, mockMutationState } = vi.hoisted(() => ({
+  mockChangePasswordTrigger: vi.fn(),
+  mockMutationState: { isLoading: false },
+}))
 vi.mock("@/redux/apis/auth.api", () => ({
   useChangePasswordMutation: () => [
     mockChangePasswordTrigger,
-    { isLoading: false },
+    mockMutationState,
   ],
 }))
 
@@ -41,6 +52,7 @@ describe("PasswordChangeForm", () => {
   beforeEach(() => {
     mockChangePasswordTrigger.mockReset()
     mockT.mockClear()
+    mockMutationState.isLoading = false
   })
 
   it("renders all three fields", () => {
@@ -48,6 +60,50 @@ describe("PasswordChangeForm", () => {
     expect(screen.getByLabelText("Current Password")).toBeInTheDocument()
     expect(screen.getByLabelText("New Password")).toBeInTheDocument()
     expect(screen.getByLabelText("Confirm New Password")).toBeInTheDocument()
+  })
+
+  // Regression: the heading, the three field labels, and the two button
+  // states were hardcoded English strings never passed through t(), even
+  // though this component already used useTranslation for toast messages.
+  // Asserting on mockT calls (not just visible text) proves these strings
+  // now actually route through i18n, same pattern as the other tests below.
+  it("renders the heading, field labels, and submit button text via t()", () => {
+    render(<PasswordChangeForm />)
+
+    expect(
+      screen.getByText("Change Password", { selector: "h3" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Change Password" })
+    ).toBeInTheDocument()
+    expect(mockT).toHaveBeenCalledWith(
+      "organization.settings.passwordChange.heading"
+    )
+    expect(mockT).toHaveBeenCalledWith(
+      "organization.settings.passwordChange.oldPasswordLabel"
+    )
+    expect(mockT).toHaveBeenCalledWith(
+      "organization.settings.passwordChange.newPasswordLabel"
+    )
+    expect(mockT).toHaveBeenCalledWith(
+      "organization.settings.passwordChange.confirmPasswordLabel"
+    )
+    expect(mockT).toHaveBeenCalledWith(
+      "organization.settings.passwordChange.submitLabel"
+    )
+  })
+
+  it("shows the translated submitting state on the button while the request is in flight", () => {
+    mockMutationState.isLoading = true
+
+    render(<PasswordChangeForm />)
+
+    expect(
+      screen.getByRole("button", { name: "Changing..." })
+    ).toBeInTheDocument()
+    expect(mockT).toHaveBeenCalledWith(
+      "organization.settings.passwordChange.submittingLabel"
+    )
   })
 
   it("submits oldPassword/newPassword (not confirmPassword) on valid input", async () => {

@@ -44,7 +44,7 @@ const TestimonialsSection: React.FC = () => {
             </span>
           </h1>
           <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
-            {t("home.featureSection.description")}
+            {t("home.testimonials.description")}
           </p>
         </div>
 

@@ -126,6 +126,34 @@ describe("RiskMatrixPage", () => {
     expect(screen.getByText("Casablanca HQ")).toBeInTheDocument()
   })
 
+  // Regression: the Group Mode toggle hardcoded English/French label pairs
+  // ("All"/"Tous", "By type"/"Par type") instead of using the existing
+  // organization.correlationMatrix.groupAll/groupByType i18n keys (the same
+  // "All"/"By type" pair already used on the Correlation Matrix page). This
+  // suite doesn't mock react-i18next, so uninitialized i18next returns the
+  // raw key -- asserting the buttons show those keys (not the old hardcoded
+  // French) proves the toggle now goes through t().
+  it("renders the Group Mode toggle via the existing correlationMatrix i18n keys, not hardcoded French labels", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    render(<RiskMatrixPage />)
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.groupAll",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.groupByType",
+      })
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Tous")).not.toBeInTheDocument()
+    expect(screen.queryByText("Par type")).not.toBeInTheDocument()
+  })
+
   it("renders nothing selected when there are no risks at all", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: [] },

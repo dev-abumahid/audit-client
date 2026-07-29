@@ -1,5 +1,6 @@
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { Building, ChevronDown } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 interface SiteFilterProps {
   value: string | null // null = all/group, site id otherwise
@@ -12,6 +13,7 @@ export default function SiteFilter({
   onChange,
   className = "",
 }: SiteFilterProps) {
+  const { t } = useTranslation()
   const { data, isLoading } = useGetAllSitesQuery({
     page: 1,
     limit: 100,
@@ -38,7 +40,9 @@ export default function SiteFilter({
         disabled={isLoading}
         className="h-9 w-full appearance-none rounded-lg border border-input bg-card pr-8 pl-9 text-xs font-medium text-foreground focus:ring-2 focus:ring-ring focus:outline-none disabled:opacity-50"
       >
-        <option value="__group__">🏢 Vue Groupe (tous sites)</option>
+        <option value="__group__">
+          🏢 {t("organization.siteFilter.groupView")}
+        </option>
         {sites.map((s) => (
           <option key={s.id} value={s.id}>
             📍 {s.name}

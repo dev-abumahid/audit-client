@@ -74,7 +74,7 @@ function StatusBadge({
 }
 
 export default function TeamMembersTab() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   // aexa-frontend#239 -- same gate as base entity CRUD (#217): member
   // management (invite/suspend/reactivate/resend) had no client-side role
   // check at all, so a VIEWER/LIGHT_USER saw fully interactive admin
@@ -345,7 +345,9 @@ export default function TeamMembersTab() {
                   </td>
                   <td className="px-5 py-3 text-xs text-muted-foreground">
                     {t("organization.teamMembers.expiresOn", {
-                      date: new Date(invite.expiresAt).toLocaleDateString(),
+                      date: new Date(invite.expiresAt).toLocaleDateString(
+                        i18n.language?.startsWith("fr") ? "fr-FR" : "en-US",
+                      ),
                     })}
                   </td>
                   <td className="px-5 py-3">

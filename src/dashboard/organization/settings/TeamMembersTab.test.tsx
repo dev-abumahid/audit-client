@@ -7,6 +7,23 @@ vi.mock("sonner", () => ({
 }))
 import { toast } from "sonner"
 
+// Controllable `i18n.language` for the locale-formatting test below, while
+// every other test in this file keeps relying on the real (uninitialized)
+// react-i18next t(), which just echoes the raw key back -- same technique
+// as CorrelationMatrixPage.test.tsx. Defaults to unset, matching the real
+// uninitialized instance's behavior the other tests already assume.
+let mockLanguage: string | undefined = undefined
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+    },
+  }
+})
+
 // aexa-frontend#239 -- role hook mocked per-test via this mutable holder,
 // same convention as RiskRegisterPage.test.tsx / RiskApprovalControls.test.tsx.
 let mockRole: string | undefined = "ADMIN"
@@ -60,6 +77,7 @@ function member(overrides = {}) {
 describe("TeamMembersTab", () => {
   beforeEach(() => {
     mockRole = "ADMIN"
+    mockLanguage = undefined
     mockInviteMember.mockReset()
     mockUpdateOrgMember.mockReset()
     mockResendInvitation.mockReset()
@@ -144,6 +162,91 @@ describe("TeamMembersTab", () => {
 
     expect(screen.getByText("organization.teamMembers.pendingInvitations")).toBeInTheDocument()
     expect(screen.getByText("pending@test.com")).toBeInTheDocument()
+  })
+
+  function pendingInvitationForExpiry() {
+    return {
+      data: {
+        data: [
+          {
+            id: "inv-1",
+            email: "pending@test.com",
+            role: "VIEWER",
+            expiresAt: "2026-08-01T00:00:00.000Z",
+          },
+        ],
+      },
+      isLoading: false,
+    }
+  }
+
+  // Regression: the expiry date used to call toLocaleDateString() with no
+  // locale argument, so it always rendered US format (M/D/YYYY) even under
+  // the French locale. It now passes an explicit locale derived from
+  // i18n.language. With i18n.language unset (the default in this file's
+  // mock, matching the real uninitialized instance's behavior other tests
+  // here assume), the component falls back to "en-US" -- this asserts a
+  // locale string is always passed through, not that a specific locale wins.
+  it("formats the invitation expiry date with an explicit locale argument, not the no-arg overload", () => {
+    const localeDateSpy = vi.spyOn(Date.prototype, "toLocaleDateString")
+    mockUseGetAllOrgUsersQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    mockUseGetPendingInvitationsQuery.mockReturnValue(
+      pendingInvitationForExpiry()
+    )
+
+    render(<TeamMembersTab />)
+
+    expect(localeDateSpy).toHaveBeenCalledWith(expect.any(String))
+    localeDateSpy.mockRestore()
+  })
+
+  // Regression (review round 1): a strict `i18n.language === "fr"` check
+  // silently fell through to US formatting whenever i18next-browser-
+  // languagedetector populated i18n.language with a full browser locale tag
+  // (e.g. "fr-FR", "fr-CA") instead of the bare "fr" -- which it does by
+  // default before the user ever touches the language switcher (detection
+  // order: localStorage, then navigator; see src/i18n/i18n.ts). Fixed to use
+  // the same `.startsWith("fr")` check already established in
+  // LanguageSwitcher.tsx. These two cases assert the fr-FR locale is
+  // actually selected, not just that some locale string is passed.
+  it.each([["fr"], ["fr-FR"], ["fr-CA"]])(
+    "selects the fr-FR date locale when i18n.language is %s",
+    (language) => {
+      mockLanguage = language
+      const localeDateSpy = vi.spyOn(Date.prototype, "toLocaleDateString")
+      mockUseGetAllOrgUsersQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      mockUseGetPendingInvitationsQuery.mockReturnValue(
+        pendingInvitationForExpiry()
+      )
+
+      render(<TeamMembersTab />)
+
+      expect(localeDateSpy).toHaveBeenCalledWith("fr-FR")
+      localeDateSpy.mockRestore()
+    }
+  )
+
+  it("selects the en-US date locale when i18n.language is English", () => {
+    mockLanguage = "en-US"
+    const localeDateSpy = vi.spyOn(Date.prototype, "toLocaleDateString")
+    mockUseGetAllOrgUsersQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    mockUseGetPendingInvitationsQuery.mockReturnValue(
+      pendingInvitationForExpiry()
+    )
+
+    render(<TeamMembersTab />)
+
+    expect(localeDateSpy).toHaveBeenCalledWith("en-US")
+    localeDateSpy.mockRestore()
   })
 
   it("does not render the pending invitations section when there are none", () => {
