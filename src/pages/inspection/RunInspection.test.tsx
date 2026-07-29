@@ -14,6 +14,24 @@ vi.mock("react-router", async (importOriginal) => {
   }
 })
 
+// ── role gating (aexa-frontend#275) — mocked per-test via this mutable
+// holder, same convention as InspectionTable.test.tsx/FindingDetails.test.tsx.
+// Defaults to ADMIN so every pre-existing test below (written before #275
+// added any gating) keeps exercising the full-access path unchanged.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+}))
+
+// ── assignment gating (aexa-frontend#275, reusing #270's plumbing) — same
+// mutable-holder convention as mockRole above. `undefined` means "assignment
+// data unavailable / still loading", matching useMyAssignedInspectionIds'
+// real contract.
+let mockAssignedInspectionIds: Set<string> | undefined = new Set(["insp-1"])
+vi.mock("@/hooks/useMyAssignments", () => ({
+  useMyAssignedInspectionIds: () => mockAssignedInspectionIds,
+}))
+
 const mockUseGetSingleInspectionQuery = vi.fn()
 const mockUpdateInspectionQuestionAnswer = vi.fn()
 const mockUpdateInspection = vi.fn()
@@ -148,6 +166,8 @@ function renderPageInStrictMode() {
 
 describe("RunInspection", () => {
   beforeEach(() => {
+    mockRole = "ADMIN"
+    mockAssignedInspectionIds = new Set(["insp-1"])
     mockUseGetSingleInspectionQuery.mockReset()
     mockUpdateInspectionQuestionAnswer.mockReset()
     mockUpdateInspection.mockReset()
@@ -1049,6 +1069,146 @@ describe("RunInspection", () => {
       resolveComplete()
       await Promise.resolve()
       await Promise.resolve()
+    })
+  })
+
+  // aexa-frontend#275: this page previously had zero role/assignment
+  // gating at all -- any authenticated user navigating straight to the URL
+  // saw the full interactive Save/Complete flow, which would 403
+  // server-side on submit for anyone assertCanWriteToInspection denies.
+  // These mirror InspectionTable.test.tsx's "assignment gating (#270)"
+  // describe block, adapted to this page's redirect-based UX (unlike
+  // InspectionTable/FindingDetails, this is an edit-only page with a
+  // separate read-only report view, so an unauthorized viewer is sent back
+  // to the list rather than shown a disabled version of this page).
+  describe("write-access gating (#275)", () => {
+    it("lets an ADMIN save and complete regardless of assignment", async () => {
+      mockRole = "ADMIN"
+      mockAssignedInspectionIds = new Set()
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: mockInspection },
+        isLoading: false,
+        isError: false,
+      })
+      renderPage()
+      await waitFor(() =>
+        expect(
+          screen.getByText("pages.inspection.run.markComplete")
+        ).toBeInTheDocument()
+      )
+      expect(mockNavigate).not.toHaveBeenCalled()
+      const textInput = document.querySelector(
+        'input[type="text"]'
+      ) as HTMLInputElement
+      expect(textInput).not.toBeDisabled()
+    })
+
+    it("lets a LEAD_AUDITOR with an active assignment on this inspection save and complete", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockAssignedInspectionIds = new Set(["insp-1"])
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: mockInspection },
+        isLoading: false,
+        isError: false,
+      })
+      renderPage()
+      await waitFor(() =>
+        expect(
+          screen.getByText("pages.inspection.run.markComplete")
+        ).toBeInTheDocument()
+      )
+      expect(mockNavigate).not.toHaveBeenCalled()
+      const textInput = document.querySelector(
+        'input[type="text"]'
+      ) as HTMLInputElement
+      expect(textInput).not.toBeDisabled()
+    })
+
+    it("redirects a LEAD_AUDITOR with no assignment on this inspection back to the inspection list", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockAssignedInspectionIds = new Set()
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: mockInspection },
+        isLoading: false,
+        isError: false,
+      })
+      renderPage()
+      await waitFor(() =>
+        expect(mockNavigate).toHaveBeenCalledWith(
+          "/organization/audit/inspections",
+          { replace: true }
+        )
+      )
+      // Never flashes the interactive Save/Complete flow for a confirmed
+      // no-access role/assignment combination.
+      expect(
+        screen.queryByText("pages.inspection.run.markComplete")
+      ).not.toBeInTheDocument()
+    })
+
+    it("redirects a VIEWER back to the inspection list", async () => {
+      mockRole = "VIEWER"
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: mockInspection },
+        isLoading: false,
+        isError: false,
+      })
+      renderPage()
+      await waitFor(() =>
+        expect(mockNavigate).toHaveBeenCalledWith(
+          "/organization/audit/inspections",
+          { replace: true }
+        )
+      )
+    })
+
+    it("redirects a LIGHT_USER back to the inspection list", async () => {
+      mockRole = "LIGHT_USER"
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: mockInspection },
+        isLoading: false,
+        isError: false,
+      })
+      renderPage()
+      await waitFor(() =>
+        expect(mockNavigate).toHaveBeenCalledWith(
+          "/organization/audit/inspections",
+          { replace: true }
+        )
+      )
+    })
+
+    it("does not prematurely block or redirect a LEAD_AUDITOR while assignment data is still loading", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockAssignedInspectionIds = undefined
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: mockInspection },
+        isLoading: false,
+        isError: false,
+      })
+      renderPage()
+      // Degrades to the pre-#270/#275 role-only behavior (allowed) rather
+      // than denying access just because assignment data hasn't resolved.
+      await waitFor(() =>
+        expect(
+          screen.getByText("pages.inspection.run.markComplete")
+        ).toBeInTheDocument()
+      )
+      expect(mockNavigate).not.toHaveBeenCalled()
+    })
+
+    it("does not redirect while the role itself is still loading", async () => {
+      mockRole = undefined
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: mockInspection },
+        isLoading: false,
+        isError: false,
+      })
+      renderPage()
+      await waitFor(() =>
+        expect(screen.getByText("Location?")).toBeInTheDocument()
+      )
+      expect(mockNavigate).not.toHaveBeenCalled()
     })
   })
 })

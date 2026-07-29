@@ -2015,6 +2015,7 @@
         "markComplete": "Marquer comme terminée",
         "next": "Suivant",
         "noPages": "Aucune page dans ce modèle.",
+        "noWriteAccess": "Vous n'avez pas la permission de modifier cette inspection. Redirection vers la liste des inspections…",
         "notFound": "Inspection introuvable",
         "pageOf": "Page {{current}} sur {{total}}",
         "pagesLabel": "Pages",

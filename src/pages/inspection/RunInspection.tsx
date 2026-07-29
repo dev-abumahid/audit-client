@@ -1,4 +1,7 @@
 import { useFindingsForInspection } from "@/hooks/useFindingsForInspection"
+import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
+import { useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { canWriteInspection } from "@/utils/assignmentScope"
 import {
   useGetSingleInspectionQuery,
   useUpdateInspectionMutation,
@@ -66,6 +69,31 @@ export default function RunInspection() {
     useUpdateInspectionQuestionAnswerMutation()
   const [updateInspection] = useUpdateInspectionMutation()
 
+  // aexa-frontend#275: this page had zero role/assignment gating -- unlike
+  // InspectionTable.tsx's per-row Edit/Delete (#270) and FindingDetails.tsx,
+  // any authenticated user who navigated straight to this URL saw the full
+  // interactive Save/Complete flow regardless of role, and only found out
+  // they couldn't act via a 403 from org_scope.ts's assertCanWriteToInspection
+  // on submit. canWriteInspection mirrors that exact server rule: ADMIN
+  // always, LEAD_AUDITOR only if assigned to this inspection, VIEWER/
+  // LIGHT_USER never. Called with `id` (the route param) rather than
+  // waiting on `inspection.id` so the gate can resolve (and redirect, below)
+  // even before the inspection payload itself has loaded.
+  const role = useMyOrgRole()
+  const assignedInspectionIds = useMyAssignedInspectionIds()
+  const canWrite = canWriteInspection(role, id ?? "", assignedInspectionIds)
+  // `undefined` role/assignedInspectionIds means "still loading" (same
+  // contract as InspectionTable/FindingDetails) -- don't redirect or hide
+  // controls until both have had a chance to resolve, otherwise a legitimate
+  // ADMIN/assigned LEAD_AUDITOR would be bounced off their own page during
+  // the loading flash. A non-LEAD_AUDITOR role doesn't need assignment data
+  // at all (canWriteInspection never reads it for ADMIN/VIEWER/LIGHT_USER),
+  // so only gate on assignedInspectionIds when the role is actually
+  // LEAD_AUDITOR.
+  const authorizationKnown =
+    role !== undefined &&
+    (role !== "LEAD_AUDITOR" || assignedInspectionIds !== undefined)
+
   if (inspection && inspection.id !== seededFromId) {
     const initial: Record<string, QuestionAnswer> = {}
     inspection.questionAnswers.forEach((qa) => {
@@ -104,6 +132,21 @@ export default function RunInspection() {
   const saveTimeouts = useRef<
     Map<string, { timeout: ReturnType<typeof setTimeout>; answer: unknown }>
   >(new Map())
+
+  // aexa-frontend#275: RunInspection is an edit-only workflow page (Inspect­
+  // ionTable's own "Eye" view button already sends read-only viewers to the
+  // separate .../inspections/report/:id page instead), so a caller who
+  // genuinely lacks write access has no legitimate reason to be here at all
+  // -- unlike FindingDetails, which mixes read and write in one page and so
+  // only hides its Edit/Delete controls. Once role/assignment data has
+  // resolved (authorizationKnown) and canWrite is false, send them back to
+  // the inspection list rather than leaving them on a page that can only
+  // 403 on submit.
+  useEffect(() => {
+    if (inspection && authorizationKnown && !canWrite) {
+      navigate("/organization/audit/inspections", { replace: true })
+    }
+  }, [inspection, authorizationKnown, canWrite, navigate])
 
   // Guards state updates that can land after unmount — specifically the
   // flushPendingSaves() call fired from the cleanup effect below, whose
@@ -278,6 +321,21 @@ export default function RunInspection() {
       <div className="p-6">
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {error ?? t("pages.inspection.run.notFound")}
+        </div>
+      </div>
+    )
+  }
+
+  // Confirmed (not merely still-loading) lack of write access -- the
+  // useEffect above is already navigating away; render a brief notice
+  // instead of the full interactive Save/Complete flow for the moment
+  // before that redirect lands, rather than flashing editable content at
+  // someone who's about to be bounced.
+  if (authorizationKnown && !canWrite) {
+    return (
+      <div className="p-6">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          {t("pages.inspection.run.noWriteAccess")}
         </div>
       </div>
     )
