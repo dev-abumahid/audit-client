@@ -154,7 +154,13 @@ describe("UpdateInspection", () => {
     expect(screen.getByText("HQ Casablanca")).toBeInTheDocument()
     expect(screen.getByDisplayValue("Fine")).toBeInTheDocument()
     expect(screen.getAllByRole("checkbox")[0]).toBeChecked()
-    expect(screen.getByText("IN_PROGRESS")).toBeInTheDocument()
+    // Bug-fix batch: the status dropdown trigger used to render the raw
+    // enum value ("IN_PROGRESS") instead of the humanized translation key
+    // shared with the dropdown menu items right below it.
+    expect(
+      screen.getByText("organization.inspection.statusInProgress")
+    ).toBeInTheDocument()
+    expect(screen.queryByText("IN_PROGRESS")).not.toBeInTheDocument()
   })
 
   it("renders the embedded recommendation and unsplit-text sections", () => {
@@ -247,7 +253,11 @@ describe("UpdateInspection", () => {
     mockUpdateInspection.mockReturnValue({ unwrap: () => Promise.resolve({}) })
 
     render(<UpdateInspection />)
-    await userEvent.click(screen.getByRole("button", { name: /in_progress/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.inspection\.statusInProgress/i,
+      })
+    )
     await userEvent.click(
       await screen.findByText("organization.inspection.statusCompleted")
     )

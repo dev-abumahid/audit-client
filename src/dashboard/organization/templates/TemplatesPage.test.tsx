@@ -149,4 +149,89 @@ describe("TemplatesPage", () => {
       )
     )
   })
+
+  // Bug-fix batch: templateDisc?.slice(0, 50) + " ..." rendered the literal
+  // string "undefined ..." for templates with no description (e.g. the
+  // system "AI-Generated Findings" template), and always appended " ..."
+  // even when nothing was actually truncated.
+  it("shows a no-description fallback instead of 'undefined ...' when templateDisc is missing", () => {
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: {
+        data: [makeTemplate({ templateDisc: undefined })],
+        meta: { total: 1 },
+      },
+      isLoading: false,
+    })
+
+    render(
+      <MemoryRouter>
+        <TemplatesPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.queryByText(/undefined/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText("organization.templates.list.noDescription")
+    ).toBeInTheDocument()
+  })
+
+  it("does not append an ellipsis when the description is short enough to not be truncated", () => {
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: {
+        data: [makeTemplate({ templateDisc: "Short description" })],
+        meta: { total: 1 },
+      },
+      isLoading: false,
+    })
+
+    render(
+      <MemoryRouter>
+        <TemplatesPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText("Short description")).toBeInTheDocument()
+    expect(screen.queryByText(/\.\.\./)).not.toBeInTheDocument()
+  })
+
+  it("truncates a long description and appends an ellipsis", () => {
+    const longDesc = "A".repeat(80)
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: {
+        data: [makeTemplate({ templateDisc: longDesc })],
+        meta: { total: 1 },
+      },
+      isLoading: false,
+    })
+
+    render(
+      <MemoryRouter>
+        <TemplatesPage />
+      </MemoryRouter>
+    )
+
+    expect(
+      screen.getByText(`${"A".repeat(50)} ...`)
+    ).toBeInTheDocument()
+  })
+
+  it("does not truncate a description that is exactly 50 characters", () => {
+    const exactDesc = "A".repeat(50)
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: {
+        data: [makeTemplate({ templateDisc: exactDesc })],
+        meta: { total: 1 },
+      },
+      isLoading: false,
+    })
+
+    render(
+      <MemoryRouter>
+        <TemplatesPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText(exactDesc)).toBeInTheDocument()
+    expect(screen.queryByText(/\.\.\./)).not.toBeInTheDocument()
+  })
 })

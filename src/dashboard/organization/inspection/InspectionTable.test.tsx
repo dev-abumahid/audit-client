@@ -203,8 +203,13 @@ describe("InspectionTable", () => {
     )
     expect(screen.getByText("HQ Casablanca")).toBeInTheDocument()
     expect(screen.getByText("Youssef Benali")).toBeInTheDocument()
-    // Status appears in both the filter dropdown option and the table badge
-    expect(screen.getAllByText("IN_PROGRESS").length).toBeGreaterThan(0)
+    // Bug-fix batch: the status badge used to render the raw enum value
+    // ("IN_PROGRESS") instead of the humanized translation key shared with
+    // the status filter dropdown.
+    expect(
+      screen.getAllByText("organization.inspection.statusInProgress").length
+    ).toBeGreaterThan(0)
+    expect(screen.queryByText("IN_PROGRESS")).not.toBeInTheDocument()
   })
 
   it("aexa-frontend#234: resets to page 1 when the status filter changes", async () => {

@@ -89,7 +89,13 @@ describe("InspectionReport", () => {
 
     render(<InspectionReport />)
 
-    expect(screen.getByText("COMPLETED")).toBeInTheDocument()
+    // Bug-fix batch: the status badge used to render the raw enum value
+    // ("COMPLETED") instead of the humanized translation key shared with
+    // InspectionTable.tsx's status badge/filter dropdown.
+    expect(
+      screen.getByText("organization.inspection.statusCompleted")
+    ).toBeInTheDocument()
+    expect(screen.queryByText("COMPLETED")).not.toBeInTheDocument()
     expect(
       screen.getByRole("heading", { name: "Fire Safety Audit" })
     ).toBeInTheDocument()

@@ -534,9 +534,16 @@ export default function SitesEntities() {
                       />
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {site.country && `${site.country} • `}
-                      {site.activity && `${site.activity} • `}
-                      Location: {site.location} • Country: {site.country}
+                      {[
+                        site.activity,
+                        site.location &&
+                          `${t("organization.site&entities.siteLocationLabel")}: ${site.location}`,
+                        site.country &&
+                          `${t("organization.site&entities.siteCountryLabel")}: ${site.country}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" • ") ||
+                        t("organization.site&entities.noAdditionalDetails")}
                     </p>
                   </div>
                 </div>

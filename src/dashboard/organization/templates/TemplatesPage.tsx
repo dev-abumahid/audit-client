@@ -230,7 +230,11 @@ export default function TemplatesPage() {
                   </TableCell>
 
                   <TableCell className="hidden text-muted-foreground md:table-cell">
-                    {template.templateDisc?.slice(0, 50) + " ..."}
+                    {template.templateDisc
+                      ? template.templateDisc.length > 50
+                        ? `${template.templateDisc.slice(0, 50)} ...`
+                        : template.templateDisc
+                      : t("organization.templates.list.noDescription")}
                   </TableCell>
 
                   <TableCell className="hidden sm:table-cell">

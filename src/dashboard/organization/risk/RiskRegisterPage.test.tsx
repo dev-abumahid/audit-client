@@ -149,8 +149,39 @@ describe("RiskRegisterPage", () => {
     expect(screen.getAllByText("HQ Casablanca").length).toBeGreaterThanOrEqual(
       1
     )
-    expect(screen.getByText("supply_chain")).toBeInTheDocument()
+    const categoryBadge = screen
+      .getAllByText("organization.riskCategories.catSupplyChain")
+      .find((el) => el.tagName === "SPAN")
+    expect(categoryBadge).toBeInTheDocument()
+    expect(screen.queryByText("supply_chain")).not.toBeInTheDocument()
     expect(screen.getByText("5")).toBeInTheDocument() // residual_score badge
+  })
+
+  // Bug-fix batch: the category badge used to render the raw enum key
+  // ("cyber") with no color styling instead of RISK_CATEGORIES' human label
+  // and color.
+  it("renders the category badge with a humanized label and the configured color", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ category: "cyber" })] },
+    })
+
+    render(<RiskRegisterPage />)
+
+    const badge = screen
+      .getAllByText("organization.riskCategories.catCyber")
+      .find((el) => el.tagName === "SPAN")!
+    expect(badge).toBeInTheDocument()
+    expect(badge).toHaveStyle({ color: "hsl(199, 89%, 48%)" })
+  })
+
+  it("falls back to the raw category value if it's not in RISK_CATEGORIES", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ category: "totally_unknown" })] },
+    })
+
+    render(<RiskRegisterPage />)
+
+    expect(screen.getByText("totally_unknown")).toBeInTheDocument()
   })
 
   it("aexa-frontend#236: formats financial_impact_max in millions, not thousands", () => {

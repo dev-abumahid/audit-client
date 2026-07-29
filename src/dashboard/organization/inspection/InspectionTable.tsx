@@ -28,6 +28,7 @@ import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { canWriteInspection } from "@/utils/assignmentScope"
+import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
 import {
   ChevronLeft,
   ChevronRight,
@@ -315,7 +316,7 @@ const InspectionTable = () => {
                                   : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-400"
                         }`}
                       >
-                        {item.status}
+                        {getInspectionStatusLabel(t, item.status)}
                       </span>
                     </TableCell>
                     <TableCell>

@@ -392,9 +392,26 @@ export default function RiskRegisterPage() {
                       </span>
                     </td>
                     <td className="hidden px-3 py-2.5 md:table-cell">
-                      <span className="rounded-full px-2 py-0.5 text-[10px] font-medium">
-                        {risk.category}
-                      </span>
+                      {(() => {
+                        const cat =
+                          RISK_CATEGORIES[
+                            risk.category as keyof typeof RISK_CATEGORIES
+                          ]
+                        const catColor = cat?.color || "hsl(220, 10%, 46%)"
+                        return (
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                            style={{
+                              backgroundColor: `color-mix(in srgb, ${catColor} 15%, transparent)`,
+                              color: catColor,
+                            }}
+                          >
+                            {cat
+                              ? t(`organization.riskCategories.${cat.labelKey}`)
+                              : risk.category}
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td className="px-3 py-2.5 text-center">
                       <div className="flex flex-col items-center gap-1">

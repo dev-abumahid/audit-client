@@ -8,6 +8,7 @@ import {
   buildInspectionPdfHtml,
   type PdfLabels,
 } from "@/utils/buildInspectionPdfHtml"
+import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
 import { A4_WIDTH_MM, computePdfPagePlacements } from "@/utils/pdfPageMath"
 import html2canvas from "html2canvas-pro"
 import jsPDF from "jspdf"
@@ -692,7 +693,7 @@ const InspectionReport = () => {
         templateName,
         logoBase64: template?.templateLogo ?? null,
         siteName: inspection.site?.name ?? "",
-        status: inspection.status,
+        status: getInspectionStatusLabel(t, inspection.status),
         createdAt: inspection.createdAt,
         updatedAt: inspection.updatedAt,
         templatePages,
@@ -730,7 +731,7 @@ const InspectionReport = () => {
         <div className="mx-auto flex max-w-7xl flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <span className="mb-3 inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-              {inspection.status}
+              {getInspectionStatusLabel(t, inspection.status)}
             </span>
 
             <h1 className="mb-1 text-2xl font-black tracking-tight text-foreground">

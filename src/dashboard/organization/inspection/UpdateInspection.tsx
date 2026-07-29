@@ -17,6 +17,7 @@ import {
 } from "@/redux/apis/organization/inspection.api"
 import type { InspectionStatus } from "@/types/inspection"
 import { attachmentFileName } from "@/utils/attachmentFileName"
+import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
 import {
   ArrowLeft,
   CloudUpload,
@@ -778,7 +779,9 @@ export default function UpdateInspection() {
                           {selectedStatus === "CANCELLED" && "❌"}
                           {selectedStatus === "DRAFT" && "📄"}
                           {selectedStatus === "IN_PROGRESS" && "📝"}
-                          <span className="ml-1">{selectedStatus}</span>
+                          <span className="ml-1">
+                            {getInspectionStatusLabel(t, selectedStatus ?? "")}
+                          </span>
                         </>
                       )}
                     </Button>

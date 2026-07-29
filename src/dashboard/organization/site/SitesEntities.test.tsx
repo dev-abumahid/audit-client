@@ -209,7 +209,79 @@ describe("SitesEntities", () => {
     render(<SitesEntities />)
 
     expect(screen.getByText("HQ Casablanca")).toBeInTheDocument()
-    expect(screen.getByText(/Location: Casablanca/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /organization\.site&entities\.siteLocationLabel: Casablanca/
+      )
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /organization\.site&entities\.siteCountryLabel: Morocco/
+      )
+    ).toBeInTheDocument()
+  })
+
+  // Bug-fix batch: the subtitle used to unconditionally render
+  // "Location:  • Country: " with dangling empty values when a site had no
+  // location/country, and duplicated the country a second time.
+  it("omits Location/Country segments that are empty instead of showing dangling colons", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: {
+        data: [makeSite({ location: "", country: "", activity: "" })],
+        meta: { page: 1, limit: 10, total: 1 },
+      },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+
+    expect(
+      screen.queryByText(/organization\.site&entities\.siteLocationLabel/)
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/organization\.site&entities\.siteCountryLabel/)
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.noAdditionalDetails")
+    ).toBeInTheDocument()
+  })
+
+  it("does not duplicate the country when only country is present", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: {
+        data: [makeSite({ location: "", activity: "" })],
+        meta: { page: 1, limit: 10, total: 1 },
+      },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+
+    const countryMatches = screen.getAllByText(/Morocco/)
+    expect(countryMatches).toHaveLength(1)
+  })
+
+  it("shows only the activity when location and country are both empty", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: {
+        data: [makeSite({ location: "", country: "" })],
+        meta: { page: 1, limit: 10, total: 1 },
+      },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+
+    expect(screen.getByText("Finance")).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.site&entities.noAdditionalDetails")
+    ).not.toBeInTheDocument()
   })
 
   it("shows empty state when there are no sites", () => {
