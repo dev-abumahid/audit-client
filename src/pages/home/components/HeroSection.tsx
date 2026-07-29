@@ -1,4 +1,6 @@
 import heroImg from "@/assets/images/hero-img.png"
+import ForgotPasswordModal from "@/pages/auth/ForgotPasswordModal"
+import SignInModal from "@/pages/auth/SignInModal"
 import SignUpModal from "@/pages/auth/SignUpModal"
 import { ArrowRight, CirclePlay } from "lucide-react"
 import { useState } from "react"
@@ -6,6 +8,9 @@ import { useTranslation } from "react-i18next"
 
 const HeroSection = () => {
   const [isSignUpModalOpen, setIsSignUpModalOpen] = useState(false)
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false)
+  const [isForgotPasswordModalOpen, setIsForgotPasswordModalOpen] =
+    useState(false)
   const { t } = useTranslation()
 
   const handleGetStartedClick = () => {
@@ -16,7 +21,20 @@ const HeroSection = () => {
     setIsSignUpModalOpen(false)
   }
 
-  const handleLoginClick = () => {}
+  const handleLoginClick = () => {
+    setIsSignUpModalOpen(false)
+    setIsSignInModalOpen(true)
+  }
+
+  const handleSignUpClick = () => {
+    setIsSignInModalOpen(false)
+    setIsSignUpModalOpen(true)
+  }
+
+  const handleForgotPassword = () => {
+    setIsSignInModalOpen(false)
+    setIsForgotPasswordModalOpen(true)
+  }
 
   return (
     <>
@@ -71,6 +89,21 @@ const HeroSection = () => {
         isOpen={isSignUpModalOpen}
         onClose={handleCloseSignUpModal}
         onLoginClick={handleLoginClick}
+      />
+
+      {/* Sign In Modal */}
+      <SignInModal
+        isOpen={isSignInModalOpen}
+        onClose={() => setIsSignInModalOpen(false)}
+        onSignUpClick={handleSignUpClick}
+        onForgotPasswordClick={handleForgotPassword}
+      />
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        isOpen={isForgotPasswordModalOpen}
+        onClose={() => setIsForgotPasswordModalOpen(false)}
+        onBackToSignIn={handleLoginClick}
       />
     </>
   )

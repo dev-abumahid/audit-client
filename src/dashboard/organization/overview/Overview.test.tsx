@@ -358,4 +358,38 @@ describe("Overview", () => {
       screen.getAllByText("organization.riskCategories.catCyber").length
     ).toBeGreaterThan(0)
   })
+
+  it("shows an empty state in Tipping Points when there are no tipping-point risks", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: { data: { risks: [], riskLinks: [], actions: [] } },
+      isLoading: false,
+    })
+    render(<Overview />)
+
+    expect(
+      screen.getByText("organization.overview.bottomRow.empty")
+    ).toBeInTheDocument()
+  })
+
+  it("shows an empty state in Recent Alerts when there are no alerts", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    render(<Overview />)
+
+    expect(
+      screen.getByText("organization.overview.alert.empty")
+    ).toBeInTheDocument()
+  })
+
+  it("does not show the Recent Alerts empty state when alerts are present", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert()] },
+      isLoading: false,
+    })
+    render(<Overview />)
+
+    expect(
+      screen.queryByText("organization.overview.alert.empty")
+    ).not.toBeInTheDocument()
+  })
 })

@@ -148,6 +148,18 @@ describe("ThreeLinesOfDefensePage", () => {
     expect(screen.getByText("Q3 internal audit")).toBeInTheDocument()
   })
 
+  it("gives each truncated item title a hover tooltip via the title attribute", () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData(),
+      isLoading: false,
+    })
+
+    render(<ThreeLinesOfDefensePage />)
+
+    const title = screen.getByText("Supply chain disruption")
+    expect(title).toHaveAttribute("title", "Supply chain disruption")
+  })
+
   it("shows the Unclassified Actions bucket for an Action with a null line_of_defense", () => {
     mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
       data: makeData(),

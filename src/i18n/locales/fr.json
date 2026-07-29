@@ -700,11 +700,13 @@
       },
       "bottomRow": {
         "title": "Points de bascule systémiques",
-        "des": "Top 15 % PageRank — risques à propagation maximale"
+        "des": "Top 15 % PageRank — risques à propagation maximale",
+        "empty": "Aucun point de bascule pour le moment"
       },
       "alert": {
         "title": "Alertes récentes",
-        "des": "Dernières 48 heures — triées par pertinence"
+        "des": "Dernières 48 heures — triées par pertinence",
+        "empty": "Aucune alerte pour le moment"
       }
     },
     "site&entities": {

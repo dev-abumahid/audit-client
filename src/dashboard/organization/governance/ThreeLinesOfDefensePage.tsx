@@ -100,7 +100,9 @@ function ItemRow({
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 px-2 py-1.5">
       <div className="min-w-0">
-        <p className="truncate text-xs font-medium">{title}</p>
+        <p className="truncate text-xs font-medium" title={title}>
+          {title}
+        </p>
         <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
       </div>
       {canReassign && (

@@ -430,6 +430,14 @@ export default function Overview() {
                 />
               </div>
             ))}
+            {tippingPointRisks.length === 0 && (
+              <div className="py-8 text-center">
+                <Zap className="mx-auto h-8 w-8 text-muted-foreground/50" />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {t("organization.overview.bottomRow.empty")}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -481,6 +489,14 @@ export default function Overview() {
                 </div>
               </div>
             ))}
+            {alerts.length === 0 && (
+              <div className="py-8 text-center">
+                <AlertTriangle className="mx-auto h-8 w-8 text-muted-foreground/50" />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {t("organization.overview.alert.empty")}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

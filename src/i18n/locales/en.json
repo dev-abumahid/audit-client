@@ -700,11 +700,13 @@
       },
       "bottomRow": {
         "title": "Systemic Tipping Points",
-        "des": "Top 15% PageRank — maximum spread risks"
+        "des": "Top 15% PageRank — maximum spread risks",
+        "empty": "No tipping points yet"
       },
       "alert": {
         "title": "Recent alerts",
-        "des": "Last 48 hours — sorted by relevance"
+        "des": "Last 48 hours — sorted by relevance",
+        "empty": "No alerts yet"
       }
     },
     "site&entities": {
