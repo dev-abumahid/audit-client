@@ -395,6 +395,53 @@ describe("InspectionTable", () => {
     })
   })
 
+  // aexa-frontend#276: create_inspection_into_db is ADMIN-only server-side
+  // (inspection.service.ts), so the page-level "Start New" affordance must
+  // be gated on the exact role rather than the broader canWrite (#242) used
+  // by every other list page on this repo -- a LEAD_AUDITOR previously saw
+  // the button and got a 403 on click.
+  describe("Start New gating (#276)", () => {
+    it("shows Start New for ADMIN", async () => {
+      mockRole = "ADMIN"
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection()],
+          meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+      expect(
+        screen.getByText("organization.inspection.startNew")
+      ).toBeInTheDocument()
+    })
+
+    it("hides Start New for a LEAD_AUDITOR even though they can write other org resources", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection()],
+          meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+      expect(
+        screen.queryByText("organization.inspection.startNew")
+      ).not.toBeInTheDocument()
+    })
+  })
+
   // aexa-frontend#270: per-row narrowing on top of the #242 role gate above —
   // a LEAD_AUDITOR only gets Edit/Delete on rows they're actually assigned
   // to (mirrors org_scope.ts's assertCanWriteToInspection).

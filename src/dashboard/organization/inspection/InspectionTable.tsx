@@ -26,7 +26,7 @@ import type { InspectionSummary } from "@/types/inspection"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
-import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { canWriteInspection } from "@/utils/assignmentScope"
 import {
   ChevronLeft,
@@ -53,14 +53,17 @@ const InspectionTable = () => {
   // VIEWER/LIGHT_USER saw the same Start New/Edit/Delete affordances as an
   // ADMIN and only found out they couldn't act via a 403 toast.
   const role = useMyOrgRole()
-  const canWrite = canWriteOrgResource(role)
-  // aexa-frontend#270: canWrite above stays role-only for the page-level
-  // "Start New" affordance (inspection creation has no InspectionAssignment
-  // to narrow by -- see inspection.service.ts's create_inspection_into_db
-  // comment). Per-row Edit/Delete narrow further for LEAD_AUDITOR using the
-  // caller's real assignment state; `undefined` (still loading / fetch
-  // failed) degrades canWriteInspection back to the same role-only
-  // behavior as before this issue.
+  // aexa-frontend#276: create_inspection_into_db is ADMIN-only server-side
+  // (inspection creation has no InspectionAssignment to scope a LEAD_AUDITOR
+  // "within" -- see inspection.service.ts's create_inspection_into_db
+  // comment), so the page-level "Start New" affordance is gated on the exact
+  // role rather than the broader canWrite (ADMIN||LEAD_AUDITOR) used
+  // elsewhere on this page. A LEAD_AUDITOR was previously shown a button
+  // that always 403'd. Per-row Edit/Delete stay on canWriteInspection below,
+  // which narrows further for LEAD_AUDITOR using the caller's real
+  // assignment state; `undefined` (still loading / fetch failed) degrades
+  // canWriteInspection back to the same role-only behavior as before #270.
+  const canCreateInspection = role === "ADMIN"
   const assignedInspectionIds = useMyAssignedInspectionIds()
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -189,7 +192,7 @@ const InspectionTable = () => {
             </p>
           </div>
 
-          {canWrite && (
+          {canCreateInspection && (
             <Button onClick={() => setOpen(true)} className="">
               <Plus className="mr-2 h-4 w-4" />
               {t("organization.inspection.startNew")}
