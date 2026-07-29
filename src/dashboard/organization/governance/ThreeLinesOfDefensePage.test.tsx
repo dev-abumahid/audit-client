@@ -2,6 +2,38 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import ThreeLinesOfDefensePage from "./ThreeLinesOfDefensePage"
 
+// This file never triggers src/i18n/i18n.ts's side-effect init, so
+// react-i18next's real t() falls back to returning the raw key with no
+// interpolation for every other assertion here. That fallback can't
+// reproduce the humanized-label bug (raw backend enum/domain values like
+// "cyber", "non_compliant", "TO_DO" rendered directly instead of going
+// through a label map + t()), since there'd be no way to tell "the key was
+// resolved to a humanized string" apart from "the raw value was rendered
+// unchanged" without real translations loaded. Overriding just the specific
+// keys the meta-line label maps resolve to, with plausible humanized English,
+// lets the tests confirm the humanized label (not the raw enum) actually
+// renders -- every other key still falls back to itself unchanged. Same
+// technique as CompliancePage.test.tsx.
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  const HUMANIZED: Record<string, string> = {
+    "organization.riskCategories.catCyber": "Cyber",
+    "organization.riskRegister.statusOpen": "Open",
+    "organization.findings.priorityHigh": "High",
+    "organization.findings.statusToDo": "To Do",
+    "organization.kri.status.ok": "OK",
+    "organization.compliance.domains.data_protection": "Data Protection",
+    "organization.compliance.status.non_compliant": "Non-Compliant",
+    "organization.audit.statusPlanned": "Planned",
+  }
+  return {
+    ...mod,
+    useTranslation: () => ({
+      t: (key: string) => HUMANIZED[key] ?? key,
+    }),
+  }
+})
+
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 import { toast } from "sonner"
 const mockToastError = vi.mocked(toast.error)
@@ -498,6 +530,87 @@ describe("ThreeLinesOfDefensePage", () => {
         .parentElement!
       expect(complianceRow.querySelector("button")).toBeNull()
     })
+  })
+
+  // Regression: risk.category/status, action.priority/status, kri.status,
+  // obligation.domain/status and engagement.status used to be interpolated
+  // directly into the meta line with no label mapping, rendering raw
+  // backend enum values like "cyber · open" or "data_protection ·
+  // non_compliant" instead of humanized labels.
+  it("shows humanized labels in the meta line, not raw backend enum/domain values", () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData({
+        risks: [
+          {
+            id: "risk-1",
+            title: "Supply chain disruption",
+            category: "cyber",
+            status: "open",
+            line_of_defense: "FIRST",
+          },
+        ],
+        actions: [
+          {
+            id: "action-1",
+            title: "Patch critical vulnerability",
+            priority: "High",
+            status: "TO_DO",
+            line_of_defense: "SECOND",
+          },
+          {
+            id: "action-unclassified",
+            title: "Legacy remediation item",
+            priority: "High",
+            status: "TO_DO",
+            line_of_defense: null,
+          },
+        ],
+        kris: [
+          {
+            id: "kri-1",
+            title: "Supplier Lead Time",
+            unit: "days",
+            status: "OK",
+            line_of_defense: "SECOND",
+          },
+        ],
+        complianceObligations: [
+          {
+            id: "compliance-1",
+            title: "GDPR data mapping",
+            domain: "data_protection",
+            status: "non_compliant",
+            line_of_defense: "SECOND",
+          },
+        ],
+        auditEngagements: [
+          {
+            id: "audit-1",
+            title: "Q3 internal audit",
+            status: "planned",
+            lead_auditor: "Jane Doe",
+            line_of_defense: "THIRD",
+          },
+        ],
+      }),
+      isLoading: false,
+    })
+
+    render(<ThreeLinesOfDefensePage />)
+
+    expect(screen.getByText("Cyber · Open")).toBeInTheDocument()
+    // Classified (2nd Line) and Unclassified Actions sections render through
+    // two separate ItemRow call sites in the source -- both must be fixed.
+    expect(screen.getAllByText("High · To Do").length).toBe(2)
+    expect(screen.getByText("days · OK")).toBeInTheDocument()
+    expect(screen.getByText("Data Protection · Non-Compliant")).toBeInTheDocument()
+    expect(screen.getByText("Jane Doe · Planned")).toBeInTheDocument()
+
+    // None of the raw backend values should leak through unhumanized.
+    expect(screen.queryByText(/cyber · open/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/TO_DO/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/non_compliant/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/data_protection ·/)).not.toBeInTheDocument()
   })
 
   it("shows empty-state text for a line with no items", () => {

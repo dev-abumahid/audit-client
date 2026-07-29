@@ -1,6 +1,35 @@
 import { render, screen } from "@testing-library/react"
 import Overview from "./Overview"
 
+// This file never triggers src/i18n/i18n.ts's side-effect init, so
+// react-i18next's real t() falls back to returning the raw key with no
+// interpolation for every other assertion here. That fallback can't
+// reproduce the "1 identified risks" hardcoded-singular-with-no-pluralization
+// bug (organization.overview.category.des_one/_other), since i18next's
+// plural-suffix resolution only kicks in once real resources/pluralization
+// rules are loaded. Overriding just this one key, with the same
+// singular/plural behavior the real en.json resource now has, lets the test
+// tell the fixed des_one/_other split apart from the old un-pluralized "des"
+// key -- every other key still falls back to itself unchanged. Same
+// technique as CompliancePage.test.tsx.
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => ({
+      t: (key: string, opts?: Record<string, unknown>) => {
+        if (key === "organization.overview.category.des") {
+          const count = Number(opts?.count ?? 0)
+          return count === 1
+            ? `${count} identified risk`
+            : `${count} identified risks`
+        }
+        return key
+      },
+    }),
+  }
+})
+
 const mockUseGetAllRisksQuery = vi.fn()
 const mockUseGetAllKriQuery = vi.fn()
 const mockUseGetAllAlertsQuery = vi.fn()
@@ -370,6 +399,29 @@ describe("Overview", () => {
     expect(
       screen.getByText("organization.overview.bottomRow.empty")
     ).toBeInTheDocument()
+  })
+
+  it("pluralizes the Risk by category subtitle for a single risk (regression: used to show '1 identified risks')", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ id: "r1" })] },
+      isLoading: false,
+    })
+    render(<Overview />)
+
+    expect(screen.getByText("1 identified risk")).toBeInTheDocument()
+    expect(screen.queryByText("1 identified risks")).not.toBeInTheDocument()
+  })
+
+  it("uses the plural form of the Risk by category subtitle for multiple risks", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [makeRisk({ id: "r1" }), makeRisk({ id: "r2", ref: "RSK-002" })],
+      },
+      isLoading: false,
+    })
+    render(<Overview />)
+
+    expect(screen.getByText("2 identified risks")).toBeInTheDocument()
   })
 
   it("shows an empty state in Recent Alerts when there are no alerts", () => {

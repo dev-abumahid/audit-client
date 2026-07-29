@@ -13,6 +13,13 @@ import { useGetThreeLinesOfDefenseQuery } from "@/redux/apis/organization/govern
 import { useUpdateKriMutation } from "@/redux/apis/organization/kri.api"
 import { useUpdateRiskMutation } from "@/redux/apis/organization/risk.api"
 import type { LineOfDefense } from "@/types/organization"
+import { COMPLIANCE_DOMAINS } from "@/utils/complianceConfig"
+import { getEnumLabel } from "@/utils/enumLabel"
+import {
+  FINDING_PRIORITY_LABEL_KEYS,
+  FINDING_STATUS_LABEL_KEYS,
+} from "@/utils/findingLabels"
+import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import {
   Activity,
   AlertTriangle,
@@ -24,6 +31,50 @@ import {
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+
+// Backend enum/domain values with no existing shared label map elsewhere in
+// the app (unlike risk category / compliance domain & status / action
+// priority & status, all reused from riskConfig.ts, complianceConfig.ts and
+// findingLabels.ts below). Kept local since ThreeLinesOfDefensePage is
+// currently the only place rendering these as plain text rather than a
+// styled badge -- follows the same `{ value: i18nKey }` + getEnumLabel()
+// convention as the shared maps.
+const RISK_STATUS_LABEL_KEYS: Record<string, string> = {
+  open: "organization.riskRegister.statusOpen",
+  in_progress: "organization.riskRegister.statusInProgress",
+  completed: "organization.riskRegister.statusCompleted",
+  closed: "organization.riskRegister.statusClosed",
+}
+
+const KRI_STATUS_LABEL_KEYS: Record<string, string> = {
+  ALERT: "organization.kri.status.alert",
+  WARNING: "organization.kri.status.warning",
+  OK: "organization.kri.status.ok",
+}
+
+const AUDIT_ENGAGEMENT_STATUS_LABEL_KEYS: Record<string, string> = {
+  planned: "organization.audit.statusPlanned",
+  in_progress: "organization.audit.statusInProgress",
+  completed: "organization.audit.statusCompleted",
+}
+
+const COMPLIANCE_STATUS_LABEL_KEYS: Record<string, string> = {
+  compliant: "organization.compliance.status.compliant",
+  in_progress: "organization.compliance.status.in_progress",
+  non_compliant: "organization.compliance.status.non_compliant",
+  not_applicable: "organization.compliance.status.not_applicable",
+}
+
+function riskCategoryLabel(t: (key: string) => string, category: string): string {
+  const cat = RISK_CATEGORIES[category as keyof typeof RISK_CATEGORIES]
+  return cat ? t(`organization.riskCategories.${cat.labelKey}`) : category
+}
+
+function complianceDomainLabel(t: (key: string) => string, domain: string): string {
+  return COMPLIANCE_DOMAINS[domain]
+    ? t(`organization.compliance.domains.${domain}`)
+    : domain
+}
 
 type EntityKind = "risk" | "action" | "kri" | "compliance" | "audit"
 
@@ -276,7 +327,7 @@ export default function ThreeLinesOfDefensePage() {
                         <ItemRow
                           key={risk.id}
                           title={risk.title}
-                          meta={`${risk.category} · ${risk.status}`}
+                          meta={`${riskCategoryLabel(t, risk.category)} · ${getEnumLabel(t, RISK_STATUS_LABEL_KEYS, risk.status)}`}
                           currentLine={risk.line_of_defense}
                           canReassign={canReassignRisk}
                           isPending={pendingId === risk.id}
@@ -297,7 +348,7 @@ export default function ThreeLinesOfDefensePage() {
                         <ItemRow
                           key={action.id}
                           title={action.title}
-                          meta={`${action.priority} · ${action.status}`}
+                          meta={`${getEnumLabel(t, FINDING_PRIORITY_LABEL_KEYS, action.priority)} · ${getEnumLabel(t, FINDING_STATUS_LABEL_KEYS, action.status)}`}
                           currentLine={action.line_of_defense}
                           canReassign={canReassignAction}
                           isPending={pendingId === action.id}
@@ -318,7 +369,7 @@ export default function ThreeLinesOfDefensePage() {
                         <ItemRow
                           key={kri.id}
                           title={kri.title}
-                          meta={`${kri.unit} · ${kri.status}`}
+                          meta={`${kri.unit} · ${getEnumLabel(t, KRI_STATUS_LABEL_KEYS, kri.status)}`}
                           currentLine={kri.line_of_defense}
                           canReassign={canReassignKri}
                           isPending={pendingId === kri.id}
@@ -339,7 +390,7 @@ export default function ThreeLinesOfDefensePage() {
                         <ItemRow
                           key={obligation.id}
                           title={obligation.title}
-                          meta={`${obligation.domain} · ${obligation.status}`}
+                          meta={`${complianceDomainLabel(t, obligation.domain)} · ${getEnumLabel(t, COMPLIANCE_STATUS_LABEL_KEYS, obligation.status)}`}
                           currentLine={obligation.line_of_defense}
                           canReassign={canReassignCompliance}
                           isPending={pendingId === obligation.id}
@@ -360,7 +411,7 @@ export default function ThreeLinesOfDefensePage() {
                         <ItemRow
                           key={engagement.id}
                           title={engagement.title}
-                          meta={`${engagement.lead_auditor ?? t("organization.threeLinesOfDefense.noLeadAuditor")} · ${engagement.status}`}
+                          meta={`${engagement.lead_auditor ?? t("organization.threeLinesOfDefense.noLeadAuditor")} · ${getEnumLabel(t, AUDIT_ENGAGEMENT_STATUS_LABEL_KEYS, engagement.status)}`}
                           currentLine={engagement.line_of_defense}
                           canReassign={canReassignAudit}
                           isPending={pendingId === engagement.id}
@@ -399,7 +450,7 @@ export default function ThreeLinesOfDefensePage() {
                   <ItemRow
                     key={action.id}
                     title={action.title}
-                    meta={`${action.priority} · ${action.status}`}
+                    meta={`${getEnumLabel(t, FINDING_PRIORITY_LABEL_KEYS, action.priority)} · ${getEnumLabel(t, FINDING_STATUS_LABEL_KEYS, action.status)}`}
                     currentLine={null}
                     canReassign={canReassignAction}
                     isPending={pendingId === action.id}

@@ -696,7 +696,8 @@
       },
       "category": {
         "title": "Risques par catégorie",
-        "des": "risques identifiés"
+        "des_one": "{{count}} risque identifié",
+        "des_other": "{{count}} risques identifiés"
       },
       "bottomRow": {
         "title": "Points de bascule systémiques",
@@ -1031,7 +1032,9 @@
       "moderate": "Modéré",
       "weak": "Faible",
       "noRiskSelected": "Sélectionnez une cellule de la matrice",
-      "selectRiskHint": "Cliquez sur une cellule pour voir les risques"
+      "selectRiskHint": "Cliquez sur une cellule pour voir les risques",
+      "cellCount_one": "{{count}} risque",
+      "cellCount_other": "{{count}} risques"
     },
     "riskGraph": {
       "title": "Graphe de Dépendances & Effets Domino",

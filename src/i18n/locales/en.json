@@ -696,7 +696,8 @@
       },
       "category": {
         "title": "Risks by category",
-        "des": "identified risks"
+        "des_one": "{{count}} identified risk",
+        "des_other": "{{count}} identified risks"
       },
       "bottomRow": {
         "title": "Systemic Tipping Points",
@@ -1031,7 +1032,9 @@
       "moderate": "Moderate",
       "weak": "Weak",
       "noRiskSelected": "Select a cell from the matrix",
-      "selectRiskHint": "Click on a cell to see the risks"
+      "selectRiskHint": "Click on a cell to see the risks",
+      "cellCount_one": "{{count}} risk",
+      "cellCount_other": "{{count}} risks"
     },
     "riskGraph": {
       "title": "Dependency Graph & Domino Effects",

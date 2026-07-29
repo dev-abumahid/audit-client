@@ -326,7 +326,9 @@ export default function Overview() {
             {t("organization.overview.category.title")}
           </h3>
           <p className="text-xs text-muted-foreground">
-            {risks.length} {t("organization.overview.category.des")}
+            {t("organization.overview.category.des", {
+              count: risks.length,
+            })}
           </p>
           <div className="mt-4 h-48">
             <ResponsiveContainer width="100%" height="100%">

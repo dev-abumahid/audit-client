@@ -250,15 +250,16 @@ export default function RiskMatrixPage() {
                               )
                             }
                             className={`${getMatrixColor(row, col, matrixSize)} flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-white transition-all hover:scale-105 ${isSelected ? "scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-75"}`}
-                            title={`${label} × ${labels.impact[col]} : ${cellRisks.length} risque(s)`}
+                            title={`${label} × ${labels.impact[col]} : ${t("organization.riskMatrix.cellCount", { count: cellRisks.length })}`}
                           >
                             <span className="text-lg font-bold">
                               {(row + 1) * (col + 1)}
                             </span>
                             {cellRisks.length > 0 && (
                               <span className="mt-0.5 text-[9px] opacity-90">
-                                {cellRisks.length} risque
-                                {cellRisks.length > 1 ? "s" : ""}
+                                {t("organization.riskMatrix.cellCount", {
+                                  count: cellRisks.length,
+                                })}
                               </span>
                             )}
                           </button>

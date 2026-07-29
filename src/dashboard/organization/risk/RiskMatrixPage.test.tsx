@@ -2,6 +2,33 @@ import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import RiskMatrixPage from "./RiskMatrixPage"
 
+// This file never triggers src/i18n/i18n.ts's side-effect init, so
+// react-i18next's real t() falls back to returning the raw key with no
+// interpolation for every other assertion here. That fallback can't
+// reproduce the "1 risque" hardcoded-French-with-no-pluralization bug
+// (organization.riskMatrix.cellCount_one/_other), since i18next's
+// plural-suffix resolution only kicks in once real resources/pluralization
+// rules are loaded. Overriding just this one key, with the same
+// singular/plural behavior the real en.json resource now has, lets the test
+// tell the fixed cellCount_one/_other split apart from the old hardcoded
+// "risque(s)" string -- every other key still falls back to itself
+// unchanged. Same technique as CompliancePage.test.tsx.
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => ({
+      t: (key: string, opts?: Record<string, unknown>) => {
+        if (key === "organization.riskMatrix.cellCount") {
+          const count = Number(opts?.count ?? 0)
+          return count === 1 ? `${count} risk` : `${count} risks`
+        }
+        return key
+      },
+    }),
+  }
+})
+
 const mockUseGetAllRisksQuery = vi.fn()
 const mockUseGetAllSitesQuery = vi.fn()
 
@@ -69,7 +96,7 @@ describe("RiskMatrixPage", () => {
     // before mapping onto the grid: 85/100=0.85 -> row round(0.85*4)=3
     // ("Probable"); 80/100=0.8 -> col round(0.8*4)=3 ("Major")
     expect(
-      screen.getByTitle(/Probable × Major : 1 risque/)
+      screen.getByTitle(/Probable × Major : 1 risk/)
     ).toBeInTheDocument()
   })
 
@@ -82,7 +109,7 @@ describe("RiskMatrixPage", () => {
 
     // probability 0, inherent_score 0 -> bottom-left cell (row 0, col 0)
     expect(
-      screen.getByTitle(/Very Unlikely × Negligible : 1 risque/)
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
     ).toBeInTheDocument()
   })
 
@@ -103,12 +130,12 @@ describe("RiskMatrixPage", () => {
     // 15/100=0.15 -> row round(0.15*4)=1 ("Unlikely");
     // 40/100=0.4 -> col round(0.4*4)=2 ("Moderate")
     expect(
-      screen.getByTitle(/Unlikely × Moderate : 1 risque/)
+      screen.getByTitle(/Unlikely × Moderate : 1 risk/)
     ).toBeInTheDocument()
     // The grid always renders all cells (even empty ones), so check the
     // top-right cell specifically shows 0 risks, not 1.
     expect(
-      screen.getByTitle(/Very Likely × Catastrophic : 0 risque/)
+      screen.getByTitle(/Very Likely × Catastrophic : 0 risks/)
     ).toBeInTheDocument()
   })
 
@@ -120,7 +147,7 @@ describe("RiskMatrixPage", () => {
     render(<RiskMatrixPage />)
 
     await userEvent.click(
-      screen.getByTitle(/Very Unlikely × Negligible : 1 risque/)
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
     )
 
     expect(screen.getByText("Casablanca HQ")).toBeInTheDocument()
@@ -129,10 +156,11 @@ describe("RiskMatrixPage", () => {
   // Regression: the Group Mode toggle hardcoded English/French label pairs
   // ("All"/"Tous", "By type"/"Par type") instead of using the existing
   // organization.correlationMatrix.groupAll/groupByType i18n keys (the same
-  // "All"/"By type" pair already used on the Correlation Matrix page). This
-  // suite doesn't mock react-i18next, so uninitialized i18next returns the
-  // raw key -- asserting the buttons show those keys (not the old hardcoded
-  // French) proves the toggle now goes through t().
+  // "All"/"By type" pair already used on the Correlation Matrix page). The
+  // react-i18next mock above only special-cases cellCount, so every other
+  // key (including these) still falls back to itself unchanged -- asserting
+  // the buttons show those keys (not the old hardcoded French) proves the
+  // toggle now goes through t().
   it("renders the Group Mode toggle via the existing correlationMatrix i18n keys, not hardcoded French labels", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: [] },
@@ -152,6 +180,17 @@ describe("RiskMatrixPage", () => {
     ).toBeInTheDocument()
     expect(screen.queryByText("Tous")).not.toBeInTheDocument()
     expect(screen.queryByText("Par type")).not.toBeInTheDocument()
+  })
+
+  it("shows the pluralized cell count in the visible cell label, not the old hardcoded French 'risque(s)'", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk()] },
+      isLoading: false,
+    })
+    render(<RiskMatrixPage />)
+
+    expect(screen.getByText("1 risk")).toBeInTheDocument()
+    expect(screen.queryByText(/risque/)).not.toBeInTheDocument()
   })
 
   it("renders nothing selected when there are no risks at all", () => {
