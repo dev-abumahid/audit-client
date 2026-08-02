@@ -252,6 +252,105 @@ describe("TemplatesPage", () => {
     expect(screen.queryByText(/\.\.\./)).not.toBeInTheDocument()
   })
 
+  // aexa-frontend#377 -- the synthetic "AI-Generated Findings" template
+  // (created server-side by risk.correlation.service.ts for the root-cause
+  // -bucketing -> Action flow) had identical, fully-functional Edit/Delete
+  // buttons to any real template, with no enforcement against editing or
+  // deleting it. The API has no isSystem flag, so the frontend keys off the
+  // known name substring, same convention the backend's own find-or-create
+  // already uses for this template.
+  describe("system template protection (#377)", () => {
+    it("disables Edit and Delete for the system 'AI-Generated Findings' template", () => {
+      mockUseGetAllTemplatesQuery.mockReturnValue({
+        data: {
+          data: [
+            makeTemplate({
+              id: "system-template",
+              templateName: "⚙ AI-Generated Findings (system, do not edit)",
+              templateDisc: null,
+            }),
+          ],
+          meta: { total: 1 },
+        },
+        isLoading: false,
+      })
+
+      render(
+        <MemoryRouter>
+          <TemplatesPage />
+        </MemoryRouter>
+      )
+
+      const editButton = screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-square-pen"))!
+      const deleteButton = screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-trash2"))!
+
+      expect(editButton).toBeDisabled()
+      expect(deleteButton).toBeDisabled()
+      // The system template's Edit button no longer links anywhere -- the
+      // real fix (#377) removes the Link wrapper entirely for it, rather
+      // than just disabling a still-navigable link.
+      expect(editButton.closest("a")).toBeNull()
+      expect(
+        screen.getAllByTitle(
+          "organization.templates.list.systemTemplateTooltip"
+        ).length
+      ).toBeGreaterThan(0)
+    })
+
+    it("clicking the disabled Delete button on the system template does not open the delete confirmation", async () => {
+      mockUseGetAllTemplatesQuery.mockReturnValue({
+        data: {
+          data: [
+            makeTemplate({
+              id: "system-template",
+              templateName: "⚙ AI-Generated Findings (system, do not edit)",
+              templateDisc: null,
+            }),
+          ],
+          meta: { total: 1 },
+        },
+        isLoading: false,
+      })
+
+      render(
+        <MemoryRouter>
+          <TemplatesPage />
+        </MemoryRouter>
+      )
+
+      const deleteButton = screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-trash2"))!
+      await userEvent.click(deleteButton)
+
+      expect(
+        screen.queryByRole("button", { name: /confirm delete/i })
+      ).not.toBeInTheDocument()
+    })
+
+    it("still allows Edit and Delete for a normal, non-system template", () => {
+      render(
+        <MemoryRouter>
+          <TemplatesPage />
+        </MemoryRouter>
+      )
+
+      const editButton = screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-square-pen"))!
+      const deleteButton = screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-trash2"))!
+
+      expect(editButton).not.toBeDisabled()
+      expect(deleteButton).not.toBeDisabled()
+    })
+  })
+
   // aexa-frontend#336: date-fns's format() was called with no locale option,
   // so the Created/Updated columns always showed English month abbreviations
   // regardless of the app's selected language.

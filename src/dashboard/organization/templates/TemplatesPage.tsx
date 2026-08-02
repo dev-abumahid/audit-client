@@ -29,11 +29,19 @@ import {
   Search,
   Trash2,
 } from "lucide-react"
+import { isSystemTemplateName } from "@/utils/isSystemTemplate"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 import { toast } from "sonner"
 import CreateTemplateWithAIDialog from "./shared/CreateTemplateWithAIDialog"
+
+// aexa-frontend#377 -- see src/utils/isSystemTemplate.ts for why this is a
+// name-substring stopgap rather than a real isSystem flag. Shared with
+// EditTemplatePage.tsx so the edit *route* (directly reachable by URL) is
+// gated the same way as this list page's Edit/Delete buttons.
+const isSystemTemplate = (template: TemplateSummary) =>
+  isSystemTemplateName(template.templateName)
 
 // -------- Skeleton --------
 function TableSkeleton() {
@@ -215,72 +223,99 @@ export default function TemplatesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              templates.map((template) => (
-                <TableRow key={template.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      {template.templateLogo && (
-                        <img
-                          src={template.templateLogo}
-                          className="h-8 w-8 rounded-md object-cover"
-                        />
-                      )}
-                      <div className="line-clamp-1 font-medium">
-                        <Link
-                          to={`/organization/audit/template/report/${template.id}`}
-                        >
-                          {template.templateName}
-                        </Link>
-                      </div>
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="hidden text-muted-foreground md:table-cell">
-                    {template.templateDisc
-                      ? template.templateDisc.length > 50
-                        ? `${template.templateDisc.slice(0, 50)} ...`
-                        : template.templateDisc
-                      : t("organization.templates.list.noDescription")}
-                  </TableCell>
-
-                  <TableCell className="hidden sm:table-cell">
-                    {format(new Date(template.createdAt), "dd MMM yyyy", {
-                      locale: dateFnsLocale,
-                    })}
-                  </TableCell>
-
-                  <TableCell className="hidden md:table-cell">
-                    {format(new Date(template.updatedAt), "dd MMM yyyy", {
-                      locale: dateFnsLocale,
-                    })}
-                  </TableCell>
-
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      {canWrite && (
-                        <>
+              templates.map((template) => {
+                const isSystem = isSystemTemplate(template)
+                return (
+                  <TableRow key={template.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {template.templateLogo && (
+                          <img
+                            src={template.templateLogo}
+                            className="h-8 w-8 rounded-md object-cover"
+                          />
+                        )}
+                        <div className="line-clamp-1 font-medium">
                           <Link
-                            to={`/organization/audit/template/edit/${template.id}`}
+                            to={`/organization/audit/template/report/${template.id}`}
                           >
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                            {template.templateName}
                           </Link>
+                        </div>
+                      </div>
+                    </TableCell>
 
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteClick(template.id)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                    <TableCell className="hidden text-muted-foreground md:table-cell">
+                      {template.templateDisc
+                        ? template.templateDisc.length > 50
+                          ? `${template.templateDisc.slice(0, 50)} ...`
+                          : template.templateDisc
+                        : t("organization.templates.list.noDescription")}
+                    </TableCell>
+
+                    <TableCell className="hidden sm:table-cell">
+                      {format(new Date(template.createdAt), "dd MMM yyyy", {
+                        locale: dateFnsLocale,
+                      })}
+                    </TableCell>
+
+                    <TableCell className="hidden md:table-cell">
+                      {format(new Date(template.updatedAt), "dd MMM yyyy", {
+                        locale: dateFnsLocale,
+                      })}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        {canWrite &&
+                          (isSystem ? (
+                            <span
+                              title={t(
+                                "organization.templates.list.systemTemplateTooltip"
+                              )}
+                            >
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled
+                                className="cursor-not-allowed opacity-40"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled
+                                className="cursor-not-allowed text-destructive opacity-40"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </span>
+                          ) : (
+                            <>
+                              <Link
+                                to={`/organization/audit/template/edit/${template.id}`}
+                              >
+                                <Button variant="ghost" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteClick(template.id)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>

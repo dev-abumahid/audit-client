@@ -208,4 +208,49 @@ describe("EditTemplatePage", () => {
       expect(screen.queryByText(/New Section/)).not.toBeInTheDocument()
     })
   })
+
+  // aexa-frontend#377 -- TemplatesPage.tsx hides the Edit link for the
+  // system template, but this route is directly reachable by URL
+  // regardless (bookmark, typed URL, restored tab). The edit form itself
+  // must refuse to load for it, not just have its entry point hidden
+  // elsewhere.
+  describe("system template protection (#377)", () => {
+    it("blocks the edit form and shows an explanation for the system 'AI-Generated Findings' template", () => {
+      mockUseGetSingleTemplateQuery.mockReturnValue({
+        data: {
+          data: makeTemplateData({
+            templateName: "⚙ AI-Generated Findings (system, do not edit)",
+          }),
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText(
+          "organization.templates.edit.systemTemplateBlockedTitle"
+        )
+      ).toBeInTheDocument()
+      // The actual edit form (with its autosaving name field) must not be
+      // rendered at all, not just visually de-emphasized.
+      expect(screen.queryByDisplayValue(/AI-Generated Findings/)).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.templates.edit.saveChanges",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("renders the edit form as normal for a non-system template", () => {
+      renderPage()
+
+      expect(
+        screen.queryByText(
+          "organization.templates.edit.systemTemplateBlockedTitle"
+        )
+      ).not.toBeInTheDocument()
+      expect(screen.getByDisplayValue("Existing Template")).toBeInTheDocument()
+    })
+  })
 })

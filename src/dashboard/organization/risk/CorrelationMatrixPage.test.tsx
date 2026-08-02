@@ -53,6 +53,13 @@ vi.mock("react-i18next", async (importOriginal) => {
             consequence === undefined ? "{{consequence}}" : String(consequence)
           }`
         }
+        // aexa-frontend#376 -- same real-interpolation override, added so
+        // the bucketMeta impact-in-M€ regression test below can assert on
+        // the actual computed number rather than the raw un-interpolated
+        // key every other key in this file falls back to.
+        if (key === "organization.correlationMatrix.bucketMeta") {
+          return `${opts?.count} risks • ${opts?.impact}M€`
+        }
         return key
       },
     }),
@@ -1164,5 +1171,44 @@ describe("CorrelationMatrixPage", () => {
     expect(
       screen.getByText("organization.correlationMatrix.clickCellHint")
     ).toBeInTheDocument()
+  })
+
+  // aexa-frontend#376 -- the "Group by Category/Site" bucket list's impact
+  // total had no regression coverage, unlike RiskRegisterPage/RiskGraphPage's
+  // equivalent fixes. bucket.totalImpact sums financial_impact_max values,
+  // which are stored in k€ (per the risk form's own "k€" label, submitted
+  // unmodified); rendering divides by 1,000 for M€, not 1,000,000.
+  it("aexa-frontend#376: sums bucket financial impact in M€ from stored k€ units", async () => {
+    setMatrixData({
+      risks: [
+        makeRisk({
+          id: "risk-1",
+          ref: "CYB-001",
+          category: "cyber",
+          site_id: "site1",
+          financial_impact_max: 300000,
+        }),
+        makeRisk({
+          id: "risk-2",
+          ref: "CYB-002",
+          category: "cyber",
+          site_id: "site1",
+          financial_impact_max: 200000,
+        }),
+      ],
+    })
+
+    render(<CorrelationMatrixPage />)
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewBuckets",
+      })
+    )
+
+    // 300,000 + 200,000 = 500,000 k€ / 1,000 = 500.0M€. Dividing by
+    // 1,000,000 instead would render "0.5M€", a 1000x understatement.
+    expect(screen.getByText(/500.0M€/)).toBeInTheDocument()
+    expect(screen.queryByText(/0\.5M€/)).not.toBeInTheDocument()
   })
 })

@@ -1068,9 +1068,12 @@ function BucketList({
             <div>
               <p className="font-medium">{bucket.name}</p>
               <p className="text-[10px] text-muted-foreground">
+                {/* aexa-frontend#376 -- totalImpact sums financial_impact_max
+                    values, which are stored in k€ (per the risk form's own
+                    "k€" label); divide by 1,000 for M€, not 1,000,000. */}
                 {t(`${NS}.bucketMeta`, {
                   count: bucket.risks.length,
-                  impact: (bucket.totalImpact / 1000000).toFixed(1),
+                  impact: (bucket.totalImpact / 1000).toFixed(1),
                 })}
               </p>
             </div>

@@ -419,8 +419,12 @@ export default function RiskGraphPage() {
                     {t("organization.riskGraph.maxImpact")}
                   </span>
                   <p className="font-mono font-bold text-foreground">
+                    {/* aexa-frontend#376 -- financial_impact_max is stored
+                        in k€ (the form's own "k€" label, submitted
+                        unmodified), so divide by 1,000 to get M€, not
+                        1,000,000. */}
                     {(
-                      Number(selectedRiskData.financial_impact_max) / 1000000
+                      Number(selectedRiskData.financial_impact_max) / 1000
                     ).toFixed(1)}
                     M€
                   </p>
@@ -479,7 +483,10 @@ export default function RiskGraphPage() {
                           })}
                         </span>
                         <span className="font-mono text-[10px] font-bold text-destructive">
-                          {(chain.totalImpact / 1000000).toFixed(1)}M€
+                          {/* aexa-frontend#376 -- totalImpact sums
+                              financial_impact_max values, which are stored
+                              in k€; divide by 1,000 for M€. */}
+                          {(chain.totalImpact / 1000).toFixed(1)}M€
                         </span>
                       </div>
                       <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">

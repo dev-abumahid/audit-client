@@ -308,7 +308,8 @@
         "pagination": "Showing {{from}} to {{to}} of {{total}}",
         "deleteTitle": "Delete template",
         "deleteDescription": "Are you sure you want to delete this template? This action cannot be undone.",
-        "deleteFailed": "Failed to delete template"
+        "deleteFailed": "Failed to delete template",
+        "systemTemplateTooltip": "System template - cannot be edited or deleted"
       },
       "report": {
         "untitled": "Untitled Template",
@@ -370,7 +371,10 @@
         "saved": "Saved",
         "updateSuccess": "Template updated successfully!",
         "updateFailed": "Failed to update template",
-        "saveError": "Save error"
+        "saveError": "Save error",
+        "systemTemplateBlockedTitle": "This template can't be edited",
+        "systemTemplateBlockedDescription": "This is a system template, generated automatically and required for AI root-cause analysis. It can't be edited or deleted.",
+        "backToTemplates": "Back to Templates"
       },
       "builder": {
         "deleteSection": "Delete Section",

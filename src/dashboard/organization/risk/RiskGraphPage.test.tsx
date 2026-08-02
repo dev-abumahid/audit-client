@@ -86,7 +86,7 @@ describe("RiskGraphPage", () => {
     expect(fullId.tagName.toLowerCase()).toBe("title")
   })
 
-  it("aexa-frontend#236: shows selected risk's max impact in millions, not thousands", async () => {
+  it("aexa-frontend#376: shows selected risk's max impact as M€ from its stored k€ units", async () => {
     const { default: userEvent } = await import("@testing-library/user-event")
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: [makeRisk({ id: "risk-real-1", financial_impact_max: 500000 })] },
@@ -99,13 +99,15 @@ describe("RiskGraphPage", () => {
       .find((el) => el.tagName.toLowerCase() === "text")!
     await userEvent.click(nodeLabel)
 
-    // 500,000 / 1,000,000 = 0.5 -- previously this divided by 1,000 instead,
-    // which rendered "500.0M€" (a 1000x overstatement), same class of bug as
-    // RiskRegisterPage's financial_impact_max formatting. The value and "M€"
-    // suffix render as separate text nodes within the same <p>, so match on
-    // the element's combined textContent rather than getByText's per-node text.
+    // The Min/Max Impact form fields are labeled "k€" and submitted
+    // unmodified, so the stored value is already in k€: 500,000 k€ / 1,000
+    // = 500.0M€. Dividing by 1,000,000 instead (as aexa-frontend#236's fix
+    // previously did) understated every figure 1000x, rendering "0.5M€" for
+    // what should have read "500.0M€". The value and "M€" suffix render as
+    // separate text nodes within the same <p>, so match on the element's
+    // combined textContent rather than getByText's per-node text.
     expect(
-      screen.getByText((_, el) => el?.textContent === "0.5M€")
+      screen.getByText((_, el) => el?.textContent === "500.0M€")
     ).toBeInTheDocument()
   })
 

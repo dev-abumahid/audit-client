@@ -245,16 +245,18 @@ describe("RiskRegisterPage", () => {
     expect(screen.getByText("totally_unknown")).toBeInTheDocument()
   })
 
-  it("aexa-frontend#236: formats financial_impact_max in millions, not thousands", () => {
+  it("aexa-frontend#376: formats financial_impact_max as M€ from its stored k€ units", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: [makeRisk({ financial_impact_max: 500000 })] },
     })
 
     render(<RiskRegisterPage />)
 
-    // 500,000 / 1,000,000 = 0.5 -- previously this divided by 1,000 instead,
-    // which rendered "500.0M" (a 1000x overstatement).
-    expect(screen.getByText("0.5M")).toBeInTheDocument()
+    // The Min/Max Impact form fields are labeled "k€" and submitted
+    // unmodified, so the stored value is already in k€: 500,000 k€ / 1,000
+    // = 500.0M€. Dividing by 1,000,000 instead (as aexa-frontend#236's fix
+    // previously did) understated every figure 1000x, rendering "0.0M".
+    expect(screen.getByText("500.0M")).toBeInTheDocument()
   })
 
   it("shows empty state when there are no risks", () => {

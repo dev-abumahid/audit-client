@@ -450,7 +450,13 @@ export default function RiskRegisterPage() {
                       {risk.pagerank_score}
                     </td>
                     <td className="hidden px-3 py-2.5 text-center font-mono lg:table-cell">
-                      {(risk.financial_impact_max / 1000000).toFixed(1)}M
+                      {/* aexa-frontend#376 -- the Min/Max Impact form
+                          inputs are labeled "k€" (thousands of euros) and
+                          submitted unmodified, so the stored value is
+                          already in k€. 1,000 k€ = 1 M€, so this must divide
+                          by 1,000, not 1,000,000 (which understated every
+                          figure 1000x). */}
+                      {(risk.financial_impact_max / 1000).toFixed(1)}M
                     </td>
                     <td className="px-3 py-2.5 text-[10px] text-muted-foreground">
                       {risk.ai_generated

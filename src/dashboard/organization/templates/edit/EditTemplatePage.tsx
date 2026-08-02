@@ -13,6 +13,7 @@ import type {
   QuestionField,
   TemplateFormValues,
 } from "@/types/template"
+import { isSystemTemplateName } from "@/utils/isSystemTemplate"
 import { transformValuesToString } from "@/utils/transformValuesToString"
 import { Loader2, Plus, Sliders, Upload, X } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -274,6 +275,33 @@ const EditTemplatePage = () => {
         <div className="text-center">
           <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">{t("organization.templates.edit.loading")}</p>
+        </div>
+      </div>
+    )
+  }
+
+  // aexa-frontend#377 -- TemplatesPage.tsx already hides the Edit link for
+  // the system "AI-Generated Findings" template, but that only removes one
+  // entry point. This route (/organization/audit/template/edit/:id) is
+  // directly reachable by URL (bookmark, typed URL, restored tab) with no
+  // other guard on template identity, and would otherwise let a user submit
+  // an update to the system template via the same mutation as any real
+  // template. Block the edit form itself, not just the link to it.
+  if (isSystemTemplateName(templateData?.data?.templateName)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="max-w-md text-center">
+          <h1 className="mb-2 text-xl font-semibold text-foreground">
+            {t("organization.templates.edit.systemTemplateBlockedTitle")}
+          </h1>
+          <p className="mb-6 text-muted-foreground">
+            {t("organization.templates.edit.systemTemplateBlockedDescription")}
+          </p>
+          <Link to="/organization/audit/templates">
+            <Button variant="outline">
+              {t("organization.templates.edit.backToTemplates")}
+            </Button>
+          </Link>
         </div>
       </div>
     )

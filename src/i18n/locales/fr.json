@@ -308,7 +308,8 @@
         "pagination": "Affichage de {{from}} à {{to}} sur {{total}}",
         "deleteTitle": "Supprimer le modèle",
         "deleteDescription": "Voulez-vous vraiment supprimer ce modèle ? Cette action est irréversible.",
-        "deleteFailed": "Échec de la suppression du modèle"
+        "deleteFailed": "Échec de la suppression du modèle",
+        "systemTemplateTooltip": "Modèle système - ne peut pas être modifié ou supprimé"
       },
       "report": {
         "untitled": "Modèle sans titre",
@@ -370,7 +371,10 @@
         "saved": "Enregistré",
         "updateSuccess": "Modèle mis à jour avec succès !",
         "updateFailed": "Échec de la mise à jour du modèle",
-        "saveError": "Erreur d'enregistrement"
+        "saveError": "Erreur d'enregistrement",
+        "systemTemplateBlockedTitle": "Ce modèle ne peut pas être modifié",
+        "systemTemplateBlockedDescription": "Il s'agit d'un modèle système, généré automatiquement et requis pour l'analyse des causes profondes par IA. Il ne peut pas être modifié ou supprimé.",
+        "backToTemplates": "Retour aux modèles"
       },
       "builder": {
         "deleteSection": "Supprimer la section",
