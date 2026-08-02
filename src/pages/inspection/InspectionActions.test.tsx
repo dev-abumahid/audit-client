@@ -23,6 +23,15 @@ vi.mock("@/redux/apis/organization/findings.api", () => ({
   useDeleteFindingByIdMutation: () => [mockDeleteFindingById],
 }))
 
+// The due-date input's `min` is today's date (see InspectionActions.tsx),
+// so a hardcoded literal here goes stale and starts failing once the clock
+// passes it -- compute a date that's always safely in the future instead.
+function futureDateInputValue(daysAhead = 30): string {
+  const d = new Date()
+  d.setDate(d.getDate() + daysAhead)
+  return d.toISOString().slice(0, 10)
+}
+
 function makeAction(overrides = {}) {
   return {
     id: "act-1",
@@ -179,7 +188,7 @@ describe("InspectionActions", () => {
     )
     await userEvent.type(
       document.querySelector('input[type="date"]') as HTMLElement,
-      "2026-08-01"
+      futureDateInputValue()
     )
 
     await userEvent.click(screen.getByText("pages.inspection.actions.createAction"))
@@ -224,7 +233,7 @@ describe("InspectionActions", () => {
     )
     await userEvent.type(
       document.querySelector('input[type="date"]') as HTMLElement,
-      "2026-08-01"
+      futureDateInputValue()
     )
     await userEvent.click(screen.getByText("pages.inspection.actions.createAction"))
 
