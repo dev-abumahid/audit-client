@@ -1,6 +1,6 @@
 import SiteFilter from "@/components/dashboard/organization/SiteFilter"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
-import type { Risk, RiskLink } from "@/types/organization"
+import type { Risk, RiskLink, RiskLinkType } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import {
   AlertTriangle,
@@ -36,6 +36,28 @@ const shortRef = (id: string) =>
 // useState/useMemo in the component) since it never changes -- the
 // dependent useMemo hooks below need a referentially stable empty array.
 const NO_RISK_LINKS: RiskLink[] = []
+
+// Single source of truth for both the badge color and the translated label
+// per link_type, same convention as CorrelationMatrixPage.tsx's PRIORITY_KEYS/
+// PRIORITY_BADGES maps -- avoids repeating the same three-way ternary once
+// for className and again for label text.
+const LINK_TYPE_META: Record<
+  RiskLinkType,
+  { badgeClassName: string; labelKey: string }
+> = {
+  CAUSES: {
+    badgeClassName: "bg-destructive/10 text-destructive",
+    labelKey: "organization.riskGraph.legendCauses",
+  },
+  AMPLIFIES: {
+    badgeClassName: "bg-orange-500/10 text-orange-600",
+    labelKey: "organization.riskGraph.legendAmplifies",
+  },
+  CORRELATES: {
+    badgeClassName: "bg-blue-500/10 text-blue-600",
+    labelKey: "organization.riskGraph.legendCorrelates",
+  },
+}
 
 export default function RiskGraphPage() {
   const { t } = useTranslation()
@@ -509,15 +531,9 @@ export default function RiskGraphPage() {
                     {shortRef(link.target_ref)}
                   </span>
                   <span
-                    className={`ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
-                      link.link_type === "CAUSES"
-                        ? "bg-destructive/10 text-destructive"
-                        : link.link_type === "AMPLIFIES"
-                          ? "bg-orange-500/10 text-orange-600"
-                          : "bg-blue-500/10 text-blue-600"
-                    }`}
+                    className={`ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-medium ${LINK_TYPE_META[link.link_type].badgeClassName}`}
                   >
-                    {link.link_type}
+                    {t(LINK_TYPE_META[link.link_type].labelKey)}
                   </span>
                 </div>
               ))}

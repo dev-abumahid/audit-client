@@ -297,6 +297,33 @@ describe("SitesEntities", () => {
     ).not.toBeInTheDocument()
   })
 
+  // Regression (issue #361): SourceBadge's isEdited prop was fed
+  // site.updatedAt (always truthy once a site's been saved once), which
+  // looked like real data but was actually dead -- aiGenerated was
+  // hardcoded false, and SourceBadge only branches on isEdited when
+  // aiGenerated is true. Site/SiteSummary has no ai_generated/is_edited
+  // fields at all (unlike compliance obligations), so sites always render
+  // the plain manual badge regardless of updatedAt.
+  it("always shows the manual source badge for a site, even when it has been updated", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: {
+        data: [makeSite({ updatedAt: "2026-07-15T10:00:00.000Z" })],
+        meta: { page: 1, limit: 10, total: 1 },
+      },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+
+    expect(screen.getByText("common.sourceBadge.manual")).toBeInTheDocument()
+    expect(
+      screen.queryByText("common.sourceBadge.modifiedAi")
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText("common.sourceBadge.ai")).not.toBeInTheDocument()
+  })
+
   it("shows empty state when there are no sites", () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,

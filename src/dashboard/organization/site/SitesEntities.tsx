@@ -528,10 +528,12 @@ export default function SitesEntities() {
                         {site.name}
                       </p>
 
-                      <SourceBadge
-                        aiGenerated={false}
-                        isEdited={site.updatedAt ? true : false}
-                      />
+                      {/* Site/SiteSummary has no ai_generated/is_edited fields
+                          (unlike compliance obligations), so sites are always
+                          manually-sourced -- isEdited is meaningless without
+                          aiGenerated ever being true and was removed rather
+                          than fed a fake value. */}
+                      <SourceBadge aiGenerated={false} isEdited={false} />
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {[

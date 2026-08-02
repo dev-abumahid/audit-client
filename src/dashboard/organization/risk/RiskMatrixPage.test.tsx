@@ -124,6 +124,20 @@ describe("RiskMatrixPage", () => {
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
+  // Regression (issue #359): the legend swatch for the lowest severity used
+  // full-opacity bg-green-500 while getMatrixColor (the function that
+  // colors the actual matrix cells) returns bg-green-500/70 for that same
+  // severity -- the legend didn't match what was really on the grid.
+  it("colors the lowest-severity legend swatch the same as the matrix cells (green-500/70, not full opacity)", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    render(<RiskMatrixPage />)
+
+    const label = screen.getByText("organization.riskMatrix.weak")
+    const swatch = label.previousElementSibling
+    expect(swatch).toHaveClass("bg-green-500/70")
+    expect(swatch).not.toHaveClass("bg-green-500")
+  })
+
   it("renders a real risk, not any hardcoded fixture", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: [makeRisk()] },

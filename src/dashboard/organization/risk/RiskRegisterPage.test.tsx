@@ -4,6 +4,39 @@ import RiskRegisterPage from "./RiskRegisterPage"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+// This file never triggers src/i18n/i18n.ts's side-effect init, so
+// react-i18next's real t() falls back to returning the raw key with no
+// interpolation for every other assertion here. That fallback can't
+// reproduce the "Risks found" -> "{{count}} risk(s) found" pluralization fix
+// (organization.riskRegister.subtitle_one/_other, issue #353), since
+// i18next's plural-suffix resolution only kicks in once real
+// resources/pluralization rules are loaded. Overriding just this one key,
+// with the same singular/plural behavior the real en.json resource now has,
+// lets the test tell the fixed subtitle_one/_other split apart from the old
+// un-pluralized "subtitle" key -- every other key still falls back to itself
+// unchanged. Same technique as CompliancePage.test.tsx / CorrelationMatrixPage.test.tsx.
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return {
+        ...real,
+        t: (key: string, opts?: Record<string, unknown>) => {
+          if (key === "organization.riskRegister.subtitle") {
+            const count = Number(opts?.count ?? 0)
+            return count === 1
+              ? `${count} risk found`
+              : `${count} risks found`
+          }
+          return key
+        },
+      }
+    },
+  }
+})
+
 // aexa-frontend#217 -- role hook mocked per-test via this mutable holder,
 // same convention as RiskApprovalControls.test.tsx.
 let mockRole: string | undefined = "ADMIN"
@@ -93,6 +126,27 @@ describe("RiskRegisterPage", () => {
     mockToastError.mockReset()
     mockIsRiskCreating = false
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [makeSite()] } })
+  })
+
+  // Regression (issue #353): the subtitle used to render the literal
+  // untranslated string "Risks found" with no count at all.
+  it("renders the singular subtitle for a single visible risk", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+
+    render(<RiskRegisterPage />)
+
+    expect(screen.getByText("1 risk found")).toBeInTheDocument()
+    expect(screen.queryByText("Risks found")).not.toBeInTheDocument()
+  })
+
+  it("renders the plural subtitle for multiple visible risks", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk(), makeRisk({ id: "risk-2" })] },
+    })
+
+    render(<RiskRegisterPage />)
+
+    expect(screen.getByText("2 risks found")).toBeInTheDocument()
   })
 
   it("shows Add/Edit/Delete controls for an ADMIN", () => {

@@ -269,7 +269,9 @@ export default function RiskRegisterPage() {
             {t("organization.riskRegister.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {t("organization.riskRegister.subtitle")}
+            {t("organization.riskRegister.subtitle", {
+              count: visibleRisks.length,
+            })}
           </p>
         </div>
 

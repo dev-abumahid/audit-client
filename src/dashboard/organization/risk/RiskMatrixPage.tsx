@@ -322,7 +322,7 @@ export default function RiskMatrixPage() {
                     label: t("organization.riskMatrix.moderate"),
                   },
                   {
-                    color: "bg-green-500",
+                    color: "bg-green-500/70",
                     label: t("organization.riskMatrix.weak"),
                   },
                 ].map(({ color, label }) => (

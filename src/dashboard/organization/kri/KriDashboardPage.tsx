@@ -265,7 +265,7 @@ export default function KriDashboardPage() {
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {risk?.name ?? t("organization.kri.unknownRisk")}
                     {kri.frequency
-                      ? ` · ${t(`organization.kri.frequency.${kri.frequency}`)}`
+                      ? ` · ${t(`organization.kri.frequency.${kri.frequency}`, { defaultValue: kri.frequency })}`
                       : ""}
                   </p>
                 </div>

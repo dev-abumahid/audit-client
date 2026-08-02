@@ -6,6 +6,36 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }))
 
+// This file never triggers src/i18n/i18n.ts's side-effect init, so
+// react-i18next's real t() falls back to returning the raw key for every
+// other assertion here -- except when a call passes `defaultValue` (as the
+// frequency fix now does, per issue #360's independent-review follow-up), in
+// which case the uninitialized stub returns the defaultValue instead of the
+// key. Since KriDashboardPage.tsx passes `{ defaultValue: kri.frequency }`
+// and defaultValue always mirrors kri.frequency, the plain fallback can no
+// longer tell "translated" apart from "still raw" for the frequency keys
+// specifically -- both would render "quarterly". Overriding just those keys
+// with their real en.json translation (distinct from the raw enum value)
+// restores that ability; every other key still falls back to itself
+// unchanged. Same technique as CompliancePage.test.tsx.
+const FREQUENCY_TRANSLATIONS: Record<string, string> = {
+  "organization.kri.frequency.daily": "Daily",
+  "organization.kri.frequency.weekly": "Weekly",
+  "organization.kri.frequency.monthly": "Monthly",
+  "organization.kri.frequency.quarterly": "Quarterly",
+}
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => ({
+      t: (key: string, opts?: Record<string, unknown>) =>
+        FREQUENCY_TRANSLATIONS[key] ?? (opts?.defaultValue as string) ?? key,
+      i18n: { language: "en" },
+    }),
+  }
+})
+
 // aexa-frontend#217 -- role hook mocked per-test via this mutable holder,
 // same convention as RiskApprovalControls.test.tsx.
 let mockRole: string | undefined = "ADMIN"
@@ -177,6 +207,51 @@ describe("KriDashboardPage", () => {
       screen.getAllByText("organization.kri.status.alert").length
     ).toBeGreaterThan(0)
     expect(screen.queryByText("ALERT")).not.toBeInTheDocument()
+  })
+
+  // Regression (issue #360): kri.frequency (raw enum: daily/weekly/monthly/
+  // quarterly) rendered unmodified next to the risk name, unlike the
+  // create-form's dropdown which already goes through
+  // organization.kri.frequency.<value>. Asserting the real translated text
+  // (not the raw enum value) proves the card now goes through the same
+  // translation the form uses.
+  it("renders the KRI's frequency through the same i18n key convention as the create form's dropdown, not the raw enum value", () => {
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: { data: [makeKri({ frequency: "quarterly" })] },
+      isLoading: false,
+    })
+
+    render(<KriDashboardPage />)
+
+    expect(
+      screen.getByText((_, el) => el?.textContent === "Fire safety risk · Quarterly")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText((_, el) => el?.textContent === "Fire safety risk · quarterly")
+    ).not.toBeInTheDocument()
+  })
+
+  // Regression follow-up (found in independent review): kri.frequency is an
+  // open string field, not a closed enum -- only daily/weekly/monthly/
+  // quarterly have translations. An unexpected/legacy value must still
+  // render as itself (via the `defaultValue` fallback) rather than a raw
+  // i18n key path like "organization.kri.frequency.biweekly".
+  it("falls back to the raw value for a frequency with no matching translation key", () => {
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: { data: [makeKri({ frequency: "biweekly" })] },
+      isLoading: false,
+    })
+
+    render(<KriDashboardPage />)
+
+    expect(
+      screen.getByText((_, el) => el?.textContent === "Fire safety risk · biweekly")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText((_, el) =>
+        el?.textContent === "Fire safety risk · organization.kri.frequency.biweekly"
+      )
+    ).not.toBeInTheDocument()
   })
 
   it("counts KRIs by status into the summary cards", () => {

@@ -307,6 +307,67 @@ describe("CorrelationMatrixPage", () => {
     expect(screen.getByText(/^(CYB-001|OPS-002)$/)).toBeInTheDocument()
   })
 
+  // Regression (issue #357/#358): "group by category" rendered the raw
+  // risk.category string ("cyber") instead of a resolved label, and the
+  // page maintained its own stale local 4-entry RISK_CATEGORIES map instead
+  // of importing the shared 20-entry one from riskConfig.ts -- a risk in a
+  // category outside that local 4 (e.g. "supply_chain") fell through to the
+  // raw string too. i18n isn't loaded in this test file, so t() falls back
+  // to the raw key -- asserting the resolved organization.riskCategories.*
+  // key text (not the raw category value) proves the lookup now goes
+  // through the shared map.
+  it("resolves the selected cell's group-by-category label instead of the raw category string", async () => {
+    setMatrixData({
+      risks: [makeRisk({ id: "r1", ref: "CYB-001", category: "cyber" })],
+    })
+
+    render(<CorrelationMatrixPage />)
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /1.*organization\.correlationMatrix\.riskWord/,
+      })
+    )
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.groupByType",
+      })
+    )
+
+    expect(
+      screen.getByText(/organization\.riskCategories\.catCyber/)
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^cyber \(1\)$/)).not.toBeInTheDocument()
+  })
+
+  it("resolves a category outside the old local 4-entry map (e.g. supply_chain), proving it now uses the shared riskConfig map", async () => {
+    setMatrixData({
+      risks: [
+        makeRisk({ id: "r1", ref: "SUP-001", category: "supply_chain" }),
+      ],
+    })
+
+    render(<CorrelationMatrixPage />)
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /1.*organization\.correlationMatrix\.riskWord/,
+      })
+    )
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.groupByType",
+      })
+    )
+
+    expect(
+      screen.getByText(/organization\.riskCategories\.catSupplyChain/)
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/^supply_chain \(1\)$/)
+    ).not.toBeInTheDocument()
+  })
+
   it("shows the Add Link control and existing links for ADMIN", () => {
     mockRole = "ADMIN"
     setMatrixData({ riskLinks: [makeLink()] })

@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react"
+import type { ReactNode } from "react"
 import Overview from "./Overview"
 
 // This file never triggers src/i18n/i18n.ts's side-effect init, so
@@ -93,6 +94,35 @@ vi.mock("@/components/dashboard/organization/CriticalAlertBanner", () => ({
   default: () => null,
 }))
 
+// recharts' ResponsiveContainer never measures a real size under jsdom (0x0
+// layout), so <Pie> never actually renders -- there's no way to observe the
+// paddingAngle regression (issue #354: a single-category pie rendered as an
+// invisible sliver because paddingAngle={3} still applied a gap with only
+// one slice) by inspecting real SVG output. Mocking just <Pie> to capture
+// the props it was called with -- and <ResponsiveContainer> to render its
+// children directly instead of deferring to a real-size measurement -- lets
+// the test assert on paddingAngle itself rather than pixel geometry.
+let capturedPieProps: Record<string, unknown> | undefined
+vi.mock("recharts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("recharts")>()
+  return {
+    ...actual,
+    ResponsiveContainer: ({ children }: { children: ReactNode }) => (
+      <div>{children}</div>
+    ),
+    // Real PieChart skips rendering its children entirely when it hasn't
+    // received explicit width/height (which only the real ResponsiveContainer's
+    // ResizeObserver-based measurement supplies -- absent under jsdom's 0x0
+    // layout regardless of the ResponsiveContainer mock above). Mocking
+    // PieChart itself to render children unconditionally sidesteps that.
+    PieChart: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    Pie: (props: Record<string, unknown>) => {
+      capturedPieProps = props
+      return <div data-testid="mock-pie" />
+    },
+  }
+})
+
 function makeRisk(overrides = {}) {
   return {
     id: "risk-1",
@@ -180,6 +210,7 @@ function makeAlert(overrides = {}) {
 
 describe("Overview", () => {
   beforeEach(() => {
+    capturedPieProps = undefined
     mockLanguage = undefined
     mockUseGetAllRisksQuery.mockReset()
     mockUseGetAllKriQuery.mockReset()
@@ -217,6 +248,51 @@ describe("Overview", () => {
     mockUseGetAllInspectionQuery.mockReturnValue({ data: undefined, isLoading: true })
     render(<Overview />)
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
+  })
+
+  // Regression (issue #354): paddingAngle={3} on the "Risks by category"
+  // Pie applied a gap even with a single slice, rendering it as an
+  // invisible sliver instead of a full ring.
+  it("disables paddingAngle on the category pie when only one category exists", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "r1", category: "cyber" }),
+          makeRisk({ id: "r2", category: "cyber" }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<Overview />)
+
+    expect(capturedPieProps?.paddingAngle).toBe(0)
+  })
+
+  it("keeps paddingAngle on the category pie when multiple categories exist", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "r1", category: "cyber" }),
+          makeRisk({ id: "r2", category: "financial" }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<Overview />)
+
+    expect(capturedPieProps?.paddingAngle).toBe(3)
+  })
+
+  // Regression (issue #355): 6 MetricCards in a 4-column grid left the last
+  // row half-empty (4 + 2). lg:grid-cols-3 divides 6 evenly into 2 full rows.
+  it("lays the 6 metric cards out in a grid that divides evenly", () => {
+    const { container } = render(<Overview />)
+
+    const metricsGrid = container.querySelector(".grid.gap-4")
+    expect(metricsGrid).toHaveClass("lg:grid-cols-3")
+    expect(metricsGrid).not.toHaveClass("lg:grid-cols-4")
   })
 
   it("counts real open risks, not a hardcoded fixture", () => {

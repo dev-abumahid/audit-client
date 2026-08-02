@@ -185,7 +185,7 @@ export default function Overview() {
       </div>
 
       {/* Metrics */}
-      <div className="animate-slide-up grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="animate-slide-up grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           title={t("organization.overview.activeRisk")}
           value={risks.filter((r) => r.status === "open").length}
@@ -340,7 +340,7 @@ export default function Overview() {
                   cy="50%"
                   innerRadius={45}
                   outerRadius={75}
-                  paddingAngle={3}
+                  paddingAngle={categoryData.length > 1 ? 3 : 0}
                   dataKey="value"
                 >
                   {categoryData.map((entry, i) => (

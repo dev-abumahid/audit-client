@@ -10,6 +10,7 @@ import {
 } from "@/redux/apis/organization/riskLink.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { IAction } from "@/types/finding"
+import { riskCategoryLabel } from "@/utils/riskConfig"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
 import type {
   Risk,
@@ -81,17 +82,6 @@ interface FindingBucket {
 // mutation error.
 const errorMessage = (err: unknown, fallback: string): string =>
   (err as { data?: { message?: string } })?.data?.message || fallback
-
-// Category display labels resolve to i18n keys at render time; colors stay
-// literal (design tokens, not user-facing text). Categories outside this map
-// (this org's real risk categories can be much broader, see riskConfig.ts)
-// fall back to the raw category string, same as before.
-const RISK_CATEGORIES: Record<string, { labelKey: string; color: string }> = {
-  cyber: { labelKey: "catCyber", color: "#ef4444" },
-  operational: { labelKey: "catOperational", color: "#f59e0b" },
-  compliance: { labelKey: "catCompliance", color: "#8b5cf6" },
-  financial: { labelKey: "catFinancial", color: "#10b981" },
-}
 
 const LINK_TYPES: RiskLinkType[] = ["CAUSES", "AMPLIFIES", "CORRELATES"]
 
@@ -298,8 +288,7 @@ export default function CorrelationMatrixPage() {
       .filter(([, rs]) => rs.length >= 2)
       .map(([key, rs]) => {
         const [category, site] = key.split("::")
-        const cat = RISK_CATEGORIES[category]
-        const categoryLabel = cat ? t(`${NS}.${cat.labelKey}`) : category
+        const categoryLabel = riskCategoryLabel(t, category)
         return {
           name: `${categoryLabel} — ${site}`,
           category,
@@ -804,7 +793,10 @@ export default function CorrelationMatrixPage() {
                         <div key={key}>
                           <div className="mb-2 flex items-center gap-2">
                             <span className="text-xs font-semibold">
-                              {key} ({grpRisks.length})
+                              {groupMode === "category"
+                                ? riskCategoryLabel(t, key)
+                                : key}{" "}
+                              ({grpRisks.length})
                             </span>
                           </div>
                           {grpRisks.map((risk) => (

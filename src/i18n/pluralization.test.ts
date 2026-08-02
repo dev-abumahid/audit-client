@@ -59,6 +59,100 @@ describe("locale resource pluralization/interpolation", () => {
     }
   })
 
+  // Regression (issue #353): organization.riskRegister.subtitle was a single
+  // un-pluralized "Risks found" key with no count at all. Split into
+  // subtitle_one/subtitle_other.
+  it("pluralizes the risk register subtitle correctly in English", () => {
+    expect(t("organization.riskRegister.subtitle", { count: 1 })).toBe(
+      "1 risk found"
+    )
+    expect(t("organization.riskRegister.subtitle", { count: 0 })).toBe(
+      "0 risks found"
+    )
+    expect(t("organization.riskRegister.subtitle", { count: 4 })).toBe(
+      "4 risks found"
+    )
+  })
+
+  it("pluralizes the risk register subtitle correctly in French", async () => {
+    const instance = (
+      t as unknown as { instance: import("i18next").i18n }
+    ).instance
+    await instance.changeLanguage("fr")
+    try {
+      expect(t("organization.riskRegister.subtitle", { count: 1 })).toBe(
+        "1 risque trouvé"
+      )
+      expect(t("organization.riskRegister.subtitle", { count: 3 })).toBe(
+        "3 risques trouvés"
+      )
+    } finally {
+      await instance.changeLanguage("en")
+    }
+  })
+
+  // Regression (issue #356): organization.riskGraph.legendCauses/
+  // legendAmplifies/legendCorrelates were literal untranslated
+  // "CAUSES"/"AMPLIFIES"/"CORRELATES" in both en.json and fr.json, unlike
+  // the sibling legendTippingPoint key and the correctly-localized
+  // organization.correlationMatrix.linkTypeCauses/etc. keys used elsewhere.
+  // Assert both key families now agree in each locale.
+  it("translates the risk graph link-type legend, matching correlationMatrix's linkType keys", () => {
+    expect(t("organization.riskGraph.legendCauses")).toBe(
+      t("organization.correlationMatrix.linkTypeCauses")
+    )
+    expect(t("organization.riskGraph.legendAmplifies")).toBe(
+      t("organization.correlationMatrix.linkTypeAmplifies")
+    )
+    expect(t("organization.riskGraph.legendCorrelates")).toBe(
+      t("organization.correlationMatrix.linkTypeCorrelates")
+    )
+    expect(t("organization.riskGraph.legendCauses")).not.toBe("CAUSES")
+    expect(t("organization.riskGraph.legendAmplifies")).not.toBe("AMPLIFIES")
+    expect(t("organization.riskGraph.legendCorrelates")).not.toBe(
+      "CORRELATES"
+    )
+  })
+
+  it("translates the risk graph link-type legend in French too", async () => {
+    const instance = (
+      t as unknown as { instance: import("i18next").i18n }
+    ).instance
+    await instance.changeLanguage("fr")
+    try {
+      expect(t("organization.riskGraph.legendCauses")).toBe(
+        t("organization.correlationMatrix.linkTypeCauses")
+      )
+      expect(t("organization.riskGraph.legendAmplifies")).toBe(
+        t("organization.correlationMatrix.linkTypeAmplifies")
+      )
+      expect(t("organization.riskGraph.legendCorrelates")).toBe(
+        t("organization.correlationMatrix.linkTypeCorrelates")
+      )
+    } finally {
+      await instance.changeLanguage("en")
+    }
+  })
+
+  // Regression follow-up (issue #360, found in independent review):
+  // organization.kri.frequency.<value> only has daily/weekly/monthly/
+  // quarterly keys, but kri.frequency is an open string field (not a closed
+  // enum) -- an unexpected/legacy value would otherwise fall back to
+  // i18next's raw-key-path text ("organization.kri.frequency.biweekly")
+  // instead of the old code's plain raw-value display. KriDashboardPage.tsx
+  // passes `{ defaultValue: kri.frequency }` so an unrecognized value still
+  // renders as itself rather than a raw i18n key path.
+  it("falls back to the raw frequency value for a KRI frequency with no matching translation key", () => {
+    expect(
+      t("organization.kri.frequency.biweekly", { defaultValue: "biweekly" })
+    ).toBe("biweekly")
+    // A recognized key still resolves to its real translation, not the
+    // defaultValue fallback.
+    expect(
+      t("organization.kri.frequency.quarterly", { defaultValue: "quarterly" })
+    ).toBe("Quarterly")
+  })
+
   // Regression: the French priority badge concatenated two separately-
   // translated fragments assuming English word order ("{{level}} Priority"),
   // which read backwards in French ("Élevée Priorité"). Now a single
