@@ -195,7 +195,20 @@ describe("SitesEntities", () => {
 
     render(<SitesEntities />)
 
-    expect(screen.getByText("Error loading sites")).toBeInTheDocument()
+    // Regression (audit round 3): this state used to be hardcoded English
+    // ("Error loading sites"/"Please try again later"), bypassing t()
+    // entirely. t() is mocked to return the raw key in this file, so
+    // asserting the key (not the old hardcoded string) proves it now goes
+    // through translation.
+    expect(
+      screen.getByText("organization.site&entities.errorLoadingSitesTitle")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "organization.site&entities.errorLoadingSitesDescription"
+      )
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Error loading sites")).not.toBeInTheDocument()
   })
 
   it("renders site rows with name, location and country", () => {
@@ -314,16 +327,58 @@ describe("SitesEntities", () => {
       })
     )
 
-    expect(screen.getByText("Add New Site")).toBeInTheDocument()
+    // Regression (audit round 3): the modal title and this validation
+    // message used to be hardcoded English, bypassing t(). t() is mocked to
+    // return the raw key in this file.
+    expect(
+      screen.getByText("organization.site&entities.addNewSiteTitle")
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Add New Site")).not.toBeInTheDocument()
 
     await userEvent.click(
       screen.getByRole("button", { name: "organization.site&entities.add" })
     )
 
     await waitFor(() =>
-      expect(screen.getByText("Name is required")).toBeInTheDocument()
+      expect(
+        screen.getByText("organization.site&entities.nameRequired")
+      ).toBeInTheDocument()
     )
+    expect(screen.queryByText("Name is required")).not.toBeInTheDocument()
     expect(mockCreateNewSite).not.toHaveBeenCalled()
+  })
+
+  // Regression (audit round 3): the Location, Country and Revenue field
+  // labels in this modal were hardcoded English, bypassing t() (unlike the
+  // other fields in the same form, e.g. Site Name/Site Type, which already
+  // went through it).
+  it("renders the site modal's Location, Country and Revenue labels through t(), not hardcoded English", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+
+    expect(
+      screen.getByText("organization.site&entities.siteLocationLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.siteCountryLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.revenueLabel")
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Location")).not.toBeInTheDocument()
+    expect(screen.queryByText("Country")).not.toBeInTheDocument()
+    expect(screen.queryByText("Revenue")).not.toBeInTheDocument()
   })
 
   it("submits the create-site form with the entered name", async () => {
@@ -371,7 +426,12 @@ describe("SitesEntities", () => {
       .filter((b) => b.querySelector("svg.lucide-pencil"))
     await userEvent.click(editButtons[0])
 
-    expect(screen.getByText("Edit Site Information")).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.editSiteTitle")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("Edit Site Information")
+    ).not.toBeInTheDocument()
     expect(container.querySelector('[name="name"]')).toHaveValue(
       "HQ Casablanca"
     )
@@ -428,6 +488,18 @@ describe("SitesEntities", () => {
     await userEvent.click(expandButton)
 
     expect(screen.getByText("Flooding")).toBeInTheDocument()
+    // Regression (audit round 3): "✅ Confirmed risks (in the register)" was
+    // hardcoded English apart from the emoji.
+    expect(
+      screen.getByText(
+        /organization\.site&entities\.confirmedRisksHeading/
+      )
+    ).toBeInTheDocument()
+    // Regression (audit round 3): the ai_generated/manual badge text
+    // ("🤖 AI" / "👤 Manual") was hardcoded English apart from the emoji.
+    expect(
+      screen.getByText(/organization\.site&entities\.manualBadge/)
+    ).toBeInTheDocument()
   })
 
   it("opens the manual risk form and submits it for the site", async () => {
@@ -468,6 +540,55 @@ describe("SitesEntities", () => {
     })
   })
 
+  // Regression (audit round 3): the manual risk form's "Risk Name *",
+  // "Status *", "Category" and "Description" labels, plus the Open/In
+  // Progress/Completed/Closed status options, were hardcoded English.
+  it("renders the manual risk form's field labels and status options through t(), not hardcoded English", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.addRisk/i,
+      })
+    )
+
+    expect(
+      screen.getByText("organization.site&entities.riskNameLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.statusLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.categoryLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.descriptionLabel")
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Risk Name")).not.toBeInTheDocument()
+    expect(screen.queryByText("Status")).not.toBeInTheDocument()
+    expect(screen.queryByText("Category")).not.toBeInTheDocument()
+    expect(screen.queryByText("Description")).not.toBeInTheDocument()
+
+    expect(
+      screen.getByText("organization.site&entities.statusOpen")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.statusInProgress")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.statusCompleted")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.statusClosed")
+    ).toBeInTheDocument()
+  })
+
   it("shows an error toast and keeps the form open when saving a site fails", async () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,
@@ -498,7 +619,9 @@ describe("SitesEntities", () => {
         "organization.site&entities.saveSiteFailed"
       )
     )
-    expect(screen.getByText("Add New Site")).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.addNewSiteTitle")
+    ).toBeInTheDocument()
   })
 
   it("shows an error toast and keeps the confirmation open when deleting a site fails", async () => {
@@ -755,6 +878,63 @@ describe("SitesEntities", () => {
     expect(mockAnalyzeSiteRisks).toHaveBeenCalledWith("site-1")
   })
 
+  // Regression (audit round 3): the AI-suggested-risks panel heading, the
+  // "Import selected (n)" button, and the Inherent/Residual/Probability/
+  // Velocity/Trend/Suggested owner detail labels were all hardcoded English,
+  // bypassing t(). t() is mocked to return the raw key in this file (with no
+  // interpolation), so asserting the keys -- not the old hardcoded strings
+  // -- proves the panel now goes through translation.
+  it("renders the AI-suggested-risks panel heading and detail labels through t(), not hardcoded English", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockAnalyzeSiteRisks.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+    )
+
+    expect(
+      screen.getByText(
+        "organization.site&entities.aiSuggestedRisksHeading"
+      )
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.site&entities.importSelected")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/AI-suggested risks — review before importing/)
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Import selected/)).not.toBeInTheDocument()
+
+    for (const key of [
+      "inherentLabel",
+      "residualLabel",
+      "probabilityLabel",
+      "velocityLabel",
+      "trendLabel",
+      "suggestedOwnerLabel",
+    ]) {
+      expect(
+        screen.getByText(
+          new RegExp(`organization\\.site&entities\\.${key}`)
+        )
+      ).toBeInTheDocument()
+    }
+  })
+
   it("hides the Import selected button for a VIEWER even with suggestions shown", async () => {
     mockRole = "VIEWER"
     mockUseGetAllSitesQuery.mockReturnValue({
@@ -831,7 +1011,7 @@ describe("SitesEntities", () => {
 
     await userEvent.click(screen.getByRole("checkbox"))
     await userEvent.click(
-      screen.getByRole("button", { name: /import selected/i })
+      screen.getByRole("button", { name: /organization\.site&entities\.importSelected/i })
     )
 
     await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
@@ -886,7 +1066,7 @@ describe("SitesEntities", () => {
     )
     await userEvent.click(screen.getByRole("checkbox"))
     await userEvent.click(
-      screen.getByRole("button", { name: /import selected/i })
+      screen.getByRole("button", { name: /organization\.site&entities\.importSelected/i })
     )
 
     await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
@@ -930,7 +1110,7 @@ describe("SitesEntities", () => {
     )
     await userEvent.click(screen.getByRole("checkbox"))
     await userEvent.click(
-      screen.getByRole("button", { name: /import selected/i })
+      screen.getByRole("button", { name: /organization\.site&entities\.importSelected/i })
     )
 
     await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
@@ -992,6 +1172,27 @@ describe("SitesEntities", () => {
     await waitFor(() => Promise.resolve())
     expect(screen.queryByText("Supplier concentration")).not.toBeInTheDocument()
     expect(screen.getByText("Flood exposure")).toBeInTheDocument()
+  })
+
+  // Regression (audit round 3): the pagination summary ("Showing X-Y of Z")
+  // was a hardcoded English template string, bypassing t(). t() is mocked
+  // to return the raw key with no interpolation in this file, so asserting
+  // the key (not the old hardcoded text) proves it now goes through
+  // translation.
+  it("renders the pagination summary through t(), not a hardcoded 'Showing X-Y of Z' string", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 25 } },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+
+    expect(
+      screen.getByText("organization.site&entities.showingRange")
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^Showing /)).not.toBeInTheDocument()
   })
 
   // aexa-frontend#265: the delete-path counterpart to #234/#243 (this file's
@@ -1082,7 +1283,7 @@ describe("SitesEntities", () => {
     const [firstCheckbox] = screen.getAllByRole("checkbox")
     await userEvent.click(firstCheckbox)
     await userEvent.click(
-      screen.getByRole("button", { name: /import selected/i })
+      screen.getByRole("button", { name: /organization\.site&entities\.importSelected/i })
     )
 
     await waitFor(() =>

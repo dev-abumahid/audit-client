@@ -457,10 +457,10 @@ export default function SitesEntities() {
       <div className="flex h-64 items-center justify-center">
         <div className="text-center">
           <p className="text-lg font-medium text-destructive">
-            Error loading sites
+            {t("organization.site&entities.errorLoadingSitesTitle")}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Please try again later
+            {t("organization.site&entities.errorLoadingSitesDescription")}
           </p>
         </div>
       </div>
@@ -628,7 +628,8 @@ export default function SitesEntities() {
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">
-                        Risk Name <span className="text-destructive">*</span>
+                        {t("organization.site&entities.riskNameLabel")}{" "}
+                        <span className="text-destructive">*</span>
                       </label>
                       <input
                         {...riskForm.register("name", { required: true })}
@@ -641,22 +642,31 @@ export default function SitesEntities() {
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">
-                        Status <span className="text-destructive">*</span>
+                        {t("organization.site&entities.statusLabel")}{" "}
+                        <span className="text-destructive">*</span>
                       </label>
                       <select
                         {...riskForm.register("status", { required: true })}
                         className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm transition-colors hover:border-primary/30 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                       >
-                        <option value="open">Open</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                        <option value="closed">Closed</option>
+                        <option value="open">
+                          {t("organization.site&entities.statusOpen")}
+                        </option>
+                        <option value="in_progress">
+                          {t("organization.site&entities.statusInProgress")}
+                        </option>
+                        <option value="completed">
+                          {t("organization.site&entities.statusCompleted")}
+                        </option>
+                        <option value="closed">
+                          {t("organization.site&entities.statusClosed")}
+                        </option>
                       </select>
                     </div>
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">
-                        Category
+                        {t("organization.site&entities.categoryLabel")}
                       </label>
                       <select
                         {...riskForm.register("category")}
@@ -673,7 +683,7 @@ export default function SitesEntities() {
 
                   <div className="mt-4 space-y-1.5">
                     <label className="text-xs font-medium text-muted-foreground">
-                      Description
+                      {t("organization.site&entities.descriptionLabel")}
                     </label>
                     <textarea
                       {...riskForm.register("description")}
@@ -713,7 +723,7 @@ export default function SitesEntities() {
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                       <p className="flex items-center gap-1.5 text-start text-[10px] font-semibold tracking-wider text-primary uppercase">
                         <Sparkles className="h-3.5 w-3.5" />
-                        AI-suggested risks — review before importing
+                        {t("organization.site&entities.aiSuggestedRisksHeading")}
                       </p>
                       {canWrite && (
                         <button
@@ -729,7 +739,9 @@ export default function SitesEntities() {
                           ) : (
                             <Check className="h-3.5 w-3.5" />
                           )}
-                          Import selected ({selectedSuggestionIds.size})
+                          {t("organization.site&entities.importSelected", {
+                            count: selectedSuggestionIds.size,
+                          })}
                         </button>
                       )}
                     </div>
@@ -764,20 +776,33 @@ export default function SitesEntities() {
                             </p>
                             <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
                               <span>
-                                Inherent: {suggestion.inherent_risk_score}
+                                {t("organization.site&entities.inherentLabel")}{" "}
+                                {suggestion.inherent_risk_score}
                               </span>
                               <span>
-                                Residual: {suggestion.residual_risk_score}
+                                {t("organization.site&entities.residualLabel")}{" "}
+                                {suggestion.residual_risk_score}
                               </span>
                               <span>
-                                Probability:{" "}
+                                {t(
+                                  "organization.site&entities.probabilityLabel",
+                                )}{" "}
                                 {Math.round(suggestion.Probability * 100)}%
                               </span>
-                              <span>Velocity: {suggestion.Velocity}</span>
-                              <span>Trend: {suggestion.Trend}</span>
+                              <span>
+                                {t("organization.site&entities.velocityLabel")}{" "}
+                                {suggestion.Velocity}
+                              </span>
+                              <span>
+                                {t("organization.site&entities.trendLabel")}{" "}
+                                {suggestion.Trend}
+                              </span>
                               {suggestion.Responsable && (
                                 <span>
-                                  Suggested owner: {suggestion.Responsable}
+                                  {t(
+                                    "organization.site&entities.suggestedOwnerLabel",
+                                  )}{" "}
+                                  {suggestion.Responsable}
                                 </span>
                               )}
                             </div>
@@ -792,7 +817,7 @@ export default function SitesEntities() {
               {isExpanded && (
                 <div className="border-t border-border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
                   <p className="mb-4 text-start text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
-                    ✅ Confirmed risks (in the register)
+                    ✅ {t("organization.site&entities.confirmedRisksHeading")}
                   </p>
                   <div className="space-y-1.5">
                     {riskData?.data.map((risk: Risk) => (
@@ -824,7 +849,9 @@ export default function SitesEntities() {
                           <span
                             className={`rounded p-1.5 text-[9px] font-medium ${risk.ai_generated ? "bg-accent/20 text-accent" : "bg-primary/10 text-base"}`}
                           >
-                            {risk.ai_generated ? "🤖 AI" : "👤 Manual"}
+                            {risk.ai_generated
+                              ? `🤖 ${t("organization.site&entities.aiGeneratedBadge")}`
+                              : `👤 ${t("organization.site&entities.manualBadge")}`}
                           </span>
                           {canWrite && (
                             <Button
@@ -832,7 +859,7 @@ export default function SitesEntities() {
                               variant="destructive"
                               size="sm"
                             >
-                              Delete
+                              {t("organization.site&entities.deleteButton")}
                               <Trash2 />
                             </Button>
                           )}
@@ -862,8 +889,11 @@ export default function SitesEntities() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
           <p className="text-sm text-muted-foreground">
-            Showing {(meta.page - 1) * meta.limit + 1}-
-            {Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
+            {t("organization.site&entities.showingRange", {
+              from: (meta.page - 1) * meta.limit + 1,
+              to: Math.min(meta.page * meta.limit, meta.total),
+              total: meta.total,
+            })}
           </p>
 
           <div className="flex items-center gap-2">
@@ -914,7 +944,9 @@ export default function SitesEntities() {
           >
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-semibold">
-                {editingSite ? "Edit Site Information" : "Add New Site"}
+                {editingSite
+                  ? t("organization.site&entities.editSiteTitle")
+                  : t("organization.site&entities.addNewSiteTitle")}
               </h2>
               <button
                 onClick={() => setShowForm(false)}
@@ -932,7 +964,7 @@ export default function SitesEntities() {
                   </label>
                   <input
                     {...siteForm.register("name", {
-                      required: "Name is required",
+                      required: t("organization.site&entities.nameRequired"),
                     })}
                     className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
                     placeholder={t(
@@ -948,7 +980,7 @@ export default function SitesEntities() {
 
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                    Location
+                    {t("organization.site&entities.siteLocationLabel")}
                   </label>
                   <input
                     {...siteForm.register("location")}
@@ -959,7 +991,7 @@ export default function SitesEntities() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                      Country
+                      {t("organization.site&entities.siteCountryLabel")}
                     </label>
                     <input
                       {...siteForm.register("country")}
@@ -1004,7 +1036,7 @@ export default function SitesEntities() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                      Revenue
+                      {t("organization.site&entities.revenueLabel")}
                     </label>
                     <input
                       type="number"

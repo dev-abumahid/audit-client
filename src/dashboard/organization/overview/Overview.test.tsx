@@ -34,6 +34,16 @@ vi.mock("react-i18next", async (importOriginal) => {
               ? `${count} identified risk`
               : `${count} identified risks`
           }
+          // Regression (audit round 3): this stat's i18n key was
+          // "p5Median" ("P5 (Median)") but the value shown next to it
+          // (€20.8M) is ebitdaData's P50 entry, not P5 -- the label and the
+          // number it labels disagreed. Renamed the key to p50Median with a
+          // "P50 (Median)" label. Override it here (same technique as the
+          // des key above) so the assertion below can tell the fixed label
+          // apart from the old mismatched one.
+          if (key === "organization.overview.chart.p50Median") {
+            return "P50 (Median)"
+          }
           return key
         },
       }
@@ -434,6 +444,13 @@ describe("Overview", () => {
     render(<Overview />)
 
     expect(screen.getByText("2 identified risks")).toBeInTheDocument()
+  })
+
+  it("labels the EBITDA median stat P50, not P5 (the value shown is ebitdaData's P50 entry)", () => {
+    render(<Overview />)
+
+    expect(screen.getByText(/P50 \(Median\)/)).toBeInTheDocument()
+    expect(screen.queryByText(/P5 \(Median\)/)).not.toBeInTheDocument()
   })
 
   it("shows an empty state in Recent Alerts when there are no alerts", () => {

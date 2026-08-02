@@ -321,6 +321,25 @@ describe("CorrelationMatrixPage", () => {
     expect(screen.getByText(/OPS-002/)).toBeInTheDocument()
   })
 
+  // Regression (audit round 3): the existing-links list rendered the raw
+  // `link.link_type` value ("CAUSES"/"AMPLIFIES"/"CORRELATES") instead of
+  // going through t() with the linkTypeCauses/linkTypeAmplifies/
+  // linkTypeCorrelates keys the "+ Link" form's <select> already used a few
+  // lines above it. i18n isn't loaded in this test file, so t() falls back
+  // to the raw key -- asserting the translated key text (not the raw enum
+  // value) proves the list now uses the same mapping as the form.
+  it("renders the existing link's type through the same i18n keys as the Add Link form's type select, not the raw enum value", () => {
+    mockRole = "ADMIN"
+    setMatrixData({ riskLinks: [makeLink({ link_type: "AMPLIFIES" })] })
+
+    render(<CorrelationMatrixPage />)
+
+    expect(
+      screen.getByText("organization.correlationMatrix.linkTypeAmplifies")
+    ).toBeInTheDocument()
+    expect(screen.queryByText("AMPLIFIES")).not.toBeInTheDocument()
+  })
+
   it("hides the Add Link control and delete buttons for a non-privileged role", () => {
     mockRole = "VIEWER"
     setMatrixData({ riskLinks: [makeLink()] })

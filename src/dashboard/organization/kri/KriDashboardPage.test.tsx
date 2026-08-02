@@ -167,7 +167,16 @@ describe("KriDashboardPage", () => {
 
     expect(screen.getByText("Overdue actions")).toBeInTheDocument()
     expect(screen.getByText(/Fire safety risk/)).toBeInTheDocument()
-    expect(screen.getByText("ALERT")).toBeInTheDocument()
+    // Regression (audit round 3): the per-KRI status badge used to render
+    // the raw `kri.status` enum value ("ALERT") instead of going through
+    // t(), unlike the summary cards above it which already used
+    // organization.kri.status.alert/warning/ok. i18n isn't loaded in this
+    // test, so t() falls back to the raw key -- asserting the key (not the
+    // enum value) proves the badge now goes through translation too.
+    expect(
+      screen.getAllByText("organization.kri.status.alert").length
+    ).toBeGreaterThan(0)
+    expect(screen.queryByText("ALERT")).not.toBeInTheDocument()
   })
 
   it("counts KRIs by status into the summary cards", () => {
@@ -186,9 +195,23 @@ describe("KriDashboardPage", () => {
     render(<KriDashboardPage />)
 
     // Summary labels ("Alert"/"Warning"/"OK") also appear as per-card status
-    // badges, so scope to the summary row specifically.
-    expect(screen.getByText("organization.kri.status.alert").previousSibling).toHaveTextContent("1")
-    expect(screen.getByText("organization.kri.status.warning").previousSibling).toHaveTextContent("1")
+    // badges (audit round 3 fixed the badges to go through the same i18n
+    // keys as the summary, so both now render identical key text) -- scope
+    // to the summary row specifically by its text-muted-foreground class.
+    const alertLabels = screen.getAllByText("organization.kri.status.alert")
+    const summaryAlertLabel = alertLabels.find((el) =>
+      el.className.includes("text-muted-foreground")
+    )
+    expect(summaryAlertLabel?.previousSibling).toHaveTextContent("1")
+
+    const warningLabels = screen.getAllByText(
+      "organization.kri.status.warning"
+    )
+    const summaryWarningLabel = warningLabels.find((el) =>
+      el.className.includes("text-muted-foreground")
+    )
+    expect(summaryWarningLabel?.previousSibling).toHaveTextContent("1")
+
     const okLabels = screen.getAllByText("organization.kri.status.ok")
     const summaryOkLabel = okLabels.find(
       (el) => el.className.includes("text-muted-foreground")

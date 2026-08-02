@@ -304,7 +304,7 @@ export default function Overview() {
             </div>
             <div>
               <span className="text-muted-foreground">
-                {t("organization.overview.chart.p5Median")}:
+                {t("organization.overview.chart.p50Median")}:
               </span>{" "}
               <span className="font-mono-data font-semibold text-foreground">
                 €20.8M

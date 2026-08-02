@@ -21,10 +21,16 @@ const mockUseGetAllSitesQuery = vi.fn()
 const mockCreateNewRisk = vi.fn()
 const mockUpdateRisk = vi.fn()
 const mockDeleteRisk = vi.fn()
+// Mutable per-test, same convention as mockRole above -- lets the loader
+// regression test below flip isRiskCreating to true without a static mock.
+let mockIsRiskCreating = false
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
-  useCreateNewRiskMutation: () => [mockCreateNewRisk, { isLoading: false }],
+  useCreateNewRiskMutation: () => [
+    mockCreateNewRisk,
+    { isLoading: mockIsRiskCreating },
+  ],
   useUpdateRiskMutation: () => [mockUpdateRisk, { isLoading: false }],
   useDeleteRiskMutation: () => [mockDeleteRisk],
 }))
@@ -85,6 +91,7 @@ describe("RiskRegisterPage", () => {
     mockUpdateRisk.mockReset()
     mockDeleteRisk.mockReset()
     mockToastError.mockReset()
+    mockIsRiskCreating = false
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [makeSite()] } })
   })
 
@@ -233,6 +240,33 @@ describe("RiskRegisterPage", () => {
         selector: "h2",
       })
     ).toBeInTheDocument()
+  })
+
+  // Regression (audit round 3): the submit button's loader used
+  // `{isRiskCreating || (isRiskUpdating && <Loader />)}`, an
+  // operator-precedence bug -- when isRiskCreating is true the whole
+  // expression evaluates to the boolean `true` (not valid JSX, renders
+  // nothing) instead of `<Loader />`, so the spinner never showed while a
+  // risk was being created. Fixed to `{(isRiskCreating || isRiskUpdating) &&
+  // <Loader />}`.
+  it("shows the loading spinner on the submit button while a risk is being created", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+    mockIsRiskCreating = true
+
+    render(<RiskRegisterPage />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    )
+
+    const submitButton = screen.getByRole("button", {
+      name: /organization\.riskRegister\.addRisk/,
+    })
+    expect(submitButton.querySelector("svg.lucide-loader")).toBeInTheDocument()
+    // The old buggy expression rendered the literal boolean `true`, which
+    // React drops silently -- there's no direct assertion for "nothing
+    // rendered", so the meaningful check is that the loader icon is present.
   })
 
   it("aexa-frontend#228: constrains inherent_score, residual_score and probability to 0-100", async () => {

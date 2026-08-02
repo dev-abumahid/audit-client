@@ -742,7 +742,9 @@ export default function CorrelationMatrixPage() {
                     <span className="font-mono">
                       {link.source_ref}
                       <span className="mx-1.5 text-muted-foreground">
-                        {link.link_type}
+                        {t(
+                          `${NS}.linkType${link.link_type.charAt(0)}${link.link_type.slice(1).toLowerCase()}`,
+                        )}
                       </span>
                       {link.target_ref}
                     </span>

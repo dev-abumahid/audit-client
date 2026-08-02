@@ -5,14 +5,36 @@ import RiskMatrixPage from "./RiskMatrixPage"
 // This file never triggers src/i18n/i18n.ts's side-effect init, so
 // react-i18next's real t() falls back to returning the raw key with no
 // interpolation for every other assertion here. That fallback can't
-// reproduce the "1 risque" hardcoded-French-with-no-pluralization bug
-// (organization.riskMatrix.cellCount_one/_other), since i18next's
+// reproduce pluralization bugs (organization.riskMatrix.cellCount_one/_other,
+// des_one/_other, selectedCellHeading_one/_other), since i18next's
 // plural-suffix resolution only kicks in once real resources/pluralization
-// rules are loaded. Overriding just this one key, with the same
-// singular/plural behavior the real en.json resource now has, lets the test
-// tell the fixed cellCount_one/_other split apart from the old hardcoded
-// "risque(s)" string -- every other key still falls back to itself
-// unchanged. Same technique as CompliancePage.test.tsx.
+// rules are loaded. Overriding these keys, with the same behavior the real
+// en.json resource now has, lets the tests tell the fixed/pluralized text
+// apart from the old hardcoded strings -- every other key still falls back
+// to itself unchanged. Same technique as CompliancePage.test.tsx.
+//
+// Axis tick label keys (likelihoodRare, impactMajor, etc. -- audit round 3:
+// these used to be a hardcoded English LABELS array instead of going through
+// t()) are also given their real English text here, so assertions can check
+// for the actual label wording rather than the raw i18n key.
+const AXIS_LABEL_TEXT: Record<string, string> = {
+  likelihoodRare: "Rare",
+  likelihoodUnlikely: "Unlikely",
+  likelihoodPossible: "Possible",
+  likelihoodLikely: "Likely",
+  likelihoodProbable: "Probable",
+  likelihoodQuasiCertain: "Quasi-certain",
+  likelihoodVeryUnlikely: "Very Unlikely",
+  likelihoodModeratelyLikely: "Moderately Likely",
+  likelihoodVeryLikely: "Very Likely",
+  impactNegligible: "Negligible",
+  impactMinor: "Minor",
+  impactModerate: "Moderate",
+  impactMajor: "Major",
+  impactCatastrophic: "Catastrophic",
+  impactAxis: "Impact →",
+}
+
 vi.mock("react-i18next", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-i18next")>()
   return {
@@ -22,6 +44,23 @@ vi.mock("react-i18next", async (importOriginal) => {
         if (key === "organization.riskMatrix.cellCount") {
           const count = Number(opts?.count ?? 0)
           return count === 1 ? `${count} risk` : `${count} risks`
+        }
+        if (key === "organization.riskMatrix.des") {
+          const count = Number(opts?.count ?? 0)
+          return count === 1
+            ? `${count} Risk positioned — Click on a cell to see details`
+            : `${count} Risks positioned — Click on a cell to see details`
+        }
+        if (key === "organization.riskMatrix.selectedCellHeading") {
+          const count = Number(opts?.count ?? 0)
+          const score = opts?.score
+          return count === 1
+            ? `${count} Risk — Score ${score}`
+            : `${count} Risks — Score ${score}`
+        }
+        const shortKey = key.replace("organization.riskMatrix.", "")
+        if (shortKey in AXIS_LABEL_TEXT) {
+          return AXIS_LABEL_TEXT[shortKey]
         }
         return key
       },
@@ -200,6 +239,66 @@ describe("RiskMatrixPage", () => {
     })
     render(<RiskMatrixPage />)
 
-    expect(screen.getByText("0 organization.riskMatrix.des")).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "0 Risks positioned — Click on a cell to see details"
+      )
+    ).toBeInTheDocument()
+  })
+
+  // Regression (audit round 3): "{count} {t('...des')}" concatenated a raw
+  // count with the fixed-plural string "Risks positioned", showing "1 Risks
+  // positioned" for a single risk. Split into des_one/des_other i18next
+  // plural keys (same pattern as the category subtitle fix above).
+  it("pluralizes the risk count subtitle for a single risk (regression: used to show '1 Risks positioned')", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk()] },
+      isLoading: false,
+    })
+    render(<RiskMatrixPage />)
+
+    expect(
+      screen.getByText("1 Risk positioned — Click on a cell to see details")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("1 Risks positioned — Click on a cell to see details")
+    ).not.toBeInTheDocument()
+  })
+
+  // Regression (audit round 3): "Impact →" axis header and the LABELS
+  // matrix (likelihood/impact axis tick text) were hardcoded English,
+  // bypassing t() entirely -- broken under the French UI.
+  it("renders the Impact axis header and likelihood/impact tick labels through t(), not hardcoded English", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    render(<RiskMatrixPage />)
+
+    expect(screen.getByText("Impact →")).toBeInTheDocument()
+    // Default matrix size is 5x5.
+    expect(screen.getByText("Very Unlikely")).toBeInTheDocument()
+    expect(screen.getByText("Very Likely")).toBeInTheDocument()
+    expect(screen.getByText("Negligible")).toBeInTheDocument()
+    expect(screen.getByText("Catastrophic")).toBeInTheDocument()
+  })
+
+  // Regression (audit round 3): the selected-cell heading was a hardcoded
+  // English template string ("{count} Risk(s) — Score {score}"), not run
+  // through t() and not pluralized (always "Risk(s)" regardless of count).
+  it("shows a pluralized, translated heading for the selected cell instead of a hardcoded 'Risk(s)' template", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+      isLoading: false,
+    })
+    render(<RiskMatrixPage />)
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    // row 0, col 0 -> score (0+1)*(0+1) = 1
+    expect(screen.getByText("1 Risk — Score 1")).toBeInTheDocument()
+    expect(screen.queryByText(/Risk\(s\)/)).not.toBeInTheDocument()
   })
 })

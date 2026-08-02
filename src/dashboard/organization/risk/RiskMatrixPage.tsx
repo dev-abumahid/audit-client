@@ -13,24 +13,52 @@ import { useTranslation } from "react-i18next"
 type MatrixSize = 3 | 4 | 5
 type GroupMode = "none" | "category"
 
-const LABELS: Record<MatrixSize, { likelihood: string[]; impact: string[] }> = {
+// Axis tick labels are the same wording across matrix sizes wherever the
+// underlying concept repeats (e.g. "Unlikely" appears in the 3x3, 4x4, and
+// 5x5 matrices alike), so each distinct label maps to a single shared i18n
+// key rather than a per-size one -- resolved with t() at render, mirroring
+// CorrelationMatrixPage's AXIS_LABELS_MAP pattern.
+const LABEL_KEYS: Record<
+  MatrixSize,
+  { likelihood: string[]; impact: string[] }
+> = {
   3: {
-    likelihood: ["Unlikely", "Possible", "Likely"],
-    impact: ["Minor", "Moderate", "Major"],
+    likelihood: [
+      "likelihoodUnlikely",
+      "likelihoodPossible",
+      "likelihoodLikely",
+    ],
+    impact: ["impactMinor", "impactModerate", "impactMajor"],
   },
   4: {
-    likelihood: ["Rare", "Unlikely", "Probable", "Quasi-certain"],
-    impact: ["Negligible", "Moderate", "Major", "Catastrophic"],
+    likelihood: [
+      "likelihoodRare",
+      "likelihoodUnlikely",
+      "likelihoodProbable",
+      "likelihoodQuasiCertain",
+    ],
+    impact: [
+      "impactNegligible",
+      "impactModerate",
+      "impactMajor",
+      "impactCatastrophic",
+    ],
   },
   5: {
     likelihood: [
-      "Very Unlikely",
-      "Unlikely",
-      "Moderately Likely",
-      "Probable",
-      "Very Likely",
+      "likelihoodVeryUnlikely",
+      "likelihoodUnlikely",
+      "likelihoodModeratelyLikely",
+      "likelihoodProbable",
+      "likelihoodVeryLikely",
     ],
-    impact: ["Negligible", "Minor", "Moderate", "Major", "Catastrophic"],
+    impact: [
+      "impactNegligible",
+      "impactMinor",
+      "impactModerate",
+      "impactMajor",
+      "impactCatastrophic",
+    ],
   },
 }
 
@@ -121,7 +149,13 @@ export default function RiskMatrixPage() {
     return Object.entries(groups).sort((a, b) => b[1].length - a[1].length)
   }, [selectedRisks, groupMode])
 
-  const labels = LABELS[matrixSize]
+  const labelKeys = LABEL_KEYS[matrixSize]
+  const labels = {
+    likelihood: labelKeys.likelihood.map((k) =>
+      t(`organization.riskMatrix.${k}`)
+    ),
+    impact: labelKeys.impact.map((k) => t(`organization.riskMatrix.${k}`)),
+  }
 
   if (isLoading) {
     return (
@@ -142,7 +176,9 @@ export default function RiskMatrixPage() {
             </h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            {filteredRisks.length} {t("organization.riskMatrix.des")}
+            {t("organization.riskMatrix.des", {
+              count: filteredRisks.length,
+            })}
           </p>
         </div>
 
@@ -197,7 +233,7 @@ export default function RiskMatrixPage() {
         <div className="rounded-xl border border-border bg-card p-6 lg:col-span-2">
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-              Impact →
+              {t("organization.riskMatrix.impactAxis")}
             </span>
           </div>
 
@@ -306,7 +342,10 @@ export default function RiskMatrixPage() {
         <div className="rounded-xl border border-border bg-card p-5">
           <h3 className="mb-4 text-sm font-semibold">
             {selectedCell
-              ? `${selectedRisks.length} Risk(s) — Score ${(selectedCell.row + 1) * (selectedCell.col + 1)}`
+              ? t("organization.riskMatrix.selectedCellHeading", {
+                  count: selectedRisks.length,
+                  score: (selectedCell.row + 1) * (selectedCell.col + 1),
+                })
               : t("organization.riskMatrix.noRiskSelected")}
           </h3>
 

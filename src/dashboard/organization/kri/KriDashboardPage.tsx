@@ -275,7 +275,11 @@ export default function KriDashboardPage() {
                         : "bg-risk-low/15 text-risk-low"
                   }`}
                 >
-                  {kri.status}
+                  {kri.status === "ALERT"
+                    ? t("organization.kri.status.alert")
+                    : kri.status === "WARNING"
+                      ? t("organization.kri.status.warning")
+                      : t("organization.kri.status.ok")}
                 </span>
               </div>
 
