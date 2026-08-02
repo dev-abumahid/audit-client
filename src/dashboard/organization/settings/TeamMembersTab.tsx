@@ -331,43 +331,69 @@ export default function TeamMembersTab() {
               </tr>
             </thead>
             <tbody>
-              {invitations.map((invite) => (
-                <tr
-                  key={invite.id}
-                  className="border-b border-border last:border-0"
-                >
-                  <td className="flex items-center gap-2 px-5 py-3 text-foreground">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    {invite.email}
-                  </td>
-                  <td className="px-5 py-3">
-                    <RoleBadge role={invite.role} />
-                  </td>
-                  <td className="px-5 py-3 text-xs text-muted-foreground">
-                    {t("organization.teamMembers.expiresOn", {
-                      date: new Date(invite.expiresAt).toLocaleDateString(
-                        i18n.language?.startsWith("fr") ? "fr-FR" : "en-US",
-                      ),
-                    })}
-                  </td>
-                  <td className="px-5 py-3">
-                    {canWrite && (
-                      <button
-                        onClick={() => handleResend(invite)}
-                        disabled={resendingId === invite.id}
-                        className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {resendingId === invite.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
+              {invitations.map((invite) => {
+                // Same isExpired concept as member SUSPENDED rows above
+                // (server-computed there via `member.isExpired`); invitations
+                // don't carry a precomputed flag, so derive it here from the
+                // same expiresAt the "Expires" column already renders.
+                const isInviteExpired = new Date(invite.expiresAt) < new Date()
+                return (
+                  <tr
+                    key={invite.id}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="flex items-center gap-2 px-5 py-3 text-foreground">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      {invite.email}
+                    </td>
+                    <td className="px-5 py-3">
+                      <RoleBadge role={invite.role} />
+                    </td>
+                    <td className="px-5 py-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <span>
+                          {t("organization.teamMembers.expiresOn", {
+                            date: new Date(
+                              invite.expiresAt,
+                            ).toLocaleDateString(
+                              i18n.language?.startsWith("fr")
+                                ? "fr-FR"
+                                : "en-US",
+                            ),
+                          })}
+                        </span>
+                        {isInviteExpired && (
+                          <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                            {t("organization.teamMembers.statusExpired")}
+                          </span>
                         )}
-                        {t("organization.teamMembers.resend")}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3">
+                      {canWrite && (
+                        <button
+                          onClick={() => handleResend(invite)}
+                          disabled={resendingId === invite.id}
+                          className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                            isInviteExpired
+                              ? "text-destructive hover:bg-destructive/10"
+                              : "text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {resendingId === invite.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          )}
+                          {isInviteExpired
+                            ? t("organization.teamMembers.resendExpired")
+                            : t("organization.teamMembers.resend")}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

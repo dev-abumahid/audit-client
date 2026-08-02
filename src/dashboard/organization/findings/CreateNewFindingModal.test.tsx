@@ -299,9 +299,13 @@ describe("CreateNewFindingModal", () => {
       ?.querySelector("button") as HTMLButtonElement
     await userEvent.click(assigneesTrigger)
 
+    // "Alice" now also appears on the trigger button itself (the display
+    // text this test's own bug fix restored), so disambiguate to the
+    // dropdown list item specifically.
     const aliceCheckbox = screen
-      .getByText("Alice")
-      .closest("label")
+      .getAllByText("Alice")
+      .find((el) => el.closest("label"))
+      ?.closest("label")
       ?.querySelector('input[type="checkbox"]') as HTMLInputElement
     const bobCheckbox = screen
       .getByText("Bob")
@@ -405,6 +409,53 @@ describe("CreateNewFindingModal", () => {
     await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
     const payload = mockCreateNewFinding.mock.calls[0][0]
     expect(payload.assignBy).toEqual(["member-1"])
+  })
+
+  // Regression (round 3 audit): the assignees button's display text was
+  // commented out entirely -- getSelectedUserNames existed but was never
+  // called, and even uncommented it compared the wrong id/name fields
+  // (u._id/u.firstName) against the real user shape (user.id/
+  // user.account.profile.fullName), so it would've silently shown nothing
+  // useful either way. Both are fixed together here.
+  it("shows placeholder, single-name, and count text on the assignees button as selection changes", async () => {
+    mockOrgUsers.mockReturnValue({
+      data: {
+        data: [
+          { id: "user-1", account: { profile: { fullName: "Alice" } } },
+          { id: "user-2", account: { profile: { fullName: "Bob" } } },
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    const assigneesTrigger = screen
+      .getByText("organization.findings.assignees")
+      .closest("div")
+      ?.querySelector("button") as HTMLButtonElement
+    expect(assigneesTrigger).toHaveTextContent(
+      "organization.findings.addAssignees"
+    )
+
+    await userEvent.click(assigneesTrigger)
+    await userEvent.click(
+      screen
+        .getByText("Alice")
+        .closest("label")
+        ?.querySelector('input[type="checkbox"]') as HTMLInputElement
+    )
+    expect(assigneesTrigger).toHaveTextContent("Alice")
+
+    await userEvent.click(
+      screen
+        .getByText("Bob")
+        .closest("label")
+        ?.querySelector('input[type="checkbox"]') as HTMLInputElement
+    )
+    expect(assigneesTrigger).toHaveTextContent(
+      "organization.findings.multipleUsersSelected"
+    )
   })
 
   // aexa-server#244 / aexa-frontend#213: IIA's "Five Cs" fields on a finding.
@@ -716,6 +767,44 @@ describe("CreateNewFindingModal", () => {
         screen.getByText("Replaced the loose bracket.")
       ).toBeInTheDocument()
     )
+    // Regression (round 3 audit): the sender name span was commented out,
+    // rendering an empty bold tag above every message instead of who sent
+    // it, matching the pattern FindingDetails.tsx's Messages tab uses.
+    expect(screen.getByText("Alice:")).toBeInTheDocument()
+  })
+
+  it("falls back to the unknownUser label when a message's sender has no profile or org profile name", async () => {
+    mockGetFindingById.mockReturnValue({
+      data: {
+        data: makeEditData({
+          messages: [
+            {
+              id: "msg-1",
+              senderAccountId: "acc-1",
+              message: "Anonymous update.",
+              account: { profile: null, organizationProfile: null },
+              createdAt: "2026-06-02T00:00:00.000Z",
+              updatedAt: "2026-06-02T00:00:00.000Z",
+            },
+          ],
+        }),
+      },
+    })
+
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={makeEditData({ messages: [] }) as any}
+      />
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText("Anonymous update.")).toBeInTheDocument()
+    )
+    expect(
+      screen.getByText("organization.findings.unknownUser:")
+    ).toBeInTheDocument()
   })
 
   it("doesn't clobber in-progress edits to other fields when the detail fetch resolves after mount (the race the two-effect split exists to prevent)", async () => {

@@ -23,6 +23,7 @@ import {
   CloudUpload,
   CopyCheck,
   Eye,
+  FileQuestion,
   FileText,
   Globe,
   Loader2,
@@ -898,22 +899,28 @@ export default function UpdateInspection() {
             <p className="mb-3 px-3 text-sm font-semibold text-muted-foreground">
               {t("organization.inspection.pages")}
             </p>
-            {pages.map((page: any, index: number) => (
-              <button
-                key={index}
-                onClick={() => scrollToPage(index)}
-                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all ${
-                  currentPageIndex === index
-                    ? "bg-primary font-medium text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <div className="flex h-6 w-6 items-center justify-center rounded-full border bg-background/80 font-mono text-xs">
-                  {index + 1}
-                </div>
-                <span className="line-clamp-2">{page.title}</span>
-              </button>
-            ))}
+            {pages.length === 0 ? (
+              <p className="px-3 py-2 text-xs text-muted-foreground">
+                {t("organization.inspection.noPagesTitle")}
+              </p>
+            ) : (
+              pages.map((page: any, index: number) => (
+                <button
+                  key={index}
+                  onClick={() => scrollToPage(index)}
+                  className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all ${
+                    currentPageIndex === index
+                      ? "bg-primary font-medium text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full border bg-background/80 font-mono text-xs">
+                    {index + 1}
+                  </div>
+                  <span className="line-clamp-2">{page.title}</span>
+                </button>
+              ))
+            )}
             <hr />
             <Button
               variant="outline"
@@ -944,6 +951,19 @@ export default function UpdateInspection() {
 
         {/* Main Content Area */}
         <div className="flex-1">
+          {pages.length === 0 && (
+            <div className="flex flex-col items-center justify-center rounded-md border border-border bg-card/30 py-24 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                <FileQuestion size={24} className="text-muted-foreground" />
+              </div>
+              <h3 className="mb-2 text-lg font-medium text-foreground">
+                {t("organization.inspection.noPagesTitle")}
+              </h3>
+              <p className="max-w-md text-sm text-muted-foreground">
+                {t("organization.inspection.noPagesDescription")}
+              </p>
+            </div>
+          )}
           {pages.map((page: any, pageIndex: number) => (
             <div
               key={pageIndex}

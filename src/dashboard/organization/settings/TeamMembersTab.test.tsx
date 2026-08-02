@@ -151,7 +151,7 @@ describe("TeamMembersTab", () => {
             id: "inv-1",
             email: "pending@test.com",
             role: "VIEWER",
-            expiresAt: "2026-08-01T00:00:00.000Z",
+            expiresAt: "2099-01-01T00:00:00.000Z",
           },
         ],
       },
@@ -172,7 +172,7 @@ describe("TeamMembersTab", () => {
             id: "inv-1",
             email: "pending@test.com",
             role: "VIEWER",
-            expiresAt: "2026-08-01T00:00:00.000Z",
+            expiresAt: "2099-01-01T00:00:00.000Z",
           },
         ],
       },
@@ -437,7 +437,7 @@ describe("TeamMembersTab", () => {
         id: "inv-1",
         email: "pending@test.com",
         role: "VIEWER",
-        expiresAt: "2026-08-01T00:00:00.000Z",
+        expiresAt: "2099-01-01T00:00:00.000Z",
         ...overrides,
       }
     }
@@ -461,6 +461,86 @@ describe("TeamMembersTab", () => {
       )
       expect(mockToastSuccess).toHaveBeenCalledWith(
         "organization.teamMembers.invitationResent"
+      )
+    })
+
+    // Regression (round 3 audit): an already-expired invitation rendered
+    // identically to a live pending one -- no badge, and a "Resend" button
+    // that looked exactly as actionable as a non-expired invite's. Derived
+    // from expiresAt the same way the "Expires" column already formats it,
+    // since invitations (unlike members) don't carry a precomputed
+    // isExpired flag from the API.
+    it("shows an Expired badge and relabels Resend for an already-expired invitation", () => {
+      mockUseGetAllOrgUsersQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      mockUseGetPendingInvitationsQuery.mockReturnValue({
+        data: {
+          data: [pendingInvitation({ expiresAt: "2020-01-01T00:00:00.000Z" })],
+        },
+        isLoading: false,
+      })
+
+      render(<TeamMembersTab />)
+
+      expect(
+        screen.getByText("organization.teamMembers.statusExpired")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", {
+          name: "organization.teamMembers.resendExpired",
+        })
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole("button", { name: "organization.teamMembers.resend" })
+      ).not.toBeInTheDocument()
+    })
+
+    it("does not show an Expired badge for a still-live invitation", () => {
+      mockUseGetAllOrgUsersQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      mockUseGetPendingInvitationsQuery.mockReturnValue({
+        data: {
+          data: [pendingInvitation({ expiresAt: "2099-01-01T00:00:00.000Z" })],
+        },
+        isLoading: false,
+      })
+
+      render(<TeamMembersTab />)
+
+      expect(
+        screen.queryByText("organization.teamMembers.statusExpired")
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole("button", { name: "organization.teamMembers.resend" })
+      ).toBeInTheDocument()
+    })
+
+    it("can still resend an already-expired invitation", async () => {
+      mockUseGetAllOrgUsersQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      mockUseGetPendingInvitationsQuery.mockReturnValue({
+        data: {
+          data: [pendingInvitation({ expiresAt: "2020-01-01T00:00:00.000Z" })],
+        },
+        isLoading: false,
+      })
+      mockResendInvitation.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      render(<TeamMembersTab />)
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.teamMembers.resendExpired",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockResendInvitation).toHaveBeenCalledWith("inv-1")
       )
     })
 
@@ -503,7 +583,7 @@ describe("TeamMembersTab", () => {
               id: "inv-1",
               email: "pending@test.com",
               role: "VIEWER",
-              expiresAt: "2026-08-01T00:00:00.000Z",
+              expiresAt: "2099-01-01T00:00:00.000Z",
             },
           ],
         },
@@ -538,7 +618,7 @@ describe("TeamMembersTab", () => {
               id: "inv-1",
               email: "pending@test.com",
               role: "VIEWER",
-              expiresAt: "2026-08-01T00:00:00.000Z",
+              expiresAt: "2099-01-01T00:00:00.000Z",
             },
           ],
         },

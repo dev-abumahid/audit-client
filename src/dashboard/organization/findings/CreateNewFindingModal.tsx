@@ -281,15 +281,28 @@ export default function CreateNewFindingModal({
   // ── User dropdown ──────────────────────────────────────────────────────────
   const [showUserDropdown, setShowUserDropdown] = useState(false)
 
-  // const getSelectedUserNames = useCallback(
-  //   (ids: string[]) => {
-  //     if (!ids.length) return "Add assignees"
-  //     if (ids.length === 1)
-  //       return users.find((u: any) => u._id === ids[0])?.firstName ?? "1 user"
-  //     return `${ids.length} users selected`
-  //   },
-  //   [users]
-  // )
+  // The org-users endpoint (022b7ce) and the dropdown list below key/display
+  // users by `user.id` / `user.account?.profile?.fullName`, not the
+  // `u._id` / `u.firstName` this helper originally used -- that mismatch
+  // meant it always fell through to "1 user" or undefined, so it got
+  // commented out rather than fixed. Restored here against the real shape.
+  const getSelectedUserNames = useCallback(
+    (ids: string[]) => {
+      if (!ids.length) return t("organization.findings.addAssignees")
+      if (ids.length === 1) {
+        const user = users.find((u: any) => u.id === ids[0])
+        return (
+          user?.account?.profile?.fullName ||
+          user?.account?.email ||
+          t("organization.findings.oneUserSelected")
+        )
+      }
+      return t("organization.findings.multipleUsersSelected", {
+        count: ids.length,
+      })
+    },
+    [users, t]
+  )
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   const onSubmit = async (values: FindingFormValues) => {
@@ -612,7 +625,7 @@ export default function CreateNewFindingModal({
                             : "text-foreground"
                         }
                       >
-                        {/* {getSelectedUserNames(field.value)} */}
+                        {getSelectedUserNames(field.value)}
                       </span>
                       <ChevronDown
                         size={14}
@@ -760,7 +773,10 @@ export default function CreateNewFindingModal({
                     className="rounded-lg bg-muted px-3 py-2 text-sm"
                   >
                     <span className="font-medium text-foreground">
-                      {/* {msg.sender}:{" "} */}
+                      {msg.account?.profile?.fullName ||
+                        msg.account?.organizationProfile?.organizationName ||
+                        t("organization.findings.unknownUser")}
+                      :{" "}
                     </span>
                     <span className="text-muted-foreground">{msg.message}</span>
                   </div>

@@ -163,6 +163,31 @@ describe("UpdateInspection", () => {
     expect(screen.queryByText("IN_PROGRESS")).not.toBeInTheDocument()
   })
 
+  // Regression (round 3 audit): a template with zero pages left both the
+  // sticky page-nav list and the main content area completely blank, with
+  // no explanation -- e.g. the "AI-Generated Findings (system, do not
+  // edit)" inspection, whose template has no questions defined.
+  it("shows an empty-state message instead of a blank page when the template has no pages", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: { templateName: "Empty Template", pages: [] },
+        }),
+      },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />)
+
+    expect(
+      screen.getAllByText("organization.inspection.noPagesTitle").length
+    ).toBeGreaterThan(0)
+    expect(
+      screen.getByText("organization.inspection.noPagesDescription")
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
+  })
+
   it("renders the embedded recommendation and unsplit-text sections", () => {
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: { data: makeInspection() },
