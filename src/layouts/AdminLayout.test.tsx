@@ -11,6 +11,11 @@ vi.mock("react-i18next", () => ({
         "organization.nav.settings": "Settings",
         "organization.nav.logout": "Logout",
         "organization.nav.loggedOut": "Logged out",
+        "admin.nav.dashboard": "Dashboard",
+        "admin.nav.overview": "Overview",
+        "admin.nav.transaction": "Transaction",
+        "admin.nav.organizations": "Organizations",
+        "admin.nav.searchPlaceholder": "Search...",
       }
       return map[key] ?? key
     },
@@ -28,11 +33,13 @@ vi.mock("react-router", async (importOriginal) => {
   return { ...mod, useNavigate: () => mockNavigate }
 })
 
-// ── Redux dispatch ─────────────────────────────────────────────────────────────
+// ── Redux dispatch / selector ───────────────────────────────────────────────────
 const mockDispatch = vi.fn()
+const mockUseAppSelector = vi.fn()
 vi.mock("@/redux/hooks", () => ({
   useAppDispatch: () => mockDispatch,
-  useAppSelector: vi.fn(),
+  useAppSelector: (selector: (state: unknown) => unknown) =>
+    mockUseAppSelector(selector),
 }))
 
 function renderAdminLayout() {
@@ -52,6 +59,11 @@ describe("AdminLayout (aexa-frontend#248)", () => {
   beforeEach(() => {
     mockNavigate.mockReset()
     mockDispatch.mockReset()
+    mockUseAppSelector.mockReset()
+    mockUseAppSelector.mockReturnValue({
+      email: "admin@example.com",
+      userProfile: { fullName: "" },
+    })
   })
 
   it("dispatches removeUser and resetApiState, then navigates to / when Logout is clicked", async () => {
@@ -79,5 +91,57 @@ describe("AdminLayout (aexa-frontend#248)", () => {
     renderAdminLayout()
     const [settingsLink] = screen.getAllByRole("link", { name: "Settings" })
     expect(settingsLink).toHaveAttribute("href", "/admin/settings")
+  })
+
+  it("renders sidebar nav items with real routes and translated labels (aexa-frontend#367)", () => {
+    renderAdminLayout()
+    const [overviewLink] = screen.getAllByRole("link", { name: "Overview" })
+    expect(overviewLink).toHaveAttribute("href", "/admin")
+    const [transactionLink] = screen.getAllByRole("link", {
+      name: "Transaction",
+    })
+    expect(transactionLink).toHaveAttribute("href", "/admin/transaction")
+    const [organizationsLink] = screen.getAllByRole("link", {
+      name: "Organizations",
+    })
+    expect(organizationsLink).toHaveAttribute("href", "/admin/organizations")
+    expect(screen.getAllByText("Dashboard").length).toBeGreaterThan(0)
+  })
+
+  it("uses a translated search placeholder instead of a hardcoded string (aexa-frontend#367)", () => {
+    renderAdminLayout()
+    expect(screen.getAllByPlaceholderText("Search...").length).toBeGreaterThan(
+      0,
+    )
+  })
+
+  it("does not link the bell icon anywhere and shows no fake notification dot (aexa-frontend#365, #366)", () => {
+    renderAdminLayout()
+    // The bell used to link to /admin/alerts, a route that doesn't exist.
+    expect(
+      screen.queryByRole("link", { name: /alerts/i }),
+    ).not.toBeInTheDocument()
+    expect(document.querySelector('a[href="/admin/alerts"]')).toBeNull()
+    // The hardcoded "always has a notification" dot must be gone.
+    expect(document.querySelector(".bg-destructive")).toBeNull()
+  })
+
+  it("derives the avatar initials from the logged-in admin's real name instead of a hardcoded value (aexa-frontend#366)", () => {
+    mockUseAppSelector.mockReturnValue({
+      email: "jane.doe@example.com",
+      userProfile: { fullName: "Jane Doe" },
+    })
+    renderAdminLayout()
+    expect(screen.getAllByText("JD").length).toBeGreaterThan(0)
+    expect(screen.queryByText("OR")).not.toBeInTheDocument()
+  })
+
+  it("falls back to initials derived from the email when no display name is set", () => {
+    mockUseAppSelector.mockReturnValue({
+      email: "admin@example.com",
+      userProfile: { fullName: "" },
+    })
+    renderAdminLayout()
+    expect(screen.getAllByText("AD").length).toBeGreaterThan(0)
   })
 })

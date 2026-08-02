@@ -1742,6 +1742,13 @@
     "low": "Low"
   },
   "admin": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "overview": "Overview",
+      "transaction": "Transaction",
+      "organizations": "Organizations",
+      "searchPlaceholder": "Search..."
+    },
     "organizations": {
       "title": "Organizations",
       "subtitle": "Manage all organizations and their subscriptions",
@@ -1767,14 +1774,14 @@
         "fromLastMonth": "from last month"
       },
       "revenueGrowth": "Revenue Growth",
-      "revenueSubtitle": "Monthly revenue trend • 2025",
+      "revenueSubtitle": "Monthly revenue trend",
       "last12Months": "Last 12 Months",
       "last6Months": "Last 6 Months",
       "last30Days": "Last 30 Days",
       "quickActions": "Quick Actions",
       "managePlans": "Manage Plans",
       "viewTransactions": "View Transactions",
-      "totalRevenueCard": "Total Revenue (2025)",
+      "totalRevenueCard": "Total Revenue",
       "acrossMonths": "Across {{count}} months",
       "recentPayments": "Recent Payments",
       "viewAll": "View All",
@@ -1803,6 +1810,7 @@
         "platformNamePlaceholder": "Enter platform name",
         "platformLogo": "Platform Logo",
         "logoAlt": "Logo preview",
+        "noLogoUploaded": "No logo uploaded",
         "changeLogo": "Change Logo",
         "uploadLogo": "Upload Logo",
         "logoHint": "Recommended: Square image (PNG, JPG, SVG). Max 5MB",
@@ -1819,7 +1827,7 @@
         "fileTooLarge": "File size should be less than 5MB",
         "nameRequired": "Platform name is required",
         "emailRequired": "Email is required",
-        "updateSuccess": "Settings updated successfully!"
+        "updateSuccess": "Not saved — platform settings aren't connected to a backend yet."
       },
       "pricing": {
         "title": "Subscription Plans",
@@ -1853,14 +1861,14 @@
           "create": "Create Plan",
           "nameRequired": "Plan name is required",
           "priceRequired": "Plan price is required",
-          "createSuccess": "Pricing plan \"{{name}}\" created successfully!"
+          "createSuccess": "\"{{name}}\" not saved — plan management isn't connected to a backend yet."
         },
         "editModal": {
           "title": "Edit Pricing Plan",
           "updating": "Updating Plan...",
           "update": "Update Plan",
           "nameRequired": "Plan name is required",
-          "updateSuccess": "Pricing plan \"{{name}}\" updated successfully!"
+          "updateSuccess": "\"{{name}}\" not saved — plan management isn't connected to a backend yet."
         },
         "deleteModal": {
           "title": "Delete Pricing Plan",
@@ -1868,7 +1876,7 @@
           "warningText": "This action cannot be undone. All associated data with this plan will be permanently removed.",
           "deleting": "Deleting...",
           "confirmDelete": "Yes, Delete Plan",
-          "deleteSuccess": "Pricing plan \"{{name}}\" has been deleted successfully."
+          "deleteSuccess": "\"{{name}}\" not deleted — plan management isn't connected to a backend yet."
         }
       }
     },
@@ -1876,7 +1884,7 @@
       "title": "Transactions",
       "subtitle": "Manage and track all platform payments",
       "exportPdf": "Export as PDF",
-      "exportSent": "Export request sent to backend",
+      "exportSent": "PDF export not available yet",
       "searchPlaceholder": "Search by transaction ID or organization...",
       "allStatus": "All Status",
       "colTransactionId": "Transaction ID",

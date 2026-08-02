@@ -1742,6 +1742,13 @@
     "low": "Faible"
   },
   "admin": {
+    "nav": {
+      "dashboard": "Tableau de bord",
+      "overview": "Aperçu",
+      "transaction": "Transaction",
+      "organizations": "Organisations",
+      "searchPlaceholder": "Rechercher..."
+    },
     "organizations": {
       "title": "Organisations",
       "subtitle": "Gérez toutes les organisations et leurs abonnements",
@@ -1767,14 +1774,14 @@
         "fromLastMonth": "par rapport au mois dernier"
       },
       "revenueGrowth": "Croissance du revenu",
-      "revenueSubtitle": "Tendance du revenu mensuel • 2025",
+      "revenueSubtitle": "Tendance du revenu mensuel",
       "last12Months": "12 derniers mois",
       "last6Months": "6 derniers mois",
       "last30Days": "30 derniers jours",
       "quickActions": "Actions rapides",
       "managePlans": "Gérer les forfaits",
       "viewTransactions": "Voir les transactions",
-      "totalRevenueCard": "Revenu total (2025)",
+      "totalRevenueCard": "Revenu total",
       "acrossMonths": "Sur {{count}} mois",
       "recentPayments": "Paiements récents",
       "viewAll": "Tout voir",
@@ -1803,6 +1810,7 @@
         "platformNamePlaceholder": "Saisissez le nom de la plateforme",
         "platformLogo": "Logo de la plateforme",
         "logoAlt": "Aperçu du logo",
+        "noLogoUploaded": "Aucun logo téléversé",
         "changeLogo": "Changer le logo",
         "uploadLogo": "Téléverser le logo",
         "logoHint": "Recommandé : image carrée (PNG, JPG, SVG). 5 Mo max",
@@ -1819,7 +1827,7 @@
         "fileTooLarge": "La taille du fichier doit être inférieure à 5 Mo",
         "nameRequired": "Le nom de la plateforme est obligatoire",
         "emailRequired": "L'adresse e-mail est obligatoire",
-        "updateSuccess": "Paramètres mis à jour avec succès !"
+        "updateSuccess": "Non enregistré — les paramètres de la plateforme ne sont pas encore reliés à un serveur."
       },
       "pricing": {
         "title": "Forfaits d'abonnement",
@@ -1853,14 +1861,14 @@
           "create": "Créer le forfait",
           "nameRequired": "Le nom du forfait est obligatoire",
           "priceRequired": "Le prix du forfait est obligatoire",
-          "createSuccess": "Le forfait « {{name}} » a été créé avec succès !"
+          "createSuccess": "« {{name}} » non enregistré — la gestion des forfaits n'est pas encore reliée à un serveur."
         },
         "editModal": {
           "title": "Modifier le forfait",
           "updating": "Mise à jour du forfait...",
           "update": "Mettre à jour le forfait",
           "nameRequired": "Le nom du forfait est obligatoire",
-          "updateSuccess": "Le forfait « {{name}} » a été mis à jour avec succès !"
+          "updateSuccess": "« {{name}} » non enregistré — la gestion des forfaits n'est pas encore reliée à un serveur."
         },
         "deleteModal": {
           "title": "Supprimer le forfait",
@@ -1868,7 +1876,7 @@
           "warningText": "Cette action est irréversible. Toutes les données associées à ce forfait seront définitivement supprimées.",
           "deleting": "Suppression...",
           "confirmDelete": "Oui, supprimer le forfait",
-          "deleteSuccess": "Le forfait « {{name}} » a été supprimé avec succès."
+          "deleteSuccess": "« {{name}} » non supprimé — la gestion des forfaits n'est pas encore reliée à un serveur."
         }
       }
     },
@@ -1876,7 +1884,7 @@
       "title": "Transactions",
       "subtitle": "Gérez et suivez tous les paiements de la plateforme",
       "exportPdf": "Exporter en PDF",
-      "exportSent": "Demande d'exportation envoyée au serveur",
+      "exportSent": "Export PDF non disponible pour le moment",
       "searchPlaceholder": "Rechercher par ID de transaction ou organisation...",
       "allStatus": "Tous les statuts",
       "colTransactionId": "ID de transaction",

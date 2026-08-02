@@ -1,21 +1,27 @@
-import { ChevronDown, Upload, X } from "lucide-react"
+import { Building2, ChevronDown, Upload, X } from "lucide-react"
 import React, { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
+// No platform-settings backend endpoint exists yet, and there's no canonical
+// Qiyrix branding recorded anywhere in the codebase to pre-fill this with.
+// Defaulting to another product's fake data ("RiskGuard Pro" / a Bangladesh
+// support address) misrepresented these as the platform's real settings, so
+// this now starts blank/unconfigured rather than guessing.
 const GeneralInformation = () => {
   const { t } = useTranslation()
   const [formData, setFormData] = useState({
-    platFormName: "RiskGuard Pro",
-    platformEmail: "support@riskguard.com",
-    platformPhone: "+880 1234-567890",
-    platformAddress: "Dhaka, Bangladesh",
+    platFormName: "",
+    platformEmail: "",
+    platformPhone: "",
+    platformAddress: "",
     platformCurrency: "USD",
   })
 
   const [logoFile, setLogoFile] = useState<File | null>(null)
-  const [logoPreview, setLogoPreview] = useState<string>(
-    "https://via.placeholder.com/120x120/3b82f6/ffffff?text=RG"
-  )
+  // No logo uploaded yet -- null renders the "no logo" placeholder below
+  // instead of a via.placeholder.com URL (that service has shut down and
+  // 404s).
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -65,11 +71,14 @@ const GeneralInformation = () => {
 
   const handleRemoveLogo = () => {
     setLogoFile(null)
-    setLogoPreview("https://via.placeholder.com/120x120/3b82f6/ffffff?text=RG")
+    setLogoPreview(null)
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
-  // Handle form submit (simulated - will be replaced with backend call)
+  // Handle form submit. There is no platform-settings backend endpoint yet
+  // (no src/redux/apis/admin/* covers this), so this only updates local
+  // component state for the current session -- the success message says so
+  // explicitly rather than claiming a real save happened.
   const handleSubmit = async () => {
     if (!formData.platFormName.trim()) {
       alert(t("admin.settings.general.nameRequired"))
@@ -83,11 +92,10 @@ const GeneralInformation = () => {
 
     setIsSubmitting(true)
 
-    // Simulate API call
+    // No backend call to make yet -- see comment above handleSubmit.
     setTimeout(() => {
       alert(t("admin.settings.general.updateSuccess"))
       setIsSubmitting(false)
-      // In real implementation, call your update API here
     }, 800)
   }
 
@@ -131,13 +139,20 @@ const GeneralInformation = () => {
 
           <div className="flex items-center gap-6">
             {/* Preview */}
-            <div className="relative h-24 w-24 overflow-hidden rounded-2xl border border-border bg-muted">
-              {logoPreview && (
+            <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-muted">
+              {logoPreview ? (
                 <img
                   src={logoPreview}
                   alt={t("admin.settings.general.logoAlt")}
                   className="h-full w-full object-cover"
                 />
+              ) : (
+                <div className="flex flex-col items-center gap-1 px-2 text-center">
+                  <Building2 className="h-6 w-6 text-muted-foreground" />
+                  <span className="text-[10px] leading-tight text-muted-foreground">
+                    {t("admin.settings.general.noLogoUploaded")}
+                  </span>
+                </div>
               )}
               {logoFile && (
                 <button

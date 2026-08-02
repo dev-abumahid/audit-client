@@ -29,6 +29,23 @@ describe("AdminOverview", () => {
     mockLanguage = undefined
   })
 
+  // Issue #365: Quick Actions and "View All" used to link to
+  // /admin-dashboard/settings and /admin-dashboard/transaction, routes that
+  // don't exist. They now point at the real /admin/settings and
+  // /admin/transaction routes.
+  it("links Quick Actions and View All to real admin routes, not the nonexistent /admin-dashboard/* paths", () => {
+    renderPage()
+
+    const links = screen.getAllByRole("link")
+    const hrefs = links.map((link) => link.getAttribute("href"))
+
+    expect(hrefs).toContain("/admin/settings")
+    expect(hrefs).toContain("/admin/transaction")
+    expect(hrefs.some((href) => href?.startsWith("/admin-dashboard"))).toBe(
+      false,
+    )
+  })
+
   // Issue #364: the "Recent Payments" date column used a local, inline
   // toLocaleDateString("en-US", ...) hardcoded in two places (desktop table
   // + mobile cards), ignoring the app's selected language. Both now go

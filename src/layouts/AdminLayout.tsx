@@ -1,6 +1,6 @@
 import LanguageSwitcher from "@/components/shared/LanguageSwitcher"
 import { baseApi } from "@/redux/baseApi"
-import { useAppDispatch } from "@/redux/hooks"
+import { useAppDispatch, useAppSelector } from "@/redux/hooks"
 import { removeUser } from "@/redux/slices/user.slice"
 import {
   Bell,
@@ -27,6 +27,7 @@ export default function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
   const { t } = useTranslation()
+  const user = useAppSelector((state) => state.user)
 
   // handlers
   const logOutHandler = () => {
@@ -38,28 +39,44 @@ export default function AdminLayout() {
 
   const NAV_SECTIONS = [
     {
-      label: "Dashboard",
+      label: t("admin.nav.dashboard"),
       items: [
         {
           path: "/admin",
-          label: "Over View",
+          label: t("admin.nav.overview"),
           icon: LayoutDashboard,
         },
         {
           path: "/admin/transaction",
-          label: "Transaction",
+          label: t("admin.nav.transaction"),
           icon: TrendingUp,
         },
         {
           path: "/admin/organizations",
-          label: "Organizations",
+          label: t("admin.nav.organizations"),
           icon: Building2,
         },
       ],
     },
   ]
 
-  const initials = "OR"
+  // Derive initials from the logged-in admin's real profile data (mirrors
+  // the pattern used for org avatars in AdminOrganization.tsx) instead of a
+  // hardcoded "OR" placeholder. Falls back to the account email when no
+  // display name is set yet.
+  const initials = (() => {
+    const fullName = user?.userProfile?.fullName?.trim()
+    if (fullName) {
+      return fullName
+        .split(" ")
+        .filter(Boolean)
+        .map((word) => word[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    }
+    return user?.email ? user.email.slice(0, 2).toUpperCase() : "--"
+  })()
 
   const navContent = (
     <>
@@ -219,7 +236,7 @@ export default function AdminLayout() {
               <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={t("admin.nav.searchPlaceholder")}
                 className="h-9 w-full rounded-md border border-input bg-background pr-4 pl-10 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
               />
             </div>
@@ -227,13 +244,13 @@ export default function AdminLayout() {
 
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
-            <Link
-              to="/admin/alerts"
-              className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
+            {/* No admin alerts/notifications feature exists yet (there's no
+                /admin/alerts route and no admin notification state) -- this
+                is a static visual icon rather than a dead link or a fake
+                "you have notifications" dot. */}
+            <div className="rounded-md p-2 text-muted-foreground">
               <Bell className="h-4 w-4" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
-            </Link>
+            </div>
 
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
               {initials}

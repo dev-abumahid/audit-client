@@ -282,7 +282,7 @@ const AdminOverview = () => {
                 {t("admin.overview.quickActions")}
               </h3>
               <div className="space-y-3">
-                <Link to="/admin-dashboard/settings">
+                <Link to="/admin/settings">
                   <button className="flex w-full items-center gap-3 rounded-2xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted">
                     <Settings className="h-5 w-5 text-muted-foreground" />
                     <span className="font-medium text-foreground">
@@ -291,7 +291,7 @@ const AdminOverview = () => {
                   </button>
                 </Link>
 
-                <Link to="/admin-dashboard/transaction">
+                <Link to="/admin/transaction">
                   <button className="flex w-full items-center gap-3 rounded-2xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted">
                     <File className="h-5 w-5 text-muted-foreground" />
                     <span className="font-medium text-foreground">
@@ -321,7 +321,7 @@ const AdminOverview = () => {
             <h2 className="text-xl font-semibold text-foreground">
               {t("admin.overview.recentPayments")}
             </h2>
-            <Link to="/admin-dashboard/transaction">
+            <Link to="/admin/transaction">
               <button className="rounded-xl border border-border bg-background px-5 py-2 text-sm font-medium transition-colors hover:bg-muted">
                 {t("admin.overview.viewAll")}
               </button>
