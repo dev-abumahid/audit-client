@@ -115,6 +115,22 @@
       "login": "Login",
       "signUp": "Sign Up",
       "toggleMenu": "Toggle menu"
+    },
+    "footer": {
+      "description": "The complete platform for digitizing workplace inspections and operations. Simple, fast, and reliable.",
+      "quickLinksTitle": "Quick Links",
+      "featuresLink": "Features",
+      "faqLink": "FAQ",
+      "contactTitle": "Contact",
+      "phone": "+44 2 3456 7890",
+      "email": "hello@qiyrix.com",
+      "copyright": "© {{year}} Qiyrix — All rights reserved.",
+      "terms": "Terms",
+      "privacyPolicy": "Privacy Policy",
+      "socialFacebook": "Facebook",
+      "socialTwitter": "Twitter",
+      "socialLinkedIn": "LinkedIn",
+      "socialInstagram": "Instagram"
     }
   },
   "auth": {
@@ -132,9 +148,11 @@
       "organizationNameReqText": "Organization name is required",
       "userNameReqText": "Username is required",
       "emailReqText": "Email is required",
+      "emailInvalidText": "Please enter a valid email",
       "passwordReqText": "Password is required",
       "passwordMinLengthReqText": "Password must be at least 6 characters",
-      "signingUp": "Signing Up..."
+      "signingUp": "Signing Up...",
+      "orContinueWith": "or continue with"
     },
     "signIn": {
       "title": "Welcome Back",

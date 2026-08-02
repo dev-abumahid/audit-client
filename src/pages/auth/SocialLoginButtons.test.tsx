@@ -6,6 +6,22 @@ vi.mock("@/redux/apis/auth.api", () => ({
   useGetSocialProvidersQuery: () => mockUseGetSocialProvidersQuery(),
 }))
 
+// ── i18n ──────────────────────────────────────────────────────────────────────
+const { mockT } = vi.hoisted(() => ({
+  mockT: vi.fn((key: string) => {
+    const map: Record<string, string> = {
+      "auth.signUp.orContinueWith": "or continue with",
+    }
+    return map[key] ?? key
+  }),
+}))
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: mockT,
+    i18n: { changeLanguage: vi.fn() },
+  }),
+}))
+
 describe("SocialLoginButtons", () => {
   beforeEach(() => {
     mockUseGetSocialProvidersQuery.mockReset()
@@ -71,5 +87,18 @@ describe("SocialLoginButtons", () => {
     const facebook = screen.getByRole("link", { name: /facebook/i })
     expect(google.getAttribute("href")).toMatch(/\/auth\/social\/google$/)
     expect(facebook.getAttribute("href")).toMatch(/\/auth\/social\/facebook$/)
+  })
+
+  // Regression test: the "or continue with" divider text was a hardcoded
+  // English string with no t() call.
+  it("renders the divider text through i18n", () => {
+    mockUseGetSocialProvidersQuery.mockReturnValue({
+      data: { data: { google: true, facebook: false, twitter: false, github: false } },
+      isLoading: false,
+    })
+    render(<SocialLoginButtons />)
+
+    expect(screen.getByText("or continue with")).toBeInTheDocument()
+    expect(mockT).toHaveBeenCalledWith("auth.signUp.orContinueWith")
   })
 })

@@ -24,6 +24,7 @@ const { mockT } = vi.hoisted(() => ({
       "auth.signIn.btnSignIn": "Sign In",
       "auth.signUp.organizationNameReqText": "Organization name is required",
       "auth.signUp.emailReqText": "Email is required",
+      "auth.signUp.emailInvalidText": "Please enter a valid email",
       "auth.signUp.passwordReqText": "Password is required",
       "auth.signUp.passwordMinLengthReqText":
         "Password must be at least 6 characters",
@@ -174,6 +175,39 @@ describe("SignUpModal", () => {
     // Not just "this text is present" -- proves the message actually came
     // from t(), not a hardcoded string that happens to match the mock.
     expect(mockT).toHaveBeenCalledWith("auth.signUp.passwordReqText")
+  })
+
+  it("shows a translated message when the email is present but not a valid format", async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
+    await user.type(screen.getByLabelText("Email"), "not-an-email")
+    await user.type(screen.getByLabelText("Password"), "password123")
+    await user.click(screen.getByRole("button", { name: "Sign Up" }))
+
+    // Regression test for the bug where an invalid-but-non-empty email
+    // always rendered the "required" message instead of the actual
+    // validation error for whatever rule failed.
+    expect(
+      await screen.findByText("Please enter a valid email")
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Email is required")).not.toBeInTheDocument()
+    expect(mockSignUpTrigger).not.toHaveBeenCalled()
+    expect(mockT).toHaveBeenCalledWith("auth.signUp.emailInvalidText")
+  })
+
+  it("shows a translated message when email is left empty", async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
+    await user.type(screen.getByLabelText("Password"), "password123")
+    await user.click(screen.getByRole("button", { name: "Sign Up" }))
+
+    expect(await screen.findByText("Email is required")).toBeInTheDocument()
+    expect(mockSignUpTrigger).not.toHaveBeenCalled()
+    expect(mockT).toHaveBeenCalledWith("auth.signUp.emailReqText")
   })
 
   it("shows a translated message when password is under 6 characters", async () => {

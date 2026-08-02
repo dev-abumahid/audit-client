@@ -273,7 +273,18 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="px-6 pb-6">
+        {/* noValidate: the email input is type="email", and without this the
+            browser's own constraint validation intercepts the submit event
+            for any format it considers invalid before handleSubmit ever
+            runs -- silently short-circuiting the react-hook-form `pattern`
+            rule below (and its message) for every value a real user would
+            actually trigger it with. Found while fixing the wrong-error-text
+            bug on this field: the fix was a no-op without this. */}
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+          className="px-6 pb-6"
+        >
           <div className="space-y-3">
             {/* Organization Name */}
             <div>
@@ -312,10 +323,10 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                 id="email"
                 type="email"
                 {...formRegister("email", {
-                  required: "Email is required",
+                  required: t("auth.signUp.emailReqText"),
                   pattern: {
                     value: /^\S+@\S+$/i,
-                    message: "Please enter a valid email",
+                    message: t("auth.signUp.emailInvalidText"),
                   },
                 })}
                 placeholder="example@email.com"
@@ -324,7 +335,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
               />
               {errors.email && (
                 <p className="mt-1 text-xs text-destructive">
-                  {t("auth.signUp.emailReqText")}
+                  {errors.email.message}
                 </p>
               )}
             </div>

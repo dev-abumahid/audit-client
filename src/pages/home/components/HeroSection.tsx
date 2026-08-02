@@ -36,6 +36,16 @@ const HeroSection = () => {
     setIsForgotPasswordModalOpen(true)
   }
 
+  // No in-app demo scheduling flow exists yet (checked src/routes and codebase
+  // for "demo"/"calendly"/booking routes - none found), so this opens a
+  // pre-filled mailto to the team as a minimal, honest fallback rather than
+  // leaving the button dead. Replace with a real scheduling link/route when
+  // one exists.
+  const handleBookDemoClick = () => {
+    window.location.href =
+      "mailto:hello@qiyrix.com?subject=Demo%20Request&body=Hi%20Qiyrix%20team%2C%20I%27d%20like%20to%20book%20a%20demo."
+  }
+
   return (
     <>
       {/* Use theme colors instead of hard-coded dark values */}
@@ -66,7 +76,10 @@ const HeroSection = () => {
                 <ArrowRight className="ml-3 h-4 w-4 sm:h-5 sm:w-5" />
               </button>
 
-              <button className="flex w-full min-w-50 items-center justify-center rounded-md border border-input bg-card px-6 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:w-auto sm:min-w-0 sm:px-5 sm:py-2.5 sm:text-base md:px-6 md:py-3">
+              <button
+                onClick={handleBookDemoClick}
+                className="flex w-full min-w-50 items-center justify-center rounded-md border border-input bg-card px-6 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:w-auto sm:min-w-0 sm:px-5 sm:py-2.5 sm:text-base md:px-6 md:py-3"
+              >
                 <CirclePlay className="mr-3 h-4 w-4 text-primary sm:h-5 sm:w-5" />
                 {t("home.hero.btnDemo")}
               </button>

@@ -96,7 +96,10 @@ const NavBar: React.FC = () => {
           {isMenuOpen && (
             <div className="border-t border-border py-4 lg:hidden">
               <div className="flex flex-col gap-3">
-                <LanguageSwitcher />
+                <div className="flex items-center gap-3">
+                  <ModeToggle />
+                  <LanguageSwitcher />
+                </div>
 
                 {user?.role ? (
                   <Link

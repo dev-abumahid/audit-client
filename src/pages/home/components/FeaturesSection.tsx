@@ -45,7 +45,10 @@ const FeaturesSection: React.FC = () => {
   ]
 
   return (
-    <section className="bg-background px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
+    <section
+      id="features"
+      className="scroll-mt-16 bg-background px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16"
+    >
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-12 text-center sm:mb-16">

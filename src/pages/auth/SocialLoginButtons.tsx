@@ -1,5 +1,6 @@
 import { useGetSocialProvidersQuery } from "@/redux/apis/auth.api"
 import { SERVER_BASE_URL } from "@/redux/baseApi"
+import { useTranslation } from "react-i18next"
 
 type Provider = "google" | "facebook" | "twitter" | "github"
 
@@ -59,6 +60,7 @@ const PROVIDER_ICONS: Record<Provider, React.ReactNode> = {
  * browser navigation through the provider's consent screen and back.
  */
 export default function SocialLoginButtons() {
+  const { t } = useTranslation()
   const { data, isLoading } = useGetSocialProvidersQuery()
   const providers = data?.data
 
@@ -79,7 +81,9 @@ export default function SocialLoginButtons() {
     <div className="space-y-3">
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-border" />
-        <span className="text-[11px] text-muted-foreground">or continue with</span>
+        <span className="text-[11px] text-muted-foreground">
+          {t("auth.signUp.orContinueWith")}
+        </span>
         <div className="h-px flex-1 bg-border" />
       </div>
       {/* flex-wrap, not a 2-col grid: a grid leaves an awkward empty cell

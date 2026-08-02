@@ -39,7 +39,10 @@ const FAQSection: React.FC = () => {
   }
 
   return (
-    <section className="bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+    <section
+      id="faq"
+      className="scroll-mt-16 bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20"
+    >
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="mb-12 text-center sm:mb-16">

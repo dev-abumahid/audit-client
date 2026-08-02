@@ -115,6 +115,22 @@
       "login": "Connexion",
       "signUp": "S'inscrire",
       "toggleMenu": "Basculer le menu"
+    },
+    "footer": {
+      "description": "La plateforme complète pour numériser les inspections et opérations en milieu de travail. Simple, rapide et fiable.",
+      "quickLinksTitle": "Liens rapides",
+      "featuresLink": "Fonctionnalités",
+      "faqLink": "FAQ",
+      "contactTitle": "Contact",
+      "phone": "+44 2 3456 7890",
+      "email": "hello@qiyrix.com",
+      "copyright": "© {{year}} Qiyrix — Tous droits réservés.",
+      "terms": "Conditions",
+      "privacyPolicy": "Politique de confidentialité",
+      "socialFacebook": "Facebook",
+      "socialTwitter": "Twitter",
+      "socialLinkedIn": "LinkedIn",
+      "socialInstagram": "Instagram"
     }
   },
   "auth": {
@@ -132,9 +148,11 @@
       "organizationNameReqText": "Le nom de l'organisation est requis.",
       "userNameReqText": "Le nom d'utilisateur est requis.",
       "emailReqText": "L'adresse e-mail est requise.",
+      "emailInvalidText": "Veuillez saisir une adresse e-mail valide.",
       "passwordReqText": "Le mot de passe est requis.",
       "passwordMinLengthReqText": "Le mot de passe doit contenir au moins 6 caractères.",
-      "signingUp": "Inscription en cours..."
+      "signingUp": "Inscription en cours...",
+      "orContinueWith": "ou continuer avec"
     },
     "signIn": {
       "title": "Connexion",

@@ -11,7 +11,7 @@ const { mockT } = vi.hoisted(() => ({
       "home.hero.title2": "with confidence",
       "home.hero.subtitle": "A GRC platform for modern teams",
       "home.hero.btnStart": "Get Started",
-      "home.hero.btnDemo": "Watch Demo",
+      "home.hero.btnDemo": "Book a Demo",
       "auth.signUp.title": "Get Started with Us",
       "auth.signUp.subTitle": "Create your account to get started",
       "auth.signUp.organizationName": "Organization Name",
@@ -124,5 +124,32 @@ describe("HeroSection", () => {
 
     expect(screen.queryByText("Welcome Back")).not.toBeInTheDocument()
     expect(screen.getByText("Reset Password")).toBeInTheDocument()
+  })
+
+  // Regression test: the "Book a Demo" button had no onClick at all, so it
+  // was completely dead. No in-app demo-booking flow exists yet, so it opens
+  // a pre-filled mailto as a minimal fallback -- assert that actually fires
+  // rather than just checking the button renders.
+  it("opens a pre-filled mailto when Book a Demo is clicked", async () => {
+    const user = userEvent.setup()
+    const hrefSetter = vi.fn()
+    Object.defineProperty(window, "location", {
+      value: {
+        get href() {
+          return ""
+        },
+        set href(value: string) {
+          hrefSetter(value)
+        },
+      },
+      writable: true,
+    })
+
+    renderHero()
+    await user.click(screen.getByRole("button", { name: /Book a Demo/ }))
+
+    expect(hrefSetter).toHaveBeenCalledWith(
+      expect.stringContaining("mailto:hello@qiyrix.com")
+    )
   })
 })
