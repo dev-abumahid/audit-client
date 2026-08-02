@@ -28,6 +28,7 @@ import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { canWriteInspection } from "@/utils/assignmentScope"
+import { formatLocaleDate } from "@/utils/formatDate"
 import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
 import {
   ChevronLeft,
@@ -45,7 +46,7 @@ import { toast } from "sonner"
 import StartInspectionModal from "./StartInspectionModal"
 
 const InspectionTable = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   // aexa-frontend#242 -- Inspection had zero role gating, unlike every
   // sibling entity (Audit/Templates/Reports/Risk/Sites/Findings/KRI/
@@ -300,7 +301,7 @@ const InspectionTable = () => {
                     <TableCell>{item.template?.templateName || "—"}</TableCell>
                     <TableCell>{item.site?.name || "—"}</TableCell>
                     <TableCell>
-                      {new Date(item.updatedAt).toLocaleDateString()}
+                      {formatLocaleDate(item.updatedAt, i18n.language)}
                     </TableCell>
                     <TableCell>
                       <span

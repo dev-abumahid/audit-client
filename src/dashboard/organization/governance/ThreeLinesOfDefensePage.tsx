@@ -23,6 +23,7 @@ import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import {
   Activity,
   AlertTriangle,
+  ArrowRight,
   ClipboardCheck,
   Loader2,
   Scale,
@@ -157,19 +158,31 @@ function ItemRow({
         <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
       </div>
       {canReassign && (
-        <div className="flex shrink-0 gap-1">
+        // aexa-frontend round-3 audit bug #2: with GOVERNING_BODY added as a
+        // 4th line, an item can now have up to 3 "move to" destinations. A
+        // non-wrapping row of full-text buttons ("Move to 1st Line", "Move
+        // to 2nd Line", "Move to 3rd Line") overflowed the card by ~234px.
+        // Fixed by shrinking each button to icon-only (the destination
+        // label moves to `title`/`aria-label`, shown as a native tooltip on
+        // hover and still exposed to assistive tech and tests via the
+        // accessible name) plus `flex-wrap` as a second line of defense so
+        // the row never overflows regardless of how many destination lines
+        // exist.
+        <div className="flex shrink-0 flex-wrap justify-end gap-1">
           {otherLines.map((line) => (
             <button
               key={line}
               type="button"
               disabled={isPending}
               onClick={() => onReassign(line)}
-              className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+              title={t(MOVE_TO_KEY[line])}
+              aria-label={t(MOVE_TO_KEY[line])}
+              className="flex items-center justify-center rounded border border-border p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
             >
               {isPending ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                t(MOVE_TO_KEY[line])
+                <ArrowRight className="h-3 w-3" />
               )}
             </button>
           ))}

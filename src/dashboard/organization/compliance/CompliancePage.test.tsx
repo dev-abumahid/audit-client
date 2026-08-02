@@ -25,21 +25,32 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
 // -- every other key still falls back to itself unchanged, so no existing
 // assertion elsewhere in this file is affected. Same technique as
 // CorrelationMatrixPage.test.tsx.
+// mockLanguage feeds `i18n.language` through to the real hook's `i18n`
+// object below, so the round-3 audit fix (entry.attested_at now going
+// through formatLocaleDate(entry.attested_at, i18n.language) instead of
+// being hardcoded to "en-US") can be exercised by the locale test further
+// down -- same convention as TeamMembersTab.test.tsx.
+let mockLanguage: string | undefined = undefined
 vi.mock("react-i18next", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-i18next")>()
   return {
     ...mod,
-    useTranslation: () => ({
-      t: (key: string, opts?: Record<string, unknown>) => {
-        if (key === "organization.compliance.subtitle") {
-          const count = Number(opts?.count ?? 0)
-          return count === 1
-            ? `${count} obligation tracked`
-            : `${count} obligations tracked`
-        }
-        return key
-      },
-    }),
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return {
+        ...real,
+        i18n: { ...real.i18n, language: mockLanguage },
+        t: (key: string, opts?: Record<string, unknown>) => {
+          if (key === "organization.compliance.subtitle") {
+            const count = Number(opts?.count ?? 0)
+            return count === 1
+              ? `${count} obligation tracked`
+              : `${count} obligations tracked`
+          }
+          return key
+        },
+      }
+    },
   }
 })
 
@@ -135,6 +146,7 @@ const emptyScorecard = {
 
 describe("CompliancePage", () => {
   beforeEach(() => {
+    mockLanguage = undefined
     mockRole = "ADMIN"
     mockUseGetAllComplianceQuery.mockReset()
     mockUseGetComplianceScorecardQuery.mockReset()
@@ -1150,6 +1162,54 @@ describe("CompliancePage", () => {
         expect.objectContaining({ id: "comp-1" }),
         expect.objectContaining({ skip: false })
       )
+    })
+
+    // aexa-frontend round-3 audit bug #3: entry.attested_at was hardcoded
+    // to "en-US" regardless of the active UI language.
+    it("formats the attestation date in French when the UI language is French", async () => {
+      mockLanguage = "fr"
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockUseGetComplianceAttestationsQuery.mockReturnValue({
+        data: {
+          data: [
+            {
+              id: "att-1",
+              org_account_id: "org-a",
+              obligation_id: "comp-1",
+              attested_by: "acct-9",
+              attested_at: "2026-06-01T10:00:00.000Z",
+              status_at_attestation: "compliant",
+              note: "Confirmed with legal counsel",
+              createdAt: "2026-06-01T10:00:00.000Z",
+            },
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.historyButton",
+        })
+      )
+
+      const expected = new Date("2026-06-01T10:00:00.000Z").toLocaleDateString(
+        "fr-FR",
+        {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }
+      )
+      expect(screen.getByText(expected)).toBeInTheDocument()
     })
 
     it("shows the empty state in the history modal when there are no attestations", async () => {

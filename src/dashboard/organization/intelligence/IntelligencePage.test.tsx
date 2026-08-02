@@ -28,17 +28,28 @@ const mockToastError = vi.mocked(toast.error)
 // override that one key so the count value becomes visible in the
 // rendered text; every other key still falls back to itself unchanged,
 // so no existing assertion elsewhere in this file is affected.
+// mockLanguage feeds `i18n.language` through to the real hook's `i18n`
+// object below, so the round-3 audit fix (item.scraped_at now going through
+// formatLocaleDate(item.scraped_at, i18n.language) instead of being
+// hardcoded to "en-US") can be exercised by the locale test further down --
+// same convention as TeamMembersTab.test.tsx.
+let mockLanguage: string | undefined = undefined
 vi.mock("react-i18next", async (importOriginal) => {
   const mod =
     await importOriginal<typeof import("react-i18next")>()
   return {
     ...mod,
-    useTranslation: () => ({
-      t: (key: string, opts?: Record<string, unknown>) =>
-        key === "organization.intelligence.sections.itemsCount"
-          ? `${key}:${opts?.count}`
-          : key,
-    }),
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return {
+        ...real,
+        i18n: { ...real.i18n, language: mockLanguage },
+        t: (key: string, opts?: Record<string, unknown>) =>
+          key === "organization.intelligence.sections.itemsCount"
+            ? `${key}:${opts?.count}`
+            : key,
+      }
+    },
   }
 })
 
@@ -128,6 +139,7 @@ const emptyRunsResult = {
 
 describe("IntelligencePage", () => {
   beforeEach(() => {
+    mockLanguage = undefined
     mockRole = "ADMIN"
     mockUseGetIntelligenceItemsQuery.mockReset()
     mockUseGetIntelligenceRunsQuery.mockReset()
@@ -164,6 +176,30 @@ describe("IntelligencePage", () => {
       screen.getByText("Ransomware campaign targets manufacturers")
     ).toBeInTheDocument()
     expect(screen.getByText("Cyber Threat Intel")).toBeInTheDocument()
+  })
+
+  // aexa-frontend round-3 audit bug #3: item.scraped_at was hardcoded to
+  // "en-US" regardless of the active UI language.
+  it("formats the scraped_at date in French when the UI language is French", () => {
+    mockLanguage = "fr"
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem({ scraped_at: "2026-04-15T10:30:00.000Z" })],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+            }
+    )
+
+    renderPage()
+
+    const expected = new Date("2026-04-15T10:30:00.000Z").toLocaleDateString(
+      "fr-FR"
+    )
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 
   it("shows the empty state when there are no items", () => {

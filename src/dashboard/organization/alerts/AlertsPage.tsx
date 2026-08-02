@@ -4,12 +4,27 @@ import {
   useGetAllAlertsQuery,
   useMarkAlertReadMutation,
 } from "@/redux/apis/organization/alert.api"
+import { getEnumLabel } from "@/utils/enumLabel"
+import { formatLocaleDate } from "@/utils/formatDate"
 import { Bell, Clock, Loader2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
+// aexa-frontend round-3 audit bug #5: `Alert.type` is a free-form string
+// column (see aexa-server prisma/schema/alert.prisma) with no backend enum
+// -- the only confirmed system-generated value is 'kri_threshold_breach'
+// (kri.service.ts's alert.create call), while the manual-entry endpoint
+// (alert.service.ts's create_alert_into_db) lets an ADMIN/LEAD_AUDITOR type
+// anything into `type`. So, same convention as getEnumLabel's other
+// callers, this maps the one known value to a humanized label and falls
+// back to the raw string for anything else instead of crashing or hiding
+// unrecognized types.
+const ALERT_TYPE_LABEL_KEYS: Record<string, string> = {
+  kri_threshold_breach: "organization.alerts.type.kriThresholdBreach",
+}
+
 export default function AlertsPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const {
     data: alertResponse,
     isLoading,
@@ -134,7 +149,7 @@ export default function AlertsPage() {
                     <>
                       <span className="text-xs text-muted-foreground">·</span>
                       <span className="text-xs text-muted-foreground">
-                        {alert.type}
+                        {getEnumLabel(t, ALERT_TYPE_LABEL_KEYS, alert.type)}
                       </span>
                     </>
                   )}
@@ -162,7 +177,7 @@ export default function AlertsPage() {
                 <div className="mt-3 flex items-center justify-between gap-4">
                   <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Clock className="h-3 w-3" />
-                    {new Date(alert.createdAt).toLocaleDateString("en-US", {
+                    {formatLocaleDate(alert.createdAt, i18n.language, {
                       day: "numeric",
                       month: "short",
                       hour: "2-digit",

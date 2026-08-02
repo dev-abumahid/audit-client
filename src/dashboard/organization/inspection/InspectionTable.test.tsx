@@ -20,6 +20,22 @@ vi.mock("react-router", async (importOriginal) => {
 // ── sonner ────────────────────────────────────────────────────────────────────
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+// Controllable `i18n.language` for the locale-formatting test below, while
+// every other test in this file keeps relying on the real (uninitialized)
+// react-i18next t(), which just echoes the raw key back -- same technique
+// as TeamMembersTab.test.tsx.
+let mockLanguage: string | undefined = undefined
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+    },
+  }
+})
+
 // ── role gating (aexa-frontend#242) — mocked per-test via this mutable
 // holder, same convention as RiskRegisterPage.test.tsx/CompliancePage.test.tsx ──
 let mockRole: string | undefined = "ADMIN"
@@ -179,6 +195,7 @@ function renderTable() {
 
 describe("InspectionTable", () => {
   beforeEach(() => {
+    mockLanguage = undefined
     mockNavigate.mockReset()
     mockDeleteInspectionTrigger.mockReset()
     mockUseGetAllSitesQuery.mockReset()
@@ -210,6 +227,29 @@ describe("InspectionTable", () => {
       screen.getAllByText("organization.inspection.statusInProgress").length
     ).toBeGreaterThan(0)
     expect(screen.queryByText("IN_PROGRESS")).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend round-3 audit bug #3: item.updatedAt used to be formatted
+  // with no locale argument at all, i.e. whatever locale the visiting
+  // browser happens to be in, rather than the app's active UI language.
+  it("formats the updatedAt date in French when the UI language is French", async () => {
+    mockLanguage = "fr"
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: {
+        data: [makeInspection({ updatedAt: "2026-06-21T10:00:00.000Z" })],
+        meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+      },
+      isLoading: false,
+    })
+
+    renderTable()
+
+    const expected = new Date("2026-06-21T10:00:00.000Z").toLocaleDateString(
+      "fr-FR"
+    )
+    await waitFor(() =>
+      expect(screen.getByText(expected)).toBeInTheDocument()
+    )
   })
 
   it("aexa-frontend#234: resets to page 1 when the status filter changes", async () => {

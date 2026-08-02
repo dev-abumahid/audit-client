@@ -11,6 +11,7 @@ import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { IAction } from "@/types/finding"
 import { canWriteInspection } from "@/utils/assignmentScope"
+import { formatLocaleDate } from "@/utils/formatDate"
 import type { TFunction } from "i18next"
 import {
   ChevronLeft,
@@ -62,9 +63,13 @@ const PRIORITY_BADGES: Record<string, string> = {
   High: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
 }
 
-const formatDate = (dateString: string) => {
+// aexa-frontend round-3 audit bug #3: hardcoded "en-US" ignored the active
+// locale, always showing the month abbreviation in English even in French.
+// The day/year are locale-invariant Arabic numerals so only the month piece
+// needs to go through the locale-aware helper (see formatDate.ts).
+const formatDate = (dateString: string, language: string | undefined) => {
   const date = new Date(dateString)
-  return `${date.getDate()} ${date.toLocaleDateString("en-US", { month: "short" })} ${date.getFullYear()}`
+  return `${date.getDate()} ${formatLocaleDate(date, language, { month: "short" })} ${date.getFullYear()}`
 }
 
 const getRelativeTime = (dateString: string, t: TFunction) => {
@@ -77,7 +82,7 @@ const getRelativeTime = (dateString: string, t: TFunction) => {
 }
 
 export default function AllFindingsPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   // aexa-frontend#217
   const role = useMyOrgRole()
@@ -403,7 +408,7 @@ export default function AllFindingsPage() {
                               className="text-muted-foreground"
                             />
                             <span className="text-sm text-foreground">
-                              {formatDate(action.dueDate)}
+                              {formatDate(action.dueDate, i18n.language)}
                             </span>
                           </div>
                         </td>

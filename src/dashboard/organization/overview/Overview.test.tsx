@@ -12,21 +12,32 @@ import Overview from "./Overview"
 // tell the fixed des_one/_other split apart from the old un-pluralized "des"
 // key -- every other key still falls back to itself unchanged. Same
 // technique as CompliancePage.test.tsx.
+// mockLanguage feeds `i18n.language` through to the real hook's `i18n`
+// object below, so the round-3 audit fix (Recent Alerts date now going
+// through formatLocaleDate(alert.createdAt, i18n.language, ...) instead of
+// being hardcoded to "fr-FR") can be exercised by the locale test further
+// down -- same convention as TeamMembersTab.test.tsx.
+let mockLanguage: string | undefined = undefined
 vi.mock("react-i18next", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-i18next")>()
   return {
     ...mod,
-    useTranslation: () => ({
-      t: (key: string, opts?: Record<string, unknown>) => {
-        if (key === "organization.overview.category.des") {
-          const count = Number(opts?.count ?? 0)
-          return count === 1
-            ? `${count} identified risk`
-            : `${count} identified risks`
-        }
-        return key
-      },
-    }),
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return {
+        ...real,
+        i18n: { ...real.i18n, language: mockLanguage },
+        t: (key: string, opts?: Record<string, unknown>) => {
+          if (key === "organization.overview.category.des") {
+            const count = Number(opts?.count ?? 0)
+            return count === 1
+              ? `${count} identified risk`
+              : `${count} identified risks`
+          }
+          return key
+        },
+      }
+    },
   }
 })
 
@@ -159,6 +170,7 @@ function makeAlert(overrides = {}) {
 
 describe("Overview", () => {
   beforeEach(() => {
+    mockLanguage = undefined
     mockUseGetAllRisksQuery.mockReset()
     mockUseGetAllKriQuery.mockReset()
     mockUseGetAllAlertsQuery.mockReset()
@@ -443,5 +455,39 @@ describe("Overview", () => {
     expect(
       screen.queryByText("organization.overview.alert.empty")
     ).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend round-3 audit bug #4: the Recent Alerts date was
+  // hardcoded to "fr-FR" regardless of the active UI language -- the
+  // opposite-direction bug from #3 (other pages hardcoded "en-US"), same
+  // root fix (formatLocaleDate driven by i18n.language).
+  it("formats the Recent Alerts date in English when the UI language is English", () => {
+    mockLanguage = "en"
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert({ createdAt: "2026-06-21T10:00:00.000Z" })] },
+      isLoading: false,
+    })
+    render(<Overview />)
+
+    const expectedEn = new Date(
+      "2026-06-21T10:00:00.000Z"
+    ).toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+    const expectedFr = new Date(
+      "2026-06-21T10:00:00.000Z"
+    ).toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+    expect(screen.getByText(expectedEn)).toBeInTheDocument()
+    if (expectedEn !== expectedFr) {
+      expect(screen.queryByText(expectedFr)).not.toBeInTheDocument()
+    }
   })
 })

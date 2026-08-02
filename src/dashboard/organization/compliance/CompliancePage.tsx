@@ -18,6 +18,7 @@ import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { COMPLIANCE_DOMAINS } from "@/utils/complianceConfig"
+import { formatLocaleDate } from "@/utils/formatDate"
 import {
   AlertTriangle,
   Ban,
@@ -97,7 +98,7 @@ const EMPTY_FORM = {
 }
 
 export default function CompliancePage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   // aexa-frontend#217
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
@@ -1224,16 +1225,13 @@ export default function CompliancePage() {
                       {statusLabel(entry.status_at_attestation)}
                     </span>
                     <span className="text-muted-foreground">
-                      {new Date(entry.attested_at).toLocaleDateString(
-                        "en-US",
-                        {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      )}
+                      {formatLocaleDate(entry.attested_at, i18n.language, {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </span>
                   </div>
                   {entry.note && (

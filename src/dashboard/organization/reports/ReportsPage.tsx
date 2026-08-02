@@ -5,6 +5,7 @@ import {
   useGetAllReportsQuery,
   usePublishReportMutation,
 } from "@/redux/apis/organization/report.api"
+import { formatLocaleDate } from "@/utils/formatDate"
 import {
   AlertTriangle,
   Calendar,
@@ -48,7 +49,7 @@ const STATUS_STYLES: Record<Report["status"], string> = {
 }
 
 export default function ReportsPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const role = useMyOrgRole()
   // Two intentionally different gates, not an oversight: Publish is
   // ADMIN-only (a stricter human-review step), while Generate follows the
@@ -218,7 +219,7 @@ export default function ReportsPage() {
                   <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      {new Date(report.createdAt).toLocaleDateString("en-US", {
+                      {formatLocaleDate(report.createdAt, i18n.language, {
                         year: "numeric",
                         month: "long",
                         day: "numeric",

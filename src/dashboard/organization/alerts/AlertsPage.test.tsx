@@ -8,6 +8,22 @@ vi.mock("sonner", () => ({
 import { toast } from "sonner"
 const mockToastError = vi.mocked(toast.error)
 
+// Controllable `i18n.language` for the locale-formatting test below, while
+// every other test in this file keeps relying on the real (uninitialized)
+// react-i18next t(), which just echoes the raw key back -- same technique
+// as TeamMembersTab.test.tsx.
+let mockLanguage: string | undefined = undefined
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+    },
+  }
+})
+
 const mockUseGetAllAlertsQuery = vi.fn()
 const mockMarkAlertRead = vi.fn()
 
@@ -38,6 +54,7 @@ describe("AlertsPage", () => {
     mockUseGetAllAlertsQuery.mockReset()
     mockMarkAlertRead.mockReset()
     mockToastError.mockReset()
+    mockLanguage = undefined
     mockUseGetAllAlertsQuery.mockReturnValue({
       data: { data: [] },
       isLoading: false,
@@ -155,5 +172,47 @@ describe("AlertsPage", () => {
     render(<AlertsPage />)
 
     expect(screen.getByText("organization.alerts.activeCount")).toBeInTheDocument()
+  })
+
+  // aexa-frontend round-3 audit bug #5: `alert.type` used to render the raw
+  // backend string directly with no humanization.
+  it("humanizes a known alert.type via the label map", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert({ type: "kri_threshold_breach" })] },
+      isLoading: false,
+    })
+    render(<AlertsPage />)
+
+    expect(
+      screen.getByText("organization.alerts.type.kriThresholdBreach")
+    ).toBeInTheDocument()
+    expect(screen.queryByText("kri_threshold_breach")).not.toBeInTheDocument()
+  })
+
+  it("falls back to the raw value for an alert.type with no label map entry", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert({ type: "some_future_backend_type" })] },
+      isLoading: false,
+    })
+    render(<AlertsPage />)
+
+    expect(screen.getByText("some_future_backend_type")).toBeInTheDocument()
+  })
+
+  // aexa-frontend round-3 audit bug #3: the alert timestamp used to be
+  // hardcoded to "en-US" regardless of the active UI language.
+  it("formats the alert timestamp in French when the UI language is French", () => {
+    mockLanguage = "fr"
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert({ createdAt: "2026-06-21T10:00:00.000Z" })] },
+      isLoading: false,
+    })
+    render(<AlertsPage />)
+
+    const expected = new Date("2026-06-21T10:00:00.000Z").toLocaleDateString(
+      "fr-FR",
+      { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }
+    )
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 })

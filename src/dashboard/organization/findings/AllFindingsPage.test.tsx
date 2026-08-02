@@ -2,6 +2,22 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import AllFindingsPage from "./AllFindingsPage"
 
+// Controllable `i18n.language` for the locale-formatting test below, while
+// every other test in this file keeps relying on the real (uninitialized)
+// react-i18next t(), which just echoes the raw key back -- same technique
+// as TeamMembersTab.test.tsx.
+let mockLanguage: string | undefined = undefined
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+    },
+  }
+})
+
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 // aexa-frontend#217 -- role hook mocked per-test via this mutable holder,
@@ -81,6 +97,7 @@ function makeAction(overrides = {}) {
 
 describe("AllFindingsPage", () => {
   beforeEach(() => {
+    mockLanguage = undefined
     mockRole = "ADMIN"
     mockAssignedInspectionIds = new Set()
     mockNavigate.mockReset()
@@ -109,6 +126,26 @@ describe("AllFindingsPage", () => {
     expect(
       screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
     ).toBe(true)
+  })
+
+  // aexa-frontend round-3 audit bug #3: the due-date month was hardcoded to
+  // "en-US" regardless of the active UI language.
+  it("formats the due date's month in French when the UI language is French", () => {
+    mockLanguage = "fr"
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        data: [makeAction({ dueDate: "2099-07-01T00:00:00.000Z" })],
+        meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+      },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+
+    render(<AllFindingsPage />)
+
+    const date = new Date("2099-07-01T00:00:00.000Z")
+    const expected = `${date.getDate()} ${date.toLocaleDateString("fr-FR", { month: "short" })} ${date.getFullYear()}`
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 
   it("hides Create Finding, Edit and Delete for a VIEWER", () => {

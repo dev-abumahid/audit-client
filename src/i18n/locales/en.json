@@ -1250,7 +1250,10 @@
       "aiGenerated": "AI Generated",
       "new": "New",
       "markAsRead": "Mark as read",
-      "empty": "No alerts yet"
+      "empty": "No alerts yet",
+      "type": {
+        "kriThresholdBreach": "KRI Threshold Breach"
+      }
     },
     "findings": {
       "allTitle": "All Findings",
@@ -1898,6 +1901,11 @@
     "light": "Light",
     "system": "System",
     "toggleTheme": "Toggle theme",
+    "sourceBadge": {
+      "ai": "AI",
+      "modifiedAi": "Modified AI",
+      "manual": "Manual"
+    },
     "deleteAlertModal": {
       "cancel": "Cancel",
       "delete": "Delete",

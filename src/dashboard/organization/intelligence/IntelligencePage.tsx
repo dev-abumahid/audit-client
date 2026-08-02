@@ -13,6 +13,7 @@ import {
   useScrapeIntelligenceMutation,
 } from "@/redux/apis/organization/intelligence.api"
 import type { IntelligenceItem } from "@/types/organization"
+import { formatLocaleDate } from "@/utils/formatDate"
 import {
   AlertTriangle,
   Brain,
@@ -48,7 +49,7 @@ const errorMessage = (err: unknown, fallback: string): string =>
   (err as { data?: { message?: string } })?.data?.message || fallback
 
 export default function IntelligencePage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const role = useMyOrgRole()
   const canCreateRisk = role === "ADMIN" || role === "LEAD_AUDITOR"
 
@@ -753,7 +754,7 @@ export default function IntelligencePage() {
                       )}
                       <span>·</span>
                       <span>
-                        {new Date(item.scraped_at).toLocaleDateString("en-US")}
+                        {formatLocaleDate(item.scraped_at, i18n.language)}
                       </span>
                       {!item.analyzed_at && (
                         <>

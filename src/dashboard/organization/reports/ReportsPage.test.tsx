@@ -2,6 +2,22 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import ReportsPage from "./ReportsPage"
 
+// Controllable `i18n.language` for the locale-formatting test below, while
+// every other test in this file keeps relying on the real (uninitialized)
+// react-i18next t(), which just echoes the raw key back -- same technique
+// as TeamMembersTab.test.tsx.
+let mockLanguage: string | undefined = undefined
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+    },
+  }
+})
+
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 import { toast } from "sonner"
 const mockToastSuccess = vi.mocked(toast.success)
@@ -52,6 +68,7 @@ function makeReport(overrides = {}) {
 
 describe("ReportsPage", () => {
   beforeEach(() => {
+    mockLanguage = undefined
     mockUseGetAllReportsQuery.mockReset()
     mockGenerate.mockReset()
     mockPublish.mockReset()
@@ -121,6 +138,24 @@ describe("ReportsPage", () => {
     render(<ReportsPage />)
 
     expect(screen.getByText("organization.reports.empty")).toBeInTheDocument()
+  })
+
+  // aexa-frontend round-3 audit bug #3: report.createdAt was hardcoded to
+  // "en-US" regardless of the active UI language.
+  it("formats the report date in French when the UI language is French", () => {
+    mockLanguage = "fr"
+    mockUseGetAllReportsQuery.mockReturnValue({
+      data: { data: [makeReport({ createdAt: "2026-07-20T10:00:00.000Z" })] },
+      isLoading: false,
+    })
+
+    render(<ReportsPage />)
+
+    const expected = new Date("2026-07-20T10:00:00.000Z").toLocaleDateString(
+      "fr-FR",
+      { year: "numeric", month: "long", day: "numeric" }
+    )
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 
   it("disables the 4 non-BOARD report types in the dropdown", () => {

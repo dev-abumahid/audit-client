@@ -15,6 +15,7 @@ import {
   computePageRank,
   topPercentileByPageRank,
 } from "@/utils/pageRank"
+import { formatLocaleDate } from "@/utils/formatDate"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
 import {
   Activity,
@@ -53,7 +54,7 @@ const ebitdaData = [
 ]
 
 export default function Overview() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { data: riskResponse, isLoading: risksLoading } = useGetAllRisksQuery(
     {
       page: 1,
@@ -472,15 +473,12 @@ export default function Overview() {
                       <span className="font-medium">{alert.source}</span>
                       <span>·</span>
                       <span>
-                        {new Date(alert.createdAt).toLocaleDateString(
-                          "fr-FR",
-                          {
-                            day: "numeric",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
-                        )}
+                        {formatLocaleDate(alert.createdAt, i18n.language, {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </span>
                       {/* No relevance_score field exists on the real Alert
                           model (see alert.service.ts) — that "% pertinent"

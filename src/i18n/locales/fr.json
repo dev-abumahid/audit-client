@@ -1250,7 +1250,10 @@
       "aiGenerated": "Généré par IA",
       "new": "Nouveau",
       "markAsRead": "Marquer comme lu",
-      "empty": "Aucune alerte pour le moment"
+      "empty": "Aucune alerte pour le moment",
+      "type": {
+        "kriThresholdBreach": "Dépassement de seuil KRI"
+      }
     },
     "findings": {
       "allTitle": "Tous les constats",
@@ -1898,6 +1901,11 @@
     "light": "Clair",
     "system": "Système",
     "toggleTheme": "Changer de thème",
+    "sourceBadge": {
+      "ai": "IA",
+      "modifiedAi": "IA modifiée",
+      "manual": "Manuel"
+    },
     "deleteAlertModal": {
       "cancel": "Annuler",
       "delete": "Supprimer",
