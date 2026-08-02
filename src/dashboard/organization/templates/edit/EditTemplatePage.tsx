@@ -62,7 +62,7 @@ const EditTemplatePage = () => {
 
   const form = useForm<TemplateFormValues>({
     defaultValues: {
-      templateName: "Untitled Template",
+      templateName: t("organization.templates.create.defaultTemplateName"),
       templateDisc: "",
       pages: [],
     },
@@ -137,7 +137,11 @@ const EditTemplatePage = () => {
     if (templateData?.data && !initialLoadComplete.current) {
       const template = templateData.data
 
-      setValue("templateName", template.templateName || "Untitled Template")
+      setValue(
+        "templateName",
+        template.templateName ||
+          t("organization.templates.create.defaultTemplateName")
+      )
       setValue("templateDisc", template.templateDisc || "")
 
       if (template.templateLogo) {
@@ -167,12 +171,14 @@ const EditTemplatePage = () => {
           {
             id: uid(),
             pageIndex: 0,
-            title: "General Information",
+            title: t("organization.templates.create.defaultSectionTitle"),
             questions: [
               {
                 id: uid(),
                 index: 0,
-                question: "Site Conducted",
+                question: t(
+                  "organization.templates.create.defaultQuestionTitle"
+                ),
                 isRequired: true,
                 answerType: {
                   answerType: "input",
@@ -186,7 +192,7 @@ const EditTemplatePage = () => {
 
       initialLoadComplete.current = true
     }
-  }, [templateData, setValue, replace])
+  }, [templateData, setValue, replace, t])
   const handleAddQuestion = useCallback(() => {
     if (addModalTarget === null) return
     const pIdx = addModalTarget
@@ -209,11 +215,13 @@ const EditTemplatePage = () => {
     appendPage({
       id: uid(),
       pageIndex: pageFields.length,
-      title: `New Section ${pageFields.length + 1}`,
+      title: t("organization.templates.create.newSectionTitle", {
+        num: pageFields.length + 1,
+      }),
       questions: [],
     })
     setAddModalTarget(null)
-  }, [appendPage, pageFields.length])
+  }, [appendPage, pageFields.length, t])
 
   const handleSelectAnswerType = useCallback(
     (type: string) => {

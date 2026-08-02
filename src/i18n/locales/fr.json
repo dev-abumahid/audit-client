@@ -357,7 +357,11 @@
         "createQuestion": "Créer une question",
         "createSection": "Créer une section",
         "cancel": "Annuler",
-        "createFailed": "Échec de la création du modèle"
+        "createFailed": "Échec de la création du modèle",
+        "defaultTemplateName": "Modèle sans titre",
+        "defaultSectionTitle": "Informations générales",
+        "defaultQuestionTitle": "Site inspecté",
+        "newSectionTitle": "Nouvelle section {{num}}"
       },
       "edit": {
         "loading": "Chargement du modèle...",

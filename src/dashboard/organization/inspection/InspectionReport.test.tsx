@@ -2,6 +2,22 @@ import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import InspectionReport from "./InspectionReport"
 
+// Controllable `i18n.language` for the locale-formatting test below, while
+// every other test in this file keeps relying on the real (uninitialized)
+// react-i18next t(), which just echoes the raw key back -- same technique
+// as TeamMembersTab.test.tsx.
+let mockLanguage: string | undefined = undefined
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+    },
+  }
+})
+
 class MockIntersectionObserver {
   observe = vi.fn()
   disconnect = vi.fn()
@@ -66,6 +82,7 @@ function makeInspection(overrides = {}) {
 
 describe("InspectionReport", () => {
   beforeEach(() => {
+    mockLanguage = undefined
     mockNavigate.mockReset()
     mockUseGetSingleInspectionQuery.mockReset()
   })
@@ -243,6 +260,57 @@ describe("InspectionReport", () => {
     expect(
       screen.getByText("1", { selector: "span.bg-orange-100" })
     ).toBeInTheDocument()
+  })
+
+  // aexa-frontend#339: the Actions table's due-date column used a module-
+  // level formatShortDate() hardcoded to toLocaleDateString("en-US", ...),
+  // ignoring the app's selected language. Now goes through the shared
+  // formatLocaleDate helper (round 3, aexa-frontend#339's original fix for
+  // other call sites).
+  describe("locale-aware Actions table due-date formatting (#339)", () => {
+    function makeActionsInspection() {
+      return makeInspection({
+        actions: [
+          {
+            _id: "act-1",
+            question: "Extinguisher present?",
+            actionTitle: "Replace tag",
+            priority: "high",
+            state: "To do",
+            dueDate: "2026-07-01T00:00:00.000Z",
+          },
+        ],
+      })
+    }
+
+    it("formats the due date using the French locale when i18n.language starts with fr", () => {
+      mockLanguage = "fr-FR"
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: makeActionsInspection() },
+      })
+
+      render(<InspectionReport />)
+
+      const expected = new Date("2026-07-01T00:00:00.000Z").toLocaleDateString(
+        "fr-FR",
+        { year: "numeric", month: "short", day: "numeric" }
+      )
+      expect(screen.getByText(expected)).toBeInTheDocument()
+    })
+
+    it("formats the due date using the English locale by default", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: makeActionsInspection() },
+      })
+
+      render(<InspectionReport />)
+
+      const expected = new Date("2026-07-01T00:00:00.000Z").toLocaleDateString(
+        "en-US",
+        { year: "numeric", month: "short", day: "numeric" }
+      )
+      expect(screen.getByText(expected)).toBeInTheDocument()
+    })
   })
 
   it("renders the actions table and navigates when a row is clicked", async () => {

@@ -19,6 +19,7 @@ import {
 } from "@/redux/apis/organization/template.api"
 import type { TemplateSummary } from "@/types/template"
 import { format } from "date-fns"
+import { fr } from "date-fns/locale"
 import {
   Brain,
   ChevronLeft,
@@ -68,7 +69,12 @@ function TableSkeleton() {
 }
 
 export default function TemplatesPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  // date-fns's format() defaults to English month names regardless of the
+  // app's selected language -- pass the French locale explicitly under a
+  // French UI, same "i18n.language?.startsWith('fr')" convention as
+  // formatLocaleDate/TeamMembersTab.tsx (round 3, aexa-frontend#336).
+  const dateFnsLocale = i18n.language?.startsWith("fr") ? fr : undefined
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
   const [deleteTemplate] = useDeleteTemplateMutation()
@@ -238,11 +244,15 @@ export default function TemplatesPage() {
                   </TableCell>
 
                   <TableCell className="hidden sm:table-cell">
-                    {format(new Date(template.createdAt), "dd MMM yyyy")}
+                    {format(new Date(template.createdAt), "dd MMM yyyy", {
+                      locale: dateFnsLocale,
+                    })}
                   </TableCell>
 
                   <TableCell className="hidden md:table-cell">
-                    {format(new Date(template.updatedAt), "dd MMM yyyy")}
+                    {format(new Date(template.updatedAt), "dd MMM yyyy", {
+                      locale: dateFnsLocale,
+                    })}
                   </TableCell>
 
                   <TableCell className="text-right">

@@ -95,6 +95,23 @@ export default function CreateNewFindingModal({
   // shown read-only here instead of editable.
   const isClosed =
     isEdit && (editData?.status === "COMPLETE" || editData?.status === "CANT_DO")
+  // aexa-frontend#340: the dueDate "must be in the future" validator below
+  // used to run unconditionally on every submit, including edits -- so
+  // editing an already-overdue finding (any change at all: status, a
+  // comment, assignee) failed validation unless the user also bumped the
+  // due date forward. Mirrors isClosed's carve-out just above: only enforce
+  // "must be in the future" for a *new* due date value being set, not for
+  // preserving an already-past one unchanged on edit. Compared as the same
+  // local-datetime-input string the form field itself holds (not raw ISO
+  // strings), since that's what the validator's `v` argument receives.
+  const originalDueDateInputValue =
+    isEdit && editData?.dueDate
+      ? toLocalDatetimeInputValue(new Date(editData.dueDate))
+      : null
+  const originalDueDateWasPast =
+    isEdit && editData?.dueDate
+      ? new Date(editData.dueDate) <= new Date()
+      : false
   // ── API hooks ──────────────────────────────────────────────────────────────
   const [uploadFIle] = useUploadAnyFileAwsMutation()
   const { data: usersData, isLoading: usersLoading } =
@@ -585,9 +602,19 @@ export default function CreateNewFindingModal({
                   type="datetime-local"
                   {...register("dueDate", {
                     required: t("organization.findings.dueDateRequired"),
-                    validate: (v) =>
-                      new Date(v) > new Date() ||
-                      t("organization.findings.dueDatePast"),
+                    validate: (v) => {
+                      if (
+                        isEdit &&
+                        originalDueDateWasPast &&
+                        v === originalDueDateInputValue
+                      ) {
+                        return true
+                      }
+                      return (
+                        new Date(v) > new Date() ||
+                        t("organization.findings.dueDatePast")
+                      )
+                    },
                   })}
                   className={`w-full rounded-lg border px-3 py-2 text-sm focus:ring-1 focus:ring-primary focus:outline-none ${
                     errors.dueDate

@@ -8,6 +8,7 @@ import {
   buildInspectionPdfHtml,
   type PdfLabels,
 } from "@/utils/buildInspectionPdfHtml"
+import { formatLocaleDate } from "@/utils/formatDate"
 import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
 import { A4_WIDTH_MM, computePdfPagePlacements } from "@/utils/pdfPageMath"
 import html2canvas from "html2canvas-pro"
@@ -83,8 +84,14 @@ const getStateIcon = (s: string) => {
   }
 }
 
-const formatShortDate = (d: string) =>
-  new Date(d).toLocaleDateString("en-US", {
+// Was toLocaleDateString("en-US", ...) hardcoded -- silently ignored the
+// app's selected language and always showed English month names under a
+// French UI. Takes i18n.language explicitly (module-level, no hook access)
+// and defers to the shared formatLocaleDate helper (built in round 3 to
+// prevent exactly this bug class -- aexa-frontend#339) instead of a second
+// local en-US-only formatter.
+const formatShortDate = (d: string, language: string | undefined) =>
+  formatLocaleDate(d, language, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -528,7 +535,7 @@ async function renderHtmlToPdf(html: string, filename: string) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const InspectionReport = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
 
@@ -975,7 +982,7 @@ const InspectionReport = () => {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs whitespace-nowrap text-muted-foreground">
-                          {formatShortDate(action.dueDate)}
+                          {formatShortDate(action.dueDate, i18n.language)}
                         </td>
                       </tr>
                     ))}

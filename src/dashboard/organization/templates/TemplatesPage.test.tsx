@@ -3,6 +3,22 @@ import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import TemplatesPage from "./TemplatesPage"
 
+// Controllable `i18n.language` for the date-fns locale test below, while
+// every other test in this file keeps relying on the real (uninitialized)
+// react-i18next t(), which just echoes the raw key back -- same technique
+// as TeamMembersTab.test.tsx.
+let mockLanguage: string | undefined = undefined
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+    },
+  }
+})
+
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 // aexa-frontend#226 -- role hook mocked per-test via this mutable holder,
@@ -47,6 +63,7 @@ function makeTemplate(overrides = {}) {
 
 describe("TemplatesPage", () => {
   beforeEach(() => {
+    mockLanguage = undefined
     mockRole = "ADMIN"
     mockUseGetAllTemplatesQuery.mockReset()
     mockDeleteTemplate.mockReset()
@@ -233,5 +250,33 @@ describe("TemplatesPage", () => {
 
     expect(screen.getByText(exactDesc)).toBeInTheDocument()
     expect(screen.queryByText(/\.\.\./)).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend#336: date-fns's format() was called with no locale option,
+  // so the Created/Updated columns always showed English month abbreviations
+  // regardless of the app's selected language.
+  describe("locale-aware Created/Updated date formatting (#336)", () => {
+    it("renders English month abbreviations when i18n.language is not French", () => {
+      mockLanguage = "en"
+      render(
+        <MemoryRouter>
+          <TemplatesPage />
+        </MemoryRouter>
+      )
+
+      expect(screen.getAllByText("01 Jun 2026")).toHaveLength(2)
+    })
+
+    it("renders French month names when i18n.language starts with fr", () => {
+      mockLanguage = "fr-FR"
+      render(
+        <MemoryRouter>
+          <TemplatesPage />
+        </MemoryRouter>
+      )
+
+      expect(screen.getAllByText("01 juin 2026")).toHaveLength(2)
+      expect(screen.queryByText("01 Jun 2026")).not.toBeInTheDocument()
+    })
   })
 })

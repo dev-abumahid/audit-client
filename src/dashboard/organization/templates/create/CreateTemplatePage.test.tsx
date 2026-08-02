@@ -195,4 +195,38 @@ describe("CreateTemplatePage", () => {
       screen.getByRole("button", { name: /organization\.templates\.create\.saveTemplate/i })
     ).toBeInTheDocument()
   })
+
+  // aexa-frontend#336: a brand-new template's default content (name, first
+  // section title, first question text, and "New Section N" when adding
+  // another) was hardcoded English, bypassing i18n entirely under a French
+  // UI. i18n isn't initialized in this test environment, so t() echoes the
+  // raw key back (see FindingDetails.test.tsx for the same convention) --
+  // these assertions confirm the values now come from t() calls at all,
+  // which the literal English strings never did.
+  describe("i18n'd default content (#336)", () => {
+    it("seeds the template name field from the i18n default, not a hardcoded English string", () => {
+      renderPage()
+
+      expect(
+        screen.getByPlaceholderText(
+          /organization\.templates\.create\.namePlaceholder/i
+        )
+      ).toHaveValue("organization.templates.create.defaultTemplateName")
+    })
+
+    it("labels a newly added section with the interpolated i18n key, not a hardcoded 'New Section N' string", async () => {
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization\.templates\.create\.addNewSection/i,
+        })
+      )
+
+      expect(
+        screen.getByText("organization.templates.create.newSectionTitle")
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/New Section/)).not.toBeInTheDocument()
+    })
+  })
 })

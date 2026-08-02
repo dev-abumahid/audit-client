@@ -48,18 +48,20 @@ const CreateTemplatePage = () => {
   const { control, register, handleSubmit, getValues, setValue } =
     useForm<TemplateFormValues>({
       defaultValues: {
-        templateName: "Untitled Template",
+        templateName: t("organization.templates.create.defaultTemplateName"),
         templateDisc: "",
         pages: [
           {
             id: uid(),
             pageIndex: 0,
-            title: "General Information",
+            title: t("organization.templates.create.defaultSectionTitle"),
             questions: [
               {
                 id: uid(),
                 index: 0,
-                question: "Site Conducted",
+                question: t(
+                  "organization.templates.create.defaultQuestionTitle"
+                ),
                 isRequired: true,
                 answerType: { answerType: "input", value: "text" },
               },
@@ -109,7 +111,9 @@ const CreateTemplatePage = () => {
     appendPage({
       id: uid(),
       pageIndex: pageFields.length,
-      title: `New Section ${pageFields.length + 1}`,
+      title: t("organization.templates.create.newSectionTitle", {
+        num: pageFields.length + 1,
+      }),
       questions: [],
     })
     setAddModalTarget(null)

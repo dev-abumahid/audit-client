@@ -40,25 +40,11 @@ import { Link, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
 import type { IAction } from "@/types/finding"
 import { attachmentFileName } from "@/utils/attachmentFileName"
+import { formatLocaleDate } from "@/utils/formatDate"
 import CreateNewFindingModal from "./CreateNewFindingModal"
 import FindingClosureControls from "./FindingClosureControls"
 
 type Tab = "details" | "messages" | "files"
-
-const formatDate = (dateString: string) => {
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  } catch {
-    return dateString
-  }
-}
 
 // Backend status enum -> i18n key. Resolved with t() at render time; the raw
 // enum is used as a fallback for any unmapped value.
@@ -219,8 +205,26 @@ const PreviewModal = ({
 }
 
 export default function FindingDetails() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+  // Was toLocaleDateString("en-US", ...) hardcoded -- silently ignored the
+  // app's selected language and always showed English month names under a
+  // French UI. Uses the shared formatLocaleDate helper (built in round 3 to
+  // prevent exactly this bug class -- aexa-frontend#339) instead of a
+  // second local en-US-only formatter.
+  const formatDate = (dateString: string) => {
+    try {
+      return formatLocaleDate(dateString, i18n.language, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    } catch {
+      return dateString
+    }
+  }
   // aexa-frontend#217
   const role = useMyOrgRole()
   // aexa-frontend#270: assignment data is fetched unconditionally here

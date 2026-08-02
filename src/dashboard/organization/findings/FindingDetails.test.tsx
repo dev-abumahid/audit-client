@@ -3,6 +3,22 @@ import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import FindingDetails from "./FindingDetails"
 
+// Controllable `i18n.language` for the locale-formatting test below, while
+// every other test in this file keeps relying on the real (uninitialized)
+// react-i18next t(), which just echoes the raw key back -- same technique
+// as TeamMembersTab.test.tsx.
+let mockLanguage: string | undefined = undefined
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+    },
+  }
+})
+
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }))
@@ -120,6 +136,7 @@ function renderPage() {
 
 describe("FindingDetails", () => {
   beforeEach(() => {
+    mockLanguage = undefined
     mockRole = "ADMIN"
     mockAssignedInspectionIds = new Set()
     mockNavigate.mockReset()
@@ -234,6 +251,41 @@ describe("FindingDetails", () => {
     expect(screen.getByTestId("edit-finding-modal")).toHaveTextContent(
       "Editing: Fix broken railing"
     )
+  })
+
+  // aexa-frontend#339: the Timeline dates (due/created/updated) used a local
+  // formatDate() hardcoded to toLocaleDateString("en-US", ...), ignoring the
+  // app's selected language. Now goes through the shared formatLocaleDate
+  // helper (round 3, aexa-frontend#339's original fix for other call sites).
+  describe("locale-aware Timeline date formatting (#339)", () => {
+    const dateOptions: Intl.DateTimeFormatOptions = {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+
+    it("formats the due date using the French locale when i18n.language starts with fr", () => {
+      mockLanguage = "fr-FR"
+      renderPage()
+
+      const expected = new Date("2099-07-01T00:00:00.000Z").toLocaleDateString(
+        "fr-FR",
+        dateOptions
+      )
+      expect(screen.getByText(expected)).toBeInTheDocument()
+    })
+
+    it("formats the due date using the English locale by default", () => {
+      renderPage()
+
+      const expected = new Date("2099-07-01T00:00:00.000Z").toLocaleDateString(
+        "en-US",
+        dateOptions
+      )
+      expect(screen.getByText(expected)).toBeInTheDocument()
+    })
   })
 
   it("renders actionDisc as literal text and does not execute injected HTML (XSS regression, #107)", async () => {

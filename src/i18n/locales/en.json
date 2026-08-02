@@ -357,7 +357,11 @@
         "createQuestion": "Create Question",
         "createSection": "Create Section",
         "cancel": "Cancel",
-        "createFailed": "Failed to create template"
+        "createFailed": "Failed to create template",
+        "defaultTemplateName": "Untitled Template",
+        "defaultSectionTitle": "General Information",
+        "defaultQuestionTitle": "Site Conducted",
+        "newSectionTitle": "New Section {{num}}"
       },
       "edit": {
         "loading": "Loading template...",

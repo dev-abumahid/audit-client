@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import CreateNewFindingModal from "./CreateNewFindingModal"
 import { toLocalDatetimeInputValue } from "./dueDateInput"
@@ -1120,6 +1120,118 @@ describe("CreateNewFindingModal", () => {
           screen.queryByText("organization.findings.dueDatePast")
         ).not.toBeInTheDocument()
       })
+    })
+  })
+
+  // aexa-frontend#340: the "must be in the future" dueDate validator ran
+  // unconditionally on every submit, including edits -- so editing an
+  // already-overdue finding (any change at all: status, a comment,
+  // assignee) failed validation unless the user also bumped the due date
+  // forward. Fixed to only enforce the future check for a *new* due date
+  // value being set, not for preserving an already-past one unchanged.
+  describe("editing an already-overdue finding (#340)", () => {
+    const pastDueDate = "2020-01-01T00:00:00.000Z"
+
+    it("allows resubmitting an edit without touching an already-past due date", async () => {
+      mockUpdateFindingById.mockReturnValue({
+        unwrap: () => Promise.resolve({}),
+      })
+
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ dueDate: pastDueDate }) as any}
+        />
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByDisplayValue("Fix broken railing")
+        ).toBeInTheDocument()
+      )
+
+      // Only touch an unrelated field -- the due date itself is left as-is.
+      await userEvent.type(
+        screen.getByPlaceholderText(
+          "organization.findings.addUpdatePlaceholder"
+        ),
+        "Still working on this"
+      )
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.findings.updateFindingBtn",
+        })
+      )
+
+      expect(
+        screen.queryByText("organization.findings.dueDatePast")
+      ).not.toBeInTheDocument()
+      await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
+      const call = mockUpdateFindingById.mock.calls[0][0]
+      expect(call.body.dueDate).toBe(pastDueDate)
+    })
+
+    it("still blocks the submit when a new past due date is explicitly set", async () => {
+      mockUpdateFindingById.mockReturnValue({
+        unwrap: () => Promise.resolve({}),
+      })
+
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ dueDate: pastDueDate }) as any}
+        />
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByDisplayValue("Fix broken railing")
+        ).toBeInTheDocument()
+      )
+
+      const dueDateInput = document.querySelector(
+        'input[type="datetime-local"]'
+      ) as HTMLInputElement
+      // A different past value -- not the untouched original -- must still
+      // trip the future-date validator.
+      fireEvent.change(dueDateInput, { target: { value: "2020-06-15T10:00" } })
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.findings.updateFindingBtn",
+        })
+      )
+
+      expect(
+        await screen.findByText("organization.findings.dueDatePast")
+      ).toBeInTheDocument()
+      expect(mockUpdateFindingById).not.toHaveBeenCalled()
+    })
+
+    it("still requires a future due date when creating a new finding (unaffected control case)", async () => {
+      render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+      await userEvent.type(
+        screen.getByPlaceholderText(
+          "organization.findings.actionTitlePlaceholder"
+        ),
+        "New finding with a past due date"
+      )
+      const dueDateInput = document.querySelector(
+        'input[type="datetime-local"]'
+      ) as HTMLInputElement
+      fireEvent.change(dueDateInput, { target: { value: "2020-01-01T00:00" } })
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.findings.createFindingBtn",
+        })
+      )
+
+      expect(
+        await screen.findByText("organization.findings.dueDatePast")
+      ).toBeInTheDocument()
+      expect(mockCreateNewFinding).not.toHaveBeenCalled()
     })
   })
 })

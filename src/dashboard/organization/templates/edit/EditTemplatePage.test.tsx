@@ -22,33 +22,35 @@ vi.mock("react-router", async (importOriginal) => {
   }
 })
 
-const mockUpdateTemplateBasics = vi.fn()
-vi.mock("@/redux/apis/organization/template.api", () => ({
-  useGetSingleTemplateQuery: () => ({
-    data: {
-      data: {
-        templateName: "Existing Template",
-        templateDisc: "",
-        templateLogo: null,
-        pages: [
+function makeTemplateData(overrides = {}) {
+  return {
+    templateName: "Existing Template",
+    templateDisc: "",
+    templateLogo: null,
+    pages: [
+      {
+        id: "p1",
+        title: "General Information",
+        questions: [
           {
-            id: "p1",
-            title: "General Information",
-            questions: [
-              {
-                id: "q1",
-                question: "Site Conducted",
-                isRequired: true,
-                answerType: "input",
-                value: "text",
-              },
-            ],
+            id: "q1",
+            question: "Site Conducted",
+            isRequired: true,
+            answerType: "input",
+            value: "text",
           },
         ],
       },
-    },
-    isLoading: false,
-  }),
+    ],
+    ...overrides,
+  }
+}
+
+const mockUpdateTemplateBasics = vi.fn()
+const mockUseGetSingleTemplateQuery = vi.fn()
+vi.mock("@/redux/apis/organization/template.api", () => ({
+  useGetSingleTemplateQuery: (...args: unknown[]) =>
+    mockUseGetSingleTemplateQuery(...args),
   useUpdateTemplateBasicsMutation: () => [
     mockUpdateTemplateBasics,
     { isLoading: false },
@@ -73,6 +75,11 @@ function renderPage() {
 describe("EditTemplatePage", () => {
   beforeEach(() => {
     mockUpdateTemplateBasics.mockReset()
+    mockUseGetSingleTemplateQuery.mockReset()
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplateData() },
+      isLoading: false,
+    })
   })
 
   describe("logo preview object URL lifecycle", () => {
@@ -160,6 +167,45 @@ describe("EditTemplatePage", () => {
       unmount()
 
       expect(revokeObjectURLSpy).toHaveBeenCalledWith(url)
+    })
+  })
+
+  // aexa-frontend#336: fallback default content (used when the loaded
+  // template has no name, or when adding a new section) was hardcoded
+  // English, bypassing i18n entirely under a French UI. i18n isn't
+  // initialized in this test environment, so t() echoes the raw key back
+  // (see FindingDetails.test.tsx for the same convention) -- these
+  // assertions confirm the values now come from t() calls, which the
+  // literal English strings never did.
+  describe("i18n'd default content (#336)", () => {
+    it("falls back to the i18n default template name, not a hardcoded English string, when the loaded template has no name", () => {
+      mockUseGetSingleTemplateQuery.mockReturnValue({
+        data: { data: makeTemplateData({ templateName: "" }) },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByPlaceholderText(
+          /organization\.templates\.create\.namePlaceholder/i
+        )
+      ).toHaveValue("organization.templates.create.defaultTemplateName")
+    })
+
+    it("labels a newly added section with the interpolated i18n key, not a hardcoded 'New Section N' string", async () => {
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization\.templates\.create\.addNewSection/i,
+        })
+      )
+
+      expect(
+        screen.getByText("organization.templates.create.newSectionTitle")
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/New Section/)).not.toBeInTheDocument()
     })
   })
 })
