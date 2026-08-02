@@ -1172,7 +1172,8 @@ export default function CompliancePage() {
           as-is (a raw accountId) -- OrgMember's own shape only exposes
           account.email/profile, not the underlying accountId to resolve a
           display name against, so name resolution isn't possible with the
-          endpoints this frontend currently has. */}
+          endpoints this frontend currently has. Same constraint as
+          RiskOverrideBadge's overriddenBy rendering. */}
       {historyObligation && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -1234,6 +1235,11 @@ export default function CompliancePage() {
                       })}
                     </span>
                   </div>
+                  <p className="mt-1 text-muted-foreground">
+                    {t("organization.compliance.attest.attestedByLabel", {
+                      accountId: entry.attested_by,
+                    })}
+                  </p>
                   {entry.note && (
                     <p className="mt-1 text-muted-foreground">{entry.note}</p>
                   )}

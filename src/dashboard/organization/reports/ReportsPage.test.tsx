@@ -174,6 +174,24 @@ describe("ReportsPage", () => {
     expect(monteCarloOption.disabled).toBe(true)
   })
 
+  // aexa-frontend round-4 audit bug #338: disabled option elements showed
+  // "Coming soon" twice -- once as a label suffix, once as an identical
+  // title tooltip. Keep only the label suffix.
+  it("shows 'Coming soon' only once (as the label suffix, not also a title tooltip) for a disabled report type", () => {
+    mockUseGetAllReportsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+
+    render(<ReportsPage />)
+
+    const monteCarloOption = screen.getByRole("option", {
+      name: /organization\.reports\.types\.MONTE_CARLO/,
+    }) as HTMLOptionElement
+
+    expect(monteCarloOption.textContent).toContain(
+      "organization.reports.comingSoon"
+    )
+    expect(monteCarloOption.title).toBe("")
+  })
+
   it("calls generateReport with the selected type and shows a success toast", async () => {
     const user = userEvent.setup()
     mockUseGetAllReportsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })

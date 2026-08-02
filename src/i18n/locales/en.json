@@ -1003,7 +1003,8 @@
         "notePlaceholder": "e.g. Confirmed with legal counsel",
         "confirmButton": "Confirm Attestation",
         "historyModalTitle": "Attestation History — {{title}}",
-        "historyEmpty": "No attestations recorded yet"
+        "historyEmpty": "No attestations recorded yet",
+        "attestedByLabel": "Attested by: {{accountId}}"
       },
       "form": {
         "newTitle": "New Compliance Obligation",
@@ -1042,8 +1043,11 @@
       "title": "Three Lines Model",
       "subtitle": "Governance classification board across risks, controls, KRIs, compliance and audits",
       "loading": "Loading classification board...",
+      "loadFailed": "Failed to load the classification board. Please try again.",
+      "retry": "Retry",
       "empty": "No items in this line yet",
-      "itemCount": "{{count}} items",
+      "itemCount_one": "{{count}} item",
+      "itemCount_other": "{{count}} items",
       "noLeadAuditor": "No lead auditor assigned",
       "moveToFirst": "Move to 1st Line",
       "moveToSecond": "Move to 2nd Line",
@@ -1154,6 +1158,8 @@
       "statInProgress": "In Progress",
       "statCompleted": "Completed",
       "statTotalFindings": "Total Findings",
+      "statPageQualifier": "(this page)",
+      "statPageScopedTooltip": "Counted from the engagements currently loaded on this page, not the whole organization",
       "searchPlaceholder": "Search by reference, title or lead auditor",
       "statusPlanned": "Planned",
       "statusInProgress": "In Progress",
@@ -1207,7 +1213,8 @@
       "actions": {
         "scrape": "Collect sources",
         "scraping": "Collecting sources…",
-        "analyzeCount": "Analyze {{count}} articles",
+        "analyzeCount_one": "Analyze {{count}} article",
+        "analyzeCount_other": "Analyze {{count}} articles",
         "analyzing": "Analyzing…",
         "predict": "Predict trends",
         "predicting": "Predicting…",
@@ -1239,7 +1246,8 @@
         "mitigations": "AI-Generated Mitigations",
         "rcsa": "Risk Control Self-Assessment (RCSA)",
         "resilienceScan": "Resilience Scan",
-        "itemsCount": "{{count}} Intelligence Items",
+        "itemsCount_one": "{{count}} Intelligence Item",
+        "itemsCount_other": "{{count}} Intelligence Items",
         "itemsEmpty": "No intelligence items yet",
         "itemsEmptyHint": "Start a collection to populate threat intelligence"
       },
@@ -1302,6 +1310,7 @@
       "new": "New",
       "markAsRead": "Mark as read",
       "empty": "No alerts yet",
+      "emptyFiltered": "No alerts match this filter",
       "type": {
         "kriThresholdBreach": "KRI Threshold Breach"
       }

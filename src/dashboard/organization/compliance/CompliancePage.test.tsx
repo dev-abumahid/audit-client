@@ -1164,6 +1164,45 @@ describe("CompliancePage", () => {
       )
     })
 
+    // aexa-frontend round-4 audit bug #333: entry.attested_by was never
+    // rendered despite a comment claiming it was shown as-is.
+    it("renders the attester's raw accountId for each history entry", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockUseGetComplianceAttestationsQuery.mockReturnValue({
+        data: {
+          data: [
+            {
+              id: "att-1",
+              org_account_id: "org-a",
+              obligation_id: "comp-1",
+              attested_by: "acct-9",
+              attested_at: "2026-06-01T10:00:00.000Z",
+              status_at_attestation: "compliant",
+              note: null,
+              createdAt: "2026-06-01T10:00:00.000Z",
+            },
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.historyButton",
+        })
+      )
+
+      expect(
+        screen.getByText("organization.compliance.attest.attestedByLabel")
+      ).toBeInTheDocument()
+    })
+
     // aexa-frontend round-3 audit bug #3: entry.attested_at was hardcoded
     // to "en-US" regardless of the active UI language.
     it("formats the attestation date in French when the UI language is French", async () => {

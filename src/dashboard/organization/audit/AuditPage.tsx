@@ -48,6 +48,21 @@ const STATUS_ICONS: Record<string, React.ElementType> = {
   completed: CheckCircle2,
 }
 
+// Shared label for the 3 stat cards whose count is only a client-side tally
+// over the current page (see totalCount/inProgressCount comment below) --
+// pulled out of the 3 near-identical call sites (issue #337 round-4 review).
+function PageScopedStatLabel({ label }: { label: string }) {
+  const { t } = useTranslation()
+  return (
+    <span
+      className="ml-2 text-muted-foreground"
+      title={t("organization.audit.statPageScopedTooltip")}
+    >
+      {label} {t("organization.audit.statPageQualifier")}
+    </span>
+  )
+}
+
 const EMPTY_FORM = {
   ref: "",
   title: "",
@@ -306,8 +321,12 @@ export default function AuditPage() {
   // Total reflects the whole (filtered) result set via the paginated meta, not
   // just the current page. The in-progress / completed / findings tallies are
   // computed over the loaded page only — there is no server-side aggregate
-  // endpoint for them, and computing across pages would require fetching every
-  // page.
+  // endpoint for them (audit.api.ts's getAllAuditEngagements returns only a
+  // paginated list + meta.total, no per-status counts), and fetching every
+  // page just to sum client-side would be wasteful for orgs with many
+  // engagements. Rather than silently undercount, the labels below are
+  // qualified with "(this page)" so it's clear these three are scoped to the
+  // current PAGE_SIZE page, not the whole org (issue #337).
   const totalCount = meta?.total ?? engagements.length
   const inProgressCount = engagements.filter(
     (e) => e.status === "in_progress"
@@ -355,25 +374,21 @@ export default function AuditPage() {
           <span className="font-mono text-lg font-bold text-orange-600">
             {inProgressCount}
           </span>
-          <span className="ml-2 text-muted-foreground">
-            {t("organization.audit.statInProgress")}
-          </span>
+          <PageScopedStatLabel label={t("organization.audit.statInProgress")} />
         </div>
         <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-2.5">
           <span className="font-mono text-lg font-bold text-green-600">
             {completedCount}
           </span>
-          <span className="ml-2 text-muted-foreground">
-            {t("organization.audit.statCompleted")}
-          </span>
+          <PageScopedStatLabel label={t("organization.audit.statCompleted")} />
         </div>
         <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-2.5">
           <span className="font-mono text-lg font-bold text-destructive">
             {totalFindings}
           </span>
-          <span className="ml-2 text-muted-foreground">
-            {t("organization.audit.statTotalFindings")}
-          </span>
+          <PageScopedStatLabel
+            label={t("organization.audit.statTotalFindings")}
+          />
         </div>
       </div>
 

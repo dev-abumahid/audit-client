@@ -13,13 +13,27 @@ const mockToastError = vi.mocked(toast.error)
 // react-i18next t(), which just echoes the raw key back -- same technique
 // as TeamMembersTab.test.tsx.
 let mockLanguage: string | undefined = undefined
+// Records every t() call (args included) while still delegating to the real
+// uninitialized t() for rendering -- lets tests assert on *which* args a
+// given key was called with (e.g. activeCount's `count`) without needing a
+// real i18next instance loaded.
+const tCalls: unknown[][] = []
 vi.mock("react-i18next", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-i18next")>()
   return {
     ...mod,
     useTranslation: () => {
       const real = mod.useTranslation()
-      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+      const trackedT = ((...args: unknown[]) => {
+        tCalls.push(args)
+        const untypedT = real.t as unknown as (...a: unknown[]) => string
+        return untypedT(...args)
+      }) as unknown as typeof real.t
+      return {
+        ...real,
+        t: trackedT,
+        i18n: { ...real.i18n, language: mockLanguage },
+      }
     },
   }
 })
@@ -55,6 +69,7 @@ describe("AlertsPage", () => {
     mockMarkAlertRead.mockReset()
     mockToastError.mockReset()
     mockLanguage = undefined
+    tCalls.length = 0
     mockUseGetAllAlertsQuery.mockReturnValue({
       data: { data: [] },
       isLoading: false,
@@ -197,6 +212,84 @@ describe("AlertsPage", () => {
     render(<AlertsPage />)
 
     expect(screen.getByText("some_future_backend_type")).toBeInTheDocument()
+  })
+
+  // aexa-frontend round-4 audit bug #331: the icon color logic only branched
+  // critical/high/else, so low-severity alerts rendered with medium's amber
+  // styling instead of RiskBadge's low color.
+  it("gives a low-severity alert its own icon color, not medium's", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert({ id: "a1", severity: "low" })] },
+      isLoading: false,
+    })
+    render(<AlertsPage />)
+
+    const icon = document.querySelector("svg.text-risk-low")
+    expect(icon).toBeInTheDocument()
+    expect(document.querySelector("svg.text-risk-medium")).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend round-4 audit bug #332: the severity quick-filter chips
+  // were inert <div>s. Clicking one should narrow the list, clicking again
+  // should clear the filter (toggle behavior).
+  it("filters the alert list when a severity quick-filter chip is clicked, and toggles off on a second click", async () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: {
+        data: [
+          makeAlert({ id: "a1", severity: "critical", title: "Critical one" }),
+          makeAlert({ id: "a2", severity: "high", title: "High one" }),
+        ],
+      },
+      isLoading: false,
+    })
+    render(<AlertsPage />)
+
+    expect(screen.getByText("Critical one")).toBeInTheDocument()
+    expect(screen.getByText("High one")).toBeInTheDocument()
+
+    const criticalChip = screen.getAllByRole("button").find((btn) =>
+      btn.querySelector(".text-risk-critical")
+    )
+    expect(criticalChip).toBeDefined()
+
+    await userEvent.click(criticalChip!)
+    expect(screen.getByText("Critical one")).toBeInTheDocument()
+    expect(screen.queryByText("High one")).not.toBeInTheDocument()
+
+    await userEvent.click(criticalChip!)
+    expect(screen.getByText("Critical one")).toBeInTheDocument()
+    expect(screen.getByText("High one")).toBeInTheDocument()
+  })
+
+  // Round-4 review finding: the header's "N active alerts" count used to
+  // read the severity-filtered list's length, so activating a filter made
+  // the header understate how many alerts actually exist. It must always
+  // reflect the true org-wide total, regardless of which (if any) severity
+  // chip is active.
+  it("keeps the header count at the org-wide total, not the filtered count, when a severity filter is active", async () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: {
+        data: [
+          makeAlert({ id: "a1", severity: "critical" }),
+          makeAlert({ id: "a2", severity: "high" }),
+        ],
+      },
+      isLoading: false,
+    })
+    render(<AlertsPage />)
+
+    const criticalChip = screen.getAllByRole("button").find((btn) =>
+      btn.querySelector(".text-risk-critical")
+    )
+    await userEvent.click(criticalChip!)
+
+    const activeCountCalls = tCalls.filter(
+      (args) => args[0] === "organization.alerts.activeCount"
+    )
+    expect(activeCountCalls.length).toBeGreaterThan(0)
+    activeCountCalls.forEach((args) => {
+      expect((args[1] as { count: number }).count).toBe(2)
+    })
   })
 
   // aexa-frontend round-3 audit bug #3: the alert timestamp used to be

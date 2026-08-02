@@ -151,14 +151,7 @@ export default function ReportsPage() {
           className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:ring-2 focus:ring-ring focus:outline-none disabled:opacity-50 sm:w-auto"
         >
           {REPORT_TYPES.map((type) => (
-            <option
-              key={type.value}
-              value={type.value}
-              disabled={!type.enabled}
-              title={
-                type.enabled ? undefined : t("organization.reports.comingSoon")
-              }
-            >
+            <option key={type.value} value={type.value} disabled={!type.enabled}>
               {t(`organization.reports.types.${type.value}`)}
               {type.enabled ? "" : ` — ${t("organization.reports.comingSoon")}`}
             </option>

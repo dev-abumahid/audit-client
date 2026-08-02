@@ -613,6 +613,36 @@ describe("ThreeLinesOfDefensePage", () => {
     expect(screen.queryByText(/data_protection ·/)).not.toBeInTheDocument()
   })
 
+  // aexa-frontend round-4 audit bug #334: a failed query used to render
+  // identically to a genuinely empty board -- no isError/error handling.
+  it("shows an error state with a retry button when the query fails, and refetches on click", async () => {
+    const mockRefetch = vi.fn()
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: mockRefetch,
+    })
+
+    render(<ThreeLinesOfDefensePage />)
+
+    expect(
+      screen.getByText("organization.threeLinesOfDefense.loadFailed")
+    ).toBeInTheDocument()
+    // The genuinely-empty-board copy must not also render.
+    expect(
+      screen.queryByText("organization.threeLinesOfDefense.empty")
+    ).not.toBeInTheDocument()
+    await waitFor(() => expect(mockToastError).toHaveBeenCalled())
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.threeLinesOfDefense.retry",
+      })
+    )
+    expect(mockRefetch).toHaveBeenCalled()
+  })
+
   it("shows empty-state text for a line with no items", () => {
     mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
       data: makeData({ risks: [], kris: [], complianceObligations: [] }),

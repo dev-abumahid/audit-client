@@ -7,8 +7,11 @@ import {
 import { getEnumLabel } from "@/utils/enumLabel"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { Bell, Clock, Loader2 } from "lucide-react"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+
+type Severity = "critical" | "high" | "medium" | "low"
 
 // aexa-frontend round-3 audit bug #5: `Alert.type` is a free-form string
 // column (see aexa-server prisma/schema/alert.prisma) with no backend enum
@@ -23,6 +26,17 @@ const ALERT_TYPE_LABEL_KEYS: Record<string, string> = {
   kri_threshold_breach: "organization.alerts.type.kriThresholdBreach",
 }
 
+// Active-state classes for each severity's quick-filter chip, matching
+// RiskBadge's own bg/text color per level rather than one shared "active"
+// color for all 4 chips -- 4 different severities collapsing into a single
+// active color made it harder to tell at a glance which chip is selected.
+const SEVERITY_ACTIVE_CLASSES: Record<Severity, string> = {
+  critical: "border-risk-critical/40 bg-risk-critical/10 text-risk-critical",
+  high: "border-risk-high/40 bg-risk-high/10 text-risk-high",
+  medium: "border-risk-medium/40 bg-risk-medium/10 text-risk-medium",
+  low: "border-risk-low/40 bg-risk-low/10 text-risk-low",
+}
+
 export default function AlertsPage() {
   const { t, i18n } = useTranslation()
   const {
@@ -32,15 +46,21 @@ export default function AlertsPage() {
   } = useGetAllAlertsQuery(undefined)
   const [markAlertRead, { isLoading: isMarkingRead }] =
     useMarkAlertReadMutation()
+  const [severityFilter, setSeverityFilter] = useState<Severity | null>(null)
 
-  const alerts = alertResponse?.data ?? []
+  const allAlerts = alertResponse?.data ?? []
+  const alerts = severityFilter
+    ? allAlerts.filter((a: any) => a.severity === severityFilter)
+    : allAlerts
 
-  const criticalCount = alerts.filter(
+  const criticalCount = allAlerts.filter(
     (a: any) => a.severity === "critical"
   ).length
-  const highCount = alerts.filter((a: any) => a.severity === "high").length
-  const mediumCount = alerts.filter((a: any) => a.severity === "medium").length
-  const lowCount = alerts.filter((a: any) => a.severity === "low").length
+  const highCount = allAlerts.filter((a: any) => a.severity === "high").length
+  const mediumCount = allAlerts.filter(
+    (a: any) => a.severity === "medium"
+  ).length
+  const lowCount = allAlerts.filter((a: any) => a.severity === "low").length
 
   const handleMarkRead = async (id: string) => {
     try {
@@ -78,7 +98,10 @@ export default function AlertsPage() {
             {t("organization.alerts.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {t("organization.alerts.activeCount", { count: alerts.length })}
+            {/* Always the true org-wide total, not the severity-filtered
+                count below -- a severity filter narrows what's *shown*, it
+                shouldn't make the header lie about how many alerts exist. */}
+            {t("organization.alerts.activeCount", { count: allAlerts.length })}
           </p>
         </div>
       </div>
@@ -95,14 +118,25 @@ export default function AlertsPage() {
                   ? mediumCount
                   : lowCount
 
+          const isActive = severityFilter === sev
+
           return (
-            <div
+            <button
               key={sev}
-              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
+              type="button"
+              aria-pressed={isActive}
+              onClick={() =>
+                setSeverityFilter((prev) => (prev === sev ? null : sev))
+              }
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                isActive
+                  ? SEVERITY_ACTIVE_CLASSES[sev]
+                  : "border-border bg-card text-muted-foreground hover:bg-muted"
+              }`}
             >
               <RiskBadge level={sev} />
               <span className="font-mono-data">{count}</span>
-            </div>
+            </button>
           )
         })}
       </div>
@@ -125,7 +159,9 @@ export default function AlertsPage() {
                     ? "bg-risk-critical/10"
                     : alert.severity === "high"
                       ? "bg-risk-high/10"
-                      : "bg-risk-medium/10"
+                      : alert.severity === "medium"
+                        ? "bg-risk-medium/10"
+                        : "bg-risk-low/10"
                 }`}
               >
                 <Bell
@@ -134,7 +170,9 @@ export default function AlertsPage() {
                       ? "text-risk-critical"
                       : alert.severity === "high"
                         ? "text-risk-high"
-                        : "text-risk-medium"
+                        : alert.severity === "medium"
+                          ? "text-risk-medium"
+                          : "text-risk-low"
                   }`}
                 />
               </div>
@@ -204,7 +242,9 @@ export default function AlertsPage() {
           <div className="py-12 text-center">
             <Bell className="mx-auto h-8 w-8 text-muted-foreground/50" />
             <p className="mt-2 text-sm text-muted-foreground">
-              {t("organization.alerts.empty")}
+              {severityFilter
+                ? t("organization.alerts.emptyFiltered")
+                : t("organization.alerts.empty")}
             </p>
           </div>
         )}

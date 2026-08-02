@@ -29,7 +29,7 @@ import {
   Scale,
   Shield,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -234,7 +234,12 @@ export default function ThreeLinesOfDefensePage() {
   const canReassignAudit = canReassignEntity("audit", role)
   const canReassignAction = canReassignEntity("action", role)
 
-  const { data, isLoading } = useGetThreeLinesOfDefenseQuery()
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetThreeLinesOfDefenseQuery()
   const [updateRisk] = useUpdateRiskMutation()
   const [updateFindingById] = useUpdateFindingByIdMutation()
   const [updateKri] = useUpdateKriMutation()
@@ -242,6 +247,12 @@ export default function ThreeLinesOfDefensePage() {
   const [updateAuditEngagement] = useUpdateAuditEngagementMutation()
 
   const [pendingId, setPendingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isError) {
+      toast.error(t("organization.threeLinesOfDefense.loadFailed"))
+    }
+  }, [isError, t])
 
   const risks = data?.data?.risks ?? []
   const actions = data?.data?.actions ?? []
@@ -297,6 +308,20 @@ export default function ThreeLinesOfDefensePage() {
         <p className="text-sm text-muted-foreground">
           {t("organization.threeLinesOfDefense.loading")}
         </p>
+      ) : isError ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-center">
+          <AlertTriangle className="h-6 w-6 text-destructive" />
+          <p className="text-sm text-destructive">
+            {t("organization.threeLinesOfDefense.loadFailed")}
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="rounded-md border border-destructive/30 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10"
+          >
+            {t("organization.threeLinesOfDefense.retry")}
+          </button>
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">

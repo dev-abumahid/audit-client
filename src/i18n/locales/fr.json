@@ -1003,7 +1003,8 @@
         "notePlaceholder": "ex. Confirmé avec le service juridique",
         "confirmButton": "Confirmer l'attestation",
         "historyModalTitle": "Historique d'attestation — {{title}}",
-        "historyEmpty": "Aucune attestation enregistrée pour le moment"
+        "historyEmpty": "Aucune attestation enregistrée pour le moment",
+        "attestedByLabel": "Attesté par : {{accountId}}"
       },
       "form": {
         "newTitle": "Nouvelle obligation de conformité",
@@ -1042,8 +1043,11 @@
       "title": "Modèle des trois lignes",
       "subtitle": "Tableau de classification de la gouvernance pour les risques, contrôles, KRI, conformité et audits",
       "loading": "Chargement du tableau de classification...",
+      "loadFailed": "Échec du chargement du tableau de classification. Veuillez réessayer.",
+      "retry": "Réessayer",
       "empty": "Aucun élément dans cette ligne pour le moment",
-      "itemCount": "{{count}} éléments",
+      "itemCount_one": "{{count}} élément",
+      "itemCount_other": "{{count}} éléments",
       "noLeadAuditor": "Aucun auditeur principal assigné",
       "moveToFirst": "Déplacer vers la 1re ligne",
       "moveToSecond": "Déplacer vers la 2e ligne",
@@ -1154,6 +1158,8 @@
       "statInProgress": "En cours",
       "statCompleted": "Terminé",
       "statTotalFindings": "Total des constats",
+      "statPageQualifier": "(cette page)",
+      "statPageScopedTooltip": "Calculé à partir des missions actuellement chargées sur cette page, pas de l'ensemble de l'organisation",
       "searchPlaceholder": "Rechercher par référence, titre ou auditeur principal",
       "statusPlanned": "Planifié",
       "statusInProgress": "En cours",
@@ -1207,7 +1213,8 @@
       "actions": {
         "scrape": "Collecter les sources",
         "scraping": "Collecte des sources…",
-        "analyzeCount": "Analyser {{count}} articles",
+        "analyzeCount_one": "Analyser {{count}} article",
+        "analyzeCount_other": "Analyser {{count}} articles",
         "analyzing": "Analyse en cours…",
         "predict": "Prédire les tendances",
         "predicting": "Prédiction en cours…",
@@ -1239,7 +1246,8 @@
         "mitigations": "Mesures d'atténuation générées par l'IA",
         "rcsa": "Auto-évaluation des risques et contrôles (RCSA)",
         "resilienceScan": "Analyse de résilience",
-        "itemsCount": "{{count}} éléments de renseignement",
+        "itemsCount_one": "{{count}} élément de renseignement",
+        "itemsCount_other": "{{count}} éléments de renseignement",
         "itemsEmpty": "Aucun élément de renseignement pour le moment",
         "itemsEmptyHint": "Lancez une collecte pour alimenter le renseignement sur les menaces"
       },
@@ -1302,6 +1310,7 @@
       "new": "Nouveau",
       "markAsRead": "Marquer comme lu",
       "empty": "Aucune alerte pour le moment",
+      "emptyFiltered": "Aucune alerte ne correspond à ce filtre",
       "type": {
         "kriThresholdBreach": "Dépassement de seuil KRI"
       }

@@ -450,6 +450,43 @@ describe("AuditPage", () => {
     })
   })
 
+  // aexa-frontend round-4 audit bug #337: the In Progress / Completed /
+  // Total Findings stat cards silently mixed a page-scoped client-side tally
+  // with meta.total's org-wide accuracy, undercounting on orgs with more
+  // than one page of engagements. The page-scoped stats now carry a
+  // "(this page)" qualifier so the two kinds of numbers aren't conflated.
+  describe("page-scoped stat qualifiers (issue #337)", () => {
+    it("qualifies the page-scoped stats but not the org-wide total", () => {
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: {
+          data: [makeEngagement()],
+          meta: { total: 45, totalPage: 3, page: 1, limit: 20 },
+        },
+        isLoading: false,
+      })
+
+      render(<AuditPage />)
+
+      const qualifiedLabels = document.querySelectorAll(
+        '[title="organization.audit.statPageScopedTooltip"]'
+      )
+      expect(qualifiedLabels.length).toBe(3)
+      qualifiedLabels.forEach((el) =>
+        expect(el.textContent).toContain(
+          "organization.audit.statPageQualifier"
+        )
+      )
+
+      const totalLabel = screen.getByText("organization.audit.statTotal")
+      expect(
+        totalLabel.textContent?.includes(
+          "organization.audit.statPageQualifier"
+        )
+      ).toBe(false)
+      expect(totalLabel).not.toHaveAttribute("title")
+    })
+  })
+
   describe("search and pagination (issue #160)", () => {
     it("feeds the search box value into the query's searchTerm and resets to page 1", async () => {
       const user = userEvent.setup()
