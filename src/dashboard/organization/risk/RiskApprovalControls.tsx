@@ -6,6 +6,7 @@ import {
   useSubmitRiskForApprovalMutation,
 } from "@/redux/apis/organization/riskApproval.api"
 import type { Risk, RiskApprovalDisplayState } from "@/types/organization"
+import { formatLocaleDate } from "@/utils/formatDate"
 import { Check, Send, X } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -46,7 +47,7 @@ interface Props {
  * UX convenience; every action is re-checked server-side.
  */
 export default function RiskApprovalControls({ risk }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const role = useMyOrgRole()
   const { data: me, isLoading: isMeLoading } = useGetMeQuery()
 
@@ -211,7 +212,7 @@ export default function RiskApprovalControls({ risk }: Props) {
         risk.approval?.decidedAt && (
           <p className="text-[10px] text-muted-foreground">
             {t("organization.riskRegister.approval.decidedOn", {
-              date: new Date(risk.approval.decidedAt).toLocaleDateString(),
+              date: formatLocaleDate(risk.approval.decidedAt, i18n.language),
             })}
           </p>
         )}

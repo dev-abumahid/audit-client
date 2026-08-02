@@ -825,9 +825,9 @@ export default function SitesEntities() {
                         key={risk.id}
                         className="flex flex-col justify-between gap-2 rounded-lg border-2 border-accent/30 bg-accent/5 p-3 sm:flex-row sm:items-center"
                       >
-                        <div className="flex items-center gap-16">
+                        <div className="flex items-center gap-2">
                           <span className="font-mono text-xs font-bold">
-                            RS-{risk.id.split("-")[1].toUpperCase()}
+                            {risk.ref}
                           </span>
 
                           <div className="flex min-w-0 flex-col items-start gap-1.5">

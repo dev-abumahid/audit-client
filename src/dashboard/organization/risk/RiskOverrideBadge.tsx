@@ -1,3 +1,4 @@
+import { formatLocaleDate } from "@/utils/formatDate"
 import { useTranslation } from "react-i18next"
 
 interface Props {
@@ -47,7 +48,7 @@ export default function RiskOverrideBadge({
   overriddenAt,
   label,
 }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   if (!isOverride) return null
 
@@ -55,7 +56,13 @@ export default function RiskOverrideBadge({
     label,
     by: overriddenBy || t("organization.riskRegister.overrideUnknownActor"),
     date: overriddenAt
-      ? new Date(overriddenAt).toLocaleString()
+      ? formatLocaleDate(overriddenAt, i18n.language, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
       : t("organization.riskRegister.overrideUnknownDate"),
   })
 

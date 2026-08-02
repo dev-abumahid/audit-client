@@ -301,4 +301,94 @@ describe("RiskMatrixPage", () => {
     expect(screen.getByText("1 Risk — Score 1")).toBeInTheDocument()
     expect(screen.queryByText(/Risk\(s\)/)).not.toBeInTheDocument()
   })
+
+  // Regression (audit round 4 / #346): the AI-generated badge on a risk card
+  // hardcoded the literal "IA" instead of routing through the same
+  // organization.riskRegister.aiGenerated i18n key RiskRegisterPage.tsx
+  // already uses for the identical badge.
+  it("shows the AI-generated badge via the shared riskRegister.aiGenerated i18n key, not a hardcoded 'IA'", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            probability: 0,
+            inherent_score: 0,
+            ai_generated: true,
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+    render(<RiskMatrixPage />)
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    expect(
+      screen.getByText("organization.riskRegister.aiGenerated")
+    ).toBeInTheDocument()
+    expect(screen.queryByText("IA")).not.toBeInTheDocument()
+  })
+
+  it("does not show an AI-generated badge for a manual risk", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ probability: 0, inherent_score: 0, ai_generated: false }),
+        ],
+      },
+      isLoading: false,
+    })
+    render(<RiskMatrixPage />)
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    expect(
+      screen.queryByText("organization.riskRegister.aiGenerated")
+    ).not.toBeInTheDocument()
+  })
+
+  // Regression (audit round 4 / #348): the group-header category label fell
+  // back to the raw category string when unmapped, but RiskCard's per-card
+  // label fell back to blank (undefined) instead -- inconsistent. Both now
+  // fall back to the raw category string.
+  it("falls back to the raw category string (not blank) on both the group header and the risk card for an unmapped category", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            probability: 0,
+            inherent_score: 0,
+            category: "some_future_category",
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+    render(<RiskMatrixPage />)
+
+    // Switch to "By type" grouping (only then does the details panel render
+    // a group header above the risk cards) and select the cell.
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.groupByType",
+      })
+    )
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    // Both the group header and the card's own per-risk category label show
+    // the raw category string -- neither renders blank. The group header
+    // combines the label with a "(count)" suffix in the same element (so
+    // getAllByText's exact-text-node matching only catches the card's own
+    // isolated span) -- match on textContent instead to catch both.
+    const matches = Array.from(document.querySelectorAll("span")).filter(
+      (el) => el.textContent?.includes("some_future_category")
+    )
+    expect(matches.length).toBe(2)
+  })
 })

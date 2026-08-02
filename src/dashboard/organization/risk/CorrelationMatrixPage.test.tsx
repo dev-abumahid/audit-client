@@ -947,6 +947,85 @@ describe("CorrelationMatrixPage", () => {
     ).toBeInTheDocument()
   })
 
+  // Regression (audit round 4 / #347): each finding's priority badge inside
+  // an expanded finding bucket rendered f.priority raw/untranslated, with
+  // color logic only special-casing "High" (everything else, including
+  // "Low", rendered the same orange as "Medium"). Now routed through the
+  // same organization.findings.priorityLow/Medium/High keys used by
+  // AllFindingsPage.tsx/FindingDetails.tsx/InspectionActions.tsx for the
+  // identical field, with all three levels visually distinct.
+  it("shows each finding's priority via the shared organization.findings.priority i18n keys, distinguishing High from Low", async () => {
+    setMatrixData({
+      actions: [
+        makeAction({ id: "a1", priority: "High", actionTitle: "Weak MFA" }),
+        makeAction({
+          id: "a2",
+          priority: "High",
+          actionTitle: "Unencrypted data",
+        }),
+      ],
+    })
+
+    render(<CorrelationMatrixPage />)
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewFindings",
+      })
+    )
+    fireEvent.click(
+      screen.getByText(
+        "organization.correlationMatrix.findingPriorityBucketName"
+      )
+    )
+
+    const badges = await screen.findAllByText(
+      "organization.findings.priorityHigh"
+    )
+    expect(badges).toHaveLength(2)
+    expect(
+      screen.queryAllByText((_, el) => el?.textContent === "High")
+    ).toHaveLength(0)
+    for (const badge of badges) {
+      expect(badge).toHaveClass("bg-red-100")
+    }
+  })
+
+  it("gives a Low-priority finding badge a different color than High (not the same orange for both)", async () => {
+    setMatrixData({
+      actions: [
+        makeAction({ id: "a1", priority: "Low", actionTitle: "Minor gap" }),
+        makeAction({
+          id: "a2",
+          priority: "Low",
+          actionTitle: "Cosmetic issue",
+        }),
+      ],
+    })
+
+    render(<CorrelationMatrixPage />)
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewFindings",
+      })
+    )
+    fireEvent.click(
+      screen.getByText(
+        "organization.correlationMatrix.findingPriorityBucketName"
+      )
+    )
+
+    const badges = await screen.findAllByText(
+      "organization.findings.priorityLow"
+    )
+    expect(badges).toHaveLength(2)
+    for (const badge of badges) {
+      expect(badge).toHaveClass("bg-green-100")
+      expect(badge).not.toHaveClass("bg-orange-100")
+    }
+  })
+
   // aexa-frontend#257: riskGrid's keys are in mapToAxis(matrixSize)-space,
   // which is a different coordinate space per matrixSize/site filter, so a
   // selectedCell picked under one of those can point at a row/col that's out

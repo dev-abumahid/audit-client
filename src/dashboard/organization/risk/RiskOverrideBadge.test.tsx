@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import RiskOverrideBadge from "./RiskOverrideBadge"
+import { formatLocaleDate } from "@/utils/formatDate"
 
 // aexa-frontend#269 -- unlike most tests in this app (which let t() echo the
 // raw key back, since no i18n instance is initialized in the test
@@ -25,6 +26,7 @@ vi.mock("react-i18next", () => ({
       }
       return out
     },
+    i18n: { language: "en" },
   }),
 }))
 
@@ -92,8 +94,17 @@ describe("RiskOverrideBadge", () => {
     // Confirms the raw accountId (not a resolved display name) is what's
     // surfaced -- see the component's own file comment for why: there is no
     // server endpoint to resolve accountId -> name from this frontend.
+    // Uses the shared formatLocaleDate() helper (aexa-frontend#342) rather
+    // than a bare toLocaleString(), so the assertion goes through the same
+    // helper instead of the visiting-machine's default locale.
     expect(badge.getAttribute("title")).toContain(
-      new Date("2026-07-10T12:00:00.000Z").toLocaleString()
+      formatLocaleDate("2026-07-10T12:00:00.000Z", "en", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
     )
   })
 

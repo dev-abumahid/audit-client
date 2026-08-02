@@ -472,6 +472,7 @@ describe("SitesEntities", () => {
         data: [
           {
             id: "risk-99",
+            ref: "RSK-2026-0142",
             name: "Flooding",
             description: "Seasonal flood risk",
             residual_score: 12,
@@ -488,6 +489,11 @@ describe("SitesEntities", () => {
     await userEvent.click(expandButton)
 
     expect(screen.getByText("Flooding")).toBeInTheDocument()
+    // Regression (audit round 4 / #343): this row used to fabricate an
+    // "RS-{id-fragment}" label instead of showing the real risk.ref -- assert
+    // the real ref renders, and that no fabricated "RS-" label appears.
+    expect(screen.getByText("RSK-2026-0142")).toBeInTheDocument()
+    expect(screen.queryByText(/^RS-/)).not.toBeInTheDocument()
     // Regression (audit round 3): "✅ Confirmed risks (in the register)" was
     // hardcoded English apart from the emoji.
     expect(
@@ -500,6 +506,12 @@ describe("SitesEntities", () => {
     expect(
       screen.getByText(/organization\.site&entities\.manualBadge/)
     ).toBeInTheDocument()
+    // Regression (audit round 4 / #344): the ref/name row used gap-16
+    // (a much larger gap than sibling rows in this file); confirmed risks
+    // now use gap-2, matching the badge row directly below it.
+    expect(screen.getByText("RSK-2026-0142").parentElement).toHaveClass(
+      "gap-2"
+    )
   })
 
   it("opens the manual risk form and submits it for the site", async () => {

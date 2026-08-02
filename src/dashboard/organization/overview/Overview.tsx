@@ -2,7 +2,7 @@
 import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAlertBanner"
 import MetricCard from "@/components/dashboard/organization/MetricCard"
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
-import { riskCategories } from "@/data/mockData"
+import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
 import { useGetAllFindingsQuery } from "@/redux/apis/organization/findings.api"
 import { useGetAllInspectionQuery } from "@/redux/apis/organization/inspection.api"
@@ -107,11 +107,11 @@ export default function Overview() {
       {} as Record<string, number>
     )
   ).map(([key, value]) => ({
-    name: riskCategories[key]
-      ? t(`organization.riskCategories.${riskCategories[key].labelKey}`)
+    name: RISK_CATEGORIES[key]
+      ? t(`organization.riskCategories.${RISK_CATEGORIES[key].labelKey}`)
       : key,
     value,
-    color: riskCategories[key]?.color || "#888",
+    color: RISK_CATEGORIES[key]?.color || "#888",
   }))
 
   const kriAlerts = kris.filter((k: any) => k.status === "ALERT").length
@@ -409,9 +409,9 @@ export default function Overview() {
                     {risk.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {riskCategories[risk.category] &&
+                    {RISK_CATEGORIES[risk.category] &&
                       t(
-                        `organization.riskCategories.${riskCategories[risk.category].labelKey}`
+                        `organization.riskCategories.${RISK_CATEGORIES[risk.category].labelKey}`
                       )}
                   </p>
                 </div>

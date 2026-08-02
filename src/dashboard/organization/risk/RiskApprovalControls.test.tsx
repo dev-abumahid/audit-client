@@ -372,5 +372,43 @@ describe("RiskApprovalControls", () => {
         screen.queryByText(/organization.riskRegister.approval.rejectionReason/)
       ).not.toBeInTheDocument()
     })
+
+    // Regression guard (issue #342): decidedAt used to be formatted with a
+    // bare `new Date(...).toLocaleDateString()` (no locale arg -- silently
+    // formats in the visiting browser's locale rather than the app's
+    // selected language). t() returns the raw key with no interpolation in
+    // this test environment (see the comment above), so the formatted date
+    // can't be asserted via rendered text -- instead this spies on the
+    // shared formatLocaleDate() helper itself to prove the decidedOn date is
+    // actually routed through it, not a bare toLocaleDateString() call.
+    it("formats the decided-on date via the shared formatLocaleDate() helper", async () => {
+      const formatDateModule = await import("@/utils/formatDate")
+      const spy = vi.spyOn(formatDateModule, "formatLocaleDate")
+
+      const risk = {
+        id: "risk-1",
+        approvalStatus: "APPROVED",
+        approval: {
+          id: "ra-1",
+          riskId: "risk-1",
+          status: "APPROVED",
+          submittedById: "acc-1",
+          decidedById: "acc-2",
+          decidedAt: "2026-07-10T00:00:00.000Z",
+          decisionNote: null,
+          invalidatedAt: null,
+          invalidatedById: null,
+          createdAt: "2026-07-01T00:00:00.000Z",
+          updatedAt: "2026-07-10T00:00:00.000Z",
+        },
+      } as unknown as Risk
+      render(<RiskApprovalControls risk={risk} />)
+
+      // i18n isn't initialized in this test environment, so the language
+      // arg is undefined here -- only the date value itself is asserted.
+      expect(spy.mock.calls[0]?.[0]).toBe("2026-07-10T00:00:00.000Z")
+
+      spy.mockRestore()
+    })
   })
 })

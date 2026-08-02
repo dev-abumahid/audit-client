@@ -449,11 +449,28 @@ export default function KriDashboardPage() {
                       {t("organization.kri.form.selectRisk")}
                     </option>
                     {risks.map((r: any) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name.slice(0, 30)}
+                      <option key={r.id} value={r.id} title={r.name}>
+                        {r.name.length > 30
+                          ? `${r.name.slice(0, 30)}...`
+                          : r.name}
                       </option>
                     ))}
                   </select>
+                  {/* option-element title tooltips don't reliably render
+                      everywhere (same constraint the ReportsPage "Coming
+                      soon" fix documents), so the full name of a truncated
+                      selection is also always visible here, not just on
+                      hover. */}
+                  {(() => {
+                    const selected = risks.find(
+                      (r: any) => r.id === form.risk_id
+                    )
+                    return selected && selected.name.length > 30 ? (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {selected.name}
+                      </p>
+                    ) : null
+                  })()}
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">

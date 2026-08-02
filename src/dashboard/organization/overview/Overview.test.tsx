@@ -410,6 +410,33 @@ describe("Overview", () => {
     ).toBeGreaterThan(0)
   })
 
+  // Regression (audit round 4 / #341): this page imported the old, smaller
+  // 8-category `riskCategories` from @/data/mockData instead of the current
+  // 20-category `RISK_CATEGORIES` from @/utils/riskConfig that
+  // RiskRegisterPage.tsx/RiskMatrixPage.tsx already use -- so any risk in one
+  // of the 12 newer categories (geopolitical, technology, compliance, etc.)
+  // fell back to showing its raw category slug instead of a translated
+  // label. "geopolitical" only exists in the newer 20-category set.
+  it("resolves a category that only exists in the newer 20-category RISK_CATEGORIES set (not the old 8-category mockData one)", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "r1", ref: "GEO-001", category: "geopolitical" }),
+          makeRisk({ id: "r2", ref: "GEO-002", category: "geopolitical" }),
+        ],
+      },
+      isLoading: false,
+    })
+    render(<Overview />)
+
+    expect(
+      screen
+        .getAllByText("organization.riskCategories.catGeopolitical")
+        .length
+    ).toBeGreaterThan(0)
+    expect(screen.queryByText("geopolitical")).not.toBeInTheDocument()
+  })
+
   it("shows an empty state in Tipping Points when there are no tipping-point risks", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     mockUseGetCorrelationMatrixDataQuery.mockReturnValue({

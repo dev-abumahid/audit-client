@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import KriDashboardPage from "./KriDashboardPage"
 
@@ -241,6 +241,102 @@ describe("KriDashboardPage", () => {
       )
     )
     expect(mockToastSuccess).toHaveBeenCalledWith("organization.kri.toast.created")
+  })
+
+  // Regression (audit round 4 / #345): the risk-name option in the "Link
+  // Risk" dropdown truncated to 30 chars with no ellipsis or way to see the
+  // full name, so a long risk name and its truncated sibling could look
+  // identical (or just look cut off with no indication). Now shows an
+  // ellipsis when actually truncated, and the full name is always available
+  // via a title tooltip.
+  it("truncates a long risk name with an ellipsis and exposes the full name via a title tooltip", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            id: "risk-long",
+            name: "A very long risk name that definitely exceeds thirty characters in length",
+          }),
+        ],
+      },
+    })
+    mockUseGetAllKriQuery.mockReturnValue({ data: { data: [] } })
+
+    render(<KriDashboardPage />)
+    await userEvent.click(
+      screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+    )
+
+    const [riskSelect] = screen.getAllByRole("combobox")
+    const option = within(riskSelect).getByRole("option", {
+      name: "A very long risk name that def...",
+    })
+    expect(option).toHaveAttribute(
+      "title",
+      "A very long risk name that definitely exceeds thirty characters in length"
+    )
+  })
+
+  it("does not add an ellipsis to a risk name that's already 30 chars or fewer", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ id: "risk-short", name: "Short risk name" })] },
+    })
+    mockUseGetAllKriQuery.mockReturnValue({ data: { data: [] } })
+
+    render(<KriDashboardPage />)
+    await userEvent.click(
+      screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+    )
+
+    const [riskSelect] = screen.getAllByRole("combobox")
+    const option = within(riskSelect).getByRole("option", {
+      name: "Short risk name",
+    })
+    expect(option).toHaveAttribute("title", "Short risk name")
+  })
+
+  // Option-element title tooltips don't reliably render everywhere (same
+  // constraint the round-4 ReportsPage "Coming soon" fix documents), so the
+  // full name must also be visible without relying on hover once a
+  // truncated risk is actually selected.
+  it("shows the full risk name as visible text (not just a hover tooltip) once a truncated risk is selected", async () => {
+    const longName =
+      "A very long risk name that definitely exceeds thirty characters in length"
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ id: "risk-long", name: longName })] },
+    })
+    mockUseGetAllKriQuery.mockReturnValue({ data: { data: [] } })
+
+    render(<KriDashboardPage />)
+    await userEvent.click(
+      screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+    )
+
+    const [riskSelect] = screen.getAllByRole("combobox")
+    expect(screen.queryByText(longName)).not.toBeInTheDocument()
+
+    await userEvent.selectOptions(riskSelect, "risk-long")
+
+    expect(screen.getByText(longName)).toBeInTheDocument()
+  })
+
+  it("does not show a visible full-name caption for a risk name that's already 30 chars or fewer", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ id: "risk-short", name: "Short risk name" })] },
+    })
+    mockUseGetAllKriQuery.mockReturnValue({ data: { data: [] } })
+
+    render(<KriDashboardPage />)
+    await userEvent.click(
+      screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+    )
+
+    const [riskSelect] = screen.getAllByRole("combobox")
+    await userEvent.selectOptions(riskSelect, "risk-short")
+
+    // "Short risk name" already appears once as the selected <option>'s own
+    // text -- the caption should not add a second copy.
+    expect(screen.getAllByText("Short risk name")).toHaveLength(1)
   })
 
   it("rejects creating a KRI when target and alert threshold are equal", async () => {

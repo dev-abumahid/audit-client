@@ -41,6 +41,22 @@ import { toast } from "sonner"
 // All user-facing chrome on this page routes through this namespace.
 const NS = "organization.correlationMatrix"
 
+// Same i18n keys and color scale used for this identical field in
+// AllFindingsPage.tsx/FindingDetails.tsx/InspectionActions.tsx -- previously
+// this page rendered f.priority raw/untranslated with only "High" special-
+// cased, leaving Low/Medium indistinguishable in the UI.
+const PRIORITY_KEYS: Record<string, string> = {
+  Low: "organization.findings.priorityLow",
+  Medium: "organization.findings.priorityMedium",
+  High: "organization.findings.priorityHigh",
+}
+const PRIORITY_BADGES: Record<string, string> = {
+  Low: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  Medium:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  High: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+}
+
 type MatrixSize = 3 | 4 | 5
 type ViewMode = "risks" | "findings" | "buckets" | "ai-buckets"
 type GroupMode = "none" | "category" | "rootcause"
@@ -874,9 +890,11 @@ export default function CorrelationMatrixPage() {
                             <div key={f.id} className="flex justify-between">
                               <span>{f.actionTitle}</span>
                               <span
-                                className={`rounded px-2 py-0.5 text-[10px] ${f.priority === "High" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}
+                                className={`rounded px-2 py-0.5 text-[10px] ${PRIORITY_BADGES[f.priority] || "bg-muted text-muted-foreground"}`}
                               >
-                                {f.priority}
+                                {PRIORITY_KEYS[f.priority]
+                                  ? t(PRIORITY_KEYS[f.priority])
+                                  : f.priority}
                               </span>
                             </div>
                           ))}

@@ -420,7 +420,7 @@ function RiskCard({
             <p className="font-mono text-xs text-primary">{risk.id}</p>
             {risk.ai_generated && (
               <span className="rounded bg-blue-100 px-1.5 text-[9px] text-blue-700">
-                IA
+                {t("organization.riskRegister.aiGenerated")}
               </span>
             )}
           </div>
@@ -459,7 +459,7 @@ function RiskCard({
                 ?.labelKey
             return labelKey
               ? t(`organization.riskCategories.${labelKey}`)
-              : undefined
+              : risk.category
           })()}
         </span>
         <span>PR: {Number(risk.pagerank_score).toFixed(0)}</span>
