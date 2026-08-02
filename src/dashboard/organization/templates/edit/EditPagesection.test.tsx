@@ -501,3 +501,37 @@ describe("EditPageSection - drag reorder sync", () => {
     consoleErrorSpy.mockRestore()
   })
 })
+
+// Issue #363: mounting the template editor with an existing page title used
+// to fire a real PATCH immediately, because lastSyncedTitle started at
+// `useRef(null)`, which never equals the mounted page's real title. Fixed by
+// initializing the ref with the current (mounted) title instead, so the
+// first comparison in the "sync page title" effect correctly reads
+// "unchanged since mount".
+describe("EditPageSection - page title sync", () => {
+  beforeEach(() => {
+    mockUpdateOrCreatePage.mockReset()
+    mockUpdateOrCreatePage.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+  })
+
+  it("does not sync the page title on mount with existing data -- only after the user edits it", async () => {
+    render(<Harness questions={[]} />)
+
+    // Wait out the 1000ms debounce that the mount-triggered effect would
+    // have used if it fired.
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+    expect(mockUpdateOrCreatePage).not.toHaveBeenCalled()
+
+    const titleInput = screen.getByPlaceholderText(
+      "organization.templates.builder.sectionTitlePlaceholder"
+    )
+    await userEvent.clear(titleInput)
+    await userEvent.type(titleInput, "New Section Title")
+
+    await waitFor(() => expect(mockUpdateOrCreatePage).toHaveBeenCalled(), {
+      timeout: 2000,
+    })
+  })
+})

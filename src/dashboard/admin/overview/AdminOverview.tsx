@@ -17,10 +17,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
+import { formatLocaleDate } from "@/utils/formatDate"
 import CustomTooltip from "./CustomTooltip"
 
 const AdminOverview = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   // Dummy Stats
   const stats = [
     {
@@ -378,7 +379,7 @@ const AdminOverview = () => {
                       </span>
                     </td>
                     <td className="px-6 py-5 text-sm text-muted-foreground">
-                      {new Date(payment.createdAt).toLocaleDateString("en-US", {
+                      {formatLocaleDate(payment.createdAt, i18n.language, {
                         month: "short",
                         day: "numeric",
                         year: "numeric",
@@ -427,7 +428,7 @@ const AdminOverview = () => {
 
                 <div className="mt-4 flex justify-between text-xs text-muted-foreground">
                   <span>
-                    {new Date(payment.createdAt).toLocaleDateString("en-US", {
+                    {formatLocaleDate(payment.createdAt, i18n.language, {
                       month: "short",
                       day: "numeric",
                       year: "numeric",

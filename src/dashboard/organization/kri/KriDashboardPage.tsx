@@ -7,6 +7,7 @@ import {
 } from "@/redux/apis/organization/kri.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { formatLocaleDate } from "@/utils/formatDate"
 import {
   AlertTriangle,
   ChartLine,
@@ -43,7 +44,7 @@ const EMPTY_KRI = {
 }
 
 export default function KriDashboardPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   // aexa-frontend#217
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
@@ -156,7 +157,7 @@ export default function KriDashboardPage() {
     .reverse()
     .map((r: { value: number; recorded_at: string }) => ({
       value: r.value,
-      recorded_at: new Date(r.recorded_at).toLocaleDateString("en-US", {
+      recorded_at: formatLocaleDate(r.recorded_at, i18n.language, {
         month: "short",
         day: "numeric",
       }),
@@ -263,7 +264,9 @@ export default function KriDashboardPage() {
                   </p>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {risk?.name ?? t("organization.kri.unknownRisk")}
-                    {kri.frequency ? ` · ${kri.frequency}` : ""}
+                    {kri.frequency
+                      ? ` · ${t(`organization.kri.frequency.${kri.frequency}`)}`
+                      : ""}
                   </p>
                 </div>
                 <span

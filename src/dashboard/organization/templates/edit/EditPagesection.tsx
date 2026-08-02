@@ -71,7 +71,6 @@ const EditPageSection = memo(
 
     const [isSyncing, setIsSyncing] = useState(false)
     const [isDragging, setIsDragging] = useState(false)
-    const lastSyncedTitle = useRef<string | null>(null)
 
     // Issue #129 scope decision: this tracks, per question id, whether its
     // most recent reorder-sync attempt failed — surfaced to
@@ -161,6 +160,14 @@ const EditPageSection = memo(
       control,
       name: `pages.${pageIndex}.title`,
     })
+
+    // Issue #363: initialized with the CURRENT (mounted) title rather than
+    // null, so the first "sync page title" effect below correctly detects
+    // "unchanged since mount" and skips firing a PATCH for every existing
+    // page the moment the template editor loads. Previously this started as
+    // `useRef(null)`, which never equals any real title, so the very first
+    // debounced sync always fired even for pre-existing, untouched pages.
+    const lastSyncedTitle = useRef<string | null>(pageTitle ?? null)
 
     // Debounced order sync
     //

@@ -1,4 +1,5 @@
 import type { LinkedRisk } from "@/redux/apis/organization/audit.api"
+import { riskCategoryLabel } from "@/utils/riskConfig"
 import { Check, ChevronDown, Search, X } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -160,7 +161,7 @@ export default function RiskMultiSelect({
                     </span>
                     <span className="flex-1 text-foreground">{risk.name}</span>
                     <span className="text-[10px] text-muted-foreground">
-                      {risk.category}
+                      {riskCategoryLabel(t, risk.category)}
                     </span>
                   </button>
                 )

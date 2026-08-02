@@ -14,6 +14,16 @@ import { Controller, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
+// Shared with the initial-ref computation below so the "did this actually
+// change since mount/last sync" check is always the exact same comparison.
+function makeQuestionSyncKey(
+  text: string,
+  required: boolean,
+  type: any
+): string {
+  return `${text}-${required}-${JSON.stringify(type)}`
+}
+
 interface SortableQuestionRowProps {
   sortableId: string
   pageIndex: number
@@ -70,7 +80,6 @@ function EditSortableQuestionRow({
 
   const [isSyncing, setIsSyncing] = useState(false)
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastSyncedValueRef = useRef<string | null>(null)
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -93,6 +102,17 @@ function EditSortableQuestionRow({
     name: `pages.${pageIndex}.questions.${questionIndex}.isRequired`,
   })
 
+  // Issue #363: initialized with the CURRENT (mounted) value rather than
+  // null, so the first sync-key comparison in syncQuestion correctly
+  // detects "unchanged since mount" and skips firing a PATCH for every
+  // pre-existing question the moment the template editor loads. Previously
+  // this started as `useRef(null)`, which never equals any real syncKey, so
+  // the very first debounced/immediate sync effect always fired for
+  // existing data too.
+  const lastSyncedValueRef = useRef<string | null>(
+    makeQuestionSyncKey(questionText, isRequired, answerType)
+  )
+
   const answerLabel = (() => {
     if (!answerType) return t("organization.templates.builder.selectType")
     const at = answerType.answerType
@@ -112,7 +132,7 @@ function EditSortableQuestionRow({
     if (!shouldSync) return
     if (!text || text.trim() === "") return
 
-    const syncKey = `${text}-${required}-${JSON.stringify(type)}`
+    const syncKey = makeQuestionSyncKey(text, required, type)
     if (syncKey === lastSyncedValueRef.current) return
 
     try {

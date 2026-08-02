@@ -13,10 +13,11 @@ import {
   useGetAdminOrganizationsQuery,
   type AdminOrganizationListItem,
 } from "@/redux/apis/organization/onboarding.api"
+import { formatLocaleDate } from "@/utils/formatDate"
 import OnboardingWizard from "./OnboardingWizard"
 
 const AdminOrganization: React.FC = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [isWizardOpen, setIsWizardOpen] = useState(false)
@@ -46,8 +47,12 @@ const AdminOrganization: React.FC = () => {
     setCurrentPage(page)
   }
 
+  // Issue #364: was hardcoded toLocaleDateString("en-US", ...), which
+  // silently ignored the app's selected language. Uses the shared
+  // formatLocaleDate helper (same pattern as FindingDetails.tsx/
+  // InspectionReport.tsx) instead of a local en-US-only formatter.
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return formatLocaleDate(dateString, i18n.language, {
       day: "numeric",
       month: "short",
       year: "numeric",

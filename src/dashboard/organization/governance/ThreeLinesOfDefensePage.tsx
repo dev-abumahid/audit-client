@@ -19,7 +19,7 @@ import {
   FINDING_PRIORITY_LABEL_KEYS,
   FINDING_STATUS_LABEL_KEYS,
 } from "@/utils/findingLabels"
-import { RISK_CATEGORIES } from "@/utils/riskConfig"
+import { riskCategoryLabel } from "@/utils/riskConfig"
 import {
   Activity,
   AlertTriangle,
@@ -64,11 +64,6 @@ const COMPLIANCE_STATUS_LABEL_KEYS: Record<string, string> = {
   in_progress: "organization.compliance.status.in_progress",
   non_compliant: "organization.compliance.status.non_compliant",
   not_applicable: "organization.compliance.status.not_applicable",
-}
-
-function riskCategoryLabel(t: (key: string) => string, category: string): string {
-  const cat = RISK_CATEGORIES[category as keyof typeof RISK_CATEGORIES]
-  return cat ? t(`organization.riskCategories.${cat.labelKey}`) : category
 }
 
 function complianceDomainLabel(t: (key: string) => string, domain: string): string {

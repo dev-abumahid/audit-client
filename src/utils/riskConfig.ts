@@ -39,3 +39,17 @@ export const RISK_CATEGORIES: Record<string, { labelKey: string; color: string }
       color: "hsl(0, 50%, 40%)",
     },
   }
+
+// Issue #362: shared translated-label resolver for a risk category value,
+// extracted from ThreeLinesOfDefensePage.tsx so RiskMultiSelect.tsx (the
+// linked-risk picker on the Audit Missions form) can render the same
+// translated label instead of the raw backend category value. Falls back to
+// the raw category for anything not in RISK_CATEGORIES, same convention as
+// getEnumLabel() in enumLabel.ts.
+export function riskCategoryLabel(
+  t: (key: string) => string,
+  category: string
+): string {
+  const cat = RISK_CATEGORIES[category as keyof typeof RISK_CATEGORIES]
+  return cat ? t(`organization.riskCategories.${cat.labelKey}`) : category
+}

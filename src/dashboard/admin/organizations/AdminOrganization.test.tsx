@@ -2,6 +2,20 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import AdminOrganization from "./AdminOrganization"
 
+// Controllable `i18n.language` for the locale-formatting test below, same
+// technique as FindingDetails.test.tsx/TeamMembersTab.test.tsx.
+let mockLanguage: string | undefined = undefined
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+    },
+  }
+})
+
 const mockUseGetAdminOrganizationsQuery = vi.fn()
 
 vi.mock("@/redux/apis/organization/onboarding.api", () => ({
@@ -47,6 +61,41 @@ function mockList(
 describe("AdminOrganization", () => {
   beforeEach(() => {
     mockUseGetAdminOrganizationsQuery.mockReset()
+    mockLanguage = undefined
+  })
+
+  // Issue #364: the "Joined" date used a local formatDate() hardcoded to
+  // toLocaleDateString("en-US", ...), ignoring the app's selected language.
+  // Now goes through the shared formatLocaleDate helper.
+  describe("locale-aware joined-date formatting (#364)", () => {
+    const dateOptions: Intl.DateTimeFormatOptions = {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }
+
+    it("formats the joined date using the French locale when i18n.language starts with fr", () => {
+      mockLanguage = "fr-FR"
+      mockList([makeOrg({ createdAt: "2026-06-01T10:00:00.000Z" })])
+
+      render(<AdminOrganization />)
+
+      const expected = new Date(
+        "2026-06-01T10:00:00.000Z"
+      ).toLocaleDateString("fr-FR", dateOptions)
+      expect(screen.getAllByText(expected).length).toBeGreaterThan(0)
+    })
+
+    it("formats the joined date using the English locale by default", () => {
+      mockList([makeOrg({ createdAt: "2026-06-01T10:00:00.000Z" })])
+
+      render(<AdminOrganization />)
+
+      const expected = new Date(
+        "2026-06-01T10:00:00.000Z"
+      ).toLocaleDateString("en-US", dateOptions)
+      expect(screen.getAllByText(expected).length).toBeGreaterThan(0)
+    })
   })
 
   it("renders real organizations from the API (no hardcoded dummy data)", () => {

@@ -83,6 +83,46 @@ describe("RiskMultiSelect", () => {
     ).toBeInTheDocument()
   })
 
+  it("shows the translated category label rather than the raw backend value, for a known category (issue #362)", async () => {
+    const user = userEvent.setup()
+    render(
+      <RiskMultiSelect
+        options={[{ id: "risk-3", name: "Ransomware", category: "cyber" }]}
+        selectedIds={[]}
+        onChange={() => {}}
+      />
+    )
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "organization.audit.riskSelect.selectPlaceholder",
+      })
+    )
+
+    // "cyber" is a real RISK_CATEGORIES key, so it must render through
+    // riskCategoryLabel()'s i18n key rather than the raw "cyber" string --
+    // i18n is uninitialized in this test env, so t() just echoes the key.
+    expect(
+      screen.getByText("organization.riskCategories.catCyber")
+    ).toBeInTheDocument()
+    expect(screen.queryByText("cyber")).not.toBeInTheDocument()
+  })
+
+  it("falls back to the raw value for an unrecognized category", async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "organization.audit.riskSelect.selectPlaceholder",
+      })
+    )
+
+    // "Cyber" (capitalized, from OPTIONS above) doesn't match any
+    // RISK_CATEGORIES key, so riskCategoryLabel() falls back to it verbatim.
+    expect(screen.getByText("Cyber")).toBeInTheDocument()
+  })
+
   it("shows the loading key while risks are loading", async () => {
     const user = userEvent.setup()
     render(

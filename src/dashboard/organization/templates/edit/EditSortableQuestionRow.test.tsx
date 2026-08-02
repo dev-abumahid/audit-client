@@ -123,14 +123,12 @@ describe("EditSortableQuestionRow - order-not-saved indicator masking", () => {
   it("prioritizes the in-progress 'Saving...' indicator over a stale order-not-saved flag, then reveals the flag again once that sync finishes", async () => {
     render(<Harness orderSyncFailed isEditMode />)
 
-    // Mounting with isEditMode+pageId set triggers this row's own
-    // (unrelated) text/type autosave on mount — let it settle first so it
-    // doesn't get confused with the sync we're about to control below.
-    await waitFor(() => expect(mockUpdateOrCreateQuestion).toHaveBeenCalled())
-    await waitFor(() =>
-      expect(screen.queryByText("organization.templates.builder.saving")).not.toBeInTheDocument()
-    )
-    mockUpdateOrCreateQuestion.mockClear()
+    // Issue #363 fix: mounting with existing data must NOT trigger this
+    // row's text/type autosave on mount (lastSyncedValueRef now starts at
+    // the mounted value instead of null, so the sync-key comparison
+    // correctly reads "unchanged"). Nothing to wait out here anymore --
+    // proceed straight to the order-not-saved flag, already true from props.
+    expect(mockUpdateOrCreateQuestion).not.toHaveBeenCalled()
     expect(screen.getByText("organization.templates.builder.orderNotSaved")).toBeInTheDocument()
 
     // Now make the next sync hang so we can observe it masking the
@@ -160,5 +158,36 @@ describe("EditSortableQuestionRow - order-not-saved indicator masking", () => {
       expect(screen.getByText("organization.templates.builder.orderNotSaved")).toBeInTheDocument()
     )
     expect(screen.queryByText("organization.templates.builder.saving")).not.toBeInTheDocument()
+  })
+})
+
+// Issue #363: mounting the template editor with existing questions used to
+// fire a real PATCH for every question immediately, because
+// lastSyncedValueRef started at `useRef(null)`, which never equals the
+// mounted question's real sync key. Fixed by initializing the ref with the
+// current (mounted) value instead, so the first comparison correctly reads
+// "unchanged since mount".
+describe("EditSortableQuestionRow - no spurious sync on mount", () => {
+  beforeEach(() => {
+    mockUpdateOrCreateQuestion.mockReset()
+    mockDeleteQuestion.mockReset()
+    mockUpdateOrCreateQuestion.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+  })
+
+  it("does not sync on mount with existing, unchanged data -- only after the user actually edits a field", async () => {
+    render(<Harness isEditMode />)
+
+    // Wait out both the immediate (isRequired/answerType) effects and the
+    // 800ms-debounced text-sync effect, all of which run once on mount
+    // regardless of whether anything actually changed.
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    expect(mockUpdateOrCreateQuestion).not.toHaveBeenCalled()
+
+    // A real edit (toggling "Required") should still sync normally --
+    // confirms the fix didn't just disable syncing altogether.
+    await userEvent.click(screen.getByRole("checkbox"))
+    await waitFor(() => expect(mockUpdateOrCreateQuestion).toHaveBeenCalledTimes(1))
   })
 })

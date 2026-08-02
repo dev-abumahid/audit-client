@@ -7,6 +7,7 @@ import {
 } from "lucide-react"
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { formatLocaleDate } from "@/utils/formatDate"
 
 interface Transaction {
   _id: string
@@ -20,7 +21,7 @@ interface Transaction {
 }
 
 const AdminTransactions: React.FC = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
@@ -133,7 +134,7 @@ const AdminTransactions: React.FC = () => {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return formatLocaleDate(dateString, i18n.language, {
       month: "short",
       day: "numeric",
       year: "numeric",
