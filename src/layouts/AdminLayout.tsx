@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  Search,
   Settings,
   TrendingUp,
   X,
@@ -231,15 +230,6 @@ export default function AdminLayout() {
             >
               <Menu className="h-5 w-5" />
             </button>
-
-            <div className="relative hidden w-80 sm:block">
-              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder={t("admin.nav.searchPlaceholder")}
-                className="h-9 w-full rounded-md border border-input bg-background pr-4 pl-10 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-              />
-            </div>
           </div>
 
           <div className="flex items-center gap-3">

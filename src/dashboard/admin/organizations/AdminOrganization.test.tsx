@@ -159,6 +159,17 @@ describe("AdminOrganization", () => {
     )
   })
 
+  // Issue #384: the row "..." (MoreHorizontal) button had no onClick and no
+  // destination existed anywhere in the codebase to link it to, so it was
+  // removed rather than left as a dead affordance.
+  it("does not render a dead '...' row-options button (aexa-frontend#384)", () => {
+    mockList([makeOrg()])
+
+    render(<AdminOrganization />)
+
+    expect(document.querySelector("svg.lucide-more-horizontal")).toBeNull()
+  })
+
   it("passes the typed search term through to the query", async () => {
     mockList([])
 

@@ -1747,8 +1747,7 @@
       "dashboard": "Dashboard",
       "overview": "Overview",
       "transaction": "Transaction",
-      "organizations": "Organizations",
-      "searchPlaceholder": "Search..."
+      "organizations": "Organizations"
     },
     "organizations": {
       "title": "Organizations",
@@ -1818,9 +1817,9 @@
         "contactEmail": "Contact Email",
         "emailPlaceholder": "support@yourcompany.com",
         "phoneNumber": "Phone Number",
-        "phonePlaceholder": "+880 1234-567890",
+        "phonePlaceholder": "+1 (555) 123-4567",
         "address": "Address",
-        "addressPlaceholder": "123 Business Street, Dhaka",
+        "addressPlaceholder": "123 Main Street, City",
         "defaultCurrency": "Default Currency",
         "saving": "Saving Changes...",
         "saveChanges": "Save Changes",
@@ -1835,10 +1834,15 @@
         "subtitle": "Manage pricing tiers and features for your customers",
         "addPlan": "Add New Plan",
         "empty": "No pricing plans found. Click \"Add New Plan\" to create one.",
+        "notConnectedNotice": "This is sample content — subscription plans aren't connected to a backend yet.",
         "card": {
           "features": "Features",
           "edit": "Edit",
-          "delete": "Delete"
+          "delete": "Delete",
+          "periodMonthly": "mo",
+          "periodYearly": "yr",
+          "periodWeekly": "wk",
+          "periodQuarterly": "qr"
         },
         "form": {
           "planNameLabel": "Plan Name",

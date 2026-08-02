@@ -21,12 +21,12 @@ const PricingCard: React.FC<Props> = ({ plan, onEdit, onDelete }) => {
 
   const getPeriod = (type: string) => {
     const map: Record<string, string> = {
-      monthly: "mo",
-      yearly: "yr",
-      weekly: "wk",
-      quarterly: "qr",
+      monthly: t("admin.settings.pricing.card.periodMonthly"),
+      yearly: t("admin.settings.pricing.card.periodYearly"),
+      weekly: t("admin.settings.pricing.card.periodWeekly"),
+      quarterly: t("admin.settings.pricing.card.periodQuarterly"),
     }
-    return map[type] || type
+    return map[type.toLowerCase()] || type
   }
 
   return (

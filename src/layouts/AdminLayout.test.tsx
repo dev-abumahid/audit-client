@@ -15,7 +15,6 @@ vi.mock("react-i18next", () => ({
         "admin.nav.overview": "Overview",
         "admin.nav.transaction": "Transaction",
         "admin.nav.organizations": "Organizations",
-        "admin.nav.searchPlaceholder": "Search...",
       }
       return map[key] ?? key
     },
@@ -108,11 +107,14 @@ describe("AdminLayout (aexa-frontend#248)", () => {
     expect(screen.getAllByText("Dashboard").length).toBeGreaterThan(0)
   })
 
-  it("uses a translated search placeholder instead of a hardcoded string (aexa-frontend#367)", () => {
+  // Issue #385: the header search box had no state or handler at all -- it
+  // was a fake input that silently did nothing. AdminOrganization.tsx (the
+  // only admin page with anything to search) already has its own working
+  // search input, so a second non-functional one in the shared header was
+  // just a dead affordance and has been removed rather than wired up.
+  it("does not render a non-functional header search box (aexa-frontend#385)", () => {
     renderAdminLayout()
-    expect(screen.getAllByPlaceholderText("Search...").length).toBeGreaterThan(
-      0,
-    )
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
   })
 
   it("does not link the bell icon anywhere and shows no fake notification dot (aexa-frontend#365, #366)", () => {

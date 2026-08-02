@@ -2,7 +2,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader,
-  MoreHorizontal,
   Search,
   Sparkles,
 } from "lucide-react"
@@ -138,20 +137,19 @@ const AdminOrganization: React.FC = () => {
                   <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">
                     {t("admin.organizations.colCreatedDate")}
                   </th>
-                  <th className="w-12 px-6 py-4"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center">
+                    <td colSpan={4} className="py-12 text-center">
                       <Loader className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                     </td>
                   </tr>
                 ) : organizations.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={4}
                       className="py-12 text-center text-muted-foreground"
                     >
                       {t("admin.organizations.noResults")}
@@ -194,11 +192,6 @@ const AdminOrganization: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-sm text-muted-foreground">
                           {formatDate(org.createdAt)}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button className="text-muted-foreground hover:text-foreground">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </button>
                         </td>
                       </tr>
                     )

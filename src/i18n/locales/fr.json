@@ -1747,8 +1747,7 @@
       "dashboard": "Tableau de bord",
       "overview": "Aperçu",
       "transaction": "Transaction",
-      "organizations": "Organisations",
-      "searchPlaceholder": "Rechercher..."
+      "organizations": "Organisations"
     },
     "organizations": {
       "title": "Organisations",
@@ -1818,9 +1817,9 @@
         "contactEmail": "Adresse e-mail de contact",
         "emailPlaceholder": "support@votreentreprise.com",
         "phoneNumber": "Numéro de téléphone",
-        "phonePlaceholder": "+880 1234-567890",
+        "phonePlaceholder": "+1 (555) 123-4567",
         "address": "Adresse",
-        "addressPlaceholder": "123 rue des Affaires, Dhaka",
+        "addressPlaceholder": "123 rue Principale, Ville",
         "defaultCurrency": "Devise par défaut",
         "saving": "Enregistrement des modifications...",
         "saveChanges": "Enregistrer les modifications",
@@ -1835,10 +1834,15 @@
         "subtitle": "Gérez les niveaux de tarification et les fonctionnalités pour vos clients",
         "addPlan": "Ajouter un forfait",
         "empty": "Aucun forfait trouvé. Cliquez sur « Ajouter un forfait » pour en créer un.",
+        "notConnectedNotice": "Ceci est un exemple de contenu — les forfaits d'abonnement ne sont pas encore reliés à un serveur.",
         "card": {
           "features": "Fonctionnalités",
           "edit": "Modifier",
-          "delete": "Supprimer"
+          "delete": "Supprimer",
+          "periodMonthly": "mois",
+          "periodYearly": "an",
+          "periodWeekly": "sem",
+          "periodQuarterly": "trim"
         },
         "form": {
           "planNameLabel": "Nom du forfait",

@@ -12,6 +12,10 @@ vi.mock("react-i18next", () => ({
         "admin.settings.pricing.card.features": "[i18n] Features",
         "admin.settings.pricing.card.edit": "[i18n] Edit",
         "admin.settings.pricing.card.delete": "[i18n] Delete",
+        "admin.settings.pricing.card.periodMonthly": "[i18n] mo",
+        "admin.settings.pricing.card.periodYearly": "[i18n] yr",
+        "admin.settings.pricing.card.periodWeekly": "[i18n] wk",
+        "admin.settings.pricing.card.periodQuarterly": "[i18n] qr",
       }
       return translations[key] ?? key
     },
@@ -41,6 +45,28 @@ describe("PricingCard", () => {
     expect(screen.getByText("[i18n] Edit")).toBeInTheDocument()
     expect(screen.getByText("[i18n] Delete")).toBeInTheDocument()
   })
+
+  // Issue #383: getPeriod() used to hardcode "mo"/"yr"/"wk"/"qr" with no
+  // t() call, so the billing period never translated. Each variant now goes
+  // through i18n.
+  it.each([
+    ["monthly", "[i18n] mo"],
+    ["yearly", "[i18n] yr"],
+    ["weekly", "[i18n] wk"],
+    ["quarterly", "[i18n] qr"],
+  ])(
+    "renders the translated billing period for planType %s",
+    (planType, expectedPeriod) => {
+      render(
+        <PricingCard
+          plan={{ ...plan, planType }}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      )
+      expect(screen.getByText(`/${expectedPeriod}`)).toBeInTheDocument()
+    }
+  )
 
   it("calls onEdit and onDelete when the corresponding buttons are clicked", async () => {
     const user = userEvent.setup()

@@ -24,7 +24,11 @@ const PricingPlans: React.FC = () => {
   const [openDelete, setOpenDelete] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null)
 
-  // Dummy Pricing Plans
+  // No subscription-plans backend endpoint exists yet (same situation as
+  // GeneralInformation.tsx / the Add/Edit/Delete pricing modals), so these
+  // are placeholder plans rather than real data pulled from a plan
+  // management API. The banner below discloses that honestly instead of
+  // silently presenting fixtures as if they were live pricing.
   const pricingPlans: PricingPlan[] = [
     {
       _id: "plan1",
@@ -104,6 +108,13 @@ const PricingPlans: React.FC = () => {
         >
           {t("admin.settings.pricing.addPlan")}
         </Button>
+      </div>
+
+      {/* Not-connected-to-backend disclosure, matching the tone/wording
+          convention established for the Add/Edit/Delete pricing modals and
+          GeneralInformation.tsx. */}
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-400">
+        {t("admin.settings.pricing.notConnectedNotice")}
       </div>
 
       {/* Pricing Cards Grid */}
