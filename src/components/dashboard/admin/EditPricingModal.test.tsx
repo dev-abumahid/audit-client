@@ -10,8 +10,7 @@ vi.mock("react-i18next", () => ({
         "admin.settings.pricing.form.planNameLabel": "[i18n] Plan Name",
         "admin.settings.pricing.form.descriptionLabel": "[i18n] Description",
         "admin.settings.pricing.form.priceLabel": "[i18n] Price",
-        "admin.settings.pricing.form.billingCycleLabel":
-          "[i18n] Billing Cycle",
+        "admin.settings.pricing.form.billingCycleLabel": "[i18n] Billing Cycle",
         "admin.settings.pricing.form.monthly": "[i18n] Monthly",
         "admin.settings.pricing.form.quarterly": "[i18n] Quarterly",
         "admin.settings.pricing.form.yearly": "[i18n] Yearly",
@@ -91,6 +90,13 @@ describe("EditPricingModal", () => {
       "[i18n] Plan price must be a non-negative number"
     )
     alertSpy.mockRestore()
+  })
+
+  it("prefills the price field with 0 for a free plan instead of leaving it blank (aexa-frontend#434)", () => {
+    const freePlan = { ...plan, planPrice: 0 }
+    render(<EditPricingModal open={true} setOpen={vi.fn()} plan={freePlan} />)
+
+    expect(screen.getByDisplayValue("0")).toBeInTheDocument()
   })
 
   it("closes on Escape key press, handled by the underlying Radix Dialog", async () => {

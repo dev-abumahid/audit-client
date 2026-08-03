@@ -4,7 +4,7 @@ import PricingPlans from "./PricingPlans"
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string) => {
+    t: (key: string, options?: Record<string, unknown>) => {
       const translations: Record<string, string> = {
         "admin.settings.pricing.title": "[i18n] Subscription Plans",
         "admin.settings.pricing.subtitle": "[i18n] Manage pricing tiers",
@@ -14,6 +14,29 @@ vi.mock("react-i18next", () => ({
         "admin.settings.pricing.card.features": "[i18n] Features",
         "admin.settings.pricing.card.edit": "[i18n] Edit",
         "admin.settings.pricing.card.delete": "[i18n] Delete",
+        "admin.settings.pricing.plans.starter.name": "[i18n] Starter",
+        "admin.settings.pricing.plans.starter.description":
+          "[i18n] Perfect for small teams and startups",
+        "admin.settings.pricing.plans.professional.name": "[i18n] Professional",
+        "admin.settings.pricing.plans.professional.description":
+          "[i18n] Best for growing organizations",
+        "admin.settings.pricing.plans.enterprise.name": "[i18n] Enterprise",
+        "admin.settings.pricing.plans.enterprise.description":
+          "[i18n] For large organizations with complex needs",
+      }
+      const featureLists: Record<string, string[]> = {
+        "admin.settings.pricing.plans.starter.features": [
+          "[i18n] Up to 5 users",
+        ],
+        "admin.settings.pricing.plans.professional.features": [
+          "[i18n] Up to 25 users",
+        ],
+        "admin.settings.pricing.plans.enterprise.features": [
+          "[i18n] Unlimited users",
+        ],
+      }
+      if (options?.returnObjects && featureLists[key]) {
+        return featureLists[key]
       }
       return translations[key] ?? key
     },
@@ -50,8 +73,28 @@ describe("PricingPlans", () => {
   it("renders the placeholder plan cards", () => {
     render(<PricingPlans />)
 
-    expect(screen.getByText("Starter")).toBeInTheDocument()
-    expect(screen.getByText("Professional")).toBeInTheDocument()
-    expect(screen.getByText("Enterprise")).toBeInTheDocument()
+    expect(screen.getByText("[i18n] Starter")).toBeInTheDocument()
+    expect(screen.getByText("[i18n] Professional")).toBeInTheDocument()
+    expect(screen.getByText("[i18n] Enterprise")).toBeInTheDocument()
+  })
+
+  // Issue #437: plan name/description/features were hardcoded English,
+  // never routed through t(), so switching locale left pricing content
+  // untranslated. Assert the card content comes from translation keys.
+  it("routes plan name, description, and features through t() instead of hardcoding English", () => {
+    render(<PricingPlans />)
+
+    expect(
+      screen.getByText("[i18n] Perfect for small teams and startups")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("[i18n] Best for growing organizations")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("[i18n] For large organizations with complex needs")
+    ).toBeInTheDocument()
+    expect(screen.getByText("[i18n] Up to 5 users")).toBeInTheDocument()
+    expect(screen.getByText("[i18n] Up to 25 users")).toBeInTheDocument()
+    expect(screen.getByText("[i18n] Unlimited users")).toBeInTheDocument()
   })
 })

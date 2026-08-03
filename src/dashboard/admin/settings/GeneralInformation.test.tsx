@@ -13,6 +13,9 @@ vi.mock("react-i18next", () => ({
         "admin.settings.general.uploadLogo": "Upload Logo",
         "admin.settings.general.nameRequired": "Platform name is required",
         "admin.settings.general.emailRequired": "Email is required",
+        "admin.settings.general.phoneNumber": "Phone Number",
+        "admin.settings.general.phoneRequired": "Phone number is required",
+        "admin.settings.general.removeLogo": "Remove logo",
         "admin.settings.general.updateSuccess":
           "Not saved — platform settings aren't connected to a backend yet.",
         "admin.settings.general.saveChanges": "Save Changes",
@@ -29,10 +32,10 @@ describe("GeneralInformation (aexa-frontend#369, #370, #371)", () => {
     expect(screen.getByLabelText(/Platform Name/)).toHaveValue("")
     expect(screen.queryByDisplayValue("RiskGuard Pro")).not.toBeInTheDocument()
     expect(
-      screen.queryByDisplayValue("support@riskguard.com"),
+      screen.queryByDisplayValue("support@riskguard.com")
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByDisplayValue("Dhaka, Bangladesh"),
+      screen.queryByDisplayValue("Dhaka, Bangladesh")
     ).not.toBeInTheDocument()
   })
 
@@ -51,8 +54,9 @@ describe("GeneralInformation (aexa-frontend#369, #370, #371)", () => {
     await user.type(screen.getByLabelText(/Platform Name/), "Qiyrix")
     await user.type(
       screen.getByLabelText(/Contact Email/),
-      "hello@qiyrix.example",
+      "hello@qiyrix.example"
     )
+    await user.type(screen.getByLabelText(/Phone Number/), "+1 555 000 0000")
     await user.click(screen.getByText("Save Changes"))
 
     await vi.waitFor(() => expect(alertSpy).toHaveBeenCalled())
@@ -63,9 +67,45 @@ describe("GeneralInformation (aexa-frontend#369, #370, #371)", () => {
 
     // Let the trailing setIsSubmitting(false) settle before the test ends.
     await vi.waitFor(() =>
-      expect(screen.getByText("Save Changes")).toBeInTheDocument(),
+      expect(screen.getByText("Save Changes")).toBeInTheDocument()
     )
 
     alertSpy.mockRestore()
+  })
+
+  // Issue #435: Phone Number is marked required in the UI (red asterisk)
+  // but handleSubmit never validated it, so the form could be submitted
+  // with it blank.
+  it("blocks submit and alerts when the required phone number is blank (aexa-frontend#435)", async () => {
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {})
+    const user = userEvent.setup()
+    render(<GeneralInformation />)
+
+    await user.type(screen.getByLabelText(/Platform Name/), "Qiyrix")
+    await user.type(
+      screen.getByLabelText(/Contact Email/),
+      "hello@qiyrix.example"
+    )
+    await user.click(screen.getByText("Save Changes"))
+
+    expect(alertSpy).toHaveBeenCalledWith("Phone number is required")
+
+    alertSpy.mockRestore()
+  })
+
+  // Issue #436: the icon-only remove-logo button had no accessible name.
+  it("gives the remove-logo button an accessible name (aexa-frontend#436)", async () => {
+    const user = userEvent.setup()
+    render(<GeneralInformation />)
+
+    const file = new File(["logo"], "logo.png", { type: "image/png" })
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+    await user.upload(fileInput, file)
+
+    expect(
+      await screen.findByRole("button", { name: "Remove logo" })
+    ).toBeInTheDocument()
   })
 })

@@ -32,49 +32,39 @@ const PricingPlans: React.FC = () => {
   const pricingPlans: PricingPlan[] = [
     {
       _id: "plan1",
-      planName: "Starter",
-      planDescription: "Perfect for small teams and startups",
+      planName: t("admin.settings.pricing.plans.starter.name"),
+      planDescription: t("admin.settings.pricing.plans.starter.description"),
       planPrice: 49,
       planType: "Monthly",
-      planFeatures: [
-        "Up to 5 users",
-        "Basic risk register",
-        "Email support",
-        "Basic analytics",
-      ],
+      planFeatures: t("admin.settings.pricing.plans.starter.features", {
+        returnObjects: true,
+      }) as string[],
       createdAt: "2025-10-01T00:00:00Z",
       updatedAt: "2025-12-01T00:00:00Z",
     },
     {
       _id: "plan2",
-      planName: "Professional",
-      planDescription: "Best for growing organizations",
+      planName: t("admin.settings.pricing.plans.professional.name"),
+      planDescription: t(
+        "admin.settings.pricing.plans.professional.description"
+      ),
       planPrice: 149,
       planType: "Monthly",
-      planFeatures: [
-        "Up to 25 users",
-        "Advanced risk matrix",
-        "Priority support",
-        "AI-powered insights",
-        "Custom reports",
-      ],
+      planFeatures: t("admin.settings.pricing.plans.professional.features", {
+        returnObjects: true,
+      }) as string[],
       createdAt: "2025-09-15T00:00:00Z",
       updatedAt: "2025-12-10T00:00:00Z",
     },
     {
       _id: "plan3",
-      planName: "Enterprise",
-      planDescription: "For large organizations with complex needs",
+      planName: t("admin.settings.pricing.plans.enterprise.name"),
+      planDescription: t("admin.settings.pricing.plans.enterprise.description"),
       planPrice: 299,
       planType: "Monthly",
-      planFeatures: [
-        "Unlimited users",
-        "Full risk management suite",
-        "Dedicated account manager",
-        "SSO & Advanced security",
-        "API access",
-        "On-premise option",
-      ],
+      planFeatures: t("admin.settings.pricing.plans.enterprise.features", {
+        returnObjects: true,
+      }) as string[],
       createdAt: "2025-08-20T00:00:00Z",
       updatedAt: "2025-12-05T00:00:00Z",
     },

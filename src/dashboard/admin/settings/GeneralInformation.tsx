@@ -90,6 +90,11 @@ const GeneralInformation = () => {
       return
     }
 
+    if (!formData.platformPhone.trim()) {
+      alert(t("admin.settings.general.phoneRequired"))
+      return
+    }
+
     setIsSubmitting(true)
 
     // No backend call to make yet -- see comment above handleSubmit.
@@ -160,6 +165,9 @@ const GeneralInformation = () => {
                   className="text-destructive-foreground absolute -top-2 -right-2 rounded-full bg-destructive p-1 hover:bg-destructive/90"
                 >
                   <X className="h-3.5 w-3.5" />
+                  <span className="sr-only">
+                    {t("admin.settings.general.removeLogo")}
+                  </span>
                 </button>
               )}
             </div>

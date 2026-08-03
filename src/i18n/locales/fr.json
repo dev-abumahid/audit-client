@@ -1832,6 +1832,8 @@
         "fileTooLarge": "La taille du fichier doit être inférieure à 5 Mo",
         "nameRequired": "Le nom de la plateforme est obligatoire",
         "emailRequired": "L'adresse e-mail est obligatoire",
+        "phoneRequired": "Le numéro de téléphone est obligatoire",
+        "removeLogo": "Supprimer le logo",
         "updateSuccess": "Non enregistré — les paramètres de la plateforme ne sont pas encore reliés à un serveur."
       },
       "pricing": {
@@ -1840,6 +1842,41 @@
         "addPlan": "Ajouter un forfait",
         "empty": "Aucun forfait trouvé. Cliquez sur « Ajouter un forfait » pour en créer un.",
         "notConnectedNotice": "Ceci est un exemple de contenu — les forfaits d'abonnement ne sont pas encore reliés à un serveur.",
+        "plans": {
+          "starter": {
+            "name": "Starter",
+            "description": "Idéal pour les petites équipes et les startups",
+            "features": [
+              "Jusqu'à 5 utilisateurs",
+              "Registre de risques de base",
+              "Assistance par e-mail",
+              "Analyses de base"
+            ]
+          },
+          "professional": {
+            "name": "Professionnel",
+            "description": "Idéal pour les organisations en croissance",
+            "features": [
+              "Jusqu'à 25 utilisateurs",
+              "Matrice de risques avancée",
+              "Assistance prioritaire",
+              "Analyses basées sur l'IA",
+              "Rapports personnalisés"
+            ]
+          },
+          "enterprise": {
+            "name": "Entreprise",
+            "description": "Pour les grandes organisations aux besoins complexes",
+            "features": [
+              "Utilisateurs illimités",
+              "Suite complète de gestion des risques",
+              "Gestionnaire de compte dédié",
+              "SSO et sécurité avancée",
+              "Accès API",
+              "Option sur site"
+            ]
+          }
+        },
         "card": {
           "features": "Fonctionnalités",
           "edit": "Modifier",

@@ -40,7 +40,7 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
       setForm({
         planName: plan.planName || "",
         planDescription: plan.planDescription || "",
-        planPrice: String(plan.planPrice || ""),
+        planPrice: plan.planPrice != null ? String(plan.planPrice) : "",
         planType: plan.planType || "monthly",
         planFeatures: plan.planFeatures?.length ? plan.planFeatures : [""],
       })

@@ -1832,6 +1832,8 @@
         "fileTooLarge": "File size should be less than 5MB",
         "nameRequired": "Platform name is required",
         "emailRequired": "Email is required",
+        "phoneRequired": "Phone number is required",
+        "removeLogo": "Remove logo",
         "updateSuccess": "Not saved — platform settings aren't connected to a backend yet."
       },
       "pricing": {
@@ -1840,6 +1842,41 @@
         "addPlan": "Add New Plan",
         "empty": "No pricing plans found. Click \"Add New Plan\" to create one.",
         "notConnectedNotice": "This is sample content — subscription plans aren't connected to a backend yet.",
+        "plans": {
+          "starter": {
+            "name": "Starter",
+            "description": "Perfect for small teams and startups",
+            "features": [
+              "Up to 5 users",
+              "Basic risk register",
+              "Email support",
+              "Basic analytics"
+            ]
+          },
+          "professional": {
+            "name": "Professional",
+            "description": "Best for growing organizations",
+            "features": [
+              "Up to 25 users",
+              "Advanced risk matrix",
+              "Priority support",
+              "AI-powered insights",
+              "Custom reports"
+            ]
+          },
+          "enterprise": {
+            "name": "Enterprise",
+            "description": "For large organizations with complex needs",
+            "features": [
+              "Unlimited users",
+              "Full risk management suite",
+              "Dedicated account manager",
+              "SSO & Advanced security",
+              "API access",
+              "On-premise option"
+            ]
+          }
+        },
         "card": {
           "features": "Features",
           "edit": "Edit",
