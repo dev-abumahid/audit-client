@@ -1,6 +1,12 @@
-import { X } from "lucide-react"
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface Props {
   open: boolean
@@ -15,9 +21,8 @@ const DeletePricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
   const { t } = useTranslation()
   const [isDeleting, setIsDeleting] = useState(false)
 
-  if (!open || !plan) return null
-
   const handleDelete = async () => {
+    if (!plan) return
     setIsDeleting(true)
 
     // Simulate API call (replace with your backend call later)
@@ -33,37 +38,33 @@ const DeletePricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+    <Dialog open={open && !!plan} onOpenChange={setOpen}>
+      <DialogContent className="w-full max-w-md gap-0 rounded-2xl border border-border bg-card p-6 shadow-xl sm:max-w-md">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <DialogHeader className="mb-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100">
-              <span className="text-xl text-red-600">🗑</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+              <span className="text-xl text-red-600 dark:text-red-400">🗑</span>
             </div>
-            <h2 className="text-xl font-semibold text-foreground">
+            <DialogTitle className="text-xl font-semibold text-foreground">
               {t("admin.settings.pricing.deleteModal.title")}
-            </h2>
+            </DialogTitle>
           </div>
-          <button
-            onClick={() => setOpen(false)}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Content */}
-        <div className="mb-8">
-          <p className="text-foreground">
-            {t("admin.settings.pricing.deleteModal.confirmText", {
-              name: plan.planName,
-            })}
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t("admin.settings.pricing.deleteModal.warningText")}
-          </p>
-        </div>
+        {plan && (
+          <div className="mb-8">
+            <p className="text-foreground">
+              {t("admin.settings.pricing.deleteModal.confirmText", {
+                name: plan.planName,
+              })}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t("admin.settings.pricing.deleteModal.warningText")}
+            </p>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-3">
@@ -89,8 +90,8 @@ const DeletePricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
             )}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

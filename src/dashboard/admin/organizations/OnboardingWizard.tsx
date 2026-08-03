@@ -4,6 +4,12 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   useCommitOnboardingMutation,
   useGenerateOnboardingBaselineMutation,
   useIdentifyCompanyMutation,
@@ -345,15 +351,40 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     "w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
   const labelCls = "mb-1.5 block text-sm font-medium text-muted-foreground"
 
+  // Steps where the wizard is holding meaningful, non-trivial work (confirmed
+  // sites, an AI-generated draft mid-review, or an in-flight generate/commit
+  // request) — an accidental Escape or outside click here would silently
+  // discard several minutes of AI generation with no way back. "entry" (just
+  // a not-yet-submitted form) and "done" (already committed) have nothing at
+  // risk, so those keep the plain Escape/outside-click-to-dismiss behavior
+  // aexa-frontend#407 asked for. Same guard pattern as
+  // CreateNewFindingModal.tsx.
+  const hasUnsavedWizardProgress =
+    step === "confirm" || step === "generating" || step === "review"
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4">
-      <div className="my-8 w-full max-w-3xl rounded-2xl border border-border bg-card p-6 shadow-xl">
-        <div className="mb-6 flex items-center justify-between">
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose()
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        onEscapeKeyDown={(e) => {
+          if (hasUnsavedWizardProgress) e.preventDefault()
+        }}
+        onInteractOutside={(e) => {
+          if (hasUnsavedWizardProgress) e.preventDefault()
+        }}
+        className="flex max-h-[90vh] w-full max-w-3xl flex-col gap-0 overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-xl sm:max-w-3xl"
+      >
+        <DialogHeader className="mb-6 flex-row items-center justify-between space-y-0">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            <h3 className="text-xl font-semibold text-foreground">
+            <DialogTitle className="text-xl font-semibold text-foreground">
               {t("admin.onboarding.title")}
-            </h3>
+            </DialogTitle>
           </div>
           <button
             onClick={onClose}
@@ -362,451 +393,472 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           >
             <X className="h-5 w-5" />
           </button>
-        </div>
+        </DialogHeader>
 
-        {/* Step: Entry */}
-        {step === "entry" && (
-          <div className="space-y-5">
-            <p className="text-sm text-muted-foreground">
-              {t("admin.onboarding.entry.subtitle")}
-            </p>
-            <div>
-              <label className={labelCls}>
-                {t("admin.onboarding.entry.companyName")} *
-              </label>
-              <input
-                className={inputCls}
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder={t("admin.onboarding.entry.companyNamePlaceholder")}
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className={labelCls}>
-                  {t("admin.onboarding.entry.adminEmail")} *
-                </label>
-                <input
-                  className={inputCls}
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t("admin.onboarding.entry.adminEmailPlaceholder")}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>
-                  {t("admin.onboarding.entry.adminPassword")} *
-                </label>
-                <input
-                  className={inputCls}
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                />
-              </div>
-              <div>
-                <label className={labelCls}>
-                  {t("admin.onboarding.entry.sector")}
-                </label>
-                <input
-                  className={inputCls}
-                  value={sector}
-                  onChange={(e) => setSector(e.target.value)}
-                  placeholder={t("admin.onboarding.entry.optional")}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>
-                  {t("admin.onboarding.entry.country")}
-                </label>
-                <input
-                  className={inputCls}
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  placeholder={t("admin.onboarding.entry.optional")}
-                />
-              </div>
-            </div>
-            {formError && (
-              <p className="text-sm text-red-600 dark:text-red-400">
-                {formError}
+        <div className="flex-1 overflow-y-auto">
+          {/* Step: Entry */}
+          {step === "entry" && (
+            <div className="space-y-5">
+              <p className="text-sm text-muted-foreground">
+                {t("admin.onboarding.entry.subtitle")}
               </p>
-            )}
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={onClose}
-                className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
-              >
-                {t("admin.onboarding.cancel")}
-              </button>
-              <button
-                onClick={handleAnalyze}
-                disabled={isIdentifying}
-                className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-              >
-                {isIdentifying && <Loader2 className="h-4 w-4 animate-spin" />}
-                {t("admin.onboarding.entry.analyze")}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step: Confirm */}
-        {step === "confirm" && profile && (
-          <div className="space-y-5">
-            <p className="text-sm text-muted-foreground">
-              {t("admin.onboarding.confirm.subtitle")}
-            </p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
                 <label className={labelCls}>
-                  {t("admin.onboarding.confirm.sector")}
+                  {t("admin.onboarding.entry.companyName")} *
                 </label>
                 <input
                   className={inputCls}
-                  value={sector}
-                  onChange={(e) => setSector(e.target.value)}
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder={t(
+                    "admin.onboarding.entry.companyNamePlaceholder"
+                  )}
                 />
-                {profile.sector_source && (
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {t("admin.onboarding.confirm.source")}:{" "}
-                    {profile.sector_source}
-                  </p>
-                )}
               </div>
-              <div>
-                <label className={labelCls}>
-                  {t("admin.onboarding.confirm.country")}
-                </label>
-                <input
-                  className={inputCls}
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                />
-                {profile.hq_country_source && (
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {t("admin.onboarding.confirm.source")}:{" "}
-                    {profile.hq_country_source}
-                  </p>
-                )}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={labelCls}>
+                    {t("admin.onboarding.entry.adminEmail")} *
+                  </label>
+                  <input
+                    className={inputCls}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={t(
+                      "admin.onboarding.entry.adminEmailPlaceholder"
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    {t("admin.onboarding.entry.adminPassword")} *
+                  </label>
+                  <input
+                    className={inputCls}
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    {t("admin.onboarding.entry.sector")}
+                  </label>
+                  <input
+                    className={inputCls}
+                    value={sector}
+                    onChange={(e) => setSector(e.target.value)}
+                    placeholder={t("admin.onboarding.entry.optional")}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    {t("admin.onboarding.entry.country")}
+                  </label>
+                  <input
+                    className={inputCls}
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    placeholder={t("admin.onboarding.entry.optional")}
+                  />
+                </div>
               </div>
-              <div>
-                <label className={labelCls}>
-                  {t("admin.onboarding.confirm.employeeBand")}
-                </label>
-                <input
-                  className={inputCls}
-                  value={employeeBand}
-                  onChange={(e) => setEmployeeBand(e.target.value)}
-                />
-                {profile.employee_band_source && (
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {t("admin.onboarding.confirm.source")}:{" "}
-                    {profile.employee_band_source}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground">
-                  {t("admin.onboarding.confirm.discoveredSites")}
-                </h4>
-                <button
-                  onClick={addConfirmSite}
-                  className="flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {t("admin.onboarding.confirm.addSite")}
-                </button>
-              </div>
-              {confirmSites.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  {t("admin.onboarding.confirm.noSites")}
+              {formError && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {formError}
                 </p>
               )}
-              <div className="space-y-3">
-                {confirmSites.map((site, i) => (
-                  <div
-                    key={i}
-                    className="rounded-xl border border-border bg-background p-3"
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        className="mt-2"
-                        checked={site.selected}
-                        onChange={(e) =>
-                          updateConfirmSite(i, { selected: e.target.checked })
-                        }
-                        aria-label={t("admin.onboarding.confirm.includeSite")}
-                      />
-                      <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
-                        <input
-                          className={inputCls}
-                          value={site.site_name}
-                          onChange={(e) =>
-                            updateConfirmSite(i, { site_name: e.target.value })
-                          }
-                          placeholder={t("admin.onboarding.confirm.siteName")}
-                        />
-                        <input
-                          className={inputCls}
-                          value={site.site_location}
-                          onChange={(e) =>
-                            updateConfirmSite(i, {
-                              site_location: e.target.value,
-                            })
-                          }
-                          placeholder={t(
-                            "admin.onboarding.confirm.siteLocation"
-                          )}
-                        />
-                      </div>
-                    </div>
-                    {site.source_info && (
-                      <p className="mt-1 pl-7 text-[11px] text-muted-foreground">
-                        {t("admin.onboarding.confirm.source")}:{" "}
-                        {site.source_info}
-                      </p>
-                    )}
-                  </div>
-                ))}
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={onClose}
+                  className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
+                >
+                  {t("admin.onboarding.cancel")}
+                </button>
+                <button
+                  onClick={handleAnalyze}
+                  disabled={isIdentifying}
+                  className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {isIdentifying && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  {t("admin.onboarding.entry.analyze")}
+                </button>
               </div>
             </div>
+          )}
 
-            <div className="flex justify-between gap-3 pt-2">
-              <button
-                onClick={() => setStep("entry")}
-                className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
-              >
-                {t("admin.onboarding.back")}
-              </button>
-              <button
-                onClick={handleGenerate}
-                disabled={selectedConfirmSites.length === 0 || isGenerating}
-                className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-              >
-                {t("admin.onboarding.confirm.continue")}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step: Generating */}
-        {step === "generating" && (
-          <div className="flex flex-col items-center gap-4 py-16">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">
-              {t("admin.onboarding.generating.message")}
-            </p>
-          </div>
-        )}
-
-        {/* Step: Review */}
-        {step === "review" && (
-          <div className="space-y-5">
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
-              {t("admin.onboarding.review.notice")}
-            </div>
-            <div className="max-h-[55vh] space-y-4 overflow-y-auto pr-1">
-              {reviewSites.map((site, si) => (
-                <div key={si} className="rounded-xl border border-border p-3">
-                  <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-                    🏢 {site.site_name || t("admin.onboarding.review.unnamed")}
-                  </h4>
-                  {site.risks.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      {t("admin.onboarding.review.noRisks")}
+          {/* Step: Confirm */}
+          {step === "confirm" && profile && (
+            <div className="space-y-5">
+              <p className="text-sm text-muted-foreground">
+                {t("admin.onboarding.confirm.subtitle")}
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <label className={labelCls}>
+                    {t("admin.onboarding.confirm.sector")}
+                  </label>
+                  <input
+                    className={inputCls}
+                    value={sector}
+                    onChange={(e) => setSector(e.target.value)}
+                  />
+                  {profile.sector_source && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {t("admin.onboarding.confirm.source")}:{" "}
+                      {profile.sector_source}
                     </p>
                   )}
-                  <div className="space-y-3">
-                    {site.risks.map((risk, ri) => (
-                      <div
-                        key={ri}
-                        className="rounded-lg border border-border bg-background p-3"
-                      >
-                        <div className="flex items-start gap-2">
-                          <input
-                            type="checkbox"
-                            className="mt-1.5"
-                            checked={risk.selected}
-                            onChange={(e) =>
-                              updateRisk(si, ri, { selected: e.target.checked })
-                            }
-                            aria-label={t("admin.onboarding.review.includeRisk")}
-                          />
-                          <div className="flex-1 space-y-2">
-                            <div className="flex items-center gap-2">
-                              <input
-                                className={`${inputCls} font-medium`}
-                                value={risk.name}
-                                onChange={(e) =>
-                                  updateRisk(si, ri, { name: e.target.value })
-                                }
-                              />
-                              <AiBadge label={t("admin.onboarding.aiBadge")} />
-                            </div>
-                            <div className="flex gap-2">
-                              <input
-                                className={`${inputCls} max-w-[200px]`}
-                                value={risk.category}
-                                onChange={(e) =>
-                                  updateRisk(si, ri, {
-                                    category: e.target.value,
-                                  })
-                                }
-                                placeholder={t(
-                                  "admin.onboarding.review.category"
-                                )}
-                              />
-                            </div>
-                            <textarea
-                              className={inputCls}
-                              rows={2}
-                              value={risk.description || ""}
-                              onChange={(e) =>
-                                updateRisk(si, ri, {
-                                  description: e.target.value,
-                                })
-                              }
-                              placeholder={t(
-                                "admin.onboarding.review.description"
-                              )}
-                            />
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    {t("admin.onboarding.confirm.country")}
+                  </label>
+                  <input
+                    className={inputCls}
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                  />
+                  {profile.hq_country_source && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {t("admin.onboarding.confirm.source")}:{" "}
+                      {profile.hq_country_source}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    {t("admin.onboarding.confirm.employeeBand")}
+                  </label>
+                  <input
+                    className={inputCls}
+                    value={employeeBand}
+                    onChange={(e) => setEmployeeBand(e.target.value)}
+                  />
+                  {profile.employee_band_source && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {t("admin.onboarding.confirm.source")}:{" "}
+                      {profile.employee_band_source}
+                    </p>
+                  )}
+                </div>
+              </div>
 
-                            {risk.kris.length > 0 && (
-                              <div className="mt-1 space-y-1.5 border-l-2 border-primary/20 pl-3">
-                                <p className="text-[11px] font-medium text-muted-foreground">
-                                  {t("admin.onboarding.review.kris")}
-                                </p>
-                                {risk.kris.map((kri, ki) => (
-                                  <div
-                                    key={ki}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={kri.selected}
-                                      onChange={(e) =>
-                                        updateKri(si, ri, ki, {
-                                          selected: e.target.checked,
-                                        })
-                                      }
-                                      aria-label={t(
-                                        "admin.onboarding.review.includeKri"
-                                      )}
-                                    />
-                                    <input
-                                      className={`${inputCls} flex-1`}
-                                      value={kri.name}
-                                      onChange={(e) =>
-                                        updateKri(si, ri, ki, {
-                                          name: e.target.value,
-                                        })
-                                      }
-                                    />
-                                    <input
-                                      className={`${inputCls} w-24`}
-                                      type="number"
-                                      value={kri.alert_threshold}
-                                      onChange={(e) =>
-                                        updateKri(si, ri, ki, {
-                                          alert_threshold: Number(
-                                            e.target.value
-                                          ),
-                                        })
-                                      }
-                                      aria-label={t(
-                                        "admin.onboarding.review.threshold"
-                                      )}
-                                    />
-                                    <span className="text-[10px] text-muted-foreground">
-                                      {kri.unit}
-                                    </span>
-                                  </div>
-                                ))}
-                                <p className="text-[10px] text-muted-foreground">
-                                  {t("admin.onboarding.review.thresholdNote")}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            onClick={() =>
-                              updateRisk(si, ri, { selected: false })
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-foreground">
+                    {t("admin.onboarding.confirm.discoveredSites")}
+                  </h4>
+                  <button
+                    onClick={addConfirmSite}
+                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t("admin.onboarding.confirm.addSite")}
+                  </button>
+                </div>
+                {confirmSites.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {t("admin.onboarding.confirm.noSites")}
+                  </p>
+                )}
+                <div className="space-y-3">
+                  {confirmSites.map((site, i) => (
+                    <div
+                      key={i}
+                      className="rounded-xl border border-border bg-background p-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          className="mt-2"
+                          checked={site.selected}
+                          onChange={(e) =>
+                            updateConfirmSite(i, { selected: e.target.checked })
+                          }
+                          aria-label={t("admin.onboarding.confirm.includeSite")}
+                        />
+                        <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
+                          <input
+                            className={inputCls}
+                            value={site.site_name}
+                            onChange={(e) =>
+                              updateConfirmSite(i, {
+                                site_name: e.target.value,
+                              })
                             }
-                            aria-label={t("admin.onboarding.review.excludeRisk")}
-                            className="text-muted-foreground hover:text-red-500"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                            placeholder={t("admin.onboarding.confirm.siteName")}
+                          />
+                          <input
+                            className={inputCls}
+                            value={site.site_location}
+                            onChange={(e) =>
+                              updateConfirmSite(i, {
+                                site_location: e.target.value,
+                              })
+                            }
+                            placeholder={t(
+                              "admin.onboarding.confirm.siteLocation"
+                            )}
+                          />
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      {site.source_info && (
+                        <p className="mt-1 pl-7 text-[11px] text-muted-foreground">
+                          {t("admin.onboarding.confirm.source")}:{" "}
+                          {site.source_info}
+                        </p>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-between gap-3 pt-2">
-              <div className="text-xs text-muted-foreground">
-                {t("admin.onboarding.review.selectedSummary", {
-                  risks: selectedCounts.risks,
-                  kris: selectedCounts.kris,
-                })}
               </div>
-              <div className="flex gap-3">
+
+              <div className="flex justify-between gap-3 pt-2">
                 <button
-                  onClick={() => setStep("confirm")}
+                  onClick={() => setStep("entry")}
                   className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
                 >
                   {t("admin.onboarding.back")}
                 </button>
                 <button
-                  onClick={handleCommit}
-                  disabled={isCommitting}
+                  onClick={handleGenerate}
+                  disabled={selectedConfirmSites.length === 0 || isGenerating}
                   className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                 >
-                  {isCommitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {t("admin.onboarding.review.createOrganization")}
+                  {t("admin.onboarding.confirm.continue")}
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Step: Done */}
-        {step === "done" && commitResult && (
-          <div className="space-y-5 py-4 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl dark:bg-emerald-900/30">
-              ✓
+          {/* Step: Generating */}
+          {step === "generating" && (
+            <div className="flex flex-col items-center gap-4 py-16">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">
+                {t("admin.onboarding.generating.message")}
+              </p>
             </div>
-            <h4 className="text-lg font-semibold text-foreground">
-              {t("admin.onboarding.done.title", {
-                name: commitResult.organization.name,
-              })}
-            </h4>
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
-              {t("admin.onboarding.done.banner", {
-                risks: commitResult.counts.risks,
-                kris: commitResult.counts.kris,
-                sites: commitResult.counts.sites,
-              })}
+          )}
+
+          {/* Step: Review */}
+          {step === "review" && (
+            <div className="space-y-5">
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
+                {t("admin.onboarding.review.notice")}
+              </div>
+              <div className="max-h-[55vh] space-y-4 overflow-y-auto pr-1">
+                {reviewSites.map((site, si) => (
+                  <div key={si} className="rounded-xl border border-border p-3">
+                    <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                      🏢{" "}
+                      {site.site_name || t("admin.onboarding.review.unnamed")}
+                    </h4>
+                    {site.risks.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {t("admin.onboarding.review.noRisks")}
+                      </p>
+                    )}
+                    <div className="space-y-3">
+                      {site.risks.map((risk, ri) => (
+                        <div
+                          key={ri}
+                          className="rounded-lg border border-border bg-background p-3"
+                        >
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="checkbox"
+                              className="mt-1.5"
+                              checked={risk.selected}
+                              onChange={(e) =>
+                                updateRisk(si, ri, {
+                                  selected: e.target.checked,
+                                })
+                              }
+                              aria-label={t(
+                                "admin.onboarding.review.includeRisk"
+                              )}
+                            />
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  className={`${inputCls} font-medium`}
+                                  value={risk.name}
+                                  onChange={(e) =>
+                                    updateRisk(si, ri, { name: e.target.value })
+                                  }
+                                />
+                                <AiBadge
+                                  label={t("admin.onboarding.aiBadge")}
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <input
+                                  className={`${inputCls} max-w-[200px]`}
+                                  value={risk.category}
+                                  onChange={(e) =>
+                                    updateRisk(si, ri, {
+                                      category: e.target.value,
+                                    })
+                                  }
+                                  placeholder={t(
+                                    "admin.onboarding.review.category"
+                                  )}
+                                />
+                              </div>
+                              <textarea
+                                className={inputCls}
+                                rows={2}
+                                value={risk.description || ""}
+                                onChange={(e) =>
+                                  updateRisk(si, ri, {
+                                    description: e.target.value,
+                                  })
+                                }
+                                placeholder={t(
+                                  "admin.onboarding.review.description"
+                                )}
+                              />
+
+                              {risk.kris.length > 0 && (
+                                <div className="mt-1 space-y-1.5 border-l-2 border-primary/20 pl-3">
+                                  <p className="text-[11px] font-medium text-muted-foreground">
+                                    {t("admin.onboarding.review.kris")}
+                                  </p>
+                                  {risk.kris.map((kri, ki) => (
+                                    <div
+                                      key={ki}
+                                      className="flex items-center gap-2"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={kri.selected}
+                                        onChange={(e) =>
+                                          updateKri(si, ri, ki, {
+                                            selected: e.target.checked,
+                                          })
+                                        }
+                                        aria-label={t(
+                                          "admin.onboarding.review.includeKri"
+                                        )}
+                                      />
+                                      <input
+                                        className={`${inputCls} flex-1`}
+                                        value={kri.name}
+                                        onChange={(e) =>
+                                          updateKri(si, ri, ki, {
+                                            name: e.target.value,
+                                          })
+                                        }
+                                      />
+                                      <input
+                                        className={`${inputCls} w-24`}
+                                        type="number"
+                                        value={kri.alert_threshold}
+                                        onChange={(e) =>
+                                          updateKri(si, ri, ki, {
+                                            alert_threshold: Number(
+                                              e.target.value
+                                            ),
+                                          })
+                                        }
+                                        aria-label={t(
+                                          "admin.onboarding.review.threshold"
+                                        )}
+                                      />
+                                      <span className="text-[10px] text-muted-foreground">
+                                        {kri.unit}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {t("admin.onboarding.review.thresholdNote")}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              onClick={() =>
+                                updateRisk(si, ri, { selected: false })
+                              }
+                              aria-label={t(
+                                "admin.onboarding.review.excludeRisk"
+                              )}
+                              className="text-muted-foreground hover:text-red-500"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <div className="text-xs text-muted-foreground">
+                  {t("admin.onboarding.review.selectedSummary", {
+                    risks: selectedCounts.risks,
+                    kris: selectedCounts.kris,
+                  })}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStep("confirm")}
+                    className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
+                  >
+                    {t("admin.onboarding.back")}
+                  </button>
+                  <button
+                    onClick={handleCommit}
+                    disabled={isCommitting}
+                    className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {isCommitting && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}
+                    {t("admin.onboarding.review.createOrganization")}
+                  </button>
+                </div>
+              </div>
             </div>
-            <button
-              onClick={onClose}
-              className="rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              {t("admin.onboarding.done.close")}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+          )}
+
+          {/* Step: Done */}
+          {step === "done" && commitResult && (
+            <div className="space-y-5 py-4 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl dark:bg-emerald-900/30">
+                ✓
+              </div>
+              <h4 className="text-lg font-semibold text-foreground">
+                {t("admin.onboarding.done.title", {
+                  name: commitResult.organization.name,
+                })}
+              </h4>
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
+                {t("admin.onboarding.done.banner", {
+                  risks: commitResult.counts.risks,
+                  kris: commitResult.counts.kris,
+                  sites: commitResult.counts.sites,
+                })}
+              </div>
+              <button
+                onClick={onClose}
+                className="rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                {t("admin.onboarding.done.close")}
+              </button>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

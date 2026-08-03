@@ -1871,6 +1871,7 @@
           "create": "Créer le forfait",
           "nameRequired": "Le nom du forfait est obligatoire",
           "priceRequired": "Le prix du forfait est obligatoire",
+          "priceInvalid": "Le prix du forfait doit être un nombre non négatif",
           "createSuccess": "« {{name}} » non enregistré — la gestion des forfaits n'est pas encore reliée à un serveur."
         },
         "editModal": {
@@ -1878,6 +1879,7 @@
           "updating": "Mise à jour du forfait...",
           "update": "Mettre à jour le forfait",
           "nameRequired": "Le nom du forfait est obligatoire",
+          "priceInvalid": "Le prix du forfait doit être un nombre non négatif",
           "updateSuccess": "« {{name}} » non enregistré — la gestion des forfaits n'est pas encore reliée à un serveur."
         },
         "deleteModal": {

@@ -71,7 +71,9 @@ const draft = {
 
 const fillEntry = async () => {
   await userEvent.type(
-    screen.getByPlaceholderText("admin.onboarding.entry.companyNamePlaceholder"),
+    screen.getByPlaceholderText(
+      "admin.onboarding.entry.companyNamePlaceholder"
+    ),
     "Acme"
   )
   await userEvent.type(
@@ -81,7 +83,9 @@ const fillEntry = async () => {
   await userEvent.type(screen.getByPlaceholderText("••••••••"), "supersecret")
 }
 
-const okUnwrap = (data: unknown) => ({ unwrap: () => Promise.resolve({ data }) })
+const okUnwrap = (data: unknown) => ({
+  unwrap: () => Promise.resolve({ data }),
+})
 
 describe("OnboardingWizard", () => {
   beforeEach(() => {
@@ -182,6 +186,32 @@ describe("OnboardingWizard", () => {
     ).toBeInTheDocument()
   })
 
+  it("blocks Escape from discarding an in-progress AI-generated review", async () => {
+    mockIdentify.mockReturnValue(okUnwrap(profile))
+    mockGenerate.mockReturnValue(okUnwrap(draft))
+    const onClose = vi.fn()
+    render(<OnboardingWizard onClose={onClose} />)
+    await fillEntry()
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.entry.analyze" })
+    )
+    await waitFor(() =>
+      screen.getByText("admin.onboarding.confirm.discoveredSites")
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.confirm.continue" })
+    )
+    await waitFor(() => screen.getByDisplayValue("Supplier concentration"))
+
+    // On the review step there's a whole AI-generated draft to lose — a
+    // stray Escape here must not silently discard it.
+    await userEvent.keyboard("{Escape}")
+    expect(onClose).not.toHaveBeenCalled()
+    expect(
+      screen.getByDisplayValue("Supplier concentration")
+    ).toBeInTheDocument()
+  })
+
   it("commits only the selected risks/KRIs and lands on the done screen with counts", async () => {
     mockIdentify.mockReturnValue(okUnwrap(profile))
     mockGenerate.mockReturnValue(okUnwrap(draft))
@@ -264,6 +294,15 @@ describe("OnboardingWizard", () => {
     await waitFor(() => expect(mockCommit).toHaveBeenCalled())
     const payload = mockCommit.mock.calls[0][0]
     expect(payload.sites[0].risks).toHaveLength(0)
+  })
+
+  it("closes on Escape key press, handled by the underlying Radix Dialog", async () => {
+    const onClose = vi.fn()
+    render(<OnboardingWizard onClose={onClose} />)
+
+    await userEvent.keyboard("{Escape}")
+
+    expect(onClose).toHaveBeenCalled()
   })
 
   it("shows a toast and stays on entry when identify fails", async () => {

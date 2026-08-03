@@ -30,6 +30,8 @@ vi.mock("react-i18next", () => ({
           "[i18n] Plan name is required",
         "admin.settings.pricing.addModal.priceRequired":
           "[i18n] Plan price is required",
+        "admin.settings.pricing.addModal.priceInvalid":
+          "[i18n] Plan price must be a non-negative number",
         "admin.settings.pricing.addModal.createSuccess": options?.name
           ? `[i18n] Pricing plan "${options.name}" created successfully!`
           : "admin.settings.pricing.addModal.createSuccess",
@@ -71,5 +73,45 @@ describe("AddPricingModal", () => {
 
     expect(alertSpy).toHaveBeenCalledWith("[i18n] Plan name is required")
     alertSpy.mockRestore()
+  })
+
+  it("rejects a negative price instead of only checking truthiness", async () => {
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {})
+    const user = userEvent.setup()
+    render(<AddPricingModal open={true} setOpen={vi.fn()} />)
+
+    await user.type(
+      screen.getByPlaceholderText("[i18n] e.g. Professional"),
+      "Starter"
+    )
+    await user.type(screen.getByPlaceholderText("[i18n] 149"), "-50")
+    await user.click(screen.getByText("[i18n] Create Plan"))
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      "[i18n] Plan price must be a non-negative number"
+    )
+    alertSpy.mockRestore()
+  })
+
+  it("renders the price input with a non-negative min attribute", () => {
+    render(<AddPricingModal open={true} setOpen={vi.fn()} />)
+    expect(screen.getByPlaceholderText("[i18n] 149")).toHaveAttribute(
+      "min",
+      "0"
+    )
+  })
+
+  it("closes on Escape key press, handled by the underlying Radix Dialog", async () => {
+    const setOpen = vi.fn()
+    const user = userEvent.setup()
+    render(<AddPricingModal open={true} setOpen={setOpen} />)
+
+    expect(
+      screen.getByText("[i18n] Add New Pricing Plan")
+    ).toBeInTheDocument()
+
+    await user.keyboard("{Escape}")
+
+    expect(setOpen).toHaveBeenCalledWith(false)
   })
 })

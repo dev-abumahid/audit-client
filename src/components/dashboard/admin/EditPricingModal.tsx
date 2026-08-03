@@ -1,6 +1,12 @@
-import { X } from "lucide-react"
 import React, { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface Props {
   open: boolean
@@ -75,6 +81,12 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
       return
     }
 
+    const price = Number(form.planPrice)
+    if (form.planPrice.trim() === "" || Number.isNaN(price) || price < 0) {
+      alert(t("admin.settings.pricing.editModal.priceInvalid"))
+      return
+    }
+
     setIsSubmitting(true)
 
     // Simulate API call (replace with your actual update API later)
@@ -89,23 +101,15 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
     }, 800)
   }
 
-  if (!open || !plan) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-xl">
+    <Dialog open={open && !!plan} onOpenChange={setOpen}>
+      <DialogContent className="w-full max-w-lg gap-0 rounded-2xl border border-border bg-card p-6 shadow-xl sm:max-w-lg">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">
+        <DialogHeader className="mb-6">
+          <DialogTitle className="text-xl font-semibold text-foreground">
             {t("admin.settings.pricing.editModal.title")}
-          </h2>
-          <button
-            onClick={() => setOpen(false)}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
 
         {/* Form */}
         <div className="space-y-5">
@@ -148,6 +152,7 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
               <input
                 name="planPrice"
                 type="number"
+                min="0"
                 value={form.planPrice}
                 onChange={handleChange}
                 className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
@@ -238,8 +243,8 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
               : t("admin.settings.pricing.editModal.update")}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

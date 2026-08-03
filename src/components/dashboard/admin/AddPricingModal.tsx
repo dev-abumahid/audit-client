@@ -1,6 +1,12 @@
 import React, { useState } from "react"
-import { X } from "lucide-react"
 import { useTranslation } from "react-i18next"
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface Props {
   open: boolean
@@ -57,8 +63,12 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
       alert(t("admin.settings.pricing.addModal.nameRequired"))
       return
     }
-    if (!form.planPrice) {
+    if (!form.planPrice.trim()) {
       alert(t("admin.settings.pricing.addModal.priceRequired"))
+      return
+    }
+    if (Number.isNaN(Number(form.planPrice)) || Number(form.planPrice) < 0) {
+      alert(t("admin.settings.pricing.addModal.priceInvalid"))
       return
     }
 
@@ -85,23 +95,15 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
     }, 800)
   }
 
-  if (!open) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-xl">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="w-full max-w-lg gap-0 rounded-2xl border border-border bg-card p-6 shadow-xl sm:max-w-lg">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">
+        <DialogHeader className="mb-6">
+          <DialogTitle className="text-xl font-semibold text-foreground">
             {t("admin.settings.pricing.addModal.title")}
-          </h2>
-          <button
-            onClick={() => setOpen(false)}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
 
         {/* Form */}
         <div className="space-y-5">
@@ -150,6 +152,7 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
               <input
                 name="planPrice"
                 type="number"
+                min="0"
                 value={form.planPrice}
                 onChange={handleChange}
                 placeholder={t(
@@ -242,8 +245,8 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
               : t("admin.settings.pricing.addModal.create")}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

@@ -1871,6 +1871,7 @@
           "create": "Create Plan",
           "nameRequired": "Plan name is required",
           "priceRequired": "Plan price is required",
+          "priceInvalid": "Plan price must be a non-negative number",
           "createSuccess": "\"{{name}}\" not saved — plan management isn't connected to a backend yet."
         },
         "editModal": {
@@ -1878,6 +1879,7 @@
           "updating": "Updating Plan...",
           "update": "Update Plan",
           "nameRequired": "Plan name is required",
+          "priceInvalid": "Plan price must be a non-negative number",
           "updateSuccess": "\"{{name}}\" not saved — plan management isn't connected to a backend yet."
         },
         "deleteModal": {

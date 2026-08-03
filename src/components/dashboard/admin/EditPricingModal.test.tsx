@@ -23,6 +23,8 @@ vi.mock("react-i18next", () => ({
         "admin.settings.pricing.editModal.update": "[i18n] Update Plan",
         "admin.settings.pricing.editModal.nameRequired":
           "[i18n] Plan name is required",
+        "admin.settings.pricing.editModal.priceInvalid":
+          "[i18n] Plan price must be a non-negative number",
         "admin.settings.pricing.editModal.updateSuccess": options?.name
           ? `[i18n] Pricing plan "${options.name}" updated successfully!`
           : "admin.settings.pricing.editModal.updateSuccess",
@@ -73,5 +75,33 @@ describe("EditPricingModal", () => {
 
     expect(alertSpy).toHaveBeenCalledWith("[i18n] Plan name is required")
     alertSpy.mockRestore()
+  })
+
+  it("shows a validation alert when the price is set to a negative number", async () => {
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {})
+    const user = userEvent.setup()
+    render(<EditPricingModal open={true} setOpen={vi.fn()} plan={plan} />)
+
+    const priceInput = screen.getByDisplayValue("149")
+    await user.clear(priceInput)
+    await user.type(priceInput, "-50")
+    await user.click(screen.getByText("[i18n] Update Plan"))
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      "[i18n] Plan price must be a non-negative number"
+    )
+    alertSpy.mockRestore()
+  })
+
+  it("closes on Escape key press, handled by the underlying Radix Dialog", async () => {
+    const setOpen = vi.fn()
+    const user = userEvent.setup()
+    render(<EditPricingModal open={true} setOpen={setOpen} plan={plan} />)
+
+    expect(screen.getByText("[i18n] Edit Pricing Plan")).toBeInTheDocument()
+
+    await user.keyboard("{Escape}")
+
+    expect(setOpen).toHaveBeenCalledWith(false)
   })
 })

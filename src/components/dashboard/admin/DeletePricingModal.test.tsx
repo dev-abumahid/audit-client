@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import DeletePricingModal from "./DeletePricingModal"
 
@@ -45,5 +46,25 @@ describe("DeletePricingModal", () => {
       )
     ).toBeInTheDocument()
     expect(screen.getByText("[i18n] Yes, Delete Plan")).toBeInTheDocument()
+  })
+
+  it("pairs the icon circle's light background with a dark mode variant", () => {
+    render(<DeletePricingModal open={true} setOpen={vi.fn()} plan={plan} />)
+
+    const icon = screen.getByText("🗑")
+    expect(icon.parentElement).toHaveClass("bg-red-100", "dark:bg-red-900/30")
+    expect(icon).toHaveClass("text-red-600", "dark:text-red-400")
+  })
+
+  it("closes on Escape key press, handled by the underlying Radix Dialog", async () => {
+    const setOpen = vi.fn()
+    const user = userEvent.setup()
+    render(<DeletePricingModal open={true} setOpen={setOpen} plan={plan} />)
+
+    expect(screen.getByText("[i18n] Delete Pricing Plan")).toBeInTheDocument()
+
+    await user.keyboard("{Escape}")
+
+    expect(setOpen).toHaveBeenCalledWith(false)
   })
 })
