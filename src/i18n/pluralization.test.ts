@@ -175,4 +175,68 @@ describe("locale resource pluralization/interpolation", () => {
       await instance.changeLanguage("en")
     }
   })
+
+  // Regression (issue #432): admin.onboarding.review.selectedSummary and
+  // admin.onboarding.done.banner interpolated {{risks}}/{{kris}}/{{sites}}
+  // directly with no plural handling, so a single risk/site/KRI read
+  // "1 risks and 1 KRIs selected". Each count now has its own risksCount/
+  // krisCount/sitesCount _one/_other pair, composed into the sentence.
+  it("pluralizes each independent count in the onboarding review summary", () => {
+    expect(
+      t("admin.onboarding.review.selectedSummary", {
+        risksText: t("admin.onboarding.review.risksCount", { count: 1 }),
+        krisText: t("admin.onboarding.review.krisCount", { count: 1 }),
+      })
+    ).toBe("1 risk and 1 KRI selected")
+    expect(
+      t("admin.onboarding.review.selectedSummary", {
+        risksText: t("admin.onboarding.review.risksCount", { count: 3 }),
+        krisText: t("admin.onboarding.review.krisCount", { count: 5 }),
+      })
+    ).toBe("3 risks and 5 KRIs selected")
+  })
+
+  it("pluralizes each independent count in the onboarding done banner", () => {
+    expect(
+      t("admin.onboarding.done.banner", {
+        sitesText: t("admin.onboarding.done.sitesCount", { count: 1 }),
+        risksText: t("admin.onboarding.done.risksCount", { count: 1 }),
+        krisText: t("admin.onboarding.done.krisCount", { count: 1 }),
+      })
+    ).toBe(
+      "1 site, 1 risk and 1 KRI were AI-generated during setup — review recommended before relying on them."
+    )
+    expect(
+      t("admin.onboarding.done.banner", {
+        sitesText: t("admin.onboarding.done.sitesCount", { count: 2 }),
+        risksText: t("admin.onboarding.done.risksCount", { count: 4 }),
+        krisText: t("admin.onboarding.done.krisCount", { count: 6 }),
+      })
+    ).toBe(
+      "2 sites, 4 risks and 6 KRIs were AI-generated during setup — review recommended before relying on them."
+    )
+  })
+
+  it("pluralizes the onboarding summary counts in French, with KRI kept invariant", async () => {
+    const instance = (
+      t as unknown as { instance: import("i18next").i18n }
+    ).instance
+    await instance.changeLanguage("fr")
+    try {
+      expect(
+        t("admin.onboarding.review.selectedSummary", {
+          risksText: t("admin.onboarding.review.risksCount", { count: 1 }),
+          krisText: t("admin.onboarding.review.krisCount", { count: 1 }),
+        })
+      ).toBe("1 risque et 1 KRI sélectionnés")
+      expect(
+        t("admin.onboarding.review.selectedSummary", {
+          risksText: t("admin.onboarding.review.risksCount", { count: 2 }),
+          krisText: t("admin.onboarding.review.krisCount", { count: 3 }),
+        })
+      ).toBe("2 risques et 3 KRI sélectionnés")
+    } finally {
+      await instance.changeLanguage("en")
+    }
+  })
 })

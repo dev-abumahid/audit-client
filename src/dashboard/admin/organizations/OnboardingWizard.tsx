@@ -387,7 +387,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             </DialogTitle>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => {
+              // Same guard as the Dialog's onEscapeKeyDown/onInteractOutside
+              // below — the visible X must not be able to silently discard
+              // an in-progress AI-generation run that Escape/outside-click
+              // are already blocked from discarding.
+              if (hasUnsavedWizardProgress) return
+              onClose()
+            }}
             aria-label={t("admin.onboarding.close")}
             className="text-muted-foreground hover:text-foreground"
           >
@@ -605,6 +612,66 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                               "admin.onboarding.confirm.siteLocation"
                             )}
                           />
+                          <input
+                            className={inputCls}
+                            value={site.site_primary_activity}
+                            onChange={(e) =>
+                              updateConfirmSite(i, {
+                                site_primary_activity: e.target.value,
+                              })
+                            }
+                            placeholder={t(
+                              "admin.onboarding.confirm.sitePrimaryActivity"
+                            )}
+                          />
+                          <input
+                            className={inputCls}
+                            value={site.site_country}
+                            onChange={(e) =>
+                              updateConfirmSite(i, {
+                                site_country: e.target.value,
+                              })
+                            }
+                            placeholder={t(
+                              "admin.onboarding.confirm.siteCountry"
+                            )}
+                          />
+                          <input
+                            className={inputCls}
+                            value={site.site_revenue}
+                            onChange={(e) =>
+                              updateConfirmSite(i, {
+                                site_revenue: e.target.value,
+                              })
+                            }
+                            placeholder={t(
+                              "admin.onboarding.confirm.siteRevenue"
+                            )}
+                          />
+                          <input
+                            className={inputCls}
+                            value={site.site_employees}
+                            onChange={(e) =>
+                              updateConfirmSite(i, {
+                                site_employees: e.target.value,
+                              })
+                            }
+                            placeholder={t(
+                              "admin.onboarding.confirm.siteEmployees"
+                            )}
+                          />
+                          <input
+                            className={inputCls}
+                            value={site.site_type}
+                            onChange={(e) =>
+                              updateConfirmSite(i, {
+                                site_type: e.target.value,
+                              })
+                            }
+                            placeholder={t(
+                              "admin.onboarding.confirm.siteType"
+                            )}
+                          />
                         </div>
                       </div>
                       {site.source_info && (
@@ -804,8 +871,12 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               <div className="flex items-center justify-between gap-3 pt-2">
                 <div className="text-xs text-muted-foreground">
                   {t("admin.onboarding.review.selectedSummary", {
-                    risks: selectedCounts.risks,
-                    kris: selectedCounts.kris,
+                    risksText: t("admin.onboarding.review.risksCount", {
+                      count: selectedCounts.risks,
+                    }),
+                    krisText: t("admin.onboarding.review.krisCount", {
+                      count: selectedCounts.kris,
+                    }),
                   })}
                 </div>
                 <div className="flex gap-3">
@@ -843,9 +914,15 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               </h4>
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
                 {t("admin.onboarding.done.banner", {
-                  risks: commitResult.counts.risks,
-                  kris: commitResult.counts.kris,
-                  sites: commitResult.counts.sites,
+                  sitesText: t("admin.onboarding.done.sitesCount", {
+                    count: commitResult.counts.sites,
+                  }),
+                  risksText: t("admin.onboarding.done.risksCount", {
+                    count: commitResult.counts.risks,
+                  }),
+                  krisText: t("admin.onboarding.done.krisCount", {
+                    count: commitResult.counts.kris,
+                  }),
                 })}
               </div>
               <button

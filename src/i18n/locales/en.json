@@ -1948,6 +1948,11 @@
         "includeSite": "Include this site",
         "siteName": "Site name",
         "siteLocation": "Location",
+        "sitePrimaryActivity": "Primary activity",
+        "siteCountry": "Country",
+        "siteRevenue": "Revenue",
+        "siteEmployees": "Employees",
+        "siteType": "Site type",
         "continue": "Continue"
       },
       "generating": {
@@ -1965,12 +1970,22 @@
         "includeKri": "Include this KRI",
         "threshold": "Alert threshold",
         "thresholdNote": "Thresholds are suggested starting points — adjust them to your context.",
-        "selectedSummary": "{{risks}} risks and {{kris}} KRIs selected",
+        "risksCount_one": "{{count}} risk",
+        "risksCount_other": "{{count}} risks",
+        "krisCount_one": "{{count}} KRI",
+        "krisCount_other": "{{count}} KRIs",
+        "selectedSummary": "{{risksText}} and {{krisText}} selected",
         "createOrganization": "Create Organization"
       },
       "done": {
         "title": "{{name}} created",
-        "banner": "{{sites}} sites, {{risks}} risks and {{kris}} KRIs were AI-generated during setup — review recommended before relying on them.",
+        "sitesCount_one": "{{count}} site",
+        "sitesCount_other": "{{count}} sites",
+        "risksCount_one": "{{count}} risk",
+        "risksCount_other": "{{count}} risks",
+        "krisCount_one": "{{count}} KRI",
+        "krisCount_other": "{{count}} KRIs",
+        "banner": "{{sitesText}}, {{risksText}} and {{krisText}} were AI-generated during setup — review recommended before relying on them.",
         "close": "Done"
       },
       "errors": {

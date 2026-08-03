@@ -296,6 +296,81 @@ describe("OnboardingWizard", () => {
     expect(payload.sites[0].risks).toHaveLength(0)
   })
 
+  it("blocks the header X button from discarding an in-progress AI-generated review", async () => {
+    mockIdentify.mockReturnValue(okUnwrap(profile))
+    mockGenerate.mockReturnValue(okUnwrap(draft))
+    const onClose = vi.fn()
+    render(<OnboardingWizard onClose={onClose} />)
+    await fillEntry()
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.entry.analyze" })
+    )
+    await waitFor(() =>
+      screen.getByText("admin.onboarding.confirm.discoveredSites")
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.confirm.continue" })
+    )
+    await waitFor(() => screen.getByDisplayValue("Supplier concentration"))
+
+    // The visible X in the header must respect the same guard as
+    // Escape/outside-click — a single click here must not silently discard
+    // the AI-generated draft.
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.close" })
+    )
+    expect(onClose).not.toHaveBeenCalled()
+    expect(
+      screen.getByDisplayValue("Supplier concentration")
+    ).toBeInTheDocument()
+  })
+
+  it("lets the header X button close the wizard on the entry step, with nothing at risk", async () => {
+    const onClose = vi.fn()
+    render(<OnboardingWizard onClose={onClose} />)
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.close" })
+    )
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it("exposes all five AI-suggested site fields as editable inputs in the confirm step", async () => {
+    mockIdentify.mockReturnValue(okUnwrap(profile))
+    render(<OnboardingWizard onClose={vi.fn()} />)
+    await fillEntry()
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.entry.analyze" })
+    )
+    await waitFor(() =>
+      screen.getByText("admin.onboarding.confirm.discoveredSites")
+    )
+
+    // site_name/site_location were already editable before this fix; the
+    // other five AI-suggested fields must now be too.
+    const activityInput = screen.getByPlaceholderText(
+      "admin.onboarding.confirm.sitePrimaryActivity"
+    )
+    expect(activityInput).toHaveValue("Manufacturing")
+    const countryInput = screen.getByPlaceholderText(
+      "admin.onboarding.confirm.siteCountry"
+    )
+    expect(countryInput).toHaveValue("France")
+    expect(
+      screen.getByPlaceholderText("admin.onboarding.confirm.siteRevenue")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText("admin.onboarding.confirm.siteEmployees")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText("admin.onboarding.confirm.siteType")
+    ).toBeInTheDocument()
+
+    // And they're actually wired up, not just rendered.
+    await userEvent.clear(countryInput)
+    await userEvent.type(countryInput, "Germany")
+    expect(countryInput).toHaveValue("Germany")
+  })
+
   it("closes on Escape key press, handled by the underlying Radix Dialog", async () => {
     const onClose = vi.fn()
     render(<OnboardingWizard onClose={onClose} />)

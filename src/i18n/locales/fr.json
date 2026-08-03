@@ -1948,6 +1948,11 @@
         "includeSite": "Inclure ce site",
         "siteName": "Nom du site",
         "siteLocation": "Emplacement",
+        "sitePrimaryActivity": "Activité principale",
+        "siteCountry": "Pays",
+        "siteRevenue": "Chiffre d'affaires",
+        "siteEmployees": "Effectifs",
+        "siteType": "Type de site",
         "continue": "Continuer"
       },
       "generating": {
@@ -1965,12 +1970,22 @@
         "includeKri": "Inclure ce KRI",
         "threshold": "Seuil d'alerte",
         "thresholdNote": "Les seuils sont des points de départ suggérés — ajustez-les à votre contexte.",
-        "selectedSummary": "{{risks}} risques et {{kris}} KRI sélectionnés",
+        "risksCount_one": "{{count}} risque",
+        "risksCount_other": "{{count}} risques",
+        "krisCount_one": "{{count}} KRI",
+        "krisCount_other": "{{count}} KRI",
+        "selectedSummary": "{{risksText}} et {{krisText}} sélectionnés",
         "createOrganization": "Créer l'organisation"
       },
       "done": {
         "title": "{{name}} créée",
-        "banner": "{{sites}} sites, {{risks}} risques et {{kris}} KRI ont été générés par IA lors de la configuration — vérification recommandée avant de vous y fier.",
+        "sitesCount_one": "{{count}} site",
+        "sitesCount_other": "{{count}} sites",
+        "risksCount_one": "{{count}} risque",
+        "risksCount_other": "{{count}} risques",
+        "krisCount_one": "{{count}} KRI",
+        "krisCount_other": "{{count}} KRI",
+        "banner": "{{sitesText}}, {{risksText}} et {{krisText}} ont été générés par IA lors de la configuration — vérification recommandée avant de vous y fier.",
         "close": "Terminé"
       },
       "errors": {
