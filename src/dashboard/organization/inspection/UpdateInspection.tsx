@@ -18,6 +18,7 @@ import {
 import type { InspectionStatus } from "@/types/inspection"
 import { attachmentFileName } from "@/utils/attachmentFileName"
 import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
+import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
 import {
   ArrowLeft,
   CloudUpload,
@@ -647,8 +648,7 @@ export default function UpdateInspection() {
                   alt={t("organization.inspection.uploadedMediaAlt")}
                   className="max-h-96 max-w-full object-contain transition-transform group-hover:scale-105"
                   onError={(e) => {
-                    ;(e.target as HTMLImageElement).src =
-                      "/placeholder-image.jpg"
+                    ;(e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE_SRC
                   }}
                 />
                 <button

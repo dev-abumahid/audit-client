@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card"
 import { useUploadAnyFileAwsMutation } from "@/redux/apis/common.api"
 import { useCreateNewInspectionMutation } from "@/redux/apis/organization/inspection.api"
 import { useGetSingleTemplateQuery } from "@/redux/apis/organization/template.api"
+import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
 import {
   ArrowLeft,
   ChevronLeft,
@@ -454,8 +455,7 @@ export default function CreateNewInspection() {
                   alt={t("organization.inspection.uploadedMediaAlt")}
                   className="max-h-96 max-w-full object-contain transition-transform group-hover:scale-105"
                   onError={(e) => {
-                    ;(e.target as HTMLImageElement).src =
-                      "/placeholder-image.jpg"
+                    ;(e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE_SRC
                   }}
                 />
                 <button

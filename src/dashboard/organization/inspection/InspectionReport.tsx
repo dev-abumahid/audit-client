@@ -11,6 +11,7 @@ import {
 import { formatLocaleDate } from "@/utils/formatDate"
 import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
 import { A4_WIDTH_MM, computePdfPagePlacements } from "@/utils/pdfPageMath"
+import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
 import html2canvas from "html2canvas-pro"
 import jsPDF from "jspdf"
 import {
@@ -218,7 +219,7 @@ const renderAnswerValue = (
             className="max-h-96 w-auto max-w-full object-cover transition-transform group-hover:scale-105"
             onError={(e) => {
               // Handle image load error
-              ;(e.target as HTMLImageElement).src = "/placeholder-image.jpg"
+              ;(e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE_SRC
             }}
           />
           <button
@@ -313,8 +314,7 @@ const QuestionCard = memo(
                     alt={`media-${i}`}
                     className="h-full w-full object-cover"
                     onError={(e) =>
-                      (e.currentTarget.src =
-                        "https://via.placeholder.com/56?text=?")
+                      (e.currentTarget.src = PLACEHOLDER_IMAGE_SRC)
                     }
                   />
                 </button>
