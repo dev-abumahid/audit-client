@@ -752,6 +752,15 @@ describe("SitesEntities", () => {
     expect(screen.getByText("RSK-2026-0142").parentElement).toHaveClass(
       "gap-2"
     )
+    // Regression (#424): the manual (non-AI) badge paired bg-primary/10 with
+    // text-base -- a font-size utility, not a color -- so the badge never
+    // actually got colored. Assert the real color class is applied instead.
+    const manualBadge = screen.getByText(
+      /organization\.site&entities\.manualBadge/
+    )
+    expect(manualBadge).toHaveClass("bg-primary/10")
+    expect(manualBadge).toHaveClass("text-primary")
+    expect(manualBadge).not.toHaveClass("text-base")
   })
 
   it("opens the manual risk form and submits it for the site", async () => {
@@ -1098,6 +1107,40 @@ describe("SitesEntities", () => {
         "organization.site&entities.createRiskFailed"
       )
     )
+  })
+
+  // Regression (#425): riskForm.formState was never read anywhere in the
+  // component, so an incomplete Add Risk submission failed completely
+  // silently -- no inline error, no toast. Assert the inline errors now
+  // render (matching the existing siteForm.formState.errors.name pattern)
+  // and that the API is never called for the invalid submission.
+  it("shows inline validation errors and does not call the API when submitting the manual risk form with required fields empty", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.addRisk/i,
+      })
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.site&entities.add" })
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.site&entities.riskNameRequired")
+      ).toBeInTheDocument()
+    )
+    expect(
+      screen.getByText("organization.site&entities.riskStatusRequired")
+    ).toBeInTheDocument()
+    expect(mockCreateNewRisk).not.toHaveBeenCalled()
   })
 
   function makeSuggestion(overrides = {}) {

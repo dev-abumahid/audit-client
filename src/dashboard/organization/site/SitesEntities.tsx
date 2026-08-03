@@ -483,7 +483,14 @@ export default function SitesEntities() {
     siteId: string,
     values: RiskFormValues
   ) => {
-    if (!values.status || !values.name) return
+    if (!values.status || !values.name) {
+      // Belt-and-suspenders guard for a state bug that slips past RHF's own
+      // required validation (which already renders inline errors below) --
+      // still needs its own toast so the form doesn't fail completely
+      // silently in that case (aexa-frontend#425).
+      toast.error(t("organization.site&entities.riskRequiredFieldsMissing"))
+      return
+    }
     const payload = { ...values, site_id: siteId }
     try {
       const res = await createNewRisk(payload).unwrap()
@@ -730,12 +737,21 @@ export default function SitesEntities() {
                         <span className="text-destructive">*</span>
                       </label>
                       <input
-                        {...riskForm.register("name", { required: true })}
+                        {...riskForm.register("name", {
+                          required: t(
+                            "organization.site&entities.riskNameRequired",
+                          ),
+                        })}
                         placeholder={t(
                           "organization.site&entities.enterRiskNamePlaceholder",
                         )}
                         className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm transition-colors placeholder:text-muted-foreground/50 hover:border-primary/30 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                       />
+                      {riskForm.formState.errors.name && (
+                        <p className="mt-1 text-xs text-destructive">
+                          {riskForm.formState.errors.name.message}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -744,7 +760,11 @@ export default function SitesEntities() {
                         <span className="text-destructive">*</span>
                       </label>
                       <select
-                        {...riskForm.register("status", { required: true })}
+                        {...riskForm.register("status", {
+                          required: t(
+                            "organization.site&entities.riskStatusRequired",
+                          ),
+                        })}
                         className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm transition-colors hover:border-primary/30 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                       >
                         <option value="open">
@@ -760,6 +780,11 @@ export default function SitesEntities() {
                           {t("organization.site&entities.statusClosed")}
                         </option>
                       </select>
+                      {riskForm.formState.errors.status && (
+                        <p className="mt-1 text-xs text-destructive">
+                          {riskForm.formState.errors.status.message}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -945,7 +970,7 @@ export default function SitesEntities() {
                             size="sm"
                           />
                           <span
-                            className={`rounded p-1.5 text-[9px] font-medium ${risk.ai_generated ? "bg-accent/20 text-accent" : "bg-primary/10 text-base"}`}
+                            className={`rounded p-1.5 text-[9px] font-medium ${risk.ai_generated ? "bg-accent/20 text-accent" : "bg-primary/10 text-primary"}`}
                           >
                             {risk.ai_generated
                               ? `🤖 ${t("organization.site&entities.aiGeneratedBadge")}`

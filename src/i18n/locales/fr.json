@@ -824,7 +824,10 @@
       "addNewSiteTitle": "Ajouter un nouveau site",
       "editSiteTitle": "Modifier les informations du site",
       "showingRange": "Affichage de {{from}}-{{to}} sur {{total}}",
-      "nameRequired": "Le nom est requis"
+      "nameRequired": "Le nom est requis",
+      "riskNameRequired": "Le nom du risque est requis",
+      "riskStatusRequired": "Le statut est requis",
+      "riskRequiredFieldsMissing": "Veuillez remplir les champs obligatoires"
     },
     "riskRegister": {
       "title": "Registre des risques",

@@ -824,7 +824,10 @@
       "addNewSiteTitle": "Add New Site",
       "editSiteTitle": "Edit Site Information",
       "showingRange": "Showing {{from}}-{{to}} of {{total}}",
-      "nameRequired": "Name is required"
+      "nameRequired": "Name is required",
+      "riskNameRequired": "Risk name is required",
+      "riskStatusRequired": "Status is required",
+      "riskRequiredFieldsMissing": "Please fill in the required fields"
     },
     "riskRegister": {
       "title": "Risk Register",
