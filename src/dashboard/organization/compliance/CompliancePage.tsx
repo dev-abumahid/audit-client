@@ -659,7 +659,7 @@ export default function CompliancePage() {
                       }`}
                     >
                       {obl.due_date
-                        ? formatDateOnlyForDisplay(obl.due_date)
+                        ? formatDateOnlyForDisplay(obl.due_date, i18n.language)
                         : "—"}
                     </span>
                     {isOverdue && (
@@ -671,7 +671,10 @@ export default function CompliancePage() {
                     {obl.recurrence && obl.next_review_date && (
                       <p className="mt-0.5 text-[10px] text-muted-foreground">
                         {t("organization.compliance.col.nextReviewShort")}:{" "}
-                        {formatDateOnlyForDisplay(obl.next_review_date)}
+                        {formatDateOnlyForDisplay(
+                          obl.next_review_date,
+                          i18n.language
+                        )}
                       </p>
                     )}
                   </td>
@@ -999,7 +1002,8 @@ export default function CompliancePage() {
                       {t("organization.compliance.form.nextReview")}:{" "}
                       {formatDateOnlyForDisplay(
                         obligations.find((o) => o.id === editingId)!
-                          .next_review_date!
+                          .next_review_date!,
+                        i18n.language
                       )}
                     </p>
                   )}

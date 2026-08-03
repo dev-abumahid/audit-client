@@ -1441,5 +1441,90 @@ describe("CompliancePage", () => {
 
       expect(screen.getByText(/Mar 1, 2027/)).toBeInTheDocument()
     })
+
+    // aexa-frontend#390: formatDateOnlyForDisplay hardcoded "en-US" with no
+    // locale argument, so due_date/next_review_date always rendered English
+    // month names even under the French UI -- same bug class as #3/#4 in the
+    // round-3 audit, now fixed by threading i18n.language through to the
+    // shared formatLocaleDate() helper instead.
+    it("formats due_date and next_review_date in French when the UI language is French", () => {
+      mockLanguage = "fr"
+
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              due_date: "2026-12-31T00:00:00.000Z",
+              recurrence: "annual",
+              next_review_date: "2027-06-15T00:00:00.000Z",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      const expectedDueDate = new Date(
+        Date.UTC(2026, 11, 31)
+      ).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+      const expectedNextReview = new Date(
+        Date.UTC(2027, 5, 15)
+      ).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+
+      expect(screen.getByText(expectedDueDate)).toBeInTheDocument()
+      expect(
+        screen.getByText(new RegExp(expectedNextReview))
+      ).toBeInTheDocument()
+    })
+
+    // Same bug (#390), but the edit form's read-only next-review note is a
+    // third, separate call site of formatDateOnlyForDisplay -- distinct from
+    // the two table call sites covered above -- so it needs its own
+    // assertion rather than assuming the fix at one call site covers all.
+    it("formats the edit form's next-review note in French when the UI language is French", async () => {
+      mockLanguage = "fr"
+      const user = userEvent.setup()
+
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              recurrence: "annual",
+              next_review_date: "2026-03-01T00:00:00.000Z",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+      await user.click(within(row).getAllByRole("button")[0])
+
+      const expectedNextReview = new Date(
+        Date.UTC(2026, 2, 1)
+      ).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+
+      expect(
+        screen.getByText(/organization\.compliance\.form\.nextReview/)
+      ).toHaveTextContent(expectedNextReview)
+    })
   })
 })

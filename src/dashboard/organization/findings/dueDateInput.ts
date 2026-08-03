@@ -1,3 +1,5 @@
+import { formatLocaleDate } from "@/utils/formatDate"
+
 // A `datetime-local` input's value is a LOCAL wall-clock string with no
 // offset info, but `Date#toISOString()` always renders UTC. Naively slicing
 // an ISO string (or a Date's own toISOString()) into the input therefore
@@ -40,9 +42,17 @@ export function toLocalDatetimeInputValue(date: Date): string {
 // parsing of the raw string) and format via an explicit `timeZone: "UTC"`,
 // so the browser's local offset never enters the calculation at all
 // (aexa-frontend#244).
-export function formatDateOnlyForDisplay(dateStr: string): string {
+//
+// `language` is threaded through to the shared `formatLocaleDate()` helper
+// (src/utils/formatDate.ts) rather than hardcoding "en-US" here, matching
+// every other date display in the app -- the previous hardcoded call always
+// rendered English month names even under the French UI (aexa-frontend#390).
+export function formatDateOnlyForDisplay(
+  dateStr: string,
+  language: string | undefined
+): string {
   const [year, month, day] = dateStr.slice(0, 10).split("-").map(Number)
-  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-US", {
+  return formatLocaleDate(new Date(Date.UTC(year, month - 1, day)), language, {
     day: "numeric",
     month: "short",
     year: "numeric",
