@@ -458,6 +458,29 @@ describe("CreateNewFindingModal", () => {
     )
   })
 
+  // Regression (aexa-frontend round-9 audit #469): the Assignees dropdown
+  // toggle had no aria-expanded/aria-haspopup, unlike other disclosure
+  // controls in the app, so screen-reader users got no indication it was a
+  // listbox toggle or of its open/closed state.
+  it("marks the Assignees dropdown toggle with aria-haspopup/aria-expanded that tracks open state", async () => {
+    mockOrgUsers.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    const assigneesTrigger = screen
+      .getByText("organization.findings.assignees")
+      .closest("div")
+      ?.querySelector("button") as HTMLButtonElement
+    expect(assigneesTrigger).toHaveAttribute("aria-haspopup", "true")
+    expect(assigneesTrigger).toHaveAttribute("aria-expanded", "false")
+
+    await userEvent.click(assigneesTrigger)
+    expect(assigneesTrigger).toHaveAttribute("aria-expanded", "true")
+  })
+
   // aexa-server#244 / aexa-frontend#213: IIA's "Five Cs" fields on a finding.
   it("does not send criteria/condition/cause/effect when the Five Cs section is left untouched (create)", async () => {
     mockCreateNewFinding.mockReturnValue({

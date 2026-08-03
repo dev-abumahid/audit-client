@@ -643,6 +643,8 @@ export default function CreateNewFindingModal({
                     <button
                       type="button"
                       onClick={() => setShowUserDropdown((p) => !p)}
+                      aria-haspopup="true"
+                      aria-expanded={showUserDropdown}
                       className="flex w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors hover:border-ring focus:ring-1 focus:ring-primary focus:outline-none"
                     >
                       <span

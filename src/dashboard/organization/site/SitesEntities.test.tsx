@@ -136,6 +136,75 @@ describe("SitesEntities", () => {
     ).toBe(true)
   })
 
+  // Regression (aexa-frontend round-9 audit #470): Edit/Delete/expand-collapse
+  // controls, the search input, and the create/edit modal's close button had
+  // zero aria-labels, so screen-reader users only got a bare icon with no
+  // accessible name.
+  it("gives Edit, Delete, expand/collapse and the search input accessible names", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+
+    expect(
+      screen.getByRole("textbox", {
+        name: "organization.site&entities.searchSitesLabel",
+      })
+    ).toBeInTheDocument()
+
+    const editButton = screen.getAllByRole("button").find((b) =>
+      b.querySelector("svg.lucide-pencil")
+    )!
+    expect(editButton).toHaveAccessibleName(
+      "organization.site&entities.editSiteLabel"
+    )
+
+    const deleteButton = screen.getAllByRole("button").find((b) =>
+      b.querySelector("svg.lucide-trash-2")
+    )!
+    expect(deleteButton).toHaveAccessibleName(
+      "organization.site&entities.deleteSiteLabel"
+    )
+
+    const expandButton = screen.getAllByRole("button").find((b) =>
+      b.querySelector("svg.lucide-chevron-down")
+    )!
+    expect(expandButton).toHaveAttribute("aria-expanded", "false")
+    expect(expandButton).toHaveAccessibleName(
+      "organization.site&entities.expandSiteLabel"
+    )
+
+    await userEvent.click(expandButton)
+    expect(expandButton).toHaveAttribute("aria-expanded", "true")
+    expect(expandButton).toHaveAccessibleName(
+      "organization.site&entities.collapseSiteLabel"
+    )
+  })
+
+  it("gives the create/edit modal's close button an accessible name", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.site&entities.newSite" })
+    )
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.site&entities.closeModalLabel",
+      })
+    ).toBeInTheDocument()
+  })
+
   it("hides New Site, Add Risk, Edit and Delete for a VIEWER but keeps Analyze", () => {
     mockRole = "VIEWER"
     mockUseGetAllSitesQuery.mockReturnValue({
@@ -976,7 +1045,11 @@ describe("SitesEntities", () => {
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-chevron-down"))
     await userEvent.click(expandButton)
-    await userEvent.click(screen.getByRole("button", { name: /delete/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.site&entities\.deleteButton/i,
+      })
+    )
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith(
@@ -1061,7 +1134,11 @@ describe("SitesEntities", () => {
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-chevron-down"))
     await userEvent.click(expandButton)
-    await userEvent.click(screen.getByRole("button", { name: /delete/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.site&entities\.deleteButton/i,
+      })
+    )
 
     // Regression (aexa-frontend#399): translated fallback now takes
     // precedence over the raw (always-English) backend message.

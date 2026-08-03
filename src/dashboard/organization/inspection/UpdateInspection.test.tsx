@@ -188,6 +188,29 @@ describe("UpdateInspection", () => {
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
   })
 
+  // Regression (aexa-frontend round-9 audit #463): the page h1 was followed
+  // directly by an h3 (Attachments, then "no pages" empty state) with no h2
+  // in between in the zero-pages render path specifically, since the only
+  // h2 on the page lived inside the pages.map() loop. Attachments is now h2
+  // so an h2 always exists right after the h1, regardless of render path.
+  it("keeps a valid heading hierarchy (h1 -> h2, no orphan h3) when the template has no pages", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: { templateName: "Empty Template", pages: [] },
+        }),
+      },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />)
+
+    expect(screen.getAllByRole("heading", { level: 1 }).length).toBe(1)
+    expect(
+      screen.getAllByRole("heading", { level: 2 }).length
+    ).toBeGreaterThan(0)
+  })
+
   it("renders the embedded recommendation and unsplit-text sections", () => {
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: { data: makeInspection() },
@@ -293,6 +316,34 @@ describe("UpdateInspection", () => {
         data: { status: "COMPLETED" },
       })
     )
+  })
+
+  // Regression (aexa-frontend round-9 audit #463): the status dropdown's
+  // "In Progress" menu item used a separate, never-translated
+  // "statusMenuInProgress" key that always rendered raw English "IN
+  // PROGRESS" text even under a French UI, unlike the sibling
+  // "statusInProgress" key used by the trigger button right above it. The
+  // menu item now shares that same translated key.
+  it("shows the shared translated key (not a raw hardcoded string) for the dropdown's In Progress item", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.inspection\.statusInProgress/i,
+      })
+    )
+
+    expect(
+      screen.getAllByText("organization.inspection.statusInProgress").length
+    ).toBeGreaterThanOrEqual(2)
+    expect(screen.queryByText("IN PROGRESS")).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.inspection.statusMenuInProgress")
+    ).not.toBeInTheDocument()
   })
 
   it('opens the finding modal when "Add Finding" is clicked', async () => {

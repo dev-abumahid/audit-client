@@ -792,7 +792,7 @@ export default function UpdateInspection() {
                       onClick={() => handleStatusChange("IN_PROGRESS")}
                     >
                       <span className="mr-2">📝</span>{" "}
-                      {t("organization.inspection.statusMenuInProgress")}
+                      {t("organization.inspection.statusInProgress")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handleStatusChange("COMPLETED")}
@@ -835,10 +835,14 @@ export default function UpdateInspection() {
       <div className="border-b bg-card">
         <div className="mx-auto flex flex-col gap-3 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
+            {/* h2, not h3: this renders right after the page h1 and, when
+                pages.length === 0, is the only heading before the "no pages"
+                h3 below -- keeping it h3 skipped a level in that render path
+                (aexa-frontend round-9 audit #463). */}
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
               <Paperclip className="h-4 w-4" />{" "}
               {t("organization.inspection.attachments")}
-            </h3>
+            </h2>
             <label className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
               {isUploadingAttachment ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

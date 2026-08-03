@@ -582,6 +582,7 @@ export default function SitesEntities() {
             <input
               type="text"
               placeholder={t("organization.site&entities.searchPlaceholder")}
+              aria-label={t("organization.site&entities.searchSitesLabel")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="h-9 w-full rounded-md border border-input bg-background pr-4 pl-10 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
@@ -685,6 +686,10 @@ export default function SitesEntities() {
                         disabled={
                           isLoadingEditSite && editingSite?.id === site.id
                         }
+                        aria-label={t(
+                          "organization.site&entities.editSiteLabel",
+                          { name: site.name }
+                        )}
                         className="rounded-lg p-2 text-muted-foreground hover:bg-muted disabled:opacity-50"
                       >
                         {isLoadingEditSite && editingSite?.id === site.id ? (
@@ -695,6 +700,10 @@ export default function SitesEntities() {
                       </button>
                       <button
                         onClick={() => handleDeleteModalOpen(site.id)}
+                        aria-label={t(
+                          "organization.site&entities.deleteSiteLabel",
+                          { name: site.name }
+                        )}
                         className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -704,6 +713,13 @@ export default function SitesEntities() {
 
                   <button
                     onClick={() => setExpandedSite(isExpanded ? null : site.id)}
+                    aria-expanded={isExpanded}
+                    aria-label={t(
+                      isExpanded
+                        ? "organization.site&entities.collapseSiteLabel"
+                        : "organization.site&entities.expandSiteLabel",
+                      { name: site.name }
+                    )}
                     className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
                   >
                     {isExpanded ? (
@@ -1073,6 +1089,7 @@ export default function SitesEntities() {
               </h2>
               <button
                 onClick={closeSiteForm}
+                aria-label={t("organization.site&entities.closeModalLabel")}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <X className="h-6 w-6" />

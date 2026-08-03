@@ -128,6 +128,70 @@ describe("AllFindingsPage", () => {
     ).toBe(true)
   })
 
+  // Regression (aexa-frontend round-9 audit #469): the per-row Edit/Delete
+  // icon buttons had no aria-label/title, so a screen reader announced
+  // "button" with no indication of which action it performed.
+  it("gives per-row Edit and Delete icon buttons an accessible name", () => {
+    render(<AllFindingsPage />)
+
+    const editButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-pen"))!
+    expect(editButton).toHaveAccessibleName("organization.findings.edit")
+
+    const deleteButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-trash-2"))!
+    expect(deleteButton).toHaveAccessibleName("organization.findings.delete")
+  })
+
+  // Regression (aexa-frontend round-9 audit #469): the site "Filter"
+  // dropdown toggle had no aria-expanded/aria-haspopup, so screen-reader
+  // users got no indication it was a disclosure control or of its state.
+  it("marks the Filter dropdown toggle with aria-haspopup/aria-expanded that tracks open state", async () => {
+    render(<AllFindingsPage />)
+
+    const filterButton = screen.getByRole("button", {
+      name: /organization\.findings\.filter/i,
+    })
+    expect(filterButton).toHaveAttribute("aria-haspopup", "true")
+    expect(filterButton).toHaveAttribute("aria-expanded", "false")
+
+    await userEvent.click(filterButton)
+    expect(filterButton).toHaveAttribute("aria-expanded", "true")
+  })
+
+  // Regression (aexa-frontend round-9 audit #469): the page h1 was followed
+  // directly by h3s (filter popover heading, empty-state heading) with no
+  // h2 anywhere on the page. An always-present sr-only h2 now sits between
+  // them regardless of which render path (results vs. empty state) is hit.
+  it("keeps a valid heading hierarchy: an h2 exists between the page h1 and any h3", () => {
+    render(<AllFindingsPage />)
+
+    expect(screen.getAllByRole("heading", { level: 1 }).length).toBe(1)
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(
+      0
+    )
+  })
+
+  // Regression (aexa-frontend round-9 audit #469): the empty-state row's
+  // <td colSpan={8}> no longer matched the table's 7 <th> columns.
+  it("matches the empty-state row's colSpan to the table's 7 columns", () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { data: [], meta: { page: 1, limit: 20, total: 0, totalPage: 0 } },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+
+    render(<AllFindingsPage />)
+
+    const headerCells = screen.getAllByRole("columnheader")
+    const emptyCell = screen.getByText(
+      "organization.findings.noFindingsYet"
+    ).closest("td")!
+    expect(emptyCell).toHaveAttribute("colspan", String(headerCells.length))
+  })
+
   // aexa-frontend round-3 audit bug #3: the due-date month was hardcoded to
   // "en-US" regardless of the active UI language.
   it("formats the due date's month in French when the UI language is French", () => {

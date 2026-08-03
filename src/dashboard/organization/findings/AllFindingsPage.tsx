@@ -235,6 +235,8 @@ export default function AllFindingsPage() {
             <div className="relative">
               <button
                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                aria-haspopup="true"
+                aria-expanded={showFilterDropdown}
                 className="flex items-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
               >
                 <Filter size={16} />
@@ -299,6 +301,17 @@ export default function AllFindingsPage() {
               )}
             </div>
           </div>
+
+          {/* Screen-reader-only section heading: h1 (page title) was
+              followed directly by h3s (filter popover, empty state) with
+              no h2 anywhere on the page. This is the one heading that's
+              always in the DOM regardless of render path, so it's what
+              actually fixes the hierarchy gap rather than the two h3s
+              above/below, which are conditional (aexa-frontend round-9
+              audit #469). */}
+          <h2 className="sr-only">
+            {t("organization.findings.findingsListHeading")}
+          </h2>
 
           {/* Table View - Professional Design */}
           <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
@@ -439,6 +452,8 @@ export default function AllFindingsPage() {
                                 disabled={
                                   isDeleting && deleteTargetId === action.id
                                 }
+                                aria-label={t("organization.findings.edit")}
+                                title={t("organization.findings.edit")}
                                 variant="ghost"
                                 size="icon-lg"
                               >
@@ -452,6 +467,8 @@ export default function AllFindingsPage() {
                                 disabled={
                                   isDeleting && deleteTargetId === action.id
                                 }
+                                aria-label={t("organization.findings.delete")}
+                                title={t("organization.findings.delete")}
                                 variant="destructive"
                                 size="icon-lg"
                               >
@@ -465,7 +482,7 @@ export default function AllFindingsPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={8} className="px-4 py-12 text-center">
+                      <td colSpan={7} className="px-4 py-12 text-center">
                         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
                           <Plus size={24} className="text-muted-foreground" />
                         </div>

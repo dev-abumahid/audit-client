@@ -17,8 +17,6 @@ import jsPDF from "jspdf"
 import {
   AlertTriangle,
   Calendar,
-  CheckCircle,
-  Clock,
   CopyCheck,
   Download,
   FileText,
@@ -27,10 +25,8 @@ import {
   Loader2,
   MessageSquare,
   Paperclip,
-  PlayCircle,
   ToggleLeft,
   ToggleRight,
-  XCircle,
 } from "lucide-react"
 import type { TFunction } from "i18next"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -39,51 +35,6 @@ import { useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const getPriorityColor = (p: string) => {
-  switch (p?.toLowerCase()) {
-    case "critical":
-      return "bg-red-100 text-red-700 border-red-200"
-    case "high":
-      return "bg-red-100 text-red-700 border-red-200"
-    case "medium":
-      return "bg-amber-100 text-amber-700 border-amber-200"
-    case "low":
-      return "bg-green-100 text-green-700 border-green-200"
-    default:
-      return "bg-gray-100 text-gray-600 border-gray-200"
-  }
-}
-
-const getStateColor = (s: string) => {
-  switch (s) {
-    case "Completed":
-    case "Complete":
-      return "bg-primary text-primary-foreground"
-    case "In Progress":
-      return "bg-blue-100 text-blue-700"
-    case "To do":
-      return "bg-gray-100 text-gray-600"
-    case "can't do":
-      return "bg-red-100 text-red-700"
-    default:
-      return "bg-gray-100 text-gray-600"
-  }
-}
-
-const getStateIcon = (s: string) => {
-  switch (s) {
-    case "Completed":
-    case "Complete":
-      return <CheckCircle className="h-3 w-3" />
-    case "In Progress":
-      return <PlayCircle className="h-3 w-3" />
-    case "can't do":
-      return <XCircle className="h-3 w-3" />
-    default:
-      return <Clock className="h-3 w-3" />
-  }
-}
 
 // Was toLocaleDateString("en-US", ...) hardcoded -- silently ignored the
 // app's selected language and always showed English month names under a
@@ -383,9 +334,12 @@ const PageSection = memo(
         </div>
 
         <div className="mb-4 rounded-xl bg-primary px-5 py-4">
-          <h3 className="text-lg leading-snug font-bold text-primary-foreground">
+          {/* h2, not h3: this is a top-level report section, a sibling of the
+              Attachments/Unsplit Text h2s below -- keeping it h3 skipped a
+              level under the page h1 (aexa-frontend round-9 audit #463). */}
+          <h2 className="text-lg leading-snug font-bold text-primary-foreground">
             {page.title}
-          </h3>
+          </h2>
         </div>
 
         {questions.map((question: any, qi: number) => {
@@ -466,9 +420,8 @@ async function renderHtmlToPdf(html: string, filename: string) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const InspectionReport = () => {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { id } = useParams()
-  const navigate = useNavigate()
 
   const { data: inspectionRaw } = useGetSingleInspectionQuery(id ?? "")
 
@@ -844,81 +797,6 @@ const InspectionReport = () => {
                 <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
                   {inspection.unSplitText}
                 </p>
-              </div>
-            </div>
-          )}
-
-          {/* Actions Table - same as before */}
-          {actions.length > 0 && (
-            <div>
-              <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-xl bg-orange-100 p-2.5">
-                  <AlertTriangle className="h-5 w-5 text-orange-500" />
-                </div>
-                <h2 className="text-xl font-bold text-foreground">
-                  {t("organization.inspection.colActions")}
-                </h2>
-                <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-600">
-                  {actions.length}
-                </span>
-              </div>
-
-              <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted">
-                      {[
-                        "#",
-                        t("organization.inspection.colTitle"),
-                        t("organization.inspection.colPriority"),
-                        t("organization.inspection.colStatus"),
-                        t("organization.inspection.colDueDate"),
-                      ].map((h) => (
-                        <th
-                          key={h}
-                          className="px-4 py-3 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {actions.map((action: any, i: number) => (
-                      <tr
-                        key={action._id}
-                        onClick={() =>
-                          navigate(`/dashboard/single-action/${action._id}`)
-                        }
-                        className="cursor-pointer transition-colors hover:bg-muted/50"
-                      >
-                        <td className="px-4 py-3 text-xs font-medium text-muted-foreground">
-                          {i + 1}
-                        </td>
-                        <td className="max-w-50 truncate px-4 py-3 font-semibold text-foreground">
-                          {action.actionTitle}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${getPriorityColor(action.priority)}`}
-                          >
-                            {action.priority}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${getStateColor(action.state)}`}
-                          >
-                            {getStateIcon(action.state)} {action.state}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-xs whitespace-nowrap text-muted-foreground">
-                          {formatShortDate(action.dueDate, i18n.language)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </div>
           )}

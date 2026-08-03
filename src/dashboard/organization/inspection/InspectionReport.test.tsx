@@ -120,6 +120,25 @@ describe("InspectionReport", () => {
     expect(screen.getByText("3/3")).toBeInTheDocument() // totalAnswered/totalQuestions
   })
 
+  // Regression (aexa-frontend round-9 audit #463): the page h1 (report
+  // title) was followed directly by an h3 (each template page's title, e.g.
+  // "General"), with no h2 anywhere in between. Page titles are now h2,
+  // siblings of the Attachments/Unsplit Text section h2s.
+  it("keeps a valid heading hierarchy: page title is h2, not h3, right after the h1", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+    })
+
+    render(<InspectionReport />)
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Fire Safety Audit" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { level: 2, name: "General" })
+    ).toBeInTheDocument()
+  })
+
   it("renders a Yes badge for a truthy checkbox answer and shows its note", () => {
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: { data: makeInspection() },
@@ -227,16 +246,6 @@ describe("InspectionReport", () => {
     expect(
       within(conditionCard).queryByText("Replace tag")
     ).not.toBeInTheDocument()
-
-    expect(
-      screen.getByRole("heading", {
-        name: "organization.inspection.colActions",
-      })
-    ).toBeInTheDocument()
-    // Count badge next to the "Actions" heading (separate element, not concatenated text)
-    expect(
-      screen.getByText("2", { selector: "span.bg-orange-100" })
-    ).toBeInTheDocument()
   })
 
   it("does not attach an action to any question when its question text matches none", () => {
@@ -272,91 +281,6 @@ describe("InspectionReport", () => {
     expect(
       within(conditionCard).queryByText("Orphan action")
     ).not.toBeInTheDocument()
-    // Still shows up in the actions table, just not attached to any question card
-    expect(screen.getByText("Orphan action")).toBeInTheDocument()
-    expect(
-      screen.getByRole("heading", {
-        name: "organization.inspection.colActions",
-      })
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText("1", { selector: "span.bg-orange-100" })
-    ).toBeInTheDocument()
-  })
-
-  // aexa-frontend#339: the Actions table's due-date column used a module-
-  // level formatShortDate() hardcoded to toLocaleDateString("en-US", ...),
-  // ignoring the app's selected language. Now goes through the shared
-  // formatLocaleDate helper (round 3, aexa-frontend#339's original fix for
-  // other call sites).
-  describe("locale-aware Actions table due-date formatting (#339)", () => {
-    function makeActionsInspection() {
-      return makeInspection({
-        actions: [
-          {
-            _id: "act-1",
-            question: "Extinguisher present?",
-            actionTitle: "Replace tag",
-            priority: "high",
-            state: "To do",
-            dueDate: "2026-07-01T00:00:00.000Z",
-          },
-        ],
-      })
-    }
-
-    it("formats the due date using the French locale when i18n.language starts with fr", () => {
-      mockLanguage = "fr-FR"
-      mockUseGetSingleInspectionQuery.mockReturnValue({
-        data: { data: makeActionsInspection() },
-      })
-
-      render(<InspectionReport />)
-
-      const expected = new Date("2026-07-01T00:00:00.000Z").toLocaleDateString(
-        "fr-FR",
-        { year: "numeric", month: "short", day: "numeric" }
-      )
-      expect(screen.getByText(expected)).toBeInTheDocument()
-    })
-
-    it("formats the due date using the English locale by default", () => {
-      mockUseGetSingleInspectionQuery.mockReturnValue({
-        data: { data: makeActionsInspection() },
-      })
-
-      render(<InspectionReport />)
-
-      const expected = new Date("2026-07-01T00:00:00.000Z").toLocaleDateString(
-        "en-US",
-        { year: "numeric", month: "short", day: "numeric" }
-      )
-      expect(screen.getByText(expected)).toBeInTheDocument()
-    })
-  })
-
-  it("renders the actions table and navigates when a row is clicked", async () => {
-    mockUseGetSingleInspectionQuery.mockReturnValue({
-      data: {
-        data: makeInspection({
-          actions: [
-            {
-              _id: "act-1",
-              question: "Extinguisher present?",
-              actionTitle: "Replace tag",
-              priority: "high",
-              state: "To do",
-              dueDate: "2026-07-01T00:00:00.000Z",
-            },
-          ],
-        }),
-      },
-    })
-
-    render(<InspectionReport />)
-    await userEvent.click(screen.getByRole("row", { name: /replace tag/i }))
-
-    expect(mockNavigate).toHaveBeenCalledWith("/dashboard/single-action/act-1")
   })
 
   it("renders inspection-level attachments as download links", () => {
