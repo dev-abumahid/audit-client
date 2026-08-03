@@ -218,6 +218,39 @@ describe("RiskRegisterPage", () => {
     expect(screen.getByText("5")).toBeInTheDocument() // residual_score badge
   })
 
+  // Regression (issue #421): the Score column badge used to be colored by
+  // risk.velocity (rate-of-change) instead of the actual residual_score
+  // severity, so a low-severity risk with a "critical" velocity rendered
+  // red and a critical-severity risk with a "low" velocity rendered green.
+  it("colors the score badge by residual_score severity, not velocity", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            id: "risk-low-score-critical-velocity",
+            residual_score: 5,
+            velocity: "critical",
+          }),
+          makeRisk({
+            id: "risk-critical-score-low-velocity",
+            residual_score: 95,
+            velocity: "low",
+          }),
+        ],
+      },
+    })
+
+    render(<RiskRegisterPage />)
+
+    const lowScoreBadge = screen.getByText("5")
+    expect(lowScoreBadge.className).toContain("bg-green-500/15")
+    expect(lowScoreBadge.className).not.toContain("bg-destructive/15")
+
+    const criticalScoreBadge = screen.getByText("95")
+    expect(criticalScoreBadge.className).toContain("bg-destructive/15")
+    expect(criticalScoreBadge.className).not.toContain("bg-green-500/15")
+  })
+
   // Bug-fix batch: the category badge used to render the raw enum key
   // ("cyber") with no color styling instead of RISK_CATEGORIES' human label
   // and color.

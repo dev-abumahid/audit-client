@@ -11,6 +11,7 @@ import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { Risk, SiteSummary } from "@/types/organization"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
+import { getRiskSeverityLevel } from "@/utils/riskScoring"
 import RiskApprovalControls from "./RiskApprovalControls"
 import RiskOverrideBadge from "./RiskOverrideBadge"
 import { Clock, Loader, Pencil, Plus, Search, Trash2 } from "lucide-react"
@@ -419,11 +420,14 @@ export default function RiskRegisterPage() {
                       <div className="flex flex-col items-center gap-1">
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                            risk.velocity === "critical"
+                            getRiskSeverityLevel(risk.residual_score) ===
+                            "critical"
                               ? "bg-destructive/15 text-destructive"
-                              : risk.velocity === "high"
+                              : getRiskSeverityLevel(risk.residual_score) ===
+                                  "high"
                                 ? "bg-orange-500/15 text-orange-600"
-                                : risk.velocity === "medium"
+                                : getRiskSeverityLevel(risk.residual_score) ===
+                                    "medium"
                                   ? "bg-yellow-500/15 text-yellow-600"
                                   : "bg-green-500/15 text-green-600"
                           }`}

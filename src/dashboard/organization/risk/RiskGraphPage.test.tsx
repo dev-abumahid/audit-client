@@ -231,4 +231,73 @@ describe("RiskGraphPage", () => {
     // One Zap icon in the legend, plus exactly one on a node badge.
     expect(document.querySelectorAll(".lucide-zap")).toHaveLength(2)
   })
+
+  // Regression (issue #422): node sizing, the "PR:" node label, and the
+  // side-panel PageRank field used to read the fake manually-entered
+  // risk.pagerank_score field instead of the real computed PageRank (the
+  // same computePageRank/buildRiskCorrelationEdges result already used
+  // correctly for the tipping-point badge above). Give the hub -- which
+  // has the most real inbound correlation links, so the highest real
+  // PageRank -- a deliberately low fake pagerank_score, and an isolated
+  // node a deliberately high one, then assert the rendered labels track
+  // the real computed rank, not the fake field.
+  it("labels graph nodes with the real computed PageRank, not the fake pagerank_score field", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event")
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "node-a", ref: "RISK-A", pagerank_score: 999 }),
+          makeRisk({ id: "node-b", ref: "RISK-B", pagerank_score: 999 }),
+          makeRisk({ id: "node-hub", ref: "RISK-HUB", pagerank_score: 3 }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: [
+            {
+              source_ref: "RISK-A",
+              target_ref: "RISK-HUB",
+              link_type: "CAUSES",
+            },
+            {
+              source_ref: "RISK-B",
+              target_ref: "RISK-HUB",
+              link_type: "CAUSES",
+            },
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />)
+
+    // The hub has the highest real PageRank (two inbound links), so once
+    // normalized against the graph's max score it renders "PR:100" despite
+    // its fake pagerank_score of 3.
+    const hubLabel = screen
+      .getAllByText("node-hub")
+      .find((el) => el.tagName.toLowerCase() === "text")!
+    const hubGroup = hubLabel.closest("g") as unknown as HTMLElement
+    expect(within(hubGroup).getByText("PR:100")).toBeInTheDocument()
+    expect(within(hubGroup).queryByText("PR:3")).not.toBeInTheDocument()
+
+    // node-a has no inbound links, so its real PageRank is below the hub's
+    // -- it must not render the fake pagerank_score of 999.
+    const nodeALabel = screen
+      .getAllByText("node-a")
+      .find((el) => el.tagName.toLowerCase() === "text")!
+    const nodeAGroup = nodeALabel.closest("g") as unknown as HTMLElement
+    expect(within(nodeAGroup).queryByText("PR:999")).not.toBeInTheDocument()
+
+    // Selecting the hub node shows the same real, normalized PageRank
+    // ("100") in the side panel's field explicitly labeled "PageRank".
+    await userEvent.click(hubLabel)
+    const pageRankPanel = screen
+      .getByText("organization.riskGraph.pageRank")
+      .closest("div") as HTMLElement
+    expect(within(pageRankPanel).getByText("100")).toBeInTheDocument()
+  })
 })

@@ -176,6 +176,52 @@ describe("locale resource pluralization/interpolation", () => {
     }
   })
 
+  // Regression (issue #423): organization.correlationMatrix.cellRisksHeading
+  // was a single un-pluralized key using a literal "(s)" hack ("1 risk(s)"),
+  // unlike the correctly-pluralized riskWord/detailCauses keys in the same
+  // namespace. Split into cellRisksHeading_one/_other.
+  it("pluralizes the correlation matrix cell risks heading correctly in English", () => {
+    expect(
+      t("organization.correlationMatrix.cellRisksHeading", {
+        count: 1,
+        rootCause: "Human error",
+        consequence: "Data loss",
+      })
+    ).toBe("1 risk — Human error / Data loss")
+    expect(
+      t("organization.correlationMatrix.cellRisksHeading", {
+        count: 3,
+        rootCause: "Human error",
+        consequence: "Data loss",
+      })
+    ).toBe("3 risks — Human error / Data loss")
+  })
+
+  it("pluralizes the correlation matrix cell risks heading correctly in French", async () => {
+    const instance = (
+      t as unknown as { instance: import("i18next").i18n }
+    ).instance
+    await instance.changeLanguage("fr")
+    try {
+      expect(
+        t("organization.correlationMatrix.cellRisksHeading", {
+          count: 1,
+          rootCause: "Erreur humaine",
+          consequence: "Perte de données",
+        })
+      ).toBe("1 risque — Erreur humaine / Perte de données")
+      expect(
+        t("organization.correlationMatrix.cellRisksHeading", {
+          count: 3,
+          rootCause: "Erreur humaine",
+          consequence: "Perte de données",
+        })
+      ).toBe("3 risques — Erreur humaine / Perte de données")
+    } finally {
+      await instance.changeLanguage("en")
+    }
+  })
+
   // Regression (issue #432): admin.onboarding.review.selectedSummary and
   // admin.onboarding.done.banner interpolated {{risks}}/{{kris}}/{{sites}}
   // directly with no plural handling, so a single risk/site/KRI read
@@ -235,6 +281,64 @@ describe("locale resource pluralization/interpolation", () => {
           krisText: t("admin.onboarding.review.krisCount", { count: 3 }),
         })
       ).toBe("2 risques et 3 KRI sélectionnés")
+    } finally {
+      await instance.changeLanguage("en")
+    }
+  })
+
+  // Regression (issue #423): organization.correlationMatrix.
+  // findingsBucketsHeading was a single un-pluralized key, rendering
+  // "1 finding buckets" / "1 groupes de constats".
+  it("pluralizes the correlation matrix findings buckets heading correctly in both locales", async () => {
+    expect(
+      t("organization.correlationMatrix.findingsBucketsHeading", { count: 1 })
+    ).toBe("1 finding bucket")
+    expect(
+      t("organization.correlationMatrix.findingsBucketsHeading", { count: 2 })
+    ).toBe("2 finding buckets")
+
+    const instance = (
+      t as unknown as { instance: import("i18next").i18n }
+    ).instance
+    await instance.changeLanguage("fr")
+    try {
+      expect(
+        t("organization.correlationMatrix.findingsBucketsHeading", {
+          count: 1,
+        })
+      ).toBe("1 groupe de constats")
+      expect(
+        t("organization.correlationMatrix.findingsBucketsHeading", {
+          count: 2,
+        })
+      ).toBe("2 groupes de constats")
+    } finally {
+      await instance.changeLanguage("en")
+    }
+  })
+
+  // Regression (issue #423): organization.correlationMatrix.
+  // aiFindingRefsLabel was a single un-pluralized key, rendering
+  // "1 findings" / "1 constats".
+  it("pluralizes the correlation matrix AI finding refs label correctly in both locales", async () => {
+    expect(
+      t("organization.correlationMatrix.aiFindingRefsLabel", { count: 1 })
+    ).toBe("1 finding")
+    expect(
+      t("organization.correlationMatrix.aiFindingRefsLabel", { count: 2 })
+    ).toBe("2 findings")
+
+    const instance = (
+      t as unknown as { instance: import("i18next").i18n }
+    ).instance
+    await instance.changeLanguage("fr")
+    try {
+      expect(
+        t("organization.correlationMatrix.aiFindingRefsLabel", { count: 1 })
+      ).toBe("1 constat")
+      expect(
+        t("organization.correlationMatrix.aiFindingRefsLabel", { count: 2 })
+      ).toBe("2 constats")
     } finally {
       await instance.changeLanguage("en")
     }

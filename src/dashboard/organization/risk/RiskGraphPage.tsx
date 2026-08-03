@@ -4,6 +4,7 @@ import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import type { Risk, RiskLink, RiskLinkType } from "@/types/organization"
 import {
   buildRiskCorrelationEdges,
+  computePageRank,
   topPercentileByPageRank,
 } from "@/utils/pageRank"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
@@ -167,6 +168,25 @@ export default function RiskGraphPage() {
     if (refs.length === 0) return new Set<string>()
     return new Set(topPercentileByPageRank(refs, correlationEdges, 0.15))
   }, [filteredRisks, correlationEdges])
+
+  // Real computed PageRank per risk, normalized to a 0-100 scale (same
+  // normalization Overview.tsx's "Systemic Tipping Points" section uses)
+  // for node sizing, node labels, and the side panel -- replaces the fake
+  // manually-entered risk.pagerank_score field (see comment above,
+  // aexa-frontend#422).
+  const pageRankScores = useMemo(
+    () =>
+      computePageRank(
+        filteredRisks.map((r) => r.ref),
+        correlationEdges
+      ),
+    [filteredRisks, correlationEdges]
+  )
+  const maxPageRankScore = Math.max(0, ...Object.values(pageRankScores))
+  const getNormalizedPageRank = (ref: string) =>
+    maxPageRankScore > 0
+      ? (pageRankScores[ref] / maxPageRankScore) * 100
+      : 0
 
   // Get cascade effects for a selected risk
   const cascadeRefs = useMemo(() => {
@@ -360,7 +380,7 @@ export default function RiskGraphPage() {
             {filteredRisks.map((risk) => {
               const pos = positions[risk.id]
               if (!pos) return null
-              const nodeRadius = 18 + Number(risk.pagerank_score) / 6
+              const nodeRadius = 18 + getNormalizedPageRank(risk.ref) / 6
               const cat = RISK_CATEGORIES[risk.category]
               const catColor = cat?.color || "hsl(220, 10%, 46%)"
               const isSelected = risk.id === selectedRisk
@@ -433,7 +453,7 @@ export default function RiskGraphPage() {
                     textAnchor="middle"
                     className="fill-muted-foreground font-mono text-[8px] select-none"
                   >
-                    PR:{Number(risk.pagerank_score).toFixed(0)}
+                    PR:{getNormalizedPageRank(risk.ref).toFixed(0)}
                   </text>
                 </g>
               )
@@ -458,7 +478,7 @@ export default function RiskGraphPage() {
                     {t("organization.riskGraph.pageRank")}
                   </span>
                   <p className="font-mono font-bold text-foreground">
-                    {Number(selectedRiskData.pagerank_score).toFixed(0)}
+                    {getNormalizedPageRank(selectedRiskData.ref).toFixed(0)}
                   </p>
                 </div>
                 <div className="rounded-md bg-card p-2">
