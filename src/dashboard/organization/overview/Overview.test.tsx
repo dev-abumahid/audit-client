@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react"
 import type { ReactNode } from "react"
 import Overview from "./Overview"
+import enTranslations from "@/i18n/locales/en.json"
+import frTranslations from "@/i18n/locales/fr.json"
 
 // This file never triggers src/i18n/i18n.ts's side-effect init, so
 // react-i18next's real t() falls back to returning the raw key with no
@@ -103,6 +105,12 @@ vi.mock("@/components/dashboard/organization/CriticalAlertBanner", () => ({
 // children directly instead of deferring to a real-size measurement -- lets
 // the test assert on paddingAngle itself rather than pixel geometry.
 let capturedPieProps: Record<string, unknown> | undefined
+// Captures every <Tooltip> the component renders, in render order, so a test
+// can pick out the EBITDA area chart's specifically (it's the one with a
+// `formatter` prop -- the category pie's Tooltip below it has none) and
+// invoke that formatter directly to check for the regression in #402
+// (formatter was commented out, leaving raw unformatted numbers on hover).
+let capturedTooltipProps: Record<string, unknown>[] = []
 vi.mock("recharts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("recharts")>()
   return {
@@ -110,15 +118,24 @@ vi.mock("recharts", async (importOriginal) => {
     ResponsiveContainer: ({ children }: { children: ReactNode }) => (
       <div>{children}</div>
     ),
-    // Real PieChart skips rendering its children entirely when it hasn't
-    // received explicit width/height (which only the real ResponsiveContainer's
-    // ResizeObserver-based measurement supplies -- absent under jsdom's 0x0
-    // layout regardless of the ResponsiveContainer mock above). Mocking
-    // PieChart itself to render children unconditionally sidesteps that.
+    // Real PieChart/AreaChart skip rendering their children entirely when
+    // they haven't received explicit width/height (which only the real
+    // ResponsiveContainer's ResizeObserver-based measurement supplies --
+    // absent under jsdom's 0x0 layout regardless of the ResponsiveContainer
+    // mock above). Mocking them to render children unconditionally
+    // sidesteps that, which is also what lets the mocked <Tooltip> below
+    // actually get invoked so its props can be captured.
     PieChart: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    AreaChart: ({ children }: { children: ReactNode }) => (
+      <div>{children}</div>
+    ),
     Pie: (props: Record<string, unknown>) => {
       capturedPieProps = props
       return <div data-testid="mock-pie" />
+    },
+    Tooltip: (props: Record<string, unknown>) => {
+      capturedTooltipProps.push(props)
+      return <div data-testid="mock-tooltip" />
     },
   }
 })
@@ -211,6 +228,7 @@ function makeAlert(overrides = {}) {
 describe("Overview", () => {
   beforeEach(() => {
     capturedPieProps = undefined
+    capturedTooltipProps = []
     mockLanguage = undefined
     mockUseGetAllRisksQuery.mockReset()
     mockUseGetAllKriQuery.mockReset()
@@ -609,5 +627,43 @@ describe("Overview", () => {
     if (expectedEn !== expectedFr) {
       expect(screen.queryByText(expectedFr)).not.toBeInTheDocument()
     }
+  })
+
+  // Regression (issue #402): the EBITDA area chart's Tooltip formatter was
+  // commented out, so hovering showed raw unformatted numbers ("23100")
+  // instead of currency-formatted EBITDA ("€23.1M"), unlike every other
+  // number on this card (legend, Y-axis).
+  it("formats the EBITDA chart tooltip as currency, matching the Y-axis/legend formatting", () => {
+    render(<Overview />)
+
+    const ebitdaTooltip = capturedTooltipProps.find(
+      (props) => typeof props.formatter === "function"
+    )
+    expect(ebitdaTooltip).toBeDefined()
+
+    const formatter = ebitdaTooltip!.formatter as (
+      value: number
+    ) => [string, string]
+    expect(formatter(23100)).toEqual(["€23.1M", "EBITDA"])
+  })
+
+  // Regression (issue #403): the Recent Alerts subtitle claimed "Last 48
+  // hours — sorted by relevance", but the code just takes alerts.slice(0, 4)
+  // with no time filter or sort -- the same false-claim pattern issue #108
+  // already found and removed from CriticalAlertBanner.tsx's relevance
+  // badge. The copy must not claim behavior the component doesn't implement.
+  it("does not claim a 48-hour window or relevance sort the component doesn't implement", () => {
+    expect(enTranslations.organization.overview.alert.des).not.toMatch(
+      /48 hours?/i
+    )
+    expect(enTranslations.organization.overview.alert.des).not.toMatch(
+      /relevance/i
+    )
+    expect(frTranslations.organization.overview.alert.des).not.toMatch(
+      /48 heures?/i
+    )
+    expect(frTranslations.organization.overview.alert.des).not.toMatch(
+      /pertinence/i
+    )
   })
 })

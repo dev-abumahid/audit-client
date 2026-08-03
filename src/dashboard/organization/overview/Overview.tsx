@@ -278,10 +278,10 @@ export default function Overview() {
                     fontSize: 12,
                   }}
                   labelStyle={{ color: "hsl(220, 14%, 70%)" }}
-                  // formatter={(v: number) => [
-                  //   `€${(v / 1000).toFixed(1)}M`,
-                  //   "EBITDA",
-                  // ]}
+                  formatter={(v) => [
+                    `€${(Number(v) / 1000).toFixed(1)}M`,
+                    "EBITDA",
+                  ]}
                 />
                 <Area
                   type="monotone"

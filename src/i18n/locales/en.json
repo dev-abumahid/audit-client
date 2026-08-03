@@ -736,7 +736,7 @@
       },
       "alert": {
         "title": "Recent alerts",
-        "des": "Last 48 hours — sorted by relevance",
+        "des": "Showing the 4 most recent",
         "empty": "No alerts yet"
       }
     },
