@@ -312,7 +312,7 @@ describe("CorrelationMatrixPage", () => {
     // (CYB-001 has 1 root cause, OPS-002 has 1 consequence) -- clicking any
     // populated cell reveals its risk in the detail panel by its real ref.
     const populatedCells = screen.getAllByRole("button", {
-      name: /1.*organization\.correlationMatrix\.riskWord/,
+      name: /^1 risk\(s\)/,
     })
     fireEvent.click(populatedCells[0])
     expect(screen.getByText(/^(CYB-001|OPS-002)$/)).toBeInTheDocument()
@@ -354,7 +354,7 @@ describe("CorrelationMatrixPage", () => {
 
     await userEvent.click(
       screen.getByRole("button", {
-        name: /1.*organization\.correlationMatrix\.riskWord/,
+        name: /^1 risk\(s\)/,
       })
     )
     await userEvent.click(
@@ -378,7 +378,7 @@ describe("CorrelationMatrixPage", () => {
 
     await userEvent.click(
       screen.getByRole("button", {
-        name: /1.*organization\.correlationMatrix\.riskWord/,
+        name: /^1 risk\(s\)/,
       })
     )
     await userEvent.click(
@@ -1195,7 +1195,7 @@ describe("CorrelationMatrixPage", () => {
     // 4 consequences) -- select it.
     await userEvent.click(
       screen.getByRole("button", {
-        name: /1.*organization\.correlationMatrix\.riskWord/,
+        name: /^1 risk\(s\)/,
       })
     )
     expect(screen.getByText(/1 risk\(s\) —/)).toBeInTheDocument()
@@ -1225,7 +1225,7 @@ describe("CorrelationMatrixPage", () => {
 
     await userEvent.click(
       screen.getByRole("button", {
-        name: /1.*organization\.correlationMatrix\.riskWord/,
+        name: /^1 risk\(s\)/,
       })
     )
     expect(screen.getByText(/1 risk\(s\) —/)).toBeInTheDocument()
@@ -1282,5 +1282,65 @@ describe("CorrelationMatrixPage", () => {
     // 1,000,000 instead would render "0.5M€", a 1000x understatement.
     expect(screen.getByText(/500.0M€/)).toBeInTheDocument()
     expect(screen.queryByText(/0\.5M€/)).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend#473 -- all 25 (5x5) matrix-cell buttons had no aria-label
+  // at all; a zero-risk cell rendered with a completely empty accessible
+  // name (its only visible content -- the count badge -- is conditional on
+  // cellRisks.length > 0).
+  it("gives every matrix cell button a non-empty accessible name, including empty (zero-risk) cells", () => {
+    setMatrixData({
+      risks: [makeRisk({ id: "r1", ref: "CYB-001" })],
+      riskLinks: [],
+    })
+    render(<CorrelationMatrixPage />)
+
+    // 5x5 default matrix = 25 cells.
+    const cellButtons = screen
+      .getAllByRole("button")
+      .filter((btn) => /^\d+ risk\(s\) —/.test(btn.getAttribute("aria-label") || ""))
+    expect(cellButtons).toHaveLength(25)
+    cellButtons.forEach((btn) => {
+      expect(btn.getAttribute("aria-label")).not.toBe("")
+    })
+  })
+
+  // aexa-frontend#473 -- the finding-bucket, category-bucket, and both AI
+  // bucket-card collapsible toggles switched chevron icons on click but
+  // never exposed their expanded/collapsed state to assistive tech.
+  it("reflects a finding-bucket toggle's open/closed state via aria-expanded", async () => {
+    setMatrixData({
+      actions: [
+        makeAction({ id: "a1", priority: "High" }),
+        makeAction({ id: "a2", priority: "High" }),
+      ],
+    })
+    render(<CorrelationMatrixPage />)
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewFindings",
+      })
+    )
+    // findingPriorityBucketName is one of this test file's real-interpolation
+    // overrides (see the top-of-file t() mock) -- it renders as "High
+    // priority", not the raw key.
+    const toggle = screen.getByRole("button", { name: /High priority/ })
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+  })
+
+  // aexa-frontend#473 -- h1 used to be followed directly by h3s (and those
+  // by h4s) with no h2 in between, breaking heading-level order for
+  // screen-reader users.
+  it("has an h2 between the page h1 and its h3/h4 section headings", () => {
+    render(<CorrelationMatrixPage />)
+
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument()
+    expect(
+      screen.getAllByRole("heading", { level: 2 }).length
+    ).toBeGreaterThan(0)
   })
 })

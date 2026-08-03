@@ -728,7 +728,11 @@
     },
     "overview": {
       "title": "Executive Dashboard",
-      "description": "Consolidated Risk View — CEBI International S.A.",
+      "description": "Consolidated Risk View — {{orgName}}",
+      "defaultOrgName": "Your Organization",
+      "metricsHeading": "Key metrics",
+      "chartsHeading": "Charts",
+      "insightsHeading": "Insights",
       "activeRisk": "Active Risks",
       "kriAlert": "KRI Alerts",
       "criticalAlert": "Critical alerts",
@@ -1153,6 +1157,8 @@
     "riskGraph": {
       "title": "Dependency Graph & Domino Effects",
       "description": "PageRank visualization — click a risk to see its cascade effects",
+      "graphSectionHeading": "Dependency graph",
+      "sidePanelSectionHeading": "Risk details and domino scenarios",
       "legendCauses": "Causes",
       "legendAmplifies": "Amplifies",
       "legendCorrelates": "Correlates",
@@ -1658,6 +1664,8 @@
     "correlationMatrix": {
       "title": "Correlation Matrix",
       "subtitle": "Root causes × Consequences — Bucketing and analysis",
+      "matrixSectionHeading": "Correlation matrix",
+      "detailSectionHeading": "Details",
       "groupAll": "All",
       "groupByType": "By type",
       "viewRisks": "Risks",

@@ -32,17 +32,6 @@ const NODE_LABEL_MAX = 12
 const shortRef = (id: string) =>
   id.length > NODE_LABEL_MAX ? id.slice(0, 8) : id
 
-// No backend model exists for risk-to-risk relationships (CAUSES/
-// AMPLIFIES/CORRELATES) at all -- there's nothing to fetch here, unlike
-// the risks themselves. The old DUMMY_LINKS fixture used fake ids like
-// "risk_fire" that don't match real (uuid) risk ids anyway, so it would
-// never have rendered a single edge against real data. Left empty rather
-// than fabricating relationships; CorrelationMatrixPage.tsx has the same
-// gap with its own local fixture, out of scope here. Module-level (not a
-// useState/useMemo in the component) since it never changes -- the
-// dependent useMemo hooks below need a referentially stable empty array.
-const NO_RISK_LINKS: RiskLink[] = []
-
 // Single source of truth for both the badge color and the translated label
 // per link_type, same convention as CorrelationMatrixPage.tsx's PRIORITY_KEYS/
 // PRIORITY_BADGES maps -- avoids repeating the same three-way ternary once
@@ -75,16 +64,30 @@ export default function RiskGraphPage() {
     category: "",
   })
   // Real RiskLink rows (CAUSES/AMPLIFIES/CORRELATES), same source Overview.tsx's
-  // "Systemic Tipping Points" section and CorrelationMatrixPage.tsx already use
-  // -- fetched here only to feed the real PageRank computation below for the
-  // "tipping point" node badge (aexa-frontend#397). Kept separate from `links`/
-  // `filteredLinks` below (still NO_RISK_LINKS), which drive the graph's own
-  // edge rendering/domino chains and are a larger, separate gap out of scope
-  // for this fix.
+  // "Systemic Tipping Points" section and CorrelationMatrixPage.tsx already use.
+  // aexa-frontend#473 -- this used to feed only the PageRank computation
+  // below, while `links`/`filteredLinks` (which drive the graph's own edge
+  // rendering, cascade highlighting, and domino chains) stayed hardcoded to
+  // an always-empty array, so the Domino Scenarios / Corrélations panels
+  // could never show anything regardless of real org data even though this
+  // exact query result was sitting right here. Now the single source for
+  // both.
+  //
+  // Same known gap as Overview.tsx's own "Tipping Points" section:
+  // correlationMatrixResponse.data.risks is unpaginated (every risk in the
+  // org), but `risks`/`filteredRisks` below come from the capped
+  // limit:100 useGetAllRisksQuery -- a link whose source/target risk falls
+  // past the first 100 simply won't have a position to draw at (`if
+  // (!source || !target) return null` below already handles that
+  // gracefully), it just won't render. Not fixed here, same as Overview.tsx's
+  // own callout on the same asymmetry.
   const { data: correlationMatrixResponse, isLoading: isCorrelationLoading } =
     useGetCorrelationMatrixDataQuery()
   const risks: Risk[] = useMemo(() => riskResponse?.data ?? [], [riskResponse])
-  const links: RiskLink[] = NO_RISK_LINKS
+  const links: RiskLink[] = useMemo(
+    () => correlationMatrixResponse?.data?.riskLinks ?? [],
+    [correlationMatrixResponse]
+  )
   const [siteFilter, setSiteFilter] = useState<string | null>(null)
   const [selectedRisk, setSelectedRisk] = useState<string | null>(null)
   const [showDomino, setShowDomino] = useState(true)
@@ -95,8 +98,15 @@ export default function RiskGraphPage() {
     return risks.filter((r) => r.site_id === siteFilter)
   }, [risks, siteFilter])
 
+  // RiskLink.source_ref/target_ref reference risks by their `ref` field
+  // (e.g. "RISK-001"), not their uuid `id` -- confirmed against
+  // CorrelationMatrixPage.tsx's own identical filteredRefs, which is the
+  // page already correctly rendering these same links. Everything derived
+  // from `selectedRisk` below (positions, cascadeRefs, dominoChains) is
+  // keyed the same way, so a risk is identified by `ref` throughout this
+  // component now, not `id`.
   const filteredRefs = useMemo(
-    () => new Set(filteredRisks.map((r) => r.id)),
+    () => new Set(filteredRisks.map((r) => r.ref)),
     [filteredRisks]
   )
 
@@ -118,7 +128,7 @@ export default function RiskGraphPage() {
     }
 
     const chains: DominoChain[] = []
-    const riskMap = new Map(filteredRisks.map((r) => [r.id, r]))
+    const riskMap = new Map(filteredRisks.map((r) => [r.ref, r]))
 
     const dfs = (ref: string, path: string[], visited: Set<string>) => {
       if (visited.has(ref)) return
@@ -208,6 +218,9 @@ export default function RiskGraphPage() {
   }, [selectedRisk, filteredLinks])
 
   // Force-directed-ish layout using category clustering
+  // Keyed by risk.ref (not risk.id) -- see the filteredRefs comment above on
+  // why this component identifies risks by ref throughout, to match how
+  // RiskLink.source_ref/target_ref actually reference them.
   const positions = useMemo(() => {
     const pos: Record<string, { x: number; y: number }> = {}
     const categories = Array.from(new Set(filteredRisks.map((r) => r.category)))
@@ -231,7 +244,7 @@ export default function RiskGraphPage() {
       catRisks.forEach((r, i) => {
         const angle = (2 * Math.PI * i) / catRisks.length
         const spread = Math.min(60, 30 + catRisks.length * 8)
-        pos[r.id] = {
+        pos[r.ref] = {
           x: ccx + spread * Math.cos(angle),
           y: ccy + spread * Math.sin(angle),
         }
@@ -250,7 +263,7 @@ export default function RiskGraphPage() {
   }
 
   const selectedRiskData = selectedRisk
-    ? filteredRisks.find((r) => r.id === selectedRisk)
+    ? filteredRisks.find((r) => r.ref === selectedRisk)
     : null
 
   return (
@@ -301,7 +314,14 @@ export default function RiskGraphPage() {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         {/* Graph */}
+        {/* aexa-frontend#473 -- h1 (above) was followed directly by h3s
+            further down with no h2 in between, breaking heading-level order
+            for screen-reader users. The graph panel and the side panel are
+            this page's two top-level sections, so each gets its own
+            visually-hidden h2 -- the h3s already inside them stay nested as
+            they render today. */}
         <div className="animate-slide-up rounded-xl border border-border bg-card p-4 xl:col-span-2">
+          <h2 className="sr-only">{t("organization.riskGraph.graphSectionHeading")}</h2>
           <svg
             viewBox="0 0 900 600"
             className="h-auto w-full"
@@ -347,9 +367,7 @@ export default function RiskGraphPage() {
                     stroke={isCascade ? "hsl(0, 90%, 50%)" : color}
                     // The real RiskLink model (aexa-frontend#142) has no
                     // strength/weight column -- Fullbloom's own RiskLink
-                    // doesn't carry one either. This edge weighting is
-                    // currently unreachable (links is always the empty
-                    // NO_RISK_LINKS array above), so a fixed width per
+                    // doesn't carry one either -- so a fixed width per
                     // link_type is the correct stand-in rather than a
                     // strength this model doesn't have.
                     strokeWidth={isCascade ? 5 : 3}
@@ -378,20 +396,20 @@ export default function RiskGraphPage() {
 
             {/* Nodes */}
             {filteredRisks.map((risk) => {
-              const pos = positions[risk.id]
+              const pos = positions[risk.ref]
               if (!pos) return null
               const nodeRadius = 18 + getNormalizedPageRank(risk.ref) / 6
               const cat = RISK_CATEGORIES[risk.category]
               const catColor = cat?.color || "hsl(220, 10%, 46%)"
-              const isSelected = risk.id === selectedRisk
-              const isCascaded = cascadeRefs.has(risk.id)
+              const isSelected = risk.ref === selectedRisk
+              const isCascaded = cascadeRefs.has(risk.ref)
               const isDimmed = selectedRisk && !isSelected && !isCascaded
 
               return (
                 <g
                   key={risk.id}
                   className="cursor-pointer"
-                  onClick={() => setSelectedRisk(isSelected ? null : risk.id)}
+                  onClick={() => setSelectedRisk(isSelected ? null : risk.ref)}
                   opacity={isDimmed ? 0.15 : 1}
                 >
                   {/* Cascade highlight */}
@@ -463,6 +481,7 @@ export default function RiskGraphPage() {
 
         {/* Side panel */}
         <div className="animate-slide-up stagger-2 space-y-4">
+          <h2 className="sr-only">{t("organization.riskGraph.sidePanelSectionHeading")}</h2>
           {/* Selected risk detail */}
           {selectedRiskData && (
             <div className="space-y-3 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
@@ -517,6 +536,7 @@ export default function RiskGraphPage() {
           <div className="rounded-xl border border-border bg-card p-4">
             <button
               onClick={() => setShowDomino(!showDomino)}
+              aria-expanded={showDomino}
               className="flex w-full items-center justify-between text-sm font-semibold text-foreground"
             >
               <span className="flex items-center gap-2">

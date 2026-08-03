@@ -679,4 +679,80 @@ describe("KriDashboardPage", () => {
       ).not.toBeInTheDocument()
     })
   })
+
+  // aexa-frontend#471 -- KriDashboardPage's three modals were plain divs
+  // with no role="dialog", no aria-modal, and no Escape handling.
+  describe("modal accessibility", () => {
+    it("marks the Update Value modal as a labeled dialog and closes it on Escape", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      render(<KriDashboardPage />)
+
+      await userEvent.click(
+        screen.getByTitle("organization.kri.updateValueTooltip")
+      )
+      const dialog = screen.getByRole("dialog")
+      expect(dialog).toHaveAttribute("aria-modal", "true")
+      expect(dialog).toHaveAccessibleName("organization.kri.updateValueTitle")
+
+      await userEvent.keyboard("{Escape}")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+
+    it("marks the New KRI modal as a labeled dialog and closes it on Escape", async () => {
+      render(<KriDashboardPage />)
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+      )
+      const dialog = screen.getByRole("dialog")
+      expect(dialog).toHaveAttribute("aria-modal", "true")
+      expect(dialog).toHaveAccessibleName("organization.kri.newKri")
+
+      await userEvent.keyboard("{Escape}")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+
+    it("marks the trend modal as a labeled dialog and closes it on Escape", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      mockUseGetKriReadingsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      render(<KriDashboardPage />)
+
+      await userEvent.click(
+        screen.getByTitle("organization.kri.trend.viewTooltip")
+      )
+      const dialog = screen.getByRole("dialog")
+      expect(dialog).toHaveAttribute("aria-modal", "true")
+
+      await userEvent.keyboard("{Escape}")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+
+    it("does not steal focus from the name field while typing in the New KRI modal", async () => {
+      render(<KriDashboardPage />)
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+      )
+      const nameInput = screen.getByPlaceholderText(
+        "organization.kri.form.namePlaceholder"
+      )
+      await userEvent.type(nameInput, "New KRI")
+
+      // Regression: an onClose callback re-created every render (instead of
+      // stored in a ref) used to make the modal's focus-trap effect tear
+      // down and set up again on every keystroke, re-focusing the first
+      // focusable element in the modal (the close button) and truncating
+      // typed input to a single character.
+      expect(nameInput).toHaveValue("New KRI")
+    })
+  })
 })

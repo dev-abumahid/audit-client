@@ -517,10 +517,14 @@ export default function RiskRegisterPage() {
                   form's error handling already has; not fixed here. */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="risk-site_id"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.riskRegister.siteLabel")}
                   </label>
                   <select
+                    id="risk-site_id"
                     {...register("site_id", {
                       required: t("organization.riskRegister.siteRequired"),
                     })}
@@ -543,10 +547,14 @@ export default function RiskRegisterPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="risk-category"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.riskRegister.categoryLabel")}
                   </label>
                   <select
+                    id="risk-category"
                     {...register("category")}
                     className="mt-1 h-9 w-full rounded-lg border bg-muted px-3 text-sm"
                   >
@@ -568,10 +576,14 @@ export default function RiskRegisterPage() {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
+                <label
+                  htmlFor="risk-name"
+                  className="text-xs font-medium text-muted-foreground"
+                >
                   {t("organization.riskRegister.riskNameLabel")}
                 </label>
                 <input
+                  id="risk-name"
                   {...register("name", {
                     required: t("organization.riskRegister.riskNameRequired"),
                   })}
@@ -585,10 +597,14 @@ export default function RiskRegisterPage() {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
+                <label
+                  htmlFor="risk-description"
+                  className="text-xs font-medium text-muted-foreground"
+                >
                   {t("organization.riskRegister.descriptionLabel")}
                 </label>
                 <textarea
+                  id="risk-description"
                   {...register("description")}
                   className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
                   rows={3}
@@ -602,10 +618,14 @@ export default function RiskRegisterPage() {
                 </h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor="risk-inherent_score"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.riskRegister.inherentScoreLabel")}
                     </label>
                     <input
+                      id="risk-inherent_score"
                       type="number"
                       min="0"
                       max="100"
@@ -614,10 +634,14 @@ export default function RiskRegisterPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor="risk-residual_score"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.riskRegister.residualScoreLabel")}
                     </label>
                     <input
+                      id="risk-residual_score"
                       type="number"
                       min="0"
                       max="100"
@@ -626,10 +650,14 @@ export default function RiskRegisterPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor="risk-pagerank_score"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.riskRegister.pagerankScoreLabel")}
                     </label>
                     <input
+                      id="risk-pagerank_score"
                       type="number"
                       {...register("pagerank_score", { valueAsNumber: true })}
                       className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
@@ -759,10 +787,14 @@ export default function RiskRegisterPage() {
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor="risk-financial_impact_min"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.riskRegister.minImpactLabel")}
                     </label>
                     <input
+                      id="risk-financial_impact_min"
                       type="number"
                       {...register("financial_impact_min", {
                         valueAsNumber: true,
@@ -771,10 +803,14 @@ export default function RiskRegisterPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor="risk-financial_impact_max"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.riskRegister.maxImpactLabel")}
                     </label>
                     <input
+                      id="risk-financial_impact_max"
                       type="number"
                       {...register("financial_impact_max", {
                         valueAsNumber: true,
@@ -792,10 +828,14 @@ export default function RiskRegisterPage() {
                 </h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor="risk-probability"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.riskRegister.probabilityLabel")}
                     </label>
                     <input
+                      id="risk-probability"
                       type="number"
                       min="0"
                       max="100"
@@ -804,10 +844,14 @@ export default function RiskRegisterPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor="risk-velocity"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.riskRegister.velocityLabel")}
                     </label>
                     <select
+                      id="risk-velocity"
                       {...register("velocity")}
                       className="mt-1 h-9 w-full rounded-lg border bg-muted px-3 text-sm"
                     >
@@ -829,10 +873,14 @@ export default function RiskRegisterPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor="risk-trend"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.riskRegister.trendLabel")}
                     </label>
                     <select
+                      id="risk-trend"
                       {...register("trend")}
                       className="mt-1 h-9 w-full rounded-lg border bg-muted px-3 text-sm"
                     >
@@ -856,10 +904,14 @@ export default function RiskRegisterPage() {
               {/* Status Section */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="risk-status"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.riskRegister.statusLabel")}
                   </label>
                   <select
+                    id="risk-status"
                     {...register("status", {
                       required: t("organization.riskRegister.statusRequired"),
                     })}
@@ -889,10 +941,14 @@ export default function RiskRegisterPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="risk-source_info"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.riskRegister.sourceInfoLabel")}
                   </label>
                   <input
+                    id="risk-source_info"
                     {...register("source_info")}
                     className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
                     placeholder={t(
@@ -909,10 +965,14 @@ export default function RiskRegisterPage() {
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor="risk-control_design_eff"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.riskRegister.designEffectivenessLabel")}
                     </label>
                     <input
+                      id="risk-control_design_eff"
                       type="number"
                       min="0"
                       max="100"
@@ -923,12 +983,16 @@ export default function RiskRegisterPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor="risk-control_operating_eff"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
                       {t(
                         "organization.riskRegister.operatingEffectivenessLabel"
                       )}
                     </label>
                     <input
+                      id="risk-control_operating_eff"
                       type="number"
                       min="0"
                       max="100"

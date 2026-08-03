@@ -189,6 +189,7 @@ export default function RiskMatrixPage() {
               <button
                 key={s}
                 onClick={() => setMatrixSize(s as MatrixSize)}
+                aria-pressed={matrixSize === s}
                 className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                   matrixSize === s
                     ? "bg-primary text-primary-foreground"
@@ -209,6 +210,7 @@ export default function RiskMatrixPage() {
               <button
                 key={mode}
                 onClick={() => setGroupMode(mode as GroupMode)}
+                aria-pressed={groupMode === mode}
                 className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                   groupMode === mode
                     ? "bg-primary text-primary-foreground"
@@ -285,6 +287,7 @@ export default function RiskMatrixPage() {
                                 cellRisks.length ? { row, col } : null
                               )
                             }
+                            aria-pressed={isSelected}
                             className={`${getMatrixColor(row, col, matrixSize)} flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-white transition-all hover:scale-105 ${isSelected ? "scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-75"}`}
                             title={`${label} × ${labels.impact[col]} : ${t("organization.riskMatrix.cellCount", { count: cellRisks.length })}`}
                           >
@@ -339,15 +342,20 @@ export default function RiskMatrixPage() {
         </div>
 
         {/* Details Panel */}
+        {/* aexa-frontend#472 -- this was an h3 with no h2 anywhere on the
+            page (h1 above it, nothing in between), breaking heading-level
+            order for screen-reader users. It's the only sub-heading on this
+            page, so promoting it to h2 (rather than inserting a separate
+            empty h2) is the smallest correct fix. */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <h3 className="mb-4 text-sm font-semibold">
+          <h2 className="mb-4 text-sm font-semibold">
             {selectedCell
               ? t("organization.riskMatrix.selectedCellHeading", {
                   count: selectedRisks.length,
                   score: (selectedCell.row + 1) * (selectedCell.col + 1),
                 })
               : t("organization.riskMatrix.noRiskSelected")}
-          </h3>
+          </h2>
 
           {selectedRisks.length > 0 ? (
             <div className="max-h-130 space-y-3 overflow-y-auto pr-1">

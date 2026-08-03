@@ -3,6 +3,7 @@ import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAle
 import MetricCard from "@/components/dashboard/organization/MetricCard"
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
+import { useGetMeQuery } from "@/redux/apis/auth.api"
 import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
 import { useGetAllFindingsQuery } from "@/redux/apis/organization/findings.api"
 import { useGetAllInspectionQuery } from "@/redux/apis/organization/inspection.api"
@@ -56,6 +57,16 @@ const ebitdaData = [
 
 export default function Overview() {
   const { t, i18n } = useTranslation()
+  // aexa-frontend#471 -- organization.overview.description used to hardcode
+  // a fictional company name ("CEBI International S.A.") under every
+  // organization's dashboard. useGetMeQuery already exposes the real
+  // organizationProfile.organizationName (see OrgSettingPage.tsx for the
+  // same pattern) -- interpolated into the description string instead, with
+  // a generic fallback for the brief window before /auth/me resolves.
+  const { data: meResponse } = useGetMeQuery(undefined)
+  const orgName =
+    meResponse?.data?.organizationProfile?.organizationName ||
+    t("organization.overview.defaultOrgName")
   const { data: riskResponse, isLoading: risksLoading } = useGetAllRisksQuery(
     {
       page: 1,
@@ -204,11 +215,18 @@ export default function Overview() {
           {t("organization.overview.title")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {t("organization.overview.description")}
+          {t("organization.overview.description", { orgName })}
         </p>
       </div>
 
       {/* Metrics */}
+      {/* aexa-frontend#471 -- h1 (above) was followed directly by the h3s
+          below with no h2, breaking heading-level order for screen-reader
+          users. Each grid below is its own page section, so each gets a
+          visually-hidden h2 rather than promoting one arbitrary h3 -- the
+          sighted layout (no visible section titles above these grids) stays
+          untouched. */}
+      <h2 className="sr-only">{t("organization.overview.metricsHeading")}</h2>
       <div className="animate-slide-up grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           title={t("organization.overview.activeRisk")}
@@ -257,6 +275,7 @@ export default function Overview() {
       </div>
 
       {/* Charts row */}
+      <h2 className="sr-only">{t("organization.overview.chartsHeading")}</h2>
       <div className="animate-slide-up stagger-2 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="col-span-2 rounded-xl border border-border bg-card p-5">
           <h3 className="text-sm font-semibold text-foreground">
@@ -403,6 +422,7 @@ export default function Overview() {
       </div>
 
       {/* Bottom row */}
+      <h2 className="sr-only">{t("organization.overview.insightsHeading")}</h2>
       <div className="animate-slide-up stagger-3 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Tipping Points */}
         <div className="rounded-xl border border-border bg-card p-5">

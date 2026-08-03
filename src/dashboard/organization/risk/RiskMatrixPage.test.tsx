@@ -436,4 +436,82 @@ describe("RiskMatrixPage", () => {
     )
     expect(matches.length).toBe(2)
   })
+
+  // aexa-frontend#472 -- the matrix-size, group-mode, and cell-selection
+  // toggle groups never exposed aria-pressed, so a screen reader user
+  // couldn't tell which option was currently active (unlike
+  // RiskRegisterPage.tsx's equivalent pending-approval toggle, which
+  // already had it).
+  describe("toggle-group aria-pressed", () => {
+    it("marks only the active matrix-size button as pressed", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      render(<RiskMatrixPage />)
+
+      const btn5 = screen.getByRole("button", { name: "5×5" })
+      const btn3 = screen.getByRole("button", { name: "3×3" })
+      expect(btn5).toHaveAttribute("aria-pressed", "true")
+      expect(btn3).toHaveAttribute("aria-pressed", "false")
+
+      await userEvent.click(btn3)
+      expect(btn3).toHaveAttribute("aria-pressed", "true")
+      expect(btn5).toHaveAttribute("aria-pressed", "false")
+    })
+
+    it("marks only the active group-mode button as pressed", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      render(<RiskMatrixPage />)
+
+      const groupAll = screen.getByRole("button", {
+        name: "organization.correlationMatrix.groupAll",
+      })
+      const groupByType = screen.getByRole("button", {
+        name: "organization.correlationMatrix.groupByType",
+      })
+      expect(groupAll).toHaveAttribute("aria-pressed", "true")
+      expect(groupByType).toHaveAttribute("aria-pressed", "false")
+
+      await userEvent.click(groupByType)
+      expect(groupByType).toHaveAttribute("aria-pressed", "true")
+      expect(groupAll).toHaveAttribute("aria-pressed", "false")
+    })
+
+    it("marks a selected matrix cell as pressed", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "r1", probability: 10, inherent_score: 10 }),
+          ],
+        },
+        isLoading: false,
+      })
+      render(<RiskMatrixPage />)
+
+      const cell = screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+      expect(cell).toHaveAttribute("aria-pressed", "false")
+
+      await userEvent.click(cell)
+      expect(cell).toHaveAttribute("aria-pressed", "true")
+    })
+  })
+
+  // aexa-frontend#472 -- h1 used to be followed directly by an h3 with no
+  // h2 anywhere on the page, breaking heading-level order for screen-reader
+  // users. It's the page's only sub-heading, so it was promoted to h2.
+  it("has no orphaned h3 -- the details-panel heading is an h2 directly under h1", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    render(<RiskMatrixPage />)
+
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { level: 3 })).not.toBeInTheDocument()
+  })
 })

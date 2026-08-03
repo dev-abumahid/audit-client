@@ -480,6 +480,7 @@ export default function CorrelationMatrixPage() {
               <button
                 key={s}
                 onClick={() => setMatrixSize(s as MatrixSize)}
+                aria-pressed={matrixSize === s}
                 className={`px-3 py-1.5 text-xs font-medium ${matrixSize === s ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
               >
                 {s}×{s}
@@ -496,6 +497,7 @@ export default function CorrelationMatrixPage() {
               <button
                 key={mode}
                 onClick={() => setGroupMode(mode as GroupMode)}
+                aria-pressed={groupMode === mode}
                 className={`px-3 py-1.5 text-xs font-medium ${groupMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
               >
                 {t(`${NS}.${labelKey}`)}
@@ -514,6 +516,7 @@ export default function CorrelationMatrixPage() {
               <button
                 key={mode}
                 onClick={() => setViewMode(mode as ViewMode)}
+                aria-pressed={viewMode === mode}
                 className={`px-3 py-1.5 text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
               >
                 {t(`${NS}.${labelKey}`)}
@@ -531,7 +534,14 @@ export default function CorrelationMatrixPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Matrix */}
+        {/* aexa-frontend#473 -- h1 (above) was followed directly by h3s
+            further down with no h2 in between, breaking heading-level order
+            for screen-reader users. The matrix panel and the detail panel
+            below are this page's two top-level sections, so each gets its
+            own visually-hidden h2 -- the existing h3/h4 headings inside them
+            stay nested exactly as they render today. */}
         <div className="rounded-xl border border-border bg-card p-6 lg:col-span-2">
+          <h2 className="sr-only">{t(`${NS}.matrixSectionHeading`)}</h2>
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               {t(`${NS}.consequencesAxis`)}
@@ -586,6 +596,12 @@ export default function CorrelationMatrixPage() {
                                 cellRisks.length ? { row, col } : null
                               )
                             }
+                            aria-pressed={isSelected}
+                            aria-label={t(`${NS}.cellRisksHeading`, {
+                              count: cellRisks.length,
+                              rootCause: label,
+                              consequence: axisLabels.consequence[col],
+                            })}
                             className={`${getCellColor(row, col, matrixSize)} flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-white transition-all hover:scale-105 ${isSelected ? "scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-70"}`}
                           >
                             {cellRisks.length > 0 && (
@@ -784,6 +800,7 @@ export default function CorrelationMatrixPage() {
 
         {/* Detail Panel */}
         <div className="rounded-xl border border-border bg-card p-5">
+          <h2 className="sr-only">{t(`${NS}.detailSectionHeading`)}</h2>
           {viewMode === "risks" && (
             <>
               <h3 className="mb-3 text-sm font-semibold">
@@ -862,6 +879,7 @@ export default function CorrelationMatrixPage() {
                     >
                       <button
                         onClick={() => toggleBucket(bucket.name)}
+                        aria-expanded={expandedBucket === bucket.name}
                         className="flex w-full items-center justify-between p-3 text-left hover:bg-muted/50"
                       >
                         <div>
@@ -1068,6 +1086,7 @@ function BucketList({
         <div key={bucket.name} className="rounded-lg border bg-background">
           <button
             onClick={() => toggleBucket(bucket.name)}
+            aria-expanded={expandedBucket === bucket.name}
             className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
           >
             <div>
@@ -1141,6 +1160,7 @@ function AIRiskBucketCard({
     <div className="rounded-lg border bg-background">
       <button
         onClick={onToggle}
+        aria-expanded={expanded}
         className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
       >
         <div>
@@ -1232,6 +1252,7 @@ function AIFindingBucketCard({
     <div className="rounded-lg border bg-background">
       <button
         onClick={onToggle}
+        aria-expanded={expanded}
         className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
       >
         <div>

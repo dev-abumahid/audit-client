@@ -942,4 +942,51 @@ describe("RiskRegisterPage", () => {
       )
     )
   })
+
+  // aexa-frontend#472 -- every <label> in this modal was a sibling of its
+  // input with no htmlFor/id pairing, so a screen reader announced the
+  // field's label as unrelated static text instead of the input's
+  // accessible name (grep -c htmlFor was 0 in this file before the fix,
+  // while 19 other files in the codebase already use it correctly).
+  it("pairs every create-modal label to its input via htmlFor/id, so each field is reachable by its accessible label", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: { data: [{ id: "site-1", name: "Main Plant" }] },
+    })
+
+    render(<RiskRegisterPage />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    )
+
+    const labelKeys = [
+      "siteLabel",
+      "categoryLabel",
+      "riskNameLabel",
+      "descriptionLabel",
+      "inherentScoreLabel",
+      "residualScoreLabel",
+      "pagerankScoreLabel",
+      "minImpactLabel",
+      "maxImpactLabel",
+      "probabilityLabel",
+      "velocityLabel",
+      "trendLabel",
+      "statusLabel",
+      "sourceInfoLabel",
+      "designEffectivenessLabel",
+      "operatingEffectivenessLabel",
+    ]
+    for (const key of labelKeys) {
+      // getByLabelText only succeeds when the <label> is actually
+      // programmatically associated with a form control (via htmlFor/id,
+      // wrapping, or aria-labelledby) -- a plain sibling <label> (the bug)
+      // would make this throw.
+      expect(
+        screen.getByLabelText(`organization.riskRegister.${key}`)
+      ).toBeInTheDocument()
+    }
+  })
 })

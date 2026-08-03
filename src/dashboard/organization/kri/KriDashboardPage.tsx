@@ -7,6 +7,7 @@ import {
 } from "@/redux/apis/organization/kri.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { useModalA11y } from "@/hooks/useModalA11y"
 import { formatLocaleDate } from "@/utils/formatDate"
 import {
   AlertTriangle,
@@ -83,6 +84,15 @@ export default function KriDashboardPage() {
       { id: trendKriId ?? "", page: 1, limit: 50 },
       { skip: !trendKriId }
     )
+
+  // aexa-frontend#471 -- role="dialog"/focus-trap/Escape for all three
+  // modals below, via the shared hook (see useModalA11y.ts for why this
+  // isn't a Radix Dialog migration instead).
+  const updateValueModalRef = useModalA11y(!!updatingKriId, () =>
+    setUpdatingKriId(null)
+  )
+  const newKriModalRef = useModalA11y(showForm, () => setShowForm(false))
+  const trendModalRef = useModalA11y(!!trendKriId, () => setTrendKriId(null))
 
   const handleSave = async () => {
     if (!form.name || !form.risk_id) return
@@ -297,6 +307,7 @@ export default function KriDashboardPage() {
                   onClick={() => setTrendKriId(kri.id)}
                   className="ml-auto rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title={t("organization.kri.trend.viewTooltip")}
+                  aria-label={t("organization.kri.trend.viewTooltip")}
                 >
                   <ChartLine className="h-3.5 w-3.5" />
                 </button>
@@ -305,6 +316,7 @@ export default function KriDashboardPage() {
                     onClick={() => openUpdateValue(kri)}
                     className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     title={t("organization.kri.updateValueTooltip")}
+                    aria-label={t("organization.kri.updateValueTooltip")}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
@@ -354,15 +366,23 @@ export default function KriDashboardPage() {
           onClick={() => setUpdatingKriId(null)}
         >
           <div
+            ref={updateValueModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="kri-update-value-title"
             className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">
+              <h2
+                id="kri-update-value-title"
+                className="text-lg font-bold text-foreground"
+              >
                 {t("organization.kri.updateValueTitle")}
               </h2>
               <button
                 onClick={() => setUpdatingKriId(null)}
+                aria-label={t("organization.kri.cancel")}
                 className="rounded p-1 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
@@ -406,15 +426,20 @@ export default function KriDashboardPage() {
           onClick={() => setShowForm(false)}
         >
           <div
+            ref={newKriModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="kri-new-title"
             className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">
+              <h2 id="kri-new-title" className="text-lg font-bold text-foreground">
                 {t("organization.kri.newKri")}
               </h2>
               <button
                 onClick={() => setShowForm(false)}
+                aria-label={t("organization.kri.cancel")}
                 className="rounded p-1 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
@@ -599,17 +624,22 @@ export default function KriDashboardPage() {
           onClick={() => setTrendKriId(null)}
         >
           <div
+            ref={trendModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="kri-trend-title"
             className="w-full max-w-lg rounded-xl border border-border bg-card p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">
+              <h2 id="kri-trend-title" className="text-lg font-bold text-foreground">
                 {t("organization.kri.trend.modalTitle", {
                   name: trendKri?.name ?? "",
                 })}
               </h2>
               <button
                 onClick={() => setTrendKriId(null)}
+                aria-label={t("organization.kri.cancel")}
                 className="rounded p-1 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />

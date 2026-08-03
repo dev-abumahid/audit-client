@@ -137,7 +137,7 @@ describe("RiskGraphPage", () => {
     ).toBeInTheDocument()
   })
 
-  it("shows zero correlations rather than fabricated links against real risk data", () => {
+  it("shows zero correlations when the org genuinely has no RiskLink rows yet", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: {
         data: [
@@ -153,6 +153,101 @@ describe("RiskGraphPage", () => {
     expect(
       screen.getByText("organization.riskGraph.correlations (0)")
     ).toBeInTheDocument()
+  })
+
+  // aexa-frontend#473 -- `links` used to be hardcoded to a module-level
+  // empty array regardless of real data, so the Domino Scenarios /
+  // Corrélations panels could never show anything. correlationMatrixResponse
+  // was already being fetched in this exact component (for the PageRank
+  // computation covered by the tests above) -- it's now the single source
+  // for the graph's edges too.
+  it("renders real RiskLink rows as graph edges and in the Correlations list, not an empty fixture", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "node-a", ref: "RISK-A" }),
+          makeRisk({ id: "node-hub", ref: "RISK-HUB" }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: [
+            {
+              source_ref: "RISK-A",
+              target_ref: "RISK-HUB",
+              link_type: "CAUSES",
+            },
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />)
+
+    expect(
+      screen.getByText("organization.riskGraph.correlations (1)")
+    ).toBeInTheDocument()
+    // RISK-A/RISK-HUB are short (<=12 chars) so shortRef renders them
+    // untruncated in the Correlations list row.
+    expect(screen.getAllByText("RISK-A").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("RISK-HUB").length).toBeGreaterThan(0)
+  })
+
+  // RiskLink.source_ref/target_ref reference risks by their human-readable
+  // `ref` (e.g. "RISK-A"), never their uuid `id` -- confirmed against
+  // CorrelationMatrixPage.tsx's own identical filteredRefs, the page already
+  // correctly rendering these same links. Wiring `links` to real data
+  // without also switching the graph's internal id/ref keying (positions,
+  // cascadeRefs, selectedRisk, dominoChains) would leave every edge
+  // undrawable -- source/target uuids would never match a `ref`-keyed
+  // `positions` entry. This exercises the full click -> cascade path to
+  // catch that class of bug, not just "an edge count renders".
+  it("resolves risk-link refs to real graph nodes for cascade selection, not their uuid ids", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event")
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "uuid-a", ref: "RISK-A" }),
+          makeRisk({ id: "uuid-hub", ref: "RISK-HUB" }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: [
+            {
+              source_ref: "RISK-A",
+              target_ref: "RISK-HUB",
+              link_type: "CAUSES",
+            },
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />)
+
+    // The graph node's visible label is shortRef(risk.id) ("uuid-a"), not
+    // its ref -- clicking it exercises setSelectedRisk(risk.ref) internally.
+    const nodeALabel = screen
+      .getAllByText("uuid-a")
+      .find((el) => el.tagName.toLowerCase() === "text")!
+    await userEvent.click(nodeALabel)
+
+    // Selecting RISK-A cascades into RISK-HUB via the CAUSES link -- only
+    // reachable if the link's ref-space source/target actually resolved to
+    // real node positions/selection state (cascadeRefs, positions,
+    // selectedRiskData are all keyed by ref, per the fix above). The side
+    // panel's header shows the selected risk's uuid id and name.
+    expect(
+      screen.getByText("uuid-a — Supply Chain Disruption")
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/uuid-hub/).length).toBeGreaterThan(0)
   })
 
   // aexa-frontend#397: the legend's "Tipping Point" entry used to be dead --
@@ -299,5 +394,31 @@ describe("RiskGraphPage", () => {
       .getByText("organization.riskGraph.pageRank")
       .closest("div") as HTMLElement
     expect(within(pageRankPanel).getByText("100")).toBeInTheDocument()
+  })
+
+  // aexa-frontend#473 -- the Domino Scenarios toggle switched icons on
+  // click but never exposed its expanded/collapsed state to assistive tech.
+  it("reflects the Domino Scenarios panel's open/closed state via aria-expanded", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event")
+    render(<RiskGraphPage />)
+
+    const toggle = screen.getByRole("button", {
+      name: /organization\.riskGraph\.dominoScenarios/,
+    })
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+  })
+
+  // aexa-frontend#473 -- h1 used to be followed directly by h3s with no h2
+  // in between, breaking heading-level order for screen readers.
+  it("has an h2 between the page h1 and its h3 section headings", () => {
+    render(<RiskGraphPage />)
+
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument()
+    expect(
+      screen.getAllByRole("heading", { level: 2 }).length
+    ).toBeGreaterThan(0)
   })
 })

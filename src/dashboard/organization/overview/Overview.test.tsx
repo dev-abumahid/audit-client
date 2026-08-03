@@ -47,6 +47,13 @@ vi.mock("react-i18next", async (importOriginal) => {
           if (key === "organization.overview.chart.p50Median") {
             return "P50 (Median)"
           }
+          // aexa-frontend#471 -- real interpolation override (same
+          // technique as the des key above) so the org-name tests below can
+          // assert on the actual interpolated subtitle rather than the raw
+          // un-interpolated key every other key in this file falls back to.
+          if (key === "organization.overview.description") {
+            return `Consolidated Risk View — ${opts?.orgName}`
+          }
           return key
         },
       }
@@ -61,6 +68,15 @@ const mockUseGetAllFindingsQuery = vi.fn()
 const mockUseGetAllInspectionQuery = vi.fn()
 const mockUseGetCorrelationMatrixDataQuery = vi.fn()
 const mockUseGetAllSitesQuery = vi.fn()
+// aexa-frontend#471 -- Overview now reads the real org name via
+// useGetMeQuery for the subtitle (replacing the hardcoded "CEBI
+// International S.A." fixture), same mocking convention as every other
+// query hook on this page.
+const mockUseGetMeQuery = vi.fn()
+
+vi.mock("@/redux/apis/auth.api", () => ({
+  useGetMeQuery: (...args: unknown[]) => mockUseGetMeQuery(...args),
+}))
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) =>
@@ -242,6 +258,13 @@ describe("Overview", () => {
     mockUseGetAllInspectionQuery.mockReset()
     mockUseGetCorrelationMatrixDataQuery.mockReset()
     mockUseGetAllSitesQuery.mockReset()
+    mockUseGetMeQuery.mockReset()
+    mockUseGetMeQuery.mockReturnValue({
+      data: {
+        data: { organizationProfile: { organizationName: "Acme Corp" } },
+      },
+      isLoading: false,
+    })
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     mockUseGetAllKriQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     mockUseGetAllAlertsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
@@ -698,5 +721,62 @@ describe("Overview", () => {
     expect(frTranslations.organization.overview.alert.des).not.toMatch(
       /pertinence/i
     )
+  })
+
+  // aexa-frontend#471 -- organization.overview.description hardcoded a
+  // fictional company name ("CEBI International S.A.") under every
+  // organization's dashboard. It now interpolates the real org name from
+  // useGetMeQuery, matching OrgSettingPage.tsx's own use of the same field.
+  describe("organization name in the dashboard subtitle", () => {
+    it("does not hardcode a fictional company name in either locale", () => {
+      expect(enTranslations.organization.overview.description).not.toMatch(
+        /CEBI/i
+      )
+      expect(frTranslations.organization.overview.description).not.toMatch(
+        /CEBI/i
+      )
+    })
+
+    it("interpolates the real organization name from /auth/me", () => {
+      mockUseGetMeQuery.mockReturnValue({
+        data: {
+          data: {
+            organizationProfile: { organizationName: "Northwind Trading" },
+          },
+        },
+        isLoading: false,
+      })
+      render(<Overview />)
+      expect(screen.getByText(/Northwind Trading/)).toBeInTheDocument()
+    })
+
+    it("falls back to a generic placeholder while /auth/me has no org name yet", () => {
+      mockUseGetMeQuery.mockReturnValue({
+        data: { data: null },
+        isLoading: false,
+      })
+      render(<Overview />)
+      // t() falls back to echoing the raw key in this test env for
+      // defaultOrgName (not specifically overridden above), so the
+      // interpolated description contains the raw key as the fallback name.
+      expect(
+        screen.getByText(/organization\.overview\.defaultOrgName/)
+      ).toBeInTheDocument()
+    })
+  })
+
+  // aexa-frontend#471 -- h1 used to be followed directly by four h3 section
+  // headings with no h2 in between, breaking heading-level order for
+  // screen-reader users.
+  it("has an h2 between the page h1 and its h3 section headings", () => {
+    render(<Overview />)
+
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument()
+    expect(
+      screen.getAllByRole("heading", { level: 2 }).length
+    ).toBeGreaterThan(0)
+    expect(
+      screen.getAllByRole("heading", { level: 3 }).length
+    ).toBeGreaterThan(0)
   })
 })
