@@ -60,6 +60,7 @@ const mockUseGetAllAlertsQuery = vi.fn()
 const mockUseGetAllFindingsQuery = vi.fn()
 const mockUseGetAllInspectionQuery = vi.fn()
 const mockUseGetCorrelationMatrixDataQuery = vi.fn()
+const mockUseGetAllSitesQuery = vi.fn()
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) =>
@@ -88,6 +89,10 @@ vi.mock("@/redux/apis/organization/findings.api", () => ({
 vi.mock("@/redux/apis/organization/inspection.api", () => ({
   useGetAllInspectionQuery: (...args: unknown[]) =>
     mockUseGetAllInspectionQuery(...args),
+}))
+
+vi.mock("@/redux/apis/organization/sites.api", () => ({
+  useGetAllSitesQuery: (...args: unknown[]) => mockUseGetAllSitesQuery(...args),
 }))
 
 // CriticalAlertBanner independently calls useGetAllAlertsQuery too --
@@ -236,6 +241,7 @@ describe("Overview", () => {
     mockUseGetAllFindingsQuery.mockReset()
     mockUseGetAllInspectionQuery.mockReset()
     mockUseGetCorrelationMatrixDataQuery.mockReset()
+    mockUseGetAllSitesQuery.mockReset()
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     mockUseGetAllKriQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     mockUseGetAllAlertsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
@@ -245,6 +251,7 @@ describe("Overview", () => {
       data: { data: { risks: [], riskLinks: [], actions: [] } },
       isLoading: false,
     })
+    mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
   })
 
   it("shows a loading state while any of risks/KRIs/alerts/actions/inspections are loading", () => {
@@ -264,6 +271,12 @@ describe("Overview", () => {
 
   it("shows a loading state while findings/inspections specifically are loading", () => {
     mockUseGetAllInspectionQuery.mockReturnValue({ data: undefined, isLoading: true })
+    render(<Overview />)
+    expect(document.querySelector(".animate-spin")).toBeInTheDocument()
+  })
+
+  it("shows a loading state while sites are loading", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({ data: undefined, isLoading: true })
     render(<Overview />)
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
@@ -393,6 +406,26 @@ describe("Overview", () => {
     render(<Overview />)
 
     expect(screen.getByText("3")).toBeInTheDocument()
+  })
+
+  // Regression (issue #427): the Revenue KPI card hardcoded "€8.6M" with no
+  // backing query, even though a real per-site `revenue` field exists
+  // (sites.api.ts). It must now be a real sum of site.revenue across the
+  // org, not the old hardcoded fixture value.
+  it("sums real per-site revenue for the Revenue KPI card, not a hardcoded fixture", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: {
+        data: [
+          { id: "s1", name: "Site A", revenue: 3_200_000, employees_count: 10, createdAt: "2026-06-01T00:00:00.000Z", updatedAt: "2026-06-01T00:00:00.000Z" },
+          { id: "s2", name: "Site B", revenue: 1_800_000, employees_count: 5, createdAt: "2026-06-01T00:00:00.000Z", updatedAt: "2026-06-01T00:00:00.000Z" },
+        ],
+      },
+      isLoading: false,
+    })
+    render(<Overview />)
+
+    expect(screen.getByText("€5.0M")).toBeInTheDocument()
+    expect(screen.queryByText("€8.6M")).not.toBeInTheDocument()
   })
 
   it("renders a real alert's title and source in the Recent Alerts list", () => {

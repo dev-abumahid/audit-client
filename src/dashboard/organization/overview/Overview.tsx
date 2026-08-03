@@ -9,6 +9,7 @@ import { useGetAllInspectionQuery } from "@/redux/apis/organization/inspection.a
 import { useGetAllKriQuery } from "@/redux/apis/organization/kri.api"
 import { useGetCorrelationMatrixDataQuery } from "@/redux/apis/organization/riskLink.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
+import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { Alert, Risk } from "@/types/organization"
 import {
   buildRiskCorrelationEdges,
@@ -21,10 +22,10 @@ import {
   Activity,
   AlertTriangle,
   ClipboardList,
+  Euro,
   ListChecks,
   Loader2,
   Shield,
-  TrendingDown,
   Zap,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -91,12 +92,34 @@ export default function Overview() {
   // graph for the Tipping Points section below (#25).
   const { data: correlationMatrixResponse, isLoading: correlationLoading } =
     useGetCorrelationMatrixDataQuery()
+  // Same limit:100-and-sum-client-side approach as the risks/findings
+  // queries above — GET /site has no aggregation route, so this reuses the
+  // per-site `revenue` field (site.validation.ts) to total the Revenue KPI
+  // card below instead of hardcoding it (#427). Unlike the Tipping Points
+  // section below, there's no unpaginated GET /site equivalent to
+  // correlation-matrix's full risk list to fall back on, so an org with
+  // more than 100 sites will have its revenue total silently undercounted
+  // by this card until GET /site grows either a real aggregation route or
+  // an unpaginated mode -- flagged here rather than fixed since that's
+  // backend work out of scope for #427.
+  const { data: siteResponse, isLoading: sitesLoading } = useGetAllSitesQuery(
+    {
+      page: 1,
+      limit: 100,
+      searchTerm: "",
+    }
+  )
 
   const risks: Risk[] = riskResponse?.data ?? []
   const kris = kriResponse?.data ?? []
   const alerts: Alert[] = alertResponse?.data ?? []
   const findings = findingResponse?.data ?? []
   const inspections = inspectionResponse?.data ?? []
+  const sites = siteResponse?.data ?? []
+  const totalRevenue = sites.reduce((sum, s) => sum + (s.revenue || 0), 0)
+  // Matches the EBITDA chart's own €X.XM formatting just below, for visual
+  // consistency on this page.
+  const totalRevenueLabel = `€${(totalRevenue / 1_000_000).toFixed(1)}M`
 
   const categoryData = Object.entries(
     risks.reduce(
@@ -162,7 +185,8 @@ export default function Overview() {
     alertsLoading ||
     findingsLoading ||
     inspectionsLoading ||
-    correlationLoading
+    correlationLoading ||
+    sitesLoading
   ) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
@@ -210,10 +234,11 @@ export default function Overview() {
           trendValue="+2"
           trendGood={false}
         />
-        {/* No trend/trendValue on these two: unlike the cards above, there's
-            no prior-period snapshot anywhere to diff against, so there's no
-            real number to show here (the deltas on the other cards are
-            themselves static placeholders, not something to copy). */}
+        {/* No trend/trendValue on these three: unlike the cards above,
+            there's no prior-period snapshot anywhere to diff against, so
+            there's no real number to show here (the deltas on the other
+            cards are themselves static placeholders, not something to
+            copy). */}
         <MetricCard
           title={t("organization.overview.openActions")}
           value={openActions}
@@ -226,11 +251,8 @@ export default function Overview() {
         />
         <MetricCard
           title={t("organization.overview.revenue")}
-          value="€8.6M"
-          icon={TrendingDown}
-          trend="down"
-          trendValue="-12%"
-          trendGood={false}
+          value={totalRevenueLabel}
+          icon={Euro}
         />
       </div>
 
