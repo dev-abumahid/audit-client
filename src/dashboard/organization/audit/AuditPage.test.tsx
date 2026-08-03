@@ -319,6 +319,24 @@ describe("AuditPage", () => {
     expect(callArg.data).toMatchObject({ priority_score: 100 })
   })
 
+  // Regression (aexa-frontend#428): legacy engagements with a null
+  // priority_score rendered a blank next to "Priority:" on the mission card
+  // because the display path lacked the `?? 0` fallback the edit-form
+  // pre-fill already had (same bug class as #404).
+  it("shows 0 for the priority score on the mission card when priority_score is null", () => {
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [makeEngagement({ priority_score: null })] },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    const priorityLabel = screen.getByText(
+      "organization.audit.priorityLabel"
+    )
+    expect(priorityLabel.querySelector("span")).toHaveTextContent("0")
+  })
+
   it("pre-fills the edit form and calls updateAuditEngagement on save", async () => {
     const user = userEvent.setup()
     mockUseGetAllAuditEngagementsQuery.mockReturnValue({

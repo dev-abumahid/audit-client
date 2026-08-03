@@ -509,7 +509,7 @@ export default function AuditPage() {
                 <span>
                   {t("organization.audit.priorityLabel")}{" "}
                   <span className="font-mono font-bold text-foreground">
-                    {eng.priority_score}
+                    {eng.priority_score ?? 0}
                   </span>
                 </span>
                 <span>
