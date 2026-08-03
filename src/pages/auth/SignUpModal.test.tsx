@@ -1,4 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import SignUpModal from "./SignUpModal"
@@ -10,7 +16,10 @@ import SignUpModal from "./SignUpModal"
 // mocked value, which would defeat the point of a regression test for "this
 // string must go through i18n." Same pattern used in SignInModal.test.tsx.
 const { mockT } = vi.hoisted(() => ({
-  mockT: vi.fn((key: string) => {
+  mockT: vi.fn((key: string, options?: Record<string, unknown>) => {
+    if (key === "auth.verifyOtp.resendCountdown" && options) {
+      return `Resend in ${options.seconds}s`
+    }
     const map: Record<string, string> = {
       "auth.signUp.title": "Get Started with Us",
       "auth.signUp.subTitle": "Create your account to get started",
@@ -27,7 +36,8 @@ const { mockT } = vi.hoisted(() => ({
       "auth.signUp.emailInvalidText": "Please enter a valid email",
       "auth.signUp.passwordReqText": "Password is required",
       "auth.signUp.passwordMinLengthReqText":
-        "Password must be at least 6 characters",
+        "Password must be at least 8 characters",
+      "auth.genericError": "Something went wrong",
       "auth.verifyOtp.title": "Check your email",
       "auth.verifyOtp.subTitle": "We sent a verification code to",
       "auth.verifyOtp.codeLabel": "Verification Code",
@@ -258,17 +268,19 @@ describe("SignUpModal", () => {
     expect(mockT).toHaveBeenCalledWith("auth.signUp.emailReqText")
   })
 
-  it("shows a translated message when password is under 6 characters", async () => {
+  it("shows a translated message when password is under 8 characters", async () => {
     const user = userEvent.setup()
     renderModal()
 
     await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
     await user.type(screen.getByLabelText("Email"), "admin@acme.com")
-    await user.type(screen.getByLabelText("Password"), "abc")
+    // 7 chars -- one short of the unified 8-character policy shared with
+    // ResetPasswordPage (aexa-frontend#445).
+    await user.type(screen.getByLabelText("Password"), "abcdefg")
     await user.click(screen.getByRole("button", { name: "Sign Up" }))
 
     expect(
-      await screen.findByText("Password must be at least 6 characters")
+      await screen.findByText("Password must be at least 8 characters")
     ).toBeInTheDocument()
     expect(mockSignUpTrigger).not.toHaveBeenCalled()
     // Not just "this text is present" -- proves the message actually came
@@ -382,5 +394,82 @@ describe("SignUpModal", () => {
       })
     )
     await waitFor(() => expect(codeInput.value).toBe(""))
+  })
+
+  it("sets autoComplete on the email and password fields so password managers can fill them", () => {
+    renderModal()
+
+    expect(screen.getByLabelText("Email")).toHaveAttribute(
+      "autoComplete",
+      "email"
+    )
+    expect(screen.getByLabelText("Password")).toHaveAttribute(
+      "autoComplete",
+      "new-password"
+    )
+  })
+
+  it("shows the generic i18n error when registration fails without a server message", async () => {
+    const user = userEvent.setup()
+    const { toast } = await import("sonner")
+
+    mockSignUpTrigger.mockReturnValue({
+      unwrap: () => Promise.reject({}),
+    })
+
+    renderModal()
+
+    await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
+    await user.type(screen.getByLabelText("Email"), "admin@acme.com")
+    await user.type(screen.getByLabelText("Password"), "password123")
+    await user.click(screen.getByRole("button", { name: "Sign Up" }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Something went wrong")
+    )
+    expect(mockT).toHaveBeenCalledWith("auth.genericError")
+  })
+
+  it("disables Resend Code and counts down after a successful resend, re-enabling once it reaches zero", async () => {
+    // Reach the OTP screen with real timers first -- userEvent/waitFor's
+    // internal polling doesn't mix well with fake timers, so only the
+    // cooldown countdown itself runs under them.
+    const user = userEvent.setup()
+    renderModal()
+    await signUpAndReachOtpScreen(user)
+
+    mockResendOtpTrigger.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    vi.useFakeTimers()
+
+    const resendButton = screen.getByRole("button", { name: "Resend Code" })
+    // fireEvent instead of userEvent here -- userEvent's internal delay
+    // scheduling doesn't play well with fake timers, hanging the test.
+    fireEvent.click(resendButton)
+    expect(mockResendOtpTrigger).toHaveBeenCalled()
+    // Flush the resolved mutation promise (and its follow-on state update)
+    // so the countdown lands before we assert on it.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    // Button is now disabled and shows a live countdown instead of being
+    // immediately clickable again (aexa-frontend#444).
+    expect(
+      screen.getByRole("button", { name: "Resend in 30s" })
+    ).toBeDisabled()
+
+    for (let i = 0; i < 30; i++) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000)
+      })
+    }
+
+    expect(
+      screen.getByRole("button", { name: "Resend Code" })
+    ).not.toBeDisabled()
+
+    vi.useRealTimers()
   })
 })

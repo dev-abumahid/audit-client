@@ -11,13 +11,18 @@ import {
 } from "@/redux/apis/auth.api"
 import type { SignUpPayload } from "@/redux/apis/auth.api"
 import { X } from "lucide-react"
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import SocialLoginButtons from "./SocialLoginButtons"
 
 type SignUpFormData = SignUpPayload
+
+// Client-side rate limit for "Resend Code" -- purely a UX guard against
+// accidental double-clicks/spam, not a substitute for server-side throttling
+// (aexa-frontend#444).
+const RESEND_OTP_COOLDOWN_SECONDS = 30
 
 interface OtpFormData {
   otp: string
@@ -40,6 +45,13 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
   const [resendOtp, { isLoading: isResending }] = useResendOtpMutation()
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const [isVerified, setIsVerified] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const id = setTimeout(() => setResendCooldown((s) => s - 1), 1000)
+    return () => clearTimeout(id)
+  }, [resendCooldown])
 
   const {
     register: formRegister,
@@ -69,19 +81,20 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
       setIsVerified(true)
     } catch (error: unknown) {
       const msg = (error as { data?: { message?: string } })?.data?.message
-      toast.error(msg ?? "Invalid or expired code")
+      toast.error(msg ?? t("auth.genericError"))
     }
   }
 
   const handleResendOtp = async () => {
-    if (!pendingEmail) return
+    if (!pendingEmail || resendCooldown > 0) return
     try {
       await resendOtp({ email: pendingEmail }).unwrap()
       toast.success(t("auth.verifyOtp.resendSuccess"))
       resetOtpForm()
+      setResendCooldown(RESEND_OTP_COOLDOWN_SECONDS)
     } catch (error: unknown) {
       const msg = (error as { data?: { message?: string } })?.data?.message
-      toast.error(msg ?? "Failed to resend code")
+      toast.error(msg ?? t("auth.genericError"))
     }
   }
 
@@ -104,7 +117,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
       reset()
     } catch (error: unknown) {
       const msg = (error as { data?: { message?: string } })?.data?.message
-      toast.error(msg ?? "Registration failed")
+      toast.error(msg ?? t("auth.genericError"))
     }
   }
 
@@ -115,6 +128,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
   const handleClose = () => {
     setPendingEmail(null)
     setIsVerified(false)
+    setResendCooldown(0)
     resetOtpForm()
     onClose()
   }
@@ -241,12 +255,16 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                     {t("auth.verifyOtp.noCodeText")}{" "}
                     <button
                       onClick={handleResendOtp}
-                      disabled={isResending}
+                      disabled={isResending || resendCooldown > 0}
                       className="font-medium text-primary hover:underline disabled:opacity-50"
                     >
                       {isResending
                         ? t("auth.verifyOtp.resending")
-                        : t("auth.verifyOtp.btnResend")}
+                        : resendCooldown > 0
+                          ? t("auth.verifyOtp.resendCountdown", {
+                              seconds: resendCooldown,
+                            })
+                          : t("auth.verifyOtp.btnResend")}
                     </button>
                   </p>
                 </>
@@ -317,6 +335,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                   <input
                     id="email"
                     type="email"
+                    autoComplete="email"
                     {...formRegister("email", {
                       required: t("auth.signUp.emailReqText"),
                       pattern: {
@@ -346,10 +365,11 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                   <input
                     id="password"
                     type="password"
+                    autoComplete="new-password"
                     {...formRegister("password", {
                       required: t("auth.signUp.passwordReqText"),
                       minLength: {
-                        value: 6,
+                        value: 8,
                         message: t("auth.signUp.passwordMinLengthReqText"),
                       },
                     })}

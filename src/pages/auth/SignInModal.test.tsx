@@ -22,7 +22,9 @@ const { mockT } = vi.hoisted(() => ({
       "auth.signIn.signingIn": "Signing In...",
       "auth.signUp.btnSignUp": "Sign Up",
       "auth.signUp.emailReqText": "Email is required",
+      "auth.signUp.emailInvalidText": "Please enter a valid email",
       "auth.signUp.passwordReqText": "Password is required",
+      "auth.genericError": "Something went wrong",
     }
     return map[key] ?? key
   }),
@@ -238,5 +240,58 @@ describe("SignInModal", () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("Invalid credentials")
     )
+  })
+
+  it("falls back to the generic i18n error when a network error has no message", async () => {
+    const user = userEvent.setup()
+    const { toast } = await import("sonner")
+
+    // Simulates a network failure: `error.data` is undefined, so there is
+    // no server-supplied message at all (aexa-frontend#447).
+    mockSignInTrigger.mockReturnValue({
+      unwrap: () => Promise.reject({}),
+    })
+
+    renderModal()
+
+    await user.type(screen.getByLabelText("Email"), "test@example.com")
+    await user.type(screen.getByLabelText("Password"), "secret123")
+    await user.click(screen.getByRole("button", { name: "Sign In" }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Something went wrong")
+    )
+    expect(mockT).toHaveBeenCalledWith("auth.genericError")
+  })
+
+  it("sets autoComplete on the email and password fields so password managers can fill them", () => {
+    renderModal()
+
+    expect(screen.getByLabelText("Email")).toHaveAttribute(
+      "autoComplete",
+      "email"
+    )
+    expect(screen.getByLabelText("Password")).toHaveAttribute(
+      "autoComplete",
+      "current-password"
+    )
+  })
+
+  it("uses a real email input with format validation, not a bare text field", async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    const emailInput = screen.getByLabelText("Email")
+    expect(emailInput).toHaveAttribute("type", "email")
+
+    await user.type(emailInput, "not-an-email")
+    await user.type(screen.getByLabelText("Password"), "secret123")
+    await user.click(screen.getByRole("button", { name: "Sign In" }))
+
+    expect(
+      await screen.findByText("Please enter a valid email")
+    ).toBeInTheDocument()
+    expect(mockSignInTrigger).not.toHaveBeenCalled()
+    expect(mockT).toHaveBeenCalledWith("auth.signUp.emailInvalidText")
   })
 })

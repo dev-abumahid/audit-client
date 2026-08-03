@@ -146,7 +146,7 @@
       "emailReqText": "Email is required",
       "emailInvalidText": "Please enter a valid email",
       "passwordReqText": "Password is required",
-      "passwordMinLengthReqText": "Password must be at least 6 characters",
+      "passwordMinLengthReqText": "Password must be at least 8 characters",
       "signingUp": "Signing Up...",
       "orContinueWith": "or continue with"
     },
@@ -196,9 +196,11 @@
       "btnResend": "Resend Code",
       "resending": "Resending...",
       "resendSuccess": "A new code has been sent to your email",
+      "resendCountdown": "Resend in {{seconds}}s",
       "verifiedTitle": "Email Verified",
       "verifiedSubTitle": "Your account is ready. You can now sign in."
-    }
+    },
+    "genericError": "Something went wrong"
   },
   "externalAuth": {
     "login": {

@@ -37,7 +37,7 @@ export default function ResetPasswordPage() {
         toast.success(t("auth.resetPassword.successMessage"))
       }
     } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to reset password")
+      toast.error(error?.data?.message || t("auth.genericError"))
     }
   }
 
@@ -93,6 +93,7 @@ export default function ResetPasswordPage() {
                 <input
                   id="newPassword"
                   type="password"
+                  autoComplete="new-password"
                   {...register("newPassword", {
                     required: t("auth.resetPassword.newPasswordReqText"),
                     minLength: {
@@ -121,6 +122,7 @@ export default function ResetPasswordPage() {
                 <input
                   id="confirmPassword"
                   type="password"
+                  autoComplete="new-password"
                   {...register("confirmPassword", {
                     required: t("auth.resetPassword.confirmPasswordReqText"),
                     validate: (value) =>

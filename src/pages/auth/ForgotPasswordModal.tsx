@@ -114,6 +114,7 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
                 <input
                   id="forgot-email"
                   type="text"
+                  autoComplete="email"
                   {...register("email", {
                     required: "Email is required",
                   })}

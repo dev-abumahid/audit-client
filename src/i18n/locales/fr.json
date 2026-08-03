@@ -146,7 +146,7 @@
       "emailReqText": "L'adresse e-mail est requise.",
       "emailInvalidText": "Veuillez saisir une adresse e-mail valide.",
       "passwordReqText": "Le mot de passe est requis.",
-      "passwordMinLengthReqText": "Le mot de passe doit contenir au moins 6 caractères.",
+      "passwordMinLengthReqText": "Le mot de passe doit contenir au moins 8 caractères.",
       "signingUp": "Inscription en cours...",
       "orContinueWith": "ou continuer avec"
     },
@@ -196,9 +196,11 @@
       "btnResend": "Renvoyer le code",
       "resending": "Envoi en cours...",
       "resendSuccess": "Un nouveau code a été envoyé à votre e-mail",
+      "resendCountdown": "Renvoyer dans {{seconds}}s",
       "verifiedTitle": "E-mail vérifié",
       "verifiedSubTitle": "Votre compte est prêt. Vous pouvez maintenant vous connecter."
-    }
+    },
+    "genericError": "Une erreur est survenue"
   },
   "externalAuth": {
     "login": {

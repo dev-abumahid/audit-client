@@ -27,6 +27,7 @@ vi.mock("react-i18next", () => ({
         "auth.resetPassword.successMessage":
           "Password reset successfully. You can now sign in.",
         "auth.resetPassword.btnGoToSignIn": "Go to Sign In",
+        "auth.genericError": "Something went wrong",
       }
       return map[key] ?? key
     },
@@ -140,6 +141,37 @@ describe("ResetPasswordPage", () => {
       expect(toast.error).toHaveBeenCalledWith(
         "Link expired, please reset again"
       )
+    )
+  })
+
+  it("falls back to the generic i18n error when the server response has no message", async () => {
+    const user = userEvent.setup()
+    const { toast } = await import("sonner")
+    mockResetPasswordTrigger.mockReturnValue({
+      unwrap: () => Promise.reject({}),
+    })
+
+    renderAt("/reset-password?token=expired")
+
+    await user.type(screen.getByLabelText("New Password"), "newpassword1")
+    await user.type(screen.getByLabelText("Confirm Password"), "newpassword1")
+    await user.click(screen.getByRole("button", { name: "Reset Password" }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Something went wrong")
+    )
+  })
+
+  it("sets autoComplete=new-password on both password fields", () => {
+    renderAt("/reset-password?token=abc123")
+
+    expect(screen.getByLabelText("New Password")).toHaveAttribute(
+      "autoComplete",
+      "new-password"
+    )
+    expect(screen.getByLabelText("Confirm Password")).toHaveAttribute(
+      "autoComplete",
+      "new-password"
     )
   })
 

@@ -66,7 +66,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
         navigate("/" + res?.data?.role?.toLowerCase())
       }
     } catch (error: any) {
-      toast.error(error?.data?.message)
+      toast.error(error?.data?.message ?? t("auth.genericError"))
     }
   }
 
@@ -107,7 +107,17 @@ const SignInModal: React.FC<SignInModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="px-6 pb-6">
+        {/* noValidate: the email input is type="email", and without this the
+            browser's own constraint validation intercepts the submit event
+            for any format it considers invalid before handleSubmit ever
+            runs -- silently short-circuiting the react-hook-form `pattern`
+            rule below (and its message). Same fix as SignUpModal's
+            equivalent field (aexa-frontend#448). */}
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+          className="px-6 pb-6"
+        >
           <div className="space-y-4">
             {/* Email Input */}
             <div>
@@ -119,9 +129,14 @@ const SignInModal: React.FC<SignInModalProps> = ({
               </label>
               <input
                 id="email"
-                type="text"
+                type="email"
+                autoComplete="email"
                 {...register("email", {
                   required: t("auth.signUp.emailReqText"),
+                  pattern: {
+                    value: /^\S+@\S+$/i,
+                    message: t("auth.signUp.emailInvalidText"),
+                  },
                 })}
                 placeholder="example@email.com"
                 className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
@@ -129,7 +144,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
               />
               {errors.email && (
                 <p className="mt-1 text-xs text-destructive">
-                  {t("auth.signUp.emailReqText")}
+                  {errors.email.message}
                 </p>
               )}
             </div>
@@ -145,6 +160,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
               <input
                 id="password"
                 type="password"
+                autoComplete="current-password"
                 {...register("password", {
                   required: t("auth.signUp.passwordReqText"),
                 })}

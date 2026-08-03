@@ -138,4 +138,13 @@ describe("ForgotPasswordModal", () => {
     expect(onClose).toHaveBeenCalled()
     expect(onBackToSignIn).toHaveBeenCalled()
   })
+
+  it("sets autoComplete=email on the email field so password managers can fill it", () => {
+    render(<ForgotPasswordModal {...defaultProps} />)
+
+    expect(screen.getByLabelText("Email")).toHaveAttribute(
+      "autoComplete",
+      "email"
+    )
+  })
 })
