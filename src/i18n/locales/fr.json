@@ -777,6 +777,7 @@
       "siteUpdatedSuccess": "Site mis à jour avec succès",
       "siteCreatedSuccess": "Site créé avec succès",
       "saveSiteFailed": "Échec de l'enregistrement du site",
+      "loadSiteDetailFailed": "Échec du chargement des détails du site",
       "siteDeletedSuccess": "Site supprimé avec succès",
       "deleteSiteFailed": "Échec de la suppression du site",
       "noAdditionalRisks": "L'analyse IA n'a trouvé aucun risque supplémentaire à suggérer pour ce site",

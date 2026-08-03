@@ -27,6 +27,7 @@ const mockUseGetAllSitesQuery = vi.fn()
 const mockCreateNewSite = vi.fn()
 const mockUpdateSite = vi.fn()
 const mockDeleteSite = vi.fn()
+const mockFetchSiteById = vi.fn()
 const mockUseGetAllRisksQuery = vi.fn()
 const mockDeleteRisk = vi.fn()
 const mockCreateNewRisk = vi.fn()
@@ -34,6 +35,7 @@ const mockAnalyzeSiteRisks = vi.fn()
 
 vi.mock("@/redux/apis/organization/sites.api", () => ({
   useGetAllSitesQuery: (...args: unknown[]) => mockUseGetAllSitesQuery(...args),
+  useLazyGetSiteByIdQuery: () => [mockFetchSiteById],
   useCreateNewSiteMutation: () => [mockCreateNewSite, { isLoading: false }],
   useUpdateSiteMutation: () => [mockUpdateSite, { isLoading: false }],
   useDeleteSiteMutation: () => [mockDeleteSite, { isLoading: false }],
@@ -97,12 +99,17 @@ describe("SitesEntities", () => {
     mockCreateNewSite.mockReset()
     mockUpdateSite.mockReset()
     mockDeleteSite.mockReset()
+    mockFetchSiteById.mockReset()
     mockUseGetAllRisksQuery.mockReset()
     mockDeleteRisk.mockReset()
     mockCreateNewRisk.mockReset()
     mockAnalyzeSiteRisks.mockReset()
     mockToastError.mockReset()
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+    // Edit opens a per-site detail fetch (aexa-frontend#401); default to a
+    // never-resolving promise so tests that don't care about it aren't
+    // affected, individual tests override with a resolved/rejected value.
+    mockFetchSiteById.mockReturnValue({ unwrap: () => new Promise(() => {}) })
   })
 
   it("shows New Site, Add Risk, Edit and Delete for an ADMIN, plus the read-only Analyze button", () => {
@@ -446,6 +453,9 @@ describe("SitesEntities", () => {
       data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
       error: undefined,
     })
+    mockFetchSiteById.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true, data: makeSite() }),
+    })
 
     const { container } = render(<SitesEntities />)
     const editButtons = screen
@@ -462,6 +472,209 @@ describe("SitesEntities", () => {
     expect(container.querySelector('[name="name"]')).toHaveValue(
       "HQ Casablanca"
     )
+  })
+
+  // Regression (aexa-frontend#401): GET /site's list select omits
+  // site_type, so the list row's fallback used to silently show
+  // "Production" for every site regardless of its real stored type. Edit
+  // now fetches the single-site detail (which does return site_type) and
+  // overwrites the form once it resolves.
+  it("corrects the Site Type once the single-site detail fetch resolves with the real value", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: {
+        // List row has no site_type, matching the real GET /site select.
+        data: [makeSite({ site_type: undefined })],
+        meta: { page: 1, limit: 10, total: 1 },
+      },
+      error: undefined,
+    })
+    mockFetchSiteById.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: makeSite({ site_type: "warehouse" }),
+        }),
+    })
+
+    const { container } = render(<SitesEntities />)
+    const editButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-pencil"))
+    await userEvent.click(editButtons[0])
+
+    expect(mockFetchSiteById).toHaveBeenCalledWith("site-1")
+    await waitFor(() =>
+      expect(container.querySelector('[name="site_type"]')).toHaveValue(
+        "warehouse"
+      )
+    )
+  })
+
+  it("keeps the list-row prefill and shows a toast when the single-site detail fetch fails", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockFetchSiteById.mockReturnValue({
+      unwrap: () => Promise.reject(new Error("network down")),
+    })
+
+    const { container } = render(<SitesEntities />)
+    const editButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-pencil"))
+    await userEvent.click(editButtons[0])
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.site&entities.loadSiteDetailFailed"
+      )
+    )
+    expect(container.querySelector('[name="name"]')).toHaveValue(
+      "HQ Casablanca"
+    )
+  })
+
+  // Regression (aexa-frontend#401, review round 1): a 200 response with
+  // success: false is still a failed detail fetch and must not be treated
+  // as if the real site_type had loaded.
+  it("shows a toast and keeps the list-row prefill when the detail fetch resolves with success: false", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockFetchSiteById.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: false, data: null }),
+    })
+
+    const { container } = render(<SitesEntities />)
+    const editButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-pencil"))
+    await userEvent.click(editButtons[0])
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.site&entities.loadSiteDetailFailed"
+      )
+    )
+    expect(container.querySelector('[name="name"]')).toHaveValue(
+      "HQ Casablanca"
+    )
+  })
+
+  // Regression (aexa-frontend#401, review round 1): openEdit had no guard
+  // analogous to latestAnalysisRequestRef (see the AI-analysis race test
+  // below), so a slow detail fetch for a site the user has moved away from
+  // could silently overwrite the form now showing a different site.
+  it("does not let a slow edit-detail fetch for one site overwrite the edit form already showing another site", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: {
+        data: [
+          makeSite({ id: "site-1", name: "HQ Casablanca", site_type: undefined }),
+          makeSite({ id: "site-2", name: "Lyon Plant", site_type: undefined }),
+        ],
+        meta: { page: 1, limit: 10, total: 2 },
+      },
+      error: undefined,
+    })
+
+    let resolveSiteOne: (value: unknown) => void = () => {}
+    const siteOnePromise = new Promise((resolve) => {
+      resolveSiteOne = resolve
+    })
+    mockFetchSiteById.mockImplementationOnce(() => ({
+      unwrap: () => siteOnePromise,
+    }))
+    mockFetchSiteById.mockImplementationOnce(() => ({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: makeSite({ id: "site-2", name: "Lyon Plant", site_type: "warehouse" }),
+        }),
+    }))
+
+    const { container } = render(<SitesEntities />)
+    const editButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-pencil"))
+
+    // Start editing site 1 (slow, not yet resolved) then switch to site 2
+    // before it finishes.
+    await userEvent.click(editButtons[0])
+    await userEvent.click(editButtons[1])
+
+    await waitFor(() =>
+      expect(container.querySelector('[name="site_type"]')).toHaveValue(
+        "warehouse"
+      )
+    )
+    expect(container.querySelector('[name="name"]')).toHaveValue(
+      "Lyon Plant"
+    )
+
+    // Site 1's request finally resolves after the user has moved on to site
+    // 2 -- its data must not clobber the form now showing site 2.
+    resolveSiteOne({
+      success: true,
+      data: makeSite({ id: "site-1", name: "HQ Casablanca", site_type: "headquarters" }),
+    })
+    await waitFor(() => Promise.resolve())
+
+    expect(container.querySelector('[name="name"]')).toHaveValue(
+      "Lyon Plant"
+    )
+    expect(container.querySelector('[name="site_type"]')).toHaveValue(
+      "warehouse"
+    )
+  })
+
+  // Regression (aexa-frontend#401, review round 1): openCreate didn't
+  // invalidate a still-in-flight openEdit fetch, so switching from Edit to
+  // "New Site" before the fetch resolved could silently populate the blank
+  // create form with the previous site's data.
+  it("does not let a slow edit-detail fetch populate the New Site form after switching away from Edit", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+
+    let resolveFetch: (value: unknown) => void = () => {}
+    mockFetchSiteById.mockReturnValue({
+      unwrap: () => new Promise((resolve) => (resolveFetch = resolve)),
+    })
+
+    const { container } = render(<SitesEntities />)
+    const editButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-pencil"))
+    await userEvent.click(editButtons[0])
+
+    // Switch to "New Site" before the edit fetch resolves.
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+    expect(container.querySelector('[name="name"]')).toHaveValue("")
+
+    resolveFetch({
+      success: true,
+      data: makeSite({ name: "Should Not Appear" }),
+    })
+    await waitFor(() => Promise.resolve())
+
+    expect(container.querySelector('[name="name"]')).toHaveValue("")
   })
 
   it("opens delete confirmation and calls deleteSite on confirm", async () => {
@@ -763,6 +976,12 @@ describe("SitesEntities", () => {
     )
   })
 
+  // Regression (aexa-frontend#399): error?.data?.message used to be
+  // preferred over the translated fallback, leaking the backend's
+  // always-English message into a non-English UI even when a correct
+  // translation existed. t() is mocked to return the raw key in this file,
+  // so asserting the key (not the raw backend message) proves the
+  // translated fallback now takes precedence.
   it("shows an error toast and keeps the manual risk form open when creating a risk rejects (unhandled rejection)", async () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,
@@ -794,8 +1013,11 @@ describe("SitesEntities", () => {
     )
 
     await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith("Server unavailable")
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.site&entities.createRiskFailed"
+      )
     )
+    expect(mockToastError).not.toHaveBeenCalledWith("Server unavailable")
     // The manual risk form should still be showing so the user can retry
     expect(
       screen.getByText("organization.site&entities.addRiskTitle")
@@ -832,9 +1054,14 @@ describe("SitesEntities", () => {
     await userEvent.click(expandButton)
     await userEvent.click(screen.getByRole("button", { name: /delete/i }))
 
+    // Regression (aexa-frontend#399): translated fallback now takes
+    // precedence over the raw (always-English) backend message.
     await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith("Risk is locked")
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.site&entities.deleteRiskFailed"
+      )
     )
+    expect(mockToastError).not.toHaveBeenCalledWith("Risk is locked")
   })
 
   it("shows an error toast when the manual-risk-create response indicates failure", async () => {
@@ -1018,9 +1245,14 @@ describe("SitesEntities", () => {
       })
     )
 
+    // Regression (aexa-frontend#399): translated fallback now takes
+    // precedence over the raw (always-English) backend message.
     await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith("AI service unavailable")
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.site&entities.aiRiskAnalysisFailed"
+      )
     )
+    expect(mockToastError).not.toHaveBeenCalledWith("AI service unavailable")
     expect(screen.queryByText(/review before importing/i)).toBeNull()
   })
 
@@ -1065,8 +1297,12 @@ describe("SitesEntities", () => {
       source_info: "AI Suggested",
       velocity: "fast",
       trend: "increasing",
-      inherent_score: 8,
-      residual_score: 5,
+      // Regression (aexa-frontend#398): inherent/residual scores are on a
+      // 0-100 scale (see src/utils/riskScoring.ts), not 1-10 -- High/Medium
+      // map to 70/50 so they land in the matching severity band (>75 is
+      // "critical", not "high" -- 80 would have overshot into that band).
+      inherent_score: 70,
+      residual_score: 50,
       probability: 60,
     })
     // financial_impact_min/max are free text on the AI response ("€500K",

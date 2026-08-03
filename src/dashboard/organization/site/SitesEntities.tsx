@@ -18,6 +18,7 @@ import {
   useCreateNewSiteMutation,
   useDeleteSiteMutation,
   useGetAllSitesQuery,
+  useLazyGetSiteByIdQuery,
   useUpdateSiteMutation,
 } from "@/redux/apis/organization/sites.api"
 import type { RiskSuggestion } from "@/types/ai"
@@ -81,17 +82,23 @@ const matchKnownCategory = (aiCategory: string): string => {
   return match ? match[0] : aiCategory
 }
 
-// AI returns a qualitative High/Medium/Low label for these two scores, but
-// the Risk model stores them as Int?. No documented numeric scale exists for
-// this field, so this mapping is a judgment call, not a spec requirement —
-// picked to land in the same rough range (1-10) the register's own risk
-// matrix already uses for scoring.
+// AI returns a qualitative High/Medium/Low label for these two scores. The
+// Risk model stores them as Int?, and src/utils/riskScoring.ts documents the
+// real scale used everywhere else in the app: 0-100, with >75 critical,
+// >50 high, >25 medium, else low (aexa-ai's risk-generation prompts spec
+// inherent_risk_score/residual_risk_score as 0-100). Map each qualitative
+// label into the matching severity band on that scale, rather than a 1-10
+// guess that made every AI-imported "High" risk render as "low" severity
+// (aexa-frontend#398).
 const mapQualitativeScore = (level: string): number => {
   const normalized = level.trim().toLowerCase()
-  if (normalized === "high") return 8
-  if (normalized === "medium") return 5
-  if (normalized === "low") return 2
-  return 5
+  // riskScoring.ts's bands are >75 critical / >50 high / >25 medium / else
+  // low -- 70 lands inside the "high" band itself rather than spilling into
+  // "critical" the way 80 would (found in review round 1: aexa-frontend#398).
+  if (normalized === "high") return 70
+  if (normalized === "medium") return 50
+  if (normalized === "low") return 20
+  return 50
 }
 
 // Types for the form
@@ -103,8 +110,6 @@ interface SiteFormValues {
   revenue: number
   employees_count: number
   site_type: string
-  lat: number
-  lng: number
 }
 
 interface RiskFormValues {
@@ -144,6 +149,7 @@ export default function SitesEntities() {
     useCreateNewSiteMutation()
   const [updateSite, { isLoading: isSiteUpdating }] = useUpdateSiteMutation()
   const [deleteSite, { isLoading: isSiteDeleting }] = useDeleteSiteMutation()
+  const [fetchSiteById] = useLazyGetSiteByIdQuery()
   const { data: riskData } = useGetAllRisksQuery(
     {
       siteId: expandedSite ?? "",
@@ -165,6 +171,13 @@ export default function SitesEntities() {
   // Local state
   const [showForm, setShowForm] = useState(false)
   const [editingSite, setEditingSite] = useState<SiteSummary | null>(null)
+  // GET /site's list select omits site_type (see SiteSummary's comment in
+  // types/organization.d.ts), so opening Edit fetches the single-site
+  // detail first rather than trusting the list row -- otherwise the form's
+  // site_type fallback silently reset every site to "production"
+  // (aexa-frontend#401). Tracked separately from isSiteUpdating/isFetching
+  // so the Edit button can show its own brief loading state.
+  const [isLoadingEditSite, setIsLoadingEditSite] = useState(false)
 
   const [showRiskForm, setShowRiskForm] = useState<string | null>(null)
 
@@ -187,6 +200,16 @@ export default function SitesEntities() {
   // slow/late response for a site the user has since moved away from can't
   // overwrite what's currently displayed for a different site.
   const latestAnalysisRequestRef = useRef<string | null>(null)
+  // Same pattern as latestAnalysisRequestRef above, for the edit-detail
+  // fetch (aexa-frontend#401): nothing stops clicking Edit on a different
+  // site (or clicking "New Site") while a previous openEdit's fetchSiteById
+  // is still in flight. Without this guard, a slow response for a site the
+  // user has since moved away from would silently overwrite whatever form
+  // is currently on screen, or clear its loading spinner out from under it.
+  // Set to the site id whose result is still wanted; null means no edit
+  // fetch's result should be applied (e.g. after openCreate or closing the
+  // modal). Found in review round 1.
+  const latestEditRequestRef = useRef<string | null>(null)
 
   // React Hook Form setup for site form
   const siteForm = useForm<SiteFormValues>({
@@ -223,7 +246,13 @@ export default function SitesEntities() {
   useClampPageToTotal(page, totalPages, setPage)
 
   const openCreate = () => {
+    // Invalidate any in-flight openEdit detail fetch so a slow response
+    // that resolves after switching to "New Site" can't silently populate
+    // this blank form with the previous site's data (found in review
+    // round 1: aexa-frontend#401).
+    latestEditRequestRef.current = null
     setEditingSite(null)
+    setIsLoadingEditSite(false)
     siteForm.reset({
       name: "",
       location: "",
@@ -236,8 +265,22 @@ export default function SitesEntities() {
     setShowForm(true)
   }
 
-  const openEdit = (site: SiteSummary) => {
+  const closeSiteForm = () => {
+    // Same guard as openCreate: closing the modal shouldn't leave a stale
+    // fetch free to reopen it (via an error toast) or repopulate it if the
+    // user reopens Edit on a different site before this one's request
+    // settles.
+    latestEditRequestRef.current = null
+    setIsLoadingEditSite(false)
+    setShowForm(false)
+  }
+
+  const openEdit = async (site: SiteSummary) => {
+    latestEditRequestRef.current = site.id
     setEditingSite(site)
+    // Pre-fill from the list row immediately so the modal isn't blank while
+    // the detail fetch below is in flight; site_type is corrected once that
+    // resolves.
     siteForm.reset({
       name: site.name,
       location: site.location || "",
@@ -248,6 +291,43 @@ export default function SitesEntities() {
       site_type: site.site_type || "production",
     })
     setShowForm(true)
+
+    setIsLoadingEditSite(true)
+    try {
+      const res = await fetchSiteById(site.id).unwrap()
+      // The user may have moved on to a different site's edit form (or
+      // closed/created) while this request was in flight -- discard a late
+      // result rather than clobbering whatever's now on screen (found in
+      // review round 1: aexa-frontend#401).
+      if (latestEditRequestRef.current !== site.id) return
+      const fullSite = res?.success ? res.data : undefined
+      if (fullSite) {
+        siteForm.reset({
+          name: fullSite.name,
+          location: fullSite.location || "",
+          country: fullSite.country || "",
+          activity: fullSite.activity || "",
+          revenue: fullSite.revenue || 0,
+          employees_count: fullSite.employees_count || 0,
+          site_type: fullSite.site_type || "production",
+        })
+      } else {
+        // A 200 response with success: false (or no data) is still a
+        // failure to load the real detail -- keep the list-row prefill and
+        // surface it the same way a network/unwrap rejection does below.
+        toast.error(t("organization.site&entities.loadSiteDetailFailed"))
+      }
+    } catch {
+      if (latestEditRequestRef.current !== site.id) return
+      // Detail fetch failed -- keep the list-row prefill (including its
+      // "production" site_type fallback) rather than blocking the edit
+      // form; the user can still correct the dropdown manually.
+      toast.error(t("organization.site&entities.loadSiteDetailFailed"))
+    } finally {
+      if (latestEditRequestRef.current === site.id) {
+        setIsLoadingEditSite(false)
+      }
+    }
   }
 
   const handleSave = async (values: SiteFormValues) => {
@@ -269,7 +349,7 @@ export default function SitesEntities() {
             ? t("organization.site&entities.siteUpdatedSuccess")
             : t("organization.site&entities.siteCreatedSuccess")
         )
-        setShowForm(false)
+        closeSiteForm()
       }
     } catch (error: any) {
       toast.error(t("organization.site&entities.saveSiteFailed"))
@@ -317,9 +397,14 @@ export default function SitesEntities() {
       }
     } catch (error: any) {
       if (latestAnalysisRequestRef.current !== site.id) return
+      // Prefer the translated fallback over the raw backend message: the
+      // backend always responds in English regardless of the UI's active
+      // language, so leading with error?.data?.message leaked English text
+      // into a French UI even when a correct FR string already existed
+      // (aexa-frontend#399).
       toast.error(
-        error?.data?.message ||
-          t("organization.site&entities.aiRiskAnalysisFailed"),
+        t("organization.site&entities.aiRiskAnalysisFailed") ||
+          error?.data?.message,
       )
       setAnalyzingSiteId(null)
     } finally {
@@ -410,9 +495,11 @@ export default function SitesEntities() {
       }
     } catch (error: any) {
       // Keep the inline risk form open on failure so the user doesn't lose
-      // what they typed and can retry, same as handleSave above.
+      // what they typed and can retry, same as handleSave above. Translated
+      // fallback takes precedence over the raw backend message -- see the
+      // comment in handleAnalyzeSite's catch block (aexa-frontend#399).
       toast.error(
-        error?.data?.message || t("organization.site&entities.createRiskFailed"),
+        t("organization.site&entities.createRiskFailed") || error?.data?.message,
       )
     }
   }
@@ -427,9 +514,11 @@ export default function SitesEntities() {
       }
     } catch (error: any) {
       // Direct action button, no confirmation modal/form state to reset here
-      // (unlike handleSave/handleConfirmDelete above).
+      // (unlike handleSave/handleConfirmDelete above). Translated fallback
+      // takes precedence over the raw backend message -- see the comment in
+      // handleAnalyzeSite's catch block (aexa-frontend#399).
       toast.error(
-        error?.data?.message || t("organization.site&entities.deleteRiskFailed"),
+        t("organization.site&entities.deleteRiskFailed") || error?.data?.message,
       )
     }
   }
@@ -586,9 +675,16 @@ export default function SitesEntities() {
                     <>
                       <button
                         onClick={() => openEdit(site)}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
+                        disabled={
+                          isLoadingEditSite && editingSite?.id === site.id
+                        }
+                        className="rounded-lg p-2 text-muted-foreground hover:bg-muted disabled:opacity-50"
                       >
-                        <Pencil className="h-4 w-4" />
+                        {isLoadingEditSite && editingSite?.id === site.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Pencil className="h-4 w-4" />
+                        )}
                       </button>
                       <button
                         onClick={() => handleDeleteModalOpen(site.id)}
@@ -938,7 +1034,7 @@ export default function SitesEntities() {
       {showForm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-          onClick={() => setShowForm(false)}
+          onClick={closeSiteForm}
         >
           <div
             className="w-full max-w-lg rounded-2xl border border-border bg-card p-6"
@@ -951,7 +1047,7 @@ export default function SitesEntities() {
                   : t("organization.site&entities.addNewSiteTitle")}
               </h2>
               <button
-                onClick={() => setShowForm(false)}
+                onClick={closeSiteForm}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <X className="h-6 w-6" />
@@ -1064,7 +1160,7 @@ export default function SitesEntities() {
               <div className="mt-8 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={closeSiteForm}
                   className="rounded-lg px-5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted"
                 >
                   {t("organization.site&entities.cancel")}

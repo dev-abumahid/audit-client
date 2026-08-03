@@ -53,15 +53,17 @@ export interface Site {
 // GET /site's list `select` (see aexa-server site.service.ts
 // get_all_site_from_db) is narrower than the full Site row returned by
 // single-resource create/update/delete: it omits org_account_id, site_type,
-// lat, lng entirely. There is no single-site GET endpoint on the frontend to
-// fall back on for those fields, so a list row's site_type/lat/lng are
-// always absent, not just possibly-null — SitesEntities.tsx's edit form
-// pre-fill for site_type silently falls back to its "production" default
-// for every site as a result. Modeled as optional (rather than adding a
+// lat, lng entirely, so a list row's site_type/lat/lng are always absent,
+// not just possibly-null. Modeled as optional (rather than adding a
 // separate non-overlapping type) so existing `site.site_type || "..."`
 // fallback call sites keep compiling; confirmed against the real backend
-// select, not guessed. Worth a backend ticket to widen the list select if
-// the edit form's pre-fill accuracy ever matters.
+// select, not guessed.
+//
+// GET /site/:id (site_service.get_single_site_from_db) does return the full
+// row, including site_type/lat/lng -- SitesEntities.tsx's openEdit fetches
+// it (useLazyGetSiteByIdQuery) before showing the edit modal so site_type's
+// pre-fill reflects the real stored value instead of always falling back to
+// "production" (aexa-frontend#401).
 export interface SiteSummary {
   id: string
   name: string

@@ -777,6 +777,7 @@
       "siteUpdatedSuccess": "Site updated successfully",
       "siteCreatedSuccess": "Site created successfully",
       "saveSiteFailed": "Failed to save site",
+      "loadSiteDetailFailed": "Failed to load site details",
       "siteDeletedSuccess": "Site deleted successfully",
       "deleteSiteFailed": "Failed to delete site",
       "noAdditionalRisks": "AI analysis found no additional risks to suggest for this site",

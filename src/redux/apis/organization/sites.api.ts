@@ -36,6 +36,18 @@ const sitesApi = baseApi.injectEndpoints({
       }),
       providesTags: ["SITE"],
     }),
+    // GET /site's list select omits site_type/lat/lng (see SiteSummary's
+    // comment in types/organization.d.ts), so the edit form needs this
+    // single-resource fetch -- which does return the full Site row -- to
+    // pre-fill those fields correctly instead of always falling back to
+    // "production" (aexa-frontend#401).
+    getSiteById: builder.query<ApiResponse<Site>, string>({
+      query: (id) => ({
+        url: `/site/${id}`,
+        method: "GET",
+      }),
+      providesTags: ["SITE"],
+    }),
     createNewSite: builder.mutation<ApiResponse<Site>, SiteFormPayload>({
       query: (data) => ({
         url: `/site`,
@@ -67,6 +79,7 @@ const sitesApi = baseApi.injectEndpoints({
 
 export const {
   useGetAllSitesQuery,
+  useLazyGetSiteByIdQuery,
   useCreateNewSiteMutation,
   useUpdateSiteMutation,
   useDeleteSiteMutation,
