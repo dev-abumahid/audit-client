@@ -24,6 +24,10 @@ const FREQUENCY_TRANSLATIONS: Record<string, string> = {
   "organization.kri.frequency.monthly": "Monthly",
   "organization.kri.frequency.quarterly": "Quarterly",
 }
+// Controllable `i18n.language` for the locale-formatting test below, same
+// technique as AdminTransactions.test.tsx/AdminOrganization.test.tsx. Kept at
+// "en" by default so existing assertions in this file are unaffected.
+let mockLanguage = "en"
 vi.mock("react-i18next", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-i18next")>()
   return {
@@ -31,8 +35,28 @@ vi.mock("react-i18next", async (importOriginal) => {
     useTranslation: () => ({
       t: (key: string, opts?: Record<string, unknown>) =>
         FREQUENCY_TRANSLATIONS[key] ?? (opts?.defaultValue as string) ?? key,
-      i18n: { language: "en" },
+      i18n: { language: mockLanguage },
     }),
+  }
+})
+
+// The trend chart's recorded_at labels are fed to recharts as XAxis
+// `dataKey` values, which recharts never renders to real DOM text under
+// jsdom (see the 0x0-layout note on the "renders a chart" test below) -- so
+// there's no rendered text to assert a locale-formatted date against
+// directly. Spying on the shared formatLocaleDate helper (real
+// implementation preserved via importOriginal) instead confirms
+// KriDashboardPage.tsx threads `i18n.language` through to it correctly,
+// same bug class as AdminOrganization.tsx/AdminOverview.tsx/
+// AdminTransactions.tsx (#364), now also fixed here.
+const mockFormatLocaleDate = vi.hoisted(() => vi.fn())
+vi.mock("@/utils/formatDate", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@/utils/formatDate")>()
+  mockFormatLocaleDate.mockImplementation(mod.formatLocaleDate)
+  return {
+    ...mod,
+    formatLocaleDate: (...args: Parameters<typeof mod.formatLocaleDate>) =>
+      mockFormatLocaleDate(...args),
   }
 })
 
@@ -98,6 +122,8 @@ describe("KriDashboardPage", () => {
     mockUseGetKriReadingsQuery.mockReset()
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
+    mockLanguage = "en"
+    mockFormatLocaleDate.mockClear()
 
     mockUseGetAllKriQuery.mockReturnValue({
       data: { data: [] },
@@ -541,6 +567,65 @@ describe("KriDashboardPage", () => {
         screen.queryByText("organization.kri.trend.empty")
       ).not.toBeInTheDocument()
       expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument()
+    })
+
+    // Issue #461: the trend chart's date labels were built via a local
+    // formatDate() hardcoded to toLocaleDateString("en-US", ...), ignoring
+    // the app's selected language. Now goes through the shared
+    // formatLocaleDate helper with i18n.language threaded through.
+    it("formats trend chart dates using the French locale when i18n.language starts with fr", async () => {
+      mockLanguage = "fr-FR"
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      mockUseGetKriReadingsQuery.mockReturnValue({
+        data: {
+          data: [
+            { id: "r-1", kri_id: "kri-1", value: 50, recorded_at: "2026-05-15T00:00:00.000Z" },
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<KriDashboardPage />)
+      await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
+
+      expect(mockFormatLocaleDate).toHaveBeenCalledWith(
+        "2026-05-15T00:00:00.000Z",
+        "fr-FR",
+        { month: "short", day: "numeric" }
+      )
+      expect(mockFormatLocaleDate).toHaveReturnedWith(
+        new Date("2026-05-15T00:00:00.000Z").toLocaleDateString("fr-FR", {
+          month: "short",
+          day: "numeric",
+        })
+      )
+    })
+
+    it("formats trend chart dates using the English locale by default", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      mockUseGetKriReadingsQuery.mockReturnValue({
+        data: {
+          data: [
+            { id: "r-1", kri_id: "kri-1", value: 50, recorded_at: "2026-05-15T00:00:00.000Z" },
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<KriDashboardPage />)
+      await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
+
+      expect(mockFormatLocaleDate).toHaveBeenCalledWith(
+        "2026-05-15T00:00:00.000Z",
+        "en",
+        { month: "short", day: "numeric" }
+      )
     })
 
     it("closes the trend modal via the close button", async () => {
