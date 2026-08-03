@@ -3,6 +3,33 @@ import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import InspectionActions from "./InspectionActions"
 
+// Controllable `i18n.language` for the locale-formatting test below. `t()`
+// itself just echoes the raw key back in this uninitialized test environment
+// (see RiskRegisterPage.test.tsx for the same convention), which would
+// normally swallow the interpolated `date` param for the "due" key -- special
+// case just that one key to append its params so the locale-formatted date
+// value is still assertable from the rendered output, without needing a real
+// i18next instance loaded (every other interpolated key keeps echoing the
+// raw key, matching existing test expectations elsewhere in this file).
+let mockLanguage: string | undefined = undefined
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return {
+        ...real,
+        t: (key: string, params?: Record<string, unknown>) =>
+          key === "pages.inspection.actions.due" && params
+            ? `${key}::${JSON.stringify(params)}`
+            : real.t(key),
+        i18n: { ...real.i18n, language: mockLanguage },
+      }
+    },
+  }
+})
+
 vi.mock("react-router", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-router")>()
   return { ...mod, useParams: () => ({ id: "insp-1" }) }
@@ -63,6 +90,7 @@ function renderPage() {
 
 describe("InspectionActions", () => {
   beforeEach(() => {
+    mockLanguage = undefined
     mockUseGetAllFindingsQuery.mockReset()
     mockCreateNewFinding.mockReset()
     mockUpdateFindingById.mockReset()
@@ -108,6 +136,35 @@ describe("InspectionActions", () => {
       screen.getByText("Zone B fire extinguisher needs replacement.")
     ).toBeInTheDocument()
     expect(screen.getByText("pages.inspection.actions.priorityHigh")).toBeInTheDocument()
+  })
+
+  // aexa-frontend#378: the due-date badge used a bare toLocaleDateString()
+  // with no locale, always showing English month names under a French UI.
+  it("formats the due date using the shared locale-aware helper", async () => {
+    mockLanguage = "fr-FR"
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        ...emptyResponse,
+        data: [makeAction({ dueDate: "2099-07-01T00:00:00.000Z" })],
+      },
+      isLoading: false,
+      isError: false,
+    })
+    renderPage()
+    await waitFor(() =>
+      expect(screen.getByText("Replace extinguisher")).toBeInTheDocument()
+    )
+
+    const expectedFr = new Date("2099-07-01T00:00:00.000Z").toLocaleDateString(
+      "fr-FR"
+    )
+    expect(
+      screen.getByText(
+        (_, el) =>
+          el?.tagName.toLowerCase() === "p" &&
+          !!el.textContent?.includes(expectedFr)
+      )
+    ).toBeInTheDocument()
   })
 
   it("applies the correct colour class to each priority badge", async () => {

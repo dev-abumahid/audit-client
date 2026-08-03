@@ -131,7 +131,7 @@ describe("InspectionReport", () => {
     expect(screen.getByText("Checked twice")).toBeInTheDocument()
   })
 
-  it("renders the slider value and the formatted date answer", () => {
+  it("renders the slider value and the locale-formatted date answer", () => {
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: { data: makeInspection() },
     })
@@ -139,9 +139,31 @@ describe("InspectionReport", () => {
     render(<InspectionReport />)
 
     expect(screen.getByText("7")).toBeInTheDocument()
-    expect(
-      screen.getByText(new Date("2026-06-01").toLocaleDateString())
-    ).toBeInTheDocument()
+    // aexa-frontend#378: the "date"-type answer used a bare
+    // toLocaleDateString() with no locale/options -- now goes through the
+    // same formatShortDate() helper as the rest of this file (en-US default).
+    const expected = new Date("2026-06-01").toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
+    expect(screen.getByText(expected)).toBeInTheDocument()
+  })
+
+  it("renders the date answer using the French locale when i18n.language starts with fr", () => {
+    mockLanguage = "fr-FR"
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+    })
+
+    render(<InspectionReport />)
+
+    const expected = new Date("2026-06-01").toLocaleDateString("fr-FR", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 
   it('shows "No answer provided" for an unanswered question', () => {

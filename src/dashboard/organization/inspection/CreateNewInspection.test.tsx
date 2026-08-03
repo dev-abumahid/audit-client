@@ -1,16 +1,54 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import CreateNewInspection from "./CreateNewInspection"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+import { toast } from "sonner"
+const mockToastError = vi.mocked(toast.error)
 
-// jsdom has no IntersectionObserver; the component only uses it to track scroll position.
+// `t()` just echoes the raw key back in this uninitialized test environment
+// (see RiskRegisterPage.test.tsx for the same convention), which would
+// normally swallow the interpolated `question` param on the
+// "requiredAnswerMissingToast" key -- special-case just that one key to
+// interpolate it so the toast message is assertable, matching the pattern in
+// InspectionActions.test.tsx / FindingClosureControls.test.tsx.
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return {
+        ...real,
+        t: (key: string, params?: Record<string, unknown>) =>
+          key === "organization.inspection.requiredAnswerMissingToast" &&
+          params?.question
+            ? `Please answer the required question: "${params.question}"`
+            : real.t(key),
+      }
+    },
+  }
+})
+
+// jsdom has no IntersectionObserver; the component only uses it to track
+// scroll position (currentPageIndex). Capture the callback so multi-page
+// tests can simulate "scrolling to" a page by invoking it directly, the same
+// way a real IntersectionObserver would when a page's ref enters the
+// viewport.
+let intersectionCallback: IntersectionObserverCallback | null = null
 class MockIntersectionObserver {
+  constructor(cb: IntersectionObserverCallback) {
+    intersectionCallback = cb
+  }
   observe = vi.fn()
   disconnect = vi.fn()
   unobserve = vi.fn()
 }
 vi.stubGlobal("IntersectionObserver", MockIntersectionObserver)
+
+// jsdom has no scrollIntoView; the missing-required-answer validation path
+// calls scrollToPage(), which invokes it on the target page's ref.
+HTMLElement.prototype.scrollIntoView = vi.fn()
 
 const mockNavigate = vi.fn()
 let mockLocationState: Record<string, unknown> = {}
@@ -76,6 +114,7 @@ describe("CreateNewInspection", () => {
     mockUseGetSingleTemplateQuery.mockReset()
     mockCreateInspection.mockReset()
     mockUploadFileAws.mockReset()
+    mockToastError.mockReset()
     mockLocationState = {
       templateId: "tpl-1",
       siteId: "site-1",
@@ -180,6 +219,139 @@ describe("CreateNewInspection", () => {
     )
 
     expect(mockCreateInspection).not.toHaveBeenCalled()
+  })
+
+  it("blocks submission and toasts when a required text question is left blank", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: {
+        data: makeTemplate({
+          pages: [
+            {
+              title: "General",
+              questions: [
+                {
+                  id: "q-5",
+                  question: "Describe the hazard",
+                  answerType: "input",
+                  isRequired: true,
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.submitInspection",
+      })
+    )
+
+    expect(mockCreateInspection).not.toHaveBeenCalled()
+    expect(mockToastError).toHaveBeenCalledWith(
+      'Please answer the required question: "Describe the hazard"'
+    )
+  })
+
+  it("scrolls back to an earlier page containing the first missing required answer, from the last page", async () => {
+    const scrollIntoViewSpy = HTMLElement.prototype
+      .scrollIntoView as ReturnType<typeof vi.fn>
+    scrollIntoViewSpy.mockClear()
+
+    // Required question lives on page 0; page 1 (last) has no unmet
+    // requirements -- this exercises scrollToPage() actually targeting a
+    // *different* page than the one currently in view, not just page 0 by
+    // coincidence.
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: {
+        data: makeTemplate({
+          pages: [
+            {
+              title: "Hazards",
+              questions: [
+                {
+                  id: "q-6",
+                  question: "Describe the hazard",
+                  answerType: "input",
+                  isRequired: true,
+                },
+              ],
+            },
+            {
+              title: "General",
+              questions: [
+                {
+                  id: "q-1",
+                  question: "Extinguisher present?",
+                  answerType: "checkbox",
+                  isRequired: false,
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+
+    // The Submit button only renders once currentPageIndex === last page,
+    // which in the real app is driven by IntersectionObserver as the user
+    // scrolls. Simulate that by invoking the captured observer callback as
+    // if page index 1's ref had scrolled into view.
+    const lastPageEl = document.querySelector('[data-page-index="1"]')!
+    act(() => {
+      intersectionCallback!(
+        [
+          {
+            isIntersecting: true,
+            boundingClientRect: { top: 0 },
+            target: lastPageEl,
+          } as unknown as IntersectionObserverEntry,
+        ],
+        {} as IntersectionObserver
+      )
+    })
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.submitInspection",
+      })
+    )
+
+    expect(mockCreateInspection).not.toHaveBeenCalled()
+    expect(mockToastError).toHaveBeenCalledWith(
+      'Please answer the required question: "Describe the hazard"'
+    )
+    // The missing required question is on page index 0 ("Hazards"), not the
+    // currently-visible last page -- scrollToPage should jump back to it.
+    expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("allows submission when a required checkbox question keeps its default (unset) value", async () => {
+    // Checkbox/slider questions are always initialized with a real default
+    // (false / 5), so "required" there shouldn't block submission -- only
+    // text/date/select/media questions that default to "" should.
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+    mockCreateInspection.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    render(<CreateNewInspection />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.submitInspection",
+      })
+    )
+
+    await waitFor(() => expect(mockCreateInspection).toHaveBeenCalled())
   })
 
   it("uploads a media answer file via uploadFileAws", async () => {

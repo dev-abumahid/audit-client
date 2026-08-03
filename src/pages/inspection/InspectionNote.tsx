@@ -4,6 +4,7 @@ import {
   useGetNoteByInspectionIdQuery,
 } from "@/redux/apis/organization/note.api"
 import type { Note } from "@/types/note"
+import { formatLocaleDate } from "@/utils/formatDate"
 import {
   CheckCircle2,
   FileText,
@@ -32,7 +33,7 @@ const attachmentFileName = (url: string) => {
 type Stage = "idle" | "uploading" | "extracting" | "done" | "error"
 
 export default function InspectionNote() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { id: inspectionId } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
@@ -178,7 +179,7 @@ export default function InspectionNote() {
               </span>
             </div>
             <span className="text-xs text-muted-foreground">
-              {new Date(existingNote.createdAt).toLocaleDateString()}
+              {formatLocaleDate(existingNote.createdAt, i18n.language)}
             </span>
           </div>
           <p className="line-clamp-6 text-sm whitespace-pre-wrap text-muted-foreground">

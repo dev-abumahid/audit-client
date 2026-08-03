@@ -97,82 +97,13 @@ const formatShortDate = (d: string, language: string | undefined) =>
     day: "numeric",
   })
 
-// const renderAnswerValue = (
-//   answer: any,
-//   answerType: string
-// ): React.ReactNode => {
-//   if (answer === null || answer === undefined || answer === "") {
-//     return (
-//       <span className="text-sm text-muted-foreground italic">
-//         No answer provided
-//       </span>
-//     )
-//   }
-
-//   switch (answerType) {
-//     case "checkbox":
-//       return (
-//         <span
-//           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${
-//             answer
-//               ? "bg-primary text-primary-foreground"
-//               : "bg-gray-200 text-red-500"
-//           }`}
-//         >
-//           {answer ? (
-//             <>
-//               <ToggleRight className="h-4 w-4" /> Yes
-//             </>
-//           ) : (
-//             <>
-//               <ToggleLeft className="h-4 w-4" /> No
-//             </>
-//           )}
-//         </span>
-//       )
-
-//     case "slider":
-//       return (
-//         <div className="w-full max-w-xs">
-//           <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-//             <span>0</span>
-//             <span className="font-semibold text-primary">{answer}</span>
-//             <span>10</span>
-//           </div>
-//           <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-//             <div
-//               className="h-full rounded-full bg-primary transition-all"
-//               style={{ width: `${Number(answer) * 10}%` }}
-//             />
-//           </div>
-//         </div>
-//       )
-
-//     case "date":
-//       return (
-//         <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
-//           <Calendar className="h-4 w-4 text-primary" />
-//           {answer}
-//         </span>
-//       )
-
-//     case "multipleSelect":
-//     case "media":
-//     default:
-//       return (
-//         <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
-//           {String(answer)}
-//         </p>
-//       )
-//   }
-// }
-
 // ─── Sub Components ───────────────────────────────────────────────────────────
 
 const renderAnswerValue = (
   answer: any,
   answerType: string,
-  t: TFunction
+  t: TFunction,
+  language: string | undefined
 ): React.ReactNode => {
   if (answer === null || answer === undefined || answer === "") {
     return (
@@ -225,7 +156,7 @@ const renderAnswerValue = (
       return (
         <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
           <Calendar className="h-4 w-4 text-primary" />
-          {new Date(answer).toLocaleDateString()}
+          {formatShortDate(answer, language)}
         </span>
       )
 
@@ -329,7 +260,7 @@ const QuestionCard = memo(
     relatedActions: any[]
     onMediaClick: (url: string) => void
   }) => {
-    const { t } = useTranslation()
+    const { t, i18n } = useTranslation()
     const navigate = useNavigate()
     const answerType =
       question.answerType?.answerType ?? question.answerType ?? "input"
@@ -357,7 +288,7 @@ const QuestionCard = memo(
             {t("organization.inspection.answerLabel")}
           </p>
           <div className="min-h-17.5 w-full rounded-lg border border-border bg-muted/50 px-4 py-3">
-            {renderAnswerValue(answer, answerType, t)}
+            {renderAnswerValue(answer, answerType, t, i18n.language)}
           </div>
 
           {hasNote && (

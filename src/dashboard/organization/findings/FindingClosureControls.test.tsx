@@ -3,6 +3,31 @@ import userEvent from "@testing-library/user-event"
 import type { IAction } from "@/types/finding"
 import FindingClosureControls from "./FindingClosureControls"
 
+// Controllable `i18n.language` for the locale-formatting test below. `t()`
+// itself just echoes the raw key back in this uninitialized test environment
+// (see RiskRegisterPage.test.tsx for the same convention), which would
+// normally swallow the interpolated `date` param on the "decidedOn" key --
+// special-case just that one key to append its params so the locale-
+// formatted date value is still assertable, without a real i18next instance.
+let mockLanguage: string | undefined = undefined
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return {
+        ...real,
+        t: (key: string, params?: Record<string, unknown>) =>
+          key === "organization.findings.closure.decidedOn" && params
+            ? `${key}::${JSON.stringify(params)}`
+            : real.t(key),
+        i18n: { ...real.i18n, language: mockLanguage },
+      }
+    },
+  }
+})
+
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 import { toast } from "sonner"
 const mockToastError = vi.mocked(toast.error)
@@ -104,6 +129,7 @@ function mockClosureState(
 
 describe("FindingClosureControls", () => {
   beforeEach(() => {
+    mockLanguage = undefined
     mockRole = "ADMIN"
     mockMyAccountId = "acc-2"
     mockMeLoading = false
@@ -446,6 +472,29 @@ describe("FindingClosureControls", () => {
       expect(
         screen.queryByText(/organization\.findings\.closure\.rejectionReason/)
       ).not.toBeInTheDocument()
+    })
+
+    // aexa-frontend#378: the "decided on" date used a bare
+    // toLocaleDateString() with no locale, always showing English month
+    // names under a French UI.
+    it("formats the decided-on date using the shared locale-aware helper", () => {
+      mockLanguage = "fr-FR"
+      mockClosureState(
+        "APPROVED",
+        makeClosure("APPROVED", { decidedAt: "2099-07-01T00:00:00.000Z" })
+      )
+      render(<FindingClosureControls action={makeAction()} />)
+
+      const expectedFr = new Date(
+        "2099-07-01T00:00:00.000Z"
+      ).toLocaleDateString("fr-FR")
+      expect(
+        screen.getByText(
+          (_, el) =>
+            el?.tagName.toLowerCase() === "p" &&
+            !!el.textContent?.includes(expectedFr)
+        )
+      ).toBeInTheDocument()
     })
   })
 })

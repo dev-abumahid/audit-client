@@ -3,6 +3,22 @@ import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import InspectionNote from "./InspectionNote"
 
+// Controllable `i18n.language` for the locale-formatting test below, while
+// every other test keeps relying on the real (uninitialized) react-i18next
+// t(), which just echoes the raw key back -- same technique as
+// InspectionReport.test.tsx.
+let mockLanguage: string | undefined = undefined
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+    },
+  }
+})
+
 const mockNavigate = vi.fn()
 vi.mock("react-router", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-router")>()
@@ -45,6 +61,7 @@ function renderPage() {
 
 describe("InspectionNote", () => {
   beforeEach(() => {
+    mockLanguage = undefined
     mockUseGetNoteByInspectionIdQuery.mockReset()
     mockExtractNoteFromFile.mockReset()
     mockSplitInspectionNote.mockReset()
@@ -115,6 +132,27 @@ describe("InspectionNote", () => {
       expect(screen.getByText("Site inspection notes")).toBeInTheDocument()
     )
     expect(screen.getByText(/fire extinguisher in zone B/i)).toBeInTheDocument()
+  })
+
+  // aexa-frontend#378: the existing-note timestamp used a bare
+  // toLocaleDateString() with no locale, always showing English month names
+  // under a French UI.
+  it("formats the existing note's date using the shared locale-aware helper", async () => {
+    mockLanguage = "fr-FR"
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: { data: existingNote },
+      isLoading: false,
+      isError: false,
+    })
+    renderPage()
+    await waitFor(() =>
+      expect(screen.getByText("Site inspection notes")).toBeInTheDocument()
+    )
+
+    const expectedFr = new Date(existingNote.createdAt).toLocaleDateString(
+      "fr-FR"
+    )
+    expect(screen.getByText(expectedFr)).toBeInTheDocument()
   })
 
   it("shows a download link for an existing note's attachment", async () => {

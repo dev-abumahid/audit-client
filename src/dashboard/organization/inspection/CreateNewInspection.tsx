@@ -144,9 +144,45 @@ export default function CreateNewInspection() {
     setVisibleNotes((prev) => ({ ...prev, [questionId]: !prev[questionId] }))
   }
 
+  // checkbox/slider questions always carry a real default value (false / 5)
+  // once initialized, so an "empty" answer there would mean init hasn't run
+  // yet, not that the user skipped it -- only guard against null/undefined.
+  // Every other answer type defaults to "" and genuinely means unanswered.
+  const isAnswerEmpty = (answerType: string, answer: any) => {
+    if (answerType === "checkbox" || answerType === "slider") {
+      return answer === undefined || answer === null
+    }
+    return answer === undefined || answer === null || answer === ""
+  }
+
+  const findFirstMissingRequiredQuestion = () => {
+    for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      const page = pages[pageIndex]
+      for (const question of page.questions || []) {
+        if (!question.isRequired) continue
+        const answer = answers[question.id]?.answer
+        if (isAnswerEmpty(question.answerType, answer)) {
+          return { pageIndex, question }
+        }
+      }
+    }
+    return null
+  }
+
   const handleSubmit = async () => {
     if (!templateId || !siteId) {
       toast.error(t("organization.inspection.missingInfoToast"))
+      return
+    }
+
+    const missingRequired = findFirstMissingRequiredQuestion()
+    if (missingRequired) {
+      toast.error(
+        t("organization.inspection.requiredAnswerMissingToast", {
+          question: missingRequired.question.question,
+        })
+      )
+      scrollToPage(missingRequired.pageIndex)
       return
     }
 

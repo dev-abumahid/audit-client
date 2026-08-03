@@ -4,6 +4,7 @@ import {
   useDeleteFindingByIdMutation,
   useUpdateFindingByIdMutation,
 } from "@/redux/apis/organization/findings.api"
+import { formatLocaleDate } from "@/utils/formatDate"
 import {
   FileText,
   Loader2,
@@ -262,7 +263,7 @@ function ActionForm({
 }
 
 export default function InspectionActions() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { id: inspectionId } = useParams<{ id: string }>()
 
   const STATUS_LABELS: Record<ActionStatus, string> = {
@@ -704,7 +705,7 @@ export default function InspectionActions() {
                 )}
                 <p className="text-xs text-muted-foreground">
                   {t("pages.inspection.actions.due", {
-                    date: new Date(action.dueDate).toLocaleDateString(),
+                    date: formatLocaleDate(action.dueDate, i18n.language),
                   })}
                 </p>
               </div>

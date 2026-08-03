@@ -112,6 +112,7 @@ describe("UploadNotesModal", () => {
 
     await waitFor(() => expect(mockUploadRawNote).toHaveBeenCalled())
     expect(mockUploadRawNote.mock.calls[0][0]).toMatchObject({
+      title: "organization.inspection.inspectionNoteTitle",
       extracted_text: "Fire extinguisher checked",
       inspectionId: "insp-42",
     })
@@ -125,6 +126,74 @@ describe("UploadNotesModal", () => {
         name: "organization.inspection.uploadNotes",
       })
     ).toBeDisabled()
+  })
+
+  it("keeps the upload button disabled when text mode is chosen but no text is entered", async () => {
+    renderModal()
+
+    await userEvent.click(
+      screen.getByText("organization.inspection.notesByText")
+    )
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNotes",
+      })
+    ).toBeDisabled()
+  })
+
+  it("enables the upload button once text is entered in text mode", async () => {
+    renderModal()
+
+    await userEvent.click(
+      screen.getByText("organization.inspection.notesByText")
+    )
+    await userEvent.type(
+      screen.getByLabelText("organization.inspection.writeDetailedNote"),
+      "Some content"
+    )
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNotes",
+      })
+    ).not.toBeDisabled()
+  })
+
+  it("keeps the upload button disabled when file mode is chosen but no file is selected", async () => {
+    renderModal()
+
+    await userEvent.click(
+      screen.getByText("organization.inspection.extractNoteFromFile")
+    )
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNotes",
+      })
+    ).toBeDisabled()
+  })
+
+  it("enables the upload button once a file is selected in file mode", async () => {
+    renderModal()
+
+    await userEvent.click(
+      screen.getByText("organization.inspection.extractNoteFromFile")
+    )
+    // Radix Dialog portals its content to document.body rather than the RTL
+    // render container, so query the document directly (same pattern as
+    // InspectionNote.test.tsx's file-input tests).
+    const input = document.querySelector<HTMLInputElement>(
+      'input[type="file"]'
+    )!
+    const file = new File(["note"], "note.pdf", { type: "application/pdf" })
+    await userEvent.upload(input, file)
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNotes",
+      })
+    ).not.toBeDisabled()
   })
 
   it("shows the update form when a note already exists", () => {

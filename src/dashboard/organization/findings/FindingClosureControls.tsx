@@ -12,6 +12,7 @@ import {
 } from "@/redux/apis/organization/findingClosure.api"
 import type { ClosureDisplayState, IAction } from "@/types/finding"
 import { canWriteFinding } from "@/utils/assignmentScope"
+import { formatLocaleDate } from "@/utils/formatDate"
 import { AlertTriangle, Check, Send, X } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -60,7 +61,7 @@ interface Props {
  * always fail.
  */
 export default function FindingClosureControls({ action }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const role = useMyOrgRole()
   const { data: me, isLoading: isMeLoading } = useGetMeQuery()
   const { data: closureData, isLoading: isClosureLoading } =
@@ -268,7 +269,7 @@ export default function FindingClosureControls({ action }: Props) {
       {status === "APPROVED" && closure?.decidedAt && (
         <p className="text-[10px] text-muted-foreground">
           {t("organization.findings.closure.decidedOn", {
-            date: new Date(closure.decidedAt).toLocaleDateString(),
+            date: formatLocaleDate(closure.decidedAt, i18n.language),
           })}
         </p>
       )}

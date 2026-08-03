@@ -101,7 +101,7 @@ export default function UploadNotesModal({
 
       if (mode === "text") {
         response = await uploadRawNote({
-          title: "Inspection Note",
+          title: t("organization.inspection.inspectionNoteTitle"),
           extracted_text: extractedText,
           inspectionId,
         }).unwrap()
@@ -435,7 +435,15 @@ export default function UploadNotesModal({
           <Button variant="outline" onClick={handleClose}>
             {t("organization.inspection.cancel")}
           </Button>
-          <Button onClick={handleCreate} disabled={!mode || isLoading}>
+          <Button
+            onClick={handleCreate}
+            disabled={
+              !mode ||
+              isLoading ||
+              (mode === "text" && !extractedText.trim()) ||
+              (mode === "file" && !file)
+            }
+          >
             {isLoading
               ? t("organization.inspection.extracting")
               : t("organization.inspection.uploadNotes")}

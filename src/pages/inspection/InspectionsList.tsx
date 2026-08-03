@@ -1,5 +1,6 @@
 import { ApiError, api } from "@/lib/api"
 import type { InspectionStatus, InspectionSummary } from "@/types/inspection"
+import { formatLocaleDate } from "@/utils/formatDate"
 import { ClipboardCheck, Plus, Search } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -22,7 +23,7 @@ const STATUS_CLASSES: Record<InspectionStatus, string> = {
 }
 
 export default function InspectionsList() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [inspections, setInspections] = useState<InspectionSummary[]>([])
@@ -268,7 +269,7 @@ export default function InspectionsList() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {new Date(inspection.createdAt).toLocaleDateString()}
+                    {formatLocaleDate(inspection.createdAt, i18n.language)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link
