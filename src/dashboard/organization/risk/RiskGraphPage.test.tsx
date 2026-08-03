@@ -1,11 +1,16 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import RiskGraphPage from "./RiskGraphPage"
 
 const mockUseGetAllRisksQuery = vi.fn()
+const mockUseGetCorrelationMatrixDataQuery = vi.fn()
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
-  useGetAllRisksQuery: (...args: unknown[]) =>
-    mockUseGetAllRisksQuery(...args),
+  useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
+}))
+
+vi.mock("@/redux/apis/organization/riskLink.api", () => ({
+  useGetCorrelationMatrixDataQuery: (...args: unknown[]) =>
+    mockUseGetCorrelationMatrixDataQuery(...args),
 }))
 
 // SiteFilter independently calls useGetAllSitesQuery -- stubbed out so this
@@ -18,6 +23,7 @@ vi.mock("@/components/dashboard/organization/SiteFilter", () => ({
 function makeRisk(overrides = {}) {
   return {
     id: "risk-real-1",
+    ref: "RSK-001",
     org_account_id: "org-1",
     name: "Supply Chain Disruption",
     description: "Delays in raw material delivery",
@@ -45,11 +51,31 @@ function makeRisk(overrides = {}) {
 describe("RiskGraphPage", () => {
   beforeEach(() => {
     mockUseGetAllRisksQuery.mockReset()
-    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReset()
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: { data: { riskLinks: [] } },
+      isLoading: false,
+    })
   })
 
   it("shows a loading state while risks are loading", () => {
-    mockUseGetAllRisksQuery.mockReturnValue({ data: undefined, isLoading: true })
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    })
+    render(<RiskGraphPage />)
+    expect(document.querySelector(".animate-spin")).toBeInTheDocument()
+  })
+
+  it("shows a loading state while the correlation graph (used for the real tipping-point PageRank) is loading", () => {
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    })
     render(<RiskGraphPage />)
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
@@ -64,9 +90,7 @@ describe("RiskGraphPage", () => {
     // Short ids fit inside the node, so both the SVG <text> label and the
     // <title> tooltip render the id in full (two matching elements).
     const matches = screen.getAllByText("risk-real-1")
-    expect(
-      matches.some((el) => el.tagName.toLowerCase() === "text")
-    ).toBe(true)
+    expect(matches.some((el) => el.tagName.toLowerCase() === "text")).toBe(true)
     expect(screen.queryByText("risk_fire")).not.toBeInTheDocument()
   })
 
@@ -89,7 +113,9 @@ describe("RiskGraphPage", () => {
   it("aexa-frontend#376: shows selected risk's max impact as M€ from its stored k€ units", async () => {
     const { default: userEvent } = await import("@testing-library/user-event")
     mockUseGetAllRisksQuery.mockReturnValue({
-      data: { data: [makeRisk({ id: "risk-real-1", financial_impact_max: 500000 })] },
+      data: {
+        data: [makeRisk({ id: "risk-real-1", financial_impact_max: 500000 })],
+      },
       isLoading: false,
     })
     render(<RiskGraphPage />)
@@ -113,7 +139,12 @@ describe("RiskGraphPage", () => {
 
   it("shows zero correlations rather than fabricated links against real risk data", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
-      data: { data: [makeRisk({ id: "risk-real-1" }), makeRisk({ id: "risk-real-2" })] },
+      data: {
+        data: [
+          makeRisk({ id: "risk-real-1" }),
+          makeRisk({ id: "risk-real-2" }),
+        ],
+      },
       isLoading: false,
     })
     render(<RiskGraphPage />)
@@ -122,5 +153,82 @@ describe("RiskGraphPage", () => {
     expect(
       screen.getByText("organization.riskGraph.correlations (0)")
     ).toBeInTheDocument()
+  })
+
+  // aexa-frontend#397: the legend's "Tipping Point" entry used to be dead --
+  // no rendering logic ever applied it to a node. It now marks the top 15% of
+  // risks by real PageRank over the org's actual RiskLink correlation graph
+  // (same methodology/threshold as Overview.tsx's "Systemic Tipping Points"
+  // section, aexa-frontend#25) -- not Risk.pagerank_score, which is a
+  // manually-entered form field with no real centrality meaning.
+  it("marks the risk with multiple inbound correlation links as the tipping point, not an isolated risk", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "node-a", ref: "RISK-A" }),
+          makeRisk({ id: "node-b", ref: "RISK-B" }),
+          makeRisk({ id: "node-hub", ref: "RISK-HUB" }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: [
+            {
+              source_ref: "RISK-A",
+              target_ref: "RISK-HUB",
+              link_type: "CAUSES",
+            },
+            {
+              source_ref: "RISK-B",
+              target_ref: "RISK-HUB",
+              link_type: "CAUSES",
+            },
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />)
+
+    const hubLabel = screen
+      .getAllByText("node-hub")
+      .find((el) => el.tagName.toLowerCase() === "text")!
+    const hubGroup = hubLabel.closest("g") as unknown as HTMLElement
+    expect(
+      within(hubGroup).getByTitle("organization.riskGraph.legendTippingPoint")
+    ).toBeInTheDocument()
+
+    const isolatedLabel = screen
+      .getAllByText("node-a")
+      .find((el) => el.tagName.toLowerCase() === "text")!
+    const isolatedGroup = isolatedLabel.closest("g") as unknown as HTMLElement
+    expect(
+      within(isolatedGroup).queryByTitle(
+        "organization.riskGraph.legendTippingPoint"
+      )
+    ).not.toBeInTheDocument()
+  })
+
+  it("still surfaces at least one tipping point when there's no correlation link data yet, matching Overview.tsx's own minimum-one guarantee", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "node-a", ref: "RISK-A" }),
+          makeRisk({ id: "node-b", ref: "RISK-B" }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: { data: { riskLinks: [] } },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />)
+
+    // One Zap icon in the legend, plus exactly one on a node badge.
+    expect(document.querySelectorAll(".lucide-zap")).toHaveLength(2)
   })
 })

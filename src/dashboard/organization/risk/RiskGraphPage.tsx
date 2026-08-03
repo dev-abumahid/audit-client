@@ -1,6 +1,11 @@
 import SiteFilter from "@/components/dashboard/organization/SiteFilter"
+import { useGetCorrelationMatrixDataQuery } from "@/redux/apis/organization/riskLink.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import type { Risk, RiskLink, RiskLinkType } from "@/types/organization"
+import {
+  buildRiskCorrelationEdges,
+  topPercentileByPageRank,
+} from "@/utils/pageRank"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import {
   AlertTriangle,
@@ -68,6 +73,15 @@ export default function RiskGraphPage() {
     siteId: "",
     category: "",
   })
+  // Real RiskLink rows (CAUSES/AMPLIFIES/CORRELATES), same source Overview.tsx's
+  // "Systemic Tipping Points" section and CorrelationMatrixPage.tsx already use
+  // -- fetched here only to feed the real PageRank computation below for the
+  // "tipping point" node badge (aexa-frontend#397). Kept separate from `links`/
+  // `filteredLinks` below (still NO_RISK_LINKS), which drive the graph's own
+  // edge rendering/domino chains and are a larger, separate gap out of scope
+  // for this fix.
+  const { data: correlationMatrixResponse, isLoading: isCorrelationLoading } =
+    useGetCorrelationMatrixDataQuery()
   const risks: Risk[] = useMemo(() => riskResponse?.data ?? [], [riskResponse])
   const links: RiskLink[] = NO_RISK_LINKS
   const [siteFilter, setSiteFilter] = useState<string | null>(null)
@@ -134,6 +148,26 @@ export default function RiskGraphPage() {
     return chains.sort((a, b) => b.totalImpact - a.totalImpact).slice(0, 5)
   }, [filteredRisks, filteredLinks])
 
+  // A "tipping point" node is one in the top 15% by real PageRank over the
+  // org's actual risk-correlation graph (RiskLink CAUSES/AMPLIFIES/CORRELATES
+  // edges, resolved by ref) -- the same methodology and threshold as
+  // Overview.tsx's "Systemic Tipping Points" section (aexa-frontend#25).
+  // Risk.pagerank_score is NOT used here: it's a manually-entered form field
+  // never derived from anything (see risk.validation.ts / Overview.tsx's own
+  // comment), so it isn't a real centrality measure despite the name.
+  const correlationEdges = useMemo(
+    () =>
+      buildRiskCorrelationEdges(
+        correlationMatrixResponse?.data?.riskLinks ?? []
+      ),
+    [correlationMatrixResponse]
+  )
+  const tippingPointRefs = useMemo(() => {
+    const refs = filteredRisks.map((r) => r.ref)
+    if (refs.length === 0) return new Set<string>()
+    return new Set(topPercentileByPageRank(refs, correlationEdges, 0.15))
+  }, [filteredRisks, correlationEdges])
+
   // Get cascade effects for a selected risk
   const cascadeRefs = useMemo(() => {
     if (!selectedRisk) return new Set<string>()
@@ -187,7 +221,7 @@ export default function RiskGraphPage() {
     return pos
   }, [filteredRisks])
 
-  if (isLoading) {
+  if (isLoading || isCorrelationLoading) {
     return (
       <div className="flex h-full items-center justify-center p-6">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -372,6 +406,19 @@ export default function RiskGraphPage() {
                     strokeOpacity={0.7}
                   />
                   <title>{risk.id}</title>
+                  {tippingPointRefs.has(risk.ref) && (
+                    <Zap
+                      x={pos.x + nodeRadius * 0.5}
+                      y={pos.y - nodeRadius - 10}
+                      width={12}
+                      height={12}
+                      className="fill-accent text-accent"
+                    >
+                      <title>
+                        {t("organization.riskGraph.legendTippingPoint")}
+                      </title>
+                    </Zap>
+                  )}
                   <text
                     x={pos.x}
                     y={pos.y - 4}

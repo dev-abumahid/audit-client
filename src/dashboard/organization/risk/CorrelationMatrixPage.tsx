@@ -60,7 +60,12 @@ const PRIORITY_BADGES: Record<string, string> = {
 
 type MatrixSize = 3 | 4 | 5
 type ViewMode = "risks" | "findings" | "buckets" | "ai-buckets"
-type GroupMode = "none" | "category" | "rootcause"
+// "rootcause" grouping was removed (aexa-frontend#393) -- it was a
+// non-functional stub that labeled every risk "Simulated Root Cause"
+// instead of doing real grouping. Real root-cause grouping already exists
+// as the separate AI bucketing feature (viewMode "ai-buckets" /
+// runAIBucketing below), so this stub was scrapped rather than reimplemented.
+type GroupMode = "none" | "category"
 
 interface RiskBucket {
   name: string
@@ -321,7 +326,11 @@ export default function CorrelationMatrixPage() {
     return Object.entries(bucketMap)
       .filter(([, fs]) => fs.length >= 2)
       .map(([priority, fs]) => ({
-        name: t(`${NS}.findingPriorityBucketName`, { priority }),
+        name: t(`${NS}.findingPriorityBucketName`, {
+          priority: PRIORITY_KEYS[priority]
+            ? t(PRIORITY_KEYS[priority])
+            : priority,
+        }),
         priority,
         findings: fs,
         commonAction: fs[0]?.actionDisc || t(`${NS}.actionToDefine`),
@@ -338,15 +347,12 @@ export default function CorrelationMatrixPage() {
     if (groupMode === "none") return null
     const groups: Record<string, Risk[]> = {}
     for (const risk of selectedRisks) {
-      const key =
-        groupMode === "category"
-          ? risk.category
-          : t(`${NS}.simulatedRootCause`)
+      const key = risk.category
       if (!groups[key]) groups[key] = []
       groups[key].push(risk)
     }
     return Object.entries(groups).sort((a, b) => b[1].length - a[1].length)
-  }, [selectedRisks, groupMode, t])
+  }, [selectedRisks, groupMode])
 
   const toggleBucket = useCallback((name: string) => {
     setExpandedBucket((prev) => (prev === name ? null : name))
@@ -486,7 +492,6 @@ export default function CorrelationMatrixPage() {
             {[
               ["none", "groupAll"],
               ["category", "groupByType"],
-              ["rootcause", "groupRootCause"],
             ].map(([mode, labelKey]) => (
               <button
                 key={mode}
@@ -611,7 +616,10 @@ export default function CorrelationMatrixPage() {
               <div className="mt-6 flex flex-wrap gap-4">
                 {[
                   { color: "bg-red-600", labelKey: "legendSystemic" },
-                  { color: "bg-orange-600", labelKey: "legendHighInterconnection" },
+                  {
+                    color: "bg-orange-600",
+                    labelKey: "legendHighInterconnection",
+                  },
                   { color: "bg-yellow-600", labelKey: "legendModerate" },
                   { color: "bg-green-600", labelKey: "legendIsolated" },
                 ].map(({ color, labelKey }) => (
@@ -704,7 +712,9 @@ export default function CorrelationMatrixPage() {
                   >
                     {LINK_TYPES.map((type) => (
                       <option key={type} value={type}>
-                        {t(`${NS}.linkType${type.charAt(0)}${type.slice(1).toLowerCase()}`)}
+                        {t(
+                          `${NS}.linkType${type.charAt(0)}${type.slice(1).toLowerCase()}`
+                        )}
                       </option>
                     ))}
                   </select>
@@ -748,7 +758,7 @@ export default function CorrelationMatrixPage() {
                       {link.source_ref}
                       <span className="mx-1.5 text-muted-foreground">
                         {t(
-                          `${NS}.linkType${link.link_type.charAt(0)}${link.link_type.slice(1).toLowerCase()}`,
+                          `${NS}.linkType${link.link_type.charAt(0)}${link.link_type.slice(1).toLowerCase()}`
                         )}
                       </span>
                       {link.target_ref}
@@ -793,10 +803,7 @@ export default function CorrelationMatrixPage() {
                         <div key={key}>
                           <div className="mb-2 flex items-center gap-2">
                             <span className="text-xs font-semibold">
-                              {groupMode === "category"
-                                ? riskCategoryLabel(t, key)
-                                : key}{" "}
-                              ({grpRisks.length})
+                              {riskCategoryLabel(t, key)} ({grpRisks.length})
                             </span>
                           </div>
                           {grpRisks.map((risk) => (
@@ -1028,9 +1035,7 @@ function RiskDetailCard({
 
       <div className="flex gap-3 text-[10px] text-muted-foreground">
         <span>{t(`${NS}.detailCauses`, { count: m.rootCauses })}</span>
-        <span>
-          {t(`${NS}.detailConsequences`, { count: m.consequences })}
-        </span>
+        <span>{t(`${NS}.detailConsequences`, { count: m.consequences })}</span>
       </div>
     </div>
   )
@@ -1142,7 +1147,7 @@ function AIRiskBucketCard({
           <p className="font-medium">{bucket.bucketName}</p>
           <p className="text-[10px] text-muted-foreground">
             {t(`${NS}.aiBucketMeta`, {
-              risks: bucket.riskRefs.length,
+              count: bucket.riskRefs.length,
               score: bucket.pageRankScore,
             })}
           </p>

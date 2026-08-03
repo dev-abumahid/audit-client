@@ -60,6 +60,15 @@ vi.mock("react-i18next", async (importOriginal) => {
         if (key === "organization.correlationMatrix.bucketMeta") {
           return `${opts?.count} risks • ${opts?.impact}M€`
         }
+        // aexa-frontend#394 -- real-interpolation override so the finding
+        // bucket name regression test below can assert on the actual
+        // (translated) priority text rather than the raw un-interpolated
+        // key every other key in this file falls back to.
+        if (
+          key === "organization.correlationMatrix.findingPriorityBucketName"
+        ) {
+          return `${opts?.priority} priority`
+        }
         return key
       },
     }),
@@ -87,10 +96,7 @@ let mockIsRunningBucketing = false
 vi.mock("@/redux/apis/organization/riskLink.api", () => ({
   useGetCorrelationMatrixDataQuery: (...args: unknown[]) =>
     mockUseGetCorrelationMatrixDataQuery(...args),
-  useCreateRiskLinkMutation: () => [
-    mockCreateRiskLink,
-    { isLoading: false },
-  ],
+  useCreateRiskLinkMutation: () => [mockCreateRiskLink, { isLoading: false }],
   useDeleteRiskLinkMutation: () => [mockDeleteRiskLink, { isLoading: false }],
   useRunRootCauseBucketingMutation: () => [
     mockRunRootCauseBucketing,
@@ -191,9 +197,7 @@ function makeAiRiskBucket(overrides = {}) {
 // Runs the AI analysis (resolving to a single risk bucket) and expands it,
 // landing on the expanded AIRiskBucketCard where the "Send to Finding"
 // button lives -- shared setup for every send-to-finding test below.
-async function renderWithExpandedAiBucket(
-  bucket = makeAiRiskBucket()
-) {
+async function renderWithExpandedAiBucket(bucket = makeAiRiskBucket()) {
   mockRunRootCauseBucketing.mockReturnValue({
     unwrap: () =>
       Promise.resolve({
@@ -323,6 +327,24 @@ describe("CorrelationMatrixPage", () => {
   // to the raw key -- asserting the resolved organization.riskCategories.*
   // key text (not the raw category value) proves the lookup now goes
   // through the shared map.
+  // Regression (#393): the "Root cause" grouping mode was a non-functional
+  // stub that labeled every risk "Simulated Root Cause" instead of doing
+  // real grouping. It's been removed from the group-mode selector entirely
+  // rather than left as a fake option users could pick.
+  it("no longer offers the non-functional 'Root cause' grouping option", () => {
+    setMatrixData({
+      risks: [makeRisk({ id: "r1", ref: "CYB-001", category: "cyber" })],
+    })
+
+    render(<CorrelationMatrixPage />)
+
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.correlationMatrix.groupRootCause",
+      })
+    ).not.toBeInTheDocument()
+  })
+
   it("resolves the selected cell's group-by-category label instead of the raw category string", async () => {
     setMatrixData({
       risks: [makeRisk({ id: "r1", ref: "CYB-001", category: "cyber" })],
@@ -349,9 +371,7 @@ describe("CorrelationMatrixPage", () => {
 
   it("resolves a category outside the old local 4-entry map (e.g. supply_chain), proving it now uses the shared riskConfig map", async () => {
     setMatrixData({
-      risks: [
-        makeRisk({ id: "r1", ref: "SUP-001", category: "supply_chain" }),
-      ],
+      risks: [makeRisk({ id: "r1", ref: "SUP-001", category: "supply_chain" })],
     })
 
     render(<CorrelationMatrixPage />)
@@ -370,9 +390,7 @@ describe("CorrelationMatrixPage", () => {
     expect(
       screen.getByText(/organization\.riskCategories\.catSupplyChain/)
     ).toBeInTheDocument()
-    expect(
-      screen.queryByText(/^supply_chain \(1\)$/)
-    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/^supply_chain \(1\)$/)).not.toBeInTheDocument()
   })
 
   it("shows the Add Link control and existing links for ADMIN", () => {
@@ -465,7 +483,9 @@ describe("CorrelationMatrixPage", () => {
       })
     )
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.correlationMatrix.linkFormSourceLabel"),
+      screen.getByLabelText(
+        "organization.correlationMatrix.linkFormSourceLabel"
+      ),
       "CYB-001"
     )
 
@@ -503,11 +523,15 @@ describe("CorrelationMatrixPage", () => {
     )
 
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.correlationMatrix.linkFormSourceLabel"),
+      screen.getByLabelText(
+        "organization.correlationMatrix.linkFormSourceLabel"
+      ),
       "CYB-001"
     )
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.correlationMatrix.linkFormTargetLabel"),
+      screen.getByLabelText(
+        "organization.correlationMatrix.linkFormTargetLabel"
+      ),
       "OPS-002"
     )
     await userEvent.click(
@@ -546,11 +570,15 @@ describe("CorrelationMatrixPage", () => {
       })
     )
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.correlationMatrix.linkFormSourceLabel"),
+      screen.getByLabelText(
+        "organization.correlationMatrix.linkFormSourceLabel"
+      ),
       "CYB-001"
     )
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.correlationMatrix.linkFormTargetLabel"),
+      screen.getByLabelText(
+        "organization.correlationMatrix.linkFormTargetLabel"
+      ),
       "OPS-002"
     )
     await userEvent.click(
@@ -560,7 +588,9 @@ describe("CorrelationMatrixPage", () => {
     )
 
     await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith("This risk link already exists")
+      expect(mockToastError).toHaveBeenCalledWith(
+        "This risk link already exists"
+      )
     )
   })
 
@@ -579,7 +609,9 @@ describe("CorrelationMatrixPage", () => {
       })
     )
 
-    await waitFor(() => expect(mockDeleteRiskLink).toHaveBeenCalledWith("link-42"))
+    await waitFor(() =>
+      expect(mockDeleteRiskLink).toHaveBeenCalledWith("link-42")
+    )
     expect(mockToastSuccess).toHaveBeenCalled()
   })
 
@@ -820,7 +852,9 @@ describe("CorrelationMatrixPage", () => {
     mockCreateActionFromBucket.mockReturnValue({
       unwrap: () =>
         Promise.reject({
-          data: { message: "Risk ref(s) not found in this organization: OPS-999" },
+          data: {
+            message: "Risk ref(s) not found in this organization: OPS-999",
+          },
         }),
     })
     await renderWithExpandedAiBucket()
@@ -998,7 +1032,11 @@ describe("CorrelationMatrixPage", () => {
     setMatrixData({
       actions: [
         makeAction({ id: "a1", priority: "High" }),
-        makeAction({ id: "a2", priority: "High", actionTitle: "Unencrypted data" }),
+        makeAction({
+          id: "a2",
+          priority: "High",
+          actionTitle: "Unencrypted data",
+        }),
       ],
     })
 
@@ -1011,8 +1049,38 @@ describe("CorrelationMatrixPage", () => {
     )
 
     expect(
-      screen.getByText("organization.correlationMatrix.findingPriorityBucketName")
+      screen.getByText("organization.findings.priorityHigh priority")
     ).toBeInTheDocument()
+  })
+
+  // Regression (#394): the findings-view bucket name interpolated the raw
+  // f.priority value ("High"/"Low") straight into the i18n string instead of
+  // routing it through the same PRIORITY_KEYS map used for the individual
+  // finding badges below -- so a French UI showed "Priorité High" instead of
+  // the translated word. Asserting the bucket name renders the translated
+  // organization.findings.priorityHigh key (not the raw "High" literal)
+  // proves the fix.
+  it("translates the finding priority in the bucket name instead of leaking the raw priority value", () => {
+    setMatrixData({
+      actions: [
+        makeAction({ id: "a1", priority: "High" }),
+        makeAction({
+          id: "a2",
+          priority: "High",
+          actionTitle: "Unencrypted data",
+        }),
+      ],
+    })
+
+    render(<CorrelationMatrixPage />)
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewFindings",
+      })
+    )
+
+    expect(screen.queryByText("High priority")).not.toBeInTheDocument()
   })
 
   // Regression (audit round 4 / #347): each finding's priority badge inside
@@ -1042,9 +1110,7 @@ describe("CorrelationMatrixPage", () => {
       })
     )
     fireEvent.click(
-      screen.getByText(
-        "organization.correlationMatrix.findingPriorityBucketName"
-      )
+      screen.getByText("organization.findings.priorityHigh priority")
     )
 
     const badges = await screen.findAllByText(
@@ -1079,9 +1145,7 @@ describe("CorrelationMatrixPage", () => {
       })
     )
     fireEvent.click(
-      screen.getByText(
-        "organization.correlationMatrix.findingPriorityBucketName"
-      )
+      screen.getByText("organization.findings.priorityLow priority")
     )
 
     const badges = await screen.findAllByText(
@@ -1113,8 +1177,12 @@ describe("CorrelationMatrixPage", () => {
     setMatrixData({
       risks: [target, ...sources, ...dests],
       riskLinks: [
-        ...sources.map((s) => makeLink({ source_ref: s.ref, target_ref: target.ref })),
-        ...dests.map((d) => makeLink({ source_ref: target.ref, target_ref: d.ref })),
+        ...sources.map((s) =>
+          makeLink({ source_ref: s.ref, target_ref: target.ref })
+        ),
+        ...dests.map((d) =>
+          makeLink({ source_ref: target.ref, target_ref: d.ref })
+        ),
       ],
     })
   }
@@ -1126,7 +1194,9 @@ describe("CorrelationMatrixPage", () => {
     // The (row 4, col 4) corner cell holds exactly TGT-001 (4 root causes,
     // 4 consequences) -- select it.
     await userEvent.click(
-      screen.getByRole("button", { name: /1.*organization\.correlationMatrix\.riskWord/ })
+      screen.getByRole("button", {
+        name: /1.*organization\.correlationMatrix\.riskWord/,
+      })
     )
     expect(screen.getByText(/1 risk\(s\) —/)).toBeInTheDocument()
 
@@ -1154,7 +1224,9 @@ describe("CorrelationMatrixPage", () => {
     render(<CorrelationMatrixPage />)
 
     await userEvent.click(
-      screen.getByRole("button", { name: /1.*organization\.correlationMatrix\.riskWord/ })
+      screen.getByRole("button", {
+        name: /1.*organization\.correlationMatrix\.riskWord/,
+      })
     )
     expect(screen.getByText(/1 risk\(s\) —/)).toBeInTheDocument()
 
