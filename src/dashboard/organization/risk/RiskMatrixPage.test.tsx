@@ -48,15 +48,18 @@ vi.mock("react-i18next", async (importOriginal) => {
         if (key === "organization.riskMatrix.des") {
           const count = Number(opts?.count ?? 0)
           return count === 1
-            ? `${count} Risk positioned — Click on a cell to see details`
-            : `${count} Risks positioned — Click on a cell to see details`
+            ? `${count} risk positioned — Click on a cell to see details`
+            : `${count} risks positioned — Click on a cell to see details`
         }
         if (key === "organization.riskMatrix.selectedCellHeading") {
           const count = Number(opts?.count ?? 0)
           const score = opts?.score
           return count === 1
-            ? `${count} Risk — Score ${score}`
-            : `${count} Risks — Score ${score}`
+            ? `${count} risk — score ${score}`
+            : `${count} risks — score ${score}`
+        }
+        if (key === "organization.riskMatrix.pagerankAbbrLabel") {
+          return "PR:"
         }
         const shortKey = key.replace("organization.riskMatrix.", "")
         if (shortKey in AXIS_LABEL_TEXT) {
@@ -255,7 +258,7 @@ describe("RiskMatrixPage", () => {
 
     expect(
       screen.getByText(
-        "0 Risks positioned — Click on a cell to see details"
+        "0 risks positioned — Click on a cell to see details"
       )
     ).toBeInTheDocument()
   })
@@ -272,10 +275,10 @@ describe("RiskMatrixPage", () => {
     render(<RiskMatrixPage />)
 
     expect(
-      screen.getByText("1 Risk positioned — Click on a cell to see details")
+      screen.getByText("1 risk positioned — Click on a cell to see details")
     ).toBeInTheDocument()
     expect(
-      screen.queryByText("1 Risks positioned — Click on a cell to see details")
+      screen.queryByText("1 risks positioned — Click on a cell to see details")
     ).not.toBeInTheDocument()
   })
 
@@ -312,8 +315,36 @@ describe("RiskMatrixPage", () => {
     )
 
     // row 0, col 0 -> score (0+1)*(0+1) = 1
-    expect(screen.getByText("1 Risk — Score 1")).toBeInTheDocument()
+    expect(screen.getByText("1 risk — score 1")).toBeInTheDocument()
     expect(screen.queryByText(/Risk\(s\)/)).not.toBeInTheDocument()
+  })
+
+  // Regression (aexa-frontend#412): the PageRank badge on a risk card was a
+  // hardcoded "PR: {score}" string that never ran through t(), so it stayed
+  // English under the French UI while every other label in the card
+  // translated correctly.
+  it("routes the PageRank badge through t() instead of a hardcoded 'PR:' string", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            pagerank_score: 42,
+            probability: 0,
+            inherent_score: 0,
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+    render(<RiskMatrixPage />)
+
+    // The risk card (and its PageRank badge) only renders once its matrix
+    // cell is selected.
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    expect(screen.getByText("PR: 42")).toBeInTheDocument()
   })
 
   // Regression (audit round 4 / #346): the AI-generated badge on a risk card

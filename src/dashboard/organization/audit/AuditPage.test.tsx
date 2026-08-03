@@ -238,6 +238,87 @@ describe("AuditPage", () => {
     expect(mockToastSuccess).toHaveBeenCalledWith("Audit engagement created")
   })
 
+  // Regression (aexa-frontend#404): the create/edit modal had no input for
+  // priority_score, so every mission was silently stuck at the EMPTY_FORM
+  // default of 50 -- the field round-tripped through the save payload but
+  // could never actually be set from the UI.
+  it("submits a user-entered priority_score with the create payload instead of the hardcoded default", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    mockCreateAuditEngagement.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ success: true, message: "Audit engagement created" }),
+    })
+
+    render(<AuditPage />)
+
+    await user.click(
+      screen.getByRole("button", { name: /organization\.audit\.newMission/i })
+    )
+    await user.type(
+      screen.getByPlaceholderText("organization.audit.refPlaceholder"),
+      "AUD-2026-999"
+    )
+    await user.type(titleInput(), "ZZZ Unique Audit Mission XYZ")
+
+    const priorityLabel = screen.getByText(
+      "organization.audit.priorityScoreLabel"
+    )
+    const priorityInput = priorityLabel.parentElement!.querySelector(
+      "input"
+    )! as HTMLInputElement
+    await user.clear(priorityInput)
+    await user.type(priorityInput, "77")
+
+    await user.click(
+      screen.getByRole("button", { name: "organization.audit.create" })
+    )
+
+    await waitFor(() => expect(mockCreateAuditEngagement).toHaveBeenCalled())
+    const submitted = mockCreateAuditEngagement.mock.calls[0][0]
+    expect(submitted).toMatchObject({ priority_score: 77 })
+  })
+
+  it("pre-fills the priority_score input on edit and clamps out-of-range input to 0-100", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [makeEngagement({ priority_score: 85 })] },
+      isLoading: false,
+    })
+    mockUpdateAuditEngagement.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ success: true, message: "Audit engagement updated" }),
+    })
+
+    render(<AuditPage />)
+
+    const card = screen
+      .getByText("Supply Chain Risk Audit")
+      .closest("[class*='rounded-xl']")! as HTMLElement
+    await user.click(within(card).getAllByRole("button")[0])
+
+    const priorityLabel = screen.getByText(
+      "organization.audit.priorityScoreLabel"
+    )
+    const priorityInput = priorityLabel.parentElement!.querySelector(
+      "input"
+    )! as HTMLInputElement
+    expect(priorityInput).toHaveValue(85)
+
+    await user.clear(priorityInput)
+    await user.type(priorityInput, "150")
+    await user.click(
+      screen.getByRole("button", { name: "organization.audit.update" })
+    )
+
+    await waitFor(() => expect(mockUpdateAuditEngagement).toHaveBeenCalled())
+    const callArg = mockUpdateAuditEngagement.mock.calls[0][0]
+    expect(callArg.data).toMatchObject({ priority_score: 100 })
+  })
+
   it("pre-fills the edit form and calls updateAuditEngagement on save", async () => {
     const user = userEvent.setup()
     mockUseGetAllAuditEngagementsQuery.mockReturnValue({

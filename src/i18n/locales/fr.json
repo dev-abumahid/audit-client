@@ -1099,8 +1099,8 @@
       "cellCount_one": "{{count}} risque",
       "cellCount_other": "{{count}} risques",
       "impactAxis": "Impact →",
-      "selectedCellHeading_one": "{{count}} risque — Score {{score}}",
-      "selectedCellHeading_other": "{{count}} risques — Score {{score}}",
+      "selectedCellHeading_one": "{{count}} risque — score {{score}}",
+      "selectedCellHeading_other": "{{count}} risques — score {{score}}",
       "likelihoodRare": "Rare",
       "likelihoodUnlikely": "Improbable",
       "likelihoodPossible": "Possible",
@@ -1114,7 +1114,8 @@
       "impactMinor": "Mineur",
       "impactModerate": "Modéré",
       "impactMajor": "Majeur",
-      "impactCatastrophic": "Catastrophique"
+      "impactCatastrophic": "Catastrophique",
+      "pagerankAbbrLabel": "PR :"
     },
     "riskGraph": {
       "title": "Graphe de Dépendances & Effets Domino",
@@ -1189,6 +1190,7 @@
       "titleLabel": "Titre",
       "scopeLabel": "Portée",
       "leadAuditorLabel": "Auditeur principal",
+      "priorityScoreLabel": "Score de priorité",
       "findingsCountLabel": "Nombre de constats",
       "startDateLabel": "Date de début",
       "endDateLabel": "Date de fin",

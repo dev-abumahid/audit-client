@@ -1088,8 +1088,8 @@
     },
     "riskMatrix": {
       "title": "ISO 31000 Risk Matrix",
-      "des_one": "{{count}} Risk positioned — Click on a cell to see details",
-      "des_other": "{{count}} Risks positioned — Click on a cell to see details",
+      "des_one": "{{count}} risk positioned — Click on a cell to see details",
+      "des_other": "{{count}} risks positioned — Click on a cell to see details",
       "critical": "Critical",
       "major": "Major",
       "moderate": "Moderate",
@@ -1099,8 +1099,8 @@
       "cellCount_one": "{{count}} risk",
       "cellCount_other": "{{count}} risks",
       "impactAxis": "Impact →",
-      "selectedCellHeading_one": "{{count}} Risk — Score {{score}}",
-      "selectedCellHeading_other": "{{count}} Risks — Score {{score}}",
+      "selectedCellHeading_one": "{{count}} risk — score {{score}}",
+      "selectedCellHeading_other": "{{count}} risks — score {{score}}",
       "likelihoodRare": "Rare",
       "likelihoodUnlikely": "Unlikely",
       "likelihoodPossible": "Possible",
@@ -1114,7 +1114,8 @@
       "impactMinor": "Minor",
       "impactModerate": "Moderate",
       "impactMajor": "Major",
-      "impactCatastrophic": "Catastrophic"
+      "impactCatastrophic": "Catastrophic",
+      "pagerankAbbrLabel": "PR:"
     },
     "riskGraph": {
       "title": "Dependency Graph & Domino Effects",
@@ -1189,6 +1190,7 @@
       "titleLabel": "Title",
       "scopeLabel": "Scope",
       "leadAuditorLabel": "Lead Auditor",
+      "priorityScoreLabel": "Priority Score",
       "findingsCountLabel": "Findings Count",
       "startDateLabel": "Start Date",
       "endDateLabel": "End Date",

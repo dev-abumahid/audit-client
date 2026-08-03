@@ -462,7 +462,10 @@ function RiskCard({
               : risk.category
           })()}
         </span>
-        <span>PR: {Number(risk.pagerank_score).toFixed(0)}</span>
+        <span>
+          {t("organization.riskMatrix.pagerankAbbrLabel")}{" "}
+          {Number(risk.pagerank_score).toFixed(0)}
+        </span>
       </div>
     </div>
   )

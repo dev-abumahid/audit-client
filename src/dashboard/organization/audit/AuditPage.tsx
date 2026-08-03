@@ -715,6 +715,36 @@ export default function AuditPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
+                  {t("organization.audit.priorityScoreLabel")}
+                </label>
+                {/* aexa-frontend#404: priority_score round-trips through the
+                    save payload and is displayed on every mission card, but
+                    had no input in this modal, so it was silently stuck at
+                    the EMPTY_FORM default of 50. Clamp to 0-100 like the
+                    displayed range implies (mission card badge). */}
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={form.priority_score}
+                  onChange={(e) => {
+                    const raw = Number(e.target.value)
+                    const clamped = Number.isNaN(raw)
+                      ? 0
+                      : Math.min(100, Math.max(0, raw))
+                    setForm((f) => ({
+                      ...f,
+                      priority_score: clamped,
+                    }))
+                  }}
+                  className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">
                   {t("organization.audit.startDateLabel")}
                 </label>
                 <input
