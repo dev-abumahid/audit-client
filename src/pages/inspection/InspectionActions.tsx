@@ -479,13 +479,9 @@ export default function InspectionActions() {
           </h1>
           {!loading && (
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {actions.length !== 1
-                ? t("pages.inspection.actions.countPlural", {
-                    count: actions.length,
-                  })
-                : t("pages.inspection.actions.countSingular", {
-                    count: actions.length,
-                  })}
+              {t("pages.inspection.actions.count", {
+                count: actions.length,
+              })}
             </p>
           )}
         </div>

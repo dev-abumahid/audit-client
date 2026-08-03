@@ -122,7 +122,7 @@ describe("InspectionRecommendations", () => {
         screen.getByDisplayValue("Overall inspection summary.")
       ).toBeInTheDocument()
     )
-    expect(screen.getByText("pages.inspection.recommendations.findingsPlural")).toBeInTheDocument()
+    expect(screen.getByText("pages.inspection.recommendations.findings")).toBeInTheDocument()
   })
 
   it("renders finding question labels", async () => {

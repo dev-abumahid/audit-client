@@ -34,32 +34,39 @@ interface ResponseSet {
 interface ResponseOption {
   id: number
   text: string
+  // True only for options seeded from DEFAULT_RESPONSE_SETS and never
+  // edited by the user. Translation (see optionLabel below) is gated on
+  // this flag rather than on matching `text` against a canonical word list,
+  // so a user who types "Yes" or "N/A" as their own custom option text
+  // never gets it silently swapped for a translated label. Editing a
+  // default option's text clears this flag (see the edit input's onChange).
+  isDefault?: boolean
 }
 
 const DEFAULT_RESPONSE_SETS: ResponseSet[] = [
   {
     id: 1,
     options: [
-      { id: 1, text: "good" },
-      { id: 2, text: "poor" },
-      { id: 3, text: "fair" },
-      { id: 4, text: "n/a" },
+      { id: 1, text: "good", isDefault: true },
+      { id: 2, text: "poor", isDefault: true },
+      { id: 3, text: "fair", isDefault: true },
+      { id: 4, text: "n/a", isDefault: true },
     ],
   },
   {
     id: 2,
     options: [
-      { id: 1, text: "pass" },
-      { id: 2, text: "fail" },
-      { id: 3, text: "n/a" },
+      { id: 1, text: "pass", isDefault: true },
+      { id: 2, text: "fail", isDefault: true },
+      { id: 3, text: "n/a", isDefault: true },
     ],
   },
   {
     id: 3,
     options: [
-      { id: 1, text: "yes" },
-      { id: 2, text: "no" },
-      { id: 3, text: "n/a" },
+      { id: 1, text: "yes", isDefault: true },
+      { id: 2, text: "no", isDefault: true },
+      { id: 3, text: "n/a", isDefault: true },
     ],
   },
 ]
@@ -85,6 +92,31 @@ function chipColor(text: string) {
     OPTION_CHIP_COLORS[text.toLowerCase()] ??
     "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400"
   )
+}
+
+// Maps the canonical (English) default option text to its i18n key suffix.
+// The underlying `text` stays in its canonical English form so chip colors
+// and stored answer-set values remain stable across locales.
+const DEFAULT_OPTION_LABEL_KEYS: Record<string, string> = {
+  good: "good",
+  poor: "poor",
+  fair: "fair",
+  "n/a": "na",
+  pass: "pass",
+  fail: "fail",
+  yes: "yes",
+  no: "no",
+}
+
+// Only translates text for options that came from DEFAULT_RESPONSE_SETS
+// (opt.isDefault) and haven't been edited since. Gating on the isDefault
+// flag -- rather than matching `opt.text` against the canonical word list
+// -- means a user who types their own custom option "Yes" or "N/A" always
+// sees exactly what they typed, never a translated label.
+function optionLabel(t: (key: string) => string, opt: ResponseOption) {
+  if (!opt.isDefault) return opt.text
+  const key = DEFAULT_OPTION_LABEL_KEYS[opt.text.toLowerCase()]
+  return key ? t(`organization.templates.qna.options.${key}`) : opt.text
 }
 
 function QnASettingsPanel({
@@ -121,8 +153,8 @@ function QnASettingsPanel({
     const newSet: ResponseSet = {
       id: newId,
       options: [
-        { id: 1, text: "option 1" },
-        { id: 2, text: "option 2" },
+        { id: 1, text: t("organization.templates.qna.newOptionSeed", { number: 1 }) },
+        { id: 2, text: t("organization.templates.qna.newOptionSeed", { number: 2 }) },
       ],
     }
     setResponseSets((prev) => [...prev, newSet])
@@ -175,7 +207,7 @@ function QnASettingsPanel({
                           }
                           className={`rounded-md border px-3 py-1 text-xs font-medium transition-all hover:opacity-90 ${chipColor(opt.text)}`}
                         >
-                          {opt.text}
+                          {optionLabel(t, opt)}
                         </button>
                       ))}
                     </div>
@@ -217,12 +249,16 @@ function QnASettingsPanel({
                           />
                           <input
                             type="text"
-                            value={opt.text}
+                            value={optionLabel(t, opt)}
                             onChange={(e) =>
                               setEditOptions((prev) =>
                                 prev.map((o) =>
                                   o.id === opt.id
-                                    ? { ...o, text: e.target.value }
+                                    ? {
+                                        ...o,
+                                        text: e.target.value,
+                                        isDefault: false,
+                                      }
                                     : o
                                 )
                               )

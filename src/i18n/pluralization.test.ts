@@ -176,6 +176,116 @@ describe("locale resource pluralization/interpolation", () => {
     }
   })
 
+  // Regression (issue #430): InspectionActions.tsx and
+  // InspectionRecommendations.tsx used a hand-rolled
+  // `count !== 1 ? plural : singular` ternary, which gets French
+  // zero-pluralization wrong (French treats 0 as singular, English as
+  // plural). Replaced with real i18next _one/_other keys.
+  it("pluralizes the inspection actions count correctly, including zero, in English and French", () => {
+    expect(t("pages.inspection.actions.count", { count: 1 })).toBe(
+      "1 action"
+    )
+    expect(t("pages.inspection.actions.count", { count: 0 })).toBe(
+      "0 actions"
+    )
+    expect(t("pages.inspection.actions.count", { count: 5 })).toBe(
+      "5 actions"
+    )
+  })
+
+  it("pluralizes the inspection actions count correctly in French, with the correct zero form", async () => {
+    const instance = (
+      t as unknown as { instance: import("i18next").i18n }
+    ).instance
+    await instance.changeLanguage("fr")
+    try {
+      expect(t("pages.inspection.actions.count", { count: 0 })).toBe(
+        "0 action"
+      )
+      expect(t("pages.inspection.actions.count", { count: 1 })).toBe(
+        "1 action"
+      )
+      expect(t("pages.inspection.actions.count", { count: 3 })).toBe(
+        "3 actions"
+      )
+    } finally {
+      await instance.changeLanguage("en")
+    }
+  })
+
+  it("pluralizes the inspection recommendations finding count correctly, including zero, in English and French", () => {
+    expect(t("pages.inspection.recommendations.findings", { count: 1 })).toBe(
+      "1 finding"
+    )
+    expect(t("pages.inspection.recommendations.findings", { count: 0 })).toBe(
+      "0 findings"
+    )
+    expect(t("pages.inspection.recommendations.findings", { count: 5 })).toBe(
+      "5 findings"
+    )
+  })
+
+  it("pluralizes the inspection recommendations finding count correctly in French, with the correct zero form", async () => {
+    const instance = (
+      t as unknown as { instance: import("i18next").i18n }
+    ).instance
+    await instance.changeLanguage("fr")
+    try {
+      expect(
+        t("pages.inspection.recommendations.findings", { count: 0 })
+      ).toBe("0 constat")
+      expect(
+        t("pages.inspection.recommendations.findings", { count: 1 })
+      ).toBe("1 constat")
+      expect(
+        t("pages.inspection.recommendations.findings", { count: 3 })
+      ).toBe("3 constats")
+    } finally {
+      await instance.changeLanguage("en")
+    }
+  })
+
+  // Regression (issue #429): QnASettingsPanel's default response-set chip
+  // labels (good/poor/fair/n-a/pass/fail/yes/no) and the new-response-set
+  // seed text were plain English string literals baked into the component,
+  // never passed through t(). Assert the new keys resolve and differ
+  // between locales.
+  it("translates the QnA default response-set option labels in English and French", () => {
+    expect(t("organization.templates.qna.options.good")).toBe("good")
+    expect(t("organization.templates.qna.options.poor")).toBe("poor")
+    expect(t("organization.templates.qna.options.fair")).toBe("fair")
+    expect(t("organization.templates.qna.options.na")).toBe("n/a")
+    expect(t("organization.templates.qna.options.pass")).toBe("pass")
+    expect(t("organization.templates.qna.options.fail")).toBe("fail")
+    expect(t("organization.templates.qna.options.yes")).toBe("yes")
+    expect(t("organization.templates.qna.options.no")).toBe("no")
+  })
+
+  it("translates the QnA default response-set option labels in French", async () => {
+    const instance = (
+      t as unknown as { instance: import("i18next").i18n }
+    ).instance
+    await instance.changeLanguage("fr")
+    try {
+      expect(t("organization.templates.qna.options.good")).toBe("bon")
+      expect(t("organization.templates.qna.options.poor")).toBe("mauvais")
+      expect(t("organization.templates.qna.options.fair")).toBe("moyen")
+      expect(t("organization.templates.qna.options.na")).toBe("n/a")
+      expect(t("organization.templates.qna.options.pass")).toBe("réussi")
+      expect(t("organization.templates.qna.options.fail")).toBe("échoué")
+      expect(t("organization.templates.qna.options.yes")).toBe("oui")
+      expect(t("organization.templates.qna.options.no")).toBe("non")
+    } finally {
+      await instance.changeLanguage("en")
+    }
+  })
+
+  it("translates the QnA new-response-set seed text", () => {
+    expect(
+      t("organization.templates.qna.newOptionSeed", { number: 1 })
+    ).toBe("option 1")
+  })
+
   // Regression (issue #423): organization.correlationMatrix.cellRisksHeading
   // was a single un-pluralized key using a literal "(s)" hack ("1 risk(s)"),
   // unlike the correctly-pluralized riskWord/detailCauses keys in the same

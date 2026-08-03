@@ -214,13 +214,9 @@ export default function InspectionRecommendations() {
           {/* Results */}
           <div className="flex flex-col gap-3">
             <p className="text-sm font-medium text-muted-foreground">
-              {rec.questions.length !== 1
-                ? t("pages.inspection.recommendations.findingsPlural", {
-                    count: rec.questions.length,
-                  })
-                : t("pages.inspection.recommendations.findingsSingular", {
-                    count: rec.questions.length,
-                  })}
+              {t("pages.inspection.recommendations.findings", {
+                count: rec.questions.length,
+              })}
             </p>
 
             {rec.questions.map((result, idx) => (
