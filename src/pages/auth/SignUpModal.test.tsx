@@ -64,7 +64,14 @@ const mockResendOtpTrigger = vi.fn()
 // before rendering without needing a per-test vi.mock override.
 let mockSignUpIsLoading = false
 vi.mock("@/redux/apis/auth.api", () => ({
-  useSignUpUserMutation: () => [mockSignUpTrigger, { get isLoading() { return mockSignUpIsLoading } }],
+  useSignUpUserMutation: () => [
+    mockSignUpTrigger,
+    {
+      get isLoading() {
+        return mockSignUpIsLoading
+      },
+    },
+  ],
   useVerifyOtpMutation: () => [mockVerifyOtpTrigger, { isLoading: false }],
   useResendOtpMutation: () => [mockResendOtpTrigger, { isLoading: false }],
   // No providers configured — SocialLoginButtons renders nothing, same as
@@ -88,7 +95,9 @@ function renderModal(props = {}) {
   )
 }
 
-async function signUpAndReachOtpScreen(user: ReturnType<typeof userEvent.setup>) {
+async function signUpAndReachOtpScreen(
+  user: ReturnType<typeof userEvent.setup>
+) {
   mockSignUpTrigger.mockReturnValue({
     unwrap: () =>
       Promise.resolve({
@@ -114,6 +123,45 @@ describe("SignUpModal", () => {
     mockResendOtpTrigger.mockReset()
     mockSignUpIsLoading = false
     mockT.mockClear()
+  })
+
+  it("renders as an accessible dialog with a labeled close button", () => {
+    renderModal()
+
+    // getByRole("dialog") only succeeds because Radix's DialogContent
+    // renders role="dialog" -- the old hand-rolled <div> overlay had no such
+    // role, so this query would have failed before the migration
+    // (aexa-frontend#442).
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+    // aexa-frontend#441: the icon-only close button needs an accessible
+    // name, not just a visible X icon.
+    expect(
+      screen.getByRole("button", { name: "common.close" })
+    ).toBeInTheDocument()
+  })
+
+  it("closes on Escape key press", async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    renderModal({ onClose })
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+    await user.keyboard("{Escape}")
+
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it("keeps the dialog accessible and the close button labeled on the OTP screen", async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await signUpAndReachOtpScreen(user)
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "common.close" })
+    ).toBeInTheDocument()
   })
 
   it("renders the sign-up form", () => {
@@ -271,9 +319,7 @@ describe("SignUpModal", () => {
       })
     )
     expect(await screen.findByText("Email Verified")).toBeInTheDocument()
-    expect(
-      screen.queryByLabelText("Verification Code")
-    ).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Verification Code")).not.toBeInTheDocument()
   })
 
   it("shows the server's error message when the OTP is wrong or expired", async () => {
@@ -284,7 +330,9 @@ describe("SignUpModal", () => {
 
     mockVerifyOtpTrigger.mockReturnValue({
       unwrap: () =>
-        Promise.reject({ data: { message: "OTP Expired, Please try again!!" } }),
+        Promise.reject({
+          data: { message: "OTP Expired, Please try again!!" },
+        }),
     })
 
     await user.type(screen.getByLabelText("Verification Code"), "X9y8Z7")

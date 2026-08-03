@@ -1,3 +1,9 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useForgetPasswordMutation } from "@/redux/apis/auth.api"
 import type { ForgetPasswordPayload } from "@/redux/apis/auth.api"
 import { X } from "lucide-react"
@@ -50,16 +56,16 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
     }
   }
 
-  if (!isOpen) return null
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      onClick={handleClose}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) handleClose()
+      }}
     >
-      <div
-        className="relative w-full max-w-sm overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-2xl md:max-w-md"
-        onClick={(e) => e.stopPropagation()}
+      <DialogContent
+        showCloseButton={false}
+        className="w-full max-w-sm gap-0 overflow-hidden rounded-xl border border-border bg-card p-0 text-card-foreground shadow-2xl ring-0 md:max-w-md"
       >
         <button
           onClick={handleClose}
@@ -71,12 +77,12 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
         </button>
 
         <div className="px-6 pt-6 pb-1 text-center">
-          <h2 className="mb-1 text-lg font-semibold text-foreground">
+          <DialogTitle className="mb-1 text-lg font-semibold text-foreground">
             {t("auth.forgotPassword.title")}
-          </h2>
-          <p className="mb-6 text-xs text-muted-foreground">
+          </DialogTitle>
+          <DialogDescription className="mb-6 text-xs text-muted-foreground">
             {t("auth.forgotPassword.subTitle")}
-          </p>
+          </DialogDescription>
         </div>
 
         {submitted ? (
@@ -148,8 +154,8 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
             </div>
           </form>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

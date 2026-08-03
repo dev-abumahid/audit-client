@@ -43,6 +43,31 @@ describe("ForgotPasswordModal", () => {
     expect(screen.queryByText("Reset Your Password")).not.toBeInTheDocument()
   })
 
+  it("renders as an accessible dialog with a labeled close button", () => {
+    render(<ForgotPasswordModal {...defaultProps} />)
+
+    // getByRole("dialog") only succeeds because Radix's DialogContent
+    // renders role="dialog" -- the old hand-rolled <div> overlay had no such
+    // role, so this query would have failed before the migration
+    // (aexa-frontend#442).
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "common.close" })
+    ).toBeInTheDocument()
+  })
+
+  it("closes on Escape key press", async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<ForgotPasswordModal {...defaultProps} onClose={onClose} />)
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+    await user.keyboard("{Escape}")
+
+    expect(onClose).toHaveBeenCalled()
+  })
+
   it("submits the entered email and shows the success state", async () => {
     const user = userEvent.setup()
     mockForgetPasswordTrigger.mockReturnValue({

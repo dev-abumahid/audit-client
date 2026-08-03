@@ -1,4 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useSignInUserMutation } from "@/redux/apis/auth.api"
 import type { SignInPayload } from "@/redux/apis/auth.api"
 import { baseApi } from "@/redux/baseApi"
@@ -69,21 +75,21 @@ const SignInModal: React.FC<SignInModalProps> = ({
     onForgotPasswordClick?.()
   }
 
-  if (!isOpen) return null
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      onClick={onClose}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
     >
-      {/* Modal Content */}
-      <div
-        className="relative w-full max-w-sm overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-2xl md:max-w-md"
-        onClick={(e) => e.stopPropagation()}
+      <DialogContent
+        showCloseButton={false}
+        className="w-full max-w-sm gap-0 overflow-hidden rounded-xl border border-border bg-card p-0 text-card-foreground shadow-2xl ring-0 md:max-w-md"
       >
         {/* Close Button */}
         <button
           onClick={onClose}
+          aria-label={t("common.close")}
           className="absolute top-3 right-3 z-10 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           disabled={isSubmitting}
         >
@@ -92,12 +98,12 @@ const SignInModal: React.FC<SignInModalProps> = ({
 
         {/* Modal Header */}
         <div className="px-6 pt-6 pb-1 text-center">
-          <h2 className="mb-1 text-lg font-semibold text-foreground">
+          <DialogTitle className="mb-1 text-lg font-semibold text-foreground">
             {t("auth.signIn.title")}
-          </h2>
-          <p className="mb-6 text-xs text-muted-foreground">
+          </DialogTitle>
+          <DialogDescription className="mb-6 text-xs text-muted-foreground">
             {t("auth.signIn.subTitle")}
-          </p>
+          </DialogDescription>
         </div>
 
         {/* Form */}
@@ -202,8 +208,8 @@ const SignInModal: React.FC<SignInModalProps> = ({
             </div>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

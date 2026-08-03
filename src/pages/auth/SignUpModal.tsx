@@ -1,4 +1,10 @@
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   useResendOtpMutation,
   useSignUpUserMutation,
   useVerifyOtpMutation,
@@ -113,313 +119,304 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
     onClose()
   }
 
-  if (!isOpen) return null
-
-  // Verify-email confirmation screen
-  if (pendingEmail) {
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-        onClick={handleClose}
-      >
-        <div
-          className="relative w-full max-w-sm overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-2xl md:max-w-md"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={handleClose}
-            className="absolute top-3 right-3 z-10 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <X size={18} />
-          </button>
-          <div className="px-6 py-10 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-              <svg
-                className="h-6 w-6 text-primary"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
-            <h2 className="mb-2 text-lg font-semibold text-foreground">
-              {isVerified
-                ? t("auth.verifyOtp.verifiedTitle")
-                : t("auth.verifyOtp.title")}
-            </h2>
-
-            {isVerified ? (
-              <>
-                <p className="mb-6 text-sm text-muted-foreground">
-                  {t("auth.verifyOtp.verifiedSubTitle")}
-                </p>
-                <button
-                  onClick={() => {
-                    handleClose()
-                    onLoginClick()
-                  }}
-                  className="flex w-full items-center justify-center rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
-                >
-                  {t("auth.signIn.btnSignIn")}
-                </button>
-              </>
-            ) : (
-              <>
-                <p className="mb-1 text-sm text-muted-foreground">
-                  {t("auth.verifyOtp.subTitle")}
-                </p>
-                <p className="mb-6 text-sm font-medium text-foreground">
-                  {pendingEmail}
-                </p>
-
-                <form
-                  onSubmit={handleOtpSubmit(onSubmitOtp)}
-                  className="text-left"
-                >
-                  <label
-                    htmlFor="otp"
-                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
-                  >
-                    {t("auth.verifyOtp.codeLabel")}
-                  </label>
-                  <input
-                    id="otp"
-                    type="text"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    {...registerOtp("otp", {
-                      required: t("auth.verifyOtp.codeReqText"),
-                      minLength: {
-                        value: 6,
-                        message: t("auth.verifyOtp.codeLength"),
-                      },
-                      // No maxLength validator here: the native maxLength={6}
-                      // attribute above already prevents typing a 7th
-                      // character, so an RHF maxLength rule could never fire.
-                    })}
-                    placeholder="A1b2C3"
-                    className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-center text-sm tracking-widest text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
-                    disabled={isVerifying}
-                  />
-                  {otpErrors.otp && (
-                    <p className="mt-1 text-xs text-destructive">
-                      {otpErrors.otp.message}
-                    </p>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={isVerifying}
-                    className="mt-4 flex w-full items-center justify-center rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isVerifying
-                      ? t("auth.verifyOtp.verifying")
-                      : t("auth.verifyOtp.btnVerify")}
-                  </button>
-                </form>
-
-                <p className="mt-4 text-center text-xs text-muted-foreground">
-                  {t("auth.verifyOtp.noCodeText")}{" "}
-                  <button
-                    onClick={handleResendOtp}
-                    disabled={isResending}
-                    className="font-medium text-primary hover:underline disabled:opacity-50"
-                  >
-                    {isResending
-                      ? t("auth.verifyOtp.resending")
-                      : t("auth.verifyOtp.btnResend")}
-                  </button>
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const closeButton = (
+    <button
+      onClick={handleClose}
+      aria-label={t("common.close")}
+      className="absolute top-3 right-3 z-10 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      disabled={!pendingEmail && isLoading}
+    >
+      <X size={18} />
+    </button>
+  )
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      onClick={handleClose}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) handleClose()
+      }}
     >
-      <div
-        className="relative w-full max-w-sm overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-2xl md:max-w-md"
-        onClick={(e) => e.stopPropagation()}
+      <DialogContent
+        showCloseButton={false}
+        className="w-full max-w-sm gap-0 overflow-hidden rounded-xl border border-border bg-card p-0 text-card-foreground shadow-2xl ring-0 md:max-w-md"
       >
-        {/* Close Button */}
-        <button
-          onClick={handleClose}
-          className="absolute top-3 right-3 z-10 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          disabled={isLoading}
-        >
-          <X size={18} />
-        </button>
+        {/* Verify-email confirmation screen */}
+        {pendingEmail ? (
+          <>
+            {closeButton}
+            <div className="px-6 py-10 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <svg
+                  className="h-6 w-6 text-primary"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+              <DialogTitle className="mb-2 text-lg font-semibold text-foreground">
+                {isVerified
+                  ? t("auth.verifyOtp.verifiedTitle")
+                  : t("auth.verifyOtp.title")}
+              </DialogTitle>
 
-        {/* Modal Header */}
-        <div className="px-6 pt-6 pb-1">
-          <h2 className="mb-1 text-center text-lg font-bold text-foreground">
-            {t("auth.signUp.title")}
-          </h2>
-          <p className="mb-4 text-center text-xs text-muted-foreground">
-            {t("auth.signUp.subTitle")}
-          </p>
-        </div>
+              {isVerified ? (
+                <>
+                  <DialogDescription className="mb-6 text-sm text-muted-foreground">
+                    {t("auth.verifyOtp.verifiedSubTitle")}
+                  </DialogDescription>
+                  <button
+                    onClick={() => {
+                      handleClose()
+                      onLoginClick()
+                    }}
+                    className="flex w-full items-center justify-center rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
+                  >
+                    {t("auth.signIn.btnSignIn")}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <DialogDescription className="mb-1 text-sm text-muted-foreground">
+                    {t("auth.verifyOtp.subTitle")}
+                  </DialogDescription>
+                  <p className="mb-6 text-sm font-medium text-foreground">
+                    {pendingEmail}
+                  </p>
 
-        {/* Form */}
-        {/* noValidate: the email input is type="email", and without this the
+                  <form
+                    onSubmit={handleOtpSubmit(onSubmitOtp)}
+                    className="text-left"
+                  >
+                    <label
+                      htmlFor="otp"
+                      className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                    >
+                      {t("auth.verifyOtp.codeLabel")}
+                    </label>
+                    <input
+                      id="otp"
+                      type="text"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      {...registerOtp("otp", {
+                        required: t("auth.verifyOtp.codeReqText"),
+                        minLength: {
+                          value: 6,
+                          message: t("auth.verifyOtp.codeLength"),
+                        },
+                        // No maxLength validator here: the native maxLength={6}
+                        // attribute above already prevents typing a 7th
+                        // character, so an RHF maxLength rule could never fire.
+                      })}
+                      placeholder="A1b2C3"
+                      className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-center text-sm tracking-widest text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
+                      disabled={isVerifying}
+                    />
+                    {otpErrors.otp && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {otpErrors.otp.message}
+                      </p>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={isVerifying}
+                      className="mt-4 flex w-full items-center justify-center rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isVerifying
+                        ? t("auth.verifyOtp.verifying")
+                        : t("auth.verifyOtp.btnVerify")}
+                    </button>
+                  </form>
+
+                  <p className="mt-4 text-center text-xs text-muted-foreground">
+                    {t("auth.verifyOtp.noCodeText")}{" "}
+                    <button
+                      onClick={handleResendOtp}
+                      disabled={isResending}
+                      className="font-medium text-primary hover:underline disabled:opacity-50"
+                    >
+                      {isResending
+                        ? t("auth.verifyOtp.resending")
+                        : t("auth.verifyOtp.btnResend")}
+                    </button>
+                  </p>
+                </>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            {closeButton}
+
+            {/* Modal Header */}
+            <div className="px-6 pt-6 pb-1">
+              <DialogTitle className="mb-1 text-center text-lg font-bold text-foreground">
+                {t("auth.signUp.title")}
+              </DialogTitle>
+              <DialogDescription className="mb-4 text-center text-xs text-muted-foreground">
+                {t("auth.signUp.subTitle")}
+              </DialogDescription>
+            </div>
+
+            {/* Form */}
+            {/* noValidate: the email input is type="email", and without this the
             browser's own constraint validation intercepts the submit event
             for any format it considers invalid before handleSubmit ever
             runs -- silently short-circuiting the react-hook-form `pattern`
             rule below (and its message) for every value a real user would
             actually trigger it with. Found while fixing the wrong-error-text
             bug on this field: the fix was a no-op without this. */}
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          noValidate
-          className="px-6 pb-6"
-        >
-          <div className="space-y-3">
-            {/* Organization Name */}
-            <div>
-              <label
-                htmlFor="org_name"
-                className="mb-1.5 block text-xs font-medium text-muted-foreground"
-              >
-                {t("auth.signUp.organizationName")}
-              </label>
-              <input
-                id="org_name"
-                type="text"
-                {...formRegister("organizationName", {
-                  required: "Organization name is required",
-                })}
-                placeholder={t("auth.signUp.organizationNamePlaceholder")}
-                className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
-                disabled={isLoading}
-              />
-              {errors.organizationName && (
-                <p className="mt-1 text-xs text-destructive">
-                  {t("auth.signUp.organizationNameReqText")}
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              noValidate
+              className="px-6 pb-6"
+            >
+              <div className="space-y-3">
+                {/* Organization Name */}
+                <div>
+                  <label
+                    htmlFor="org_name"
+                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  >
+                    {t("auth.signUp.organizationName")}
+                  </label>
+                  <input
+                    id="org_name"
+                    type="text"
+                    {...formRegister("organizationName", {
+                      required: "Organization name is required",
+                    })}
+                    placeholder={t("auth.signUp.organizationNamePlaceholder")}
+                    className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
+                    disabled={isLoading}
+                  />
+                  {errors.organizationName && (
+                    <p className="mt-1 text-xs text-destructive">
+                      {t("auth.signUp.organizationNameReqText")}
+                    </p>
+                  )}
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  >
+                    {t("auth.signUp.email")}
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    {...formRegister("email", {
+                      required: t("auth.signUp.emailReqText"),
+                      pattern: {
+                        value: /^\S+@\S+$/i,
+                        message: t("auth.signUp.emailInvalidText"),
+                      },
+                    })}
+                    placeholder="example@email.com"
+                    className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
+                    disabled={isLoading}
+                  />
+                  {errors.email && (
+                    <p className="mt-1 text-xs text-destructive">
+                      {errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  >
+                    {t("auth.signUp.password")}
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    {...formRegister("password", {
+                      required: t("auth.signUp.passwordReqText"),
+                      minLength: {
+                        value: 6,
+                        message: t("auth.signUp.passwordMinLengthReqText"),
+                      },
+                    })}
+                    placeholder="********"
+                    className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
+                    disabled={isLoading}
+                  />
+                  {errors.password && (
+                    <p className="mt-1 text-xs text-destructive">
+                      {errors.password.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleClearForm}
+                    disabled={isLoading}
+                    className="flex-1 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {t("auth.signUp.btnClear")}
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="flex flex-1 items-center justify-center rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                        {t("auth.signUp.signingUp")}
+                      </>
+                    ) : (
+                      t("auth.signUp.btnSignUp")
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <SocialLoginButtons />
+              </div>
+
+              {/* Sign In Link */}
+              <div className="mt-4 border-t border-border pt-4">
+                <p className="text-center text-xs text-muted-foreground">
+                  {t("auth.signUp.hintText")}{" "}
+                  <button
+                    onClick={() => {
+                      handleClose()
+                      onLoginClick()
+                    }}
+                    className="font-medium text-primary hover:underline focus:outline-none"
+                    disabled={isLoading}
+                  >
+                    {t("auth.signIn.btnSignIn")}
+                  </button>
                 </p>
-              )}
-            </div>
-
-            {/* Email */}
-            <div>
-              <label
-                htmlFor="email"
-                className="mb-1.5 block text-xs font-medium text-muted-foreground"
-              >
-                {t("auth.signUp.email")}
-              </label>
-              <input
-                id="email"
-                type="email"
-                {...formRegister("email", {
-                  required: t("auth.signUp.emailReqText"),
-                  pattern: {
-                    value: /^\S+@\S+$/i,
-                    message: t("auth.signUp.emailInvalidText"),
-                  },
-                })}
-                placeholder="example@email.com"
-                className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
-                disabled={isLoading}
-              />
-              {errors.email && (
-                <p className="mt-1 text-xs text-destructive">
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-
-            {/* Password */}
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-1.5 block text-xs font-medium text-muted-foreground"
-              >
-                {t("auth.signUp.password")}
-              </label>
-              <input
-                id="password"
-                type="password"
-                {...formRegister("password", {
-                  required: t("auth.signUp.passwordReqText"),
-                  minLength: {
-                    value: 6,
-                    message: t("auth.signUp.passwordMinLengthReqText"),
-                  },
-                })}
-                placeholder="********"
-                className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
-                disabled={isLoading}
-              />
-              {errors.password && (
-                <p className="mt-1 text-xs text-destructive">
-                  {errors.password.message}
-                </p>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={handleClearForm}
-                disabled={isLoading}
-                className="flex-1 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {t("auth.signUp.btnClear")}
-              </button>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex flex-1 items-center justify-center rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                    {t("auth.signUp.signingUp")}
-                  </>
-                ) : (
-                  t("auth.signUp.btnSignUp")
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <SocialLoginButtons />
-          </div>
-
-          {/* Sign In Link */}
-          <div className="mt-4 border-t border-border pt-4">
-            <p className="text-center text-xs text-muted-foreground">
-              {t("auth.signUp.hintText")}{" "}
-              <button
-                onClick={() => {
-                  handleClose()
-                  onLoginClick()
-                }}
-                className="font-medium text-primary hover:underline focus:outline-none"
-                disabled={isLoading}
-              >
-                {t("auth.signIn.btnSignIn")}
-              </button>
-            </p>
-          </div>
-        </form>
-      </div>
-    </div>
+              </div>
+            </form>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }
 

@@ -192,6 +192,34 @@ describe("SignInModal", () => {
     expect(mockT).toHaveBeenCalledWith("auth.signIn.signingIn")
   })
 
+  it("renders as an accessible dialog with a labeled close button", () => {
+    renderModal()
+
+    // getByRole("dialog") only succeeds because Radix's DialogContent
+    // renders role="dialog" -- the old hand-rolled <div> overlay had no such
+    // role, so this query would have failed before the migration
+    // (aexa-frontend#442).
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+    // aexa-frontend#441: the icon-only close button needs an accessible
+    // name, not just a visible X icon.
+    expect(
+      screen.getByRole("button", { name: "common.close" })
+    ).toBeInTheDocument()
+  })
+
+  it("closes on Escape key press", async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    renderModal({ onClose })
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+    await user.keyboard("{Escape}")
+
+    expect(onClose).toHaveBeenCalled()
+  })
+
   it("shows error toast when mutation rejects", async () => {
     const user = userEvent.setup()
     const { toast } = await import("sonner")
