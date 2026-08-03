@@ -727,7 +727,9 @@ export default function IntelligencePage() {
                 className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-border/80"
               >
                 <div className="flex items-start gap-3">
-                  <RiskBadge level={item.severity ?? "medium"} size="sm" />
+                  {item.severity && (
+                    <RiskBadge level={item.severity} size="sm" />
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">
                       {item.title}

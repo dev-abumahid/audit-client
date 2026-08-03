@@ -983,5 +983,8 @@ describe("IntelligencePage", () => {
     expect(
       screen.getByText("organization.intelligence.item.notAnalyzedYet")
     ).toBeInTheDocument()
+    expect(
+      screen.queryByText("riskLevel.medium")
+    ).not.toBeInTheDocument()
   })
 })
