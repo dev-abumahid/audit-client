@@ -180,6 +180,33 @@ describe("ThreeLinesOfDefensePage", () => {
     expect(screen.getByText("Q3 internal audit")).toBeInTheDocument()
   })
 
+  // aexa-frontend#465 -- the page previously had only one <h1> then jumped
+  // straight to <h4> (CardTitle rendered a plain div, not a heading, so it
+  // never filled the h2/h3 gap). Assert the full heading level sequence is
+  // contiguous (no skipped levels) rather than just that headings exist.
+  it("has a contiguous heading hierarchy with no skipped levels", () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData(),
+      isLoading: false,
+    })
+
+    render(<ThreeLinesOfDefensePage />)
+
+    const levels = screen
+      .getAllByRole("heading")
+      .map((el) => Number(el.tagName[1]))
+
+    expect(levels[0]).toBe(1)
+    for (let i = 1; i < levels.length; i++) {
+      expect(levels[i] - levels[i - 1]).toBeLessThanOrEqual(1)
+    }
+    // Sanity check the fix actually introduced h2s and h3s, not just that
+    // nothing skips (a page with only an h1 would trivially pass the loop
+    // above).
+    expect(levels).toContain(2)
+    expect(levels).toContain(3)
+  })
+
   it("gives each truncated item title a hover tooltip via the title attribute", () => {
     mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
       data: makeData(),

@@ -26,6 +26,28 @@ describe("PersonalInfoForm", () => {
     expect(screen.getByLabelText("organization.personalInfo.fullName")).toHaveValue("Jane Doe")
   })
 
+  // aexa-frontend#464 -- the full name field had no autoComplete attribute
+  // (WCAG 1.3.5 Identify Input Purpose).
+  it("marks the full name field with autoComplete=name", () => {
+    render(<PersonalInfoForm initialFullName="Jane Doe" />)
+    expect(
+      screen.getByLabelText("organization.personalInfo.fullName")
+    ).toHaveAttribute("autoComplete", "name")
+  })
+
+  // aexa-frontend#464 -- this section heading used to be an <h3>, skipping
+  // straight from OrgSettingPage's <h1> with no <h2> in between (it's the
+  // first section rendered in the Profile tab).
+  it("renders its section heading as an h2", () => {
+    render(<PersonalInfoForm initialFullName="Jane Doe" />)
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "organization.personalInfo.heading",
+      })
+    ).toBeInTheDocument()
+  })
+
   it("shows initials when no profilePhoto is provided", () => {
     render(<PersonalInfoForm initialFullName="Jane Doe" />)
     expect(screen.getByText("J")).toBeInTheDocument()

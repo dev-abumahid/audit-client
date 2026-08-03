@@ -420,6 +420,86 @@ describe("CompliancePage", () => {
     })
   })
 
+  // aexa-frontend#465 -- the form modal's icon-only close button had no
+  // aria-label.
+  it("labels the obligation form modal's close button", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /organization\.compliance\.newObligation/i,
+      })
+    )
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.compliance.form.close",
+      })
+    ).toBeInTheDocument()
+  })
+
+  // aexa-frontend#465 -- the edit and delete icon-only buttons had no
+  // aria-label, unlike their sibling Re-attest/History buttons in the same
+  // row. Assert by accessible name (not index) so this fails if the labels
+  // regress even if button order changes.
+  it("labels the edit and delete row buttons for screen readers", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [makeObligation()] },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+    expect(
+      within(row).getByRole("button", {
+        name: "organization.compliance.editObligation",
+      })
+    ).toBeInTheDocument()
+    expect(
+      within(row).getByRole("button", {
+        name: "organization.compliance.deleteObligation",
+      })
+    ).toBeInTheDocument()
+  })
+
+  // aexa-frontend#465 -- the per-attachment remove button (icon-only) had
+  // no aria-label.
+  it("labels the remove-attachment button on an existing evidence attachment", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [
+          makeObligation({
+            attachments: ["https://files.example.com/evidence-1.pdf"],
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+    await user.click(
+      within(row).getByRole("button", {
+        name: "organization.compliance.editObligation",
+      })
+    )
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.compliance.form.removeAttachment",
+      })
+    ).toBeInTheDocument()
+  })
+
   it("deletes an obligation after confirmation via the delete mutation", async () => {
     const user = userEvent.setup()
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true)
@@ -1162,6 +1242,34 @@ describe("CompliancePage", () => {
         expect.objectContaining({ id: "comp-1" }),
         expect.objectContaining({ skip: false })
       )
+    })
+
+    // aexa-frontend#465 -- the attestation history modal's icon-only close
+    // button had no aria-label.
+    it("labels the attestation history modal's close button", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockUseGetComplianceAttestationsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.historyButton",
+        })
+      )
+
+      expect(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.historyModalClose",
+        })
+      ).toBeInTheDocument()
     })
 
     // aexa-frontend round-4 audit bug #333: entry.attested_by was never

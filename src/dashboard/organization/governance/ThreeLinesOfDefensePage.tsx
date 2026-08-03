@@ -1,10 +1,4 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useUpdateAuditEngagementMutation } from "@/redux/apis/organization/audit.api"
 import { useUpdateComplianceMutation } from "@/redux/apis/organization/compliance.api"
@@ -203,10 +197,10 @@ function Section({
   return (
     <div className="mb-4 last:mb-0">
       <div className="mb-1.5 flex items-center justify-between">
-        <h4 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           <Icon className="h-3.5 w-3.5" />
           {label}
-        </h4>
+        </h3>
         <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
           {count}
         </span>
@@ -342,7 +336,9 @@ export default function ThreeLinesOfDefensePage() {
               return (
                 <Card key={line}>
                   <CardHeader>
-                    <CardTitle>{t(LINE_TITLE_KEY[line])}</CardTitle>
+                    <h2 className="font-heading text-sm font-medium">
+                      {t(LINE_TITLE_KEY[line])}
+                    </h2>
                     <CardDescription>
                       {t("organization.threeLinesOfDefense.itemCount", {
                         count: totalCount,
@@ -465,9 +461,9 @@ export default function ThreeLinesOfDefensePage() {
               (see governance.service.ts's doc comment on aexa-server). */}
           <Card>
             <CardHeader>
-              <CardTitle>
+              <h2 className="font-heading text-sm font-medium">
                 {t("organization.threeLinesOfDefense.unclassified.title")}
-              </CardTitle>
+              </h2>
               <CardDescription>
                 {t("organization.threeLinesOfDefense.unclassified.subtitle")}
               </CardDescription>

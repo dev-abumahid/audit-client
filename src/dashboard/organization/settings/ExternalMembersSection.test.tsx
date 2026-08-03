@@ -170,6 +170,42 @@ describe("ExternalMembersSection", () => {
     )
   })
 
+  // aexa-frontend#464 -- the invite modal used to be a hand-rolled overlay
+  // div with no dialog semantics or focus trap. It now goes through the
+  // shared Radix-backed Dialog (src/components/ui/dialog.tsx). Asserts both
+  // role="dialog" (review round 1: a prior version of this test claimed to
+  // prove aria-modal/focus-trap but only checked role) AND that focus
+  // actually moved inside the dialog on open, which is the real,
+  // observable behavior a focus trap provides.
+  it("opens the invite form as an accessible dialog with focus moved inside it", async () => {
+    const user = userEvent.setup()
+    render(<ExternalMembersSection />)
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "organization.externalMembers.inviteButton",
+      })
+    )
+
+    // role="dialog" only exists on Radix's Dialog.Content -- getByRole
+    // succeeding here proves the modal now goes through the shared Dialog
+    // primitive instead of a hand-rolled overlay div.
+    const dialog = screen.getByRole("dialog")
+    expect(dialog).toBeInTheDocument()
+    // Radix's focus trap auto-focuses the first focusable element inside
+    // the dialog on open -- this is the actual, testable effect of the
+    // focus trap (rather than asserting on an aria-modal attribute Radix's
+    // Dialog.Content doesn't set in this version).
+    expect(dialog.contains(document.activeElement)).toBe(true)
+    expect(
+      screen.getByRole("heading", {
+        name: "organization.externalMembers.inviteTitle",
+      })
+    ).toBeInTheDocument()
+  })
+
   it("shows an error toast when invite fails", async () => {
     const user = userEvent.setup()
     mockInviteExternalMember.mockReturnValue({

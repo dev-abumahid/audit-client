@@ -5,12 +5,18 @@ import {
   RotateCcw,
   ShieldOff,
   UserPlus,
-  X,
 } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   useGetAllOrgUsersQuery,
@@ -21,6 +27,7 @@ import {
 } from "@/redux/apis/organization/org.user.api"
 import type { InviteMemberPayload } from "@/redux/apis/organization/org.user.api"
 import type { OrgMember, PendingInvitation } from "@/types/organizationMember"
+import { formatLocaleDate } from "@/utils/formatDate"
 import ExternalMembersSection from "./ExternalMembersSection"
 
 type InviteFormValues = InviteMemberPayload
@@ -192,9 +199,9 @@ export default function TeamMembersTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-foreground">
+          <h2 className="text-lg font-semibold text-foreground">
             {t("organization.teamMembers.heading")}
-          </h3>
+          </h2>
           <p className="text-sm text-muted-foreground">
             {t("organization.teamMembers.memberCount", {
               count: members.length,
@@ -309,9 +316,9 @@ export default function TeamMembersTab() {
       {!invitationsLoading && invitations.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div className="border-b border-border bg-muted/30 px-5 py-3">
-            <h4 className="text-sm font-semibold text-foreground">
+            <h3 className="text-sm font-semibold text-foreground">
               {t("organization.teamMembers.pendingInvitations")}
-            </h4>
+            </h3>
           </div>
           <table className="w-full text-sm">
             <thead>
@@ -353,12 +360,9 @@ export default function TeamMembersTab() {
                       <div className="flex items-center gap-2">
                         <span>
                           {t("organization.teamMembers.expiresOn", {
-                            date: new Date(
+                            date: formatLocaleDate(
                               invite.expiresAt,
-                            ).toLocaleDateString(
-                              i18n.language?.startsWith("fr")
-                                ? "fr-FR"
-                                : "en-US",
+                              i18n.language,
                             ),
                           })}
                         </span>
@@ -403,27 +407,14 @@ export default function TeamMembersTab() {
         <ExternalMembersSection />
       </div>
 
-      {canWrite && showInviteForm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-          onClick={() => setShowInviteForm(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl border border-border bg-card p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-foreground">
+      {canWrite && (
+        <Dialog open={showInviteForm} onOpenChange={setShowInviteForm}>
+          <DialogContent className="max-w-md p-6">
+            <DialogHeader className="mb-6">
+              <DialogTitle className="text-xl font-semibold text-foreground">
                 {t("organization.teamMembers.inviteTeamMember")}
-              </h2>
-              <button
-                onClick={() => setShowInviteForm(false)}
-                aria-label={t("organization.teamMembers.close")}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+              </DialogTitle>
+            </DialogHeader>
 
             <form onSubmit={inviteForm.handleSubmit(handleInvite)}>
               <div className="space-y-4">
@@ -474,7 +465,7 @@ export default function TeamMembersTab() {
                 </div>
               </div>
 
-              <div className="mt-8 flex justify-end gap-3">
+              <DialogFooter className="mt-8 flex flex-row justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowInviteForm(false)}
@@ -494,10 +485,10 @@ export default function TeamMembersTab() {
                   )}
                   {t("organization.teamMembers.sendInvitation")}
                 </button>
-              </div>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )

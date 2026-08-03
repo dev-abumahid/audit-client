@@ -85,9 +85,9 @@ export default function PersonalInfoForm({
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <h3 className="mb-4 text-lg font-semibold text-foreground">
+      <h2 className="mb-4 text-lg font-semibold text-foreground">
         {t("organization.personalInfo.heading")}
-      </h3>
+      </h2>
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="space-y-4"
@@ -151,6 +151,7 @@ export default function PersonalInfoForm({
           <input
             id="fullName"
             type="text"
+            autoComplete="name"
             {...register("fullName", {
               required: t("organization.personalInfo.fullNameRequired"),
             })}

@@ -965,6 +965,8 @@
       "allStatuses": "Tous les statuts",
       "empty": "Aucune obligation de conformité trouvée",
       "deleteConfirm": "Supprimer cette obligation de conformité ?",
+      "editObligation": "Modifier l'obligation",
+      "deleteObligation": "Supprimer l'obligation",
       "pagination": {
         "previous": "Page précédente",
         "next": "Page suivante"
@@ -1023,11 +1025,14 @@
         "notePlaceholder": "ex. Confirmé avec le service juridique",
         "confirmButton": "Confirmer l'attestation",
         "historyModalTitle": "Historique d'attestation — {{title}}",
+        "historyModalClose": "Fermer l'historique d'attestation",
         "historyEmpty": "Aucune attestation enregistrée pour le moment",
         "attestedByLabel": "Attesté par : {{accountId}}"
       },
       "form": {
         "newTitle": "Nouvelle obligation de conformité",
+        "close": "Fermer",
+        "removeAttachment": "Supprimer la pièce jointe",
         "editTitle": "Modifier l'obligation de conformité",
         "title": "Titre",
         "domain": "Domaine",
@@ -1557,7 +1562,6 @@
       "resend": "Renvoyer",
       "resendExpired": "Renvoyer (expiré)",
       "inviteTeamMember": "Inviter un membre de l'équipe",
-      "close": "Fermer",
       "emailLabel": "Adresse e-mail *",
       "emailRequired": "L'e-mail est requis",
       "emailInvalid": "Saisissez une adresse e-mail valide",
@@ -1590,7 +1594,6 @@
       "invitationAdded": "{{email}} peut désormais se connecter — copiez son lien ci-dessous et partagez-le",
       "inviteFailed": "Échec de l'invitation du réviseur externe",
       "inviteTitle": "Inviter un réviseur externe",
-      "close": "Fermer",
       "emailLabel": "Adresse e-mail *",
       "emailRequired": "L'e-mail est requis",
       "emailInvalid": "Saisissez une adresse e-mail valide",

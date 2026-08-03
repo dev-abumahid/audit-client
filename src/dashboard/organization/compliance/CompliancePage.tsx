@@ -721,6 +721,7 @@ export default function CompliancePage() {
                           <>
                             <button
                               onClick={() => openEdit(obl)}
+                              aria-label={t("organization.compliance.editObligation")}
                               className="rounded p-1 text-muted-foreground hover:bg-muted"
                             >
                               <Pencil className="h-3 w-3" />
@@ -750,6 +751,7 @@ export default function CompliancePage() {
                         {canWrite && (
                           <button
                             onClick={() => handleDelete(obl.id)}
+                            aria-label={t("organization.compliance.deleteObligation")}
                             className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -833,6 +835,7 @@ export default function CompliancePage() {
               </h2>
               <button
                 onClick={() => setShowForm(false)}
+                aria-label={t("organization.compliance.form.close")}
                 className="rounded p-1 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
@@ -1046,6 +1049,9 @@ export default function CompliancePage() {
                       <button
                         type="button"
                         onClick={() => removeAttachment(url)}
+                        aria-label={t(
+                          "organization.compliance.form.removeAttachment",
+                        )}
                         className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
                       >
                         <X className="h-3 w-3" />
@@ -1195,6 +1201,9 @@ export default function CompliancePage() {
               </h2>
               <button
                 onClick={() => setHistoryObligation(null)}
+                aria-label={t(
+                  "organization.compliance.attest.historyModalClose",
+                )}
                 className="rounded p-1 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />

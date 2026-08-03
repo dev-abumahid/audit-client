@@ -53,10 +53,19 @@ export default function OrgSettingPage() {
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {/* Tabs */}
         <div className="mb-6 border-b border-border">
-          <nav className="flex gap-1 overflow-x-auto">
+          <nav
+            className="flex gap-1 overflow-x-auto"
+            role="tablist"
+            aria-label={t("organization.settings.title")}
+          >
             {tabs.map((tab) => (
               <button
                 key={tab.key}
+                id={`org-settings-tab-${tab.key}`}
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                aria-controls={`org-settings-tabpanel-${tab.key}`}
+                tabIndex={activeTab === tab.key ? 0 : -1}
                 onClick={() => setActiveTab(tab.key)}
                 className={`flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-medium transition-all ${
                   activeTab === tab.key
@@ -75,7 +84,13 @@ export default function OrgSettingPage() {
         <div className="animate-fade-in">
           {/* User Settings Tab */}
           {activeTab === "profile" && (
-            <div className="space-y-6">
+            <div
+              id="org-settings-tabpanel-profile"
+              role="tabpanel"
+              aria-labelledby="org-settings-tab-profile"
+              tabIndex={0}
+              className="space-y-6"
+            >
               {/* Personal info: editable full name + avatar, backed by the
                   real PATCH /api/profile route. This replaces the old
                   "Profile Card" (org-logo upload button + Delete Account),
@@ -105,10 +120,10 @@ export default function OrgSettingPage() {
                   exists to update organizationName/organizationLogo (see
                   above), so there's nothing to wire yet. */}
               <div className="rounded-xl border border-border bg-card p-6">
-                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+                <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                   <Building2 size={20} />{" "}
                   {t("organization.settings.orgInformation")}
-                </h3>
+                </h2>
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
@@ -130,11 +145,26 @@ export default function OrgSettingPage() {
           )}
 
           {/* Team Tab */}
-          {activeTab === "team" && <TeamMembersTab />}
+          {activeTab === "team" && (
+            <div
+              id="org-settings-tabpanel-team"
+              role="tabpanel"
+              aria-labelledby="org-settings-tab-team"
+              tabIndex={0}
+            >
+              <TeamMembersTab />
+            </div>
+          )}
 
           {/* Knowledge Base Tab */}
           {activeTab === "knowledge" && (
-            <div className="space-y-6">
+            <div
+              id="org-settings-tabpanel-knowledge"
+              role="tabpanel"
+              aria-labelledby="org-settings-tab-knowledge"
+              tabIndex={0}
+              className="space-y-6"
+            >
               <KnowledgeBaseUploadingForm />
             </div>
           )}

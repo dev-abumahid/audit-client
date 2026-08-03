@@ -965,6 +965,8 @@
       "allStatuses": "All Statuses",
       "empty": "No compliance obligations found",
       "deleteConfirm": "Delete this compliance obligation?",
+      "editObligation": "Edit obligation",
+      "deleteObligation": "Delete obligation",
       "pagination": {
         "previous": "Previous page",
         "next": "Next page"
@@ -1023,11 +1025,14 @@
         "notePlaceholder": "e.g. Confirmed with legal counsel",
         "confirmButton": "Confirm Attestation",
         "historyModalTitle": "Attestation History — {{title}}",
+        "historyModalClose": "Close attestation history",
         "historyEmpty": "No attestations recorded yet",
         "attestedByLabel": "Attested by: {{accountId}}"
       },
       "form": {
         "newTitle": "New Compliance Obligation",
+        "close": "Close",
+        "removeAttachment": "Remove attachment",
         "editTitle": "Edit Compliance Obligation",
         "title": "Title",
         "domain": "Domain",
@@ -1557,7 +1562,6 @@
       "resend": "Resend",
       "resendExpired": "Resend (expired)",
       "inviteTeamMember": "Invite Team Member",
-      "close": "Close",
       "emailLabel": "Email Address *",
       "emailRequired": "Email is required",
       "emailInvalid": "Enter a valid email address",
@@ -1590,7 +1594,6 @@
       "invitationAdded": "{{email}} can now sign in — copy their link below and share it with them",
       "inviteFailed": "Failed to invite external reviewer",
       "inviteTitle": "Invite an External Reviewer",
-      "close": "Close",
       "emailLabel": "Email Address *",
       "emailRequired": "Email is required",
       "emailInvalid": "Enter a valid email address",

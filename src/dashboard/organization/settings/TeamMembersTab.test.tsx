@@ -103,6 +103,35 @@ describe("TeamMembersTab", () => {
     expect(screen.getByText("organization.teamMembers.statusActive")).toBeInTheDocument()
   })
 
+  // aexa-frontend#464 -- this section heading (and the "Pending invitations"
+  // sub-heading below) used to be <h3>/<h4>, skipping straight from
+  // OrgSettingPage's <h1> with no <h2> in between (Team is the first section
+  // rendered in that tab).
+  it("renders the section heading as an h2 and pending-invitations as an h3", () => {
+    mockUseGetAllOrgUsersQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    mockUseGetPendingInvitationsQuery.mockReturnValue(
+      pendingInvitationForExpiry()
+    )
+
+    render(<TeamMembersTab />)
+
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "organization.teamMembers.heading",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: "organization.teamMembers.pendingInvitations",
+      })
+    ).toBeInTheDocument()
+  })
+
   it("shows a suspended member as Suspended, not Active", () => {
     mockUseGetAllOrgUsersQuery.mockReturnValue({
       data: { data: [member({ status: "SUSPENDED" })] },
@@ -199,7 +228,10 @@ describe("TeamMembersTab", () => {
 
     render(<TeamMembersTab />)
 
-    expect(localeDateSpy).toHaveBeenCalledWith(expect.any(String))
+    expect(localeDateSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      undefined
+    )
     localeDateSpy.mockRestore()
   })
 
@@ -227,7 +259,7 @@ describe("TeamMembersTab", () => {
 
       render(<TeamMembersTab />)
 
-      expect(localeDateSpy).toHaveBeenCalledWith("fr-FR")
+      expect(localeDateSpy).toHaveBeenCalledWith("fr-FR", undefined)
       localeDateSpy.mockRestore()
     }
   )
@@ -245,7 +277,7 @@ describe("TeamMembersTab", () => {
 
     render(<TeamMembersTab />)
 
-    expect(localeDateSpy).toHaveBeenCalledWith("en-US")
+    expect(localeDateSpy).toHaveBeenCalledWith("en-US", undefined)
     localeDateSpy.mockRestore()
   })
 
@@ -290,6 +322,44 @@ describe("TeamMembersTab", () => {
     expect(
       screen.queryByRole("button", { name: "organization.teamMembers.sendInvitation" })
     ).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend#464 -- the invite modal used to be a hand-rolled overlay
+  // div with no dialog semantics or focus trap. It now goes through the
+  // shared Radix-backed Dialog (src/components/ui/dialog.tsx). Asserts both
+  // role="dialog" (review round 1: a prior version of this test claimed to
+  // prove aria-modal/focus-trap but only checked role) AND that focus
+  // actually moved inside the dialog on open, which is the real,
+  // observable behavior a focus trap provides.
+  it("opens the invite form as an accessible dialog with focus moved inside it", async () => {
+    mockUseGetAllOrgUsersQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+
+    render(<TeamMembersTab />)
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.teamMembers.inviteMember" })
+    )
+
+    // role="dialog" only exists on Radix's Dialog.Content -- getByRole
+    // succeeding here proves the modal now goes through the shared Dialog
+    // primitive instead of a hand-rolled overlay div.
+    const dialog = screen.getByRole("dialog")
+    expect(dialog).toBeInTheDocument()
+    // Radix's focus trap auto-focuses the first focusable element inside
+    // the dialog on open -- this is the actual, testable effect of the
+    // focus trap (rather than asserting on an aria-modal attribute Radix's
+    // Dialog.Content doesn't set in this version).
+    expect(dialog.contains(document.activeElement)).toBe(true)
+    expect(
+      screen.getByRole("heading", {
+        name: "organization.teamMembers.inviteTeamMember",
+      })
+    ).toBeInTheDocument()
   })
 
   it("shows the server's error message on a failed invite (e.g. non-admin caller gets a 403) instead of a generic toast", async () => {

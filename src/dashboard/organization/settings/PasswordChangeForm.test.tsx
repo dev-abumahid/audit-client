@@ -62,6 +62,25 @@ describe("PasswordChangeForm", () => {
     expect(screen.getByLabelText("Confirm New Password")).toBeInTheDocument()
   })
 
+  // aexa-frontend#464 -- none of the three password fields had an
+  // autoComplete attribute (WCAG 1.3.5 Identify Input Purpose), which also
+  // stops browser password managers from correctly offering to fill/save.
+  it("marks each password field with the correct autoComplete value", () => {
+    render(<PasswordChangeForm />)
+    expect(screen.getByLabelText("Current Password")).toHaveAttribute(
+      "autoComplete",
+      "current-password"
+    )
+    expect(screen.getByLabelText("New Password")).toHaveAttribute(
+      "autoComplete",
+      "new-password"
+    )
+    expect(screen.getByLabelText("Confirm New Password")).toHaveAttribute(
+      "autoComplete",
+      "new-password"
+    )
+  })
+
   // Regression: the heading, the three field labels, and the two button
   // states were hardcoded English strings never passed through t(), even
   // though this component already used useTranslation for toast messages.
@@ -70,8 +89,11 @@ describe("PasswordChangeForm", () => {
   it("renders the heading, field labels, and submit button text via t()", () => {
     render(<PasswordChangeForm />)
 
+    // aexa-frontend#464 -- this used to be an <h3>, skipping straight from
+    // OrgSettingPage's <h1> with no <h2> in between (it's the second section
+    // rendered in the Profile tab, right after Personal Information).
     expect(
-      screen.getByText("Change Password", { selector: "h3" })
+      screen.getByText("Change Password", { selector: "h2" })
     ).toBeInTheDocument()
     expect(
       screen.getByRole("button", { name: "Change Password" })

@@ -221,9 +221,9 @@ const KnowledgeBaseUploadingForm = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">
+        <h2 className="text-2xl font-semibold text-foreground">
           {t("organization.knowledgeBase.heading")}
-        </h1>
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {t("organization.knowledgeBase.subtitle")}
         </p>

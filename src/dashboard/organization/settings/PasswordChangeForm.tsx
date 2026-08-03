@@ -44,9 +44,9 @@ export default function PasswordChangeForm() {
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <h3 className="mb-4 text-lg font-semibold text-foreground">
+      <h2 className="mb-4 text-lg font-semibold text-foreground">
         {t("organization.settings.passwordChange.heading")}
-      </h3>
+      </h2>
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="max-w-sm space-y-4"
@@ -62,6 +62,7 @@ export default function PasswordChangeForm() {
           <input
             id="oldPassword"
             type="password"
+            autoComplete="current-password"
             {...register("oldPassword", {
               required: t("organization.settings.passwordChange.oldPasswordReqText"),
             })}
@@ -85,6 +86,7 @@ export default function PasswordChangeForm() {
           <input
             id="newPassword"
             type="password"
+            autoComplete="new-password"
             {...register("newPassword", {
               required: t("organization.settings.passwordChange.newPasswordReqText"),
               minLength: {
@@ -112,6 +114,7 @@ export default function PasswordChangeForm() {
           <input
             id="confirmPassword"
             type="password"
+            autoComplete="new-password"
             {...register("confirmPassword", {
               required: t(
                 "organization.settings.passwordChange.confirmPasswordReqText",

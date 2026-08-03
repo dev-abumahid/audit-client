@@ -4,11 +4,18 @@ import {
 } from "@/redux/apis/organization/externalMember.api"
 import type { InviteExternalMemberPayload } from "@/redux/apis/organization/externalMember.api"
 import type { ExternalOrgMember } from "@/types/organizationMember"
-import { Check, Copy, Loader2, Plus, UserPlus, X } from "lucide-react"
+import { Check, Copy, Loader2, Plus, UserPlus } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 
 // aexa-frontend#216. No "role" field on the invite form -- the backend
@@ -196,28 +203,20 @@ export default function ExternalMembersSection() {
         </table>
       </div>
 
-      {canWrite && showInviteForm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-          onClick={() => !isInviting && setShowInviteForm(false)}
+      {canWrite && (
+        <Dialog
+          open={showInviteForm}
+          onOpenChange={(open) => {
+            if (!open && isInviting) return
+            setShowInviteForm(open)
+          }}
         >
-          <div
-            className="w-full max-w-md rounded-2xl border border-border bg-card p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-foreground">
+          <DialogContent className="max-w-md p-6">
+            <DialogHeader className="mb-6">
+              <DialogTitle className="text-xl font-semibold text-foreground">
                 {t("organization.externalMembers.inviteTitle")}
-              </h2>
-              <button
-                onClick={() => setShowInviteForm(false)}
-                disabled={isInviting}
-                aria-label={t("organization.externalMembers.close")}
-                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+              </DialogTitle>
+            </DialogHeader>
 
             <form onSubmit={inviteForm.handleSubmit(handleInvite)}>
               <div className="space-y-4">
@@ -261,7 +260,7 @@ export default function ExternalMembersSection() {
                 </div>
               </div>
 
-              <div className="mt-8 flex justify-end gap-3">
+              <DialogFooter className="mt-8 flex flex-row justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowInviteForm(false)}
@@ -282,10 +281,10 @@ export default function ExternalMembersSection() {
                   )}
                   {t("organization.externalMembers.sendInvite")}
                 </button>
-              </div>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )

@@ -68,6 +68,19 @@ describe("KnowledgeBaseUploadingForm", () => {
     expect(screen.getByText("organization.knowledgeBase.noDocuments")).toBeInTheDocument()
   })
 
+  // aexa-frontend#464 -- this heading used to be an <h1>, which duplicated
+  // OrgSettingPage's own page-level <h1> whenever the Knowledge tab was
+  // active (both render at once, since tabs are in-page state, not routes).
+  it("renders its heading as an h2, not a duplicate h1", () => {
+    render(<KnowledgeBaseUploadingForm />)
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "organization.knowledgeBase.heading",
+      })
+    ).toBeInTheDocument()
+  })
+
   it("renders existing documents", () => {
     mockUseGetAllFilesFromPineconeQuery.mockReturnValue({
       data: { data: [makeDoc()], meta: { total: 1 } },
