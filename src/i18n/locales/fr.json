@@ -126,11 +126,7 @@
       "email": "hello@qiyrix.com",
       "copyright": "© {{year}} Qiyrix — Tous droits réservés.",
       "terms": "Conditions",
-      "privacyPolicy": "Politique de confidentialité",
-      "socialFacebook": "Facebook",
-      "socialTwitter": "Twitter",
-      "socialLinkedIn": "LinkedIn",
-      "socialInstagram": "Instagram"
+      "privacyPolicy": "Politique de confidentialité"
     }
   },
   "auth": {

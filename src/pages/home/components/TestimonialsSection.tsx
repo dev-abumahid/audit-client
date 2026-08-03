@@ -37,12 +37,12 @@ const TestimonialsSection: React.FC = () => {
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-12 text-center sm:mb-16">
-          <h1 className="mb-3 text-xl leading-tight font-bold text-foreground sm:mb-5 sm:text-3xl md:text-4xl lg:text-5xl">
+          <h2 className="mb-3 text-xl leading-tight font-bold text-foreground sm:mb-5 sm:text-3xl md:text-4xl lg:text-5xl">
             {t("home.testimonials.title1")}{" "}
             <span className="text-primary">
               {t("home.testimonials.title2")}
             </span>
-          </h1>
+          </h2>
           <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
             {t("home.testimonials.description")}
           </p>

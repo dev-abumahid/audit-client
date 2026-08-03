@@ -18,10 +18,6 @@ const { mockT } = vi.hoisted(() => ({
       "home.footer.email": "hello@qiyrix.com",
       "home.footer.terms": "Terms",
       "home.footer.privacyPolicy": "Privacy Policy",
-      "home.footer.socialFacebook": "Facebook",
-      "home.footer.socialTwitter": "Twitter",
-      "home.footer.socialLinkedIn": "LinkedIn",
-      "home.footer.socialInstagram": "Instagram",
     }
     if (key === "home.footer.copyright") {
       return `© ${opts?.year} Qiyrix — All rights reserved.`
@@ -89,23 +85,20 @@ describe("Footer", () => {
     expect(screen.queryByText("About Us")).not.toBeInTheDocument()
   })
 
-  // Regression test: all 4 social links used the same Cable icon (visually
-  // identical) with href="#". Icons must now be visually distinct per
-  // platform even though there's no real profile URL to link to yet.
-  it("renders four visually distinct social icons with accessible labels", () => {
+  // Regression test: all 4 social links (Facebook/Twitter/LinkedIn/
+  // Instagram) rendered as styled, clickable buttons pointing at href="#" --
+  // dead placeholders since there's no real company social presence to link
+  // to. Removed entirely rather than shipping non-functional links.
+  it("does not render any social links block", () => {
     renderFooter()
 
-    const facebook = screen.getByLabelText("Facebook")
-    const twitter = screen.getByLabelText("Twitter")
-    const linkedin = screen.getByLabelText("LinkedIn")
-    const instagram = screen.getByLabelText("Instagram")
-
-    const svgs = [facebook, twitter, linkedin, instagram].map(
-      (el) => el.querySelector("svg")?.innerHTML
-    )
-    // Each icon's inner markup must differ from every other -- proves they
-    // aren't all the same Cable icon anymore.
-    expect(new Set(svgs).size).toBe(4)
+    expect(screen.queryByLabelText("Facebook")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Twitter")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("LinkedIn")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Instagram")).not.toBeInTheDocument()
+    expect(
+      screen.queryAllByRole("link").some((link) => link.getAttribute("href") === "#")
+    ).toBe(false)
   })
 
   it("wires every piece of static text through i18n", () => {

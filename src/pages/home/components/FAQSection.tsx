@@ -46,10 +46,10 @@ const FAQSection: React.FC = () => {
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="mb-12 text-center sm:mb-16">
-          <h1 className="mb-3 text-xl leading-tight font-bold text-foreground sm:mb-5 sm:text-3xl md:text-4xl lg:text-5xl">
+          <h2 className="mb-3 text-xl leading-tight font-bold text-foreground sm:mb-5 sm:text-3xl md:text-4xl lg:text-5xl">
             {t("home.faq.title1")}{" "}
             <span className="text-primary">{t("home.faq.title2")}</span>
-          </h1>
+          </h2>
           <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
             {t("home.faq.description")}
           </p>
@@ -65,6 +65,9 @@ const FAQSection: React.FC = () => {
               {/* Question Button */}
               <button
                 onClick={() => toggleAccordion(index)}
+                aria-expanded={openIndex === index}
+                aria-controls={`faq-answer-${index}`}
+                id={`faq-question-${index}`}
                 className="group flex w-full items-center justify-between px-6 py-5 text-left transition-colors hover:bg-accent/10 sm:px-8 sm:py-6"
               >
                 <span className="pr-4 text-base font-medium text-foreground sm:text-lg">
@@ -90,14 +93,21 @@ const FAQSection: React.FC = () => {
                 </div>
               </button>
 
-              {/* Answer */}
-              {openIndex === index && (
-                <div className="px-6 pb-5 sm:px-8 sm:pb-6">
-                  <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
-                    {faq.answer}
-                  </p>
-                </div>
-              )}
+              {/* Answer -- always rendered (rather than conditionally
+                  mounted) so aria-controls on the button above always
+                  resolves to a real element in the DOM, even while
+                  collapsed. Visibility is toggled via `hidden` instead. */}
+              <div
+                id={`faq-answer-${index}`}
+                role="region"
+                aria-labelledby={`faq-question-${index}`}
+                hidden={openIndex !== index}
+                className="px-6 pb-5 sm:px-8 sm:pb-6"
+              >
+                <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
+                  {faq.answer}
+                </p>
+              </div>
             </div>
           ))}
         </div>
