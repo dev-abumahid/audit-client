@@ -269,6 +269,7 @@ const AdminOrganization: React.FC = () => {
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
+                  aria-label={t("admin.organizations.paginationPrevious")}
                   className="rounded-lg border p-2 hover:bg-muted disabled:opacity-50"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -293,6 +294,7 @@ const AdminOrganization: React.FC = () => {
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
+                  aria-label={t("admin.organizations.paginationNext")}
                   className="rounded-lg border p-2 hover:bg-muted disabled:opacity-50"
                 >
                   <ChevronRight className="h-4 w-4" />

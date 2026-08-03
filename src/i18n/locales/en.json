@@ -348,6 +348,7 @@
       "create": {
         "pageTitle": "Create Template",
         "removeLogo": "Remove logo",
+        "logoAlt": "Template logo",
         "back": "← Back",
         "saveTemplate": "Save Template",
         "upload": "Upload",
@@ -596,6 +597,7 @@
       "pdfGenerateFailedToast": "Failed to generate PDF report",
       "unsplitText": "Unsplit Text",
       "mediaPreview": "Media Preview",
+      "closeMediaPreview": "Close media preview",
       "colTitle": "Title",
       "colPriority": "Priority",
       "colDueDate": "Due Date",
@@ -724,7 +726,11 @@
       "boardReports": "Board Reports",
       "settings": "Settings",
       "logout": "Logout",
-      "loggedOut": "Logged out"
+      "loggedOut": "Logged out",
+      "closeSidebar": "Close sidebar",
+      "openSidebar": "Open sidebar",
+      "collapseSidebar": "Collapse sidebar",
+      "expandSidebar": "Expand sidebar"
     },
     "overview": {
       "title": "Executive Dashboard",
@@ -888,6 +894,7 @@
       "aiGenerated": "AI",
       "manual": "Manual",
       "editRisk": "Edit Risk",
+      "deleteRisk": "Delete Risk",
       "addRisk": "Add Risk",
       "updateRisk": "Update Risk",
       "siteLabel": "Site *",
@@ -1448,6 +1455,7 @@
       "effectPlaceholder": "What is the consequence or risk?",
       "download": "Download",
       "preview": "Preview",
+      "closePreview": "Close preview",
       "videoUnsupported": "Your browser does not support video preview.",
       "previewUnavailable": "Preview not available",
       "downloadToView": "Download to view this file",
@@ -1816,7 +1824,9 @@
       "noResults": "No organizations found",
       "statusActive": "Active",
       "statusPending": "Pending",
-      "pagination": "Showing {{from}} to {{to}} of {{total}} organizations"
+      "pagination": "Showing {{from}} to {{to}} of {{total}} organizations",
+      "paginationPrevious": "Previous page",
+      "paginationNext": "Next page"
     },
     "overview": {
       "title": "Dashboard",

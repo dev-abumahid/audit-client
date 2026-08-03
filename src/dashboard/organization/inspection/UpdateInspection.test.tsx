@@ -583,4 +583,51 @@ describe("UpdateInspection", () => {
       expect(toast.success).not.toHaveBeenCalled()
     })
   })
+
+  // aexa-frontend#484 -- the per-question media-file "remove" control was a
+  // <span onClick={...}>, not a real button: no role="button", no tabIndex,
+  // no Enter/Space keyboard handler, so it was not reachable or operable
+  // via keyboard. Converted to a real <button type="button">.
+  describe("per-question media file removal (#484)", () => {
+    it("renders the remove control as a real, keyboard-operable button", async () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            questionAnswers: [
+              {
+                id: "qa-1",
+                questionId: "q-1",
+                answer: true,
+                note: "",
+                mediaFiles: [{ url: "https://cdn.example.com/photo.jpg" }],
+              },
+              {
+                id: "qa-2",
+                questionId: "q-2",
+                answer: "Fine",
+                note: "",
+                mediaFiles: [],
+              },
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />)
+
+      const removeButton = screen.getByRole("button", {
+        name: "organization.inspection.remove",
+      })
+      expect(removeButton.tagName).toBe("BUTTON")
+      expect(removeButton).toHaveAttribute("type", "button")
+
+      await userEvent.click(removeButton)
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.inspection.remove",
+        })
+      ).not.toBeInTheDocument()
+    })
+  })
 })

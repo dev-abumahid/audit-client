@@ -476,12 +476,14 @@ export default function RiskRegisterPage() {
                           <button
                             onClick={() => openEdit(risk)}
                             className="rounded p-1 hover:bg-muted"
+                            aria-label={t("organization.riskRegister.editRisk")}
                           >
                             <Pencil className="h-3 w-3" />
                           </button>
                           <button
                             onClick={() => openDeleteModal(risk.id)}
                             className="rounded p-1 hover:bg-destructive/10 hover:text-destructive"
+                            aria-label={t("organization.riskRegister.deleteRisk")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>

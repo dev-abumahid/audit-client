@@ -185,4 +185,24 @@ describe("AdminOrganization", () => {
       )
     )
   })
+
+  // aexa-frontend#486 -- the Prev/Next pagination icon buttons had no
+  // aria-label/title, unlike the equivalent pattern in
+  // CompliancePage.tsx/AuditPage.tsx.
+  it("gives the Prev/Next pagination buttons accessible names", () => {
+    mockList([makeOrg()], { page: 1, limit: 10, total: 25, totalPage: 3 })
+
+    render(<AdminOrganization />)
+
+    expect(
+      screen.getByRole("button", {
+        name: "admin.organizations.paginationPrevious",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "admin.organizations.paginationNext",
+      })
+    ).toBeInTheDocument()
+  })
 })

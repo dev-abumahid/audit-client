@@ -307,10 +307,11 @@ function QnASettingsPanel({
                       </button>
 
                       <div className="flex gap-2 pt-2">
-                        <Button size="sm" onClick={saveEdit}>
+                        <Button type="button" size="sm" onClick={saveEdit}>
                           {t("organization.templates.edit.saveChanges")}
                         </Button>
                         <Button
+                          type="button"
                           variant="outline"
                           size="sm"
                           onClick={cancelEdit}
@@ -325,6 +326,7 @@ function QnASettingsPanel({
             </div>
 
             <Button
+              type="button"
               onClick={addNewResponseSet}
               variant="default"
               className="mt-6 w-full"
@@ -363,7 +365,7 @@ function QnASettingsPanel({
 
         {/* Footer */}
         <div className="border-t border-border bg-muted/50 px-5 py-4">
-          <Button onClick={onClose} className="w-full">
+          <Button type="button" onClick={onClose} className="w-full">
             {t("organization.templates.qna.close")}
           </Button>
         </div>

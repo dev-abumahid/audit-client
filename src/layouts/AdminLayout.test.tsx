@@ -146,4 +146,70 @@ describe("AdminLayout (aexa-frontend#248)", () => {
     renderAdminLayout()
     expect(screen.getAllByText("AD").length).toBeGreaterThan(0)
   })
+
+  // aexa-frontend#486 -- several icon-only sidebar controls (mobile close,
+  // Logout, Settings link, desktop collapse-toggle, mobile hamburger) lose
+  // their accessible name once the sidebar is collapsed, unlike the sidebar
+  // nav Link items just above them, which already fall back to
+  // title={collapsed ? item.label : undefined}.
+  describe("sidebar control accessible names (#486)", () => {
+    // Both the desktop and mobile <aside> render the same navContent (one
+    // is hidden with CSS depending on viewport, which jsdom doesn't apply),
+    // so every sidebar control appears twice in the DOM -- same rationale
+    // as the existing "Logout" test above using getAllByRole.
+    it("gives the mobile sidebar close button and hamburger open button accessible names", () => {
+      renderAdminLayout()
+
+      expect(
+        screen.getAllByRole("button", {
+          name: "organization.nav.closeSidebar",
+        }).length
+      ).toBeGreaterThan(0)
+      expect(
+        screen.getAllByRole("button", { name: "organization.nav.openSidebar" })
+          .length
+      ).toBeGreaterThan(0)
+    })
+
+    it("gives the desktop collapse-toggle button an accessible name that flips with collapsed state", async () => {
+      const user = userEvent.setup()
+      renderAdminLayout()
+
+      expect(
+        screen.getAllByRole("button", {
+          name: "organization.nav.collapseSidebar",
+        }).length
+      ).toBeGreaterThan(0)
+
+      const [collapseToggle] = screen.getAllByRole("button", {
+        name: "organization.nav.collapseSidebar",
+      })
+      await user.click(collapseToggle)
+
+      expect(
+        screen.getAllByRole("button", {
+          name: "organization.nav.expandSidebar",
+        }).length
+      ).toBeGreaterThan(0)
+    })
+
+    it("keeps Settings and Logout reachable by name once the sidebar is collapsed", async () => {
+      const user = userEvent.setup()
+      renderAdminLayout()
+
+      const [collapseToggle] = screen.getAllByRole("button", {
+        name: "organization.nav.collapseSidebar",
+      })
+      await user.click(collapseToggle)
+
+      // Once collapsed, the visible <span> label is gone, so the only
+      // remaining accessible name comes from the title fallback.
+      const [settingsLink] = screen.getAllByRole("link", { name: "Settings" })
+      expect(settingsLink).toHaveAttribute("href", "/admin/settings")
+      const [logoutControl] = screen.getAllByRole("button", {
+        name: "Logout",
+      })
+      expect(logoutControl).toBeInTheDocument()
+    })
+  })
 })

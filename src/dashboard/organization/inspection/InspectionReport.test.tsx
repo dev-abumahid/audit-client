@@ -392,7 +392,11 @@ describe("InspectionReport", () => {
       screen.getByText("organization.inspection.mediaPreview")
     ).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole("button", { name: "×" }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.closeMediaPreview",
+      })
+    )
     expect(
       screen.queryByText("organization.inspection.mediaPreview")
     ).not.toBeInTheDocument()

@@ -1019,14 +1019,16 @@ export default function UpdateInspection() {
                         <div className="flex items-center gap-5">
                           {hasMediaFiles.map((mediaFile: any, idx: number) => (
                             <div key={idx} className="relative">
-                              <span
+                              <button
+                                type="button"
                                 onClick={() =>
                                   handleRemoveMediaFile(question.id, idx)
                                 }
+                                aria-label={t("organization.inspection.remove")}
                                 className="absolute -top-2 -right-2 cursor-pointer rounded-full bg-amber-100 p-1 text-red-500"
                               >
                                 <Trash className="size-4" />
-                              </span>
+                              </button>
                               <img
                                 className="h-12 w-12"
                                 src={mediaFile.url}

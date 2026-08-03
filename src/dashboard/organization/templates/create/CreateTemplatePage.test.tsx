@@ -37,8 +37,24 @@ vi.mock("@/redux/apis/organization/template.api", () => ({
 
 // PageSection pulls in dnd-kit and its own mutations — irrelevant to the
 // submit-failure handling under test, so it's stubbed to a no-op section.
+// Still exposes its onOpenAddModal trigger as a plain button so the
+// aexa-frontend#485 regression test below can reach the "Add New" modal
+// (which is owned by this page, not PageSection) without pulling in
+// dnd-kit.
 vi.mock("./PageSection", () => ({
-  default: () => <div data-testid="page-section" />,
+  default: ({
+    pageIndex,
+    onOpenAddModal,
+  }: {
+    pageIndex: number
+    onOpenAddModal: (pageIndex: number) => void
+  }) => (
+    <div data-testid="page-section">
+      <button type="button" onClick={() => onOpenAddModal(pageIndex)}>
+        open add modal
+      </button>
+    </div>
+  ),
 }))
 
 function renderPage() {
@@ -99,6 +115,29 @@ describe("CreateTemplatePage", () => {
       await user.type(nameInput, "My Template")
 
       expect(createObjectURLSpy).toHaveBeenCalledTimes(1)
+    })
+
+    // aexa-frontend#484 -- the logo preview <img> had no alt attribute.
+    // EditTemplatePage's equivalent image already sets
+    // alt={t("organization.templates.edit.logoAlt")}; CreateTemplatePage
+    // now has its own organization.templates.create.logoAlt key (kept
+    // separate rather than borrowed cross-namespace, so the two pages'
+    // copy can diverge independently later).
+    it("gives the uploaded logo preview an alt attribute", async () => {
+      const user = userEvent.setup()
+      const file = new File(["fake-image-bytes"], "logo.png", {
+        type: "image/png",
+      })
+
+      renderPage()
+      await user.upload(
+        screen.getByLabelText(/organization\.templates\.create\.upload/i),
+        file
+      )
+
+      expect(
+        await screen.findByAltText("organization.templates.create.logoAlt")
+      ).toBeInTheDocument()
     })
 
     it("revokes the previous object URL when the file is replaced", async () => {
@@ -256,5 +295,35 @@ describe("CreateTemplatePage", () => {
       ).toBeInTheDocument()
       expect(screen.queryByText(/New Section/)).not.toBeInTheDocument()
     })
+  })
+
+  // aexa-frontend#485 -- this page's entire body (including the "Add New"
+  // modal below) is nested inside a single
+  // <form onSubmit={handleSubmit(onSubmit)}>. The modal's Cancel button was
+  // missing type="button", so the shared Button component's bare <button>
+  // defaulted to type="submit" and clicking Cancel would create the
+  // in-progress template instead of just closing the modal. This is the
+  // page's own instance of the bug (QnASettingsPanel's four buttons already
+  // have their own regression test in QnASettingsPanel.test.tsx).
+  it("does not create the template when the Add New modal's Cancel button is clicked (#485)", async () => {
+    renderPage()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "open add modal" })
+    )
+    expect(
+      screen.getByText("organization.templates.create.addNew")
+    ).toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.templates.create.cancel",
+      })
+    )
+
+    expect(mockCreateNewTemplate).not.toHaveBeenCalled()
+    expect(
+      screen.queryByText("organization.templates.create.addNew")
+    ).not.toBeInTheDocument()
   })
 })

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import EditTemplatePage from "./EditTemplatePage"
@@ -60,8 +60,23 @@ vi.mock("@/redux/apis/organization/template.api", () => ({
 // EditPageSection pulls in dnd-kit and its own mutations — irrelevant to the
 // logo-preview object URL lifecycle under test, so it's stubbed to a no-op
 // section, matching CreateTemplatePage.test.tsx's treatment of PageSection.
+// Still exposes its onOpenAddModal trigger as a plain button so the
+// aexa-frontend#485 regression test below can reach the "Add New" modal
+// (owned by this page, not EditPageSection) without pulling in dnd-kit.
 vi.mock("./EditPagesection", () => ({
-  default: () => <div data-testid="edit-page-section" />,
+  default: ({
+    pageIndex,
+    onOpenAddModal,
+  }: {
+    pageIndex: number
+    onOpenAddModal: (pageIndex: number) => void
+  }) => (
+    <div data-testid="edit-page-section">
+      <button type="button" onClick={() => onOpenAddModal(pageIndex)}>
+        open add modal
+      </button>
+    </div>
+  ),
 }))
 
 function renderPage() {
@@ -277,5 +292,56 @@ describe("EditTemplatePage", () => {
       ).not.toBeInTheDocument()
       expect(screen.getByDisplayValue("Existing Template")).toBeInTheDocument()
     })
+  })
+
+  // Positive baseline for the #485 regression test below: proves
+  // mockUpdateTemplateBasics is genuinely wired to this page's save path
+  // (via useAutoSave -> handleSave -> updateTemplateBasics), so the
+  // "Cancel does NOT call it" assertion below is actually testing
+  // something -- without this, that assertion would pass vacuously even
+  // if Save were completely disconnected from updateTemplateBasics.
+  it("calls updateTemplateBasics once a form change triggers auto-save", async () => {
+    mockUpdateTemplateBasics.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+    renderPage()
+
+    const nameInput = screen.getByDisplayValue("Existing Template")
+    fireEvent.change(nameInput, {
+      target: { value: "Existing Template (edited)" },
+    })
+
+    await waitFor(() => expect(mockUpdateTemplateBasics).toHaveBeenCalled(), {
+      timeout: 3000,
+    })
+  }, 6000)
+
+  // aexa-frontend#485 -- this page's entire body (including the "Add New"
+  // modal below) is nested inside a single
+  // <form onSubmit={handleSubmit(onSubmit)}>, where onSubmit calls
+  // manualSave() (which persists via updateTemplateBasics). The modal's
+  // Cancel button was missing type="button", so it defaulted to
+  // type="submit" and clicking it would trigger a manual save instead of
+  // just closing the modal.
+  it("does not trigger a save when the Add New modal's Cancel button is clicked (#485)", async () => {
+    renderPage()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "open add modal" })
+    )
+    expect(
+      screen.getByText("organization.templates.create.addNew")
+    ).toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.templates.create.cancel",
+      })
+    )
+
+    expect(mockUpdateTemplateBasics).not.toHaveBeenCalled()
+    expect(
+      screen.queryByText("organization.templates.create.addNew")
+    ).not.toBeInTheDocument()
   })
 })

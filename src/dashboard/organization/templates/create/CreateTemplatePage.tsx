@@ -220,6 +220,7 @@ const CreateTemplatePage = () => {
                   <div className="relative h-20 w-20">
                     <img
                       src={logoPreviewUrl ?? undefined}
+                      alt={t("organization.templates.create.logoAlt")}
                       className="h-20 w-20 rounded-xl border object-cover"
                     />
 
@@ -369,6 +370,7 @@ placeholder={t("organization.templates.create.descPlaceholder")}
             </div>
             <div className="border-t p-4">
               <Button
+                type="button"
                 variant="outline"
                 onClick={() => setAddModalTarget(null)}
                 className="w-full"

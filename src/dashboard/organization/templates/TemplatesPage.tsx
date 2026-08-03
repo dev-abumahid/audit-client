@@ -232,6 +232,7 @@ export default function TemplatesPage() {
                         {template.templateLogo && (
                           <img
                             src={template.templateLogo}
+                            alt={template.templateName}
                             className="h-8 w-8 rounded-md object-cover"
                           />
                         )}

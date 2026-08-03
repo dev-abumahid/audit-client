@@ -239,3 +239,81 @@ describe("QnASettingsPanel (issue #429)", () => {
     ).not.toBeInTheDocument()
   })
 })
+
+// Regression (aexa-frontend#485): QnASettingsPanel is rendered directly
+// inside CreateTemplatePage's/EditTemplatePage's top-level
+// <form onSubmit={...}>. The shared Button component renders a bare
+// <button> with no default `type`, so any button here missing an explicit
+// type="button" defaults to native type="submit" and would submit/save
+// the whole template form instead of just performing its own action.
+// This wraps the panel in a real <form> with a spy onSubmit -- exactly the
+// real-world nesting -- and asserts every one of its four buttons leaves
+// the form unsubmitted.
+describe("QnASettingsPanel buttons do not submit an enclosing form (#485)", () => {
+  function renderInForm(onSubmit: () => void) {
+    return render(
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSubmit()
+        }}
+      >
+        <QnASettingsPanel
+          onClose={vi.fn()}
+          onSelectInput={vi.fn()}
+          onSelectResponseSet={vi.fn()}
+        />
+      </form>
+    )
+  }
+
+  it("does not submit the form when the footer Close button is clicked", async () => {
+    const onSubmit = vi.fn()
+    renderInForm(onSubmit)
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.templates.qna.closePanel",
+      })
+    )
+
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it("does not submit the form when Add Response Set is clicked", async () => {
+    const onSubmit = vi.fn()
+    renderInForm(onSubmit)
+
+    await userEvent.click(
+      screen.getByText("organization.templates.qna.addResponseSet")
+    )
+
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it("does not submit the form when the inline edit Save Changes / Cancel buttons are clicked", async () => {
+    const onSubmit = vi.fn()
+    renderInForm(onSubmit)
+
+    // Enter edit mode via the first response set's pencil edit button.
+    const goodChip = screen.getByText(
+      "organization.templates.qna.options.good"
+    )
+    const chipRow = goodChip.closest("div")?.parentElement
+    const rowButtons = chipRow?.querySelectorAll("button")
+    const editButton = rowButtons?.[rowButtons.length - 1] ?? null
+    expect(editButton).toBeTruthy()
+    await userEvent.click(editButton!)
+
+    await userEvent.click(
+      screen.getByText("organization.templates.edit.saveChanges")
+    )
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    await userEvent.click(editButton!)
+    await userEvent.click(
+      screen.getByText("organization.templates.create.cancel")
+    )
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+})

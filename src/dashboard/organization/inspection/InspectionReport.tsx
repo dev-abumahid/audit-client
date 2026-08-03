@@ -819,6 +819,7 @@ const InspectionReport = () => {
               </h3>
               <button
                 onClick={() => setSelectedMedia(null)}
+                aria-label={t("organization.inspection.closeMediaPreview")}
                 className="flex h-7 w-7 items-center justify-center rounded-full font-bold text-muted-foreground transition-colors hover:bg-muted"
               >
                 ×

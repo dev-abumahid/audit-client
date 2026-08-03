@@ -533,6 +533,7 @@ placeholder={t("organization.templates.create.descPlaceholder")}
             </div>
             <div className="border-t p-4">
               <Button
+                type="button"
                 variant="outline"
                 onClick={() => setAddModalTarget(null)}
                 className="w-full"

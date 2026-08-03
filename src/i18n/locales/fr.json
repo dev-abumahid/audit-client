@@ -348,6 +348,7 @@
       "create": {
         "pageTitle": "Créer un modèle",
         "removeLogo": "Supprimer le logo",
+        "logoAlt": "Logo du modèle",
         "back": "← Retour",
         "saveTemplate": "Enregistrer le modèle",
         "upload": "Téléverser",
@@ -596,6 +597,7 @@
       "pdfGenerateFailedToast": "Échec de la génération du rapport PDF",
       "unsplitText": "Texte non fractionné",
       "mediaPreview": "Aperçu du média",
+      "closeMediaPreview": "Fermer l'aperçu du média",
       "colTitle": "Titre",
       "colPriority": "Priorité",
       "colDueDate": "Date d'échéance",
@@ -724,7 +726,11 @@
       "boardReports": "Rapports du conseil",
       "settings": "Paramètres",
       "logout": "Déconnexion",
-      "loggedOut": "Déconnecté"
+      "loggedOut": "Déconnecté",
+      "closeSidebar": "Fermer la barre latérale",
+      "openSidebar": "Ouvrir la barre latérale",
+      "collapseSidebar": "Réduire la barre latérale",
+      "expandSidebar": "Développer la barre latérale"
     },
     "overview": {
       "title": "Tableau de bord exécutif",
@@ -888,6 +894,7 @@
       "aiGenerated": "IA",
       "manual": "Manuel",
       "editRisk": "Modifier le risque",
+      "deleteRisk": "Supprimer le risque",
       "addRisk": "Ajouter un risque",
       "updateRisk": "Mettre à jour le risque",
       "siteLabel": "Site *",
@@ -1448,6 +1455,7 @@
       "effectPlaceholder": "Quelle est la conséquence ou le risque ?",
       "download": "Télécharger",
       "preview": "Aperçu",
+      "closePreview": "Fermer l'aperçu",
       "videoUnsupported": "Votre navigateur ne prend pas en charge l'aperçu vidéo.",
       "previewUnavailable": "Aperçu non disponible",
       "downloadToView": "Téléchargez pour afficher ce fichier",
@@ -1816,7 +1824,9 @@
       "noResults": "Aucune organisation trouvée",
       "statusActive": "Actif",
       "statusPending": "En attente",
-      "pagination": "Affichage de {{from}} à {{to}} sur {{total}} organisations"
+      "pagination": "Affichage de {{from}} à {{to}} sur {{total}} organisations",
+      "paginationPrevious": "Page précédente",
+      "paginationNext": "Page suivante"
     },
     "overview": {
       "title": "Tableau de bord",

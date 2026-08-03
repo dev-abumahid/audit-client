@@ -512,6 +512,31 @@ describe("FindingDetails", () => {
       expect(screen.getByAltText("attachment-0")).toBeInTheDocument()
     })
 
+    // aexa-frontend#484 -- the attachment PreviewModal's close button was
+    // icon-only (X) with no aria-label/title.
+    it("gives the attachment preview modal's close button an accessible name", async () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            attachments: ["https://cdn.example.com/photo.png"],
+          }),
+        },
+        isLoading: false,
+      })
+      renderPage()
+      await openFilesTab()
+
+      await userEvent.click(
+        screen.getByTitle("organization.findings.preview")
+      )
+
+      expect(
+        screen.getByRole("button", {
+          name: "organization.findings.closePreview",
+        })
+      ).toBeInTheDocument()
+    })
+
     it("uploads a file, persists the URL onto the finding, and shows a success toast", async () => {
       mockUploadAttachment.mockReturnValue({
         unwrap: () =>

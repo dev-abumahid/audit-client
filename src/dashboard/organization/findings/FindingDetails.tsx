@@ -151,6 +151,7 @@ const PreviewModal = ({
             </button>
             <button
               onClick={onClose}
+              aria-label={t("organization.findings.closePreview")}
               className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <X className="h-5 w-5" />

@@ -989,4 +989,24 @@ describe("RiskRegisterPage", () => {
       ).toBeInTheDocument()
     }
   })
+
+  // aexa-frontend#483 -- the per-row Edit/Delete icon buttons had no
+  // aria-label, unlike the equivalent KRI-card buttons and
+  // CorrelationMatrixPage's link-delete button.
+  it("gives the per-row Edit and Delete icon buttons accessible names", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+
+    render(<RiskRegisterPage />)
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.editRisk",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.deleteRisk",
+      })
+    ).toBeInTheDocument()
+  })
 })

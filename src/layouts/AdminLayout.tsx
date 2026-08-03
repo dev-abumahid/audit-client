@@ -107,6 +107,7 @@ export default function AdminLayout() {
 
         <button
           onClick={() => setMobileOpen(false)}
+          aria-label={t("organization.nav.closeSidebar")}
           className="rounded p-1.5 text-sidebar-foreground hover:text-sidebar-accent-foreground lg:hidden"
         >
           <X className="h-5 w-5" />
@@ -163,6 +164,7 @@ export default function AdminLayout() {
           className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
             collapsed ? "justify-center" : ""
           }`}
+          title={collapsed ? t("organization.nav.settings") : undefined}
         >
           <Settings className="h-4 w-4" />
           {!collapsed && <span>{t("organization.nav.settings")}</span>}
@@ -171,6 +173,7 @@ export default function AdminLayout() {
         <button
           onClick={logOutHandler}
           className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          title={collapsed ? t("organization.nav.logout") : undefined}
         >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span>{t("organization.nav.logout")}</span>}
@@ -179,6 +182,11 @@ export default function AdminLayout() {
         {/* Collapse Toggle (Desktop) */}
         <button
           onClick={() => setCollapsed(!collapsed)}
+          aria-label={
+            collapsed
+              ? t("organization.nav.expandSidebar")
+              : t("organization.nav.collapseSidebar")
+          }
           className="hidden w-full items-center justify-center rounded-md py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground lg:flex"
         >
           {collapsed ? (
@@ -226,6 +234,7 @@ export default function AdminLayout() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setMobileOpen(true)}
+              aria-label={t("organization.nav.openSidebar")}
               className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
             >
               <Menu className="h-5 w-5" />

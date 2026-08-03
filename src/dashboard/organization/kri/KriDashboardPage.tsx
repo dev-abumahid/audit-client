@@ -393,6 +393,7 @@ export default function KriDashboardPage() {
               value={updateValue}
               onChange={(e) => setUpdateValue(e.target.value)}
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              aria-label={t("organization.kri.form.currentValue")}
               autoFocus
             />
             <div className="mt-5 flex justify-end gap-2">
@@ -448,10 +449,14 @@ export default function KriDashboardPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
+                <label
+                  htmlFor="kri-form-name"
+                  className="text-xs font-medium text-muted-foreground"
+                >
                   {t("organization.kri.form.name")} *
                 </label>
                 <input
+                  id="kri-form-name"
                   value={form.name}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, name: e.target.value }))
@@ -463,10 +468,14 @@ export default function KriDashboardPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="kri-form-risk"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.kri.form.risk")} *
                   </label>
                   <select
+                    id="kri-form-risk"
                     value={form.risk_id}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, risk_id: e.target.value }))
@@ -501,10 +510,14 @@ export default function KriDashboardPage() {
                   })()}
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="kri-form-unit"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.kri.form.unit")}
                   </label>
                   <input
+                    id="kri-form-unit"
                     value={form.unit}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, unit: e.target.value }))
@@ -517,10 +530,14 @@ export default function KriDashboardPage() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="kri-form-current-value"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.kri.form.currentValue")}
                   </label>
                   <input
+                    id="kri-form-current-value"
                     type="number"
                     value={form.current_value}
                     onChange={(e) =>
@@ -533,10 +550,14 @@ export default function KriDashboardPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="kri-form-alert-threshold"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.kri.form.alertThreshold")}
                   </label>
                   <input
+                    id="kri-form-alert-threshold"
                     type="number"
                     value={form.alert_threshold}
                     onChange={(e) =>
@@ -549,10 +570,14 @@ export default function KriDashboardPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="kri-form-target"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.kri.form.target")}
                   </label>
                   <input
+                    id="kri-form-target"
                     type="number"
                     value={form.target_value}
                     onChange={(e) =>
@@ -567,10 +592,14 @@ export default function KriDashboardPage() {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
+                <label
+                  htmlFor="kri-form-frequency"
+                  className="text-xs font-medium text-muted-foreground"
+                >
                   {t("organization.kri.form.frequency")}
                 </label>
                 <select
+                  id="kri-form-frequency"
                   value={form.frequency}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, frequency: e.target.value }))

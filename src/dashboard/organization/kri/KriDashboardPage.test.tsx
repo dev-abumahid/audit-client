@@ -755,4 +755,51 @@ describe("KriDashboardPage", () => {
       expect(nameInput).toHaveValue("New KRI")
     })
   })
+
+  // aexa-frontend#483 -- the Update Value modal's number input had no
+  // <label>/aria-label/id (the dialog's aria-labelledby names the dialog
+  // itself, not this field), and all 7 New KRI modal fields used a
+  // <label> with no htmlFor and inputs/selects with no id.
+  describe("form field accessible names (#483)", () => {
+    it("gives the Update Value modal's input an accessible name", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      render(<KriDashboardPage />)
+
+      await userEvent.click(
+        screen.getByTitle("organization.kri.updateValueTooltip")
+      )
+
+      expect(
+        screen.getByLabelText("organization.kri.form.currentValue")
+      ).toBeInTheDocument()
+    })
+
+    it("pairs every New KRI modal field to its label via htmlFor/id", async () => {
+      render(<KriDashboardPage />)
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+      )
+
+      const labelKeys = [
+        "name",
+        "risk",
+        "unit",
+        "currentValue",
+        "alertThreshold",
+        "target",
+        "frequency",
+      ]
+      for (const key of labelKeys) {
+        expect(
+          screen.getByLabelText(`organization.kri.form.${key}`, {
+            exact: false,
+          })
+        ).toBeInTheDocument()
+      }
+    })
+  })
 })

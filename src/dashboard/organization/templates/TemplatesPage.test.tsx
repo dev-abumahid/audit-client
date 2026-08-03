@@ -109,6 +109,24 @@ describe("TemplatesPage", () => {
     )
   })
 
+  // aexa-frontend#484 -- the template list row's thumbnail <img> had no
+  // alt attribute.
+  it("gives the template list row's thumbnail an alt attribute", () => {
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: {
+        data: [makeTemplate({ templateLogo: "https://cdn.example.com/logo.png" })],
+        meta: { total: 1 },
+      },
+      isLoading: false,
+    })
+
+    render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+    expect(
+      screen.getByAltText("ISO 27001 Audit Template")
+    ).toBeInTheDocument()
+  })
+
   it("gives the disabled system-template Edit and Delete buttons an accessible name too", () => {
     mockUseGetAllTemplatesQuery.mockReturnValue({
       data: {
