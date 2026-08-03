@@ -292,6 +292,21 @@ describe("AlertsPage", () => {
     })
   })
 
+  // aexa-frontend#466: h1 -> h3 (per-alert-card title) skipped h2 entirely.
+  // A sr-only h2 for the list section keeps the hierarchy unbroken without
+  // changing the visible layout.
+  it("does not skip heading levels from h1 to h3", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert()] },
+      isLoading: false,
+    })
+    render(<AlertsPage />)
+
+    expect(screen.getAllByRole("heading", { level: 1 }).length).toBe(1)
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBe(1)
+    expect(screen.getAllByRole("heading", { level: 3 }).length).toBeGreaterThan(0)
+  })
+
   // aexa-frontend round-3 audit bug #3: the alert timestamp used to be
   // hardcoded to "en-US" regardless of the active UI language.
   it("formats the alert timestamp in French when the UI language is French", () => {

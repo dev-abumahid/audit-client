@@ -307,7 +307,9 @@
         "deleteTitle": "Delete template",
         "deleteDescription": "Are you sure you want to delete this template? This action cannot be undone.",
         "deleteFailed": "Failed to delete template",
-        "systemTemplateTooltip": "System template - cannot be edited or deleted"
+        "systemTemplateTooltip": "System template - cannot be edited or deleted",
+        "editButtonLabel": "Edit {{name}}",
+        "deleteButtonLabel": "Delete {{name}}"
       },
       "report": {
         "untitled": "Untitled Template",
@@ -344,6 +346,8 @@
         }
       },
       "create": {
+        "pageTitle": "Create Template",
+        "removeLogo": "Remove logo",
         "back": "← Back",
         "saveTemplate": "Save Template",
         "upload": "Upload",
@@ -363,6 +367,7 @@
         "newSectionTitle": "New Section {{num}}"
       },
       "edit": {
+        "pageTitle": "Edit Template",
         "loading": "Loading template...",
         "logoAlt": "Template logo",
         "saveChanges": "Save Changes",
@@ -383,6 +388,7 @@
         "noQuestions": "No questions yet. Click \"Add New\" below to get started.",
         "addNewQuestion": "Add New Question",
         "deleteQuestion": "Delete Question",
+        "dragToReorder": "Drag to reorder question",
         "enterQuestion": "Enter question…",
         "required": "Required",
         "selectType": "Select Type",
@@ -429,6 +435,9 @@
         "addResponseSet": "Add New Response Set",
         "inputTypes": "Input Types",
         "close": "Close",
+        "closePanel": "Close QnA settings",
+        "editResponseSet": "Edit response set {{number}}",
+        "removeOption": "Remove option {{number}}",
         "options": {
           "good": "good",
           "poor": "poor",
@@ -680,6 +689,7 @@
         "FAILED": "Failed"
       },
       "aiBadge": "AI",
+      "listHeading": "Board Reports",
       "reference": "Reference",
       "preview": "Preview",
       "download": "Download PDF",
@@ -1203,6 +1213,9 @@
       "linkedRisksLabel": "Linked Risks:",
       "openInRegister": "Open in Risk Register",
       "empty": "No audit engagements found",
+      "missionListHeading": "Audit Missions",
+      "editMission": "Edit {{title}}",
+      "deleteMission": "Delete {{title}}",
       "prevPage": "Previous page",
       "nextPage": "Next page",
       "newModalTitle": "New Audit Engagement",
@@ -1336,6 +1349,7 @@
       "markReadFailed": "Failed to mark alert as read",
       "loadFailed": "Failed to load alerts. Please try again later.",
       "title": "Risk Alerts",
+      "listHeading": "Alerts List",
       "activeCount_one": "{{count}} active alert",
       "activeCount_other": "{{count}} active alerts",
       "aiGenerated": "AI Generated",

@@ -143,6 +143,7 @@ export default function AlertsPage() {
 
       {/* Alerts List */}
       <div className="animate-slide-up stagger-2 space-y-3">
+        <h2 className="sr-only">{t("organization.alerts.listHeading")}</h2>
         {alerts.map((alert: any) => (
           <div
             key={alert.id}

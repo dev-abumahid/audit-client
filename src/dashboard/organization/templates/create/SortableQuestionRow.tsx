@@ -67,6 +67,7 @@ function SortableQuestionRow({
       <button
         type="button"
         onClick={() => remove(questionIndex)}
+        aria-label={t("organization.templates.builder.deleteQuestion")}
         className="absolute top-4 left-2 z-10 rounded-full bg-red-500 p-1 text-white opacity-0 transition-all group-hover:opacity-100 hover:bg-red-600"
         title={t("organization.templates.builder.deleteQuestion")}
       >
@@ -79,6 +80,7 @@ function SortableQuestionRow({
           {/* Drag Handle */}
           <button
             type="button"
+            aria-label={t("organization.templates.builder.dragToReorder")}
             className="mt-1.5 cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
             {...attributes}
             {...listeners}

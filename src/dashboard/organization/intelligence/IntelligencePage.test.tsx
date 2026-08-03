@@ -953,6 +953,63 @@ describe("IntelligencePage", () => {
     ).toBeInTheDocument()
   })
 
+  // aexa-frontend#466: severity quick-filter buttons showed active state via
+  // color only, with no aria-pressed -- inconsistent with AlertsPage's
+  // near-identical filter buttons.
+  it("sets aria-pressed on the severity filter buttons to reflect the active filter", () => {
+    renderPage()
+
+    const allButton = screen.getByRole("button", {
+      name: "organization.intelligence.filters.severity_all",
+    })
+    const criticalButton = screen.getByRole("button", {
+      name: "organization.intelligence.filters.severity_critical",
+    })
+    expect(allButton).toHaveAttribute("aria-pressed", "true")
+    expect(criticalButton).toHaveAttribute("aria-pressed", "false")
+  })
+
+  it("updates aria-pressed after clicking a different severity filter", async () => {
+    renderPage()
+
+    const criticalButton = screen.getByRole("button", {
+      name: "organization.intelligence.filters.severity_critical",
+    })
+    await userEvent.click(criticalButton)
+
+    expect(criticalButton).toHaveAttribute("aria-pressed", "true")
+    expect(
+      screen.getByRole("button", {
+        name: "organization.intelligence.filters.severity_all",
+      })
+    ).toHaveAttribute("aria-pressed", "false")
+  })
+
+  // aexa-frontend#466: the page went straight from h1 to h3 with no h2 --
+  // the section panels/items-count heading must sit at h2 to keep the
+  // hierarchy unbroken.
+  it("does not skip heading levels from h1 to h3", () => {
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem()],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+            }
+    )
+
+    renderPage()
+
+    expect(screen.getAllByRole("heading", { level: 1 }).length).toBe(1)
+    // The "N Intelligence Items" section title is the only heading below
+    // h1 when no AI-run panels are rendered -- it must be h2, not h3.
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(0)
+    expect(screen.queryAllByRole("heading", { level: 3 }).length).toBe(0)
+  })
+
   it("does not show Create Risk for an item that has not been analyzed yet", () => {
     mockRole = "ADMIN"
     mockUseGetIntelligenceItemsQuery.mockImplementation(

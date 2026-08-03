@@ -278,6 +278,10 @@ export default function TemplatesPage() {
                                 variant="ghost"
                                 size="sm"
                                 disabled
+                                aria-label={t(
+                                  "organization.templates.list.editButtonLabel",
+                                  { name: template.templateName }
+                                )}
                                 className="cursor-not-allowed opacity-40"
                               >
                                 <Edit className="h-4 w-4" />
@@ -286,6 +290,10 @@ export default function TemplatesPage() {
                                 variant="ghost"
                                 size="sm"
                                 disabled
+                                aria-label={t(
+                                  "organization.templates.list.deleteButtonLabel",
+                                  { name: template.templateName }
+                                )}
                                 className="cursor-not-allowed text-destructive opacity-40"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -296,7 +304,14 @@ export default function TemplatesPage() {
                               <Link
                                 to={`/organization/audit/template/edit/${template.id}`}
                               >
-                                <Button variant="ghost" size="sm">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  aria-label={t(
+                                    "organization.templates.list.editButtonLabel",
+                                    { name: template.templateName }
+                                  )}
+                                >
                                   <Edit className="h-4 w-4" />
                                 </Button>
                               </Link>
@@ -305,6 +320,10 @@ export default function TemplatesPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDeleteClick(template.id)}
+                                aria-label={t(
+                                  "organization.templates.list.deleteButtonLabel",
+                                  { name: template.templateName }
+                                )}
                                 className="text-destructive"
                               >
                                 <Trash2 className="h-4 w-4" />

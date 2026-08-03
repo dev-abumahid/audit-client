@@ -105,6 +105,33 @@ describe("AuditPage", () => {
     })
   })
 
+  // aexa-frontend#467: the Edit/Delete icon-only buttons had no aria-label,
+  // and h1 -> h3 (mission card title) skipped h2.
+  it("gives the Edit and Delete icon buttons an accessible name, and does not skip heading levels", () => {
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [makeEngagement()] },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    const card = screen
+      .getByText("Supply Chain Risk Audit")
+      .closest("[class*='rounded-xl']")! as HTMLElement
+    const [editButton, deleteButton] = within(card).getAllByRole("button")
+    expect(editButton).toHaveAccessibleName()
+    expect(deleteButton).toHaveAccessibleName()
+    expect(editButton.getAttribute("aria-label")).not.toBe(
+      deleteButton.getAttribute("aria-label")
+    )
+
+    // h1 (page title) -> h2 (sr-only mission-list heading) -> h3 (mission
+    // card title) -- unbroken, unlike before where h2 was skipped entirely.
+    expect(screen.getAllByRole("heading", { level: 1 }).length).toBe(1)
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole("heading", { level: 3 }).length).toBeGreaterThan(0)
+  })
+
   it("shows New Mission, Edit and Delete for an ADMIN", () => {
     mockUseGetAllAuditEngagementsQuery.mockReturnValue({
       data: { data: [makeEngagement()] },

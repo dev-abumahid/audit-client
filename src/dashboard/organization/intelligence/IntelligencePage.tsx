@@ -394,9 +394,9 @@ export default function IntelligencePage() {
         <div className="animate-fade-in rounded-xl border border-primary/20 bg-primary/5 p-5">
           <div className="mb-3 flex items-center gap-2">
             <Brain className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">
+            <h2 className="text-sm font-semibold text-foreground">
               {t("organization.intelligence.sections.predictions")}
-            </h3>
+            </h2>
           </div>
           <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-lg border border-border bg-card p-3">
@@ -462,9 +462,9 @@ export default function IntelligencePage() {
         <div className="animate-fade-in rounded-xl border border-border bg-card p-5">
           <div className="mb-3 flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">
+            <h2 className="text-sm font-semibold text-foreground">
               {t("organization.intelligence.sections.mitigations")}
-            </h3>
+            </h2>
           </div>
           {mitigationsResult.result.mitigations.length === 0 ? (
             <p className="text-xs text-muted-foreground">
@@ -518,9 +518,9 @@ export default function IntelligencePage() {
         <div className="animate-fade-in rounded-xl border border-border bg-card p-5">
           <div className="mb-3 flex items-center gap-2">
             <ClipboardList className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">
+            <h2 className="text-sm font-semibold text-foreground">
               {t("organization.intelligence.sections.rcsa")}
-            </h3>
+            </h2>
           </div>
           <div className="mb-3 grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-lg border border-border p-3">
@@ -577,9 +577,9 @@ export default function IntelligencePage() {
         <div className="animate-fade-in rounded-xl border border-border bg-card p-5">
           <div className="mb-3 flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">
+            <h2 className="text-sm font-semibold text-foreground">
               {t("organization.intelligence.sections.resilienceScan")}
-            </h3>
+            </h2>
           </div>
           <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-lg border border-border p-3">
@@ -678,6 +678,8 @@ export default function IntelligencePage() {
           {SEVERITIES.map((sev) => (
             <button
               key={sev}
+              type="button"
+              aria-pressed={filterSeverity === sev}
               onClick={() => {
                 setFilterSeverity(sev)
                 setPage(1)
@@ -699,11 +701,11 @@ export default function IntelligencePage() {
 
       {/* Intelligence Items */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">
+        <h2 className="text-sm font-semibold text-foreground">
           {t("organization.intelligence.sections.itemsCount", {
             count: meta?.total ?? 0,
           })}
-        </h3>
+        </h2>
 
         {itemsLoading ? (
           <div className="flex justify-center py-16">

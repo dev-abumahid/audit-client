@@ -189,6 +189,9 @@ const CreateTemplatePage = () => {
       <div className="sticky top-0 z-50 border-b bg-card py-4">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-4">
+            <h1 className="sr-only">
+              {t("organization.templates.create.pageTitle")}
+            </h1>
             <Link
               to="/organization/audit/templates"
               className="text-muted-foreground hover:text-foreground"
@@ -223,6 +226,7 @@ const CreateTemplatePage = () => {
                     {/* remove button */}
                     <button
                       type="button"
+                      aria-label={t("organization.templates.create.removeLogo")}
                       onClick={() => {
                         setLogoFile(null)
                         setLogoPreviewUrl(null)

@@ -118,6 +118,21 @@ describe("ReportsPage", () => {
     expect(container.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
+  // aexa-frontend#467: h1 -> h3 (report card title) skipped h2 entirely. A
+  // sr-only h2 for the reports grid keeps the hierarchy unbroken.
+  it("does not skip heading levels from h1 to h3", () => {
+    mockUseGetAllReportsQuery.mockReturnValue({
+      data: { data: [makeReport()] },
+      isLoading: false,
+    })
+
+    render(<ReportsPage />)
+
+    expect(screen.getAllByRole("heading", { level: 1 }).length).toBe(1)
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBe(1)
+    expect(screen.getAllByRole("heading", { level: 3 }).length).toBeGreaterThan(0)
+  })
+
   it("renders report cards from the query with title and status", () => {
     mockUseGetAllReportsQuery.mockReturnValue({
       data: { data: [makeReport()] },

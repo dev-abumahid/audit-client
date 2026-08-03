@@ -90,6 +90,53 @@ describe("TemplatesPage", () => {
     ).toBe(true)
   })
 
+  // aexa-frontend#468: the Edit/Trash2 row-action icon buttons had no
+  // aria-label / accessible name.
+  it("gives the Edit and Delete row-action icon buttons an accessible name", () => {
+    render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+    const editButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-square-pen"))!
+    const deleteButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-trash2"))!
+
+    expect(editButton).toHaveAccessibleName()
+    expect(deleteButton).toHaveAccessibleName()
+    expect(editButton.getAttribute("aria-label")).not.toBe(
+      deleteButton.getAttribute("aria-label")
+    )
+  })
+
+  it("gives the disabled system-template Edit and Delete buttons an accessible name too", () => {
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: {
+        data: [
+          makeTemplate({
+            id: "system-template",
+            templateName: "⚙ AI-Generated Findings (system, do not edit)",
+            templateDisc: null,
+          }),
+        ],
+        meta: { total: 1 },
+      },
+      isLoading: false,
+    })
+
+    render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+    const editButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-square-pen"))!
+    const deleteButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-trash2"))!
+
+    expect(editButton).toHaveAccessibleName()
+    expect(deleteButton).toHaveAccessibleName()
+  })
+
   it("hides Generate Template, Create Template, Edit and Delete for a VIEWER", () => {
     mockRole = "VIEWER"
     render(<MemoryRouter><TemplatesPage /></MemoryRouter>)

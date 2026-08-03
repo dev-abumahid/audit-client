@@ -315,6 +315,9 @@ const EditTemplatePage = () => {
       {/* Top Bar */}
       <div className="sticky top-0 z-50 border-b bg-card py-4 shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6">
+          <h1 className="sr-only">
+            {t("organization.templates.edit.pageTitle")}
+          </h1>
           <Link
             to="/organization/audit/templates"
             className="text-muted-foreground hover:text-foreground"
@@ -361,6 +364,7 @@ const EditTemplatePage = () => {
                     />
                     <button
                       type="button"
+                      aria-label={t("organization.templates.create.removeLogo")}
                       onClick={() => {
                         setLogoFile(null)
                         setLogoObjectUrl(null)
@@ -380,6 +384,7 @@ const EditTemplatePage = () => {
                     />
                     <button
                       type="button"
+                      aria-label={t("organization.templates.create.removeLogo")}
                       onClick={() => setLogoPreview(null)}
                       className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
                     >

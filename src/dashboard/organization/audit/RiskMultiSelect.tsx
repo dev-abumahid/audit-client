@@ -101,6 +101,8 @@ export default function RiskMultiSelect({
       {/* Trigger */}
       <button
         type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-background px-3 text-sm text-muted-foreground hover:bg-muted/40"
       >

@@ -183,6 +183,9 @@ export default function ReportsPage() {
 
       {/* Reports Grid */}
       <div className="animate-slide-up stagger-2 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <h2 className="sr-only col-span-full">
+          {t("organization.reports.listHeading")}
+        </h2>
         {reports.map((report) => {
           const isReady = report.status === "READY"
           const isPublished = report.status === "PUBLISHED"

@@ -145,6 +145,34 @@ describe("CreateTemplatePage", () => {
     })
   })
 
+  // aexa-frontend#468: the normal (non-modal) view rendered zero heading
+  // elements -- the only h3 was inside the conditionally-rendered "Add New"
+  // modal.
+  it("renders a page heading in the normal (non-modal) view", () => {
+    renderPage()
+
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument()
+  })
+
+  it("gives the logo-remove button an accessible name", async () => {
+    const user = userEvent.setup()
+    const file = new File(["fake-image-bytes"], "logo.png", {
+      type: "image/png",
+    })
+
+    renderPage()
+    await user.upload(
+      screen.getByLabelText(/organization\.templates\.create\.upload/i),
+      file
+    )
+
+    expect(
+      await screen.findByRole("button", {
+        name: "organization.templates.create.removeLogo",
+      })
+    ).toBeInTheDocument()
+  })
+
   it("submits the template and navigates away on success", async () => {
     mockCreateNewTemplate.mockReturnValue({
       unwrap: () =>

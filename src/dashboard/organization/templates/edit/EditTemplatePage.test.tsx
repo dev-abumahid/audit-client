@@ -170,6 +170,31 @@ describe("EditTemplatePage", () => {
     })
   })
 
+  // aexa-frontend#468: the normal (non-modal) view rendered zero heading
+  // elements.
+  it("renders a page heading in the normal (non-modal) view", () => {
+    renderPage()
+
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument()
+  })
+
+  it("gives the logo-remove button an accessible name when a template logo is loaded", () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: {
+        data: makeTemplateData({ templateLogo: "https://cdn.example/logo.png" }),
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.templates.create.removeLogo",
+      })
+    ).toBeInTheDocument()
+  })
+
   // aexa-frontend#336: fallback default content (used when the loaded
   // template has no name, or when adding a new section) was hardcoded
   // English, bypassing i18n entirely under a French UI. i18n isn't

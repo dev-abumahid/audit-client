@@ -93,6 +93,36 @@ function Harness({
   )
 }
 
+// aexa-frontend#468: the drag-handle (GripVertical) button had zero
+// accessible name -- live-confirmed as an actual DOM gap, not just a lint
+// finding.
+describe("EditSortableQuestionRow - drag handle accessible name (#468)", () => {
+  beforeEach(() => {
+    mockUpdateOrCreateQuestion.mockReset()
+    mockDeleteQuestion.mockReset()
+  })
+
+  it("gives the drag-handle button an accessible name", () => {
+    render(<Harness />)
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.templates.builder.dragToReorder",
+      })
+    ).toBeInTheDocument()
+  })
+
+  it("gives the delete-question button an accessible name", () => {
+    render(<Harness />)
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.templates.builder.deleteQuestion",
+      })
+    ).toBeInTheDocument()
+  })
+})
+
 describe("EditSortableQuestionRow - order-not-saved indicator masking", () => {
   beforeEach(() => {
     mockUpdateOrCreateQuestion.mockReset()

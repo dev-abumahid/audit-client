@@ -175,6 +175,7 @@ function QnASettingsPanel({
           </h2>
           <button
             type="button"
+            aria-label={t("organization.templates.qna.closePanel")}
             onClick={onClose}
             className="rounded-lg p-1.5 transition-colors hover:bg-muted"
           >
@@ -194,7 +195,7 @@ function QnASettingsPanel({
             </p>
 
             <div className="space-y-4">
-              {responseSets.map((set) => (
+              {responseSets.map((set, setIndex) => (
                 <div key={set.id}>
                   <div className="flex items-center gap-2">
                     <div className="flex flex-1 flex-wrap gap-1.5">
@@ -214,6 +215,10 @@ function QnASettingsPanel({
 
                     <button
                       type="button"
+                      aria-label={t(
+                        "organization.templates.qna.editResponseSet",
+                        { number: setIndex + 1 }
+                      )}
                       onClick={() => startEdit(set)}
                       className="rounded-lg p-2 transition-colors hover:bg-muted"
                     >
@@ -270,6 +275,10 @@ function QnASettingsPanel({
                           />
                           <button
                             type="button"
+                            aria-label={t(
+                              "organization.templates.qna.removeOption",
+                              { number: idx + 1 }
+                            )}
                             onClick={() =>
                               setEditOptions((prev) =>
                                 prev.filter((o) => o.id !== opt.id)

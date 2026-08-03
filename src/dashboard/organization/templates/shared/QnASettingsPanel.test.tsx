@@ -11,6 +11,65 @@ import QnASettingsPanel from "./QnASettingsPanel"
 // SectionNavigator.test.tsx), which is enough to prove t() is actually
 // being called for these strings; real translation resolution is covered
 // by src/i18n/pluralization.test.ts.
+// aexa-frontend#468: the close button, the per-response-set edit (pencil)
+// button, and each option's delete (Trash2) button in edit mode were
+// icon-only with no aria-label / accessible name.
+describe("QnASettingsPanel accessible names (#468)", () => {
+  it("gives the panel close button an accessible name", () => {
+    render(
+      <QnASettingsPanel
+        onClose={vi.fn()}
+        onSelectInput={vi.fn()}
+        onSelectResponseSet={vi.fn()}
+      />
+    )
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.templates.qna.closePanel",
+      })
+    ).toBeInTheDocument()
+  })
+
+  it("gives each response set's edit (pencil) button an accessible name", () => {
+    render(
+      <QnASettingsPanel
+        onClose={vi.fn()}
+        onSelectInput={vi.fn()}
+        onSelectResponseSet={vi.fn()}
+      />
+    )
+
+    expect(
+      screen.getAllByRole("button", {
+        name: "organization.templates.qna.editResponseSet",
+      }).length
+    ).toBeGreaterThan(0)
+  })
+
+  it("gives each option's delete button an accessible name in edit mode", async () => {
+    render(
+      <QnASettingsPanel
+        onClose={vi.fn()}
+        onSelectInput={vi.fn()}
+        onSelectResponseSet={vi.fn()}
+      />
+    )
+
+    await userEvent.click(
+      screen.getAllByRole("button", {
+        name: "organization.templates.qna.editResponseSet",
+      })[0]
+    )
+
+    expect(
+      screen.getAllByRole("button", {
+        name: "organization.templates.qna.removeOption",
+      }).length
+    ).toBeGreaterThan(0)
+  })
+})
+
 describe("QnASettingsPanel (issue #429)", () => {
   it("renders default response-set chip labels through i18n keys, not raw English text", () => {
     render(

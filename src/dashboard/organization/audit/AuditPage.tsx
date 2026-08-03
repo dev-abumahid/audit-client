@@ -405,6 +405,7 @@ export default function AuditPage() {
 
       {/* Audit List */}
       <div className="animate-slide-up stagger-2 space-y-3">
+        <h2 className="sr-only">{t("organization.audit.missionListHeading")}</h2>
         {engagements.map((eng) => {
           const statusCfg = STATUS_CONFIG[eng.status] || STATUS_CONFIG.planned
           const Icon = STATUS_ICONS[eng.status] || Play
@@ -482,12 +483,18 @@ export default function AuditPage() {
                     <>
                       <button
                         onClick={() => openEdit(eng)}
+                        aria-label={t("organization.audit.editMission", {
+                          title: eng.title,
+                        })}
                         className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={() => handleDelete(eng.id)}
+                        aria-label={t("organization.audit.deleteMission", {
+                          title: eng.title,
+                        })}
                         className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="h-3.5 w-3.5" />

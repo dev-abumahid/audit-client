@@ -226,6 +226,7 @@ function EditSortableQuestionRow({
         type="button"
         onClick={handleDeleteQuestion}
         disabled={isDeletingQuestion || isUpdatingQuestion}
+        aria-label={t("organization.templates.builder.deleteQuestion")}
         className="absolute top-4 left-2 z-10 rounded-full bg-red-500 p-1 text-white opacity-0 transition-all group-hover:opacity-100 hover:bg-red-600 disabled:opacity-50"
         title={t("organization.templates.builder.deleteQuestion")}
       >
@@ -253,6 +254,7 @@ function EditSortableQuestionRow({
           {/* Drag Handle */}
           <button
             type="button"
+            aria-label={t("organization.templates.builder.dragToReorder")}
             className="mt-1.5 cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing disabled:opacity-50"
             disabled={isDragging}
             {...attributes}

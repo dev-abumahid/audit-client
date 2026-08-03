@@ -123,6 +123,25 @@ describe("RiskMultiSelect", () => {
     expect(screen.getByText("Cyber")).toBeInTheDocument()
   })
 
+  // aexa-frontend#467: the dropdown trigger had no aria-expanded/aria-haspopup
+  // reflecting open/closed state.
+  it("reflects open/closed state via aria-expanded and exposes aria-haspopup", async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    const trigger = screen.getByRole("button", {
+      name: "organization.audit.riskSelect.selectPlaceholder",
+    })
+    expect(trigger).toHaveAttribute("aria-haspopup", "listbox")
+    expect(trigger).toHaveAttribute("aria-expanded", "false")
+
+    await user.click(trigger)
+    expect(trigger).toHaveAttribute("aria-expanded", "true")
+
+    await user.click(trigger)
+    expect(trigger).toHaveAttribute("aria-expanded", "false")
+  })
+
   it("shows the loading key while risks are loading", async () => {
     const user = userEvent.setup()
     render(

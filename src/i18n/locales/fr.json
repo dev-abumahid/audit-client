@@ -307,7 +307,9 @@
         "deleteTitle": "Supprimer le modèle",
         "deleteDescription": "Voulez-vous vraiment supprimer ce modèle ? Cette action est irréversible.",
         "deleteFailed": "Échec de la suppression du modèle",
-        "systemTemplateTooltip": "Modèle système - ne peut pas être modifié ou supprimé"
+        "systemTemplateTooltip": "Modèle système - ne peut pas être modifié ou supprimé",
+        "editButtonLabel": "Modifier {{name}}",
+        "deleteButtonLabel": "Supprimer {{name}}"
       },
       "report": {
         "untitled": "Modèle sans titre",
@@ -344,6 +346,8 @@
         }
       },
       "create": {
+        "pageTitle": "Créer un modèle",
+        "removeLogo": "Supprimer le logo",
         "back": "← Retour",
         "saveTemplate": "Enregistrer le modèle",
         "upload": "Téléverser",
@@ -363,6 +367,7 @@
         "newSectionTitle": "Nouvelle section {{num}}"
       },
       "edit": {
+        "pageTitle": "Modifier le modèle",
         "loading": "Chargement du modèle...",
         "logoAlt": "Logo du modèle",
         "saveChanges": "Enregistrer les modifications",
@@ -383,6 +388,7 @@
         "noQuestions": "Aucune question pour le moment. Cliquez sur « Ajouter » ci-dessous pour commencer.",
         "addNewQuestion": "Ajouter une question",
         "deleteQuestion": "Supprimer la question",
+        "dragToReorder": "Glisser pour réorganiser la question",
         "enterQuestion": "Saisissez la question…",
         "required": "Obligatoire",
         "selectType": "Sélectionner un type",
@@ -429,6 +435,9 @@
         "addResponseSet": "Ajouter un ensemble de réponses",
         "inputTypes": "Types de saisie",
         "close": "Fermer",
+        "closePanel": "Fermer les paramètres QnA",
+        "editResponseSet": "Modifier l'ensemble de réponses {{number}}",
+        "removeOption": "Supprimer l'option {{number}}",
         "options": {
           "good": "bon",
           "poor": "mauvais",
@@ -680,6 +689,7 @@
         "FAILED": "Échec"
       },
       "aiBadge": "IA",
+      "listHeading": "Rapports au conseil",
       "reference": "Référence",
       "preview": "Aperçu",
       "download": "Télécharger le PDF",
@@ -1203,6 +1213,9 @@
       "linkedRisksLabel": "Risques liés :",
       "openInRegister": "Ouvrir dans le registre des risques",
       "empty": "Aucune mission d'audit trouvée",
+      "missionListHeading": "Missions d'audit",
+      "editMission": "Modifier {{title}}",
+      "deleteMission": "Supprimer {{title}}",
       "prevPage": "Page précédente",
       "nextPage": "Page suivante",
       "newModalTitle": "Nouvelle mission d'audit",
@@ -1336,6 +1349,7 @@
       "markReadFailed": "Échec du marquage de l'alerte comme lue",
       "loadFailed": "Échec du chargement des alertes. Veuillez réessayer plus tard.",
       "title": "Alertes de risque",
+      "listHeading": "Liste des alertes",
       "activeCount_one": "{{count}} alerte active",
       "activeCount_other": "{{count}} alertes actives",
       "aiGenerated": "Généré par IA",
