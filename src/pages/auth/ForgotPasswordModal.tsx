@@ -17,12 +17,16 @@ interface ForgotPasswordModalProps {
   isOpen: boolean
   onClose: () => void
   onBackToSignIn?: () => void
+  // See the matching comment in SignInModal.tsx -- restores focus to the
+  // element that opened this modal on close (aexa-frontend#477).
+  triggerRef?: React.RefObject<HTMLElement | null>
 }
 
 const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
   isOpen,
   onClose,
   onBackToSignIn,
+  triggerRef,
 }) => {
   const [forgetPassword] = useForgetPasswordMutation()
   const { t } = useTranslation()
@@ -65,6 +69,13 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
     >
       <DialogContent
         showCloseButton={false}
+        onCloseAutoFocus={(event) => {
+          // See the matching comment in SignInModal.tsx.
+          if (triggerRef?.current && document.contains(triggerRef.current)) {
+            event.preventDefault()
+            triggerRef.current.focus()
+          }
+        }}
         className="w-full max-w-sm gap-0 overflow-hidden rounded-xl border border-border bg-card p-0 text-card-foreground shadow-2xl ring-0 md:max-w-md"
       >
         <button

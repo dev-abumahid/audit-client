@@ -79,4 +79,30 @@ describe("AdminOverview", () => {
       expect(screen.getAllByText(expected).length).toBeGreaterThan(0)
     })
   })
+
+  // Round 9 audit (#474): stats, revenue chart, and Recent Payments were all
+  // hardcoded fixtures rendered with zero indication they weren't real
+  // platform data. A disclosure banner now says so explicitly, matching the
+  // pattern already used on PricingPlans.tsx.
+  it("discloses that the dashboard data is sample content, not live data", () => {
+    renderPage()
+    expect(
+      screen.getByText("admin.overview.notConnectedNotice")
+    ).toBeInTheDocument()
+  })
+
+  // Round 9 audit (#474): the revenue-period <select> had no value/onChange
+  // wiring, so picking "Last 6 Months" silently did nothing since the chart
+  // is always the same static 12-month array. Disabling it (with an
+  // explanatory tooltip/aria-label) is more honest than a select that looks
+  // functional but isn't.
+  it("disables the revenue-period selector and gives it an accessible name", () => {
+    renderPage()
+    const select = screen.getByLabelText("admin.overview.periodSelectorLabel")
+    expect(select).toBeDisabled()
+    expect(select).toHaveAttribute(
+      "title",
+      "admin.overview.periodSelectorDisabledHint"
+    )
+  })
 })

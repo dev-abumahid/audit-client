@@ -64,7 +64,7 @@
     "testimonials": {
       "title1": "Trusted by Teams Who",
       "title2": "Value Reliability",
-      "description": "Real feedback from teams using Qiyrix to manage risk, inspections, and compliance every day.",
+      "description": "Illustrative examples of how teams use Qiyrix to manage risk, inspections, and compliance every day.",
       "reviews": [
         {
           "quote": "This platform made our inspections 3× faster. Our team loves how easy it is to use.",
@@ -1790,6 +1790,9 @@
     "overview": {
       "title": "Dashboard",
       "subtitle": "Overview of your platform's performance",
+      "notConnectedNotice": "This is sample content — the dashboard isn't connected to a backend yet, so the stats, chart, and payments below aren't real platform data.",
+      "periodSelectorLabel": "Revenue chart period",
+      "periodSelectorDisabledHint": "Not yet implemented — the chart currently always shows the last 12 months",
       "stats": {
         "totalRevenue": "Total Revenue",
         "totalUsers": "Total Users",
@@ -1806,7 +1809,8 @@
       "managePlans": "Manage Plans",
       "viewTransactions": "View Transactions",
       "totalRevenueCard": "Total Revenue",
-      "acrossMonths": "Across {{count}} months",
+      "acrossMonths_one": "Across {{count}} month",
+      "acrossMonths_other": "Across {{count}} months",
       "recentPayments": "Recent Payments",
       "viewAll": "View All",
       "colOrganization": "Organization",
@@ -1916,6 +1920,7 @@
           "featuresLabel": "Plan Features",
           "addFeature": "+ Add Feature",
           "featurePlaceholder": "Feature {{number}}",
+          "removeFeature": "Remove feature {{number}}",
           "cancel": "Cancel"
         },
         "addModal": {

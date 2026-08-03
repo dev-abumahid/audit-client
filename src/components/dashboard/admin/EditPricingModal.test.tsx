@@ -99,6 +99,45 @@ describe("EditPricingModal", () => {
     expect(screen.getByDisplayValue("0")).toBeInTheDocument()
   })
 
+  // Round 9 audit (#475): every label was missing htmlFor/id.
+  it("associates every field label with its input via htmlFor/id", () => {
+    render(<EditPricingModal open={true} setOpen={vi.fn()} plan={plan} />)
+
+    expect(
+      screen.getByLabelText("[i18n] Plan Name", { exact: false })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("[i18n] Description")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("[i18n] Price", { exact: false })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("[i18n] Billing Cycle")
+    ).toBeInTheDocument()
+  })
+
+  // Review-loop finding: the dynamic Feature inputs relied on placeholder
+  // as their only accessible name; an explicit aria-label is more robust.
+  it("gives each dynamic feature input an accessible name via aria-label", () => {
+    render(<EditPricingModal open={true} setOpen={vi.fn()} plan={plan} />)
+    expect(
+      screen.getByRole("textbox", { name: "[i18n] Feature 1" })
+    ).toBeInTheDocument()
+  })
+
+  // Round 9 audit (#475): icon-only "✕" remove-feature button had no
+  // aria-label, same bug class round 8 fixed for GeneralInformation's
+  // remove-logo button (#436) but missed here.
+  it("gives the remove-feature icon button an accessible name", () => {
+    render(<EditPricingModal open={true} setOpen={vi.fn()} plan={plan} />)
+    expect(
+      screen.getByRole("button", {
+        name: /admin\.settings\.pricing\.form\.removeFeature/,
+      })
+    ).toBeInTheDocument()
+  })
+
   it("closes on Escape key press, handled by the underlying Radix Dialog", async () => {
     const setOpen = vi.fn()
     const user = userEvent.setup()

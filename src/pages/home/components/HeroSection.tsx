@@ -3,7 +3,8 @@ import ForgotPasswordModal from "@/pages/auth/ForgotPasswordModal"
 import SignInModal from "@/pages/auth/SignInModal"
 import SignUpModal from "@/pages/auth/SignUpModal"
 import { ArrowRight, CirclePlay } from "lucide-react"
-import { useState } from "react"
+import type { MouseEvent } from "react"
+import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 const HeroSection = () => {
@@ -12,8 +13,15 @@ const HeroSection = () => {
   const [isForgotPasswordModalOpen, setIsForgotPasswordModalOpen] =
     useState(false)
   const { t } = useTranslation()
+  // The element that started the current auth-modal flow (the "Get
+  // Started" button). Only set from the actual page-level trigger click
+  // below, not from the modals' internal cross-navigation links, so
+  // closing the whole flow returns focus to where the user actually
+  // started (aexa-frontend#477).
+  const authTriggerRef = useRef<HTMLElement | null>(null)
 
-  const handleGetStartedClick = () => {
+  const handleGetStartedClick = (e: MouseEvent<HTMLButtonElement>) => {
+    authTriggerRef.current = e.currentTarget
     setIsSignUpModalOpen(true)
   }
 
@@ -102,6 +110,7 @@ const HeroSection = () => {
         isOpen={isSignUpModalOpen}
         onClose={handleCloseSignUpModal}
         onLoginClick={handleLoginClick}
+        triggerRef={authTriggerRef}
       />
 
       {/* Sign In Modal */}
@@ -110,6 +119,7 @@ const HeroSection = () => {
         onClose={() => setIsSignInModalOpen(false)}
         onSignUpClick={handleSignUpClick}
         onForgotPasswordClick={handleForgotPassword}
+        triggerRef={authTriggerRef}
       />
 
       {/* Forgot Password Modal */}
@@ -117,6 +127,7 @@ const HeroSection = () => {
         isOpen={isForgotPasswordModalOpen}
         onClose={() => setIsForgotPasswordModalOpen(false)}
         onBackToSignIn={handleLoginClick}
+        triggerRef={authTriggerRef}
       />
     </>
   )

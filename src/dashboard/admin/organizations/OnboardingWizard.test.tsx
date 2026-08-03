@@ -104,6 +104,22 @@ describe("OnboardingWizard", () => {
     ).toBeInTheDocument()
   })
 
+  // Round 9 audit (#474): the new-tenant admin email/password fields had no
+  // autoComplete, unlike every other credential field fixed in earlier
+  // rounds (#443-448).
+  it("sets autoComplete on the admin email and password fields", () => {
+    render(<OnboardingWizard onClose={vi.fn()} />)
+    expect(
+      screen.getByPlaceholderText(
+        "admin.onboarding.entry.adminEmailPlaceholder"
+      )
+    ).toHaveAttribute("autocomplete", "email")
+    expect(screen.getByPlaceholderText("••••••••")).toHaveAttribute(
+      "autocomplete",
+      "new-password"
+    )
+  })
+
   it("blocks Analyze and shows a validation error when required fields are empty", async () => {
     render(<OnboardingWizard onClose={vi.fn()} />)
     await userEvent.click(

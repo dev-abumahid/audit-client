@@ -101,6 +101,49 @@ describe("AddPricingModal", () => {
     )
   })
 
+  // Round 9 audit (#475): every label was missing htmlFor/id, so screen
+  // readers couldn't associate the visible "Plan Name"/"Description"/
+  // "Price"/"Billing Cycle" labels with their inputs.
+  it("associates every field label with its input via htmlFor/id", () => {
+    render(<AddPricingModal open={true} setOpen={vi.fn()} />)
+
+    expect(
+      screen.getByLabelText("[i18n] Plan Name", { exact: false })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("[i18n] Description")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("[i18n] Price", { exact: false })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("[i18n] Billing Cycle")
+    ).toBeInTheDocument()
+  })
+
+  // Review-loop finding: the dynamic Feature inputs relied on placeholder
+  // as their only accessible name, which works but is fragile (placeholder
+  // text is easy to accidentally drop). An explicit aria-label makes the
+  // accessible name resilient to that.
+  it("gives each dynamic feature input an accessible name via aria-label", () => {
+    render(<AddPricingModal open={true} setOpen={vi.fn()} />)
+    expect(
+      screen.getByRole("textbox", { name: "[i18n] Feature 1" })
+    ).toBeInTheDocument()
+  })
+
+  // Round 9 audit (#475): the icon-only "✕" remove-feature button had no
+  // aria-label, mirroring the fix already applied to GeneralInformation's
+  // remove-logo button (#436).
+  it("gives the remove-feature icon button an accessible name", () => {
+    render(<AddPricingModal open={true} setOpen={vi.fn()} />)
+    expect(
+      screen.getByRole("button", {
+        name: /admin\.settings\.pricing\.form\.removeFeature/,
+      })
+    ).toBeInTheDocument()
+  })
+
   it("closes on Escape key press, handled by the underlying Radix Dialog", async () => {
     const setOpen = vi.fn()
     const user = userEvent.setup()

@@ -117,7 +117,15 @@ export default function ExternalLoginPage() {
             </Link>
           </div>
         ) : !pendingEmail ? (
-          <form onSubmit={emailForm.handleSubmit(onSubmitEmail)}>
+          // noValidate: the email input is type="email", and without this the
+          // browser's own constraint validation intercepts the submit event
+          // for any format it considers invalid before handleSubmit ever
+          // runs -- silently short-circuiting the react-hook-form `pattern`
+          // rule below (and its message), letting the browser's native/OS
+          // locale error tooltip leak in over the app's i18n error message.
+          // Same fix as SignInModal/SignUpModal's equivalent fields
+          // (aexa-frontend#448).
+          <form onSubmit={emailForm.handleSubmit(onSubmitEmail)} noValidate>
             <div className="space-y-4">
               <div>
                 <label
@@ -129,6 +137,7 @@ export default function ExternalLoginPage() {
                 <input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   {...emailForm.register("email", {
                     required: t("externalAuth.login.emailRequired"),
                     pattern: {

@@ -115,11 +115,15 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
         <div className="space-y-5">
           {/* Plan Name */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+            <label
+              htmlFor="edit-plan-name"
+              className="mb-1.5 block text-sm font-medium text-muted-foreground"
+            >
               {t("admin.settings.pricing.form.planNameLabel")}{" "}
               <span className="text-red-500">*</span>
             </label>
             <input
+              id="edit-plan-name"
               name="planName"
               type="text"
               value={form.planName}
@@ -130,10 +134,14 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
 
           {/* Description */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+            <label
+              htmlFor="edit-plan-description"
+              className="mb-1.5 block text-sm font-medium text-muted-foreground"
+            >
               {t("admin.settings.pricing.form.descriptionLabel")}
             </label>
             <input
+              id="edit-plan-description"
               name="planDescription"
               type="text"
               value={form.planDescription}
@@ -145,11 +153,15 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
           {/* Price & Type */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label
+                htmlFor="edit-plan-price"
+                className="mb-1.5 block text-sm font-medium text-muted-foreground"
+              >
                 {t("admin.settings.pricing.form.priceLabel")}{" "}
                 <span className="text-red-500">*</span>
               </label>
               <input
+                id="edit-plan-price"
                 name="planPrice"
                 type="number"
                 min="0"
@@ -160,10 +172,14 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label
+                htmlFor="edit-plan-type"
+                className="mb-1.5 block text-sm font-medium text-muted-foreground"
+              >
                 {t("admin.settings.pricing.form.billingCycleLabel")}
               </label>
               <select
+                id="edit-plan-type"
                 name="planType"
                 value={form.planType}
                 onChange={handleChange}
@@ -203,6 +219,10 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
                   <input
                     type="text"
                     value={feature}
+                    aria-label={t(
+                      "admin.settings.pricing.form.featurePlaceholder",
+                      { number: index + 1 }
+                    )}
                     placeholder={t(
                       "admin.settings.pricing.form.featurePlaceholder",
                       { number: index + 1 }
@@ -217,6 +237,11 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
                     className="rounded-xl border border-border px-4 text-muted-foreground hover:bg-muted disabled:opacity-50"
                   >
                     ✕
+                    <span className="sr-only">
+                      {t("admin.settings.pricing.form.removeFeature", {
+                        number: index + 1,
+                      })}
+                    </span>
                   </button>
                 </div>
               ))}

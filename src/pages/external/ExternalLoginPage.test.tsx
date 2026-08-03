@@ -201,6 +201,21 @@ describe("ExternalLoginPage", () => {
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
+  // Round 9 audit (#477): this form was missed when SignInModal/SignUpModal
+  // got noValidate+autoComplete in the round-8 fix (#448). Without
+  // noValidate, the browser's own constraint validation (native tooltip, in
+  // the browser/OS locale) intercepts the submit before RHF's translated
+  // `pattern` error ever shows.
+  it("disables native browser validation and marks the email field as an email autofill target", () => {
+    renderAt("/external-login/org-42")
+
+    const emailInput = screen.getByPlaceholderText("you@example.com")
+    const form = emailInput.closest("form")
+
+    expect(form).toHaveAttribute("novalidate")
+    expect(emailInput).toHaveAttribute("autocomplete", "email")
+  })
+
   it("resends a code to the same pending email", async () => {
     const user = userEvent.setup()
     mockRequestCode.mockReturnValue({ unwrap: () => Promise.resolve({}) })

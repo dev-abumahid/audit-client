@@ -159,6 +159,16 @@ const AdminOverview = () => {
           </div>
         </div>
 
+        {/* Not-connected-to-backend disclosure. The stats, revenue chart, and
+            recent-payments table below are all hardcoded fixtures (no
+            src/redux/apis/admin/* endpoint backs this page yet) -- this
+            banner discloses that honestly instead of presenting them as
+            real platform data, matching the convention established in
+            PricingPlans.tsx. */}
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-400">
+          {t("admin.overview.notConnectedNotice")}
+        </div>
+
         {/* Stats Grid */}
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, index) => (
@@ -203,10 +213,24 @@ const AdminOverview = () => {
                   {t("admin.overview.revenueSubtitle")}
                 </p>
               </div>
-              <select className="rounded-xl border border-input bg-background px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none">
-                <option>{t("admin.overview.last12Months")}</option>
-                <option>{t("admin.overview.last6Months")}</option>
-                <option>{t("admin.overview.last30Days")}</option>
+              {/* Disabled rather than wired up: chartData above is a static
+                  12-month fixture (see the disclosure banner), so there is
+                  no real per-period dataset to filter it against yet.
+                  Presenting a working-looking select that silently does
+                  nothing would be worse than disabling it with an explicit
+                  explanation. Re-enable once the chart is backed by a real
+                  admin revenue endpoint that can return 6/12-month and
+                  30-day slices. */}
+              <select
+                aria-label={t("admin.overview.periodSelectorLabel")}
+                title={t("admin.overview.periodSelectorDisabledHint")}
+                disabled
+                defaultValue="12m"
+                className="rounded-xl border border-input bg-background px-4 py-2 text-sm opacity-60 focus:ring-2 focus:ring-primary focus:outline-none disabled:cursor-not-allowed"
+              >
+                <option value="12m">{t("admin.overview.last12Months")}</option>
+                <option value="6m">{t("admin.overview.last6Months")}</option>
+                <option value="30d">{t("admin.overview.last30Days")}</option>
               </select>
             </div>
 

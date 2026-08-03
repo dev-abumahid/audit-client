@@ -25,6 +25,13 @@ interface SignInModalProps {
   onClose: () => void
   onSignUpClick: () => void
   onForgotPasswordClick?: () => void
+  // The element that opened this modal (or, further back, the element that
+  // started the sign-in/sign-up/forgot-password flow this modal is part
+  // of). These modals are opened from plain onClick handlers rather than a
+  // DialogPrimitive.Trigger, so Radix's own previously-focused-element
+  // bookkeeping doesn't reliably land back on it -- restore explicitly via
+  // onCloseAutoFocus below instead (aexa-frontend#477).
+  triggerRef?: React.RefObject<HTMLElement | null>
 }
 
 const SignInModal: React.FC<SignInModalProps> = ({
@@ -32,6 +39,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
   onClose,
   onSignUpClick,
   onForgotPasswordClick,
+  triggerRef,
 }) => {
   const [signInUser] = useSignInUserMutation()
   const dispatch = useAppDispatch()
@@ -84,6 +92,17 @@ const SignInModal: React.FC<SignInModalProps> = ({
     >
       <DialogContent
         showCloseButton={false}
+        onCloseAutoFocus={(event) => {
+          // Only override Radix's default restoration when the trigger is
+          // still attached to the document -- e.g. the mobile-menu variant
+          // of this button unmounts itself on click, and calling .focus()
+          // on a detached node is a silent no-op that would otherwise
+          // suppress Radix's own (better-than-nothing) fallback behavior.
+          if (triggerRef?.current && document.contains(triggerRef.current)) {
+            event.preventDefault()
+            triggerRef.current.focus()
+          }
+        }}
         className="w-full max-w-sm gap-0 overflow-hidden rounded-xl border border-border bg-card p-0 text-card-foreground shadow-2xl ring-0 md:max-w-md"
       >
         {/* Close Button */}

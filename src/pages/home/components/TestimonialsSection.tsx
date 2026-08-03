@@ -76,9 +76,9 @@ const TestimonialsSection: React.FC = () => {
 
               {/* Author Info */}
               <div className="border-t border-border pt-6">
-                <h4 className="text-base font-semibold text-foreground sm:text-lg">
+                <h3 className="text-base font-semibold text-foreground sm:text-lg">
                   {testimonial.title}
-                </h4>
+                </h3>
                 <p className="text-sm text-muted-foreground sm:text-base">
                   {testimonial.company}
                 </p>

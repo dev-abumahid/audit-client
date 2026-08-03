@@ -64,7 +64,7 @@
     "testimonials": {
       "title1": "Adopté par des équipes qui",
       "title2": "misent sur la fiabilité",
-      "description": "De vrais retours d'équipes qui utilisent Qiyrix au quotidien pour gérer les risques, les inspections et la conformité.",
+      "description": "Exemples illustratifs de la façon dont les équipes utilisent Qiyrix au quotidien pour gérer les risques, les inspections et la conformité.",
       "reviews": [
         {
           "quote": "Cette plateforme a rendu nos inspections trois fois plus rapides. Notre équipe apprécie sa simplicité d’utilisation.",
@@ -1790,6 +1790,9 @@
     "overview": {
       "title": "Tableau de bord",
       "subtitle": "Aperçu des performances de votre plateforme",
+      "notConnectedNotice": "Ceci est un exemple de contenu — le tableau de bord n'est pas encore relié à un serveur, les statistiques, le graphique et les paiements ci-dessous ne sont donc pas des données réelles de la plateforme.",
+      "periodSelectorLabel": "Période du graphique de revenu",
+      "periodSelectorDisabledHint": "Pas encore implémenté — le graphique affiche toujours les 12 derniers mois",
       "stats": {
         "totalRevenue": "Revenu total",
         "totalUsers": "Utilisateurs au total",
@@ -1806,7 +1809,8 @@
       "managePlans": "Gérer les forfaits",
       "viewTransactions": "Voir les transactions",
       "totalRevenueCard": "Revenu total",
-      "acrossMonths": "Sur {{count}} mois",
+      "acrossMonths_one": "Sur {{count}} mois",
+      "acrossMonths_other": "Sur {{count}} mois",
       "recentPayments": "Paiements récents",
       "viewAll": "Tout voir",
       "colOrganization": "Organisation",
@@ -1916,6 +1920,7 @@
           "featuresLabel": "Fonctionnalités du forfait",
           "addFeature": "+ Ajouter une fonctionnalité",
           "featurePlaceholder": "Fonctionnalité {{number}}",
+          "removeFeature": "Supprimer la fonctionnalité {{number}}",
           "cancel": "Annuler"
         },
         "addModal": {

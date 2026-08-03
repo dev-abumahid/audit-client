@@ -3,7 +3,7 @@ import ForgotPasswordModal from "@/pages/auth/ForgotPasswordModal"
 import SignInModal from "@/pages/auth/SignInModal"
 import { useAppSelector } from "@/redux/hooks"
 import { Menu, X } from "lucide-react"
-import React, { useState } from "react"
+import React, { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 import SignUpModal from "../../pages/auth/SignUpModal"
@@ -18,6 +18,13 @@ const NavBar: React.FC = () => {
   const [isSignUpModalOpen, setIsSignUpModalOpen] = useState(false)
   const [isForgotPasswordModalOpen, setIsForgotPasswordModalOpen] =
     useState(false)
+  // The page element that started the current auth-modal flow (desktop or
+  // mobile Sign in/Sign up button). Only set from the actual page-level
+  // trigger clicks below, not from the modals' internal cross-navigation
+  // links (Sign in <-> Sign up <-> Forgot password) -- that way closing the
+  // whole flow, however many modals it hopped through, returns focus to
+  // where the user actually started (aexa-frontend#477).
+  const authTriggerRef = useRef<HTMLElement | null>(null)
 
   const handleSignInClick = () => {
     setIsSignUpModalOpen(false)
@@ -66,14 +73,20 @@ const NavBar: React.FC = () => {
               ) : (
                 <>
                   <button
-                    onClick={() => setIsSignInModalOpen(true)}
+                    onClick={(e) => {
+                      authTriggerRef.current = e.currentTarget
+                      setIsSignInModalOpen(true)
+                    }}
                     className="rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
                   >
                     {t("home.navbar.login")}
                   </button>
 
                   <button
-                    onClick={() => setIsSignUpModalOpen(true)}
+                    onClick={(e) => {
+                      authTriggerRef.current = e.currentTarget
+                      setIsSignUpModalOpen(true)
+                    }}
                     className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                   >
                     {t("home.navbar.signUp")}
@@ -114,7 +127,8 @@ const NavBar: React.FC = () => {
                 ) : (
                   <>
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        authTriggerRef.current = e.currentTarget
                         closeMobileMenu()
                         setIsSignInModalOpen(true)
                       }}
@@ -124,7 +138,8 @@ const NavBar: React.FC = () => {
                     </button>
 
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        authTriggerRef.current = e.currentTarget
                         closeMobileMenu()
                         setIsSignUpModalOpen(true)
                       }}
@@ -146,18 +161,21 @@ const NavBar: React.FC = () => {
         onClose={() => setIsSignInModalOpen(false)}
         onSignUpClick={handleSignUpClick}
         onForgotPasswordClick={handleForgotPassword}
+        triggerRef={authTriggerRef}
       />
 
       <SignUpModal
         isOpen={isSignUpModalOpen}
         onClose={() => setIsSignUpModalOpen(false)}
         onLoginClick={handleSignInClick}
+        triggerRef={authTriggerRef}
       />
 
       <ForgotPasswordModal
         isOpen={isForgotPasswordModalOpen}
         onClose={() => setIsForgotPasswordModalOpen(false)}
         onBackToSignIn={handleSignInClick}
+        triggerRef={authTriggerRef}
       />
     </>
   )

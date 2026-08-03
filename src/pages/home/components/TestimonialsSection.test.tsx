@@ -49,4 +49,24 @@ describe("TestimonialsSection", () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
   })
+
+  // Round 9 audit (#476): the author name was an <h4> straight under the
+  // section's <h2>, skipping <h3> entirely -- the only landing-page section
+  // that did this (every other section goes h2 -> h3). It's now an <h3>.
+  it("uses h3 for each testimonial author name, not h4, so the section follows h2 -> h3", () => {
+    render(<TestimonialsSection />)
+
+    expect(screen.queryByRole("heading", { level: 4 })).not.toBeInTheDocument()
+
+    const h3s = screen.getAllByRole("heading", { level: 3 })
+    expect(h3s).toHaveLength(3)
+    for (let i = 0; i < 3; i++) {
+      expect(
+        screen.getByRole("heading", {
+          level: 3,
+          name: `home.testimonials.reviews.${i}.name`,
+        })
+      ).toBeInTheDocument()
+    }
+  })
 })

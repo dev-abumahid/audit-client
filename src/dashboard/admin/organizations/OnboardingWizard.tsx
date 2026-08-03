@@ -430,6 +430,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   <input
                     className={inputCls}
                     type="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={t(
@@ -444,6 +445,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   <input
                     className={inputCls}
                     type="password"
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"

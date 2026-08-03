@@ -32,12 +32,16 @@ interface SignUpModalProps {
   isOpen: boolean
   onClose: () => void
   onLoginClick: () => void
+  // See the matching comment in SignInModal.tsx -- restores focus to the
+  // element that opened this modal on close (aexa-frontend#477).
+  triggerRef?: React.RefObject<HTMLElement | null>
 }
 
 const SignUpModal: React.FC<SignUpModalProps> = ({
   isOpen,
   onClose,
   onLoginClick,
+  triggerRef,
 }) => {
   const { t } = useTranslation()
   const [createNewOrganization, { isLoading }] = useSignUpUserMutation()
@@ -153,6 +157,13 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
     >
       <DialogContent
         showCloseButton={false}
+        onCloseAutoFocus={(event) => {
+          // See the matching comment in SignInModal.tsx.
+          if (triggerRef?.current && document.contains(triggerRef.current)) {
+            event.preventDefault()
+            triggerRef.current.focus()
+          }
+        }}
         className="w-full max-w-sm gap-0 overflow-hidden rounded-xl border border-border bg-card p-0 text-card-foreground shadow-2xl ring-0 md:max-w-md"
       >
         {/* Verify-email confirmation screen */}
@@ -310,6 +321,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                   <input
                     id="org_name"
                     type="text"
+                    autoComplete="organization"
                     {...formRegister("organizationName", {
                       required: "Organization name is required",
                     })}

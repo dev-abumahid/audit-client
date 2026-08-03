@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import React from "react"
 import { MemoryRouter } from "react-router"
 import SignInModal from "./SignInModal"
 
@@ -293,5 +294,54 @@ describe("SignInModal", () => {
     ).toBeInTheDocument()
     expect(mockSignInTrigger).not.toHaveBeenCalled()
     expect(mockT).toHaveBeenCalledWith("auth.signUp.emailInvalidText")
+  })
+
+  // Round 9 audit (#477): this modal is opened from a plain onClick handler
+  // rather than a DialogPrimitive.Trigger, so focus wasn't reliably
+  // returning to the triggering button on close (live-verified landing on
+  // <body> instead). triggerRef + onCloseAutoFocus fixes that explicitly.
+  it("returns focus to the triggering element on close when triggerRef is provided", async () => {
+    const user = userEvent.setup()
+
+    // Mirrors how NavBar/HeroSection actually wire this up: the modal
+    // starts closed, and the real trigger button's onClick both opens it
+    // and records itself into triggerRef -- not a DialogPrimitive.Trigger.
+    function Harness() {
+      const [isOpen, setIsOpen] = React.useState(false)
+      const triggerRef = React.useRef<HTMLElement | null>(null)
+      return (
+        <>
+          <button
+            onClick={(e) => {
+              triggerRef.current = e.currentTarget
+              setIsOpen(true)
+            }}
+          >
+            Open sign in
+          </button>
+          <MemoryRouter>
+            <SignInModal
+              {...defaultProps}
+              isOpen={isOpen}
+              onClose={() => setIsOpen(false)}
+              triggerRef={triggerRef}
+            />
+          </MemoryRouter>
+        </>
+      )
+    }
+
+    render(<Harness />)
+    const triggerButton = screen.getByRole("button", { name: "Open sign in" })
+
+    await user.click(triggerButton)
+    expect(await screen.findByRole("dialog")).toBeInTheDocument()
+
+    await user.keyboard("{Escape}")
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+    await waitFor(() => expect(document.activeElement).toBe(triggerButton))
   })
 })
