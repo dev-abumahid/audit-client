@@ -1,6 +1,6 @@
 import { useGetMeQuery } from "@/redux/apis/auth.api"
 import { Building2, HelpCircle, User, Users } from "lucide-react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import KnowledgeBaseUploadingForm from "./KnowledgeBaseUploadingForm"
 import PasswordChangeForm from "./PasswordChangeForm"
@@ -34,6 +34,47 @@ export default function OrgSettingPage() {
   const { data } = useGetMeQuery(undefined)
   const orgData = data?.data
 
+  // Roving-tabindex tabs (tabIndex={-1} on inactive tabs below) means native
+  // Tab can no longer reach them -- per the WAI-ARIA tabs pattern, Left/Right
+  // (and Home/End) arrow keys must move focus and switch tabs instead, or a
+  // keyboard-only user has no way to reach the other tabs at all (#500).
+  const tabRefs = useRef<Record<TabType, HTMLButtonElement | null>>({
+    profile: null,
+    team: null,
+    knowledge: null,
+  })
+
+  const focusAndActivateTab = (key: TabType) => {
+    setActiveTab(key)
+    tabRefs.current[key]?.focus()
+  }
+
+  const handleTabKeyDown = (
+    e: React.KeyboardEvent<HTMLButtonElement>,
+    index: number,
+    tabList: { key: TabType }[]
+  ) => {
+    let nextIndex: number | null = null
+    switch (e.key) {
+      case "ArrowRight":
+        nextIndex = (index + 1) % tabList.length
+        break
+      case "ArrowLeft":
+        nextIndex = (index - 1 + tabList.length) % tabList.length
+        break
+      case "Home":
+        nextIndex = 0
+        break
+      case "End":
+        nextIndex = tabList.length - 1
+        break
+      default:
+        return
+    }
+    e.preventDefault()
+    focusAndActivateTab(tabList[nextIndex].key)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -58,15 +99,19 @@ export default function OrgSettingPage() {
             role="tablist"
             aria-label={t("organization.settings.title")}
           >
-            {tabs.map((tab) => (
+            {tabs.map((tab, index) => (
               <button
                 key={tab.key}
+                ref={(el) => {
+                  tabRefs.current[tab.key] = el
+                }}
                 id={`org-settings-tab-${tab.key}`}
                 role="tab"
                 aria-selected={activeTab === tab.key}
                 aria-controls={`org-settings-tabpanel-${tab.key}`}
                 tabIndex={activeTab === tab.key ? 0 : -1}
                 onClick={() => setActiveTab(tab.key)}
+                onKeyDown={(e) => handleTabKeyDown(e, index, tabs)}
                 className={`flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-medium transition-all ${
                   activeTab === tab.key
                     ? "border-b-2 border-primary text-primary"

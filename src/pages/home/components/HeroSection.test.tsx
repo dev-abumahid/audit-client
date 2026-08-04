@@ -80,6 +80,15 @@ describe("HeroSection", () => {
     mockT.mockClear()
   })
 
+  // Round 12 audit (aexa-frontend#502): the hero image's alt text was a
+  // hardcoded, non-descriptive "hero-img" literal.
+  it("routes the hero image's alt text through t(), not the hardcoded 'hero-img' literal", () => {
+    renderHero()
+
+    expect(screen.getByAltText("home.hero.heroImageAlt")).toBeInTheDocument()
+    expect(screen.queryByAltText("hero-img")).not.toBeInTheDocument()
+  })
+
   it("opens the SignUp modal from the Get Started button", async () => {
     const user = userEvent.setup()
     renderHero()

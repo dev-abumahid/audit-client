@@ -481,6 +481,28 @@ describe("CompliancePage", () => {
     ).toBeInTheDocument()
   })
 
+  // Round 12 audit (aexa-frontend#500): the row action buttons only became
+  // visible via group-hover:opacity-100, so a keyboard-focused button
+  // remained invisible (WCAG 2.4.7 focus-visible), even though it was still
+  // operable via Enter. group-focus-within:opacity-100 fixes the visibility
+  // without changing operability.
+  it("keeps the row action buttons visible on keyboard focus, not just hover", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [makeObligation()] },
+      isLoading: false,
+    })
+
+    render(<CompliancePage />)
+
+    const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+    const editButton = within(row).getByRole("button", {
+      name: "organization.compliance.editObligation",
+    })
+    const actionsWrapper = editButton.closest("div")!
+    expect(actionsWrapper.className).toContain("group-focus-within:opacity-100")
+    expect(actionsWrapper.className).toContain("group-hover:opacity-100")
+  })
+
   // aexa-frontend#465 -- the per-attachment remove button (icon-only) had
   // no aria-label.
   it("labels the remove-attachment button on an existing evidence attachment", async () => {

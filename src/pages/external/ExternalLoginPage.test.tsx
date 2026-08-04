@@ -52,6 +52,17 @@ describe("ExternalLoginPage", () => {
     mockToastError.mockReset()
   })
 
+  // Round 12 audit (aexa-frontend#502): the logo's alt text was a hardcoded
+  // "Logo" literal, staying untranslated in French.
+  it("routes the logo's alt text through t(), not a hardcoded 'Logo' literal", () => {
+    renderAt("/external-login/org-1")
+
+    expect(
+      screen.getByAltText("externalAuth.login.logoAlt")
+    ).toBeInTheDocument()
+    expect(screen.queryByAltText("Logo")).not.toBeInTheDocument()
+  })
+
   it("shows an invalid-link state when the route has no organizationId", () => {
     render(
       <MemoryRouter initialEntries={["/external-login/"]}>

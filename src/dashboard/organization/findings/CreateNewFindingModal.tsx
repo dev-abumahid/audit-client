@@ -736,6 +736,8 @@ export default function CreateNewFindingModal({
             <button
               type="button"
               onClick={() => setShowFiveCs((p) => !p)}
+              aria-expanded={showFiveCs}
+              aria-controls="finding-five-cs-panel"
               className="flex w-full items-center justify-between px-5 py-3 text-left"
             >
               <h3 className="text-base font-semibold text-card-foreground">
@@ -750,7 +752,10 @@ export default function CreateNewFindingModal({
             </button>
 
             {showFiveCs && (
-              <div className="space-y-4 border-t border-border p-5">
+              <div
+                id="finding-five-cs-panel"
+                className="space-y-4 border-t border-border p-5"
+              >
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-foreground">
                     {t("organization.findings.criteriaLabel")}

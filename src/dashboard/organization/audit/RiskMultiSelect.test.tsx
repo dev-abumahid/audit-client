@@ -142,6 +142,78 @@ describe("RiskMultiSelect", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false")
   })
 
+  // Round 12 audit (aexa-frontend#500): the dropdown had aria-haspopup=
+  // "listbox"/aria-expanded on its trigger but the panel lacked role=
+  // "listbox", options lacked role="option"/aria-selected, and there was no
+  // Escape-to-close or arrow-key navigation between options -- a real gap vs
+  // the ARIA APG listbox pattern its own aria-haspopup implies.
+  it("marks the panel as a listbox and each option with role/aria-selected", async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "organization.audit.riskSelect.selectPlaceholder",
+      })
+    )
+
+    // Review round 1 finding: the listbox had no accessible name (no
+    // aria-label/aria-labelledby), so screen readers announced it as an
+    // unnamed list -- a real gap vs the ARIA APG listbox pattern.
+    expect(
+      screen.getByRole("listbox", {
+        name: "organization.audit.riskSelect.selectPlaceholder",
+      })
+    ).toBeInTheDocument()
+    const option = screen.getByRole("option", { name: /Data breach/ })
+    expect(option).toHaveAttribute("aria-selected", "false")
+
+    await user.click(option)
+    expect(
+      screen.getByRole("option", { name: /Data breach/ })
+    ).toHaveAttribute("aria-selected", "true")
+  })
+
+  it("closes the dropdown on Escape and returns focus to the trigger", async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    const trigger = screen.getByRole("button", {
+      name: "organization.audit.riskSelect.selectPlaceholder",
+    })
+    await user.click(trigger)
+    expect(screen.getByRole("listbox")).toBeInTheDocument()
+
+    await user.keyboard("{Escape}")
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  })
+
+  it("navigates between options with ArrowDown/ArrowUp from the search box", async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "organization.audit.riskSelect.selectPlaceholder",
+      })
+    )
+
+    const firstOption = screen.getByRole("option", { name: /Data breach/ })
+    const secondOption = screen.getByRole("option", {
+      name: /Supplier default/,
+    })
+
+    await user.keyboard("{ArrowDown}")
+    expect(firstOption).toHaveFocus()
+
+    await user.keyboard("{ArrowDown}")
+    expect(secondOption).toHaveFocus()
+
+    await user.keyboard("{ArrowUp}")
+    expect(firstOption).toHaveFocus()
+  })
+
   it("shows the loading key while risks are loading", async () => {
     const user = userEvent.setup()
     render(

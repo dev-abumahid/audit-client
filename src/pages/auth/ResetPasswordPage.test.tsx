@@ -27,6 +27,10 @@ vi.mock("react-i18next", () => ({
         "auth.resetPassword.successMessage":
           "Password reset successfully. You can now sign in.",
         "auth.resetPassword.btnGoToSignIn": "Go to Sign In",
+        // Same "deliberately distinct" convention as newPasswordReqText
+        // above -- only passes if the logo's alt text actually routes
+        // through t() rather than a hardcoded "Logo" literal.
+        "auth.resetPassword.logoAlt": "[i18n] Company logo",
         "auth.genericError": "Something went wrong",
       }
       return map[key] ?? key
@@ -59,6 +63,15 @@ describe("ResetPasswordPage", () => {
   beforeEach(() => {
     mockResetPasswordTrigger.mockReset()
     mockIsSuccess = false
+  })
+
+  // Round 12 audit (aexa-frontend#502): the logo's alt text was a hardcoded
+  // "Logo" literal, staying untranslated in French.
+  it("routes the logo's alt text through t(), not a hardcoded 'Logo' literal", () => {
+    renderAt("/reset-password?token=abc")
+
+    expect(screen.getByAltText("[i18n] Company logo")).toBeInTheDocument()
+    expect(screen.queryByAltText("Logo")).not.toBeInTheDocument()
   })
 
   it("shows an invalid-link state when the URL has no token", () => {

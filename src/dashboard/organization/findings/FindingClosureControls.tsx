@@ -280,10 +280,14 @@ export default function FindingClosureControls({ action }: Props) {
             <h2 className="text-base font-bold">
               {t("organization.findings.closure.rejectModalTitle")}
             </h2>
-            <label className="text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor="finding-closure-reject-reason"
+              className="text-xs font-medium text-muted-foreground"
+            >
               {t("organization.findings.closure.rejectReasonLabel")}
             </label>
             <textarea
+              id="finding-closure-reject-reason"
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               placeholder={t(

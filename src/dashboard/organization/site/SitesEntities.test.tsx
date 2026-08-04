@@ -451,6 +451,45 @@ describe("SitesEntities", () => {
     expect(mockCreateNewSite).not.toHaveBeenCalled()
   })
 
+  // Regression (round 12 audit, aexa-frontend#498): RHF's `required` rule
+  // only checks truthiness, so a whitespace-only name used to pass it and
+  // silently fail an `if (!values.name.trim()) return` guard in handleSave
+  // -- Save appeared to do nothing, with no visible error. A `validate` rule
+  // now catches this and renders the same inline error as the empty-name
+  // case.
+  it("shows a visible error for a whitespace-only site name instead of silently failing", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "organization.site&entities.exampleSitePlaceholder"
+      ),
+      "   "
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.site&entities.add" })
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.site&entities.nameRequired")
+      ).toBeInTheDocument()
+    )
+    expect(mockCreateNewSite).not.toHaveBeenCalled()
+  })
+
   // Regression (audit round 3): the Location, Country and Revenue field
   // labels in this modal were hardcoded English, bypassing t() (unlike the
   // other fields in the same form, e.g. Site Name/Site Type, which already

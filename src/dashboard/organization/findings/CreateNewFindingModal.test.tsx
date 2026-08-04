@@ -512,6 +512,21 @@ describe("CreateNewFindingModal", () => {
     expect(assigneesTrigger).toHaveAttribute("aria-expanded", "true")
   })
 
+  // Round 12 audit (aexa-frontend#498): the Five Cs collapsible toggle had no
+  // aria-expanded, unlike the Assignees dropdown toggle a few lines away in
+  // this same file, which already sets it correctly.
+  it("marks the Five Cs toggle with aria-expanded that tracks open state", async () => {
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    const fiveCsTrigger = screen.getByText(
+      "organization.findings.fiveCsSectionTitle"
+    ).closest("button") as HTMLButtonElement
+    expect(fiveCsTrigger).toHaveAttribute("aria-expanded", "false")
+
+    await userEvent.click(fiveCsTrigger)
+    expect(fiveCsTrigger).toHaveAttribute("aria-expanded", "true")
+  })
+
   // aexa-server#244 / aexa-frontend#213: IIA's "Five Cs" fields on a finding.
   it("does not send criteria/condition/cause/effect when the Five Cs section is left untouched (create)", async () => {
     mockCreateNewFinding.mockReturnValue({

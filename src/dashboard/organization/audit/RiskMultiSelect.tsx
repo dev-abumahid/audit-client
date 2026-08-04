@@ -32,7 +32,11 @@ export default function RiskMultiSelect({
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState("")
+  const [activeIndex, setActiveIndex] = useState(-1)
   const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   // Close the dropdown when clicking outside it.
   useEffect(() => {
@@ -72,6 +76,79 @@ export default function RiskMultiSelect({
     }
   }
 
+  const closeDropdown = () => {
+    setOpen(false)
+    setActiveIndex(-1)
+    // Return focus to the trigger on close (Escape or an option pick) so a
+    // keyboard user doesn't lose their place once the panel unmounts.
+    triggerRef.current?.focus()
+  }
+
+  const focusOption = (index: number) => {
+    setActiveIndex(index)
+    optionRefs.current[index]?.focus()
+  }
+
+  // Search input: Escape closes the panel, ArrowDown/ArrowUp hand off focus
+  // into the option list (from -1, so ArrowDown lands on the first option).
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (filtered.length === 0 && e.key !== "Escape") return
+    switch (e.key) {
+      case "Escape":
+        e.preventDefault()
+        closeDropdown()
+        break
+      case "ArrowDown":
+        e.preventDefault()
+        focusOption(0)
+        break
+      case "ArrowUp":
+        e.preventDefault()
+        focusOption(filtered.length - 1)
+        break
+      default:
+        break
+    }
+  }
+
+  // Options: Escape closes, ArrowDown/ArrowUp move between options (wrapping
+  // back into the search box past either end), Home/End jump to the first/
+  // last option -- the ARIA APG listbox pattern this control's
+  // aria-haspopup="listbox" already implies.
+  const handleOptionKeyDown = (
+    e: React.KeyboardEvent<HTMLButtonElement>,
+    index: number
+  ) => {
+    switch (e.key) {
+      case "Escape":
+        e.preventDefault()
+        closeDropdown()
+        break
+      case "ArrowDown":
+        e.preventDefault()
+        if (index + 1 < filtered.length) focusOption(index + 1)
+        break
+      case "ArrowUp":
+        e.preventDefault()
+        if (index > 0) {
+          focusOption(index - 1)
+        } else {
+          searchInputRef.current?.focus()
+        }
+        break
+      case "Home":
+        e.preventDefault()
+        focusOption(0)
+        break
+      case "End":
+        e.preventDefault()
+        focusOption(filtered.length - 1)
+        break
+      default:
+        break
+    }
+  }
+
   return (
     <div ref={containerRef} className="relative">
       {/* Selected chips */}
@@ -100,10 +177,14 @@ export default function RiskMultiSelect({
 
       {/* Trigger */}
       <button
+        ref={triggerRef}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setOpen((o) => !o)
+          setActiveIndex(-1)
+        }}
         className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-background px-3 text-sm text-muted-foreground hover:bg-muted/40"
       >
         <span>
@@ -122,14 +203,24 @@ export default function RiskMultiSelect({
           <div className="relative border-b border-border p-2">
             <Search className="absolute top-1/2 left-4 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
+              ref={searchInputRef}
               autoFocus
               value={filter}
-              onChange={(e) => setFilter(e.target.value)}
+              onChange={(e) => {
+                setFilter(e.target.value)
+                setActiveIndex(-1)
+              }}
+              onKeyDown={handleSearchKeyDown}
               placeholder={t("organization.audit.riskSelect.searchPlaceholder")}
               className="h-8 w-full rounded-md border border-input bg-background pr-2 pl-8 text-xs"
             />
           </div>
-          <div className="max-h-52 overflow-y-auto py-1">
+          <div
+            role="listbox"
+            aria-multiselectable="true"
+            aria-label={t("organization.audit.riskSelect.selectPlaceholder")}
+            className="max-h-52 overflow-y-auto py-1"
+          >
             {isLoading && (
               <p className="px-3 py-2 text-xs text-muted-foreground">
                 {t("organization.audit.riskSelect.loading")}
@@ -143,14 +234,21 @@ export default function RiskMultiSelect({
               </p>
             )}
             {!isLoading &&
-              filtered.map((risk) => {
+              filtered.map((risk, index) => {
                 const checked = selectedSet.has(risk.id)
                 return (
                   <button
+                    ref={(el) => {
+                      optionRefs.current[index] = el
+                    }}
                     type="button"
                     key={risk.id}
+                    role="option"
+                    aria-selected={checked}
+                    tabIndex={activeIndex === index ? 0 : -1}
                     onClick={() => toggle(risk.id)}
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
+                    onKeyDown={(e) => handleOptionKeyDown(e, index)}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted focus:bg-muted focus:outline-none"
                   >
                     <span
                       className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${

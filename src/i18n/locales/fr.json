@@ -5,7 +5,8 @@
       "title2": "Opérations simples, rapides et fiables",
       "subtitle": "Créez des inspections, attribuez des actions, gérez les sites, les utilisateurs, les groupes – tout cela depuis une plateforme intelligente conçue pour vos équipes de première ligne.",
       "btnStart": "Commencer",
-      "btnDemo": "Réservez démo"
+      "btnDemo": "Réservez démo",
+      "heroImageAlt": "Capture d'écran du tableau de bord de la plateforme"
     },
     "heroFeatures": {
       "title1": "Conçu pour les équipes modernes qui",
@@ -59,7 +60,8 @@
           "title": "Collaborez efficacement en équipe",
           "description": "Créez des groupes personnalisés pour fluidifier la communication et les flux de travail — maintenance, sécurité, qualité, prestataires, et plus encore."
         }
-      ]
+      ],
+      "imageAlt": "Ouvriers du BTP portant un équipement de sécurité et consultant des documents"
     },
     "testimonials": {
       "title1": "Adopté par des équipes qui",
@@ -181,7 +183,8 @@
       "resetting": "Réinitialisation...",
       "invalidLink": "Ce lien de réinitialisation est invalide ou ne contient pas de jeton.",
       "successMessage": "Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
-      "btnGoToSignIn": "Aller à la connexion"
+      "btnGoToSignIn": "Aller à la connexion",
+      "logoAlt": "Logo de l'entreprise"
     },
     "verifyOtp": {
       "title": "Vérifiez votre e-mail",
@@ -206,6 +209,7 @@
     "login": {
       "title": "Connexion réviseur externe",
       "subTitle": "Entrez votre e-mail pour recevoir un code de connexion à usage unique",
+      "logoAlt": "Logo de l'entreprise",
       "invalidLink": "Ce lien de connexion est invalide ou incomplet.",
       "btnGoHome": "Retour à l'accueil",
       "emailLabel": "Adresse e-mail",

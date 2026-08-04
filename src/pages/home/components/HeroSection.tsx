@@ -97,7 +97,7 @@ const HeroSection = () => {
             <div className="mt-8 flex justify-center px-2 md:mt-10 lg:mt-12">
               <img
                 src={heroImg}
-                alt="hero-img"
+                alt={t("home.hero.heroImageAlt")}
                 className="h-auto w-full max-w-4xl rounded-lg lg:max-w-5xl xl:max-w-6xl"
               />
             </div>

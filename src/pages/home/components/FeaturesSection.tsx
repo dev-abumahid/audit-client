@@ -70,7 +70,7 @@ const FeaturesSection: React.FC = () => {
             <div className="relative overflow-hidden rounded-2xl border border-border">
               <img
                 src="https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=800&h=1000&fit=crop"
-                alt="Construction workers with safety equipment reviewing documents"
+                alt={t("home.featureSection.imageAlt")}
                 className="h-auto w-full object-cover"
               />
             </div>

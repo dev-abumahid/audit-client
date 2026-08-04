@@ -110,4 +110,64 @@ describe("OrgSettingPage", () => {
     expect(knowledgeTab).toHaveAttribute("aria-controls", knowledgePanel.id)
     expect(knowledgePanel).toHaveAttribute("aria-labelledby", knowledgeTab.id)
   })
+
+  // Round 12 audit (aexa-frontend#500): tabs used roving tabIndex (-1 on
+  // inactive tabs) with no onKeyDown -- once inactive tabs are tabIndex={-1},
+  // native Tab can't reach them either, so a keyboard-only user had no way to
+  // switch settings tabs at all. Arrow keys must move focus AND switch tabs
+  // per the WAI-ARIA tabs pattern.
+  it("moves focus and switches tabs with ArrowRight/ArrowLeft, wrapping at the ends", async () => {
+    const user = userEvent.setup()
+    render(<OrgSettingPage />)
+
+    const profileTab = screen.getByRole("tab", {
+      name: "organization.settings.tabUserSettings",
+    })
+    const teamTab = screen.getByRole("tab", {
+      name: "organization.settings.tabTeam",
+    })
+    const knowledgeTab = screen.getByRole("tab", {
+      name: "organization.settings.tabKnowledgeBase",
+    })
+
+    profileTab.focus()
+    await user.keyboard("{ArrowRight}")
+    expect(teamTab).toHaveFocus()
+    expect(teamTab).toHaveAttribute("aria-selected", "true")
+
+    await user.keyboard("{ArrowRight}")
+    expect(knowledgeTab).toHaveFocus()
+    expect(knowledgeTab).toHaveAttribute("aria-selected", "true")
+
+    // Wraps past the last tab back to the first.
+    await user.keyboard("{ArrowRight}")
+    expect(profileTab).toHaveFocus()
+    expect(profileTab).toHaveAttribute("aria-selected", "true")
+
+    // Wraps backward past the first tab to the last.
+    await user.keyboard("{ArrowLeft}")
+    expect(knowledgeTab).toHaveFocus()
+    expect(knowledgeTab).toHaveAttribute("aria-selected", "true")
+  })
+
+  it("jumps to the first/last tab with Home/End", async () => {
+    const user = userEvent.setup()
+    render(<OrgSettingPage />)
+
+    const profileTab = screen.getByRole("tab", {
+      name: "organization.settings.tabUserSettings",
+    })
+    const knowledgeTab = screen.getByRole("tab", {
+      name: "organization.settings.tabKnowledgeBase",
+    })
+
+    profileTab.focus()
+    await user.keyboard("{End}")
+    expect(knowledgeTab).toHaveFocus()
+    expect(knowledgeTab).toHaveAttribute("aria-selected", "true")
+
+    await user.keyboard("{Home}")
+    expect(profileTab).toHaveFocus()
+    expect(profileTab).toHaveAttribute("aria-selected", "true")
+  })
 })

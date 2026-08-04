@@ -440,6 +440,21 @@ describe("FindingClosureControls", () => {
       )
     })
 
+    // Round 12 audit (aexa-frontend#498): the reject-reason <label> had no
+    // htmlFor/id association with its <textarea>, so it wasn't
+    // programmatically linked -- getByLabelText only resolves if the
+    // association is real.
+    it("associates the reject-reason label with its textarea via htmlFor/id", async () => {
+      mockClosureState("PENDING_APPROVAL", makeClosure("PENDING_APPROVAL"))
+      render(<FindingClosureControls action={makeAction()} />)
+
+      await userEvent.click(screen.getByRole("button", { name: REJECT }))
+
+      expect(
+        screen.getByLabelText("organization.findings.closure.rejectReasonLabel")
+      ).toBeInTheDocument()
+    })
+
     it("shows an error toast when submit fails", async () => {
       mockSubmit.mockReturnValue({
         unwrap: () => Promise.reject({ data: { message: "already pending" } }),

@@ -331,8 +331,6 @@ export default function SitesEntities() {
   }
 
   const handleSave = async (values: SiteFormValues) => {
-    if (!values.name.trim()) return
-
     try {
       let res
       if (editingSite) {
@@ -1105,6 +1103,15 @@ export default function SitesEntities() {
                   <input
                     {...siteForm.register("name", {
                       required: t("organization.site&entities.nameRequired"),
+                      // RHF's `required` rule only checks truthiness, so a
+                      // whitespace-only name (e.g. "   ") passes it and used
+                      // to fall through to a silent `if (!values.name.trim())
+                      // return` in handleSave, making Save appear to do
+                      // nothing. Mirrors the risk-creation form's own fix in
+                      // this same file (aexa-frontend#425/PR #455).
+                      validate: (v) =>
+                        v.trim().length > 0 ||
+                        t("organization.site&entities.nameRequired"),
                     })}
                     className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
                     placeholder={t(
@@ -1186,7 +1193,7 @@ export default function SitesEntities() {
                   </div>
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                      {t("organization.site&entities.employees") || "Employees"}
+                      {t("organization.site&entities.employees")}
                     </label>
                     <input
                       type="number"

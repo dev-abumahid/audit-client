@@ -5,7 +5,8 @@
       "title2": "Operations Simple, Fast, Reliable",
       "subtitle": "Create inspections, assign actions, manage sites, users, groups—everything from one smart platform designed for your frontline workforce.",
       "btnStart": "Get Started",
-      "btnDemo": "Book a Demo"
+      "btnDemo": "Book a Demo",
+      "heroImageAlt": "Screenshot of the platform dashboard"
     },
     "heroFeatures": {
       "title1": "Built for Modern Teams Who",
@@ -59,7 +60,8 @@
           "title": "Collaborate Seamlessly With Teams",
           "description": "Create custom groups to streamline communication and workflows—maintenance, safety, quality teams, contractors, and more."
         }
-      ]
+      ],
+      "imageAlt": "Construction workers with safety equipment reviewing documents"
     },
     "testimonials": {
       "title1": "Trusted by Teams Who",
@@ -181,7 +183,8 @@
       "resetting": "Resetting...",
       "invalidLink": "This reset link is invalid or missing a token.",
       "successMessage": "Password reset successfully. You can now sign in.",
-      "btnGoToSignIn": "Go to Sign In"
+      "btnGoToSignIn": "Go to Sign In",
+      "logoAlt": "Company logo"
     },
     "verifyOtp": {
       "title": "Check your email",
@@ -206,6 +209,7 @@
     "login": {
       "title": "External Reviewer Sign In",
       "subTitle": "Enter your email to receive a one-time sign-in code",
+      "logoAlt": "Company logo",
       "invalidLink": "This sign-in link is invalid or incomplete.",
       "btnGoHome": "Go to homepage",
       "emailLabel": "Email address",
