@@ -1044,4 +1044,17 @@ describe("IntelligencePage", () => {
       screen.queryByText("riskLevel.medium")
     ).not.toBeInTheDocument()
   })
+
+  // aexa-frontend#508 round 13 -- the search input relied on placeholder
+  // text alone, with no aria-label/associated label giving it an accessible
+  // name.
+  it("gives the search input an accessible name", () => {
+    renderPage()
+
+    expect(
+      screen.getByRole("textbox", {
+        name: "organization.intelligence.filters.searchLabel",
+      })
+    ).toBeInTheDocument()
+  })
 })

@@ -498,12 +498,14 @@ export default function CompliancePage() {
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder={t("organization.compliance.searchPlaceholder")}
+            aria-label={t("organization.compliance.searchLabel")}
             className="h-9 w-full rounded-lg border border-input bg-card pr-3 pl-3 text-xs"
           />
         </div>
         <select
           value={filterDomain}
           onChange={(e) => handleDomainChange(e.target.value)}
+          aria-label={t("organization.compliance.domainFilterLabel")}
           className="h-9 rounded-lg border border-input bg-card px-3 text-xs"
         >
           <option value="">{t("organization.compliance.allDomains")}</option>
@@ -516,6 +518,7 @@ export default function CompliancePage() {
         <select
           value={filterStatus}
           onChange={(e) => handleStatusChange(e.target.value)}
+          aria-label={t("organization.compliance.statusFilterLabel")}
           className="h-9 rounded-lg border border-input bg-card px-3 text-xs"
         >
           <option value="">{t("organization.compliance.allStatuses")}</option>

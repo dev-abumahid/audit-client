@@ -40,4 +40,17 @@ describe("FeaturesSection", () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
   })
+
+  // aexa-frontend#510 round 13: the feature cards had cursor-pointer +
+  // group-hover text/background styling implying interactivity with no
+  // onClick or keyboard handler behind them. Since no per-feature action
+  // exists, the styling was removed rather than faked.
+  it("does not style the feature cards as clickable", () => {
+    const { container } = render(<FeaturesSection />)
+    const card = screen
+      .getByText("home.featureSection.features.0.title")
+      .closest("div.rounded-xl")
+    expect(card).not.toHaveClass("cursor-pointer")
+    expect(container.querySelector(".group")).not.toBeInTheDocument()
+  })
 })

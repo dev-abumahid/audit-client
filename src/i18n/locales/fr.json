@@ -738,7 +738,8 @@
       "closeSidebar": "Fermer la barre latérale",
       "openSidebar": "Ouvrir la barre latérale",
       "collapseSidebar": "Réduire la barre latérale",
-      "expandSidebar": "Développer la barre latérale"
+      "expandSidebar": "Développer la barre latérale",
+      "orgLogoAlt": "Logo de {{name}}"
     },
     "overview": {
       "title": "Tableau de bord exécutif",
@@ -995,8 +996,11 @@
         "button": "Créer une action"
       },
       "searchPlaceholder": "Rechercher une obligation, description ou responsable...",
+      "searchLabel": "Rechercher des obligations",
       "allDomains": "Tous les domaines",
       "allStatuses": "Tous les statuts",
+      "domainFilterLabel": "Filtrer par domaine",
+      "statusFilterLabel": "Filtrer par statut",
       "empty": "Aucune obligation de conformité trouvée",
       "deleteConfirm": "Supprimer cette obligation de conformité ?",
       "editObligation": "Modifier l'obligation",
@@ -1235,6 +1239,8 @@
       "priorityLabel": "Priorité :",
       "findingsLabel": "Constats :",
       "linkedRisksLabel": "Risques liés :",
+      "startedLabel": "Débuté :",
+      "closedLabel": "Clôturé :",
       "openInRegister": "Ouvrir dans le registre des risques",
       "empty": "Aucune mission d'audit trouvée",
       "missionListHeading": "Missions d'audit",
@@ -1352,6 +1358,7 @@
       },
       "filters": {
         "searchPlaceholder": "Rechercher dans le renseignement...",
+        "searchLabel": "Rechercher dans le renseignement",
         "severity_all": "Tous",
         "severity_critical": "Critique",
         "severity_high": "Élevé",

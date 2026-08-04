@@ -78,14 +78,20 @@ const FeaturesSection: React.FC = () => {
 
           {/* Right Side - Features List */}
           <div className="order-1 space-y-3 lg:order-2">
+            {/* aexa-frontend#510 round 13: these cards previously used
+                cursor-pointer + group-hover text/background states with no
+                onClick or keyboard handler behind them, implying
+                interactivity that didn't exist. There's no per-feature
+                detail view or anchor target to wire up here, so the
+                interactive-looking styling is removed rather than faked. */}
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="group flex cursor-pointer gap-4 rounded-xl border p-2 transition-colors hover:bg-card/50 sm:gap-5"
+                className="flex gap-4 rounded-xl border p-2 sm:gap-5"
               >
                 {/* Icon */}
                 <div className="shrink-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20 sm:h-12 sm:w-12">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 sm:h-12 sm:w-12">
                     <feature.icon
                       className="h-5 w-5 text-primary sm:h-6 sm:w-6"
                       strokeWidth={2.5}
@@ -95,7 +101,7 @@ const FeaturesSection: React.FC = () => {
 
                 {/* Content */}
                 <div className="flex-1">
-                  <h3 className="mb-2 text-lg font-semibold text-foreground transition-colors group-hover:text-primary sm:mb-3 sm:text-xl">
+                  <h3 className="mb-2 text-lg font-semibold text-foreground sm:mb-3 sm:text-xl">
                     {feature.title}
                   </h3>
                   <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">

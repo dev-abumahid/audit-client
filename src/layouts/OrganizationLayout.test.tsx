@@ -30,9 +30,19 @@ vi.mock("react-router", async (importOriginal) => {
 
 // ── Redux dispatch/selector ───────────────────────────────────────────────────
 const mockDispatch = vi.fn()
+let mockUserState: Record<string, unknown> = {}
 vi.mock("@/redux/hooks", () => ({
   useAppDispatch: () => mockDispatch,
-  useAppSelector: vi.fn(() => ({})),
+  useAppSelector: vi.fn(() => mockUserState),
+}))
+
+// aexa-frontend#510 round 13 -- the Bell nav link's unread dot is now backed
+// by real alert data instead of always rendering. Default to an empty list
+// (no unread alerts) so existing tests aren't affected by the new query.
+const mockUseGetAllAlertsQuery = vi.fn()
+vi.mock("@/redux/apis/organization/alert.api", () => ({
+  useGetAllAlertsQuery: (...args: unknown[]) =>
+    mockUseGetAllAlertsQuery(...args),
 }))
 
 function renderOrganizationLayout() {
@@ -52,6 +62,9 @@ describe("OrganizationLayout logout (aexa-frontend#249)", () => {
   beforeEach(() => {
     mockNavigate.mockReset()
     mockDispatch.mockReset()
+    mockUserState = {}
+    mockUseGetAllAlertsQuery.mockReset()
+    mockUseGetAllAlertsQuery.mockReturnValue({ data: { data: [] } })
   })
 
   it("dispatches both removeUser and resetApiState, then navigates to / when Logout is clicked", async () => {
@@ -136,5 +149,73 @@ describe("OrganizationLayout sidebar control accessible names (#494)", () => {
       name: "Logout",
     })
     expect(logoutControl).toBeInTheDocument()
+  })
+})
+
+// aexa-frontend#510 round 13 -- the Bell nav link previously rendered an
+// "unread" red dot unconditionally with no backing data. It's now driven by
+// real alert data from useGetAllAlertsQuery (is_read on each Alert), and the
+// org logo <img> (when a logo URL exists) now has an accessible alt name to
+// match the sibling initials-fallback branch, which already rendered text.
+describe("OrganizationLayout alerts indicator and logo alt (#510)", () => {
+  beforeEach(() => {
+    mockNavigate.mockReset()
+    mockDispatch.mockReset()
+    mockUserState = {}
+    mockUseGetAllAlertsQuery.mockReset()
+  })
+
+  it("does not render the unread dot when there are no unread alerts", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [{ id: "1", is_read: true }] },
+    })
+    const { container } = renderOrganizationLayout()
+
+    expect(
+      container.querySelector("a[href='/organization/alerts'] .bg-destructive")
+    ).not.toBeInTheDocument()
+  })
+
+  it("renders the unread dot when at least one alert is unread", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: {
+        data: [
+          { id: "1", is_read: true },
+          { id: "2", is_read: false },
+        ],
+      },
+    })
+    const { container } = renderOrganizationLayout()
+
+    expect(
+      container.querySelector("a[href='/organization/alerts'] .bg-destructive")
+    ).toBeInTheDocument()
+  })
+
+  it("does not render the unread dot when the alerts query has no data yet", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({ data: undefined })
+    const { container } = renderOrganizationLayout()
+
+    expect(
+      container.querySelector("a[href='/organization/alerts'] .bg-destructive")
+    ).not.toBeInTheDocument()
+  })
+
+  it("gives the org logo image an accessible alt name instead of rendering it silently", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({ data: { data: [] } })
+    mockUserState = {
+      organizationProfile: {
+        organizationName: "Acme Corp",
+        organizationLogo: "https://example.com/logo.png",
+      },
+    }
+    renderOrganizationLayout()
+
+    const logoImages = screen.getAllByRole("img")
+    expect(logoImages.length).toBeGreaterThan(0)
+    logoImages.forEach((img) => {
+      expect(img).toHaveAttribute("alt")
+      expect(img.getAttribute("alt")).not.toBe("")
+    })
   })
 })

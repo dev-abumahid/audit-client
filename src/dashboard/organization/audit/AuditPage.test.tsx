@@ -866,4 +866,107 @@ describe("AuditPage", () => {
       expect(mockNavigate).toHaveBeenCalledWith("/organization/risks")
     })
   })
+
+  // aexa-frontend#509 round 13 -- lead_auditor is a person's name field with
+  // no autoComplete, and started_at/closed_at were captured in the
+  // create/edit modal and saved but never shown on the mission card list.
+  describe("lead auditor autocomplete and started/closed date display (#509)", () => {
+    it("marks the lead auditor input with autoComplete=name", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      render(<AuditPage />)
+      await user.click(
+        screen.getByRole("button", { name: "organization.audit.newMission" })
+      )
+
+      const leadAuditorLabel = screen.getByText(
+        "organization.audit.leadAuditorLabel"
+      )
+      const leadAuditorInput =
+        leadAuditorLabel.parentElement!.querySelector("input")!
+      expect(leadAuditorInput).toHaveAttribute("autoComplete", "name")
+    })
+
+    it("shows the started_at date on the mission card when set", () => {
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeEngagement({
+              started_at: "2026-03-01T09:00:00.000Z",
+              closed_at: null,
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<AuditPage />)
+
+      const card = screen
+        .getByText("Supply Chain Risk Audit")
+        .closest("[class*='rounded-xl']")! as HTMLElement
+      expect(within(card).getByText("organization.audit.startedLabel")).toBeInTheDocument()
+      expect(card.textContent).toContain(
+        new Date("2026-03-01T09:00:00.000Z").toLocaleDateString("en-US")
+      )
+      expect(
+        within(card).queryByText("organization.audit.closedLabel")
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows both started_at and closed_at dates on the mission card when set", () => {
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeEngagement({
+              started_at: "2026-03-01T09:00:00.000Z",
+              closed_at: "2026-04-15T09:00:00.000Z",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<AuditPage />)
+
+      const card = screen
+        .getByText("Supply Chain Risk Audit")
+        .closest("[class*='rounded-xl']")! as HTMLElement
+      expect(within(card).getByText("organization.audit.startedLabel")).toBeInTheDocument()
+      expect(within(card).getByText("organization.audit.closedLabel")).toBeInTheDocument()
+      expect(card.textContent).toContain(
+        new Date("2026-03-01T09:00:00.000Z").toLocaleDateString("en-US")
+      )
+      expect(card.textContent).toContain(
+        new Date("2026-04-15T09:00:00.000Z").toLocaleDateString("en-US")
+      )
+    })
+
+    it("does not show started/closed labels on the mission card when neither date is set", () => {
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeEngagement({ started_at: null, closed_at: null }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<AuditPage />)
+
+      const card = screen
+        .getByText("Supply Chain Risk Audit")
+        .closest("[class*='rounded-xl']")! as HTMLElement
+      expect(
+        within(card).queryByText("organization.audit.startedLabel")
+      ).not.toBeInTheDocument()
+      expect(
+        within(card).queryByText("organization.audit.closedLabel")
+      ).not.toBeInTheDocument()
+    })
+  })
 })

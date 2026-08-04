@@ -45,4 +45,18 @@ describe("HeroFeatures", () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
   })
+
+  // aexa-frontend#510 round 13: the feature cards had cursor-pointer +
+  // hover:shadow-md + group-hover styling implying interactivity with no
+  // onClick or keyboard handler behind them. Since no per-feature action
+  // exists, the styling was removed rather than faked.
+  it("does not style the feature cards as clickable", () => {
+    const { container } = render(<HeroFeatures />)
+    const card = screen
+      .getByText("home.heroFeatures.features.0.title")
+      .closest("div.rounded-2xl")
+    expect(card).not.toHaveClass("cursor-pointer")
+    expect(card).not.toHaveClass("hover:shadow-md")
+    expect(container.querySelector(".group")).not.toBeInTheDocument()
+  })
 })

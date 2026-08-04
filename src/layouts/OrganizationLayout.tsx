@@ -1,4 +1,5 @@
 import LanguageSwitcher from "@/components/shared/LanguageSwitcher"
+import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
 import { baseApi } from "@/redux/baseApi"
 import { useAppDispatch, useAppSelector } from "@/redux/hooks"
 import { removeUser } from "@/redux/slices/user.slice"
@@ -38,6 +39,12 @@ export default function OrganizationLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
   const { t } = useTranslation()
+  // Real unread-alert state for the Bell nav link's indicator dot (aexa-frontend#510
+  // round 13 — the dot previously rendered unconditionally with no backing data).
+  // This layout only mounts behind the org auth guard, so the query can run
+  // unconditionally, same as AlertsPage's own useGetAllAlertsQuery(undefined) call.
+  const { data: alertsData } = useGetAllAlertsQuery(undefined)
+  const hasUnreadAlerts = !!alertsData?.data?.some((alert) => !alert.is_read)
 
   // handlers
   const logOutHandler = () => {
@@ -316,12 +323,20 @@ export default function OrganizationLayout() {
               className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Bell className="h-4 w-4" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
+              {hasUnreadAlerts && (
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
+              )}
             </Link>
 
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground uppercase">
               {(user?.organizationProfile?.organizationLogo as string) ? (
-                <img src={user?.organizationProfile?.organizationLogo} />
+                <img
+                  src={user?.organizationProfile?.organizationLogo}
+                  alt={t("organization.nav.orgLogoAlt", {
+                    name: user?.organizationProfile?.organizationName || "",
+                  })}
+                  className="h-full w-full rounded-full object-cover"
+                />
               ) : (
                 <>{user?.organizationProfile?.organizationName?.charAt(0)}</>
               )}

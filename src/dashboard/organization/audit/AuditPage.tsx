@@ -31,6 +31,7 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
+import { formatLocaleDate } from "@/utils/formatDate"
 import RiskMultiSelect from "./RiskMultiSelect"
 
 // Same base-URL convention the Compliance module uses for its direct
@@ -84,7 +85,10 @@ const EMPTY_FORM = {
 const RISK_PICKER_LIMIT = 500
 
 export default function AuditPage() {
-  const { t } = useTranslation()
+  const {
+    t,
+    i18n: { language },
+  } = useTranslation()
   // Search box (title / ref / lead_auditor — the backend searches all three)
   // and page state feed the paginated query. searchTerm was previously
   // hardcoded to "" and page/limit were fixed at 1/100, so the list silently
@@ -525,6 +529,22 @@ export default function AuditPage() {
                     {eng.findings_count}
                   </span>
                 </span>
+                {eng.started_at && (
+                  <span>
+                    {t("organization.audit.startedLabel")}{" "}
+                    <span className="font-medium text-foreground">
+                      {formatLocaleDate(eng.started_at, language)}
+                    </span>
+                  </span>
+                )}
+                {eng.closed_at && (
+                  <span>
+                    {t("organization.audit.closedLabel")}{" "}
+                    <span className="font-medium text-foreground">
+                      {formatLocaleDate(eng.closed_at, language)}
+                    </span>
+                  </span>
+                )}
                 {eng.linked_risks && eng.linked_risks.length > 0 && (
                   <span className="flex flex-wrap items-center gap-1">
                     {t("organization.audit.linkedRisksLabel")}{" "}
@@ -698,6 +718,7 @@ export default function AuditPage() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, lead_auditor: e.target.value }))
                   }
+                  autoComplete="name"
                   className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 />
               </div>

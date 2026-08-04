@@ -738,7 +738,8 @@
       "closeSidebar": "Close sidebar",
       "openSidebar": "Open sidebar",
       "collapseSidebar": "Collapse sidebar",
-      "expandSidebar": "Expand sidebar"
+      "expandSidebar": "Expand sidebar",
+      "orgLogoAlt": "{{name}} logo"
     },
     "overview": {
       "title": "Executive Dashboard",
@@ -995,8 +996,11 @@
         "button": "Create Action"
       },
       "searchPlaceholder": "Search obligations, description or owner...",
+      "searchLabel": "Search obligations",
       "allDomains": "All Domains",
       "allStatuses": "All Statuses",
+      "domainFilterLabel": "Filter by domain",
+      "statusFilterLabel": "Filter by status",
       "empty": "No compliance obligations found",
       "deleteConfirm": "Delete this compliance obligation?",
       "editObligation": "Edit obligation",
@@ -1235,6 +1239,8 @@
       "priorityLabel": "Priority:",
       "findingsLabel": "Findings:",
       "linkedRisksLabel": "Linked Risks:",
+      "startedLabel": "Started:",
+      "closedLabel": "Closed:",
       "openInRegister": "Open in Risk Register",
       "empty": "No audit engagements found",
       "missionListHeading": "Audit Missions",
@@ -1352,6 +1358,7 @@
       },
       "filters": {
         "searchPlaceholder": "Search intelligence...",
+        "searchLabel": "Search intelligence",
         "severity_all": "All",
         "severity_critical": "Critical",
         "severity_high": "High",

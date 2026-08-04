@@ -1782,4 +1782,34 @@ describe("CompliancePage", () => {
       expect(document.activeElement).toBe(historyButton)
     })
   })
+
+  // aexa-frontend#508 round 13 -- the search input, domain filter select and
+  // status filter select relied on placeholder/default-option text alone,
+  // with no aria-label/associated label giving them an accessible name.
+  describe("filter accessibility (#508)", () => {
+    it("gives the search input, domain filter, and status filter accessible names", () => {
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      expect(
+        screen.getByRole("textbox", {
+          name: "organization.compliance.searchLabel",
+        })
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("combobox", {
+          name: "organization.compliance.domainFilterLabel",
+        })
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("combobox", {
+          name: "organization.compliance.statusFilterLabel",
+        })
+      ).toBeInTheDocument()
+    })
+  })
 })

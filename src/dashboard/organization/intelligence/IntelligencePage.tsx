@@ -670,6 +670,7 @@ export default function IntelligencePage() {
             placeholder={t(
               "organization.intelligence.filters.searchPlaceholder"
             )}
+            aria-label={t("organization.intelligence.filters.searchLabel")}
             className="h-9 w-full rounded-md border border-input bg-background pr-4 pl-9 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
           />
         </div>
