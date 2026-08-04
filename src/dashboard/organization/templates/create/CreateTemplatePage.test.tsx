@@ -285,6 +285,55 @@ describe("CreateTemplatePage", () => {
     ).toBeInTheDocument()
   })
 
+  // Round 14 (#516) -- the templateName Controller had no validation rules
+  // at all, unlike SitesEntities.tsx's site-name field (validates
+  // non-empty-after-trim with a visible error). A user could clear Template
+  // Name entirely and submit with zero client-side warning.
+  describe("templateName validation (#516)", () => {
+    it("shows a visible error and blocks submit when the template name is cleared", async () => {
+      renderPage()
+
+      const nameInput = screen.getByPlaceholderText(
+        /organization\.templates\.create\.namePlaceholder/i
+      )
+      await userEvent.clear(nameInput)
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization\.templates\.create\.saveTemplate/i,
+        })
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("organization.templates.create.nameRequired")
+        ).toBeInTheDocument()
+      )
+      expect(mockCreateNewTemplate).not.toHaveBeenCalled()
+    })
+
+    it("shows the same visible error for a whitespace-only template name", async () => {
+      renderPage()
+
+      const nameInput = screen.getByPlaceholderText(
+        /organization\.templates\.create\.namePlaceholder/i
+      )
+      await userEvent.clear(nameInput)
+      await userEvent.type(nameInput, "   ")
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization\.templates\.create\.saveTemplate/i,
+        })
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("organization.templates.create.nameRequired")
+        ).toBeInTheDocument()
+      )
+      expect(mockCreateNewTemplate).not.toHaveBeenCalled()
+    })
+  })
+
   // aexa-frontend#336: a brand-new template's default content (name, first
   // section title, first question text, and "New Section N" when adding
   // another) was hardcoded English, bypassing i18n entirely under a French

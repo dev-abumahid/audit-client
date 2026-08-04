@@ -486,6 +486,70 @@ describe("InspectionReport", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
+  // Round 14 (#515): the secondary "additional media files" thumbnail grid
+  // and the Media Lightbox it opens always rendered <img>, even for
+  // video/PDF uploads -- distinct from the primary per-question media
+  // renderer round 13 (#507) already fixed.
+  describe("additional media files thumbnails and lightbox branch on file type (#515)", () => {
+    function renderWithMedia(mediaUrl: string) {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            template: {
+              templateName: "Fire Safety Audit",
+              pages: [
+                {
+                  title: "General",
+                  questions: [
+                    { id: "q-4", question: "Site photo", answerType: "input" },
+                  ],
+                },
+              ],
+            },
+            questionAnswers: [
+              {
+                questionId: "q-4",
+                answer: "Looks fine",
+                note: "",
+                mediaFiles: [{ url: mediaUrl, type: "image" }],
+              },
+            ],
+          }),
+        },
+      })
+      return render(<InspectionReport />)
+    }
+
+    it("renders a video media file as a <video> thumbnail and a <video controls> lightbox, not a broken <img>", async () => {
+      renderWithMedia("https://cdn.example.com/clip.mp4")
+
+      expect(document.querySelector("video")).toBeInTheDocument()
+      expect(document.querySelector("img")).not.toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole("button", { name: /media-0/i }))
+
+      const lightboxVideo = screen.getByText(
+        "organization.inspection.mediaPreview"
+      )
+        .closest('[role="dialog"]')!
+        .querySelector("video")
+      expect(lightboxVideo).toBeInTheDocument()
+      expect(lightboxVideo).toHaveAttribute("controls")
+    })
+
+    it("renders a PDF media file as a document icon thumbnail and a link in the lightbox, not a broken <img>", async () => {
+      renderWithMedia("https://cdn.example.com/report.pdf")
+
+      expect(document.querySelector("img")).not.toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole("button", { name: /media-0/i }))
+
+      const link = screen.getByRole("link", { name: /report\.pdf/ })
+      expect(link).toHaveAttribute("href", "https://cdn.example.com/report.pdf")
+      expect(document.querySelector("img")).not.toBeInTheDocument()
+    })
+  })
+
   it("opens a media answer's full-size view without granting the new tab window.opener access (#110)", async () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null)
     mockUseGetSingleInspectionQuery.mockReturnValue({
@@ -593,5 +657,23 @@ describe("InspectionReport", () => {
     expect(link).toHaveAttribute("href", "https://cdn.example.com/report.pdf")
     expect(link).toHaveAttribute("target", "_blank")
     expect(document.querySelector("img")).not.toBeInTheDocument()
+  })
+
+  // Round 14 (#515): the sections sidebar had no <nav aria-label> and its
+  // buttons had no aria-current, unlike SectionNavigator.tsx (which was
+  // originally extracted from this exact pattern but never backported the
+  // improvement here).
+  it("wraps the sections list in a labeled <nav> and marks the active section with aria-current", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+    })
+
+    render(<InspectionReport />)
+
+    const nav = screen.getByRole("navigation", {
+      name: "organization.inspection.sections",
+    })
+    const activeButton = within(nav).getByText("General").closest("button")!
+    expect(activeButton).toHaveAttribute("aria-current", "true")
   })
 })

@@ -194,7 +194,12 @@ export default function InspectionsList() {
           />
         </form>
 
+        <label htmlFor="inspection-status-filter" className="sr-only">
+          {t("pages.inspection.list.statusFilterLabel")}
+        </label>
         <select
+          id="inspection-status-filter"
+          aria-label={t("pages.inspection.list.statusFilterLabel")}
           value={status}
           onChange={(e) => setParam("status", e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"

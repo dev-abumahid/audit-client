@@ -329,6 +329,42 @@ describe("EditTemplatePage", () => {
     })
   }, 6000)
 
+  // Round 14 (#516) -- the templateName Controller had no validation rules
+  // at all, unlike SitesEntities.tsx's site-name field (validates
+  // non-empty-after-trim with a visible error). A user could clear Template
+  // Name entirely with zero client-side warning.
+  it("shows a visible error when the template name is cleared, mirroring SitesEntities' site-name pattern", async () => {
+    mockUpdateTemplateBasics.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+    renderPage()
+
+    const nameInput = screen.getByDisplayValue("Existing Template")
+    fireEvent.change(nameInput, { target: { value: "" } })
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.templates.create.nameRequired")
+      ).toBeInTheDocument()
+    )
+  })
+
+  it("shows the same visible error for a whitespace-only template name", async () => {
+    mockUpdateTemplateBasics.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+    renderPage()
+
+    const nameInput = screen.getByDisplayValue("Existing Template")
+    fireEvent.change(nameInput, { target: { value: "   " } })
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.templates.create.nameRequired")
+      ).toBeInTheDocument()
+    )
+  })
+
   // aexa-frontend#485 -- this page's entire body (including the "Add New"
   // modal below) is nested inside a single
   // <form onSubmit={handleSubmit(onSubmit)}>, where onSubmit calls

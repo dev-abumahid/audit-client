@@ -10,6 +10,7 @@ import {
   useUpdateAuditEngagementMutation,
 } from "@/redux/apis/organization/audit.api"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
+import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import {
@@ -178,6 +179,12 @@ export default function AuditPage() {
       text: "text-green-600",
     },
   }
+
+  const closeAuditModal = () => {
+    setShowModal(false)
+  }
+
+  const auditModalRef = useModalA11y(showModal, closeAuditModal)
 
   const openCreate = () => {
     setEditId(null)
@@ -630,8 +637,14 @@ export default function AuditPage() {
       {/* Create / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-lg space-y-4 rounded-2xl border border-border bg-card p-6 shadow-xl">
-            <h2 className="text-lg font-bold text-foreground">
+          <div
+            ref={auditModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="audit-modal-title"
+            className="w-full max-w-lg space-y-4 rounded-2xl border border-border bg-card p-6 shadow-xl"
+          >
+            <h2 id="audit-modal-title" className="text-lg font-bold text-foreground">
               {editId
                 ? t("organization.audit.editModalTitle")
                 : t("organization.audit.newModalTitle")}
@@ -815,7 +828,7 @@ export default function AuditPage() {
 
             <div className="flex justify-end gap-2 pt-2">
               <button
-                onClick={() => setShowModal(false)}
+                onClick={closeAuditModal}
                 className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
               >
                 {t("organization.audit.cancel")}

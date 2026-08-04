@@ -520,7 +520,15 @@ export default function UpdateInspection() {
         const res = await uploadFileAws(formdata).unwrap()
 
         if (res?.success && res?.data) {
-          return { url: res.data, type: "image" }
+          // Derive the stored type from the file's actual MIME type instead
+          // of hardcoding "image" — the accept list above allows video and
+          // PDF uploads too (aexa-frontend#515).
+          const type = file.type.startsWith("video/")
+            ? "video"
+            : file.type === "application/pdf"
+              ? "document"
+              : "image"
+          return { url: res.data, type }
         }
         return null
       })
@@ -961,22 +969,27 @@ export default function UpdateInspection() {
                 {t("organization.inspection.noPagesTitle")}
               </p>
             ) : (
-              pages.map((page: any, index: number) => (
-                <button
-                  key={index}
-                  onClick={() => scrollToPage(index)}
-                  className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all ${
-                    currentPageIndex === index
-                      ? "bg-primary font-medium text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full border bg-background/80 font-mono text-xs">
-                    {index + 1}
-                  </div>
-                  <span className="line-clamp-2">{page.title}</span>
-                </button>
-              ))
+              <nav aria-label={t("organization.inspection.pages")}>
+                {pages.map((page: any, index: number) => (
+                  <button
+                    key={index}
+                    onClick={() => scrollToPage(index)}
+                    aria-current={
+                      currentPageIndex === index ? "true" : undefined
+                    }
+                    className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all ${
+                      currentPageIndex === index
+                        ? "bg-primary font-medium text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full border bg-background/80 font-mono text-xs">
+                      {index + 1}
+                    </div>
+                    <span className="line-clamp-2">{page.title}</span>
+                  </button>
+                ))}
+              </nav>
             )}
             <hr />
             <Button
@@ -1070,25 +1083,52 @@ export default function UpdateInspection() {
 
                       {hasMediaFiles && (
                         <div className="flex items-center gap-5">
-                          {hasMediaFiles.map((mediaFile: any, idx: number) => (
-                            <div key={idx} className="relative">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleRemoveMediaFile(question.id, idx)
-                                }
-                                aria-label={t("organization.inspection.remove")}
-                                className="absolute -top-2 -right-2 cursor-pointer rounded-full bg-amber-100 p-1 text-red-500"
-                              >
-                                <Trash className="size-4" />
-                              </button>
-                              <img
-                                className="h-12 w-12"
-                                src={mediaFile.url}
-                                alt={t("organization.inspection.uploadedMediaAlt")}
-                              />
-                            </div>
-                          ))}
+                          {hasMediaFiles.map((mediaFile: any, idx: number) => {
+                            const mediaKind = fileType(mediaFile.url)
+                            return (
+                              <div key={idx} className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleRemoveMediaFile(question.id, idx)
+                                  }
+                                  aria-label={t("organization.inspection.remove")}
+                                  className="absolute -top-2 -right-2 cursor-pointer rounded-full bg-amber-100 p-1 text-red-500"
+                                >
+                                  <Trash className="size-4" />
+                                </button>
+                                {mediaKind === "video" ? (
+                                  <video
+                                    controls
+                                    className="h-12 w-12 rounded object-cover"
+                                  >
+                                    <source src={mediaFile.url} />
+                                    {t("organization.inspection.videoUnsupported")}
+                                  </video>
+                                ) : mediaKind === "document" ||
+                                  mediaKind === "file" ? (
+                                  <a
+                                    href={mediaFile.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex h-12 w-12 items-center justify-center rounded border bg-muted"
+                                  >
+                                    <FileText className="size-5 text-muted-foreground" />
+                                  </a>
+                                ) : (
+                                  <img
+                                    className="h-12 w-12"
+                                    src={mediaFile.url}
+                                    alt={t("organization.inspection.uploadedMediaAlt")}
+                                    onError={(e) => {
+                                      ;(e.target as HTMLImageElement).src =
+                                        PLACEHOLDER_IMAGE_SRC
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
                       {hasNote && (

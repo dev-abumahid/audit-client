@@ -6,6 +6,7 @@ import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { Button } from "@/components/ui/button"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
+import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import enTranslations from "@/i18n/locales/en.json"
 import { useAnalyzeSiteRisksMutation } from "@/redux/apis/organization/ai.api"
@@ -274,6 +275,8 @@ export default function SitesEntities() {
     setIsLoadingEditSite(false)
     setShowForm(false)
   }
+
+  const siteFormModalRef = useModalA11y(showForm, closeSiteForm)
 
   const openEdit = async (site: SiteSummary) => {
     latestEditRequestRef.current = site.id
@@ -1076,11 +1079,15 @@ export default function SitesEntities() {
           onClick={closeSiteForm}
         >
           <div
+            ref={siteFormModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="site-form-modal-title"
             className="w-full max-w-lg rounded-2xl border border-border bg-card p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
+              <h2 id="site-form-modal-title" className="text-xl font-semibold">
                 {editingSite
                   ? t("organization.site&entities.editSiteTitle")
                   : t("organization.site&entities.addNewSiteTitle")}

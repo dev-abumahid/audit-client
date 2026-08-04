@@ -490,6 +490,34 @@ describe("SitesEntities", () => {
     expect(mockCreateNewSite).not.toHaveBeenCalled()
   })
 
+  // Regression (round 14 audit, aexa-frontend#514): the Create/Edit Site
+  // modal was a plain div with no role="dialog", no aria-modal and no
+  // Escape handling, unlike every sibling modal in this codebase.
+  it("marks the Create/Edit Site modal as a labeled dialog and closes it on Escape", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+
+    render(<SitesEntities />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+
+    const dialog = screen.getByRole("dialog")
+    expect(dialog).toHaveAttribute("aria-modal", "true")
+    expect(dialog).toHaveAccessibleName(
+      "organization.site&entities.addNewSiteTitle"
+    )
+
+    await userEvent.keyboard("{Escape}")
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
   // Regression (audit round 3): the Location, Country and Revenue field
   // labels in this modal were hardcoded English, bypassing t() (unlike the
   // other fields in the same form, e.g. Site Name/Site Type, which already

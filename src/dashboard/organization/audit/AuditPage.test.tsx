@@ -230,6 +230,31 @@ describe("AuditPage", () => {
     expect(screen.getByText("organization.audit.empty")).toBeInTheDocument()
   })
 
+  // Regression (round 14 audit, aexa-frontend#514): the mission create/edit
+  // modal was a hand-rolled overlay with no role="dialog", no aria-modal,
+  // no aria-labelledby and no Escape handling, unlike CompliancePage.tsx and
+  // OnboardingWizard.tsx.
+  it("marks the mission create/edit modal as a labeled dialog and closes it on Escape", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    await user.click(
+      screen.getByRole("button", { name: /organization\.audit\.newMission/i })
+    )
+
+    const dialog = screen.getByRole("dialog")
+    expect(dialog).toHaveAttribute("aria-modal", "true")
+    expect(dialog).toHaveAccessibleName("organization.audit.newModalTitle")
+
+    await user.keyboard("{Escape}")
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
   it("submits the create form and calls createAuditEngagement with filled data", async () => {
     const user = userEvent.setup()
     mockUseGetAllAuditEngagementsQuery.mockReturnValue({

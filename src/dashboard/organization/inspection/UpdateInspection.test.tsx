@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import UpdateInspection from "./UpdateInspection"
 
@@ -631,6 +637,125 @@ describe("UpdateInspection", () => {
     })
   })
 
+  // Round 14 (#515): the "additional media files" secondary upload path
+  // (handleExternalMediaUpload + its thumbnail list) is distinct from the
+  // primary per-question "media" answer renderer fixed in round 13 (#507)
+  // above -- it still hardcoded { type: "image" } for every upload and
+  // always rendered <img>, regardless of the file's real MIME type.
+  describe("additional media files: secondary upload path branches on file type (#515)", () => {
+    it("stores the real MIME-derived type instead of hardcoding image for a video upload", async () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: makeInspection() },
+        isLoading: false,
+      })
+      mockUploadFileAws.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            data: "https://cdn.example.com/clip.mp4",
+          }),
+      })
+      mockUpdateQuestionAnswer.mockReturnValue({
+        unwrap: () => Promise.resolve({}),
+      })
+
+      render(<UpdateInspection />)
+      const file = new File(["x"], "clip.mp4", { type: "video/mp4" })
+      const input = document.getElementById(
+        "update-external-media-q-1"
+      ) as HTMLInputElement
+      await userEvent.upload(input, file)
+
+      // qa-1 already has a persisted questionAnswerId, so the upload
+      // triggers the debounced auto-save with the newly stored mediaFiles.
+      await waitFor(
+        () =>
+          expect(mockUpdateQuestionAnswer).toHaveBeenCalledWith(
+            expect.objectContaining({
+              id: "qa-1",
+              data: expect.objectContaining({
+                mediaFiles: [
+                  { url: "https://cdn.example.com/clip.mp4", type: "video" },
+                ],
+              }),
+            })
+          ),
+        { timeout: 2000 }
+      )
+    })
+
+    it("renders an existing video media file as <video controls>, not a broken <img>", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            questionAnswers: [
+              {
+                id: "qa-1",
+                questionId: "q-1",
+                answer: true,
+                note: "",
+                mediaFiles: [
+                  { url: "https://cdn.example.com/clip.mp4", type: "video" },
+                ],
+              },
+              {
+                id: "qa-2",
+                questionId: "q-2",
+                answer: "Fine",
+                note: "",
+                mediaFiles: [],
+              },
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />)
+
+      const video = document.querySelector("video")
+      expect(video).toBeInTheDocument()
+      expect(video).toHaveAttribute("controls")
+    })
+
+    it("renders an existing PDF media file as a link, not a broken <img>", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            questionAnswers: [
+              {
+                id: "qa-1",
+                questionId: "q-1",
+                answer: true,
+                note: "",
+                mediaFiles: [
+                  {
+                    url: "https://cdn.example.com/report.pdf",
+                    type: "document",
+                  },
+                ],
+              },
+              {
+                id: "qa-2",
+                questionId: "q-2",
+                answer: "Fine",
+                note: "",
+                mediaFiles: [],
+              },
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />)
+
+      const link = screen.getByRole("link")
+      expect(link).toHaveAttribute("href", "https://cdn.example.com/report.pdf")
+      expect(link).toHaveAttribute("target", "_blank")
+    })
+  })
+
   // Round 13 (#507): the "media" answer-type renderer unconditionally
   // rendered an <img>, even though the upload input accepts
   // "image/*,video/*,application/pdf" -- a video or PDF upload silently
@@ -750,6 +875,29 @@ describe("UpdateInspection", () => {
         "organization.inspection.uploadedMediaAlt"
       )
       expect(thumbnail).toHaveAttribute("src", "https://cdn.example.com/photo.jpg")
+    })
+  })
+
+  // Round 14 (#515): the sticky pages sidebar had no <nav aria-label> and
+  // its buttons had no aria-current, unlike SectionNavigator.tsx (which was
+  // originally extracted from this exact pattern but never backported the
+  // improvement here).
+  describe("pages sidebar navigation accessibility (#515)", () => {
+    it("wraps the pages list in a labeled <nav> and marks the active page with aria-current", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: makeInspection() },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />)
+
+      const nav = screen.getByRole("navigation", {
+        name: "organization.inspection.pages",
+      })
+      const activeButton = within(nav)
+        .getByText("General")
+        .closest("button")!
+      expect(activeButton).toHaveAttribute("aria-current", "true")
     })
   })
 })

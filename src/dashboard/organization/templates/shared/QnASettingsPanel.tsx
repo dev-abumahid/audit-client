@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button"
 import {
   Calendar,
   CheckSquare,
-  GripVertical,
   Image,
   Plus,
   Sliders,
@@ -275,10 +274,6 @@ function QnASettingsPanel({
 
                       {editOptions.map((opt, idx) => (
                         <div key={opt.id} className="flex items-center gap-2">
-                          <GripVertical
-                            size={16}
-                            className="text-muted-foreground"
-                          />
                           <input
                             type="text"
                             value={optionLabel(t, opt)}

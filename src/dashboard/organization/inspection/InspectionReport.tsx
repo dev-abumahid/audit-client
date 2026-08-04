@@ -293,22 +293,34 @@ const QuestionCard = memo(
 
           {hasMedia && (
             <div className="mt-3 flex flex-wrap gap-2">
-              {mediaFiles.map((media, i) => (
-                <button
-                  key={i}
-                  onClick={() => onMediaClick(media.url)}
-                  className="h-14 w-14 overflow-hidden rounded-lg border border-border transition-all duration-200 hover:scale-105 hover:shadow-md"
-                >
-                  <img
-                    src={media.url}
-                    alt={`media-${i}`}
-                    className="h-full w-full object-cover"
-                    onError={(e) =>
-                      (e.currentTarget.src = PLACEHOLDER_IMAGE_SRC)
-                    }
-                  />
-                </button>
-              ))}
+              {mediaFiles.map((media, i) => {
+                const mediaKind = fileType(media.url)
+                return (
+                  <button
+                    key={i}
+                    onClick={() => onMediaClick(media.url)}
+                    aria-label={`media-${i}`}
+                    className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-border transition-all duration-200 hover:scale-105 hover:shadow-md"
+                  >
+                    {mediaKind === "video" ? (
+                      <video className="h-full w-full object-cover">
+                        <source src={media.url} />
+                      </video>
+                    ) : mediaKind === "document" || mediaKind === "file" ? (
+                      <FileText className="h-6 w-6 text-muted-foreground" />
+                    ) : (
+                      <img
+                        src={media.url}
+                        alt={`media-${i}`}
+                        className="h-full w-full object-cover"
+                        onError={(e) =>
+                          (e.currentTarget.src = PLACEHOLDER_IMAGE_SRC)
+                        }
+                      />
+                    )}
+                  </button>
+                )
+              })}
             </div>
           )}
 
@@ -744,13 +756,17 @@ const InspectionReport = () => {
           <p className="mb-2 px-3 text-xs font-bold tracking-widest text-muted-foreground uppercase">
             {t("organization.inspection.sections")}
           </p>
-          <div className="space-y-1">
+          <nav
+            className="space-y-1"
+            aria-label={t("organization.inspection.sections")}
+          >
             {templatePages.map((page: PageDef, idx: number) => {
               const isActive = activePageIndex === idx
               return (
                 <button
                   key={idx}
                   onClick={() => scrollToPage(idx)}
+                  aria-current={isActive ? "true" : undefined}
                   className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all ${
                     isActive
                       ? "bg-primary text-primary-foreground shadow-sm"
@@ -772,7 +788,7 @@ const InspectionReport = () => {
                 </button>
               )
             })}
-          </div>
+          </nav>
         </aside>
 
         {/* Main Content */}
@@ -877,11 +893,32 @@ const InspectionReport = () => {
               </button>
             </div>
             <div className="p-4">
-              <img
-                src={selectedMedia}
-                alt={t("organization.inspection.uploadedMediaAlt")}
-                className="h-auto max-w-full rounded-xl"
-              />
+              {fileType(selectedMedia) === "video" ? (
+                <video controls className="h-auto max-w-full rounded-xl">
+                  <source src={selectedMedia} />
+                  {t("organization.inspection.videoUnsupported")}
+                </video>
+              ) : fileType(selectedMedia) === "document" ||
+                fileType(selectedMedia) === "file" ? (
+                <a
+                  href={selectedMedia}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-lg border border-border p-4 text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  <FileText className="h-5 w-5" />
+                  {attachmentFileName(selectedMedia)}
+                </a>
+              ) : (
+                <img
+                  src={selectedMedia}
+                  alt={t("organization.inspection.uploadedMediaAlt")}
+                  className="h-auto max-w-full rounded-xl"
+                  onError={(e) =>
+                    (e.currentTarget.src = PLACEHOLDER_IMAGE_SRC)
+                  }
+                />
+              )}
             </div>
           </div>
         </div>

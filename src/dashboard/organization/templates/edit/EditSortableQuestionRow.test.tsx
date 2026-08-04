@@ -38,8 +38,12 @@ vi.mock("@/redux/apis/organization/template.api", () => ({
   useDeleteQuestionMutation: () => [mockDeleteQuestion, { isLoading: false }],
 }))
 
+const mockIsValidUUID = vi.fn((id: string) => {
+  void id
+  return true
+})
 vi.mock("@/utils/validUUID", () => ({
-  isValidUUID: () => true,
+  isValidUUID: (id: string) => mockIsValidUUID(id),
 }))
 
 function Harness({
@@ -51,11 +55,15 @@ function Harness({
   // whenever isEditMode+pageId are set regardless of orderSyncFailed.
   isEditMode = false,
   isAnswerPanelOpen = false,
+  questionId = "q1",
+  remove = () => {},
 }: {
   orderSyncFailed?: boolean
   isDraggingGlobal?: boolean
   isEditMode?: boolean
   isAnswerPanelOpen?: boolean
+  questionId?: string
+  remove?: (index: number) => void
 }) {
   const { control } = useForm({
     defaultValues: {
@@ -63,7 +71,7 @@ function Harness({
         {
           questions: [
             {
-              id: "q1",
+              id: questionId,
               question: "First question",
               isRequired: false,
               answerType: { answerType: "input", value: "text" },
@@ -79,10 +87,10 @@ function Harness({
       sortableId="row-1"
       pageIndex={0}
       questionIndex={0}
-      questionId="q1"
+      questionId={questionId}
       pageId="page-1"
       control={control}
-      remove={() => {}}
+      remove={remove}
       onOpenAnswerPanel={() => {}}
       isEditMode={isEditMode}
       isDraggingGlobal={isDraggingGlobal}
@@ -250,5 +258,70 @@ describe("EditSortableQuestionRow - no spurious sync on mount", () => {
     // confirms the fix didn't just disable syncing altogether.
     await userEvent.click(screen.getByRole("checkbox"))
     await waitFor(() => expect(mockUpdateOrCreateQuestion).toHaveBeenCalledTimes(1))
+  })
+})
+
+// Round 14 (#516) -- handleDeleteQuestion called deleteQuestion(questionId)
+// with no isValidUUID guard, unlike the sync path in this same file (which
+// already guards on it). A freshly-added, not-yet-synced question carries a
+// client-local id (uid(), not a real UUID); deleting it before its first
+// debounced sync used to send a garbage id to the delete mutation, which
+// failed server-side, and the catch block only toasted an error without
+// calling remove(questionIndex) -- so the row got stuck forever.
+describe("EditSortableQuestionRow - delete guards on isValidUUID (#516)", () => {
+  beforeEach(() => {
+    mockUpdateOrCreateQuestion.mockReset()
+    mockDeleteQuestion.mockReset()
+    mockIsValidUUID.mockReset()
+    vi.spyOn(window, "confirm").mockReturnValue(true)
+  })
+
+  afterEach(() => {
+    vi.mocked(window.confirm).mockRestore()
+  })
+
+  it("calls the delete mutation for a real, valid-UUID question id", async () => {
+    mockIsValidUUID.mockReturnValue(true)
+    mockDeleteQuestion.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+    const remove = vi.fn()
+
+    render(
+      <Harness
+        isEditMode
+        questionId="11111111-1111-4111-8111-111111111111"
+        remove={remove}
+      />
+    )
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.templates.builder.deleteQuestion",
+      })
+    )
+
+    await waitFor(() =>
+      expect(mockDeleteQuestion).toHaveBeenCalledWith(
+        "11111111-1111-4111-8111-111111111111"
+      )
+    )
+    expect(remove).toHaveBeenCalledWith(0)
+  })
+
+  it("skips the delete mutation and removes the row directly for a not-yet-synced (invalid-id) question", async () => {
+    mockIsValidUUID.mockReturnValue(false)
+    const remove = vi.fn()
+
+    render(
+      <Harness isEditMode questionId="rhf-3-abc123" remove={remove} />
+    )
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.templates.builder.deleteQuestion",
+      })
+    )
+
+    expect(mockDeleteQuestion).not.toHaveBeenCalled()
+    expect(remove).toHaveBeenCalledWith(0)
   })
 })

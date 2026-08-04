@@ -431,14 +431,26 @@ const EditTemplatePage = () => {
               <Controller
                 control={control}
                 name="templateName"
-                render={({ field }) => (
-                  <input
-                    {...field}
-                    className="w-full rounded-md border border-border bg-transparent p-2 text-2xl font-semibold text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
-                    placeholder={t(
-                      "organization.templates.create.namePlaceholder"
+                rules={{
+                  validate: (v) =>
+                    (v ?? "").trim().length > 0 ||
+                    t("organization.templates.create.nameRequired"),
+                }}
+                render={({ field, fieldState }) => (
+                  <>
+                    <input
+                      {...field}
+                      className="w-full rounded-md border border-border bg-transparent p-2 text-2xl font-semibold text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                      placeholder={t(
+                        "organization.templates.create.namePlaceholder"
+                      )}
+                    />
+                    {fieldState.error && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {fieldState.error.message}
+                      </p>
                     )}
-                  />
+                  </>
                 )}
               />
               <Controller

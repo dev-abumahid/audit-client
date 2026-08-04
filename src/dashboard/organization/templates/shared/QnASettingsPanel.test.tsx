@@ -70,6 +70,35 @@ describe("QnASettingsPanel accessible names (#468)", () => {
   })
 })
 
+// Round 14 (#516) -- each option row rendered a GripVertical "drag handle"
+// icon with zero drag-and-drop wiring (no dnd-kit, no onDragEnd), unlike
+// the real question rows elsewhere in this codebase where the same icon is
+// a working useSortable handle. Reordering options by drag isn't wired up
+// anywhere in this component (no DndContext/SortableContext), so the
+// misleading, non-functional icon was removed rather than fully
+// implementing drag-and-drop for options (documented in the PR body).
+describe("QnASettingsPanel option rows have no misleading drag handle (#516)", () => {
+  it("does not render a decorative grip/drag-handle icon on option rows in edit mode", async () => {
+    render(
+      <QnASettingsPanel
+        onClose={vi.fn()}
+        onSelectInput={vi.fn()}
+        onSelectResponseSet={vi.fn()}
+      />
+    )
+
+    await userEvent.click(
+      screen.getAllByRole("button", {
+        name: "organization.templates.qna.editResponseSet",
+      })[0]
+    )
+
+    expect(
+      document.querySelector("svg.lucide-grip-vertical")
+    ).not.toBeInTheDocument()
+  })
+})
+
 // aexa-frontend#499 -- the backdrop + side panel is functionally a modal
 // (blocks interaction with the rest of the page) but had no role="dialog",
 // no aria-modal, no focus trap, and no Escape-to-close. Migrated onto the

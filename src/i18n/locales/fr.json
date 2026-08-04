@@ -357,6 +357,7 @@
         "saveTemplate": "Enregistrer le modèle",
         "upload": "Téléverser",
         "namePlaceholder": "Nom du modèle",
+        "nameRequired": "Le nom du modèle est requis",
         "descPlaceholder": "Ajoutez une description pour ce modèle...",
         "noSections": "Aucune section pour le moment.",
         "createFirstSection": "Créer la première section",
@@ -2189,6 +2190,7 @@
       },
       "list": {
         "allStatuses": "Tous les statuts",
+        "statusFilterLabel": "Filtrer par statut",
         "cancel": "Annuler",
         "chooseSite": "Choisir un site…",
         "chooseTemplate": "Choisir un modèle…",

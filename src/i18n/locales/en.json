@@ -357,6 +357,7 @@
         "saveTemplate": "Save Template",
         "upload": "Upload",
         "namePlaceholder": "Template Name",
+        "nameRequired": "Template name is required",
         "descPlaceholder": "Add a description for this template...",
         "noSections": "No sections yet.",
         "createFirstSection": "Create First Section",
@@ -2189,6 +2190,7 @@
       },
       "list": {
         "allStatuses": "All statuses",
+        "statusFilterLabel": "Filter by status",
         "cancel": "Cancel",
         "chooseSite": "Choose a site…",
         "chooseTemplate": "Choose a template…",

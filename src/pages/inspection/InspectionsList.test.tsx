@@ -124,6 +124,24 @@ describe("InspectionsList", () => {
     expect(screen.getAllByText("pages.inspection.list.statusCancelled").length).toBeGreaterThan(0)
   })
 
+  // Round 14 (#515): the status filter select had no label or aria-label,
+  // unlike the New Inspection modal's own site/template selects in this
+  // same file, which use htmlFor labels.
+  it("gives the status filter select an accessible name", async () => {
+    mockGet.mockResolvedValue({
+      meta: { page: 1, limit: 10, total: 0, totalPage: 1 },
+      data: [],
+    })
+    renderList()
+    await waitFor(() =>
+      expect(
+        screen.getByRole("combobox", {
+          name: "pages.inspection.list.statusFilterLabel",
+        })
+      ).toBeInTheDocument()
+    )
+  })
+
   it("applies the correct colour class to each status badge", async () => {
     const statuses = ["DRAFT", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const
     mockGet.mockResolvedValue({

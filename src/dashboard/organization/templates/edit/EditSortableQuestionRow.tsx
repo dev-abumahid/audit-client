@@ -194,14 +194,23 @@ function EditSortableQuestionRow({
 
   const handleDeleteQuestion = async () => {
     if (window.confirm(t("organization.templates.builder.confirmDeleteQuestion"))) {
-      try {
-        if (isEditMode && questionId) {
+      // A freshly-added, not-yet-synced question carries a client-local id
+      // (uid(), not a real UUID), so there is nothing to delete server-side
+      // yet — just drop it from the form array, mirroring the sync path's
+      // isValidUUID guard above (aexa-frontend#516).
+      if (isEditMode && questionId && isValidUUID(questionId)) {
+        try {
           await deleteQuestion(questionId).unwrap()
           toast.success(t("organization.templates.builder.questionDeleted"))
+          remove(questionIndex)
+        } catch (error: any) {
+          toast.error(
+            error?.message ||
+              t("organization.templates.builder.deleteQuestionFailed")
+          )
         }
+      } else {
         remove(questionIndex)
-      } catch (error:any) {
-        toast.error(error?.message || t("organization.templates.builder.deleteQuestionFailed"))
       }
     }
   }
