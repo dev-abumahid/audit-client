@@ -51,7 +51,7 @@ const CreateTemplatePage = () => {
     }
   }, [logoPreviewUrl])
 
-  const { control, register, handleSubmit, getValues, setValue } =
+  const { control, handleSubmit, getValues, setValue } =
     useForm<TemplateFormValues>({
       defaultValues: {
         templateName: t("organization.templates.create.defaultTemplateName"),
@@ -330,15 +330,12 @@ const CreateTemplatePage = () => {
                   <PageSection
                     pageIndex={pIdx}
                     control={control}
-                    register={register}
                     removePage={removePage}
                     totalPages={pageFields.length}
                     onOpenAddModal={(pi) => setAddModalTarget(pi)}
                     onOpenAnswerPanel={(pi, qi) =>
                       setAnswerPanel({ pageIndex: pi, questionIndex: qi })
                     }
-                    getValues={getValues}
-                    setValue={setValue}
                   />
                 </div>
               ))}

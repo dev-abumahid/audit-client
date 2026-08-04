@@ -22,24 +22,19 @@ import SortableQuestionRow from "./SortableQuestionRow"
 interface PageSectionProps {
   pageIndex: number
   control: any
-  register: any
   removePage: (index: number) => void
   totalPages: number
   onOpenAddModal: (pageIndex: number) => void
   onOpenAnswerPanel: (pageIndex: number, questionIndex: number) => void
-  getValues: any
-  setValue: any
 }
 
 function PageSection({
   pageIndex,
   control,
-  register,
   removePage,
   totalPages,
   onOpenAddModal,
   onOpenAnswerPanel,
-  getValues,
 }: PageSectionProps) {
   const { t } = useTranslation()
   const { fields, remove, move } = useFieldArray({
@@ -131,10 +126,8 @@ function PageSection({
                   pageIndex={pageIndex}
                   questionIndex={qIndex}
                   control={control}
-                  register={register}
                   remove={remove}
                   onOpenAnswerPanel={onOpenAnswerPanel}
-                  getValues={getValues}
                 />
               ))
             )}

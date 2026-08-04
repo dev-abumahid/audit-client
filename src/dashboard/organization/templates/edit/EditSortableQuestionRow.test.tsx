@@ -55,7 +55,7 @@ function Harness({
   isDraggingGlobal?: boolean
   isEditMode?: boolean
 }) {
-  const { control, register, getValues, setValue } = useForm({
+  const { control } = useForm({
     defaultValues: {
       pages: [
         {
@@ -79,13 +79,9 @@ function Harness({
       questionIndex={0}
       questionId="q1"
       pageId="page-1"
-      templateId="template-1"
       control={control}
-      register={register}
       remove={() => {}}
       onOpenAnswerPanel={() => {}}
-      getValues={getValues}
-      setValue={setValue}
       isEditMode={isEditMode}
       isDraggingGlobal={isDraggingGlobal}
       orderSyncFailed={orderSyncFailed}

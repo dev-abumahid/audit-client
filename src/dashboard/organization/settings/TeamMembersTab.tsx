@@ -419,10 +419,14 @@ export default function TeamMembersTab() {
             <form onSubmit={inviteForm.handleSubmit(handleInvite)}>
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="invite-email"
+                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.teamMembers.emailLabel")}
                   </label>
                   <input
+                    id="invite-email"
                     type="email"
                     {...inviteForm.register("email", {
                       required: t("organization.teamMembers.emailRequired"),
@@ -442,10 +446,14 @@ export default function TeamMembersTab() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="invite-role"
+                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.teamMembers.roleLabel")}
                   </label>
                   <select
+                    id="invite-role"
                     {...inviteForm.register("role", { required: true })}
                     className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
                   >

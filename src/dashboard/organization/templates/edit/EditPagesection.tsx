@@ -32,7 +32,6 @@ interface PageSectionProps {
   pageId: string
   templateId: string
   control: any
-  register: any
   removePage: (index: number) => void
   totalPages: number
   onOpenAddModal: (pageIndex: number) => void
@@ -48,7 +47,6 @@ const EditPageSection = memo(
     pageId,
     templateId,
     control,
-    register,
     removePage,
     totalPages,
     onOpenAddModal,
@@ -442,13 +440,9 @@ const EditPageSection = memo(
                     questionIndex={qIndex}
                     questionId={(field as any).id}
                     pageId={pageId}
-                    templateId={templateId}
                     control={control}
-                    register={register}
                     remove={remove}
                     onOpenAnswerPanel={onOpenAnswerPanel}
-                    getValues={getValues}
-                    setValue={setValue}
                     isEditMode={isEditMode}
                     isDraggingGlobal={isDragging}
                     orderSyncFailed={syncFailedIds.has((field as any).id)}

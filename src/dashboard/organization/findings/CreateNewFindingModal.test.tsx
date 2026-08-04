@@ -263,6 +263,37 @@ describe("CreateNewFindingModal", () => {
     expect(payload.attachments).toContain("https://cdn.example.com/new.png")
   })
 
+  // Regression (aexa-frontend#489): the media preview always rendered an
+  // <img>, even for a video upload (the input accepts "image/*,video/*"),
+  // producing a broken-image icon. A video upload must render a <video>
+  // preview instead.
+  it("renders a <video> preview (not a broken <img>) after uploading a video file", async () => {
+    mockUploadFile.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ data: "https://cdn.example.com/clip.mp4" }),
+    })
+
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+    const file = new File(["hello"], "clip.mp4", { type: "video/mp4" })
+    await userEvent.upload(fileInput, file)
+
+    await waitFor(() => expect(mockUploadFile).toHaveBeenCalled())
+
+    await waitFor(() => {
+      const video = document.querySelector(
+        'video[src="https://cdn.example.com/clip.mp4"]'
+      )
+      expect(video).toBeInTheDocument()
+    })
+    expect(
+      document.querySelector('img[src="https://cdn.example.com/clip.mp4"]')
+    ).not.toBeInTheDocument()
+  })
+
   it("normalizes editData.assignBy ({id, name} objects) to raw user ids and preserves them on submit", async () => {
     mockOrgUsers.mockReturnValue({
       data: {

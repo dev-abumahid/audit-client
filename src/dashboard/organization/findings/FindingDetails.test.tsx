@@ -512,6 +512,28 @@ describe("FindingDetails", () => {
       expect(screen.getByAltText("attachment-0")).toBeInTheDocument()
     })
 
+    // Regression (aexa-frontend#489): the file-type caption under a
+    // non-image attachment ("document"/"file"/"video") rendered the raw
+    // hardcoded English return value of fileType() directly, never routed
+    // through t(). Now it must render the translated key instead.
+    it("renders the non-image attachment's file-type caption through an i18n key, not raw English", async () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            attachments: ["https://cdn.example.com/report.pdf"],
+          }),
+        },
+        isLoading: false,
+      })
+      renderPage()
+      await openFilesTab()
+
+      expect(
+        screen.getByText("organization.findings.fileTypeDocument")
+      ).toBeInTheDocument()
+      expect(screen.queryByText("document")).not.toBeInTheDocument()
+    })
+
     // aexa-frontend#484 -- the attachment PreviewModal's close button was
     // icon-only (X) with no aria-label/title.
     it("gives the attachment preview modal's close button an accessible name", async () => {

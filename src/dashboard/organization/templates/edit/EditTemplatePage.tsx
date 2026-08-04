@@ -71,7 +71,7 @@ const EditTemplatePage = () => {
     mode: "onChange", // Track changes in real-time
   })
 
-  const { control, register, handleSubmit, getValues, setValue } = form
+  const { control, handleSubmit, getValues, setValue } = form
 
   const {
     fields: pageFields,
@@ -491,7 +491,6 @@ const EditTemplatePage = () => {
                     pageId={pageField.id}
                     templateId={id || ""}
                     control={control}
-                    register={register}
                     removePage={removePage}
                     totalPages={pageFields.length}
                     onOpenAddModal={(pi) => setAddModalTarget(pi)}

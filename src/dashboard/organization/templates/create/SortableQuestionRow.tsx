@@ -10,10 +10,8 @@ interface SortableQuestionRowProps {
   pageIndex: number
   questionIndex: number
   control: any
-  register: any
   remove: (index: number) => void
   onOpenAnswerPanel: (pageIndex: number, questionIndex: number) => void
-  getValues: any
 }
 
 function SortableQuestionRow({

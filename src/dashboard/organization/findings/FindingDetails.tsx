@@ -92,6 +92,16 @@ const fileType = (url: string) => {
   return "file"
 }
 
+// Translated caption for the fileType() discriminator above -- fileType()
+// itself must keep returning the raw "image"/"video"/"document"/"file"
+// strings since those are used as comparison keys, not just display text.
+const FILE_TYPE_LABEL_KEYS: Record<string, string> = {
+  image: "organization.findings.fileTypeImage",
+  video: "organization.findings.fileTypeVideo",
+  document: "organization.findings.fileTypeDocument",
+  file: "organization.findings.fileTypeFile",
+}
+
 const downloadFile = (url: string) => {
   // Was a mock (just a toast with the URL) — attachments are direct Cloudinary
   // file URLs, so a real download is just a temporary anchor with `download`
@@ -851,7 +861,7 @@ export default function FindingDetails() {
                                           {attachmentFileName(url)}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
-                                          {fileType(url)}
+                                          {t(FILE_TYPE_LABEL_KEYS[fileType(url)])}
                                         </p>
                                       </div>
                                     </div>

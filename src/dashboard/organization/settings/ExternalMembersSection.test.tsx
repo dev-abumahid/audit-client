@@ -140,6 +140,26 @@ describe("ExternalMembersSection", () => {
     expect(mockToastSuccess).toHaveBeenCalled()
   })
 
+  // Regression (aexa-frontend#492): the invite dialog's email and name
+  // labels had no htmlFor/id association with their inputs.
+  it("associates the invite dialog's email and name labels with their inputs", async () => {
+    const user = userEvent.setup()
+    render(<ExternalMembersSection />)
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "organization.externalMembers.inviteButton",
+      })
+    )
+
+    expect(
+      screen.getByLabelText("organization.externalMembers.emailLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.externalMembers.nameLabel")
+    ).toBeInTheDocument()
+  })
+
   it("sends fullName as undefined (not empty string) when left blank", async () => {
     const user = userEvent.setup()
     mockInviteExternalMember.mockReturnValue({

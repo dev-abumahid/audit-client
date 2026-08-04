@@ -281,6 +281,29 @@ describe("TeamMembersTab", () => {
     localeDateSpy.mockRestore()
   })
 
+  // Regression (aexa-frontend#492): the invite dialog's email input and role
+  // select had labels with no htmlFor/id association, so a screen reader or
+  // getByLabelText couldn't connect the visible label text to its control.
+  it("associates the invite dialog's email and role labels with their inputs", async () => {
+    mockUseGetAllOrgUsersQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+
+    render(<TeamMembersTab />)
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.teamMembers.inviteMember" })
+    )
+
+    expect(
+      screen.getByLabelText("organization.teamMembers.emailLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.teamMembers.roleLabel")
+    ).toBeInTheDocument()
+  })
+
   it("does not render the pending invitations section when there are none", () => {
     mockUseGetAllOrgUsersQuery.mockReturnValue({
       data: { data: [] },

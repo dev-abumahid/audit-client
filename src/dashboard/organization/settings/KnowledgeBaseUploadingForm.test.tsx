@@ -240,4 +240,52 @@ describe("KnowledgeBaseUploadingForm", () => {
     )
     expect(mockUploadDocument).not.toHaveBeenCalled()
   })
+
+  // Regression (aexa-frontend#492): the drag-and-drop dropzone was a plain
+  // <div> with only onClick/onDrag handlers -- no role="button", no
+  // tabIndex, no onKeyDown -- so a keyboard-only user could never reach or
+  // trigger it (the real <input type="file"> it delegates to is
+  // className="hidden", removed from the tab order).
+  describe("dropzone keyboard operability (#492)", () => {
+    it("exposes the dropzone as a focusable button", () => {
+      render(<KnowledgeBaseUploadingForm />)
+
+      const dropzone = screen.getByRole("button", {
+        name: "organization.knowledgeBase.dropHint",
+      })
+      expect(dropzone).toHaveAttribute("tabIndex", "0")
+    })
+
+    it("opens the file picker on Enter", async () => {
+      render(<KnowledgeBaseUploadingForm />)
+      const dropzone = screen.getByRole("button", {
+        name: "organization.knowledgeBase.dropHint",
+      })
+      const input = document.querySelector(
+        'input[type="file"]'
+      ) as HTMLInputElement
+      const clickSpy = vi.spyOn(input, "click")
+
+      dropzone.focus()
+      await userEvent.keyboard("{Enter}")
+
+      expect(clickSpy).toHaveBeenCalled()
+    })
+
+    it("opens the file picker on Space", async () => {
+      render(<KnowledgeBaseUploadingForm />)
+      const dropzone = screen.getByRole("button", {
+        name: "organization.knowledgeBase.dropHint",
+      })
+      const input = document.querySelector(
+        'input[type="file"]'
+      ) as HTMLInputElement
+      const clickSpy = vi.spyOn(input, "click")
+
+      dropzone.focus()
+      await userEvent.keyboard(" ")
+
+      expect(clickSpy).toHaveBeenCalled()
+    })
+  })
 })

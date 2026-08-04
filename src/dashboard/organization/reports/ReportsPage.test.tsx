@@ -317,9 +317,41 @@ describe("ReportsPage", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("opens the PDF in a new tab when Download is clicked on a READY report", async () => {
+  it("opens the PDF in a new tab when Preview is clicked on a READY report", async () => {
     const user = userEvent.setup()
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null)
+    mockUseGetAllReportsQuery.mockReturnValue({
+      data: { data: [makeReport({ status: "READY" })] },
+      isLoading: false,
+    })
+
+    render(<ReportsPage />)
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /organization\.reports\.preview/i,
+      })
+    )
+
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://cdn.example/report.pdf",
+      "_blank",
+      "noopener"
+    )
+    openSpy.mockRestore()
+  })
+
+  // Regression (aexa-frontend#493): Preview and Download used to share the
+  // identical openPdf() handler (window.open in a new tab), so Download
+  // never actually downloaded anything. Now it must use a real <a download>
+  // element -- the same pattern as FindingDetails.tsx's downloadFile() --
+  // and must NOT call window.open (that would be the old, wrong behavior).
+  it("downloads the PDF via a temporary <a download> element when Download is clicked on a READY report", async () => {
+    const user = userEvent.setup()
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null)
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {})
     mockUseGetAllReportsQuery.mockReturnValue({
       data: { data: [makeReport({ status: "READY" })] },
       isLoading: false,
@@ -333,12 +365,79 @@ describe("ReportsPage", () => {
       })
     )
 
-    expect(openSpy).toHaveBeenCalledWith(
-      "https://cdn.example/report.pdf",
-      "_blank",
-      "noopener"
-    )
+    expect(clickSpy).toHaveBeenCalledTimes(1)
+    const anchor = clickSpy.mock.instances[0] as HTMLAnchorElement
+    expect(anchor.href).toBe("https://cdn.example/report.pdf")
+    expect(anchor.download).toBe("Q3 2026 Board Risk Report.pdf")
+    expect(openSpy).not.toHaveBeenCalled()
+
+    clickSpy.mockRestore()
     openSpy.mockRestore()
+  })
+
+  // Regression (review finding on #493): report.title is free-text, unlike
+  // FindingDetails.tsx's attachmentFileName() which derives its name from a
+  // URL path segment and is structurally immune to "/". A title containing
+  // "/" must not be used verbatim as the download filename, since the
+  // browser (and some OSes) would read it as a path separator and
+  // mangle/truncate the actual downloaded file name.
+  it("sanitizes filesystem-unsafe characters out of the report title before using it as the download filename", async () => {
+    const user = userEvent.setup()
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {})
+    mockUseGetAllReportsQuery.mockReturnValue({
+      data: {
+        data: [
+          makeReport({ status: "READY", title: "Q3/2026 Board Report" }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<ReportsPage />)
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /organization\.reports\.download/i,
+      })
+    )
+
+    const anchor = clickSpy.mock.instances[0] as HTMLAnchorElement
+    expect(anchor.download).not.toContain("/")
+    expect(anchor.download).toBe("Q3_2026 Board Report.pdf")
+
+    clickSpy.mockRestore()
+  })
+
+  // Regression (review round 2 polish on #493): a title made up entirely of
+  // unsafe characters (e.g. "////") used to collapse to a bare "_" instead
+  // of falling back to a real filename, since the trim/fallback only
+  // checked for an empty string.
+  it("falls back to a generic filename when the title is entirely unsafe characters", async () => {
+    const user = userEvent.setup()
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {})
+    mockUseGetAllReportsQuery.mockReturnValue({
+      data: {
+        data: [makeReport({ status: "READY", title: "////" })],
+      },
+      isLoading: false,
+    })
+
+    render(<ReportsPage />)
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /organization\.reports\.download/i,
+      })
+    )
+
+    const anchor = clickSpy.mock.instances[0] as HTMLAnchorElement
+    expect(anchor.download).toBe("report.pdf")
+
+    clickSpy.mockRestore()
   })
 
   it("polls the reports list while a report is GENERATING (#220)", async () => {

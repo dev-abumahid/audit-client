@@ -1,6 +1,7 @@
 import { act, render, screen } from "@testing-library/react"
 import type { ReactNode } from "react"
-import { useForm } from "react-hook-form"
+import type { Control } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import EditPageSection from "./EditPagesection"
 
 // Regression coverage for the closure bug fixed in issue #129:
@@ -61,21 +62,27 @@ vi.mock("@dnd-kit/sortable", () => ({
 }))
 
 vi.mock("./EditSortableQuestionRow", () => ({
-  default: ({
+  // Named (rather than an anonymous arrow assigned to `default`) so eslint's
+  // react-hooks/rules-of-hooks recognizes this as a component -- see the
+  // matching comment in EditPagesection.test.tsx.
+  default: function MockEditSortableQuestionRow({
     sortableId,
     questionIndex,
-    getValues,
+    control,
     pageIndex,
   }: {
     sortableId: string
     questionIndex: number
     pageIndex: number
-    getValues: (name: string) => { question: string }
-  }) => {
-    const q = getValues(`pages.${pageIndex}.questions.${questionIndex}`)
+    control: unknown
+  }) {
+    const question = useWatch({
+      control: control as Control,
+      name: `pages.${pageIndex}.questions.${questionIndex}.question`,
+    })
     return (
       <div data-testid="question-row" data-sortable-id={sortableId}>
-        {q.question}
+        {question}
       </div>
     )
   },
@@ -97,7 +104,7 @@ function Harness({
 }: {
   questions: ReturnType<typeof makeQuestion>[]
 }) {
-  const { control, register, getValues, setValue } = useForm({
+  const { control, getValues, setValue } = useForm({
     defaultValues: {
       pages: [{ id: "page-field-1", title: "Section A", questions }],
     },
@@ -109,7 +116,6 @@ function Harness({
       pageId="22222222-2222-2222-2222-222222222222"
       templateId="template-1"
       control={control}
-      register={register}
       removePage={() => {}}
       totalPages={2}
       onOpenAddModal={() => {}}

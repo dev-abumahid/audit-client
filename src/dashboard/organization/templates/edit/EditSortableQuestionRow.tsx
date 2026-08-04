@@ -30,13 +30,9 @@ interface SortableQuestionRowProps {
   questionIndex: number
   questionId: string
   pageId: string
-  templateId: string
   control: any
-  register: any
   remove: (index: number) => void
   onOpenAnswerPanel: (pageIndex: number, questionIndex: number) => void
-  getValues: any
-  setValue: any
   isEditMode?: boolean
   isDraggingGlobal?: boolean
   // Issue #129: true when this question's most recent drag-reorder sync

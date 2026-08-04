@@ -221,10 +221,14 @@ export default function ExternalMembersSection() {
             <form onSubmit={inviteForm.handleSubmit(handleInvite)}>
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="external-invite-email"
+                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.externalMembers.emailLabel")}
                   </label>
                   <input
+                    id="external-invite-email"
                     type="email"
                     {...inviteForm.register("email", {
                       required: t("organization.externalMembers.emailRequired"),
@@ -246,10 +250,14 @@ export default function ExternalMembersSection() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="external-invite-name"
+                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.externalMembers.nameLabel")}
                   </label>
                   <input
+                    id="external-invite-name"
                     type="text"
                     {...inviteForm.register("fullName")}
                     placeholder={t(

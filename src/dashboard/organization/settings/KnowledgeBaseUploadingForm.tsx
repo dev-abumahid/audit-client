@@ -244,6 +244,9 @@ const KnowledgeBaseUploadingForm = () => {
       />
 
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={t("organization.knowledgeBase.dropHint")}
         className={`cursor-pointer rounded-lg border-2 border-dashed transition-all ${
           dragActive
             ? "border-primary bg-primary/5"
@@ -254,6 +257,13 @@ const KnowledgeBaseUploadingForm = () => {
         onDragOver={handleDrag}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (uploading) return
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            fileInputRef.current?.click()
+          }
+        }}
       >
         <div className="flex flex-col items-center justify-center py-12">
           {uploading ? (

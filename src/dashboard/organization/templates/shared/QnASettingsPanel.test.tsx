@@ -240,6 +240,118 @@ describe("QnASettingsPanel (issue #429)", () => {
   })
 })
 
+// Regression (aexa-frontend#491): saveEdit() previously committed
+// editOptions straight to state with zero validation -- a user could delete
+// every option down to zero, or leave an option's text empty, and Save
+// Changes would silently succeed either way.
+describe("QnASettingsPanel edit validation (#491)", () => {
+  async function openFirstSetForEdit() {
+    render(
+      <QnASettingsPanel
+        onClose={vi.fn()}
+        onSelectInput={vi.fn()}
+        onSelectResponseSet={vi.fn()}
+      />
+    )
+
+    await userEvent.click(
+      screen.getAllByRole("button", {
+        name: "organization.templates.qna.editResponseSet",
+      })[0]
+    )
+  }
+
+  it("disables Save Changes and shows an inline error once every option is deleted", async () => {
+    await openFirstSetForEdit()
+
+    const removeButtons = screen.getAllByRole("button", {
+      name: "organization.templates.qna.removeOption",
+    })
+    for (const button of removeButtons) {
+      await userEvent.click(button)
+    }
+
+    expect(
+      screen.getByText("organization.templates.qna.noOptionsError")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.templates.edit.saveChanges")
+    ).toBeDisabled()
+  })
+
+  it("disables Save Changes and shows an inline error when an option's text is cleared to empty", async () => {
+    await openFirstSetForEdit()
+
+    const goodInput = screen.getByDisplayValue(
+      "organization.templates.qna.options.good"
+    )
+    await userEvent.clear(goodInput)
+
+    expect(
+      screen.getByText("organization.templates.qna.emptyOptionTextError")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.templates.edit.saveChanges")
+    ).toBeDisabled()
+  })
+
+  it("also treats whitespace-only option text as invalid", async () => {
+    await openFirstSetForEdit()
+
+    const goodInput = screen.getByDisplayValue(
+      "organization.templates.qna.options.good"
+    )
+    await userEvent.clear(goodInput)
+    await userEvent.type(goodInput, "   ")
+
+    expect(
+      screen.getByText("organization.templates.edit.saveChanges")
+    ).toBeDisabled()
+  })
+
+  it("re-enables Save Changes and clears the error once the text is filled back in", async () => {
+    await openFirstSetForEdit()
+
+    const goodInput = screen.getByDisplayValue(
+      "organization.templates.qna.options.good"
+    )
+    await userEvent.clear(goodInput)
+    expect(
+      screen.getByText("organization.templates.edit.saveChanges")
+    ).toBeDisabled()
+
+    await userEvent.type(goodInput, "excellent")
+
+    expect(
+      screen.queryByText("organization.templates.qna.emptyOptionTextError")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText("organization.templates.edit.saveChanges")
+    ).not.toBeDisabled()
+  })
+
+  it("does not commit an invalid edit when Save Changes is clicked while disabled", async () => {
+    await openFirstSetForEdit()
+
+    const removeButtons = screen.getAllByRole("button", {
+      name: "organization.templates.qna.removeOption",
+    })
+    for (const button of removeButtons) {
+      await userEvent.click(button)
+    }
+
+    await userEvent.click(
+      screen.getByText("organization.templates.edit.saveChanges")
+    )
+
+    // Still in edit mode (Save Changes still rendered) -- the invalid edit
+    // was not committed and the panel did not exit edit mode.
+    expect(
+      screen.getByText("organization.templates.edit.saveChanges")
+    ).toBeInTheDocument()
+  })
+})
+
 // Regression (aexa-frontend#485): QnASettingsPanel is rendered directly
 // inside CreateTemplatePage's/EditTemplatePage's top-level
 // <form onSubmit={...}>. The shared Button component renders a bare

@@ -1,7 +1,8 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
-import { useForm } from "react-hook-form"
+import type { Control } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import EditPageSection from "./EditPagesection"
 
 // Run lodash's debounce synchronously so the reorder-sync assertions don't
@@ -68,10 +69,14 @@ vi.mock("@dnd-kit/sortable", () => ({
 // re-implementing EditSortableQuestionRow's actual indicator UI) so tests
 // here can assert on the prop EditPageSection computes and passes down.
 vi.mock("./EditSortableQuestionRow", () => ({
-  default: ({
+  // Named (rather than an anonymous arrow assigned to `default`) so eslint's
+  // react-hooks/rules-of-hooks recognizes this as a component -- it's
+  // otherwise indistinguishable from a plain helper function and the
+  // useWatch() call below gets flagged as a hook called outside a component.
+  default: function MockEditSortableQuestionRow({
     sortableId,
     questionIndex,
-    getValues,
+    control,
     pageIndex,
     orderSyncFailed,
     remove,
@@ -79,14 +84,17 @@ vi.mock("./EditSortableQuestionRow", () => ({
     sortableId: string
     questionIndex: number
     pageIndex: number
-    getValues: (name: string) => { question: string }
+    control: unknown
     orderSyncFailed?: boolean
     remove: (index: number) => void
-  }) => {
-    const q = getValues(`pages.${pageIndex}.questions.${questionIndex}`)
+  }) {
+    const question = useWatch({
+      control: control as Control,
+      name: `pages.${pageIndex}.questions.${questionIndex}.question`,
+    })
     return (
       <div data-testid="question-row" data-sortable-id={sortableId}>
-        {q.question}
+        {question}
         {orderSyncFailed && (
           <span data-testid={`order-sync-failed-${sortableId}`}>
             Order not saved
@@ -96,7 +104,7 @@ vi.mock("./EditSortableQuestionRow", () => ({
             deletion-pruning tests can trigger a genuine useFieldArray
             `remove()` without re-implementing the row's real delete UI. */}
         <button onClick={() => remove(questionIndex)}>
-          Delete {q.question}
+          Delete {question}
         </button>
       </div>
     )
@@ -121,7 +129,7 @@ function Harness({
   questions: ReturnType<typeof makeQuestion>[]
   isEditMode?: boolean
 }) {
-  const { control, register, getValues, setValue } = useForm({
+  const { control, getValues, setValue } = useForm({
     defaultValues: {
       pages: [
         {
@@ -139,7 +147,6 @@ function Harness({
       pageId="22222222-2222-2222-2222-222222222222"
       templateId="template-1"
       control={control}
-      register={register}
       removePage={() => {}}
       totalPages={2}
       onOpenAddModal={() => {}}

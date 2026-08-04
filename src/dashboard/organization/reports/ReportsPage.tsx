@@ -127,6 +127,33 @@ export default function ReportsPage() {
     if (report.file_url) window.open(report.file_url, "_blank", "noopener")
   }
 
+  // Preview and Download used to share openPdf(), which only ever opens the
+  // PDF in a new tab -- Download never actually downloaded anything. Mirrors
+  // FindingDetails.tsx's downloadFile(): a temporary <a download> element,
+  // since the file is a direct URL and the browser handles the cross-origin
+  // download itself, no fetch/blob needed.
+  //
+  // Unlike FindingDetails.tsx's attachmentFileName() (which derives its name
+  // from a URL path segment and is structurally free of "/"), report.title
+  // is free-text with no such guarantee -- a title containing "/" or "\"
+  // would otherwise be read as path separators and mangle/truncate the
+  // downloaded filename. Strip filesystem-unsafe characters first.
+  const downloadReport = (report: Report) => {
+    if (!report.file_url) return
+    const safeTitle = report.title
+      .replace(/[\\/:*?"<>|]+/g, "_")
+      .trim()
+      .replace(/^_+|_+$/g, "")
+    const link = document.createElement("a")
+    link.href = report.file_url
+    link.download = `${safeTitle || "report"}.pdf`
+    link.target = "_blank"
+    link.rel = "noopener noreferrer"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
     <div className="space-y-6 p-6">
       <div className="animate-fade-in flex items-center justify-between">
@@ -262,7 +289,7 @@ export default function ReportsPage() {
                     {t("organization.reports.preview")}
                   </button>
                   <button
-                    onClick={() => openPdf(report)}
+                    onClick={() => downloadReport(report)}
                     disabled={!canOpen}
                     className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
                   >

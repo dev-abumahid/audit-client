@@ -18,7 +18,7 @@ vi.mock("@dnd-kit/utilities", () => ({
 }))
 
 function Harness() {
-  const { control, register, getValues } = useForm({
+  const { control } = useForm({
     defaultValues: {
       pages: [
         {
@@ -41,10 +41,8 @@ function Harness() {
       pageIndex={0}
       questionIndex={0}
       control={control}
-      register={register}
       remove={() => {}}
       onOpenAnswerPanel={() => {}}
-      getValues={getValues}
     />
   )
 }

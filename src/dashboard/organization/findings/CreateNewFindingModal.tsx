@@ -33,6 +33,14 @@ import { useTranslation } from "react-i18next"
 import TextareaAutosize from "react-textarea-autosize"
 import { toast } from "sonner"
 
+// The upload input accepts "image/*,video/*" (see fileInputRef below), so
+// previews need to branch on the uploaded file's type -- rendering every
+// media file as an <img> shows a broken-image icon for video uploads.
+const isVideoUrl = (url: string) => {
+  const ext = url.split("?")[0].split(".").pop()?.toLowerCase() ?? ""
+  return ["mp4", "mov", "avi", "mkv", "webm", "wmv"].includes(ext)
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface CreateActionModalProps {
@@ -818,11 +826,19 @@ export default function CreateNewFindingModal({
               <div className="flex flex-wrap gap-2">
                 {mediaFiles.map((url, i) => (
                   <div key={i} className="group relative">
-                    <img
-                      src={url}
-                      alt={`upload-${i}`}
-                      className="h-16 w-16 rounded-lg border border-border object-cover"
-                    />
+                    {isVideoUrl(url) ? (
+                      <video
+                        src={url}
+                        muted
+                        className="h-16 w-16 rounded-lg border border-border object-cover"
+                      />
+                    ) : (
+                      <img
+                        src={url}
+                        alt={`upload-${i}`}
+                        className="h-16 w-16 rounded-lg border border-border object-cover"
+                      />
+                    )}
                     <button
                       type="button"
                       onClick={() => removeMedia(url)}

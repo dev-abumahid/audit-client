@@ -141,7 +141,20 @@ function QnASettingsPanel({
     setEditOptions([])
   }
 
+  // A response set with zero options, or with an option whose text is empty
+  // (or only whitespace), would previously save silently -- there's nothing
+  // for onSelectResponseSet's callers to show a user in either case.
+  const hasNoOptions = editOptions.length === 0
+  const hasEmptyOptionText = editOptions.some((o) => o.text.trim() === "")
+  const editError = hasNoOptions
+    ? t("organization.templates.qna.noOptionsError")
+    : hasEmptyOptionText
+      ? t("organization.templates.qna.emptyOptionTextError")
+      : null
+  const isEditValid = editError === null
+
   const saveEdit = () => {
+    if (!isEditValid) return
     setResponseSets((prev) =>
       prev.map((s) => (s.id === editingId ? { ...s, options: editOptions } : s))
     )
@@ -306,8 +319,19 @@ function QnASettingsPanel({
                         <Plus size={14} /> {t("organization.templates.qna.addOption")}
                       </button>
 
+                      {editError && (
+                        <p className="text-xs font-medium text-destructive" role="alert">
+                          {editError}
+                        </p>
+                      )}
+
                       <div className="flex gap-2 pt-2">
-                        <Button type="button" size="sm" onClick={saveEdit}>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={saveEdit}
+                          disabled={!isEditValid}
+                        >
                           {t("organization.templates.edit.saveChanges")}
                         </Button>
                         <Button
