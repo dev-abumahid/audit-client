@@ -299,7 +299,9 @@ const QuestionCard = memo(
                   <button
                     key={i}
                     onClick={() => onMediaClick(media.url)}
-                    aria-label={`media-${i}`}
+                    aria-label={t("organization.inspection.mediaThumbnailAlt", {
+                      index: i + 1,
+                    })}
                     className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-border transition-all duration-200 hover:scale-105 hover:shadow-md"
                   >
                     {mediaKind === "video" ? (
@@ -311,7 +313,9 @@ const QuestionCard = memo(
                     ) : (
                       <img
                         src={media.url}
-                        alt={`media-${i}`}
+                        alt={t("organization.inspection.mediaThumbnailAlt", {
+                          index: i + 1,
+                        })}
                         className="h-full w-full object-cover"
                         onError={(e) =>
                           (e.currentTarget.src = PLACEHOLDER_IMAGE_SRC)

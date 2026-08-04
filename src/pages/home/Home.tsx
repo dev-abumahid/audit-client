@@ -12,7 +12,6 @@ export default function Home() {
       <FeaturesSection />
       <TestimonialsSection />
       <FAQSection />
-      {/* <AllPricing /> */}
     </div>
   )
 }

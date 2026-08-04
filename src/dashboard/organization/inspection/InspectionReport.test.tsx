@@ -387,7 +387,7 @@ describe("InspectionReport", () => {
       screen.queryByText("organization.inspection.mediaPreview")
     ).not.toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole("button", { name: /media-0/i }))
+    await userEvent.click(screen.getByRole("button", { name: "organization.inspection.mediaThumbnailAlt" }))
     expect(
       screen.getByText("organization.inspection.mediaPreview")
     ).toBeInTheDocument()
@@ -435,7 +435,7 @@ describe("InspectionReport", () => {
     })
 
     render(<InspectionReport />)
-    await userEvent.click(screen.getByRole("button", { name: /media-0/i }))
+    await userEvent.click(screen.getByRole("button", { name: "organization.inspection.mediaThumbnailAlt" }))
 
     expect(
       screen.getByAltText("organization.inspection.uploadedMediaAlt")
@@ -476,7 +476,7 @@ describe("InspectionReport", () => {
     })
 
     render(<InspectionReport />)
-    await userEvent.click(screen.getByRole("button", { name: /media-0/i }))
+    await userEvent.click(screen.getByRole("button", { name: "organization.inspection.mediaThumbnailAlt" }))
 
     const dialog = screen.getByRole("dialog")
     expect(dialog).toHaveAttribute("aria-modal", "true")
@@ -526,7 +526,7 @@ describe("InspectionReport", () => {
       expect(document.querySelector("video")).toBeInTheDocument()
       expect(document.querySelector("img")).not.toBeInTheDocument()
 
-      await userEvent.click(screen.getByRole("button", { name: /media-0/i }))
+      await userEvent.click(screen.getByRole("button", { name: "organization.inspection.mediaThumbnailAlt" }))
 
       const lightboxVideo = screen.getByText(
         "organization.inspection.mediaPreview"
@@ -542,7 +542,7 @@ describe("InspectionReport", () => {
 
       expect(document.querySelector("img")).not.toBeInTheDocument()
 
-      await userEvent.click(screen.getByRole("button", { name: /media-0/i }))
+      await userEvent.click(screen.getByRole("button", { name: "organization.inspection.mediaThumbnailAlt" }))
 
       const link = screen.getByRole("link", { name: /report\.pdf/ })
       expect(link).toHaveAttribute("href", "https://cdn.example.com/report.pdf")

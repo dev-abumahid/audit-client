@@ -24,6 +24,26 @@ export function useAutoSave({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedDataRef = useRef<string | null>(null)
   const isSavingRef = useRef(false)
+  // Tracks the "saved" -> "idle" status reset timer shared by the
+  // auto-save and manual-save paths, so it can be cleared on unmount --
+  // otherwise it fires setSaveStatus() after unmount if the component goes
+  // away within the 2s window right after a save completes.
+  const savedStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
+  // Mirrors the auto-save effect's per-attempt `cancelled` flag, but for
+  // manualSave() -- which isn't scoped to an effect, so it needs its own
+  // unmount signal to avoid calling setState after the component is gone
+  // if it unmounts while a manual save's onSave() call is still in flight.
+  const isMountedRef = useRef(true)
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+      if (savedStatusTimeoutRef.current) {
+        clearTimeout(savedStatusTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Track form changes
   useEffect(() => {
@@ -52,31 +72,67 @@ export function useAutoSave({
       clearTimeout(timeoutRef.current)
     }
 
-    timeoutRef.current = setTimeout(async () => {
+    let cancelled = false
+
+    const attemptSave = async () => {
+      if (cancelled) return
+
       try {
+        // Re-validate before persisting -- form.watch() only tracks that
+        // *something* changed, not whether the current values are valid.
+        // Without this, autosave silently writes invalid data (e.g. an
+        // emptied required field) to the server even though the form UI is
+        // showing an inline validation error for it.
+        const isValid = await form.trigger()
+        if (cancelled) return
+        if (!isValid) {
+          setSaveStatus("idle")
+          // hasChanges is already true and won't flip false->true again
+          // while the field stays invalid, so this effect won't re-run on
+          // its own -- reschedule explicitly so autosave resumes the moment
+          // the value becomes valid again, instead of stalling permanently.
+          if (!cancelled) {
+            timeoutRef.current = setTimeout(attemptSave, interval)
+          }
+          return
+        }
+
         setSaveStatus("saving")
         isSavingRef.current = true
 
         const currentData = form.getValues()
         await onSave(currentData)
+        if (cancelled) return
 
         lastSavedDataRef.current = JSON.stringify(currentData)
         setHasChanges(false)
         setSaveStatus("saved")
 
         // Reset saved status after 2 seconds
-        setTimeout(() => {
+        if (savedStatusTimeoutRef.current) {
+          clearTimeout(savedStatusTimeoutRef.current)
+        }
+        savedStatusTimeoutRef.current = setTimeout(() => {
           setSaveStatus((prev) => (prev === "saved" ? "idle" : prev))
         }, 2000)
       } catch (error: any) {
-        toast.error(error?.message || "Auto-save failed")
-        setSaveStatus("error")
+        if (!cancelled) {
+          toast.error(error?.message || "Auto-save failed")
+          setSaveStatus("error")
+        }
       } finally {
+        // Always reset the in-flight guard, even if this attempt was
+        // cancelled mid-flight -- otherwise a cancelled save would leave
+        // isSavingRef stuck "true" forever and permanently block all future
+        // autosave attempts once the effect re-runs (e.g. after remount).
         isSavingRef.current = false
       }
-    }, interval)
+    }
+
+    timeoutRef.current = setTimeout(attemptSave, interval)
 
     return () => {
+      cancelled = true
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
       }
@@ -93,16 +149,22 @@ export function useAutoSave({
 
       const currentData = form.getValues()
       await onSave(currentData)
+      if (!isMountedRef.current) return
 
       lastSavedDataRef.current = JSON.stringify(currentData)
       setHasChanges(false)
       setSaveStatus("saved")
 
-      setTimeout(() => {
+      if (savedStatusTimeoutRef.current) {
+        clearTimeout(savedStatusTimeoutRef.current)
+      }
+      savedStatusTimeoutRef.current = setTimeout(() => {
         setSaveStatus((prev) => (prev === "saved" ? "idle" : prev))
       }, 2000)
     } catch (error) {
-      setSaveStatus("error")
+      if (isMountedRef.current) {
+        setSaveStatus("error")
+      }
       throw error
     } finally {
       isSavingRef.current = false

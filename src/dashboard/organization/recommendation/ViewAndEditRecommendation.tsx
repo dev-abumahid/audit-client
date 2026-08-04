@@ -571,8 +571,12 @@ export default function ViewAndEditRecommendation({
                           questionId: question.id,
                           inspectionId: inspectionId!,
                           actionTitle: question.question as string,
-                          actionDisc:
-                            question.recommendation + question.standard,
+                          actionDisc: [
+                            question.recommendation,
+                            question.standard,
+                          ]
+                            .filter(Boolean)
+                            .join("\n\n"),
                         },
                       })
                     }

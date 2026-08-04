@@ -430,7 +430,7 @@ function RiskCard({
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-1.5">
-            <p className="font-mono text-xs text-primary">{risk.id}</p>
+            <p className="font-mono text-xs text-primary">{risk.ref}</p>
             {risk.ai_generated && (
               <span className="rounded bg-blue-100 px-1.5 text-[9px] text-blue-700">
                 {t("organization.riskRegister.aiGenerated")}

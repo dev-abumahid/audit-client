@@ -92,6 +92,7 @@ vi.mock("@/redux/apis/organization/sites.api", () => ({
 function makeRisk(overrides = {}) {
   return {
     id: "risk-1",
+    ref: "CYB-001",
     org_account_id: "org-1",
     name: "Supply Chain Disruption",
     description: "Delays in raw material delivery",
@@ -350,6 +351,36 @@ describe("RiskMatrixPage", () => {
     )
 
     expect(screen.getByText("PR: 42")).toBeInTheDocument()
+  })
+
+  // Regression (aexa-frontend#519): the risk-detail card in the matrix's
+  // side panel showed the raw risk.id (UUID) instead of risk.ref (the
+  // human-readable code, e.g. "CYB-001") -- unlike the identical
+  // RiskDetailCard in CorrelationMatrixPage.tsx, which already used ref.
+  it("shows the human-readable risk ref, not the raw risk id, on the selected risk card", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            id: "b3f1c9a0-1234-4c5d-8e6f-abcdef123456",
+            ref: "CYB-001",
+            probability: 0,
+            inherent_score: 0,
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+    render(<RiskMatrixPage />)
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    expect(screen.getByText("CYB-001")).toBeInTheDocument()
+    expect(
+      screen.queryByText("b3f1c9a0-1234-4c5d-8e6f-abcdef123456")
+    ).not.toBeInTheDocument()
   })
 
   // Regression (audit round 4 / #346): the AI-generated badge on a risk card

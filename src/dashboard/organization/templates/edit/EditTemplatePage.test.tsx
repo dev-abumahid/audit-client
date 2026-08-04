@@ -365,6 +365,62 @@ describe("EditTemplatePage", () => {
     )
   })
 
+  // aexa-frontend#520 -- useAutoSave's setTimeout callback called
+  // form.getValues()/onSave every 2s with no validation check, so clearing
+  // the required templateName field showed the inline error above but
+  // autosave still silently persisted the empty name via
+  // updateTemplateBasics. Prove the persist call is actually blocked, not
+  // just that the UI shows an error (the previous two tests only checked
+  // the error text, which was already present before this fix).
+  it("does not autosave the template while the required template name is empty (#520)", async () => {
+    mockUpdateTemplateBasics.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+    renderPage()
+
+    const nameInput = screen.getByDisplayValue("Existing Template")
+    fireEvent.change(nameInput, { target: { value: "" } })
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.templates.create.nameRequired")
+      ).toBeInTheDocument()
+    )
+
+    // Auto-save fires every 2s; give it comfortably past that window (extra
+    // margin over the interval to avoid flaking under CI scheduling jitter)
+    // and confirm it never persisted the invalid value.
+    await new Promise((resolve) => setTimeout(resolve, 3500))
+    expect(mockUpdateTemplateBasics).not.toHaveBeenCalled()
+  }, 8000)
+
+  // Same fix, opposite direction: once the name is valid again, autosave
+  // must resume on its own -- it must not have permanently stalled from the
+  // invalid attempt above (the retry has to be self-rescheduling, since
+  // hasChanges stays "true" the whole time and won't re-trigger the effect).
+  it("resumes autosave once the template name becomes valid again after being cleared (#520)", async () => {
+    mockUpdateTemplateBasics.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+    renderPage()
+
+    const nameInput = screen.getByDisplayValue("Existing Template")
+    fireEvent.change(nameInput, { target: { value: "" } })
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.templates.create.nameRequired")
+      ).toBeInTheDocument()
+    )
+
+    fireEvent.change(nameInput, { target: { value: "Fixed Name" } })
+
+    await waitFor(
+      () => expect(mockUpdateTemplateBasics).toHaveBeenCalled(),
+      { timeout: 5000 }
+    )
+  }, 8000)
+
   // aexa-frontend#485 -- this page's entire body (including the "Add New"
   // modal below) is nested inside a single
   // <form onSubmit={handleSubmit(onSubmit)}>, where onSubmit calls

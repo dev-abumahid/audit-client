@@ -32,8 +32,23 @@ vi.mock("@/redux/apis/organization/ai.api", () => ({
 }))
 
 vi.mock("../findings/CreateNewFindingModal", () => ({
-  default: ({ open }: { open: boolean }) =>
-    open ? <div>Finding modal open</div> : null,
+  default: ({
+    open,
+    additionalData,
+  }: {
+    open: boolean
+    additionalData?: { actionDisc?: string }
+  }) =>
+    open ? (
+      <div>
+        Finding modal open
+        {additionalData?.actionDisc && (
+          <div data-testid="prefilled-action-disc">
+            {additionalData.actionDisc}
+          </div>
+        )}
+      </div>
+    ) : null,
 }))
 
 function makeRecommendation(overrides = {}) {
@@ -322,6 +337,32 @@ describe("ViewAndEditRecommendation", () => {
     )
 
     expect(screen.getByText("Finding modal open")).toBeInTheDocument()
+  })
+
+  // aexa-frontend#519 -- the "Add to Finding" prefill jammed
+  // question.recommendation and question.standard together with no
+  // separator (e.g. "Ensure monthly inspection tag is currentNFPA 10").
+  // They're distinct fields, so join them with a blank line instead.
+  it("separates recommendation and standard with a blank line when prefilling a new finding", async () => {
+    mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
+      data: { data: makeRecommendation() },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+
+    render(<ViewAndEditRecommendation inspectionId="insp-1" />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.recommendation.addToFinding",
+      })
+    )
+
+    // toHaveTextContent collapses whitespace, so assert on the raw
+    // textContent to prove the fields are actually separated (a direct
+    // concatenation would produce "...currentNFPA 10" with no boundary).
+    expect(screen.getByTestId("prefilled-action-disc").textContent).toBe(
+      "Ensure monthly inspection tag is current\n\nNFPA 10"
+    )
   })
 
   // aexa-frontend#488 -- the "Created" date used a bare
