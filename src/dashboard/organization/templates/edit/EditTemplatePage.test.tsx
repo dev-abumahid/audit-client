@@ -126,7 +126,10 @@ describe("EditTemplatePage", () => {
       })
 
       renderPage()
-      await user.upload(screen.getByLabelText(/organization\.templates\.create\.upload/i), file)
+      await user.upload(
+        screen.getByLabelText(/organization\.templates\.create\.upload/i),
+        file
+      )
 
       await waitFor(() => expect(createObjectURLSpy).toHaveBeenCalledTimes(1))
       expect(createObjectURLSpy).toHaveBeenCalledWith(file)
@@ -147,7 +150,10 @@ describe("EditTemplatePage", () => {
       const file2 = new File(["b"], "logo2.png", { type: "image/png" })
 
       const { container } = renderPage()
-      await user.upload(screen.getByLabelText(/organization\.templates\.create\.upload/i), file1)
+      await user.upload(
+        screen.getByLabelText(/organization\.templates\.create\.upload/i),
+        file1
+      )
       await waitFor(() => expect(createObjectURLSpy).toHaveBeenCalledTimes(1))
       const firstUrl = createObjectURLSpy.mock.results[0].value
 
@@ -175,7 +181,10 @@ describe("EditTemplatePage", () => {
       })
 
       const { unmount } = renderPage()
-      await user.upload(screen.getByLabelText(/organization\.templates\.create\.upload/i), file)
+      await user.upload(
+        screen.getByLabelText(/organization\.templates\.create\.upload/i),
+        file
+      )
       await waitFor(() => expect(createObjectURLSpy).toHaveBeenCalledTimes(1))
       const url = createObjectURLSpy.mock.results[0].value
 
@@ -196,7 +205,9 @@ describe("EditTemplatePage", () => {
   it("gives the logo-remove button an accessible name when a template logo is loaded", () => {
     mockUseGetSingleTemplateQuery.mockReturnValue({
       data: {
-        data: makeTemplateData({ templateLogo: "https://cdn.example/logo.png" }),
+        data: makeTemplateData({
+          templateLogo: "https://cdn.example/logo.png",
+        }),
       },
       isLoading: false,
     })
@@ -274,7 +285,9 @@ describe("EditTemplatePage", () => {
       ).toBeInTheDocument()
       // The actual edit form (with its autosaving name field) must not be
       // rendered at all, not just visually de-emphasized.
-      expect(screen.queryByDisplayValue(/AI-Generated Findings/)).not.toBeInTheDocument()
+      expect(
+        screen.queryByDisplayValue(/AI-Generated Findings/)
+      ).not.toBeInTheDocument()
       expect(
         screen.queryByRole("button", {
           name: "organization.templates.edit.saveChanges",
@@ -343,5 +356,22 @@ describe("EditTemplatePage", () => {
     expect(
       screen.queryByText("organization.templates.create.addNew")
     ).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend#490 -- the "Add New" modal was a plain div with no
+  // role="dialog", no aria-modal and no Escape handling, unlike KRI's
+  // modals (round 10, #487).
+  it("marks the Add New modal as a labeled dialog and closes it on Escape", async () => {
+    renderPage()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "open add modal" })
+    )
+    const dialog = screen.getByRole("dialog")
+    expect(dialog).toHaveAttribute("aria-modal", "true")
+    expect(dialog).toHaveAccessibleName("organization.templates.create.addNew")
+
+    await userEvent.keyboard("{Escape}")
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 })

@@ -8,6 +8,7 @@ import {
 } from "@/redux/apis/organization/risk.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { useModalA11y } from "@/hooks/useModalA11y"
 import type { Risk, SiteSummary } from "@/types/organization"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
@@ -64,6 +65,10 @@ export default function RiskRegisterPage() {
   const [editId, setEditId] = useState<string | null>(null)
   const [deleteRiskId, setDeleteRiskId] = useState<string | null>(null)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+
+  // aexa-frontend#488 -- role="dialog"/focus-trap/Escape for the Add/Edit
+  // Risk modal, same pattern KriDashboardPage uses (round 10, #487).
+  const addEditModalRef = useModalA11y(showModal, () => setShowModal(false))
 
   // RTQ query states
   const { data: riskData } = useGetAllRisksQuery({
@@ -318,9 +323,7 @@ export default function RiskRegisterPage() {
           onChange={(e) => setFilterCat(e.target.value)}
           className="h-9 rounded-lg border border-input bg-card px-3 text-xs"
         >
-          <option value="">
-            {t("organization.riskRegister.allCategory")}
-          </option>
+          <option value="">{t("organization.riskRegister.allCategory")}</option>
           {Object.entries(RISK_CATEGORIES).map(([k, v]) => (
             <option key={k} value={k}>
               {t(`organization.riskCategories.${v.labelKey}`)}
@@ -483,7 +486,9 @@ export default function RiskRegisterPage() {
                           <button
                             onClick={() => openDeleteModal(risk.id)}
                             className="rounded p-1 hover:bg-destructive/10 hover:text-destructive"
-                            aria-label={t("organization.riskRegister.deleteRisk")}
+                            aria-label={t(
+                              "organization.riskRegister.deleteRisk"
+                            )}
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -500,8 +505,14 @@ export default function RiskRegisterPage() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl border bg-card p-5 shadow-xl">
-            <h2 className="text-lg font-bold">
+          <div
+            ref={addEditModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="risk-add-edit-modal-title"
+            className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl border bg-card p-5 shadow-xl"
+          >
+            <h2 id="risk-add-edit-modal-title" className="text-lg font-bold">
               {editId
                 ? t("organization.riskRegister.editRisk")
                 : t("organization.riskRegister.addNewRisk")}
@@ -765,18 +776,14 @@ export default function RiskRegisterPage() {
                       isStale={!!watch("inherent_override_stale")}
                       overriddenBy={watch("inherent_overridden_by")}
                       overriddenAt={watch("inherent_overridden_at")}
-                      label={t(
-                        "organization.riskRegister.inherentScoreLabel"
-                      )}
+                      label={t("organization.riskRegister.inherentScoreLabel")}
                     />
                     <RiskOverrideBadge
                       isOverride={!!watch("residual_is_override")}
                       isStale={!!watch("residual_override_stale")}
                       overriddenBy={watch("residual_overridden_by")}
                       overriddenAt={watch("residual_overridden_at")}
-                      label={t(
-                        "organization.riskRegister.residualScoreLabel"
-                      )}
+                      label={t("organization.riskRegister.residualScoreLabel")}
                     />
                   </div>
                 )}

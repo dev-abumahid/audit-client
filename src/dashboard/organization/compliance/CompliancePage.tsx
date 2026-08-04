@@ -17,6 +17,7 @@ import {
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { useModalA11y } from "@/hooks/useModalA11y"
 import { COMPLIANCE_DOMAINS } from "@/utils/complianceConfig"
 import { formatLocaleDate } from "@/utils/formatDate"
 import {
@@ -38,7 +39,7 @@ import {
   Upload,
   X,
 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -154,6 +155,11 @@ export default function CompliancePage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [uploading, setUploading] = useState(false)
 
+  // aexa-frontend#490 -- role="dialog"/focus-trap/Escape for this page's
+  // three hand-rolled overlays, same pattern KriDashboardPage uses (round
+  // 10, #487).
+  const formModalRef = useModalA11y(showForm, () => setShowForm(false))
+
   // The obligation a remediation Action is being created for (#166). Non-null
   // means the reused CreateNewFindingModal is open, pre-filled and carrying the
   // real complianceObligationId FK the backend (aexa-server#226) links on save.
@@ -166,8 +172,44 @@ export default function CompliancePage() {
   const [attestObligation, setAttestObligation] =
     useState<ComplianceObligation | null>(null)
   const [attestNote, setAttestNote] = useState("")
+  const attestModalRef = useModalA11y(!!attestObligation, () =>
+    setAttestObligation(null)
+  )
   const [historyObligation, setHistoryObligation] =
     useState<ComplianceObligation | null>(null)
+  const historyModalRef = useModalA11y(!!historyObligation, () =>
+    setHistoryObligation(null)
+  )
+  // Round-11 review: attestObligation/historyObligation are two of three
+  // sibling-exclusive modals above, each with its own useModalA11y()
+  // instance. openAttest/openHistory null out the sibling before opening
+  // the new one, so React runs both the closing modal's cleanup and the
+  // opening modal's setup in the same commit -- cleanup always runs before
+  // setup, so the closing modal's cleanup (useModalA11y.ts returning focus
+  // to ITS OWN trigger) steals document.activeElement away from the
+  // just-clicked button before the opening modal's setup captures it as
+  // its own trigger. Without this ref, closing the newly opened modal
+  // would return focus to the OTHER modal's trigger button instead of the
+  // one actually clicked. pendingFocusRef captures the real trigger
+  // synchronously in each row button's onClick (before the
+  // sibling-clearing state updates run); the two effects below are
+  // declared after the useModalA11y() calls, so their setups run after
+  // those hooks' in the same phase, letting this correction win.
+  const pendingFocusRef = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (!attestObligation) return
+    const trigger = pendingFocusRef.current
+    return () => {
+      trigger?.focus()
+    }
+  }, [attestObligation])
+  useEffect(() => {
+    if (!historyObligation) return
+    const trigger = pendingFocusRef.current
+    return () => {
+      trigger?.focus()
+    }
+  }, [historyObligation])
   // Only fetched while the history modal is actually open for a given
   // obligation (skip otherwise), same idle-until-opened convention as the
   // reused CreateNewFindingModal below.
@@ -207,9 +249,7 @@ export default function CompliancePage() {
   // Domain/status labels are echoed as raw keys until i18n initializes (tests),
   // and translated in the running app — same t() convention as RiskRegisterPage.
   const domainLabel = (key: string) =>
-    COMPLIANCE_DOMAINS[key]
-      ? t(`organization.compliance.domains.${key}`)
-      : key
+    COMPLIANCE_DOMAINS[key] ? t(`organization.compliance.domains.${key}`) : key
   const statusLabel = (key: string) =>
     STATUS_ICONS[key] ? t(`organization.compliance.status.${key}`) : key
 
@@ -236,7 +276,8 @@ export default function CompliancePage() {
       due_date: obl.due_date ? obl.due_date.slice(0, 10) : "",
       attachments: obl.attachments || [],
       regulation_reference: obl.regulation_reference || "",
-      recurrence: obl.recurrence && obl.recurrence !== "one_time" ? obl.recurrence : "",
+      recurrence:
+        obl.recurrence && obl.recurrence !== "one_time" ? obl.recurrence : "",
     })
     setShowForm(true)
   }
@@ -312,7 +353,9 @@ export default function CompliancePage() {
         setShowForm(false)
         setForm(EMPTY_FORM)
       } else {
-        toast.error(res.message || t("organization.compliance.toast.saveFailed"))
+        toast.error(
+          res.message || t("organization.compliance.toast.saveFailed")
+        )
       }
     } catch (err) {
       const message =
@@ -378,7 +421,9 @@ export default function CompliancePage() {
         setAttestObligation(null)
         setAttestNote("")
       } else {
-        toast.error(res.message || t("organization.compliance.toast.attestFailed"))
+        toast.error(
+          res.message || t("organization.compliance.toast.attestFailed")
+        )
       }
     } catch (err) {
       const message =
@@ -563,7 +608,7 @@ export default function CompliancePage() {
                       return (
                         <td key={d} className="px-1 py-1 text-center">
                           <span
-                            className={`inline-block min-w-12 rounded-md border px-2 py-1 font-mono-data ${
+                            className={`font-mono-data inline-block min-w-12 rounded-md border px-2 py-1 ${
                               BAND_CLASSES[cell?.band ?? "none"]
                             }`}
                             title={
@@ -721,7 +766,9 @@ export default function CompliancePage() {
                           <>
                             <button
                               onClick={() => openEdit(obl)}
-                              aria-label={t("organization.compliance.editObligation")}
+                              aria-label={t(
+                                "organization.compliance.editObligation"
+                              )}
                               className="rounded p-1 text-muted-foreground hover:bg-muted"
                             >
                               <Pencil className="h-3 w-3" />
@@ -733,8 +780,13 @@ export default function CompliancePage() {
                                 cadence to advance. Same write gate as
                                 edit/delete (assertCanWriteOrgResource). */}
                             <button
-                              onClick={() => openAttest(obl)}
-                              aria-label={t("organization.compliance.attest.button")}
+                              onClick={(e) => {
+                                pendingFocusRef.current = e.currentTarget
+                                openAttest(obl)
+                              }}
+                              aria-label={t(
+                                "organization.compliance.attest.button"
+                              )}
                               className="rounded p-1 text-muted-foreground hover:bg-muted"
                             >
                               <RotateCw className="h-3 w-3" />
@@ -742,8 +794,13 @@ export default function CompliancePage() {
                           </>
                         )}
                         <button
-                          onClick={() => openHistory(obl)}
-                          aria-label={t("organization.compliance.attest.historyButton")}
+                          onClick={(e) => {
+                            pendingFocusRef.current = e.currentTarget
+                            openHistory(obl)
+                          }}
+                          aria-label={t(
+                            "organization.compliance.attest.historyButton"
+                          )}
                           className="rounded p-1 text-muted-foreground hover:bg-muted"
                         >
                           <History className="h-3 w-3" />
@@ -751,7 +808,9 @@ export default function CompliancePage() {
                         {canWrite && (
                           <button
                             onClick={() => handleDelete(obl.id)}
-                            aria-label={t("organization.compliance.deleteObligation")}
+                            aria-label={t(
+                              "organization.compliance.deleteObligation"
+                            )}
                             className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -824,11 +883,18 @@ export default function CompliancePage() {
           onClick={() => setShowForm(false)}
         >
           <div
+            ref={formModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="compliance-form-modal-title"
             className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">
+              <h2
+                id="compliance-form-modal-title"
+                className="text-lg font-bold text-foreground"
+              >
                 {editingId
                   ? t("organization.compliance.form.editTitle")
                   : t("organization.compliance.form.newTitle")}
@@ -1042,15 +1108,13 @@ export default function CompliancePage() {
                         className="flex min-w-0 items-center gap-1 truncate text-primary"
                       >
                         <Paperclip className="h-3 w-3 shrink-0" />
-                        <span className="truncate">
-                          {url.split("/").pop()}
-                        </span>
+                        <span className="truncate">{url.split("/").pop()}</span>
                       </a>
                       <button
                         type="button"
                         onClick={() => removeAttachment(url)}
                         aria-label={t(
-                          "organization.compliance.form.removeAttachment",
+                          "organization.compliance.form.removeAttachment"
                         )}
                         className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
                       >
@@ -1133,10 +1197,17 @@ export default function CompliancePage() {
           onClick={() => setAttestObligation(null)}
         >
           <div
+            ref={attestModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="attest-modal-title"
             className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="mb-1 text-lg font-bold text-foreground">
+            <h2
+              id="attest-modal-title"
+              className="mb-1 text-lg font-bold text-foreground"
+            >
               {t("organization.compliance.attest.modalTitle")}
             </h2>
             <p className="mb-3 text-sm text-muted-foreground">
@@ -1190,11 +1261,18 @@ export default function CompliancePage() {
           onClick={() => setHistoryObligation(null)}
         >
           <div
+            ref={historyModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="attest-history-modal-title"
             className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">
+              <h2
+                id="attest-history-modal-title"
+                className="text-lg font-bold text-foreground"
+              >
                 {t("organization.compliance.attest.historyModalTitle", {
                   title: historyObligation.title,
                 })}
@@ -1202,7 +1280,7 @@ export default function CompliancePage() {
               <button
                 onClick={() => setHistoryObligation(null)}
                 aria-label={t(
-                  "organization.compliance.attest.historyModalClose",
+                  "organization.compliance.attest.historyModalClose"
                 )}
                 className="rounded p-1 text-muted-foreground hover:text-foreground"
               >

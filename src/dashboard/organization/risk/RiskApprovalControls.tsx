@@ -1,4 +1,5 @@
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { useModalA11y } from "@/hooks/useModalA11y"
 import { useGetMeQuery } from "@/redux/apis/auth.api"
 import {
   useApproveRiskMutation,
@@ -59,7 +60,15 @@ export default function RiskApprovalControls({ risk }: Props) {
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [rejectReason, setRejectReason] = useState("")
 
-  const status: RiskApprovalDisplayState = risk.approvalStatus ?? "NOT_SUBMITTED"
+  // aexa-frontend#488 -- role="dialog"/focus-trap/Escape for the Reject
+  // modal, same pattern KriDashboardPage uses (round 10, #487).
+  const rejectModalRef = useModalA11y(showRejectModal, () => {
+    setShowRejectModal(false)
+    setRejectReason("")
+  })
+
+  const status: RiskApprovalDisplayState =
+    risk.approvalStatus ?? "NOT_SUBMITTED"
   const badge = BADGE_STYLES[status]
 
   const canSubmit = role === "ADMIN" || role === "LEAD_AUDITOR"
@@ -82,7 +91,8 @@ export default function RiskApprovalControls({ risk }: Props) {
     !!me?.data?.id &&
     me.data.id === risk.approval?.submittedById
   const canDecide = !isMeLoading && isAdmin && isPending && !isSubmitter
-  const showAwaitingReviewer = !isMeLoading && isAdmin && isPending && isSubmitter
+  const showAwaitingReviewer =
+    !isMeLoading && isAdmin && isPending && isSubmitter
 
   const handleSubmit = async () => {
     try {
@@ -219,8 +229,21 @@ export default function RiskApprovalControls({ risk }: Props) {
 
       {showRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md space-y-3 rounded-2xl border bg-card p-5 shadow-xl">
-            <h2 className="text-base font-bold">
+          <div
+            ref={rejectModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`risk-reject-modal-title-${risk.id}`}
+            className="w-full max-w-md space-y-3 rounded-2xl border bg-card p-5 shadow-xl"
+          >
+            {/* Round-11 review: this component renders once per risk row, so
+                the id must be scoped by risk.id -- a static id here would
+                collide across rows once more than one row has its Reject
+                modal in the DOM at the same time. */}
+            <h2
+              id={`risk-reject-modal-title-${risk.id}`}
+              className="text-base font-bold"
+            >
               {t("organization.riskRegister.approval.rejectModalTitle")}
             </h2>
             <label className="text-xs font-medium text-muted-foreground">
@@ -249,7 +272,7 @@ export default function RiskApprovalControls({ risk }: Props) {
                 type="button"
                 onClick={handleReject}
                 disabled={isRejecting}
-                className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground disabled:opacity-50"
+                className="text-destructive-foreground rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium disabled:opacity-50"
               >
                 {t("organization.riskRegister.approval.rejectConfirm")}
               </button>

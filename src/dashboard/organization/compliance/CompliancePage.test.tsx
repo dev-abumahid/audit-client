@@ -72,10 +72,19 @@ vi.mock("@/redux/apis/organization/compliance.api", () => ({
   useGetComplianceByIdQuery: () => ({ data: undefined }),
   useGetComplianceScorecardQuery: (...args: unknown[]) =>
     mockUseGetComplianceScorecardQuery(...args),
-  useCreateComplianceMutation: () => [mockCreateCompliance, { isLoading: false }],
-  useUpdateComplianceMutation: () => [mockUpdateCompliance, { isLoading: false }],
+  useCreateComplianceMutation: () => [
+    mockCreateCompliance,
+    { isLoading: false },
+  ],
+  useUpdateComplianceMutation: () => [
+    mockUpdateCompliance,
+    { isLoading: false },
+  ],
   useDeleteComplianceMutation: () => [mockDeleteCompliance],
-  useAttestComplianceMutation: () => [mockAttestCompliance, { isLoading: false }],
+  useAttestComplianceMutation: () => [
+    mockAttestCompliance,
+    { isLoading: false },
+  ],
   useGetComplianceAttestationsQuery: (...args: unknown[]) =>
     mockUseGetComplianceAttestationsQuery(...args),
 }))
@@ -259,7 +268,10 @@ describe("CompliancePage", () => {
   // key, so it rendered "1 obligations tracked" for a single obligation.
   it("renders the singular subtitle for a single obligation", () => {
     mockUseGetAllComplianceQuery.mockReturnValue({
-      data: { data: [makeObligation()], meta: { page: 1, limit: 20, total: 1, totalPage: 1 } },
+      data: {
+        data: [makeObligation()],
+        meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+      },
       isLoading: false,
     })
 
@@ -897,9 +909,7 @@ describe("CompliancePage", () => {
     render(<CompliancePage />)
 
     // Modal is not mounted until the button is clicked.
-    expect(
-      screen.queryByTestId("create-action-modal")
-    ).not.toBeInTheDocument()
+    expect(screen.queryByTestId("create-action-modal")).not.toBeInTheDocument()
 
     await user.click(
       screen.getByRole("button", {
@@ -917,9 +927,7 @@ describe("CompliancePage", () => {
       "Remediate: GDPR Article 30 records"
     )
     // Description references the failing obligation too.
-    expect(props.additionalData.actionDisc).toContain(
-      "GDPR Article 30 records"
-    )
+    expect(props.additionalData.actionDisc).toContain("GDPR Article 30 records")
   })
 
   // aexa-server#250 / aexa-frontend#212
@@ -1100,9 +1108,7 @@ describe("CompliancePage", () => {
       await user.selectOptions(statusSelect, "compliant")
 
       expect(
-        screen.getByText(
-          "organization.compliance.form.evidenceRequiredWarning"
-        )
+        screen.getByText("organization.compliance.form.evidenceRequiredWarning")
       ).toBeInTheDocument()
     })
 
@@ -1633,6 +1639,125 @@ describe("CompliancePage", () => {
       expect(
         screen.getByText(/organization\.compliance\.form\.nextReview/)
       ).toHaveTextContent(expectedNextReview)
+    })
+  })
+
+  // aexa-frontend#490 -- all three of this page's hand-rolled modals (form,
+  // re-attest confirm, attestation history) had no role="dialog", no
+  // aria-modal and no Escape handling, unlike KRI's modals (round 10, #487).
+  describe("modal accessibility", () => {
+    it("marks the Create/Edit form modal as a labeled dialog and closes it on Escape", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+      await user.click(
+        screen.getByRole("button", {
+          name: /organization\.compliance\.newObligation/i,
+        })
+      )
+
+      const dialog = screen.getByRole("dialog")
+      expect(dialog).toHaveAttribute("aria-modal", "true")
+      expect(dialog).toHaveAccessibleName(
+        "organization.compliance.form.newTitle"
+      )
+
+      await user.keyboard("{Escape}")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+
+    it("marks the re-attest confirm modal as a labeled dialog and closes it on Escape", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.button",
+        })
+      )
+
+      const dialog = screen.getByRole("dialog")
+      expect(dialog).toHaveAttribute("aria-modal", "true")
+      expect(dialog).toHaveAccessibleName(
+        "organization.compliance.attest.modalTitle"
+      )
+
+      await user.keyboard("{Escape}")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+
+    it("marks the attestation history modal as a labeled dialog and closes it on Escape", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockUseGetComplianceAttestationsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.historyButton",
+        })
+      )
+
+      const dialog = screen.getByRole("dialog")
+      expect(dialog).toHaveAttribute("aria-modal", "true")
+
+      await user.keyboard("{Escape}")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+
+    // Round-11 review finding: attestObligation/historyObligation each have
+    // their own useModalA11y() instance, and openAttest/openHistory close
+    // the sibling before opening the new one -- so React runs the closing
+    // modal's cleanup (which returns focus to ITS OWN trigger) and the
+    // opening modal's setup (which captures document.activeElement as ITS
+    // trigger) in the same commit, cleanup-before-setup. Without the
+    // pendingFocusRef fix, that ordering steals focus away from the
+    // just-clicked button before the new modal's setup can capture it, so
+    // closing the newly opened modal would wrongly return focus to the
+    // OTHER modal's trigger. This asserts the real clicked button gets
+    // focus back, not the sibling's.
+    it("returns focus to the History button (not the stale Attest trigger) after switching directly from the Attest modal to the History modal and closing it", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockUseGetComplianceAttestationsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      render(<CompliancePage />)
+
+      const attestButton = screen.getByRole("button", {
+        name: "organization.compliance.attest.button",
+      })
+      await user.click(attestButton)
+      expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+      const historyButton = screen.getByRole("button", {
+        name: "organization.compliance.attest.historyButton",
+      })
+      await user.click(historyButton)
+      expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+      await user.keyboard("{Escape}")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      expect(document.activeElement).toBe(historyButton)
     })
   })
 })

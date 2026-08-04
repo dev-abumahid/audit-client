@@ -249,9 +249,7 @@ describe("RiskApprovalControls", () => {
       render(<RiskApprovalControls risk={makeRisk("NOT_SUBMITTED", null)} />)
       await userEvent.click(screen.getByRole("button", { name: SUBMIT }))
 
-      await waitFor(() =>
-        expect(mockSubmit).toHaveBeenCalledWith("risk-1")
-      )
+      await waitFor(() => expect(mockSubmit).toHaveBeenCalledWith("risk-1"))
       expect(mockToastSuccess).toHaveBeenCalled()
     })
 
@@ -316,8 +314,7 @@ describe("RiskApprovalControls", () => {
     it("shows an error toast when submit fails", async () => {
       mockRole = "LEAD_AUDITOR"
       mockSubmit.mockReturnValue({
-        unwrap: () =>
-          Promise.reject({ data: { message: "already pending" } }),
+        unwrap: () => Promise.reject({ data: { message: "already pending" } }),
       })
 
       render(<RiskApprovalControls risk={makeRisk("NOT_SUBMITTED", null)} />)
@@ -360,9 +357,7 @@ describe("RiskApprovalControls", () => {
       // covered by the component reading risk.approval.decisionNote, not by
       // string-matching translated output.
       expect(
-        screen.getByText(
-          "organization.riskRegister.approval.rejectionReason"
-        )
+        screen.getByText("organization.riskRegister.approval.rejectionReason")
       ).toBeInTheDocument()
     })
 
@@ -409,6 +404,26 @@ describe("RiskApprovalControls", () => {
       expect(spy.mock.calls[0]?.[0]).toBe("2026-07-10T00:00:00.000Z")
 
       spy.mockRestore()
+    })
+  })
+
+  // aexa-frontend#488 -- the Reject modal was a plain div with no
+  // role="dialog", no aria-modal and no Escape handling, unlike KRI's
+  // modals (round 10, #487).
+  describe("modal accessibility", () => {
+    it("marks the Reject modal as a labeled dialog and closes it on Escape", async () => {
+      mockRole = "ADMIN"
+      render(<RiskApprovalControls risk={makeRisk("PENDING_APPROVAL")} />)
+
+      await userEvent.click(screen.getByRole("button", { name: REJECT }))
+      const dialog = screen.getByRole("dialog")
+      expect(dialog).toHaveAttribute("aria-modal", "true")
+      expect(dialog).toHaveAccessibleName(
+        "organization.riskRegister.approval.rejectModalTitle"
+      )
+
+      await userEvent.keyboard("{Escape}")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     })
   })
 })

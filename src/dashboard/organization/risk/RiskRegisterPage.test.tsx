@@ -26,9 +26,7 @@ vi.mock("react-i18next", async (importOriginal) => {
         t: (key: string, opts?: Record<string, unknown>) => {
           if (key === "organization.riskRegister.subtitle") {
             const count = Number(opts?.count ?? 0)
-            return count === 1
-              ? `${count} risk found`
-              : `${count} risks found`
+            return count === 1 ? `${count} risk found` : `${count} risks found`
           }
           return key
         },
@@ -161,10 +159,14 @@ describe("RiskRegisterPage", () => {
       })
     ).toBeInTheDocument()
     expect(
-      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pencil"))
+      screen
+        .getAllByRole("button")
+        .some((b) => b.querySelector("svg.lucide-pencil"))
     ).toBe(true)
     expect(
-      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-trash2"))
+      screen
+        .getAllByRole("button")
+        .some((b) => b.querySelector("svg.lucide-trash2"))
     ).toBe(true)
   })
 
@@ -180,10 +182,14 @@ describe("RiskRegisterPage", () => {
       })
     ).not.toBeInTheDocument()
     expect(
-      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pencil"))
+      screen
+        .getAllByRole("button")
+        .some((b) => b.querySelector("svg.lucide-pencil"))
     ).toBe(false)
     expect(
-      screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-trash2"))
+      screen
+        .getAllByRole("button")
+        .some((b) => b.querySelector("svg.lucide-trash2"))
     ).toBe(false)
   })
 
@@ -678,9 +684,7 @@ describe("RiskRegisterPage", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(
-            "organization.riskRegister.overrideReasonRequired"
-          )
+          screen.getByText("organization.riskRegister.overrideReasonRequired")
         ).toBeInTheDocument()
       })
       expect(mockCreateNewRisk).not.toHaveBeenCalled()
@@ -800,7 +804,10 @@ describe("RiskRegisterPage", () => {
         '[name="inherent_override_reason"]'
       )!
       await userEvent.clear(reasonField)
-      await userEvent.type(reasonField, "Re-confirmed after remediation review.")
+      await userEvent.type(
+        reasonField,
+        "Re-confirmed after remediation review."
+      )
       await userEvent.click(
         screen.getByRole("button", {
           name: "organization.riskRegister.updateRisk",
@@ -932,7 +939,9 @@ describe("RiskRegisterPage", () => {
 
     render(<RiskRegisterPage />)
     await userEvent.type(
-      screen.getByPlaceholderText("organization.riskRegister.searchPlaceholder"),
+      screen.getByPlaceholderText(
+        "organization.riskRegister.searchPlaceholder"
+      ),
       "flood"
     )
 
@@ -1008,5 +1017,26 @@ describe("RiskRegisterPage", () => {
         name: "organization.riskRegister.deleteRisk",
       })
     ).toBeInTheDocument()
+  })
+
+  // aexa-frontend#488 -- the Add/Edit Risk modal was a plain div with no
+  // role="dialog", no aria-modal and no Escape handling, unlike KRI's
+  // modals (round 10, #487).
+  it("marks the Add/Edit Risk modal as a labeled dialog and closes it on Escape", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+
+    render(<RiskRegisterPage />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    )
+
+    const dialog = screen.getByRole("dialog")
+    expect(dialog).toHaveAttribute("aria-modal", "true")
+    expect(dialog).toHaveAccessibleName("organization.riskRegister.addNewRisk")
+
+    await userEvent.keyboard("{Escape}")
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 })

@@ -91,9 +91,13 @@ describe("ViewAndEditRecommendation", () => {
 
     render(<ViewAndEditRecommendation inspectionId="insp-1" />)
 
-    expect(screen.getByText("organization.recommendation.noRecommendation")).toBeInTheDocument()
     expect(
-      screen.getByRole("button", { name: "organization.recommendation.generateNow" })
+      screen.getByText("organization.recommendation.noRecommendation")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "organization.recommendation.generateNow",
+      })
     ).toBeInTheDocument()
   })
 
@@ -110,7 +114,9 @@ describe("ViewAndEditRecommendation", () => {
 
     render(<ViewAndEditRecommendation inspectionId="insp-77" />)
     await userEvent.click(
-      screen.getByRole("button", { name: "organization.recommendation.generateNow" })
+      screen.getByRole("button", {
+        name: "organization.recommendation.generateNow",
+      })
     )
 
     await waitFor(() =>
@@ -228,7 +234,9 @@ describe("ViewAndEditRecommendation", () => {
     await userEvent.type(observationField, "!")
 
     await waitFor(() =>
-      expect(screen.getByText("organization.recommendation.saveFailed")).toBeInTheDocument()
+      expect(
+        screen.getByText("organization.recommendation.saveFailed")
+      ).toBeInTheDocument()
     )
   })
 
@@ -249,7 +257,9 @@ describe("ViewAndEditRecommendation", () => {
     await userEvent.type(summaryField, "!")
 
     await waitFor(() =>
-      expect(screen.getByText("organization.recommendation.summarySaveFailed")).toBeInTheDocument()
+      expect(
+        screen.getByText("organization.recommendation.summarySaveFailed")
+      ).toBeInTheDocument()
     )
   })
 
@@ -262,9 +272,81 @@ describe("ViewAndEditRecommendation", () => {
 
     render(<ViewAndEditRecommendation inspectionId="insp-1" />)
     await userEvent.click(
-      screen.getByRole("button", { name: "organization.recommendation.addToFinding" })
+      screen.getByRole("button", {
+        name: "organization.recommendation.addToFinding",
+      })
     )
 
     expect(screen.getByText("Finding modal open")).toBeInTheDocument()
+  })
+
+  // aexa-frontend#488 -- the "Created" date used a bare
+  // `new Date(...).toLocaleDateString("en-US", ...)` instead of the shared
+  // formatLocaleDate() helper every other file in this scope uses, so it
+  // ignored the app's selected language. Spied the same way
+  // RiskApprovalControls.test.tsx proves its own decidedOn date is routed
+  // through the shared helper.
+  it("formats the created date via the shared formatLocaleDate() helper", async () => {
+    const formatDateModule = await import("@/utils/formatDate")
+    const spy = vi.spyOn(formatDateModule, "formatLocaleDate")
+
+    mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
+      data: { data: makeRecommendation() },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+
+    render(<ViewAndEditRecommendation inspectionId="insp-1" />)
+
+    expect(spy.mock.calls[0]?.[0]).toBe("2026-06-01T10:00:00.000Z")
+    spy.mockRestore()
+  })
+
+  // aexa-frontend#488 -- this component's own <h1> collided with
+  // UpdateInspection.tsx's page-level h1 (its only caller), and the
+  // question-card labels skipped from h1 straight to h4. Now the page title
+  // is an h2 and the question-card labels are h3, giving a clean
+  // h2 -> h3 -> h3 -> h3 -> h2 (Executive Summary) structure with no
+  // duplicate h1 and no skipped level.
+  it("renders the page title as h2 (not h1) and the question-card labels as h3 (not h4)", () => {
+    mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
+      data: { data: makeRecommendation() },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+
+    render(<ViewAndEditRecommendation inspectionId="insp-1" />)
+
+    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "organization.recommendation.title",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: "organization.recommendation.aiObservation",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: "organization.recommendation.aiRecommendation",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: "organization.recommendation.applicableStandard",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "organization.recommendation.executiveSummary",
+      })
+    ).toBeInTheDocument()
   })
 })

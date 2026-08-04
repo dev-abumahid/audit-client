@@ -9,6 +9,7 @@ import {
   type PdfLabels,
 } from "@/utils/buildInspectionPdfHtml"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { useModalA11y } from "@/hooks/useModalA11y"
 import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
 import { A4_WIDTH_MM, computePdfPagePlacements } from "@/utils/pdfPageMath"
 import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
@@ -484,6 +485,11 @@ const InspectionReport = () => {
 
   const [activePageIndex, setActivePageIndex] = useState(0)
   const [selectedMedia, setSelectedMedia] = useState<string | null>(null)
+  // aexa-frontend#490 -- role="dialog"/focus-trap/Escape for the media
+  // lightbox, same pattern KriDashboardPage uses (round 10, #487).
+  const mediaLightboxRef = useModalA11y(!!selectedMedia, () =>
+    setSelectedMedia(null)
+  )
   const pageSectionRefs = useRef<(HTMLDivElement | null)[]>([])
 
   const { totalAnswered, totalQuestions } = useMemo(() => {
@@ -810,11 +816,18 @@ const InspectionReport = () => {
           onClick={() => setSelectedMedia(null)}
         >
           <div
+            ref={mediaLightboxRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="media-lightbox-title"
             className="max-h-[90vh] max-w-3xl overflow-auto rounded-2xl bg-card shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <h3 className="text-sm font-bold text-foreground">
+              <h3
+                id="media-lightbox-title"
+                className="text-sm font-bold text-foreground"
+              >
                 {t("organization.inspection.mediaPreview")}
               </h3>
               <button

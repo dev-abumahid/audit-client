@@ -102,7 +102,10 @@ describe("CreateTemplatePage", () => {
       })
 
       renderPage()
-      await user.upload(screen.getByLabelText(/organization\.templates\.create\.upload/i), file)
+      await user.upload(
+        screen.getByLabelText(/organization\.templates\.create\.upload/i),
+        file
+      )
 
       await waitFor(() => expect(createObjectURLSpy).toHaveBeenCalledTimes(1))
       expect(createObjectURLSpy).toHaveBeenCalledWith(file)
@@ -146,7 +149,10 @@ describe("CreateTemplatePage", () => {
       const file2 = new File(["b"], "logo2.png", { type: "image/png" })
 
       const { container } = renderPage()
-      await user.upload(screen.getByLabelText(/organization\.templates\.create\.upload/i), file1)
+      await user.upload(
+        screen.getByLabelText(/organization\.templates\.create\.upload/i),
+        file1
+      )
       await waitFor(() => expect(createObjectURLSpy).toHaveBeenCalledTimes(1))
       const firstUrl = createObjectURLSpy.mock.results[0].value
 
@@ -174,7 +180,10 @@ describe("CreateTemplatePage", () => {
       })
 
       const { unmount } = renderPage()
-      await user.upload(screen.getByLabelText(/organization\.templates\.create\.upload/i), file)
+      await user.upload(
+        screen.getByLabelText(/organization\.templates\.create\.upload/i),
+        file
+      )
       await waitFor(() => expect(createObjectURLSpy).toHaveBeenCalledTimes(1))
       const url = createObjectURLSpy.mock.results[0].value
 
@@ -219,7 +228,11 @@ describe("CreateTemplatePage", () => {
     })
 
     renderPage()
-    await userEvent.click(screen.getByRole("button", { name: /organization\.templates\.create\.saveTemplate/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.templates\.create\.saveTemplate/i,
+      })
+    )
 
     await waitFor(() => expect(mockCreateNewTemplate).toHaveBeenCalled())
     await waitFor(() =>
@@ -235,7 +248,11 @@ describe("CreateTemplatePage", () => {
     })
 
     renderPage()
-    await userEvent.click(screen.getByRole("button", { name: /organization\.templates\.create\.saveTemplate/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.templates\.create\.saveTemplate/i,
+      })
+    )
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Template name taken")
@@ -245,12 +262,15 @@ describe("CreateTemplatePage", () => {
 
   it("shows an error toast and does not navigate away when the create request rejects (unhandled rejection)", async () => {
     mockCreateNewTemplate.mockReturnValue({
-      unwrap: () =>
-        Promise.reject({ data: { message: "Server unavailable" } }),
+      unwrap: () => Promise.reject({ data: { message: "Server unavailable" } }),
     })
 
     renderPage()
-    await userEvent.click(screen.getByRole("button", { name: /organization\.templates\.create\.saveTemplate/i }))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.templates\.create\.saveTemplate/i,
+      })
+    )
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Server unavailable")
@@ -259,7 +279,9 @@ describe("CreateTemplatePage", () => {
     // The page (and its filled-in form values) should still be here, not
     // replaced/unmounted by a failed submit.
     expect(
-      screen.getByRole("button", { name: /organization\.templates\.create\.saveTemplate/i })
+      screen.getByRole("button", {
+        name: /organization\.templates\.create\.saveTemplate/i,
+      })
     ).toBeInTheDocument()
   })
 
@@ -325,5 +347,22 @@ describe("CreateTemplatePage", () => {
     expect(
       screen.queryByText("organization.templates.create.addNew")
     ).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend#490 -- the "Add New" modal was a plain div with no
+  // role="dialog", no aria-modal and no Escape handling, unlike KRI's
+  // modals (round 10, #487).
+  it("marks the Add New modal as a labeled dialog and closes it on Escape", async () => {
+    renderPage()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "open add modal" })
+    )
+    const dialog = screen.getByRole("dialog")
+    expect(dialog).toHaveAttribute("aria-modal", "true")
+    expect(dialog).toHaveAccessibleName("organization.templates.create.addNew")
+
+    await userEvent.keyboard("{Escape}")
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 })

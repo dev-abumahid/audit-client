@@ -402,6 +402,49 @@ describe("InspectionReport", () => {
     ).not.toBeInTheDocument()
   })
 
+  // aexa-frontend#490 -- the media lightbox was a plain div with no
+  // role="dialog", no aria-modal and no Escape handling, unlike KRI's
+  // modals (round 10, #487).
+  it("marks the media lightbox as a labeled dialog and closes it on Escape", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  { id: "q-4", question: "Site photo", answerType: "input" },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [
+            {
+              questionId: "q-4",
+              answer: "Looks fine",
+              note: "",
+              mediaFiles: [
+                { url: "https://cdn.example.com/photo.jpg", type: "image" },
+              ],
+            },
+          ],
+        }),
+      },
+    })
+
+    render(<InspectionReport />)
+    await userEvent.click(screen.getByRole("button", { name: /media-0/i }))
+
+    const dialog = screen.getByRole("dialog")
+    expect(dialog).toHaveAttribute("aria-modal", "true")
+    expect(dialog).toHaveAccessibleName("organization.inspection.mediaPreview")
+
+    await userEvent.keyboard("{Escape}")
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
   it("opens a media answer's full-size view without granting the new tab window.opener access (#110)", async () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null)
     mockUseGetSingleInspectionQuery.mockReturnValue({

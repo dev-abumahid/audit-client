@@ -20,6 +20,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { formatLocaleDate } from "@/utils/formatDate"
 import TextareaAutosize from "react-textarea-autosize"
 import CreateNewFindingModal from "../findings/CreateNewFindingModal"
 import { toast } from "sonner"
@@ -42,7 +43,10 @@ export default function ViewAndEditRecommendation({
 }: {
   inspectionId: string
 }) {
-  const { t } = useTranslation()
+  const {
+    t,
+    i18n: { language },
+  } = useTranslation()
   const [saveStatus, setSaveStatus] = useState<{
     type: "success" | "error" | "saving" | null
     message: string
@@ -335,9 +339,12 @@ export default function ViewAndEditRecommendation({
         {/* Header with Status */}
         <div className="mb-6 md:mb-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <h1 className="text-2xl font-bold md:text-3xl">
+            {/* h2, not h1 -- UpdateInspection.tsx (this component's only
+                caller) already renders the page-level h1 (see
+                UpdateInspection.tsx:742). aexa-frontend#488. */}
+            <h2 className="text-2xl font-bold md:text-3xl">
               {t("organization.recommendation.title")}
-            </h1>
+            </h2>
 
             {/* Save Status */}
             {(saveStatus.type === "saving" ||
@@ -394,14 +401,11 @@ export default function ViewAndEditRecommendation({
                     {t("organization.recommendation.created")}
                   </p>
                   <p className="text-sm font-medium">
-                    {new Date(recommendation.createdAt).toLocaleDateString(
-                      "en-US",
-                      {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      }
-                    )}
+                    {formatLocaleDate(recommendation.createdAt, language, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </p>
                 </div>
               </div>
@@ -471,9 +475,9 @@ export default function ViewAndEditRecommendation({
                   <div>
                     <div className="mb-3 flex items-center gap-2">
                       <AlertCircle className="h-5 w-5 text-[#6EC075]" />
-                      <h4 className="font-semibold">
+                      <h3 className="font-semibold">
                         {t("organization.recommendation.aiObservation")}
-                      </h4>
+                      </h3>
                     </div>
                     <TextareaAutosize
                       value={question.observation || ""}
@@ -496,9 +500,9 @@ export default function ViewAndEditRecommendation({
                   <div>
                     <div className="mb-3 flex items-center gap-2">
                       <CheckCircle className="h-5 w-5 text-[#6EC075]" />
-                      <h4 className="font-semibold">
+                      <h3 className="font-semibold">
                         {t("organization.recommendation.aiRecommendation")}
-                      </h4>
+                      </h3>
                     </div>
                     <TextareaAutosize
                       value={question.recommendation || ""}
@@ -521,9 +525,9 @@ export default function ViewAndEditRecommendation({
                   <div>
                     <div className="mb-3 flex items-center gap-2">
                       <Star className="h-5 w-5 text-[#6EC075]" />
-                      <h4 className="font-semibold">
+                      <h3 className="font-semibold">
                         {t("organization.recommendation.applicableStandard")}
-                      </h4>
+                      </h3>
                     </div>
                     <TextareaAutosize
                       value={question.standard || ""}

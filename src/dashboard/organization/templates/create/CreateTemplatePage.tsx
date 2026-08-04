@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { useModalA11y } from "@/hooks/useModalA11y"
 import { useSectionScroll } from "@/hooks/useSectionScroll"
 import { useCreateNewTemplateMutation } from "@/redux/apis/organization/template.api"
 import type {
@@ -28,6 +29,11 @@ const CreateTemplatePage = () => {
   const [createNewTemplate, { isLoading }] = useCreateNewTemplateMutation()
   const navigate = useNavigate()
   const [addModalTarget, setAddModalTarget] = useState<number | null>(null)
+  // aexa-frontend#490 -- role="dialog"/focus-trap/Escape for the "Add New"
+  // modal, same pattern KriDashboardPage uses (round 10, #487).
+  const addModalRef = useModalA11y(addModalTarget !== null, () =>
+    setAddModalTarget(null)
+  )
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null)
   const [answerPanel, setAnswerPanel] = useState<{
@@ -169,7 +175,9 @@ const CreateTemplatePage = () => {
         toast.success(res?.message)
         navigate("/organization/audit/templates")
       } else {
-        toast.error(res?.message || t("organization.templates.create.createFailed"))
+        toast.error(
+          res?.message || t("organization.templates.create.createFailed")
+        )
       }
     } catch (error: unknown) {
       // No modal to close here (this is a full page, not a dialog) — the
@@ -268,7 +276,9 @@ const CreateTemplatePage = () => {
                   <input
                     {...field}
                     className="w-full rounded-md border border-border bg-transparent p-2 text-2xl font-semibold text-foreground focus:ring-0"
-placeholder={t("organization.templates.create.namePlaceholder")}
+                    placeholder={t(
+                      "organization.templates.create.namePlaceholder"
+                    )}
                   />
                 )}
               />
@@ -279,7 +289,9 @@ placeholder={t("organization.templates.create.namePlaceholder")}
                   <Textarea
                     {...field}
                     rows={3}
-placeholder={t("organization.templates.create.descPlaceholder")}
+                    placeholder={t(
+                      "organization.templates.create.descPlaceholder"
+                    )}
                     className="resize-none border border-border bg-transparent text-muted-foreground focus:ring-0"
                   />
                 )}
@@ -291,9 +303,12 @@ placeholder={t("organization.templates.create.descPlaceholder")}
         {/* Pages Section */}
         {pageFields.length === 0 ? (
           <div className="mx-auto max-w-7xl rounded-2xl border bg-card p-12 text-center">
-            <p className="mb-6 text-muted-foreground">{t("organization.templates.create.noSections")}</p>
+            <p className="mb-6 text-muted-foreground">
+              {t("organization.templates.create.noSections")}
+            </p>
             <Button type="button" onClick={handleAddSection}>
-              <Plus className="mr-2 h-4 w-4" /> {t("organization.templates.create.createFirstSection")}
+              <Plus className="mr-2 h-4 w-4" />{" "}
+              {t("organization.templates.create.createFirstSection")}
             </Button>
           </div>
         ) : (
@@ -309,7 +324,7 @@ placeholder={t("organization.templates.create.descPlaceholder")}
             {/* No mx-auto here deliberately — on wide viewports it would
                 absorb the leftover flex space and drift this column away
                 from the sidebar instead of staying flush beside it. */}
-            <div className="min-w-0 max-w-7xl flex-1">
+            <div className="max-w-7xl min-w-0 flex-1">
               {pageFields.map((pageField, pIdx) => (
                 <div key={pageField.id} ref={registerSection(pIdx)}>
                   <PageSection
@@ -335,7 +350,8 @@ placeholder={t("organization.templates.create.descPlaceholder")}
                   size="lg"
                   variant="outline"
                 >
-                  <Plus className="h-4 w-4" /> {t("organization.templates.create.addNewSection")}
+                  <Plus className="h-4 w-4" />{" "}
+                  {t("organization.templates.create.addNewSection")}
                 </Button>
               </div>
             </div>
@@ -346,9 +362,17 @@ placeholder={t("organization.templates.create.descPlaceholder")}
       {/* Add New Modal */}
       {addModalTarget !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="w-80 overflow-hidden rounded-2xl bg-card shadow-2xl">
+          <div
+            ref={addModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-new-modal-title"
+            className="w-80 overflow-hidden rounded-2xl bg-card shadow-2xl"
+          >
             <div className="bg-primary px-5 py-4 text-white">
-              <h3 className="font-semibold">{t("organization.templates.create.addNew")}</h3>
+              <h3 id="add-new-modal-title" className="font-semibold">
+                {t("organization.templates.create.addNew")}
+              </h3>
             </div>
             <div className="divide-y divide-border">
               <button
@@ -357,7 +381,9 @@ placeholder={t("organization.templates.create.descPlaceholder")}
                 className="flex w-full items-center gap-3 px-5 py-4 text-left hover:bg-secondary"
               >
                 <Plus className="text-primary" />
-                <span className="font-medium">{t("organization.templates.create.createQuestion")}</span>
+                <span className="font-medium">
+                  {t("organization.templates.create.createQuestion")}
+                </span>
               </button>
               <button
                 type="button"
@@ -365,7 +391,9 @@ placeholder={t("organization.templates.create.descPlaceholder")}
                 className="flex w-full items-center gap-3 px-5 py-4 text-left hover:bg-secondary"
               >
                 <Sliders className="text-primary" />
-                <span className="font-medium">{t("organization.templates.create.createSection")}</span>
+                <span className="font-medium">
+                  {t("organization.templates.create.createSection")}
+                </span>
               </button>
             </div>
             <div className="border-t p-4">
