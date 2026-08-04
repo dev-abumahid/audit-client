@@ -841,7 +841,7 @@ const InspectionReport = () => {
             <div className="p-4">
               <img
                 src={selectedMedia}
-                alt="preview"
+                alt={t("organization.inspection.uploadedMediaAlt")}
                 className="h-auto max-w-full rounded-xl"
               />
             </div>

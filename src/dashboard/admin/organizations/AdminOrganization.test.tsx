@@ -11,7 +11,23 @@ vi.mock("react-i18next", async (importOriginal) => {
     ...mod,
     useTranslation: () => {
       const real = mod.useTranslation()
-      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+      return {
+        ...real,
+        i18n: { ...real.i18n, language: mockLanguage },
+        // aexa-frontend#501 -- admin.organizations.pagination gained
+        // _one/_other pluralization; the uninitialized real i18n instance
+        // can't resolve plural resources (see RiskMatrixPage.test.tsx's
+        // comment for why), so give it the same behavior the real en.json
+        // resource now has for this one key.
+        t: (key: string, opts?: Record<string, unknown>) => {
+          if (key === "admin.organizations.pagination") {
+            const count = Number(opts?.count ?? 0)
+            const suffix = count === 1 ? "organization" : "organizations"
+            return `Showing ${opts?.from} to ${opts?.to} of ${opts?.total} ${suffix}`
+          }
+          return real.t(key, opts)
+        },
+      }
     },
   }
 })
@@ -204,5 +220,30 @@ describe("AdminOrganization", () => {
         name: "admin.organizations.paginationNext",
       })
     ).toBeInTheDocument()
+  })
+
+  // aexa-frontend#501 -- "Showing {{from}} to {{to}} of {{total}} organizations"
+  // was a plain string, wrong grammar when total === 1, unlike every sibling
+  // count string in en.json/fr.json.
+  describe("pagination pluralization (#501)", () => {
+    it("uses the singular form when exactly one organization total", () => {
+      mockList([makeOrg()], { page: 1, limit: 10, total: 1, totalPage: 2 })
+
+      render(<AdminOrganization />)
+
+      expect(
+        screen.getByText("Showing 1 to 1 of 1 organization")
+      ).toBeInTheDocument()
+    })
+
+    it("uses the plural form when more than one organization total", () => {
+      mockList([makeOrg()], { page: 1, limit: 10, total: 25, totalPage: 3 })
+
+      render(<AdminOrganization />)
+
+      expect(
+        screen.getByText("Showing 1 to 10 of 25 organizations")
+      ).toBeInTheDocument()
+    })
   })
 })

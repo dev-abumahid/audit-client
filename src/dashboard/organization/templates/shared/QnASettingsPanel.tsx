@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { useModalA11y } from "@/hooks/useModalA11y"
 
 interface QnASettingsPanelProps {
   onClose: () => void
@@ -125,6 +126,10 @@ function QnASettingsPanel({
   onSelectResponseSet,
 }: QnASettingsPanelProps) {
   const { t } = useTranslation()
+  // Mounted conditionally by the parent (only while the panel should be
+  // visible), so it's always "open" for as long as this component exists --
+  // same wiring as the KriDashboardPage modals under #490.
+  const panelRef = useModalA11y(true, onClose)
   const [responseSets, setResponseSets] = useState<ResponseSet[]>(
     DEFAULT_RESPONSE_SETS
   )
@@ -180,10 +185,19 @@ function QnASettingsPanel({
       <div className="fixed inset-0 z-40 bg-black/60" onClick={onClose} />
 
       {/* Panel */}
-      <div className="fixed top-0 right-0 z-50 flex h-full w-full flex-col border-l border-border bg-card shadow-2xl sm:w-105">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="qna-settings-panel-title"
+        className="fixed top-0 right-0 z-50 flex h-full w-full flex-col border-l border-border bg-card shadow-2xl sm:w-105"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-base font-semibold text-foreground">
+          <h2
+            id="qna-settings-panel-title"
+            className="text-base font-semibold text-foreground"
+          >
             {t("organization.templates.qna.title")}
           </h2>
           <button

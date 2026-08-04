@@ -421,4 +421,30 @@ describe("RiskGraphPage", () => {
       screen.getAllByRole("heading", { level: 2 }).length
     ).toBeGreaterThan(0)
   })
+
+  // aexa-frontend#497 -- graph nodes were plain <g onClick> elements with no
+  // tabIndex/role/onKeyDown, making risk selection (and cascade/domino
+  // detail) entirely unreachable via keyboard.
+  it("makes a graph node keyboard-selectable via role=button, tabIndex, and Enter/Space", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event")
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ id: "risk-real-1" })] },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />)
+
+    const node = screen.getByRole("button", {
+      name: /organization\.riskGraph\.nodeAriaLabel/,
+    })
+    expect(node.tagName.toLowerCase()).toBe("g")
+    expect(node).toHaveAttribute("tabindex", "0")
+    expect(node).toHaveAttribute("aria-pressed", "false")
+
+    node.focus()
+    await userEvent.keyboard("{Enter}")
+    expect(node).toHaveAttribute("aria-pressed", "true")
+
+    await userEvent.keyboard(" ")
+    expect(node).toHaveAttribute("aria-pressed", "false")
+  })
 })

@@ -410,6 +410,18 @@ export default function RiskGraphPage() {
                   key={risk.id}
                   className="cursor-pointer"
                   onClick={() => setSelectedRisk(isSelected ? null : risk.ref)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      setSelectedRisk(isSelected ? null : risk.ref)
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-pressed={isSelected}
+                  aria-label={t("organization.riskGraph.nodeAriaLabel", {
+                    riskId: risk.id,
+                  })}
                   opacity={isDimmed ? 0.15 : 1}
                 >
                   {/* Cascade highlight */}

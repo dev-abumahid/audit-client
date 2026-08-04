@@ -61,6 +61,11 @@ vi.mock("react-i18next", async (importOriginal) => {
         if (key === "organization.riskMatrix.pagerankAbbrLabel") {
           return "PR:"
         }
+        if (key === "organization.riskMatrix.cellAriaLabel") {
+          const count = Number(opts?.count ?? 0)
+          const suffix = count === 1 ? "risk" : "risks"
+          return `${opts?.likelihood} × ${opts?.impact}: ${count} ${suffix}`
+        }
         const shortKey = key.replace("organization.riskMatrix.", "")
         if (shortKey in AXIS_LABEL_TEXT) {
           return AXIS_LABEL_TEXT[shortKey]
@@ -497,6 +502,28 @@ describe("RiskMatrixPage", () => {
 
       await userEvent.click(cell)
       expect(cell).toHaveAttribute("aria-pressed", "true")
+    })
+
+    // aexa-frontend#497 -- matrix cells relied on the `title` tooltip alone,
+    // which isn't reliably exposed to screen readers. CorrelationMatrixPage's
+    // functionally-identical cells got aria-label in round 9's #480; this
+    // brings RiskMatrixPage's cells in line.
+    it("gives each matrix cell an aria-label describing likelihood, impact, and risk count", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "r1", probability: 10, inherent_score: 10 }),
+          ],
+        },
+        isLoading: false,
+      })
+      render(<RiskMatrixPage />)
+
+      const cell = screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+      expect(cell).toHaveAttribute(
+        "aria-label",
+        "Very Unlikely × Negligible: 1 risk"
+      )
     })
   })
 

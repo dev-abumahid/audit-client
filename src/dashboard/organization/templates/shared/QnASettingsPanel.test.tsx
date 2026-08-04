@@ -70,6 +70,48 @@ describe("QnASettingsPanel accessible names (#468)", () => {
   })
 })
 
+// aexa-frontend#499 -- the backdrop + side panel is functionally a modal
+// (blocks interaction with the rest of the page) but had no role="dialog",
+// no aria-modal, no focus trap, and no Escape-to-close. Migrated onto the
+// same useModalA11y hook KriDashboardPage's modals use under #490 --
+// same pattern KriDashboardPage.test.tsx asserts for its own modals.
+describe("QnASettingsPanel modal accessibility (#499)", () => {
+  it("marks the panel as a labeled dialog and closes it on Escape", async () => {
+    const onClose = vi.fn()
+    render(
+      <QnASettingsPanel
+        onClose={onClose}
+        onSelectInput={vi.fn()}
+        onSelectResponseSet={vi.fn()}
+      />
+    )
+
+    const dialog = screen.getByRole("dialog")
+    expect(dialog).toHaveAttribute("aria-modal", "true")
+    expect(dialog).toHaveAccessibleName("organization.templates.qna.title")
+
+    await userEvent.keyboard("{Escape}")
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it("traps Tab focus inside the panel", async () => {
+    render(
+      <QnASettingsPanel
+        onClose={vi.fn()}
+        onSelectInput={vi.fn()}
+        onSelectResponseSet={vi.fn()}
+      />
+    )
+
+    const dialog = screen.getByRole("dialog")
+    const focusable = dialog.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+    expect(focusable.length).toBeGreaterThan(0)
+    expect(focusable[0]).toHaveFocus()
+  })
+})
+
 describe("QnASettingsPanel (issue #429)", () => {
   it("renders default response-set chip labels through i18n keys, not raw English text", () => {
     render(

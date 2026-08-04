@@ -1144,6 +1144,8 @@
       "selectRiskHint": "Click on a cell to see the risks",
       "cellCount_one": "{{count}} risk",
       "cellCount_other": "{{count}} risks",
+      "cellAriaLabel_one": "{{likelihood}} × {{impact}}: {{count}} risk",
+      "cellAriaLabel_other": "{{likelihood}} × {{impact}}: {{count}} risks",
       "impactAxis": "Impact →",
       "selectedCellHeading_one": "{{count}} risk — score {{score}}",
       "selectedCellHeading_other": "{{count}} risks — score {{score}}",
@@ -1180,7 +1182,8 @@
       "dominoScenarios": "Domino Scenarios",
       "noDominoChains": "No domino chain detected with the current filters.",
       "correlations": "Correlations",
-      "chainName": "Chain {{source}} → {{target}}"
+      "chainName": "Chain {{source}} → {{target}}",
+      "nodeAriaLabel": "Risk {{riskId}}"
     },
     "settings": {
       "passwordChange": {
@@ -1830,7 +1833,8 @@
       "noResults": "No organizations found",
       "statusActive": "Active",
       "statusPending": "Pending",
-      "pagination": "Showing {{from}} to {{to}} of {{total}} organizations",
+      "pagination_one": "Showing {{from}} to {{to}} of {{total}} organization",
+      "pagination_other": "Showing {{from}} to {{to}} of {{total}} organizations",
       "paginationPrevious": "Previous page",
       "paginationNext": "Next page"
     },

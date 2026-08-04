@@ -559,9 +559,9 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-foreground">
+                  <h3 className="text-sm font-semibold text-foreground">
                     {t("admin.onboarding.confirm.discoveredSites")}
-                  </h4>
+                  </h3>
                   <button
                     onClick={addConfirmSite}
                     className="flex items-center gap-1 text-xs text-primary hover:underline"
@@ -724,10 +724,10 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               <div className="max-h-[55vh] space-y-4 overflow-y-auto pr-1">
                 {reviewSites.map((site, si) => (
                   <div key={si} className="rounded-xl border border-border p-3">
-                    <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                       🏢{" "}
                       {site.site_name || t("admin.onboarding.review.unnamed")}
-                    </h4>
+                    </h3>
                     {site.risks.length === 0 && (
                       <p className="text-xs text-muted-foreground">
                         {t("admin.onboarding.review.noRisks")}
@@ -909,11 +909,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl dark:bg-emerald-900/30">
                 ✓
               </div>
-              <h4 className="text-lg font-semibold text-foreground">
+              <h3 className="text-lg font-semibold text-foreground">
                 {t("admin.onboarding.done.title", {
                   name: commitResult.organization.name,
                 })}
-              </h4>
+              </h3>
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
                 {t("admin.onboarding.done.banner", {
                   sitesText: t("admin.onboarding.done.sitesCount", {

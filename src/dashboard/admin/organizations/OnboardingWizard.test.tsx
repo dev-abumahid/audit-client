@@ -172,6 +172,33 @@ describe("OnboardingWizard", () => {
     expect(screen.getByText(/is a manufacturer/)).toBeInTheDocument()
   })
 
+  // aexa-frontend#501 -- Radix's DialogTitle renders as an h2 (confirmed via
+  // @radix-ui/react-dialog source: Primitive.h2). "Discovered sites" was an
+  // h4 directly under that h2, skipping h3 -- broken heading order for
+  // screen-reader users navigating by heading level.
+  it("has no orphaned h4 -- 'Discovered sites' is an h3 directly under the dialog's h2 title", async () => {
+    mockIdentify.mockReturnValue(okUnwrap(profile))
+    render(<OnboardingWizard onClose={vi.fn()} />)
+    await fillEntry()
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.entry.analyze" })
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByText("admin.onboarding.confirm.discoveredSites")
+      ).toBeInTheDocument()
+    )
+
+    expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: "admin.onboarding.confirm.discoveredSites",
+      })
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { level: 4 })).not.toBeInTheDocument()
+  })
+
   it("generates and shows an editable, AI-badged review screen", async () => {
     mockIdentify.mockReturnValue(okUnwrap(profile))
     mockGenerate.mockReturnValue(okUnwrap(draft))

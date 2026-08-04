@@ -288,6 +288,11 @@ export default function RiskMatrixPage() {
                               )
                             }
                             aria-pressed={isSelected}
+                            aria-label={t("organization.riskMatrix.cellAriaLabel", {
+                              count: cellRisks.length,
+                              likelihood: label,
+                              impact: labels.impact[col],
+                            })}
                             className={`${getMatrixColor(row, col, matrixSize)} flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-white transition-all hover:scale-105 ${isSelected ? "scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-75"}`}
                             title={`${label} × ${labels.impact[col]} : ${t("organization.riskMatrix.cellCount", { count: cellRisks.length })}`}
                           >

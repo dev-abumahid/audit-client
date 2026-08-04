@@ -402,6 +402,47 @@ describe("InspectionReport", () => {
     ).not.toBeInTheDocument()
   })
 
+  // aexa-frontend#499 -- the lightbox <img> had hardcoded English alt="preview"
+  // instead of going through t(), unlike every other alt/label string in this
+  // file (uploadedMediaAlt, closeMediaPreview).
+  it("routes the lightbox image's alt text through i18n instead of a hardcoded string", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  { id: "q-4", question: "Site photo", answerType: "input" },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [
+            {
+              questionId: "q-4",
+              answer: "Looks fine",
+              note: "",
+              mediaFiles: [
+                { url: "https://cdn.example.com/photo.jpg", type: "image" },
+              ],
+            },
+          ],
+        }),
+      },
+    })
+
+    render(<InspectionReport />)
+    await userEvent.click(screen.getByRole("button", { name: /media-0/i }))
+
+    expect(
+      screen.getByAltText("organization.inspection.uploadedMediaAlt")
+    ).toBeInTheDocument()
+    expect(screen.queryByAltText("preview")).not.toBeInTheDocument()
+  })
+
   // aexa-frontend#490 -- the media lightbox was a plain div with no
   // role="dialog", no aria-modal and no Escape handling, unlike KRI's
   // modals (round 10, #487).

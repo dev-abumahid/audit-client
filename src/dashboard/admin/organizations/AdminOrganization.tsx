@@ -256,6 +256,7 @@ const AdminOrganization: React.FC = () => {
             <div className="flex flex-col items-center justify-between gap-4 border-t border-border px-6 py-4 sm:flex-row">
               <div className="text-sm text-muted-foreground">
                 {t("admin.organizations.pagination", {
+                  count: totalItems,
                   from: (currentPage - 1) * limit + 1,
                   to: Math.min(currentPage * limit, totalItems),
                   total: totalItems,
