@@ -449,22 +449,25 @@ export default function ViewAndEditRecommendation({
                           {questions.findIndex((q) => q.id === question.id) + 1}
                         </span>
                       </div>
-                      <input
-                        value={question.question || ""}
-                        onChange={(e) =>
-                          handleQuestionChange(
-                            question.id,
-                            "question",
-                            e.target.value
-                          )
-                        }
-                        type="text"
-                        className="flex-1 border-none bg-transparent text-lg font-semibold outline-none focus:ring-0"
-                        disabled
-                        placeholder={t(
-                          "organization.recommendation.questionTitlePlaceholder"
-                        )}
-                      />
+                      {/* Round 13 (#505): this was a <input disabled> that
+                          still carried a full onChange handler wired to
+                          handleQuestionChange -- since the input is
+                          permanently disabled (no state ever flips it to
+                          editable, and the question text is the original
+                          inspection question, not something this view is
+                          meant to let users rename), the handler could never
+                          fire. Rendering the question text as plain copy
+                          instead of a disabled form control drops the dead
+                          handler and is also the more honest a11y story: a
+                          disabled input still announces as an input to
+                          assistive tech, implying editability that doesn't
+                          exist. */}
+                      <p className="flex-1 text-lg font-semibold">
+                        {question.question ||
+                          t(
+                            "organization.recommendation.questionTitlePlaceholder"
+                          )}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -475,7 +478,10 @@ export default function ViewAndEditRecommendation({
                   <div>
                     <div className="mb-3 flex items-center gap-2">
                       <AlertCircle className="h-5 w-5 text-[#6EC075]" />
-                      <h3 className="font-semibold">
+                      <h3
+                        id={`recommendation-observation-${question.id}`}
+                        className="font-semibold"
+                      >
                         {t("organization.recommendation.aiObservation")}
                       </h3>
                     </div>
@@ -489,6 +495,7 @@ export default function ViewAndEditRecommendation({
                         )
                       }
                       rows={1}
+                      aria-labelledby={`recommendation-observation-${question.id}`}
                       className="w-full rounded-lg border border-border p-4 outline-none focus:ring-2 focus:ring-primary"
                       placeholder={t(
                         "organization.recommendation.observationPlaceholder"
@@ -500,7 +507,10 @@ export default function ViewAndEditRecommendation({
                   <div>
                     <div className="mb-3 flex items-center gap-2">
                       <CheckCircle className="h-5 w-5 text-[#6EC075]" />
-                      <h3 className="font-semibold">
+                      <h3
+                        id={`recommendation-recommendation-${question.id}`}
+                        className="font-semibold"
+                      >
                         {t("organization.recommendation.aiRecommendation")}
                       </h3>
                     </div>
@@ -514,6 +524,7 @@ export default function ViewAndEditRecommendation({
                         )
                       }
                       rows={2}
+                      aria-labelledby={`recommendation-recommendation-${question.id}`}
                       className="w-full rounded-lg border border-border p-4 outline-none focus:ring-2 focus:ring-primary"
                       placeholder={t(
                         "organization.recommendation.recommendationPlaceholder"
@@ -525,7 +536,10 @@ export default function ViewAndEditRecommendation({
                   <div>
                     <div className="mb-3 flex items-center gap-2">
                       <Star className="h-5 w-5 text-[#6EC075]" />
-                      <h3 className="font-semibold">
+                      <h3
+                        id={`recommendation-standard-${question.id}`}
+                        className="font-semibold"
+                      >
                         {t("organization.recommendation.applicableStandard")}
                       </h3>
                     </div>
@@ -539,6 +553,7 @@ export default function ViewAndEditRecommendation({
                         )
                       }
                       rows={2}
+                      aria-labelledby={`recommendation-standard-${question.id}`}
                       className="w-full rounded-lg border border-border p-4 outline-none focus:ring-2 focus:ring-primary"
                       placeholder={t(
                         "organization.recommendation.standardPlaceholder"
@@ -576,7 +591,10 @@ export default function ViewAndEditRecommendation({
           <div>
             <div className="sticky top-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
               <div className="border-b border-border p-4 md:p-6">
-                <h2 className="text-lg font-semibold md:text-xl">
+                <h2
+                  id="recommendation-executive-summary"
+                  className="text-lg font-semibold md:text-xl"
+                >
                   {t("organization.recommendation.executiveSummary")}
                 </h2>
                 <p className="mt-1 text-sm text-gray-600">
@@ -588,6 +606,7 @@ export default function ViewAndEditRecommendation({
                 <TextareaAutosize
                   {...register("summary")}
                   rows={1}
+                  aria-labelledby="recommendation-executive-summary"
                   className="w-full resize-none rounded-lg border border-border px-3 py-3 font-mono text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-[#6EC075]"
                   placeholder={t(
                     "organization.recommendation.summaryPlaceholder"

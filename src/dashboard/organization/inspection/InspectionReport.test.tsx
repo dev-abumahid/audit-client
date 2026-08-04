@@ -532,4 +532,66 @@ describe("InspectionReport", () => {
 
     openSpy.mockRestore()
   })
+
+  // Round 13 (#507): the "media" answer renderer unconditionally rendered
+  // an <img>, even though UpdateInspection.tsx's upload input for this same
+  // answer type accepts "image/*,video/*,application/pdf" -- a video or
+  // PDF answer silently fell through to the broken-image placeholder.
+  function makeMediaReportInspection(mediaUrl: string) {
+    return makeInspection({
+      template: {
+        templateName: "Fire Safety Audit",
+        pages: [
+          {
+            title: "General",
+            questions: [
+              {
+                id: "q-5",
+                question: "Uploaded evidence",
+                answerType: "media",
+              },
+            ],
+          },
+        ],
+      },
+      questionAnswers: [
+        {
+          questionId: "q-5",
+          answer: mediaUrl,
+          note: "",
+          mediaFiles: [],
+        },
+      ],
+    })
+  }
+
+  it("renders a video answer with a real <video controls> element, not a broken <img>", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeMediaReportInspection("https://cdn.example.com/clip.mp4"),
+      },
+    })
+
+    render(<InspectionReport />)
+
+    const video = document.querySelector("video")
+    expect(video).toBeInTheDocument()
+    expect(video).toHaveAttribute("controls")
+    expect(document.querySelector("img")).not.toBeInTheDocument()
+  })
+
+  it("renders a PDF answer as a link to open it, not a broken <img>", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeMediaReportInspection("https://cdn.example.com/report.pdf"),
+      },
+    })
+
+    render(<InspectionReport />)
+
+    const link = screen.getByRole("link", { name: /report\.pdf/ })
+    expect(link).toHaveAttribute("href", "https://cdn.example.com/report.pdf")
+    expect(link).toHaveAttribute("target", "_blank")
+    expect(document.querySelector("img")).not.toBeInTheDocument()
+  })
 })

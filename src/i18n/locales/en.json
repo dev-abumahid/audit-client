@@ -539,6 +539,8 @@
       "uploadMediaDocuments": "Upload Media / Documents",
       "deleteMedia": "Delete Media",
       "uploadedMediaAlt": "Uploaded media",
+      "videoUnsupported": "Your browser does not support video preview.",
+      "openDocument": "Open document",
       "selectOption": "Select option...",
       "answerPlaceholder": "Type your answer here...",
       "yes": "Yes",

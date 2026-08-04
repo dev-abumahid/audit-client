@@ -630,4 +630,126 @@ describe("UpdateInspection", () => {
       ).not.toBeInTheDocument()
     })
   })
+
+  // Round 13 (#507): the "media" answer-type renderer unconditionally
+  // rendered an <img>, even though the upload input accepts
+  // "image/*,video/*,application/pdf" -- a video or PDF upload silently
+  // fell through to the broken-image placeholder with no way to view it.
+  describe("media answer renderer branches on file type (#507)", () => {
+    function makeMediaInspection(mediaUrl: string) {
+      return makeInspection({
+        template: {
+          templateName: "Fire Safety Audit",
+          pages: [
+            {
+              title: "General",
+              questions: [
+                {
+                  id: "q-media",
+                  question: "Upload evidence",
+                  answerType: "media",
+                  isRequired: false,
+                },
+              ],
+            },
+          ],
+        },
+        questionAnswers: [
+          {
+            id: "qa-media",
+            questionId: "q-media",
+            answer: mediaUrl,
+            note: "",
+            mediaFiles: [],
+          },
+        ],
+      })
+    }
+
+    it("renders a video answer with a real <video controls> element, not a broken <img>", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: makeMediaInspection("https://cdn.example.com/clip.mp4") },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />)
+
+      const video = document.querySelector("video")
+      expect(video).toBeInTheDocument()
+      expect(video).toHaveAttribute("controls")
+      expect(
+        screen.queryByAltText("organization.inspection.uploadedMediaAlt")
+      ).not.toBeInTheDocument()
+    })
+
+    it("renders a PDF answer as a link to open it, not a broken <img>", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeMediaInspection("https://cdn.example.com/report.pdf"),
+        },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />)
+
+      const link = screen.getByRole("link", { name: /report\.pdf/ })
+      expect(link).toHaveAttribute("href", "https://cdn.example.com/report.pdf")
+      expect(link).toHaveAttribute("target", "_blank")
+      expect(document.querySelector("img")).not.toBeInTheDocument()
+    })
+
+    it("still renders an image answer as an <img>", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeMediaInspection("https://cdn.example.com/photo.jpg"),
+        },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />)
+
+      expect(
+        screen.getByAltText("organization.inspection.uploadedMediaAlt")
+      ).toBeInTheDocument()
+    })
+  })
+
+  // Round 13 (#507): the per-question evidence-photo thumbnail had
+  // alt="" (decorative), even though it's real user-uploaded evidence
+  // content -- inconsistent with this same file's "media" question img,
+  // which correctly uses a translated alt text key.
+  describe("evidence-photo thumbnail alt text (#507)", () => {
+    it("gives the evidence-photo thumbnail real alt text, not alt=\"\"", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            questionAnswers: [
+              {
+                id: "qa-1",
+                questionId: "q-1",
+                answer: true,
+                note: "",
+                mediaFiles: [{ url: "https://cdn.example.com/photo.jpg" }],
+              },
+              {
+                id: "qa-2",
+                questionId: "q-2",
+                answer: "Fine",
+                note: "",
+                mediaFiles: [],
+              },
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />)
+
+      const thumbnail = screen.getByAltText(
+        "organization.inspection.uploadedMediaAlt"
+      )
+      expect(thumbnail).toHaveAttribute("src", "https://cdn.example.com/photo.jpg")
+    })
+  })
 })

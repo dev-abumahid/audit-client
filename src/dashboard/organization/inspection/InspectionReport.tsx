@@ -8,6 +8,7 @@ import {
   buildInspectionPdfHtml,
   type PdfLabels,
 } from "@/utils/buildInspectionPdfHtml"
+import { fileType } from "@/utils/fileType"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
@@ -163,6 +164,43 @@ const renderAnswerValue = (
     }
 
     case "media": {
+      // Round 13 (#507) -- UpdateInspection.tsx's upload input for this
+      // same "media" answer type accepts "image/*,video/*,application/pdf",
+      // but this renderer used to unconditionally render an <img>, so a
+      // video or PDF answer silently fell through to the broken-image
+      // placeholder. Branch on the real file type instead: video gets a
+      // native <video controls>, and PDFs/other documents get a link that
+      // opens the file in a new tab, since neither can be inline-previewed
+      // as an <img>.
+      const mediaType = answer ? fileType(String(answer)) : null
+
+      if (mediaType === "video") {
+        return (
+          <div className="inline-block overflow-hidden rounded-lg border p-2">
+            <video controls className="max-h-96 w-auto max-w-full rounded">
+              <source src={answer} />
+              {t("organization.inspection.videoUnsupported")}
+            </video>
+          </div>
+        )
+      }
+
+      if (mediaType === "document" || mediaType === "file") {
+        return (
+          <a
+            href={answer}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-3 rounded-lg border px-4 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <FileText className="h-8 w-8 shrink-0" />
+            <span className="max-w-60 truncate font-medium text-foreground">
+              {attachmentFileName(String(answer))}
+            </span>
+          </a>
+        )
+      }
+
       return (
         <div className="group relative inline-block overflow-hidden rounded-lg border">
           <img

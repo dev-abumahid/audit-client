@@ -39,6 +39,12 @@ interface PageSectionProps {
   getValues: any
   setValue: any
   isEditMode?: boolean
+  // Round 13 (#507) -- currently-open answer panel's {pageIndex,
+  // questionIndex}, or null. Passed down so each row can tell whether the
+  // panel it opens is the one currently open. Optional (defaults to null)
+  // so existing direct-render tests that don't care about this a11y detail
+  // don't need updating.
+  answerPanel?: { pageIndex: number; questionIndex: number } | null
 }
 
 const EditPageSection = memo(
@@ -54,6 +60,7 @@ const EditPageSection = memo(
     getValues,
     setValue,
     isEditMode = false,
+    answerPanel = null,
   }: PageSectionProps) => {
     const { t } = useTranslation()
     const [updateOrCreatePage, { isLoading: isUpdatingPage }] =
@@ -446,6 +453,10 @@ const EditPageSection = memo(
                     isEditMode={isEditMode}
                     isDraggingGlobal={isDragging}
                     orderSyncFailed={syncFailedIds.has((field as any).id)}
+                    isAnswerPanelOpen={
+                      answerPanel?.pageIndex === pageIndex &&
+                      answerPanel?.questionIndex === qIndex
+                    }
                   />
                 ))
               )}

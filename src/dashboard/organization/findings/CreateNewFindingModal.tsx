@@ -17,6 +17,7 @@ import { useGetAllInspectionQuery } from "@/redux/apis/organization/inspection.a
 import { useGetAllOrgUsersQuery } from "@/redux/apis/organization/org.user.api"
 import type { IAction, IActionMessage } from "@/types/finding"
 import { toLocalDatetimeInputValue } from "./dueDateInput"
+import { fileType } from "@/utils/fileType"
 import {
   AlertCircle,
   AlertTriangle,
@@ -36,10 +37,11 @@ import { toast } from "sonner"
 // The upload input accepts "image/*,video/*" (see fileInputRef below), so
 // previews need to branch on the uploaded file's type -- rendering every
 // media file as an <img> shows a broken-image icon for video uploads.
-const isVideoUrl = (url: string) => {
-  const ext = url.split("?")[0].split(".").pop()?.toLowerCase() ?? ""
-  return ["mp4", "mov", "avi", "mkv", "webm", "wmv"].includes(ext)
-}
+// Round 13 batch A review (#511): this used to be a locally-duplicated
+// isVideoUrl() with the same extension list -- now uses the shared
+// src/utils/fileType.ts helper consolidated in this same PR for
+// UpdateInspection.tsx/InspectionReport.tsx's identical need.
+const isVideoUrl = (url: string) => fileType(url) === "video"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

@@ -184,6 +184,33 @@ describe("InspectionsList", () => {
     expect(screen.getByText("pages.inspection.list.modalTitle")).toBeInTheDocument()
   })
 
+  // Round 13 (#506) -- the New Inspection modal had no role="dialog"/
+  // aria-modal/focus-trap/Escape. Now migrated to the shared
+  // useModalA11y() hook, same pattern InspectionReport.tsx's lightbox and
+  // EditTemplatePage.tsx's add-modal use.
+  it("marks the New Inspection modal as a labeled dialog and closes it on Escape", async () => {
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes("/api/inspection"))
+        return Promise.resolve({
+          meta: { page: 1, limit: 10, total: 0, totalPage: 0 },
+          data: [],
+        })
+      if (url.includes("/api/site")) return Promise.resolve({ data: [] })
+      if (url.includes("/api/template")) return Promise.resolve({ data: [] })
+      return Promise.resolve({ data: [] })
+    })
+    renderList()
+    await waitFor(() => screen.getByText("pages.inspection.list.empty"))
+    await userEvent.click(screen.getByText("pages.inspection.list.newInspection"))
+
+    const dialog = screen.getByRole("dialog")
+    expect(dialog).toHaveAttribute("aria-modal", "true")
+    expect(dialog).toHaveAccessibleName("pages.inspection.list.modalTitle")
+
+    await userEvent.keyboard("{Escape}")
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
   it("populates site and template dropdowns in the modal", async () => {
     mockGet.mockImplementation((url: string) => {
       if (url.includes("/api/inspection"))

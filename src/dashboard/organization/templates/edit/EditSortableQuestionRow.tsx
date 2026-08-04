@@ -44,6 +44,11 @@ interface SortableQuestionRowProps {
   // indicator the client-rendered order could silently disagree with the
   // server indefinitely.
   orderSyncFailed?: boolean
+  // Round 13 (#507) -- whether the QnASettingsPanel this row's "Answer
+  // Type" trigger opens is currently open FOR THIS ROW. Same
+  // pageIndex/questionIndex projection as SortableQuestionRow's prop of the
+  // same name.
+  isAnswerPanelOpen?: boolean
 }
 
 function EditSortableQuestionRow({
@@ -58,6 +63,7 @@ function EditSortableQuestionRow({
   isEditMode = false,
   isDraggingGlobal = false,
   orderSyncFailed = false,
+  isAnswerPanelOpen = false,
 }: SortableQuestionRowProps) {
   const { t } = useTranslation()
   const {
@@ -303,6 +309,8 @@ function EditSortableQuestionRow({
           <button
             type="button"
             onClick={() => onOpenAnswerPanel(pageIndex, questionIndex)}
+            aria-haspopup="dialog"
+            aria-expanded={isAnswerPanelOpen}
             className="flex w-full items-center justify-between rounded-lg border border-input bg-background px-4 py-4.5 text-sm text-foreground transition-all hover:bg-muted focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50"
             disabled={isUpdatingQuestion || isDeletingQuestion}
           >

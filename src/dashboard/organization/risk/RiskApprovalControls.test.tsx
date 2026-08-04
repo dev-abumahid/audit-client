@@ -291,9 +291,13 @@ describe("RiskApprovalControls", () => {
 
       render(<RiskApprovalControls risk={makeRisk("PENDING_APPROVAL")} />)
       await userEvent.click(screen.getByRole("button", { name: REJECT }))
+      // Round 13 (#505): the reason label now has a real htmlFor/id
+      // association with the textarea, so this can go through
+      // getByLabelText instead of routing around the gap via
+      // getByPlaceholderText.
       await userEvent.type(
-        screen.getByPlaceholderText(
-          "organization.riskRegister.approval.rejectReasonPlaceholder"
+        screen.getByLabelText(
+          "organization.riskRegister.approval.rejectReasonLabel"
         ),
         "Residual score too high"
       )

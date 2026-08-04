@@ -148,6 +148,50 @@ describe("ViewAndEditRecommendation", () => {
     ).toBeInTheDocument()
   })
 
+  // Round 13 (#505): each textarea only had an adjacent heading, not a real
+  // htmlFor/aria-labelledby/aria-label association.
+  it("associates the Observation, Recommendation, Standard and Executive Summary fields with their headings", () => {
+    mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
+      data: { data: makeRecommendation() },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+
+    render(<ViewAndEditRecommendation inspectionId="insp-1" />)
+
+    expect(
+      screen.getByLabelText("organization.recommendation.aiObservation")
+    ).toHaveDisplayValue("Extinguisher found near exit")
+    expect(
+      screen.getByLabelText("organization.recommendation.aiRecommendation")
+    ).toHaveDisplayValue("Ensure monthly inspection tag is current")
+    expect(
+      screen.getByLabelText("organization.recommendation.applicableStandard")
+    ).toHaveDisplayValue("NFPA 10")
+    expect(
+      screen.getByLabelText("organization.recommendation.executiveSummary")
+    ).toHaveDisplayValue("Overall the site is compliant.")
+  })
+
+  // Round 13 (#505): the question-title control used to be a disabled
+  // <input> that still carried a full onChange handler that could never
+  // fire. It's now plain text -- confirm the question text still renders,
+  // and that there's no longer a (dead, disabled) textbox for it.
+  it("renders the question title as plain text, not a dead disabled input", () => {
+    mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
+      data: { data: makeRecommendation() },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+
+    render(<ViewAndEditRecommendation inspectionId="insp-1" />)
+
+    expect(screen.getByText("Fire extinguisher present?")).toBeInTheDocument()
+    expect(
+      screen.queryByDisplayValue("Fire extinguisher present?")
+    ).not.toBeInTheDocument()
+  })
+
   it("saves an edited observation via updateRecommendationQuestion", async () => {
     mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
       data: { data: makeRecommendation() },

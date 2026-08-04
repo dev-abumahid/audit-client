@@ -11,6 +11,7 @@ import {
   useSubmitFindingForClosureMutation,
 } from "@/redux/apis/organization/findingClosure.api"
 import type { ClosureDisplayState, IAction } from "@/types/finding"
+import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteFinding } from "@/utils/assignmentScope"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { AlertTriangle, Check, Send, X } from "lucide-react"
@@ -76,6 +77,13 @@ export default function FindingClosureControls({ action }: Props) {
 
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [rejectReason, setRejectReason] = useState("")
+
+  // Round 13 (#506) -- role="dialog"/focus-trap/Escape for the reject modal,
+  // same pattern RiskApprovalControls' Reject modal uses (#488).
+  const rejectModalRef = useModalA11y(showRejectModal, () => {
+    setShowRejectModal(false)
+    setRejectReason("")
+  })
 
   const isClosed = action.status === "COMPLETE" || action.status === "CANT_DO"
   const status: ClosureDisplayState = closureData?.data?.status ?? "NOT_SUBMITTED"
@@ -276,8 +284,17 @@ export default function FindingClosureControls({ action }: Props) {
 
       {showRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md space-y-3 rounded-2xl border bg-card p-5 shadow-xl">
-            <h2 className="text-base font-bold">
+          <div
+            ref={rejectModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`finding-closure-reject-modal-title-${action.id}`}
+            className="w-full max-w-md space-y-3 rounded-2xl border bg-card p-5 shadow-xl"
+          >
+            <h2
+              id={`finding-closure-reject-modal-title-${action.id}`}
+              className="text-base font-bold"
+            >
               {t("organization.findings.closure.rejectModalTitle")}
             </h2>
             <label

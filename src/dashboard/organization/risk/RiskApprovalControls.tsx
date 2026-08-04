@@ -246,10 +246,14 @@ export default function RiskApprovalControls({ risk }: Props) {
             >
               {t("organization.riskRegister.approval.rejectModalTitle")}
             </h2>
-            <label className="text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor={`risk-reject-reason-${risk.id}`}
+              className="text-xs font-medium text-muted-foreground"
+            >
               {t("organization.riskRegister.approval.rejectReasonLabel")}
             </label>
             <textarea
+              id={`risk-reject-reason-${risk.id}`}
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               placeholder={t(

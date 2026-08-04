@@ -539,6 +539,8 @@
       "uploadMediaDocuments": "Télécharger un média / des documents",
       "deleteMedia": "Supprimer le média",
       "uploadedMediaAlt": "Média téléchargé",
+      "videoUnsupported": "Votre navigateur ne prend pas en charge l'aperçu vidéo.",
+      "openDocument": "Ouvrir le document",
       "selectOption": "Sélectionnez une option...",
       "answerPlaceholder": "Saisissez votre réponse ici...",
       "yes": "Oui",

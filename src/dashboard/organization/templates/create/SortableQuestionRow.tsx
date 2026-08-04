@@ -12,6 +12,14 @@ interface SortableQuestionRowProps {
   control: any
   remove: (index: number) => void
   onOpenAnswerPanel: (pageIndex: number, questionIndex: number) => void
+  // Round 13 (#507) -- whether the QnASettingsPanel this row's "Answer
+  // Type" trigger opens is currently open FOR THIS ROW. The panel's open
+  // state lives one level up (CreateTemplatePage), keyed by
+  // pageIndex/questionIndex, since only one panel is ever mounted at a
+  // time -- this prop is that state projected down to "is it open for me."
+  // Optional (defaults to false) so existing direct-render tests that don't
+  // care about this a11y detail don't need updating.
+  isAnswerPanelOpen?: boolean
 }
 
 function SortableQuestionRow({
@@ -21,6 +29,7 @@ function SortableQuestionRow({
   control,
   remove,
   onOpenAnswerPanel,
+  isAnswerPanelOpen = false,
 }: SortableQuestionRowProps) {
   const { t } = useTranslation()
   const {
@@ -130,6 +139,8 @@ function SortableQuestionRow({
           <button
             type="button"
             onClick={() => onOpenAnswerPanel(pageIndex, questionIndex)}
+            aria-haspopup="dialog"
+            aria-expanded={isAnswerPanelOpen}
             className="flex w-full items-center justify-between rounded-lg border border-input bg-background px-4 py-4.5 text-sm text-foreground transition-all hover:bg-muted focus:ring-2 focus:ring-primary focus:outline-none"
           >
             <span className="truncate">{answerLabel}</span>

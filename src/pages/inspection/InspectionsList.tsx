@@ -1,3 +1,4 @@
+import { useModalA11y } from "@/hooks/useModalA11y"
 import { ApiError, api } from "@/lib/api"
 import type { InspectionStatus, InspectionSummary } from "@/types/inspection"
 import { formatLocaleDate } from "@/utils/formatDate"
@@ -45,6 +46,12 @@ export default function InspectionsList() {
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
+  // Round 13 (#506) -- role="dialog"/focus-trap/Escape for the New
+  // Inspection modal, same pattern InspectionReport.tsx's media lightbox and
+  // EditTemplatePage.tsx's add-modal use. `closeModal` is a hoisted function
+  // declaration defined further down in this component, safe to reference
+  // here.
+  const newInspectionModalRef = useModalA11y(modalOpen, closeModal)
   const [modalSites, setModalSites] = useState<Site[]>([])
   const [modalTemplates, setModalTemplates] = useState<Template[]>([])
   const [modalLoading, setModalLoading] = useState(false)
@@ -323,10 +330,17 @@ export default function InspectionsList() {
           onClick={closeModal}
         >
           <div
+            ref={newInspectionModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="new-inspection-modal-title"
             className="w-full max-w-md rounded-lg bg-card p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="mb-1 text-sm font-medium text-foreground">
+            <h2
+              id="new-inspection-modal-title"
+              className="mb-1 text-sm font-medium text-foreground"
+            >
               {t("pages.inspection.list.modalTitle")}
             </h2>
             <p className="mb-6 text-xs text-muted-foreground">

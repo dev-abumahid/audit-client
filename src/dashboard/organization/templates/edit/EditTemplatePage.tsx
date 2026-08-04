@@ -500,6 +500,7 @@ const EditTemplatePage = () => {
                     getValues={getValues}
                     setValue={setValue}
                     isEditMode={true}
+                    answerPanel={answerPanel}
                   />
                 </div>
               ))}

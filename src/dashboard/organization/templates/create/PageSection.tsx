@@ -26,6 +26,13 @@ interface PageSectionProps {
   totalPages: number
   onOpenAddModal: (pageIndex: number) => void
   onOpenAnswerPanel: (pageIndex: number, questionIndex: number) => void
+  // Round 13 (#507) -- currently-open answer panel's {pageIndex,
+  // questionIndex}, or null. Passed down so each row can tell whether the
+  // panel it opens is the one currently open (see SortableQuestionRow's
+  // isAnswerPanelOpen prop). Optional (defaults to null) so existing
+  // direct-render tests that don't care about this a11y detail don't need
+  // updating.
+  answerPanel?: { pageIndex: number; questionIndex: number } | null
 }
 
 function PageSection({
@@ -35,6 +42,7 @@ function PageSection({
   totalPages,
   onOpenAddModal,
   onOpenAnswerPanel,
+  answerPanel = null,
 }: PageSectionProps) {
   const { t } = useTranslation()
   const { fields, remove, move } = useFieldArray({
@@ -128,6 +136,10 @@ function PageSection({
                   control={control}
                   remove={remove}
                   onOpenAnswerPanel={onOpenAnswerPanel}
+                  isAnswerPanelOpen={
+                    answerPanel?.pageIndex === pageIndex &&
+                    answerPanel?.questionIndex === qIndex
+                  }
                 />
               ))
             )}

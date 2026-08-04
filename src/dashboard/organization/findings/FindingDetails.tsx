@@ -2,6 +2,7 @@
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteInspection } from "@/utils/assignmentScope"
 import {
   useAddFindingMessageMutation,
@@ -40,6 +41,7 @@ import { Link, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
 import type { IAction } from "@/types/finding"
 import { attachmentFileName } from "@/utils/attachmentFileName"
+import { fileType } from "@/utils/fileType"
 import { formatLocaleDate } from "@/utils/formatDate"
 import CreateNewFindingModal from "./CreateNewFindingModal"
 import FindingClosureControls from "./FindingClosureControls"
@@ -82,16 +84,6 @@ const StatusIcon = ({ status }: { status?: string }) => {
   return <AlertCircle className="h-4 w-4" />
 }
 
-// Helper functions for file handling (mock for now)
-const fileType = (url: string) => {
-  const ext = url.split("?")[0].split(".").pop()?.toLowerCase() ?? ""
-  if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "tiff"].includes(ext))
-    return "image"
-  if (["mp4", "mov", "avi", "mkv", "webm", "wmv"].includes(ext)) return "video"
-  if (["pdf", "doc", "docx", "txt", "rtf"].includes(ext)) return "document"
-  return "file"
-}
-
 // Translated caption for the fileType() discriminator above -- fileType()
 // itself must keep returning the raw "image"/"video"/"document"/"file"
 // strings since those are used as comparison keys, not just display text.
@@ -130,12 +122,23 @@ const PreviewModal = ({
   const { t } = useTranslation()
   const type = fileType(url)
 
+  // Round 13 (#506) -- role="dialog"/focus-trap/Escape for the attachment
+  // preview overlay, same pattern InspectionReport.tsx's media lightbox and
+  // EditTemplatePage.tsx's add-modal use. This component only renders while
+  // its parent's previewUrl is set, so it's open for its entire mounted
+  // lifetime.
+  const previewModalRef = useModalA11y(true, onClose)
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
+        ref={previewModalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="finding-attachment-preview-title"
         className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-background"
         onClick={(e) => e.stopPropagation()}
       >
@@ -147,9 +150,12 @@ const PreviewModal = ({
               {type === "document" && <FileText className="h-5 w-5" />}
               {type === "file" && <File className="h-5 w-5" />}
             </div>
-            <p className="truncate text-sm font-medium text-foreground">
+            <h2
+              id="finding-attachment-preview-title"
+              className="truncate text-sm font-medium text-foreground"
+            >
               {attachmentFileName(url)}
-            </p>
+            </h2>
           </div>
           <div className="ml-4 flex shrink-0 items-center gap-2">
             <button

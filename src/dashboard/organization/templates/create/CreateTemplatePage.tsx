@@ -336,6 +336,7 @@ const CreateTemplatePage = () => {
                     onOpenAnswerPanel={(pi, qi) =>
                       setAnswerPanel({ pageIndex: pi, questionIndex: qi })
                     }
+                    answerPanel={answerPanel}
                   />
                 </div>
               ))}

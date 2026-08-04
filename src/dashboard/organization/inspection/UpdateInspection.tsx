@@ -17,6 +17,7 @@ import {
 } from "@/redux/apis/organization/inspection.api"
 import type { InspectionStatus } from "@/types/inspection"
 import { attachmentFileName } from "@/utils/attachmentFileName"
+import { fileType } from "@/utils/fileType"
 import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
 import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
 import {
@@ -631,7 +632,17 @@ export default function UpdateInspection() {
         )
       }
 
-      case "media":
+      case "media": {
+        // Round 13 (#507) -- the upload input accepts
+        // "image/*,video/*,application/pdf" (see the <input accept=...>
+        // below), but this renderer used to unconditionally render an
+        // <img>, so a video or PDF upload silently fell through to the
+        // broken-image placeholder with no way to view/download it.
+        // Branching on the real file type gives video a working <video
+        // controls> element and gives PDFs/other documents a link that
+        // opens the file in a new tab, since neither can be inline-
+        // previewed as an <img>.
+        const mediaType = value ? fileType(value) : null
         return (
           <>
             {isAnswerMediaUploading === question.id ? (
@@ -640,6 +651,47 @@ export default function UpdateInspection() {
                 <p className="text-sm text-muted-foreground">
                   {t("organization.inspection.uploadingMedia")}
                 </p>
+              </div>
+            ) : value && mediaType === "video" ? (
+              <div className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border p-2">
+                <video controls className="max-h-96 max-w-full rounded">
+                  <source src={value} />
+                  {t("organization.inspection.videoUnsupported")}
+                </video>
+                <button
+                  type="button"
+                  onClick={() => handleAnswerChangeWithSave(question.id, "")}
+                  aria-label={t("organization.inspection.deleteMedia")}
+                  className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white opacity-80 transition-opacity hover:opacity-100"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ) : value &&
+              (mediaType === "document" || mediaType === "file") ? (
+              <div className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border">
+                <a
+                  href={value}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex flex-col items-center gap-2 px-8 py-10 text-center text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <FileText className="h-10 w-10" />
+                  <span className="max-w-60 truncate text-sm font-medium text-foreground">
+                    {attachmentFileName(value)}
+                  </span>
+                  <span className="text-xs">
+                    {t("organization.inspection.openDocument")}
+                  </span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => handleAnswerChangeWithSave(question.id, "")}
+                  aria-label={t("organization.inspection.deleteMedia")}
+                  className="absolute top-2 right-2 rounded-full bg-black/10 p-1.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/20"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
             ) : value ? (
               <div className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border">
@@ -690,6 +742,7 @@ export default function UpdateInspection() {
             )}
           </>
         )
+      }
 
       default: {
         return (
@@ -1032,7 +1085,7 @@ export default function UpdateInspection() {
                               <img
                                 className="h-12 w-12"
                                 src={mediaFile.url}
-                                alt=""
+                                alt={t("organization.inspection.uploadedMediaAlt")}
                               />
                             </div>
                           ))}

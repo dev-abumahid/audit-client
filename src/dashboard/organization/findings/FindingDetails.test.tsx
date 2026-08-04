@@ -559,6 +559,34 @@ describe("FindingDetails", () => {
       ).toBeInTheDocument()
     })
 
+    // Round 13 (#506) -- the PreviewModal overlay had no role="dialog"/
+    // aria-modal/focus-trap/Escape. Now migrated to the shared
+    // useModalA11y() hook, same pattern InspectionReport.tsx's lightbox and
+    // EditTemplatePage.tsx's add-modal use.
+    it("marks the attachment preview overlay as a labeled dialog and closes it on Escape", async () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            attachments: ["https://cdn.example.com/photo.png"],
+          }),
+        },
+        isLoading: false,
+      })
+      renderPage()
+      await openFilesTab()
+
+      await userEvent.click(
+        screen.getByTitle("organization.findings.preview")
+      )
+
+      const dialog = screen.getByRole("dialog")
+      expect(dialog).toHaveAttribute("aria-modal", "true")
+      expect(dialog).toHaveAccessibleName("photo.png")
+
+      await userEvent.keyboard("{Escape}")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+
     it("uploads a file, persists the URL onto the finding, and shows a success toast", async () => {
       mockUploadAttachment.mockReturnValue({
         unwrap: () =>

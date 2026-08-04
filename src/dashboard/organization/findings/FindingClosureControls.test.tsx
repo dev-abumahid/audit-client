@@ -469,6 +469,26 @@ describe("FindingClosureControls", () => {
     })
   })
 
+  // Round 13 (#506) -- the reject-reason modal had no role="dialog"/
+  // aria-modal/focus-trap/Escape, same gap RiskApprovalControls' Reject
+  // modal had before #488. Now migrated to the shared useModalA11y() hook.
+  describe("modal accessibility", () => {
+    it("marks the reject modal as a labeled dialog and closes it on Escape", async () => {
+      mockClosureState("PENDING_APPROVAL", makeClosure("PENDING_APPROVAL"))
+      render(<FindingClosureControls action={makeAction()} />)
+
+      await userEvent.click(screen.getByRole("button", { name: REJECT }))
+      const dialog = screen.getByRole("dialog")
+      expect(dialog).toHaveAttribute("aria-modal", "true")
+      expect(dialog).toHaveAccessibleName(
+        "organization.findings.closure.rejectModalTitle"
+      )
+
+      await userEvent.keyboard("{Escape}")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+  })
+
   describe("audit trail display", () => {
     it("shows the rejection reason when rejected with a decision note", () => {
       mockClosureState(
