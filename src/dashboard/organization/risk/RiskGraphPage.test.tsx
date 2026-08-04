@@ -4,6 +4,27 @@ import RiskGraphPage from "./RiskGraphPage"
 const mockUseGetAllRisksQuery = vi.fn()
 const mockUseGetCorrelationMatrixDataQuery = vi.fn()
 
+// react-i18next's real t() falls back to returning the raw key with no
+// I18nextProvider in the tree, which every other assertion in this file
+// relies on. pagerankAbbrLabel is special-cased to its real English value
+// ("PR:") since the node-label tests below assert the rendered "PR:<n>"
+// text, same pattern as RiskMatrixPage.test.tsx.
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => ({
+      t: (key: string) => {
+        if (key === "organization.riskGraph.pagerankAbbrLabel") {
+          return "PR:"
+        }
+        return key
+      },
+      i18n: { language: "en" },
+    }),
+  }
+})
+
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
 }))

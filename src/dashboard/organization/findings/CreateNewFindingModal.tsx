@@ -842,7 +842,9 @@ export default function CreateNewFindingModal({
                     ) : (
                       <img
                         src={url}
-                        alt={`upload-${i}`}
+                        alt={t("organization.findings.uploadMediaAlt", {
+                          index: i,
+                        })}
                         className="h-16 w-16 rounded-lg border border-border object-cover"
                       />
                     )}

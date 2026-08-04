@@ -509,7 +509,9 @@ describe("FindingDetails", () => {
       await openFilesTab()
 
       expect(screen.getByText("report.pdf")).toBeInTheDocument()
-      expect(screen.getByAltText("attachment-0")).toBeInTheDocument()
+      expect(
+        screen.getByAltText("organization.findings.attachmentMediaAlt")
+      ).toBeInTheDocument()
     })
 
     // Regression (aexa-frontend#489): the file-type caption under a

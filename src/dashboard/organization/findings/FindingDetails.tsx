@@ -805,7 +805,9 @@ export default function FindingDetails() {
                                   >
                                     <img
                                       src={url || "/placeholder.svg"}
-                                      alt={`attachment-${i}`}
+                                      alt={t("organization.findings.attachmentMediaAlt", {
+                                        index: i,
+                                      })}
                                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                                     />
                                     <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/0 transition-colors group-hover:bg-black/40">

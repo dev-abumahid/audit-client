@@ -483,7 +483,8 @@ export default function RiskGraphPage() {
                     textAnchor="middle"
                     className="fill-muted-foreground font-mono text-[8px] select-none"
                   >
-                    PR:{getNormalizedPageRank(risk.ref).toFixed(0)}
+                    {t("organization.riskGraph.pagerankAbbrLabel")}
+                    {getNormalizedPageRank(risk.ref).toFixed(0)}
                   </text>
                 </g>
               )

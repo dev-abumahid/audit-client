@@ -953,7 +953,7 @@ export default function SitesEntities() {
                   </div>
                 )}
 
-              {/* Expanded Risks Section - Will be implemented with actual risks data */}
+              {/* Expanded Risks Section */}
               {isExpanded && (
                 <div className="border-t border-border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
                   <p className="mb-4 text-start text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
