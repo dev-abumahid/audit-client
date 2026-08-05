@@ -3,7 +3,14 @@
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import Pagination from "@/components/shared/Pagination"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { useModalA11y } from "@/hooks/useModalA11y"
@@ -26,22 +33,26 @@ import type { RiskSuggestion } from "@/types/ai"
 import type { Risk, SiteSummary } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
+import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import {
+  AlertTriangle,
+  Bot,
   Brain,
   Building,
   Check,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   ChevronUp,
   Loader2,
+  MoreVertical,
   Pencil,
   Plus,
   PlusCircle,
   Save,
   Search,
+  Shield,
   Sparkles,
   Trash2,
+  User,
   X,
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -161,6 +172,28 @@ export default function SitesEntities() {
     },
     { skip: !expandedSite }
   )
+  // Org-wide (unscoped by site) risk list, same limit:100/no-siteId shape
+  // RiskMatrixPage.tsx uses, purely to drive the summary strip's aggregate
+  // counts -- distinct from `riskData` above, which is scoped to whichever
+  // single site is currently expanded.
+  const { data: allRisksData } = useGetAllRisksQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+    siteId: "",
+    category: "",
+  })
+  const allRisks: Risk[] = allRisksData?.data ?? []
+  // The critical/AI-flagged tiles are filtered client-side over the
+  // limit:100 page fetched above, so once an org has more than 100 risks
+  // those two counts become a lower bound, not an exact total (unlike the
+  // "Org-wide risks" tile, which uses the server's real meta.total). Flag
+  // it with a "+" rather than silently under-reporting a headline stat.
+  const isRiskSummaryCapped = (allRisksData?.meta?.total ?? 0) > allRisks.length
+  const criticalRiskCount = allRisks.filter(
+    (r) => getRiskSeverityLevel(r.residual_score) === "critical"
+  ).length
+  const aiGeneratedRiskCount = allRisks.filter((r) => r.ai_generated).length
   const [deleteRisk] = useDeleteRiskMutation()
   const [createNewRisk] = useCreateNewRiskMutation()
   const [analyzeSiteRisks] = useAnalyzeSiteRisksMutation()
@@ -569,7 +602,7 @@ export default function SitesEntities() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
             {t("organization.site&entities.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -604,6 +637,78 @@ export default function SitesEntities() {
         </div>
       </div>
 
+      {/* Summary strip */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <Building className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="font-mono-data text-xl font-bold text-foreground">
+              {meta.total}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("organization.site&entities.summary.totalSites")}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <Shield className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="font-mono-data text-xl font-bold text-foreground">
+              {allRisksData?.meta?.total ?? allRisks.length}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("organization.site&entities.summary.totalRisks")}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-risk-critical/10">
+            <AlertTriangle className={`h-4 w-4 ${SEVERITY_STYLES.critical.text}`} />
+          </div>
+          <div>
+            <p
+              className={`font-mono-data text-xl font-bold ${SEVERITY_STYLES.critical.text}`}
+              title={
+                isRiskSummaryCapped
+                  ? t("organization.site&entities.summary.cappedHint")
+                  : undefined
+              }
+            >
+              {criticalRiskCount}
+              {isRiskSummaryCapped && "+"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("organization.site&entities.summary.criticalRisks")}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <Bot className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p
+              className="font-mono-data text-xl font-bold text-foreground"
+              title={
+                isRiskSummaryCapped
+                  ? t("organization.site&entities.summary.cappedHint")
+                  : undefined
+              }
+            >
+              {aiGeneratedRiskCount}
+              {isRiskSummaryCapped && "+"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("organization.site&entities.summary.aiGeneratedRisks")}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Sites List */}
       <div className="space-y-4">
         {sites.map((site: SiteSummary) => {
@@ -612,7 +717,7 @@ export default function SitesEntities() {
           return (
             <div
               key={site.id}
-              className="overflow-hidden rounded-2xl border border-border bg-card"
+              className="overflow-hidden rounded-xl border border-border bg-card"
             >
               {/* Site Header */}
               <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -681,35 +786,39 @@ export default function SitesEntities() {
                   </button>
 
                   {canWrite && (
-                    <>
-                      <button
-                        onClick={() => openEdit(site)}
-                        disabled={
-                          isLoadingEditSite && editingSite?.id === site.id
-                        }
-                        aria-label={t(
-                          "organization.site&entities.editSiteLabel",
-                          { name: site.name }
-                        )}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-muted disabled:opacity-50"
-                      >
-                        {isLoadingEditSite && editingSite?.id === site.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Pencil className="h-4 w-4" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteModalOpen(site.id)}
-                        aria-label={t(
-                          "organization.site&entities.deleteSiteLabel",
-                          { name: site.name }
-                        )}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          aria-label={t(
+                            "organization.site&entities.moreActionsLabel",
+                            { name: site.name }
+                          )}
+                          disabled={
+                            isLoadingEditSite && editingSite?.id === site.id
+                          }
+                          className="focus-ring rounded-lg p-2 text-muted-foreground hover:bg-muted disabled:opacity-50"
+                        >
+                          {isLoadingEditSite && editingSite?.id === site.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <MoreVertical className="h-4 w-4" />
+                          )}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEdit(site)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                          {t("organization.site&entities.editAction")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => handleDeleteModalOpen(site.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          {t("organization.site&entities.deleteAction")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
 
                   <button
@@ -956,9 +1065,15 @@ export default function SitesEntities() {
               {/* Expanded Risks Section */}
               {isExpanded && (
                 <div className="border-t border-border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
-                  <p className="mb-4 text-start text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
-                    ✅ {t("organization.site&entities.confirmedRisksHeading")}
+                  <p className="mb-4 flex items-center justify-start gap-1.5 text-start text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+                    <Check className="h-3 w-3" />
+                    {t("organization.site&entities.confirmedRisksHeading")}
                   </p>
+                  {riskData?.data.length === 0 ? (
+                    <p className="py-3 text-xs text-muted-foreground">
+                      {t("organization.site&entities.noConfirmedRisks")}
+                    </p>
+                  ) : (
                   <div className="space-y-1.5">
                     {riskData?.data.map((risk: Risk) => (
                       <div
@@ -987,11 +1102,16 @@ export default function SitesEntities() {
                             size="sm"
                           />
                           <span
-                            className={`rounded p-1.5 text-[9px] font-medium ${risk.ai_generated ? "bg-accent/20 text-accent" : "bg-primary/10 text-primary"}`}
+                            className={`flex items-center gap-1 rounded p-1.5 text-[9px] font-medium ${risk.ai_generated ? "bg-accent/20 text-accent" : "bg-primary/10 text-primary"}`}
                           >
+                            {risk.ai_generated ? (
+                              <Bot className="h-2.5 w-2.5" />
+                            ) : (
+                              <User className="h-2.5 w-2.5" />
+                            )}
                             {risk.ai_generated
-                              ? `🤖 ${t("organization.site&entities.aiGeneratedBadge")}`
-                              : `👤 ${t("organization.site&entities.manualBadge")}`}
+                              ? t("organization.site&entities.aiGeneratedBadge")
+                              : t("organization.site&entities.manualBadge")}
                           </span>
                           {canWrite && (
                             <Button
@@ -1007,6 +1127,7 @@ export default function SitesEntities() {
                       </div>
                     ))}
                   </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1014,7 +1135,7 @@ export default function SitesEntities() {
         })}
 
         {sites.length === 0 && !isFetching && (
-          <div className="rounded-2xl border border-border bg-card py-20 text-center">
+          <div className="rounded-xl border border-border bg-card py-20 text-center">
             <Building className="mx-auto h-12 w-12 text-muted-foreground/40" />
             <p className="mt-4 text-muted-foreground">
               {searchTerm
@@ -1027,48 +1148,19 @@ export default function SitesEntities() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
-          <p className="text-sm text-muted-foreground">
-            {t("organization.site&entities.showingRange", {
+        <div className="rounded-lg border border-border bg-card px-4 py-3">
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={goToPage}
+            prevAriaLabel={t("organization.site&entities.prevPage")}
+            nextAriaLabel={t("organization.site&entities.nextPage")}
+            label={t("organization.site&entities.showingRange", {
               from: (meta.page - 1) * meta.limit + 1,
               to: Math.min(meta.page * meta.limit, meta.total),
               total: meta.total,
             })}
-          </p>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => goToPage(page - 1)}
-              disabled={page === 1}
-              className="rounded-lg p-2 text-muted-foreground hover:bg-muted disabled:opacity-50"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-              (pageNum) => (
-                <button
-                  key={pageNum}
-                  onClick={() => goToPage(pageNum)}
-                  className={`h-9 w-9 rounded-lg text-sm font-medium ${
-                    pageNum === page
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              )
-            )}
-
-            <button
-              onClick={() => goToPage(page + 1)}
-              disabled={page === totalPages}
-              className="rounded-lg p-2 text-muted-foreground hover:bg-muted disabled:opacity-50"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
+          />
         </div>
       )}
 

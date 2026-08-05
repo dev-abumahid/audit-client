@@ -58,9 +58,8 @@ describe("ExternalLoginPage", () => {
     renderAt("/external-login/org-1")
 
     expect(
-      screen.getByAltText("externalAuth.login.logoAlt")
+      screen.getByRole("img", { name: "externalAuth.login.logoAlt" })
     ).toBeInTheDocument()
-    expect(screen.queryByAltText("Logo")).not.toBeInTheDocument()
   })
 
   it("shows an invalid-link state when the route has no organizationId", () => {

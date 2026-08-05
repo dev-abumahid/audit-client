@@ -24,26 +24,30 @@ import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { InspectionSummary } from "@/types/inspection"
 
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import Pagination from "@/components/shared/Pagination"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { canWriteInspection } from "@/utils/assignmentScope"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
-import {
-  ChevronLeft,
-  ChevronRight,
-  Edit2,
-  Eye,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react"
+import { severityBadgeClasses } from "@/utils/severityStyles"
+import { Edit2, Eye, Plus, Search, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 import StartInspectionModal from "./StartInspectionModal"
+
+// Round-4 final-review finding: this table hand-rolled its own green/amber/
+// red/gray/blue status ladder even though severityStyles.ts's header
+// comment explicitly lists InspectionTable as one of the maps it replaces.
+const STATUS_BADGE: Record<string, string> = {
+  COMPLETED: severityBadgeClasses("low"),
+  IN_PROGRESS: severityBadgeClasses("medium"),
+  CANCELLED: severityBadgeClasses("critical"),
+  DRAFT: severityBadgeClasses("neutral"),
+}
 
 const InspectionTable = () => {
   const { t, i18n } = useTranslation()
@@ -186,7 +190,7 @@ const InspectionTable = () => {
         {/* Header */}
         <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">
+            <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
               {t("organization.inspection.title")}
             </h1>
             <p className="text-muted-foreground">
@@ -297,7 +301,7 @@ const InspectionTable = () => {
                     assignedInspectionIds
                   )
                   return (
-                  <TableRow key={item.id} className="hover:bg-muted/50">
+                  <TableRow key={item.id} className="animate-fade-in hover:bg-muted/50">
                     <TableCell>{item.template?.templateName || "—"}</TableCell>
                     <TableCell>{item.site?.name || "—"}</TableCell>
                     <TableCell>
@@ -306,15 +310,8 @@ const InspectionTable = () => {
                     <TableCell>
                       <span
                         className={`inline-block rounded-full px-3 py-1 text-xs ${
-                          item.status === "COMPLETED"
-                            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-400"
-                            : item.status === "IN_PROGRESS"
-                              ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-400"
-                              : item.status === "CANCELLED"
-                                ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400"
-                                : item.status === "DRAFT"
-                                  ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
-                                  : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-400"
+                          STATUS_BADGE[item.status] ||
+                          severityBadgeClasses("info")
                         }`}
                       >
                         {getInspectionStatusLabel(t, item.status)}
@@ -362,35 +359,18 @@ const InspectionTable = () => {
           </Table>
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {t("organization.inspection.pageOf", {
-                current: currentPage,
-                total: totalPages,
-              })}
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => p - 1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => p + 1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          label={t("organization.inspection.pageOf", {
+            current: currentPage,
+            total: totalPages,
+          })}
+          prevAriaLabel={t("organization.inspection.prevPage")}
+          nextAriaLabel={t("organization.inspection.nextPage")}
+          className="mt-6"
+        />
       </div>
       <StartInspectionModal open={open} setOpen={setOpen} />
       {/* -------- Delete Modal -------- */}

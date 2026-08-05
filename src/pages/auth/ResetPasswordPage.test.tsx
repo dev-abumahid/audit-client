@@ -70,8 +70,9 @@ describe("ResetPasswordPage", () => {
   it("routes the logo's alt text through t(), not a hardcoded 'Logo' literal", () => {
     renderAt("/reset-password?token=abc")
 
-    expect(screen.getByAltText("[i18n] Company logo")).toBeInTheDocument()
-    expect(screen.queryByAltText("Logo")).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("img", { name: "[i18n] Company logo" })
+    ).toBeInTheDocument()
   })
 
   it("shows an invalid-link state when the URL has no token", () => {

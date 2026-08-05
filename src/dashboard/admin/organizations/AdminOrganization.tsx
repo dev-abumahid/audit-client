@@ -1,18 +1,14 @@
-import {
-  ChevronLeft,
-  ChevronRight,
-  Loader,
-  Search,
-  Sparkles,
-} from "lucide-react"
+import { Loader, Search, Sparkles } from "lucide-react"
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
 
+import Pagination from "@/components/shared/Pagination"
 import {
   useGetAdminOrganizationsQuery,
   type AdminOrganizationListItem,
 } from "@/redux/apis/organization/onboarding.api"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { severityBadgeClasses } from "@/utils/severityStyles"
 import OnboardingWizard from "./OnboardingWizard"
 
 const AdminOrganization: React.FC = () => {
@@ -74,9 +70,7 @@ const AdminOrganization: React.FC = () => {
     text: isVerified
       ? t("admin.organizations.statusActive")
       : t("admin.organizations.statusPending"),
-    color: isVerified
-      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-      : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    color: severityBadgeClasses(isVerified ? "low" : "medium"),
   })
 
   const getRegionLabel = (org: AdminOrganizationListItem) =>
@@ -88,7 +82,7 @@ const AdminOrganization: React.FC = () => {
         {/* Header */}
         <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-3xl font-semibold text-foreground">
+            <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
               {t("admin.organizations.title")}
             </h1>
             <p className="mt-1 text-muted-foreground">
@@ -190,7 +184,7 @@ const AdminOrganization: React.FC = () => {
                         <td className="px-6 py-4 text-sm text-muted-foreground">
                           {getRegionLabel(org)}
                         </td>
-                        <td className="px-6 py-4 text-sm text-muted-foreground">
+                        <td className="font-mono-data px-6 py-4 text-sm text-muted-foreground">
                           {formatDate(org.createdAt)}
                         </td>
                       </tr>
@@ -230,7 +224,7 @@ const AdminOrganization: React.FC = () => {
                           <div className="font-medium text-foreground">
                             {org.organizationName}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="font-mono-data text-xs text-muted-foreground">
                             {formatDate(org.createdAt)}
                           </div>
                         </div>
@@ -253,54 +247,27 @@ const AdminOrganization: React.FC = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex flex-col items-center justify-between gap-4 border-t border-border px-6 py-4 sm:flex-row">
-              <div className="text-sm text-muted-foreground">
-                {t("admin.organizations.pagination", {
-                  count: totalItems,
-                  from: (currentPage - 1) * limit + 1,
-                  to: Math.min(currentPage * limit, totalItems),
-                  total: totalItems,
-                })}
-                {isFetching && (
-                  <Loader className="ml-2 inline h-3 w-3 animate-spin" />
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  aria-label={t("admin.organizations.paginationPrevious")}
-                  className="rounded-lg border p-2 hover:bg-muted disabled:opacity-50"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
-                      className={`rounded-lg px-3 py-1 text-sm ${
-                        currentPage === page
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
-
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  aria-label={t("admin.organizations.paginationNext")}
-                  className="rounded-lg border p-2 hover:bg-muted disabled:opacity-50"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
+            <div className="border-t border-border px-6 py-4">
+              <Pagination
+                page={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                prevAriaLabel={t("admin.organizations.paginationPrevious")}
+                nextAriaLabel={t("admin.organizations.paginationNext")}
+                label={
+                  <>
+                    {t("admin.organizations.pagination", {
+                      count: totalItems,
+                      from: (currentPage - 1) * limit + 1,
+                      to: Math.min(currentPage * limit, totalItems),
+                      total: totalItems,
+                    })}
+                    {isFetching && (
+                      <Loader className="ml-2 inline h-3 w-3 animate-spin" />
+                    )}
+                  </>
+                }
+              />
             </div>
           )}
         </div>

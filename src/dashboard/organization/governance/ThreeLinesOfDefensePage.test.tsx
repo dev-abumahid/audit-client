@@ -466,9 +466,12 @@ describe("ThreeLinesOfDefensePage", () => {
 
       const riskRow = screen.getByText("Supply chain disruption").closest("div")!
         .parentElement!
+        .parentElement!
       const kriRow = screen.getByText("Supplier Lead Time").closest("div")!
         .parentElement!
+        .parentElement!
       const complianceRow = screen.getByText("GDPR data mapping").closest("div")!
+        .parentElement!
         .parentElement!
       expect(riskRow.querySelector("button")).toBeInTheDocument()
       expect(kriRow.querySelector("button")).toBeInTheDocument()
@@ -486,9 +489,12 @@ describe("ThreeLinesOfDefensePage", () => {
 
       const riskRow = screen.getByText("Supply chain disruption").closest("div")!
         .parentElement!
+        .parentElement!
       const kriRow = screen.getByText("Supplier Lead Time").closest("div")!
         .parentElement!
+        .parentElement!
       const complianceRow = screen.getByText("GDPR data mapping").closest("div")!
+        .parentElement!
         .parentElement!
       expect(riskRow.querySelector("button")).not.toBeInTheDocument()
       expect(kriRow.querySelector("button")).not.toBeInTheDocument()
@@ -506,6 +512,7 @@ describe("ThreeLinesOfDefensePage", () => {
 
       const auditRow = screen.getByText("Q3 internal audit").closest("div")!
         .parentElement!
+        .parentElement!
       expect(auditRow.querySelector("button")).toBeInTheDocument()
     })
 
@@ -520,6 +527,7 @@ describe("ThreeLinesOfDefensePage", () => {
 
       const auditRow = screen.getByText("Q3 internal audit").closest("div")!
         .parentElement!
+        .parentElement!
       expect(auditRow.querySelector("button")).not.toBeInTheDocument()
     })
 
@@ -533,12 +541,14 @@ describe("ThreeLinesOfDefensePage", () => {
       const { unmount } = render(<ThreeLinesOfDefensePage />)
       let actionRow = screen.getByText("Patch critical vulnerability").closest("div")!
         .parentElement!
+        .parentElement!
       expect(actionRow.querySelector("button")).toBeInTheDocument()
       unmount()
 
       mockRole = "LEAD_AUDITOR"
       render(<ThreeLinesOfDefensePage />)
       actionRow = screen.getByText("Patch critical vulnerability").closest("div")!
+        .parentElement!
         .parentElement!
       expect(actionRow.querySelector("button")).toBeInTheDocument()
     })
@@ -554,6 +564,7 @@ describe("ThreeLinesOfDefensePage", () => {
 
       expect(mockUpdateCompliance).not.toHaveBeenCalled()
       const complianceRow = screen.getByText("GDPR data mapping").closest("div")!
+        .parentElement!
         .parentElement!
       expect(complianceRow.querySelector("button")).toBeNull()
     })

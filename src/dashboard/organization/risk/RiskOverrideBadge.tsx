@@ -1,4 +1,5 @@
 import { formatLocaleDate } from "@/utils/formatDate"
+import { severityBadgeClasses } from "@/utils/severityStyles"
 import { useTranslation } from "react-i18next"
 
 interface Props {
@@ -71,7 +72,7 @@ export default function RiskOverrideBadge({
       <span
         data-testid="override-stale-badge"
         title={tooltip}
-        className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-600"
+        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${severityBadgeClasses("medium")}`}
       >
         {t("organization.riskRegister.overrideStaleBadge", { label })}
       </span>
@@ -82,7 +83,7 @@ export default function RiskOverrideBadge({
     <span
       data-testid="override-active-badge"
       title={tooltip}
-      className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold text-blue-600"
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${severityBadgeClasses("info")}`}
     >
       {t("organization.riskRegister.overrideActiveBadge", { label })}
     </span>

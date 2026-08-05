@@ -18,9 +18,12 @@ export default function SourceBadge({
   const iconSize = size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"
 
   if (aiGenerated && isEdited) {
+    // Raw --accent text on its own 15%-tint bg measures ~2.1:1, well under
+    // AA -- --accent shares its hue with --risk-medium, same failure as
+    // RiskBadge's medium level, same fix.
     return (
       <span
-        className={`inline-flex items-center gap-1 rounded-full bg-accent/15 font-medium text-accent ${sizeClasses}`}
+        className={`inline-flex items-center gap-1 rounded-full bg-amber-500/15 font-medium text-amber-800 dark:bg-amber-400/15 dark:text-amber-400 ${sizeClasses}`}
       >
         <Pencil className={iconSize} />
         {t("common.sourceBadge.modifiedAi")}
@@ -29,9 +32,13 @@ export default function SourceBadge({
   }
 
   if (aiGenerated) {
+    // Raw --primary text on background measures ~3.53:1 in light mode,
+    // under AA -- same fix already applied to the landing page's eyebrow
+    // labels and NavBar outline buttons (text-teal-700 override, dark mode
+    // is fine at ~6.5:1 so only light needs the swap).
     return (
       <span
-        className={`inline-flex items-center gap-1 rounded-full bg-primary/10 font-medium text-primary ${sizeClasses}`}
+        className={`inline-flex items-center gap-1 rounded-full bg-primary/10 font-medium text-teal-700 dark:text-primary ${sizeClasses}`}
       >
         <Bot className={iconSize} />
         {t("common.sourceBadge.ai")}

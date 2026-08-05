@@ -18,39 +18,40 @@ import {
   YAxis,
 } from "recharts"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { severityBadgeClasses } from "@/utils/severityStyles"
 import CustomTooltip from "./CustomTooltip"
 
 const AdminOverview = () => {
   const { t, i18n } = useTranslation()
   // Dummy Stats
+  // Icon tile: tinted bg-primary/10 + text-primary, same convention as
+  // MetricCard.tsx -- these used to be solid-fill bg-*-600 tiles with
+  // text-white icons, an off-brand "generic admin template" look next to
+  // the rest of the app's tinted-tile icon language.
   const stats = [
     {
-      icon: <DollarSign className="h-5 w-5 text-white" />,
-      iconBg: "bg-primary",
+      icon: <DollarSign className="h-5 w-5 text-primary" />,
       label: t("admin.overview.stats.totalRevenue"),
       value: "$124,890",
       change: "+12.5",
       changeLabel: t("admin.overview.stats.fromLastMonth"),
     },
     {
-      icon: <Users className="h-5 w-5 text-white" />,
-      iconBg: "bg-blue-600",
+      icon: <Users className="h-5 w-5 text-primary" />,
       label: t("admin.overview.stats.totalUsers"),
       value: "8,472",
       change: "+8.2",
       changeLabel: t("admin.overview.stats.fromLastMonth"),
     },
     {
-      icon: <Building2 className="h-5 w-5 text-white" />,
-      iconBg: "bg-emerald-600",
+      icon: <Building2 className="h-5 w-5 text-primary" />,
       label: t("admin.overview.stats.activeOrganizations"),
       value: "243",
       change: "+5.1",
       changeLabel: t("admin.overview.stats.fromLastMonth"),
     },
     {
-      icon: <Activity className="h-5 w-5 text-white" />,
-      iconBg: "bg-teal-600",
+      icon: <Activity className="h-5 w-5 text-primary" />,
       label: t("admin.overview.stats.activeSubscriptions"),
       value: "1,892",
       change: "+14.3",
@@ -119,13 +120,13 @@ const AdminOverview = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Completed":
-        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+        return severityBadgeClasses("low")
       case "Pending":
-        return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+        return severityBadgeClasses("medium")
       case "Failed":
-        return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+        return severityBadgeClasses("critical")
       default:
-        return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+        return severityBadgeClasses("neutral")
     }
   }
 
@@ -150,7 +151,7 @@ const AdminOverview = () => {
         {/* Header */}
         <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-3xl font-semibold text-foreground">
+            <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
               {t("admin.overview.title")}
             </h1>
             <p className="text-muted-foreground">
@@ -174,18 +175,18 @@ const AdminOverview = () => {
           {stats.map((stat, index) => (
             <div
               key={index}
-              className="rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-sm"
+              className="rounded-xl border border-border bg-card p-6 transition-all hover:shadow-sm"
             >
               <div className="mb-4 flex items-start justify-between">
                 <div className="text-sm font-medium text-muted-foreground">
                   {stat.label}
                 </div>
-                <div className={`${stat.iconBg} rounded-xl p-3`}>
+                <div className="rounded-lg bg-primary/10 p-3">
                   {stat.icon}
                 </div>
               </div>
 
-              <div className="mb-1 text-3xl font-semibold text-foreground">
+              <div className="font-mono-data mb-1 text-3xl font-semibold text-foreground">
                 {stat.value}
               </div>
 
@@ -203,10 +204,10 @@ const AdminOverview = () => {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Revenue Growth Chart */}
-          <div className="rounded-2xl border border-border bg-card p-6 lg:col-span-2">
+          <div className="rounded-xl border border-border bg-card p-6 lg:col-span-2">
             <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
               <div>
-                <h2 className="text-xl font-semibold text-foreground">
+                <h2 className="font-heading text-xl font-semibold text-foreground">
                   {t("admin.overview.revenueGrowth")}
                 </h2>
                 <p className="text-sm text-muted-foreground">
@@ -244,12 +245,12 @@ const AdminOverview = () => {
                     <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
                       <stop
                         offset="5%"
-                        stopColor="#22c55e"
+                        stopColor="hsl(var(--risk-low))"
                         stopOpacity={0.85}
                       />
                       <stop
                         offset="95%"
-                        stopColor="#22c55e"
+                        stopColor="hsl(var(--risk-low))"
                         stopOpacity={0.08}
                       />
                     </linearGradient>
@@ -281,17 +282,17 @@ const AdminOverview = () => {
                   <Area
                     type="monotone"
                     dataKey="total"
-                    stroke="#22c55e"
+                    stroke="hsl(var(--risk-low))"
                     strokeWidth={3}
                     fillOpacity={1}
                     fill="url(#colorTotal)"
                     dot={{
-                      stroke: "#22c55e",
+                      stroke: "hsl(var(--risk-low))",
                       strokeWidth: 2,
                       r: 4,
                       fill: "hsl(var(--card))",
                     }}
-                    activeDot={{ r: 7, fill: "#22c55e" }}
+                    activeDot={{ r: 7, fill: "hsl(var(--risk-low))" }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -301,13 +302,13 @@ const AdminOverview = () => {
           {/* Quick Actions + Total Revenue */}
           <div className="space-y-6">
             {/* Quick Actions */}
-            <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="rounded-xl border border-border bg-card p-6">
               <h3 className="mb-5 text-lg font-semibold text-foreground">
                 {t("admin.overview.quickActions")}
               </h3>
               <div className="space-y-3">
                 <Link to="/admin/settings">
-                  <button className="flex w-full items-center gap-3 rounded-2xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted">
+                  <button className="flex w-full items-center gap-3 rounded-xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted">
                     <Settings className="h-5 w-5 text-muted-foreground" />
                     <span className="font-medium text-foreground">
                       {t("admin.overview.managePlans")}
@@ -316,7 +317,7 @@ const AdminOverview = () => {
                 </Link>
 
                 <Link to="/admin/transaction">
-                  <button className="flex w-full items-center gap-3 rounded-2xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted">
+                  <button className="flex w-full items-center gap-3 rounded-xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted">
                     <File className="h-5 w-5 text-muted-foreground" />
                     <span className="font-medium text-foreground">
                       {t("admin.overview.viewTransactions")}
@@ -340,9 +341,9 @@ const AdminOverview = () => {
         </div>
 
         {/* Recent Payments */}
-        <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="mt-8 overflow-hidden rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border bg-muted/50 px-6 py-5">
-            <h2 className="text-xl font-semibold text-foreground">
+            <h2 className="font-heading text-xl font-semibold text-foreground">
               {t("admin.overview.recentPayments")}
             </h2>
             <Link to="/admin/transaction">
@@ -392,7 +393,7 @@ const AdminOverview = () => {
                     <td className="px-6 py-5 text-muted-foreground">
                       {payment.planType}
                     </td>
-                    <td className="px-6 py-5 font-medium text-foreground">
+                    <td className="font-mono-data px-6 py-5 font-medium text-foreground">
                       {formatAmount(payment.amount)}
                     </td>
                     <td className="px-6 py-5">
@@ -402,7 +403,7 @@ const AdminOverview = () => {
                         {getStatusLabel(payment.status)}
                       </span>
                     </td>
-                    <td className="px-6 py-5 text-sm text-muted-foreground">
+                    <td className="font-mono-data px-6 py-5 text-sm text-muted-foreground">
                       {formatLocaleDate(payment.createdAt, i18n.language, {
                         month: "short",
                         day: "numeric",

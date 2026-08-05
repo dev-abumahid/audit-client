@@ -19,6 +19,7 @@ import {
 } from "@/utils/pageRank"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
+import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import {
   Activity,
   AlertTriangle,
@@ -211,7 +212,7 @@ export default function Overview() {
       <CriticalAlertBanner />
       {/* Title */}
       <div className="animate-fade-in">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+        <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
           {t("organization.overview.title")}
         </h1>
         <p className="text-sm text-muted-foreground">
@@ -291,12 +292,12 @@ export default function Overview() {
                   <linearGradient id="ebitdaGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop
                       offset="5%"
-                      stopColor="hsl(168, 60%, 36%)"
+                      stopColor="hsl(var(--primary))"
                       stopOpacity={0.3}
                     />
                     <stop
                       offset="95%"
-                      stopColor="hsl(168, 60%, 36%)"
+                      stopColor="hsl(var(--primary))"
                       stopOpacity={0}
                     />
                   </linearGradient>
@@ -304,21 +305,21 @@ export default function Overview() {
                 <XAxis
                   dataKey="name"
                   tick={{ fontSize: 11 }}
-                  stroke="hsl(220, 10%, 46%)"
+                  stroke="hsl(var(--muted-foreground))"
                 />
                 <YAxis
                   tick={{ fontSize: 11 }}
-                  stroke="hsl(220, 10%, 46%)"
+                  stroke="hsl(var(--muted-foreground))"
                   tickFormatter={(v) => `€${(v / 1000).toFixed(0)}M`}
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "hsl(222, 22%, 11%)",
-                    border: "1px solid hsl(220, 18%, 18%)",
+                    background: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
                     borderRadius: 8,
                     fontSize: 12,
                   }}
-                  labelStyle={{ color: "hsl(220, 14%, 70%)" }}
+                  labelStyle={{ color: "hsl(var(--popover-foreground))" }}
                   formatter={(v) => [
                     `€${(Number(v) / 1000).toFixed(1)}M`,
                     "EBITDA",
@@ -327,7 +328,7 @@ export default function Overview() {
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke="hsl(168, 60%, 36%)"
+                  stroke="hsl(var(--primary))"
                   fill="url(#ebitdaGrad)"
                   strokeWidth={2}
                 />
@@ -339,7 +340,7 @@ export default function Overview() {
               <span className="text-muted-foreground">
                 {t("organization.overview.chart.p5Worst")}:
               </span>{" "}
-              <span className="font-mono-data font-semibold text-risk-critical">
+              <span className={`font-mono-data font-semibold ${SEVERITY_STYLES.critical.text}`}>
                 €14.2M
               </span>
             </div>
@@ -355,7 +356,7 @@ export default function Overview() {
               <span className="text-muted-foreground">
                 {t("organization.overview.chart.budget")}:
               </span>{" "}
-              <span className="font-mono-data font-semibold text-risk-low">
+              <span className={`font-mono-data font-semibold ${SEVERITY_STYLES.low.text}`}>
                 €22.0M
               </span>
             </div>
@@ -390,8 +391,8 @@ export default function Overview() {
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    background: "hsl(222, 22%, 11%)",
-                    border: "1px solid hsl(220, 18%, 18%)",
+                    background: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
                     borderRadius: 8,
                     fontSize: 12,
                   }}
@@ -497,7 +498,7 @@ export default function Overview() {
                 {t("organization.overview.alert.des")}
               </p>
             </div>
-            <AlertTriangle className="h-4 w-4 text-risk-critical" />
+            <AlertTriangle className={`h-4 w-4 ${SEVERITY_STYLES.critical.text}`} />
           </div>
           <div className="mt-4 space-y-3">
             {alerts.slice(0, 4).map((alert) => (

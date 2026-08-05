@@ -1,4 +1,4 @@
-import logo from "@/assets/images/logo.png"
+import Logo from "@/components/shared/Logo"
 import {
   useRequestExternalCodeMutation,
   useVerifyExternalCodeMutation,
@@ -94,9 +94,10 @@ export default function ExternalLoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 text-card-foreground shadow-2xl md:max-w-md">
         <div className="mb-6 flex flex-col items-center text-center">
-          <img
-            src={logo}
-            alt={t("externalAuth.login.logoAlt")}
+          <Logo
+            role="img"
+            aria-hidden={undefined}
+            aria-label={t("externalAuth.login.logoAlt")}
             className="mb-4 h-14 w-14"
           />
           <h1 className="text-lg font-semibold text-foreground">

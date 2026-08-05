@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import type React from "react"
 import CompliancePage from "./CompliancePage"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
@@ -99,6 +100,35 @@ vi.mock("@/redux/apis/organization/sites.api", () => ({
 // store — mock it and capture the props it's opened with, the same pattern
 // AllFindingsPage.test uses.
 const mockCreateActionModal = vi.fn()
+// Radix DropdownMenu needs pointer-capture APIs jsdom doesn't implement, same
+// reason InspectionTable.test.tsx swaps out its Select. Content is rendered
+// unconditionally (no open/closed simulation) so the row actions are
+// directly queryable without needing to click the trigger first.
+vi.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuItem: ({
+    children,
+    onClick,
+    variant,
+  }: {
+    children: React.ReactNode
+    onClick?: (e: React.MouseEvent) => void
+    variant?: string
+  }) => (
+    <button onClick={onClick} data-variant={variant}>
+      {children}
+    </button>
+  ),
+}))
+
 vi.mock("@/dashboard/organization/findings/CreateNewFindingModal", () => ({
   default: (props: {
     open: boolean
@@ -191,11 +221,13 @@ describe("CompliancePage", () => {
     expect(
       screen.getByText("organization.compliance.newObligation")
     ).toBeInTheDocument()
+    // Edit/Attest/History/Delete are now inside a "more actions" dropdown
+    // (round-2 audit: consolidated from always-visible icon buttons).
     expect(
-      screen.getByLabelText("organization.compliance.attest.button")
+      screen.getByText("organization.compliance.attest.button")
     ).toBeInTheDocument()
     expect(
-      screen.getByLabelText("organization.compliance.attest.historyButton")
+      screen.getByText("organization.compliance.attest.historyButton")
     ).toBeInTheDocument()
   })
 
@@ -212,11 +244,11 @@ describe("CompliancePage", () => {
       screen.queryByText("organization.compliance.newObligation")
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByLabelText("organization.compliance.attest.button")
+      screen.queryByText("organization.compliance.attest.button")
     ).not.toBeInTheDocument()
     // History (read-only) stays visible regardless of role.
     expect(
-      screen.getByLabelText("organization.compliance.attest.historyButton")
+      screen.getByText("organization.compliance.attest.historyButton")
     ).toBeInTheDocument()
   })
 
@@ -409,8 +441,10 @@ describe("CompliancePage", () => {
     render(<CompliancePage />)
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
-    // Within the row the actionable buttons are [edit, delete].
-    await user.click(within(row).getAllByRole("button")[0])
+    // Edit is now inside the row's "more actions" dropdown.
+    await user.click(
+      within(row).getByText("organization.compliance.editObligation")
+    )
 
     const input = titleInput()
     expect(input).toHaveValue("GDPR Article 30 records")
@@ -486,7 +520,7 @@ describe("CompliancePage", () => {
   // remained invisible (WCAG 2.4.7 focus-visible), even though it was still
   // operable via Enter. group-focus-within:opacity-100 fixes the visibility
   // without changing operability.
-  it("keeps the row action buttons visible on keyboard focus, not just hover", () => {
+  it("keeps the row actions trigger visible and reachable by keyboard, not hover-gated", () => {
     mockUseGetAllComplianceQuery.mockReturnValue({
       data: { data: [makeObligation()] },
       isLoading: false,
@@ -495,12 +529,13 @@ describe("CompliancePage", () => {
     render(<CompliancePage />)
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
-    const editButton = within(row).getByRole("button", {
-      name: "organization.compliance.editObligation",
+    const trigger = within(row).getByRole("button", {
+      name: "organization.compliance.moreActionsLabel",
     })
-    const actionsWrapper = editButton.closest("div")!
-    expect(actionsWrapper.className).toContain("group-focus-within:opacity-100")
-    expect(actionsWrapper.className).toContain("group-hover:opacity-100")
+    expect(trigger).toBeVisible()
+    expect(trigger.className).not.toContain("opacity-0")
+    trigger.focus()
+    expect(trigger).toHaveFocus()
   })
 
   // aexa-frontend#465 -- the per-attachment remove button (icon-only) had
@@ -536,7 +571,6 @@ describe("CompliancePage", () => {
 
   it("deletes an obligation after confirmation via the delete mutation", async () => {
     const user = userEvent.setup()
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true)
     mockUseGetAllComplianceQuery.mockReturnValue({
       data: { data: [makeObligation()] },
       isLoading: false,
@@ -548,18 +582,24 @@ describe("CompliancePage", () => {
     render(<CompliancePage />)
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
-    await user.click(within(row).getAllByRole("button")[3])
+    await user.click(
+      within(row).getByText("organization.compliance.deleteObligation")
+    )
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "common.deleteAlertModal.delete",
+      })
+    )
 
     await waitFor(() =>
       expect(mockDeleteCompliance).toHaveBeenCalledWith("comp-1")
     )
     expect(mockToastSuccess).toHaveBeenCalled()
-    confirmSpy.mockRestore()
   })
 
   it("does not call the delete mutation when confirmation is cancelled", async () => {
     const user = userEvent.setup()
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false)
     mockUseGetAllComplianceQuery.mockReturnValue({
       data: { data: [makeObligation()] },
       isLoading: false,
@@ -568,10 +608,17 @@ describe("CompliancePage", () => {
     render(<CompliancePage />)
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
-    await user.click(within(row).getAllByRole("button")[3])
+    await user.click(
+      within(row).getByText("organization.compliance.deleteObligation")
+    )
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "common.deleteAlertModal.cancel",
+      })
+    )
 
     expect(mockDeleteCompliance).not.toHaveBeenCalled()
-    confirmSpy.mockRestore()
   })
 
   it("shows an error toast and keeps the modal open when create fails", async () => {
@@ -678,7 +725,6 @@ describe("CompliancePage", () => {
   // totalPages).
   it("aexa-frontend#265: clamps the page back into range after deleting the last obligation on the last page", async () => {
     const user = userEvent.setup()
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true)
     mockUseGetAllComplianceQuery.mockReturnValue({
       data: {
         data: [makeObligation()],
@@ -706,7 +752,15 @@ describe("CompliancePage", () => {
     expect(lastArgs.page).toBe(3)
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
-    await user.click(within(row).getAllByRole("button")[3])
+    await user.click(
+      within(row).getByText("organization.compliance.deleteObligation")
+    )
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "common.deleteAlertModal.delete",
+      })
+    )
 
     await waitFor(() =>
       expect(mockDeleteCompliance).toHaveBeenCalledWith("comp-1")
@@ -736,8 +790,6 @@ describe("CompliancePage", () => {
         ][0]
       expect(lastArgs.page).toBe(2)
     })
-
-    confirmSpy.mockRestore()
   })
 
   it("passes the selected domain filter to the query and resets to page 1", async () => {
@@ -1043,7 +1095,9 @@ describe("CompliancePage", () => {
       render(<CompliancePage />)
 
       const row = screen.getByText("GDPR Article 30 records").closest("tr")!
-      await user.click(within(row).getAllByRole("button")[0])
+      await user.click(
+        within(row).getByText("organization.compliance.editObligation")
+      )
 
       const regInput = screen
         .getByText("organization.compliance.form.regulationReference")
@@ -1545,7 +1599,9 @@ describe("CompliancePage", () => {
       render(<CompliancePage />)
 
       const row = screen.getByText("GDPR Article 30 records").closest("tr")!
-      await user.click(within(row).getAllByRole("button")[0])
+      await user.click(
+        within(row).getByText("organization.compliance.editObligation")
+      )
 
       expect(
         screen.getByText(/organization\.compliance\.form\.nextReview/)
@@ -1647,7 +1703,9 @@ describe("CompliancePage", () => {
       render(<CompliancePage />)
 
       const row = screen.getByText("GDPR Article 30 records").closest("tr")!
-      await user.click(within(row).getAllByRole("button")[0])
+      await user.click(
+        within(row).getByText("organization.compliance.editObligation")
+      )
 
       const expectedNextReview = new Date(
         Date.UTC(2026, 2, 1)

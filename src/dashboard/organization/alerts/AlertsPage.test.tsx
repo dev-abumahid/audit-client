@@ -224,9 +224,12 @@ describe("AlertsPage", () => {
     })
     render(<AlertsPage />)
 
-    const icon = document.querySelector("svg.text-risk-low")
+    // Colors now come from severityStyles.ts's verified-AA-safe pairing
+    // (see src/utils/severityStyles.ts) rather than the raw --risk-* token
+    // classes, which fail contrast as small text/icons on their own tint.
+    const icon = document.querySelector("svg.text-emerald-700")
     expect(icon).toBeInTheDocument()
-    expect(document.querySelector("svg.text-risk-medium")).not.toBeInTheDocument()
+    expect(document.querySelector("svg.text-amber-800")).not.toBeInTheDocument()
   })
 
   // aexa-frontend round-4 audit bug #332: the severity quick-filter chips
@@ -248,7 +251,7 @@ describe("AlertsPage", () => {
     expect(screen.getByText("High one")).toBeInTheDocument()
 
     const criticalChip = screen.getAllByRole("button").find((btn) =>
-      btn.querySelector(".text-risk-critical")
+      btn.querySelector(".text-red-700")
     )
     expect(criticalChip).toBeDefined()
 
@@ -279,7 +282,7 @@ describe("AlertsPage", () => {
     render(<AlertsPage />)
 
     const criticalChip = screen.getAllByRole("button").find((btn) =>
-      btn.querySelector(".text-risk-critical")
+      btn.querySelector(".text-red-700")
     )
     await userEvent.click(criticalChip!)
 

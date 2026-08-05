@@ -134,17 +134,18 @@ describe("RiskMatrixPage", () => {
   })
 
   // Regression (issue #359): the legend swatch for the lowest severity used
-  // full-opacity bg-green-500 while getMatrixColor (the function that
-  // colors the actual matrix cells) returns bg-green-500/70 for that same
-  // severity -- the legend didn't match what was really on the grid.
-  it("colors the lowest-severity legend swatch the same as the matrix cells (green-500/70, not full opacity)", () => {
+  // to have a different opacity than getMatrixColor (the function that
+  // colors the actual matrix cells) returned for that same severity -- the
+  // legend didn't match what was really on the grid. Now both the legend and
+  // the cells share the landing page's --risk-low/55 ramp (see
+  // src/pages/home/components/HeroProductVisual.tsx CELL_CLASS).
+  it("colors the lowest-severity legend swatch the same as the matrix cells (bg-risk-low/55)", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     render(<RiskMatrixPage />)
 
     const label = screen.getByText("organization.riskMatrix.weak")
     const swatch = label.previousElementSibling
-    expect(swatch).toHaveClass("bg-green-500/70")
-    expect(swatch).not.toHaveClass("bg-green-500")
+    expect(swatch).toHaveClass("bg-risk-low/55")
   })
 
   it("renders a real risk, not any hardcoded fixture", () => {

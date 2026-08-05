@@ -14,6 +14,7 @@ import {
 } from "@/redux/apis/organization/intelligence.api"
 import type { IntelligenceItem } from "@/types/organization"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import {
   AlertTriangle,
   Brain,
@@ -22,10 +23,12 @@ import {
   ExternalLink,
   Globe,
   Loader2,
+  Minus,
   Radio,
   Search,
   Shield,
   ShieldCheck,
+  TrendingDown,
   TrendingUp,
   Zap,
 } from "lucide-react"
@@ -42,6 +45,19 @@ import {
 
 const SEVERITIES = ["all", "critical", "high", "medium", "low"] as const
 type SeverityFilter = (typeof SEVERITIES)[number]
+
+// #78 round-2 audit finding: the trend panel always rendered TrendingUp
+// regardless of predictResult.result.trend, so an "improving" trend showed
+// the same up-arrow as "worsening" -- direction is the whole point of the
+// icon here, so it must actually flip with the value.
+const TREND_DISPLAY: Record<
+  "worsening" | "stable" | "improving",
+  { icon: typeof TrendingUp; className: string }
+> = {
+  worsening: { icon: TrendingUp, className: SEVERITY_STYLES.high.text },
+  stable: { icon: Minus, className: "text-muted-foreground" },
+  improving: { icon: TrendingDown, className: SEVERITY_STYLES.low.text },
+}
 
 // Extracts a readable message from an RTK Query rejected-mutation error,
 // same convention as RiskApprovalControls.tsx / RiskRegisterPage.tsx.
@@ -285,7 +301,7 @@ export default function IntelligencePage() {
       <div className="animate-fade-in">
         <div className="flex items-center gap-2">
           <Radio className="h-5 w-5 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
             {t("organization.intelligence.title")}
           </h1>
         </div>
@@ -294,7 +310,11 @@ export default function IntelligencePage() {
         </p>
       </div>
 
-      {/* Action Bar */}
+      {/* Action Bar -- primary ingestion actions (Scrape/Analyze) stay as
+          prominent filled buttons; the four downstream AI-report actions
+          (Predict/Mitigations/RCSA/Resilience Scan) are visually grouped
+          into a single labeled cluster (#68) so the bar reads as "get data
+          in" then "run a report", not six equal-weight buttons in a row. */}
       <div className="animate-slide-up flex flex-wrap items-center gap-3">
         <button
           onClick={handleScrape}
@@ -328,65 +348,73 @@ export default function IntelligencePage() {
               })}
         </button>
 
-        <button
-          onClick={handlePredict}
-          disabled={isPredicting}
-          className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted disabled:opacity-40"
-        >
-          {isPredicting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Brain className="h-4 w-4" />
-          )}
-          {isPredicting
-            ? t("organization.intelligence.actions.predicting")
-            : t("organization.intelligence.actions.predict")}
-        </button>
+        <div className="h-6 w-px bg-border" aria-hidden="true" />
 
-        <button
-          onClick={handleMitigations}
-          disabled={isGeneratingMitigations}
-          className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted disabled:opacity-40"
-        >
-          {isGeneratingMitigations ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ShieldCheck className="h-4 w-4" />
-          )}
-          {isGeneratingMitigations
-            ? t("organization.intelligence.actions.mitigationsRunning")
-            : t("organization.intelligence.actions.mitigations")}
-        </button>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 p-1.5">
+          <span className="pl-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+            {t("organization.intelligence.actions.aiReportsLabel")}
+          </span>
 
-        <button
-          onClick={handleRcsa}
-          disabled={isGeneratingRcsa}
-          className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted disabled:opacity-40"
-        >
-          {isGeneratingRcsa ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ClipboardList className="h-4 w-4" />
-          )}
-          {isGeneratingRcsa
-            ? t("organization.intelligence.actions.rcsaRunning")
-            : t("organization.intelligence.actions.rcsa")}
-        </button>
+          <button
+            onClick={handlePredict}
+            disabled={isPredicting}
+            className="flex items-center gap-1.5 rounded-md bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
+          >
+            {isPredicting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Brain className="h-3.5 w-3.5" />
+            )}
+            {isPredicting
+              ? t("organization.intelligence.actions.predicting")
+              : t("organization.intelligence.actions.predict")}
+          </button>
 
-        <button
-          onClick={handleResilienceScan}
-          disabled={isScanningResilience}
-          className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted disabled:opacity-40"
-        >
-          {isScanningResilience ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <AlertTriangle className="h-4 w-4" />
-          )}
-          {isScanningResilience
-            ? t("organization.intelligence.actions.resilienceScanRunning")
-            : t("organization.intelligence.actions.resilienceScan")}
-        </button>
+          <button
+            onClick={handleMitigations}
+            disabled={isGeneratingMitigations}
+            className="flex items-center gap-1.5 rounded-md bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
+          >
+            {isGeneratingMitigations ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ShieldCheck className="h-3.5 w-3.5" />
+            )}
+            {isGeneratingMitigations
+              ? t("organization.intelligence.actions.mitigationsRunning")
+              : t("organization.intelligence.actions.mitigations")}
+          </button>
+
+          <button
+            onClick={handleRcsa}
+            disabled={isGeneratingRcsa}
+            className="flex items-center gap-1.5 rounded-md bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
+          >
+            {isGeneratingRcsa ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ClipboardList className="h-3.5 w-3.5" />
+            )}
+            {isGeneratingRcsa
+              ? t("organization.intelligence.actions.rcsaRunning")
+              : t("organization.intelligence.actions.rcsa")}
+          </button>
+
+          <button
+            onClick={handleResilienceScan}
+            disabled={isScanningResilience}
+            className="flex items-center gap-1.5 rounded-md bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
+          >
+            {isScanningResilience ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <AlertTriangle className="h-3.5 w-3.5" />
+            )}
+            {isScanningResilience
+              ? t("organization.intelligence.actions.resilienceScanRunning")
+              : t("organization.intelligence.actions.resilienceScan")}
+          </button>
+        </div>
       </div>
 
       {/* Predictions Panel */}
@@ -422,7 +450,11 @@ export default function IntelligencePage() {
                 {t("organization.intelligence.predictions.trend")}
               </p>
               <p className="flex items-center gap-2 text-xl font-bold text-foreground">
-                <TrendingUp className="h-4 w-4" />
+                {(() => {
+                  const { icon: TrendIcon, className } =
+                    TREND_DISPLAY[predictResult.result.trend]
+                  return <TrendIcon className={`h-4 w-4 ${className}`} />
+                })()}
                 {t(
                   `organization.intelligence.predictions.trend_${predictResult.result.trend}`
                 )}
@@ -444,7 +476,7 @@ export default function IntelligencePage() {
                     key={i}
                     className="flex items-center gap-2 text-xs text-muted-foreground"
                   >
-                    <span className="text-risk-high">⚠</span>
+                    <AlertTriangle className={`h-3 w-3 shrink-0 ${SEVERITY_STYLES.high.text}`} />
                     <span>{er.title}</span>
                     <span className="font-mono">
                       ({(er.probability * 100).toFixed(0)}%)

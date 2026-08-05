@@ -6,6 +6,7 @@ import {
 } from "@/redux/apis/organization/alert.api"
 import { getEnumLabel } from "@/utils/enumLabel"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import { Bell, Clock, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -31,10 +32,10 @@ const ALERT_TYPE_LABEL_KEYS: Record<string, string> = {
 // color for all 4 chips -- 4 different severities collapsing into a single
 // active color made it harder to tell at a glance which chip is selected.
 const SEVERITY_ACTIVE_CLASSES: Record<Severity, string> = {
-  critical: "border-risk-critical/40 bg-risk-critical/10 text-risk-critical",
-  high: "border-risk-high/40 bg-risk-high/10 text-risk-high",
-  medium: "border-risk-medium/40 bg-risk-medium/10 text-risk-medium",
-  low: "border-risk-low/40 bg-risk-low/10 text-risk-low",
+  critical: severityBadgeClasses("critical", { border: true }),
+  high: severityBadgeClasses("high", { border: true }),
+  medium: severityBadgeClasses("medium", { border: true }),
+  low: severityBadgeClasses("low", { border: true }),
 }
 
 export default function AlertsPage() {
@@ -94,7 +95,7 @@ export default function AlertsPage() {
     <div className="space-y-5 p-6">
       <div className="animate-fade-in flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
             {t("organization.alerts.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -166,15 +167,7 @@ export default function AlertsPage() {
                 }`}
               >
                 <Bell
-                  className={`h-5 w-5 ${
-                    alert.severity === "critical"
-                      ? "text-risk-critical"
-                      : alert.severity === "high"
-                        ? "text-risk-high"
-                        : alert.severity === "medium"
-                          ? "text-risk-medium"
-                          : "text-risk-low"
-                  }`}
+                  className={`h-5 w-5 ${SEVERITY_STYLES[alert.severity as Severity].text}`}
                 />
               </div>
 

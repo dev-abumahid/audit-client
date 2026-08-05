@@ -1,4 +1,5 @@
 import LanguageSwitcher from "@/components/shared/LanguageSwitcher"
+import Logo from "@/components/shared/Logo"
 import { baseApi } from "@/redux/baseApi"
 import { useAppDispatch, useAppSelector } from "@/redux/hooks"
 import { removeUser } from "@/redux/slices/user.slice"
@@ -84,43 +85,35 @@ export default function AdminLayout() {
         {!collapsed ? (
           <Link
             to="/organization"
-            className="flex items-center gap-2"
+            className="focus-ring-sidebar flex items-center gap-2 rounded-md"
             onClick={() => setMobileOpen(false)}
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <TrendingUp className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <div>
-              <span className="text-sm font-bold tracking-tight text-sidebar-accent-foreground">
-                AEXA
-              </span>
-              <span className="ml-1 text-[10px] font-medium text-sidebar-foreground/70">
-                v3.0
-              </span>
-            </div>
+            <Logo className="qiyrix-mark--sidebar h-8 w-8 shrink-0" />
+            <span className="font-heading text-sm font-semibold tracking-tight text-sidebar-accent-foreground">
+              Qiyrix
+            </span>
           </Link>
         ) : (
-          <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <TrendingUp className="h-4 w-4 text-primary-foreground" />
-          </div>
+          <Logo className="qiyrix-mark--sidebar mx-auto h-8 w-8" />
         )}
 
         <button
           onClick={() => setMobileOpen(false)}
           aria-label={t("organization.nav.closeSidebar")}
-          className="rounded p-1.5 text-sidebar-foreground hover:text-sidebar-accent-foreground lg:hidden"
+          className="focus-ring-sidebar rounded p-1.5 text-sidebar-foreground hover:text-sidebar-accent-foreground lg:hidden"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 py-4">
+      <nav className="animate-fade-in flex-1 overflow-y-auto px-2 py-4">
         {NAV_SECTIONS.map((section) => (
           <div key={section.label} className="mb-6">
             {!collapsed && (
-              <p className="mb-2 px-3 text-[10px] font-semibold tracking-widest text-sidebar-foreground/60 uppercase">
+              <p className="mb-2 flex items-center gap-2 px-3 text-[10px] font-semibold tracking-widest text-sidebar-foreground/60 uppercase">
                 {section.label}
+                <span className="h-px flex-1 bg-sidebar-border" />
               </p>
             )}
             <ul className="space-y-0.5">
@@ -132,11 +125,11 @@ export default function AdminLayout() {
                     <Link
                       to={item.path}
                       onClick={() => setMobileOpen(false)}
-                      className={`group flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
+                      className={`focus-ring-sidebar group relative flex items-center gap-3 rounded-md border-l-2 py-2.5 pr-3 pl-2.5 text-sm font-medium transition-colors ${
                         isActive
-                          ? "bg-sidebar-accent font-semibold text-sidebar-primary"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                      } ${collapsed ? "justify-center px-2" : ""}`}
+                          ? "border-sidebar-primary bg-sidebar-accent font-semibold text-sidebar-primary"
+                          : "border-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      } ${collapsed ? "justify-center border-l-0 px-2" : ""}`}
                       title={collapsed ? item.label : undefined}
                     >
                       <item.icon
@@ -161,7 +154,7 @@ export default function AdminLayout() {
         <Link
           to="/admin/settings"
           onClick={() => setMobileOpen(false)}
-          className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+          className={`focus-ring-sidebar flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
             collapsed ? "justify-center" : ""
           }`}
           title={collapsed ? t("organization.nav.settings") : undefined}
@@ -172,7 +165,7 @@ export default function AdminLayout() {
 
         <button
           onClick={logOutHandler}
-          className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          className="focus-ring-sidebar flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           title={collapsed ? t("organization.nav.logout") : undefined}
         >
           <LogOut className="h-4 w-4" />
@@ -187,7 +180,7 @@ export default function AdminLayout() {
               ? t("organization.nav.expandSidebar")
               : t("organization.nav.collapseSidebar")
           }
-          className="hidden w-full items-center justify-center rounded-md py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground lg:flex"
+          className="focus-ring-sidebar hidden w-full items-center justify-center rounded-md py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground lg:flex"
         >
           {collapsed ? (
             <ChevronRight className="h-4 w-4" />
@@ -235,7 +228,7 @@ export default function AdminLayout() {
             <button
               onClick={() => setMobileOpen(true)}
               aria-label={t("organization.nav.openSidebar")}
-              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
+              className="focus-ring rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -251,7 +244,7 @@ export default function AdminLayout() {
               <Bell className="h-4 w-4" />
             </div>
 
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+            <div className="font-heading ring-border/60 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground ring-2">
               {initials}
             </div>
           </div>

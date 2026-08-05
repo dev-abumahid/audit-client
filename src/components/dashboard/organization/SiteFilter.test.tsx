@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import type React from "react"
 import SiteFilter from "./SiteFilter"
 
 const mockUseGetAllSitesQuery = vi.fn()
@@ -7,6 +8,46 @@ const mockUseGetAllSitesQuery = vi.fn()
 vi.mock("@/redux/apis/organization/sites.api", () => ({
   useGetAllSitesQuery: (...args: unknown[]) =>
     mockUseGetAllSitesQuery(...args),
+}))
+
+// Same stand-in the codebase already uses for this Radix Select wrapper in
+// InspectionTable.test.tsx: swaps it for a native <select>/<option> so
+// userEvent.selectOptions keeps working without needing Radix's pointer-event
+// APIs (unsupported in jsdom) to open the listbox.
+vi.mock("@/components/ui/select", () => ({
+  Select: ({
+    children,
+    value,
+    onValueChange,
+    disabled,
+  }: {
+    children: React.ReactNode
+    value?: string
+    onValueChange?: (v: string) => void
+    disabled?: boolean
+  }) => (
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onValueChange?.(e.target.value)}
+    >
+      {children}
+    </select>
+  ),
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  SelectValue: () => null,
+  SelectContent: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  SelectItem: ({
+    value,
+    children,
+  }: {
+    value: string
+    children: React.ReactNode
+  }) => <option value={value}>{children}</option>,
 }))
 
 describe("SiteFilter", () => {

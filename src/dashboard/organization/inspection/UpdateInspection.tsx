@@ -22,6 +22,7 @@ import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
 import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
 import {
   ArrowLeft,
+  CheckCircle2,
   CloudUpload,
   CopyCheck,
   Eye,
@@ -30,10 +31,13 @@ import {
   Globe,
   Loader2,
   Paperclip,
+  Pencil,
   Trash,
   Trash2,
   Upload,
+  XCircle,
 } from "lucide-react"
+import { severityBadgeClasses } from "@/utils/severityStyles"
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useParams } from "react-router"
@@ -800,7 +804,7 @@ export default function UpdateInspection() {
               {t("organization.inspection.back")}
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">
+              <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
                 {t("organization.inspection.editTitle", {
                   name: template?.templateName,
                 })}
@@ -819,15 +823,16 @@ export default function UpdateInspection() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`h-7 px-2 text-xs font-medium ${
+                      className={`h-7 px-2 text-xs font-medium ${severityBadgeClasses(
                         selectedStatus === "COMPLETED"
-                          ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                          ? "low"
                           : selectedStatus === "CANCELLED"
-                            ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                            ? "critical"
                             : selectedStatus === "DRAFT"
-                              ? "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
-                              : "border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
-                      } `}
+                              ? "neutral"
+                              : "medium",
+                        { border: true }
+                      )}`}
                       disabled={isUpdatingStatus}
                     >
                       {isUpdatingStatus ? (
@@ -837,10 +842,18 @@ export default function UpdateInspection() {
                         </>
                       ) : (
                         <>
-                          {selectedStatus === "COMPLETED" && "✅"}
-                          {selectedStatus === "CANCELLED" && "❌"}
-                          {selectedStatus === "DRAFT" && "📄"}
-                          {selectedStatus === "IN_PROGRESS" && "📝"}
+                          {selectedStatus === "COMPLETED" && (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          )}
+                          {selectedStatus === "CANCELLED" && (
+                            <XCircle className="h-3.5 w-3.5" />
+                          )}
+                          {selectedStatus === "DRAFT" && (
+                            <FileText className="h-3.5 w-3.5" />
+                          )}
+                          {selectedStatus === "IN_PROGRESS" && (
+                            <Pencil className="h-3.5 w-3.5" />
+                          )}
                           <span className="ml-1">
                             {getInspectionStatusLabel(t, selectedStatus ?? "")}
                           </span>
@@ -852,25 +865,25 @@ export default function UpdateInspection() {
                     <DropdownMenuItem
                       onClick={() => handleStatusChange("IN_PROGRESS")}
                     >
-                      <span className="mr-2">📝</span>{" "}
+                      <Pencil className="mr-2 h-3.5 w-3.5" />{" "}
                       {t("organization.inspection.statusInProgress")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handleStatusChange("COMPLETED")}
                     >
-                      <span className="mr-2">✅</span>{" "}
+                      <CheckCircle2 className="mr-2 h-3.5 w-3.5" />{" "}
                       {t("organization.inspection.statusCompleted")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handleStatusChange("CANCELLED")}
                     >
-                      <span className="mr-2">❌</span>{" "}
+                      <XCircle className="mr-2 h-3.5 w-3.5" />{" "}
                       {t("organization.inspection.statusCancelled")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handleStatusChange("DRAFT")}
                     >
-                      <span className="mr-2">📄</span>{" "}
+                      <FileText className="mr-2 h-3.5 w-3.5" />{" "}
                       {t("organization.inspection.statusDraft")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -1041,10 +1054,10 @@ export default function UpdateInspection() {
                 pageRefs.current[pageIndex] = el
               }}
               data-page-index={pageIndex}
-              className="mb-12 scroll-mt-24 rounded-md border border-border bg-card/30 p-4"
+              className="animate-fade-in mb-12 scroll-mt-24 rounded-md border border-border bg-card/30 p-4"
             >
               <div className="py-6">
-                <h2 className="mb-1 text-2xl font-semibold">{page.title}</h2>
+                <h2 className="mb-1 font-heading text-2xl font-semibold">{page.title}</h2>
                 <p className="text-muted-foreground">
                   {t("organization.inspection.section", { num: pageIndex + 1 })}
                 </p>
@@ -1060,7 +1073,7 @@ export default function UpdateInspection() {
                   return (
                     <Card
                       key={question.id}
-                      className="border-none p-6 shadow-none"
+                      className="rounded-xl border border-border bg-card p-6"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -1071,8 +1084,8 @@ export default function UpdateInspection() {
                             )}
                           </p>
                           {savingQuestions[question.id] && (
-                            <p className="flex items-center gap-1 text-xs text-yellow-600">
-                              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-yellow-600 border-t-transparent"></span>
+                            <p className="flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400">
+                              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-yellow-600 border-t-transparent dark:border-yellow-400"></span>
                               {t("organization.inspection.saving")}
                             </p>
                           )}
@@ -1093,7 +1106,7 @@ export default function UpdateInspection() {
                                     handleRemoveMediaFile(question.id, idx)
                                   }
                                   aria-label={t("organization.inspection.remove")}
-                                  className="absolute -top-2 -right-2 cursor-pointer rounded-full bg-amber-100 p-1 text-red-500"
+                                  className="absolute -top-2 -right-2 cursor-pointer rounded-full bg-amber-100 p-1 text-red-500 dark:bg-amber-900 dark:text-red-400"
                                 >
                                   <Trash className="size-4" />
                                 </button>
@@ -1165,8 +1178,8 @@ export default function UpdateInspection() {
                         </Button>
 
                         {externalMediaUploading == question.id ? (
-                          <p className="flex items-center gap-1 text-xs text-yellow-600">
-                            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-yellow-600 border-t-transparent"></span>
+                          <p className="flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400">
+                            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-yellow-600 border-t-transparent dark:border-yellow-400"></span>
                             {t("organization.inspection.uploading")}
                           </p>
                         ) : (

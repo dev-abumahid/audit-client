@@ -42,7 +42,7 @@ const Footer: React.FC = () => {
               to="/"
               className="focus-ring mb-4 inline-flex items-center gap-2.5 rounded-md"
             >
-              <Logo className="h-8 w-8 text-primary" />
+              <Logo className="h-8 w-8" />
               <span className="font-heading text-lg font-semibold text-foreground">
                 Qiyrix
               </span>

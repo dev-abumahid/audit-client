@@ -62,12 +62,19 @@ const LABEL_KEYS: Record<
   },
 }
 
+// Same --risk-* ramp as the landing page's HeroProductVisual heat grid
+// (src/pages/home/components/HeroProductVisual.tsx CELL_CLASS) instead of
+// this page's own independently-invented red/orange/yellow/green scale.
+// bg-risk-high needs a lighter dark-mode tint (/70 vs /80) than the other
+// three levels purely so its overlaid white cell text clears AA -- verified
+// via HSL->sRGB composite math against --card in dark mode: /80 gives white
+// text only 3.81:1 (fails small text), /70 gives 4.61:1 (passes).
 function getMatrixColor(row: number, col: number, size: MatrixSize): string {
   const score = ((row + 1) / size) * ((col + 1) / size)
-  if (score >= 0.64) return "bg-red-500"
-  if (score >= 0.36) return "bg-orange-500"
-  if (score >= 0.16) return "bg-yellow-500"
-  return "bg-green-500/70"
+  if (score >= 0.64) return "bg-risk-critical/90"
+  if (score >= 0.36) return "bg-risk-high/80 dark:bg-risk-high/70"
+  if (score >= 0.16) return "bg-risk-medium/45"
+  return "bg-risk-low/55"
 }
 
 function mapRiskToCell(
@@ -171,7 +178,7 @@ export default function RiskMatrixPage() {
         <div>
           <div className="flex items-center gap-2">
             <Grid3X3 className="h-5 w-5 text-primary" />
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
               {t("organization.riskMatrix.title")}
             </h1>
           </div>
@@ -293,7 +300,7 @@ export default function RiskMatrixPage() {
                               likelihood: label,
                               impact: labels.impact[col],
                             })}
-                            className={`${getMatrixColor(row, col, matrixSize)} flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-white transition-all hover:scale-105 ${isSelected ? "scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-75"}`}
+                            className={`${getMatrixColor(row, col, matrixSize)} flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-black dark:text-white transition-all hover:scale-105 ${isSelected ? "scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-75"}`}
                             title={`${label} × ${labels.impact[col]} : ${t("organization.riskMatrix.cellCount", { count: cellRisks.length })}`}
                           >
                             <span className="text-lg font-bold">
@@ -318,19 +325,19 @@ export default function RiskMatrixPage() {
               <div className="mt-6 flex flex-wrap gap-4">
                 {[
                   {
-                    color: "bg-red-500",
+                    color: "bg-risk-critical/90",
                     label: t("organization.riskMatrix.critical"),
                   },
                   {
-                    color: "bg-orange-500",
+                    color: "bg-risk-high/80 dark:bg-risk-high/70",
                     label: t("organization.riskMatrix.major"),
                   },
                   {
-                    color: "bg-yellow-500",
+                    color: "bg-risk-medium/45",
                     label: t("organization.riskMatrix.moderate"),
                   },
                   {
-                    color: "bg-green-500/70",
+                    color: "bg-risk-low/55",
                     label: t("organization.riskMatrix.weak"),
                   },
                 ].map(({ color, label }) => (

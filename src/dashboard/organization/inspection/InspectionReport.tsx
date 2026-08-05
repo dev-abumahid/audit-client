@@ -14,6 +14,7 @@ import { useModalA11y } from "@/hooks/useModalA11y"
 import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
 import { A4_WIDTH_MM, computePdfPagePlacements } from "@/utils/pdfPageMath"
 import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
+import { severityBadgeClasses } from "@/utils/severityStyles"
 import html2canvas from "html2canvas-pro"
 import jsPDF from "jspdf"
 import {
@@ -71,9 +72,9 @@ const renderAnswerValue = (
     case "checkbox":
       return (
         <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${
-            answer ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-          }`}
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${severityBadgeClasses(
+            answer ? "low" : "critical"
+          )}`}
         >
           {answer ? (
             <>
@@ -97,7 +98,7 @@ const renderAnswerValue = (
             <span className="font-semibold text-primary">{answer}</span>
             <span>10</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+          <div className="h-2 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-primary transition-all"
               style={{ width: `${Number(answer) * 10}%` }}
@@ -259,7 +260,7 @@ const QuestionCard = memo(
     const hasMedia = mediaFiles?.length > 0
 
     return (
-      <div className="mb-4 rounded-xl border border-border bg-card p-6">
+      <div className="animate-fade-in mb-4 rounded-xl border border-border bg-card p-6">
         <div className="mb-3 flex items-start gap-3">
           <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
             {questionIndex + 1}
@@ -283,11 +284,11 @@ const QuestionCard = memo(
           </div>
 
           {hasNote && (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5">
-              <p className="text-sm font-medium text-amber-700">
+            <div className={`mt-3 rounded-lg px-4 py-2.5 ${severityBadgeClasses("medium", { border: true })}`}>
+              <p className="text-sm font-medium">
                 {t("organization.inspection.noteLabel")}
               </p>
-              <p className="text-sm text-amber-800">{note}</p>
+              <p className="text-sm">{note}</p>
             </div>
           )}
 
@@ -331,7 +332,7 @@ const QuestionCard = memo(
           {relatedActions.length > 0 && (
             <div className="mt-3 border-t border-border pt-3">
               <p className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
-                <AlertTriangle className="h-3 w-3 text-orange-500" />
+                <AlertTriangle className="h-3 w-3 text-risk-high" />
                 {t("organization.inspection.actionsCount", {
                   count: relatedActions.length,
                 })}
@@ -343,7 +344,7 @@ const QuestionCard = memo(
                     onClick={() =>
                       navigate(`/dashboard/single-action/${action._id}`)
                     }
-                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700 transition-colors hover:border-green-400 hover:bg-green-100"
+                    className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors hover:opacity-80 ${severityBadgeClasses("low", { border: true })}`}
                   >
                     <CopyCheck className="h-3 w-3 shrink-0" />
                     {action.actionTitle}
@@ -392,7 +393,7 @@ const PageSection = memo(
           {/* h2, not h3: this is a top-level report section, a sibling of the
               Attachments/Unsplit Text h2s below -- keeping it h3 skipped a
               level under the page h1 (aexa-frontend round-9 audit #463). */}
-          <h2 className="text-lg leading-snug font-bold text-primary-foreground">
+          <h2 className="font-heading text-lg leading-snug font-bold text-primary-foreground">
             {page.title}
           </h2>
         </div>
@@ -685,7 +686,7 @@ const InspectionReport = () => {
               {getInspectionStatusLabel(t, inspection.status)}
             </span>
 
-            <h1 className="mb-1 text-2xl font-black tracking-tight text-foreground">
+            <h1 className="mb-1 font-heading text-2xl font-bold tracking-tight text-foreground">
               {templateName}
             </h1>
 
@@ -823,7 +824,7 @@ const InspectionReport = () => {
                 <div className="rounded-xl bg-primary/10 p-2.5">
                   <Paperclip className="h-5 w-5 text-primary" />
                 </div>
-                <h2 className="text-xl font-bold text-foreground">
+                <h2 className="font-heading text-xl font-bold text-foreground">
                   {t("organization.inspection.attachments")}
                 </h2>
                 <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
@@ -853,7 +854,7 @@ const InspectionReport = () => {
                 <div className="rounded-xl bg-primary/10 p-2.5">
                   <MessageSquare className="h-5 w-5 text-primary" />
                 </div>
-                <h2 className="text-xl font-bold text-foreground">
+                <h2 className="font-heading text-xl font-bold text-foreground">
                   {t("organization.inspection.unsplitText")}
                 </h2>
               </div>

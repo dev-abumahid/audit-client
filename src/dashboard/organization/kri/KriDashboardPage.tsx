@@ -9,6 +9,7 @@ import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import {
   AlertTriangle,
   ChartLine,
@@ -199,7 +200,7 @@ export default function KriDashboardPage() {
     <div className="space-y-5 p-4 lg:p-6">
       <div className="animate-fade-in flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground lg:text-2xl">
+          <h1 className="font-heading text-xl font-bold tracking-tight text-foreground lg:text-2xl">
             {t("organization.kri.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -222,8 +223,8 @@ export default function KriDashboardPage() {
       {/* Status Summary Cards */}
       <div className="animate-slide-up flex flex-wrap gap-3">
         <div className="flex items-center gap-2 rounded-lg border border-risk-critical/30 bg-risk-critical/5 px-3 py-2">
-          <AlertTriangle className="h-4 w-4 text-risk-critical" />
-          <span className="font-mono-data text-lg font-bold text-risk-critical">
+          <AlertTriangle className={`h-4 w-4 ${SEVERITY_STYLES.critical.text}`} />
+          <span className={`font-mono-data text-lg font-bold ${SEVERITY_STYLES.critical.text}`}>
             {alertCount}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -231,8 +232,8 @@ export default function KriDashboardPage() {
           </span>
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-risk-medium/30 bg-risk-medium/5 px-3 py-2">
-          <TrendingUp className="h-4 w-4 text-risk-medium" />
-          <span className="font-mono-data text-lg font-bold text-risk-medium">
+          <TrendingUp className={`h-4 w-4 ${SEVERITY_STYLES.medium.text}`} />
+          <span className={`font-mono-data text-lg font-bold ${SEVERITY_STYLES.medium.text}`}>
             {warningCount}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -240,8 +241,8 @@ export default function KriDashboardPage() {
           </span>
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-risk-low/30 bg-risk-low/5 px-3 py-2">
-          <CheckCircle2 className="h-4 w-4 text-risk-low" />
-          <span className="font-mono-data text-lg font-bold text-risk-low">
+          <CheckCircle2 className={`h-4 w-4 ${SEVERITY_STYLES.low.text}`} />
+          <span className={`font-mono-data text-lg font-bold ${SEVERITY_STYLES.low.text}`}>
             {okCount}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -280,13 +281,13 @@ export default function KriDashboardPage() {
                   </p>
                 </div>
                 <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${severityBadgeClasses(
                     kri.status === "ALERT"
-                      ? "bg-risk-critical/15 text-risk-critical"
+                      ? "critical"
                       : kri.status === "WARNING"
-                        ? "bg-risk-medium/15 text-risk-medium"
-                        : "bg-risk-low/15 text-risk-low"
-                  }`}
+                        ? "medium"
+                        : "low"
+                  )}`}
                 >
                   {kri.status === "ALERT"
                     ? t("organization.kri.status.alert")
@@ -326,13 +327,13 @@ export default function KriDashboardPage() {
               <div className="mt-1 flex items-center gap-4 text-[11px] text-muted-foreground">
                 <span>
                   {t("organization.kri.thresholdLabel")}{" "}
-                  <span className="font-mono-data font-medium text-risk-critical">
+                  <span className={`font-mono-data font-medium ${SEVERITY_STYLES.critical.text}`}>
                     {Number(kri.alert_threshold)}
                   </span>
                 </span>
                 <span>
                   {t("organization.kri.targetLabel")}{" "}
-                  <span className="font-mono-data font-medium text-risk-low">
+                  <span className={`font-mono-data font-medium ${SEVERITY_STYLES.low.text}`}>
                     {Number(kri.target_value)}
                   </span>
                 </span>
@@ -340,7 +341,7 @@ export default function KriDashboardPage() {
                     frequency + last_measured_at; always false with no
                     frequency, so this never shows on a KRI with no cadence. */}
                 {kri.overdue && (
-                  <span className="ml-auto flex items-center gap-1 font-medium text-risk-critical">
+                  <span className={`ml-auto flex items-center gap-1 font-medium ${SEVERITY_STYLES.critical.text}`}>
                     <Clock className="h-3 w-3" />
                     {t("organization.kri.overdueLabel")}
                   </span>
@@ -694,49 +695,49 @@ export default function KriDashboardPage() {
                     <XAxis
                       dataKey="recorded_at"
                       tick={{ fontSize: 11 }}
-                      stroke="hsl(220, 10%, 46%)"
+                      stroke="hsl(var(--muted-foreground))"
                     />
                     <YAxis
                       tick={{ fontSize: 11 }}
-                      stroke="hsl(220, 10%, 46%)"
+                      stroke="hsl(var(--muted-foreground))"
                     />
                     <Tooltip
                       contentStyle={{
-                        background: "hsl(222, 22%, 11%)",
-                        border: "1px solid hsl(220, 18%, 18%)",
+                        background: "hsl(var(--popover))",
+                        border: "1px solid hsl(var(--border))",
                         borderRadius: 8,
                         fontSize: 12,
                       }}
-                      labelStyle={{ color: "hsl(220, 14%, 70%)" }}
+                      labelStyle={{ color: "hsl(var(--popover-foreground))" }}
                     />
                     {trendKri && (
                       <ReferenceLine
                         y={Number(trendKri.alert_threshold)}
-                        stroke="hsl(0, 72%, 51%)"
+                        stroke="hsl(var(--risk-critical))"
                         strokeDasharray="4 4"
                         label={{
                           value: t("organization.kri.thresholdLabel"),
                           fontSize: 10,
-                          fill: "hsl(0, 72%, 51%)",
+                          fill: "hsl(var(--risk-critical))",
                         }}
                       />
                     )}
                     {trendKri && (
                       <ReferenceLine
                         y={Number(trendKri.target_value)}
-                        stroke="hsl(142, 71%, 45%)"
+                        stroke="hsl(var(--risk-low))"
                         strokeDasharray="4 4"
                         label={{
                           value: t("organization.kri.targetLabel"),
                           fontSize: 10,
-                          fill: "hsl(142, 71%, 45%)",
+                          fill: "hsl(var(--risk-low))",
                         }}
                       />
                     )}
                     <Line
                       type="monotone"
                       dataKey="value"
-                      stroke="hsl(168, 60%, 36%)"
+                      stroke="hsl(var(--primary))"
                       strokeWidth={2}
                       dot={{ r: 3 }}
                     />

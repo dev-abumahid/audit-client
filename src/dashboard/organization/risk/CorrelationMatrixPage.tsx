@@ -38,6 +38,7 @@ import type { FormEvent } from "react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import { severityBadgeClasses } from "@/utils/severityStyles"
 
 // All user-facing chrome on this page routes through this namespace.
 const NS = "organization.correlationMatrix"
@@ -52,10 +53,9 @@ const PRIORITY_KEYS: Record<string, string> = {
   High: "organization.findings.priorityHigh",
 }
 const PRIORITY_BADGES: Record<string, string> = {
-  Low: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  Medium:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  High: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  Low: severityBadgeClasses("low"),
+  Medium: severityBadgeClasses("medium"),
+  High: severityBadgeClasses("high"),
 }
 
 type MatrixSize = 3 | 4 | 5
@@ -131,12 +131,15 @@ const AXIS_LABELS_MAP: Record<
   },
 }
 
+// Same --risk-* solid-fill scale as RiskMatrixPage.tsx (both now reuse the
+// landing page's HeroProductVisual ramp) instead of this page's own
+// independently-invented red/orange/yellow/green-600 scale.
 function getCellColor(row: number, col: number, size: MatrixSize): string {
   const score = (row + 1 + (col + 1)) / (size * 2)
-  if (score >= 0.8) return "bg-red-600"
-  if (score >= 0.6) return "bg-orange-600"
-  if (score >= 0.4) return "bg-yellow-600"
-  return "bg-green-600"
+  if (score >= 0.8) return "bg-risk-critical"
+  if (score >= 0.6) return "bg-risk-high"
+  if (score >= 0.4) return "bg-risk-medium"
+  return "bg-risk-low"
 }
 
 function mapToAxis(value: number, size: MatrixSize): number {
@@ -463,7 +466,7 @@ export default function CorrelationMatrixPage() {
         <div>
           <div className="flex items-center gap-2">
             <GitBranch className="h-5 w-5 text-primary" />
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
               {t(`${NS}.title`)}
             </h1>
             {isMatrixFetching && (
@@ -602,7 +605,7 @@ export default function CorrelationMatrixPage() {
                               rootCause: label,
                               consequence: axisLabels.consequence[col],
                             })}
-                            className={`${getCellColor(row, col, matrixSize)} flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-white transition-all hover:scale-105 ${isSelected ? "scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-70"}`}
+                            className={`${getCellColor(row, col, matrixSize)} flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-black transition-all hover:scale-105 ${isSelected ? "scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-70"}`}
                           >
                             {cellRisks.length > 0 && (
                               <>
@@ -631,13 +634,13 @@ export default function CorrelationMatrixPage() {
               {/* Legend */}
               <div className="mt-6 flex flex-wrap gap-4">
                 {[
-                  { color: "bg-red-600", labelKey: "legendSystemic" },
+                  { color: "bg-risk-critical", labelKey: "legendSystemic" },
                   {
-                    color: "bg-orange-600",
+                    color: "bg-risk-high",
                     labelKey: "legendHighInterconnection",
                   },
-                  { color: "bg-yellow-600", labelKey: "legendModerate" },
-                  { color: "bg-green-600", labelKey: "legendIsolated" },
+                  { color: "bg-risk-medium", labelKey: "legendModerate" },
+                  { color: "bg-risk-low", labelKey: "legendIsolated" },
                 ].map(({ color, labelKey }) => (
                   <div key={labelKey} className="flex items-center gap-1.5">
                     <div className={`h-3 w-3 rounded ${color}`} />
@@ -1204,7 +1207,9 @@ function AIRiskBucketCard({
             })}
           </div>
           {bucket.dominoRisk && (
-            <div className="rounded bg-red-500/10 p-2 text-red-700">
+            <div
+              className={`rounded p-2 ${severityBadgeClasses("critical")}`}
+            >
               {t(`${NS}.aiDominoRiskLabel`, { risk: bucket.dominoRisk })}
             </div>
           )}

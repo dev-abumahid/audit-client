@@ -6,6 +6,7 @@ import {
   useUploadPdfIntoPineconeMutation,
 } from "@/redux/apis/organization/knowledgeBase.api"
 import type { PineconeDocument } from "@/types/knowledgeBase"
+import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import { FileText, Loader2, Trash2, Upload } from "lucide-react"
 import type { ChangeEvent, DragEvent } from "react"
 import { useEffect, useRef, useState } from "react"
@@ -344,7 +345,7 @@ const KnowledgeBaseUploadingForm = () => {
                     deletingId === doc.id ||
                     (!!doc.fileId && pollingUploads.has(doc.fileId))
                   }
-                  className="rounded-md p-1.5 text-risk-critical transition-colors hover:bg-risk-critical/10 disabled:opacity-50"
+                  className={`rounded-md p-1.5 transition-colors hover:bg-risk-critical/10 disabled:opacity-50 ${SEVERITY_STYLES.critical.text}`}
                   title={t("organization.knowledgeBase.delete")}
                 >
                   {deletingId === doc.id ? (

@@ -530,7 +530,7 @@ export default function CreateNewInspection() {
               {t("organization.inspection.back")}
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">{template?.templateName}</h1>
+              <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">{template?.templateName}</h1>
               {siteName && (
                 <p className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Globe className="h-4 w-4" /> {siteName}

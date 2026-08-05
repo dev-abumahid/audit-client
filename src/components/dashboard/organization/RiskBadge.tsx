@@ -1,3 +1,4 @@
+import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import { useTranslation } from "react-i18next"
 
 interface RiskBadgeProps {
@@ -6,36 +7,13 @@ interface RiskBadgeProps {
   size?: "sm" | "md"
 }
 
-const config = {
-  critical: {
-    bg: "bg-risk-critical/15",
-    text: "text-risk-critical",
-    dot: "bg-risk-critical",
-  },
-  high: {
-    bg: "bg-risk-high/15",
-    text: "text-risk-high",
-    dot: "bg-risk-high",
-  },
-  medium: {
-    bg: "bg-risk-medium/15",
-    text: "text-risk-medium",
-    dot: "bg-risk-medium",
-  },
-  low: {
-    bg: "bg-risk-low/15",
-    text: "text-risk-low",
-    dot: "bg-risk-low",
-  },
-}
-
 export default function RiskBadge({
   level,
   label,
   size = "sm",
 }: RiskBadgeProps) {
   const { t } = useTranslation()
-  const c = config[level]
+  const c = SEVERITY_STYLES[level]
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full ${c.bg} ${c.text} font-medium ${

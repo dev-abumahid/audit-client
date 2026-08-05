@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import Pagination from "@/components/shared/Pagination"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -20,15 +21,7 @@ import {
 import type { TemplateSummary } from "@/types/template"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import {
-  Brain,
-  ChevronLeft,
-  ChevronRight,
-  Edit,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react"
+import { Brain, Edit, Plus, Search, Trash2 } from "lucide-react"
 import { isSystemTemplateName } from "@/utils/isSystemTemplate"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -150,7 +143,7 @@ export default function TemplatesPage() {
       {/* -------- Header -------- */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
             {t("organization.templates.list.title")}
           </h1>
           <p className="text-muted-foreground">
@@ -341,42 +334,18 @@ export default function TemplatesPage() {
         </Table>
       </div>
 
-      {/* -------- Pagination -------- */}
-      {totalPages > 1 && (
-        <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <p className="text-sm text-muted-foreground">
-            {t("organization.templates.list.pagination", {
-              from: (page - 1) * limit + 1,
-              to: Math.min(page * limit, total),
-              total,
-            })}
-          </p>
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === 1}
-              onClick={() => handlePageChange(page - 1)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-
-            <div className="rounded-md bg-muted px-4 py-2 text-sm">
-              {page} / {totalPages}
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === totalPages}
-              onClick={() => handlePageChange(page + 1)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+        label={t("organization.templates.list.pagination", {
+          from: (page - 1) * limit + 1,
+          to: Math.min(page * limit, total),
+          total,
+        })}
+        prevAriaLabel={t("organization.templates.list.prevPage")}
+        nextAriaLabel={t("organization.templates.list.nextPage")}
+      />
 
       {/* -------- Delete Modal -------- */}
       <DeleteAlertModal

@@ -1,4 +1,4 @@
-import logo from "@/assets/images/logo.png"
+import Logo from "@/components/shared/Logo"
 import { baseApi } from "@/redux/baseApi"
 import { useAppDispatch, useAppSelector } from "@/redux/hooks"
 import { removeExternalUser } from "@/redux/slices/externalUser.slice"
@@ -33,7 +33,12 @@ export default function ExternalPortalPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background p-6 text-center">
-      <img src={logo} alt="Logo" className="h-14 w-14" />
+      <Logo
+        role="img"
+        aria-hidden={undefined}
+        aria-label={t("externalAuth.portal.logoAlt")}
+        className="h-14 w-14"
+      />
       <div>
         <h1 className="text-lg font-semibold text-foreground">
           {t("externalAuth.portal.greeting", {

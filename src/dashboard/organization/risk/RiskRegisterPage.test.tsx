@@ -249,12 +249,12 @@ describe("RiskRegisterPage", () => {
     render(<RiskRegisterPage />)
 
     const lowScoreBadge = screen.getByText("5")
-    expect(lowScoreBadge.className).toContain("bg-green-500/15")
-    expect(lowScoreBadge.className).not.toContain("bg-destructive/15")
+    expect(lowScoreBadge.className).toContain("bg-emerald-500/15")
+    expect(lowScoreBadge.className).not.toContain("bg-red-500/15")
 
     const criticalScoreBadge = screen.getByText("95")
-    expect(criticalScoreBadge.className).toContain("bg-destructive/15")
-    expect(criticalScoreBadge.className).not.toContain("bg-green-500/15")
+    expect(criticalScoreBadge.className).toContain("bg-red-500/15")
+    expect(criticalScoreBadge.className).not.toContain("bg-emerald-500/15")
   })
 
   // Bug-fix batch: the category badge used to render the raw enum key
@@ -314,9 +314,11 @@ describe("RiskRegisterPage", () => {
     render(<RiskRegisterPage />)
 
     // i18n isn't initialized in the test environment, so t() echoes the raw
-    // key back (see RiskMatrixPage.test.tsx for the same convention).
+    // key back (see RiskMatrixPage.test.tsx for the same convention). The
+    // fallback icon is now a Lucide <Building2>, not an emoji glyph in the
+    // text node, so the label text itself no longer carries a prefix.
     expect(
-      screen.getByText("🏢 organization.riskRegister.groupFallback")
+      screen.getByText("organization.riskRegister.groupFallback")
     ).toBeInTheDocument()
   })
 

@@ -14,6 +14,7 @@ import type { ClosureDisplayState, IAction } from "@/types/finding"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteFinding } from "@/utils/assignmentScope"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { severityBadgeClasses } from "@/utils/severityStyles"
 import { AlertTriangle, Check, Send, X } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -30,15 +31,15 @@ const BADGE_STYLES: Record<
     labelKey: "organization.findings.closure.badgeNotSubmitted",
   },
   PENDING_APPROVAL: {
-    className: "bg-yellow-500/15 text-yellow-600",
+    className: severityBadgeClasses("medium"),
     labelKey: "organization.findings.closure.badgePending",
   },
   APPROVED: {
-    className: "bg-green-500/15 text-green-600",
+    className: severityBadgeClasses("low"),
     labelKey: "organization.findings.closure.badgeApproved",
   },
   REJECTED: {
-    className: "bg-destructive/15 text-destructive",
+    className: severityBadgeClasses("critical"),
     labelKey: "organization.findings.closure.badgeRejected",
   },
 }

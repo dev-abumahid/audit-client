@@ -1,5 +1,6 @@
 import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
 import type { Alert } from "@/types/organization"
+import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import { AlertTriangle, X } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -24,10 +25,10 @@ export default function CriticalAlertBanner() {
     <div className="animate-fade-in border-b border-risk-critical/30 bg-risk-critical/5 px-6 py-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <AlertTriangle className="h-4 w-4 animate-pulse text-risk-critical" />
+          <AlertTriangle className={`h-4 w-4 animate-pulse ${SEVERITY_STYLES.critical.text}`} />
 
-          <span className="text-xs font-semibold text-risk-critical">
-            🚨 {criticalAlerts.length}{" "}
+          <span className={`text-xs font-semibold ${SEVERITY_STYLES.critical.text}`}>
+            {criticalAlerts.length}{" "}
             {criticalAlerts.length > 1
               ? t("alert.criticalAlertsBannerPlural")
               : t("alert.criticalAlertsBanner")}

@@ -14,6 +14,7 @@ import {
   FINDING_STATUS_LABEL_KEYS,
 } from "@/utils/findingLabels"
 import { riskCategoryLabel } from "@/utils/riskConfig"
+import { SEVERITY_STYLES, type SeverityLevel } from "@/utils/severityStyles"
 import {
   Activity,
   AlertTriangle,
@@ -64,6 +65,40 @@ function complianceDomainLabel(t: (key: string) => string, domain: string): stri
   return COMPLIANCE_DOMAINS[domain]
     ? t(`organization.compliance.domains.${domain}`)
     : domain
+}
+
+// Maps each entity type's own status enum (see the *_STATUS_LABEL_KEYS maps
+// above) to a shared SeverityLevel, so ItemRow can show a consistent
+// at-a-glance severity dot across all 5 entity types on this board -- same
+// dot color source as RiskBadge/severityBadgeClasses (src/utils/severityStyles.ts).
+const RISK_STATUS_SEVERITY: Record<string, SeverityLevel> = {
+  open: "medium",
+  in_progress: "info",
+  completed: "low",
+  closed: "neutral",
+}
+const KRI_STATUS_SEVERITY: Record<string, SeverityLevel> = {
+  ALERT: "critical",
+  WARNING: "medium",
+  OK: "low",
+}
+const AUDIT_STATUS_SEVERITY: Record<string, SeverityLevel> = {
+  planned: "info",
+  in_progress: "medium",
+  completed: "low",
+}
+const COMPLIANCE_STATUS_SEVERITY: Record<string, SeverityLevel> = {
+  non_compliant: "critical",
+  in_progress: "medium",
+  compliant: "low",
+  not_applicable: "neutral",
+}
+// Same mapping as FindingDetails.tsx/AllFindingsPage.tsx's STATUS_STYLE.
+const ACTION_STATUS_SEVERITY: Record<string, SeverityLevel> = {
+  TO_DO: "medium",
+  IN_PROGRESS: "info",
+  COMPLETE: "low",
+  CANT_DO: "critical",
 }
 
 type EntityKind = "risk" | "action" | "kri" | "compliance" | "audit"
@@ -121,6 +156,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
 interface ItemRowProps {
   title: string
   meta: string
+  severity: SeverityLevel
   currentLine: LineOfDefense | null
   canReassign: boolean
   isPending: boolean
@@ -130,6 +166,7 @@ interface ItemRowProps {
 function ItemRow({
   title,
   meta,
+  severity,
   currentLine,
   canReassign,
   isPending,
@@ -140,11 +177,16 @@ function ItemRow({
 
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 px-2 py-1.5">
-      <div className="min-w-0">
-        <p className="truncate text-xs font-medium" title={title}>
-          {title}
-        </p>
-        <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
+      <div className="flex min-w-0 items-start gap-1.5">
+        <span
+          className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_STYLES[severity].dot}`}
+        />
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium" title={title}>
+            {title}
+          </p>
+          <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
+        </div>
       </div>
       {canReassign && (
         // aexa-frontend round-3 audit bug #2: with GOVERNING_BODY added as a
@@ -285,7 +327,7 @@ export default function ThreeLinesOfDefensePage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-lg font-semibold">
+        <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
           {t("organization.threeLinesOfDefense.title")}
         </h1>
         <p className="text-sm text-muted-foreground">
@@ -357,6 +399,7 @@ export default function ThreeLinesOfDefensePage() {
                           key={risk.id}
                           title={risk.title}
                           meta={`${riskCategoryLabel(t, risk.category)} · ${getEnumLabel(t, RISK_STATUS_LABEL_KEYS, risk.status)}`}
+                          severity={RISK_STATUS_SEVERITY[risk.status] ?? "neutral"}
                           currentLine={risk.line_of_defense}
                           canReassign={canReassignRisk}
                           isPending={pendingId === risk.id}
@@ -378,6 +421,7 @@ export default function ThreeLinesOfDefensePage() {
                           key={action.id}
                           title={action.title}
                           meta={`${getEnumLabel(t, FINDING_PRIORITY_LABEL_KEYS, action.priority)} · ${getEnumLabel(t, FINDING_STATUS_LABEL_KEYS, action.status)}`}
+                          severity={ACTION_STATUS_SEVERITY[action.status] ?? "neutral"}
                           currentLine={action.line_of_defense}
                           canReassign={canReassignAction}
                           isPending={pendingId === action.id}
@@ -399,6 +443,7 @@ export default function ThreeLinesOfDefensePage() {
                           key={kri.id}
                           title={kri.title}
                           meta={`${kri.unit} · ${getEnumLabel(t, KRI_STATUS_LABEL_KEYS, kri.status)}`}
+                          severity={KRI_STATUS_SEVERITY[kri.status] ?? "neutral"}
                           currentLine={kri.line_of_defense}
                           canReassign={canReassignKri}
                           isPending={pendingId === kri.id}
@@ -420,6 +465,7 @@ export default function ThreeLinesOfDefensePage() {
                           key={obligation.id}
                           title={obligation.title}
                           meta={`${complianceDomainLabel(t, obligation.domain)} · ${getEnumLabel(t, COMPLIANCE_STATUS_LABEL_KEYS, obligation.status)}`}
+                          severity={COMPLIANCE_STATUS_SEVERITY[obligation.status] ?? "neutral"}
                           currentLine={obligation.line_of_defense}
                           canReassign={canReassignCompliance}
                           isPending={pendingId === obligation.id}
@@ -441,6 +487,7 @@ export default function ThreeLinesOfDefensePage() {
                           key={engagement.id}
                           title={engagement.title}
                           meta={`${engagement.lead_auditor ?? t("organization.threeLinesOfDefense.noLeadAuditor")} · ${getEnumLabel(t, AUDIT_ENGAGEMENT_STATUS_LABEL_KEYS, engagement.status)}`}
+                          severity={AUDIT_STATUS_SEVERITY[engagement.status] ?? "neutral"}
                           currentLine={engagement.line_of_defense}
                           canReassign={canReassignAudit}
                           isPending={pendingId === engagement.id}
@@ -480,6 +527,7 @@ export default function ThreeLinesOfDefensePage() {
                     key={action.id}
                     title={action.title}
                     meta={`${getEnumLabel(t, FINDING_PRIORITY_LABEL_KEYS, action.priority)} · ${getEnumLabel(t, FINDING_STATUS_LABEL_KEYS, action.status)}`}
+                    severity={ACTION_STATUS_SEVERITY[action.status] ?? "neutral"}
                     currentLine={null}
                     canReassign={canReassignAction}
                     isPending={pendingId === action.id}

@@ -1,3 +1,4 @@
+import { X } from "lucide-react"
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -237,9 +238,9 @@ const AddPricingModal: React.FC<Props> = ({ open, setOpen }) => {
                     type="button"
                     onClick={() => removeFeature(index)}
                     disabled={form.planFeatures.length === 1}
-                    className="rounded-xl border border-border px-4 text-muted-foreground hover:bg-muted disabled:opacity-50"
+                    className="flex items-center justify-center rounded-xl border border-border px-4 text-muted-foreground hover:bg-muted disabled:opacity-50"
                   >
-                    ✕
+                    <X className="h-4 w-4" />
                     <span className="sr-only">
                       {t("admin.settings.pricing.form.removeFeature", {
                         number: index + 1,

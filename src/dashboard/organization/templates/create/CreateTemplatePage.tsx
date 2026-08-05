@@ -379,7 +379,7 @@ const CreateTemplatePage = () => {
             aria-labelledby="add-new-modal-title"
             className="w-80 overflow-hidden rounded-2xl bg-card shadow-2xl"
           >
-            <div className="bg-primary px-5 py-4 text-white">
+            <div className="bg-primary px-5 py-4 text-primary-foreground">
               <h3 id="add-new-modal-title" className="font-semibold">
                 {t("organization.templates.create.addNew")}
               </h3>

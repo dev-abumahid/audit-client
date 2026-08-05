@@ -56,6 +56,35 @@ vi.mock("@/components/shared/DeleteAlertModal", () => ({
     open ? <button onClick={onConfirm}>Confirm delete</button> : null,
 }))
 
+// Radix DropdownMenu needs pointer-capture APIs jsdom doesn't implement, same
+// reason InspectionTable.test.tsx swaps out its Select. Content is rendered
+// unconditionally (no open/closed simulation) so Edit/Delete are directly
+// queryable per row without needing to click the trigger first.
+vi.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuItem: ({
+    children,
+    onClick,
+    variant,
+  }: {
+    children: React.ReactNode
+    onClick?: () => void
+    variant?: string
+  }) => (
+    <button onClick={onClick} data-variant={variant}>
+      {children}
+    </button>
+  ),
+}))
+
 vi.mock("@/components/ui/button", () => ({
   Button: ({
     children,
@@ -156,18 +185,25 @@ describe("SitesEntities", () => {
       })
     ).toBeInTheDocument()
 
+    // Edit/Delete are now behind a "more actions" dropdown trigger (round-2
+    // audit: consolidated from two always-visible icon buttons into a menu).
+    const moreActionsButton = screen.getAllByRole("button").find((b) =>
+      b.querySelector("svg.lucide-ellipsis-vertical")
+    )!
+    expect(moreActionsButton).toHaveAccessibleName(
+      "organization.site&entities.moreActionsLabel"
+    )
+
     const editButton = screen.getAllByRole("button").find((b) =>
       b.querySelector("svg.lucide-pencil")
     )!
-    expect(editButton).toHaveAccessibleName(
-      "organization.site&entities.editSiteLabel"
-    )
+    expect(editButton).toHaveTextContent("organization.site&entities.editAction")
 
     const deleteButton = screen.getAllByRole("button").find((b) =>
       b.querySelector("svg.lucide-trash-2")
     )!
-    expect(deleteButton).toHaveAccessibleName(
-      "organization.site&entities.deleteSiteLabel"
+    expect(deleteButton).toHaveTextContent(
+      "organization.site&entities.deleteAction"
     )
 
     const expandButton = screen.getAllByRole("button").find((b) =>

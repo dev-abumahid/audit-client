@@ -1121,7 +1121,7 @@ describe("CorrelationMatrixPage", () => {
       screen.queryAllByText((_, el) => el?.textContent === "High")
     ).toHaveLength(0)
     for (const badge of badges) {
-      expect(badge).toHaveClass("bg-red-100")
+      expect(badge).toHaveClass("bg-orange-500/15")
     }
   })
 
@@ -1153,8 +1153,8 @@ describe("CorrelationMatrixPage", () => {
     )
     expect(badges).toHaveLength(2)
     for (const badge of badges) {
-      expect(badge).toHaveClass("bg-green-100")
-      expect(badge).not.toHaveClass("bg-orange-100")
+      expect(badge).toHaveClass("bg-emerald-500/15")
+      expect(badge).not.toHaveClass("bg-orange-500/15")
     }
   })
 

@@ -13,9 +13,10 @@ import type { Risk, SiteSummary } from "@/types/organization"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
+import { severityBadgeClasses } from "@/utils/severityStyles"
 import RiskApprovalControls from "./RiskApprovalControls"
 import RiskOverrideBadge from "./RiskOverrideBadge"
-import { Clock, Loader, Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { Bot, Building2, Clock, Loader, Pencil, Plus, Search, Trash2 } from "lucide-react"
 import { useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
 import { useForm } from "react-hook-form"
@@ -271,7 +272,7 @@ export default function RiskRegisterPage() {
     <div className="space-y-5 p-4 lg:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight lg:text-2xl">
+          <h1 className="font-heading text-xl font-bold tracking-tight text-foreground lg:text-2xl">
             {t("organization.riskRegister.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -337,7 +338,7 @@ export default function RiskRegisterPage() {
           onClick={() => setPendingApprovalOnly((prev) => !prev)}
           className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${
             pendingApprovalOnly
-              ? "border-yellow-500/40 bg-yellow-500/15 text-yellow-600"
+              ? severityBadgeClasses("medium", { border: true })
               : "border-input bg-card text-muted-foreground hover:bg-muted"
           }`}
         >
@@ -392,9 +393,15 @@ export default function RiskRegisterPage() {
                       </p>
                     </td>
                     <td className="hidden px-3 py-2.5 sm:table-cell">
-                      <span className="text-[11px] text-muted-foreground">
-                        {risk?.site?.name ||
-                          `🏢 ${t("organization.riskRegister.groupFallback")}`}
+                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                        {risk?.site?.name ? (
+                          risk.site.name
+                        ) : (
+                          <>
+                            <Building2 className="h-3 w-3 shrink-0" />
+                            {t("organization.riskRegister.groupFallback")}
+                          </>
+                        )}
                       </span>
                     </td>
                     <td className="hidden px-3 py-2.5 md:table-cell">
@@ -422,18 +429,9 @@ export default function RiskRegisterPage() {
                     <td className="px-3 py-2.5 text-center">
                       <div className="flex flex-col items-center gap-1">
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                            getRiskSeverityLevel(risk.residual_score) ===
-                            "critical"
-                              ? "bg-destructive/15 text-destructive"
-                              : getRiskSeverityLevel(risk.residual_score) ===
-                                  "high"
-                                ? "bg-orange-500/15 text-orange-600"
-                                : getRiskSeverityLevel(risk.residual_score) ===
-                                    "medium"
-                                  ? "bg-yellow-500/15 text-yellow-600"
-                                  : "bg-green-500/15 text-green-600"
-                          }`}
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${severityBadgeClasses(
+                            getRiskSeverityLevel(risk.residual_score)
+                          )}`}
                         >
                           {risk.residual_score}
                         </span>
@@ -466,9 +464,14 @@ export default function RiskRegisterPage() {
                       {(risk.financial_impact_max / 1000).toFixed(1)}M
                     </td>
                     <td className="px-3 py-2.5 text-[10px] text-muted-foreground">
-                      {risk.ai_generated
-                        ? `🤖 ${t("organization.riskRegister.aiGenerated")}`
-                        : t("organization.riskRegister.manual")}
+                      {risk.ai_generated ? (
+                        <span className="flex items-center gap-1">
+                          <Bot className="h-3 w-3 shrink-0" />
+                          {t("organization.riskRegister.aiGenerated")}
+                        </span>
+                      ) : (
+                        t("organization.riskRegister.manual")
+                      )}
                     </td>
                     <td className="px-3 py-2.5">
                       <RiskApprovalControls risk={risk} />

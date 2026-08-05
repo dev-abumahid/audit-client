@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import Pagination from "@/components/shared/Pagination"
 import { Button } from "@/components/ui/button"
 import {
   useDeleteFindingByIdMutation,
@@ -12,10 +13,9 @@ import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { IAction } from "@/types/finding"
 import { canWriteInspection } from "@/utils/assignmentScope"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { severityBadgeClasses } from "@/utils/severityStyles"
 import type { TFunction } from "i18next"
 import {
-  ChevronLeft,
-  ChevronRight,
   ChevronsUpDown,
   Clock,
   Edit2,
@@ -47,20 +47,20 @@ const PRIORITY_KEYS: Record<string, string> = {
   High: "organization.findings.priorityHigh",
 }
 
+// Same STATUS_COLORS/PRIORITY_BADGES mapping as FindingDetails.tsx, both
+// sourced from severityBadgeClasses() so the same finding renders the same
+// color regardless of which page shows it (see src/utils/severityStyles.ts).
 const STATUS_COLORS: Record<string, string> = {
-  COMPLETE:
-    "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/30",
-  IN_PROGRESS:
-    "text-yellow-600 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/30",
-  CANT_DO: "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/30",
-  TO_DO: "text-gray-600 bg-gray-50 dark:text-gray-400 dark:bg-gray-900/30",
+  TO_DO: severityBadgeClasses("medium"),
+  IN_PROGRESS: severityBadgeClasses("info"),
+  COMPLETE: severityBadgeClasses("low"),
+  CANT_DO: severityBadgeClasses("critical"),
 }
 
 const PRIORITY_BADGES: Record<string, string> = {
-  Low: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  Medium:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  High: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  Low: severityBadgeClasses("low"),
+  Medium: severityBadgeClasses("medium"),
+  High: severityBadgeClasses("high"),
 }
 
 // aexa-frontend round-3 audit bug #3: hardcoded "en-US" ignored the active
@@ -160,18 +160,6 @@ export default function AllFindingsPage() {
     setShowFilterDropdown(false)
   }
 
-  const getPageNumbers = () => {
-    const maxVisible = 5
-    let start = Math.max(1, page - Math.floor(maxVisible / 2))
-    const end = Math.min(totalPages, start + maxVisible - 1)
-
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1)
-    }
-
-    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
-  }
-
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -191,7 +179,7 @@ export default function AllFindingsPage() {
       <div className="border-b border-border bg-background px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-foreground">
+            <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
               {t("organization.findings.allTitle")}
             </h1>
             <span className="text-sm text-muted-foreground">
@@ -314,7 +302,7 @@ export default function AllFindingsPage() {
           </h2>
 
           {/* Table View - Professional Design */}
-          <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -504,40 +492,14 @@ export default function AllFindingsPage() {
             </div>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-center gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                disabled={page === 1}
-                className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <ChevronLeft size={20} />
-              </button>
-
-              {getPageNumbers().map((pageNum) => (
-                <button
-                  key={pageNum}
-                  onClick={() => setPage(pageNum)}
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                    page === pageNum
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              ))}
-
-              <button
-                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                disabled={page === totalPages}
-                className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            prevAriaLabel={t("organization.findings.prevPage")}
+            nextAriaLabel={t("organization.findings.nextPage")}
+            className="mt-6"
+          />
         </div>
       </div>
 

@@ -39,10 +39,12 @@ const COMPLIANCE_ITEMS = [
     status: "compliant",
     dot: "bg-risk-low",
     // Same fix as its red/amber siblings below: raw --risk-low as text on
-    // its own 15%-tint measures ~2:1 in light mode — never got this fix
-    // when the other two chips did, since it "looked fine" without being
-    // measured. Also used directly (no chip) on the 92% stat below.
-    chip: "bg-emerald-500/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-risk-low",
+    // its own 15%-tint measures ~2:1 in light mode. Dark mode's raw token
+    // technically clears AA on its own (9.08:1), but real Tailwind shades
+    // for both themes -- not the raw token -- keeps this consistent with
+    // src/utils/severityStyles.ts's low entry (round-4 final-review fix).
+    // Also used directly (no chip) on the 92% stat below.
+    chip: "bg-emerald-500/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-400",
   },
   {
     key: "vendorAccess",
@@ -93,7 +95,7 @@ const HeroProductVisual: React.FC = () => {
           page's own visual system instead of borrowing a generic one. */}
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <Logo className="h-4 w-4 text-primary" />
+          <Logo className="h-4 w-4" />
           <span className="font-heading text-sm font-semibold text-foreground">
             Qiyrix
           </span>
@@ -200,7 +202,7 @@ const HeroProductVisual: React.FC = () => {
               </p>
             </div>
             <div>
-              <p className="font-mono-data text-lg font-bold text-emerald-700 dark:text-risk-low">
+              <p className="font-mono-data text-lg font-bold text-emerald-700 dark:text-emerald-400">
                 92%
               </p>
               <p className="text-[10px] text-muted-foreground">

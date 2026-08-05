@@ -148,6 +148,18 @@
     --risk-low: 142 71% 45%;
     --risk-info: 199 89% 48%;
     --risk-critical: 0 72% 51%;
+
+    /* Qiyrix brand mark ("The Risk Graph") -- literal hex, not the
+       HSL-triplet convention the rest of this file uses: these four
+       tokens are consumed directly as SVG fill/stroke var() references in
+       src/components/shared/Logo.tsx, never through a Tailwind bg-/text-
+       utility, so there's no @theme inline mapping to keep in sync and no
+       reason to round-trip the brand spec's exact hex values through HSL.
+       Values per the brand handoff doc (qiyrix-brand-spec.md) verbatim. */
+    --logo-primary: #0f1e3d;
+    --logo-ring: #5c6b85;
+    --logo-accent: #00bfa0;
+    --logo-accent-ring: #66d9ce;
 }
 
 /* =========================
@@ -210,6 +222,13 @@
     --risk-medium: 38 92% 55%;
     --risk-low: 142 71% 50%;
     --risk-info: 199 89% 52%;
+
+    /* Qiyrix brand mark -- see the light-theme block above for why these
+       are literal hex. Dark-mode values per the brand handoff doc. */
+    --logo-primary: #e8ecf4;
+    --logo-ring: #8b96ac;
+    --logo-accent: #2dd9ce;
+    --logo-accent-ring: #4fa89d;
 }
 
 /* =========================
@@ -246,6 +265,25 @@
 
   .focus-ring {
     @apply outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Sidebar is always dark regardless of light/dark theme, so its focus
+     ring needs the sidebar tokens instead of .focus-ring's
+     ring-offset-background, which would be wrong against that surface. */
+  .focus-ring-sidebar {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar;
+  }
+
+  /* Same reasoning as .focus-ring-sidebar above: the sidebar is always
+     dark regardless of the app's light/dark toggle, so the brand mark
+     inside it must always render with the dark-mode token values instead
+     of following .dark/:root -- otherwise the mark would render in its
+     light-mode navy on the sidebar's dark background in light theme. */
+  .qiyrix-mark--sidebar {
+    --logo-primary: #e8ecf4;
+    --logo-ring: #8b96ac;
+    --logo-accent: #2dd9ce;
+    --logo-accent-ring: #4fa89d;
   }
 
   .animate-fade-in {

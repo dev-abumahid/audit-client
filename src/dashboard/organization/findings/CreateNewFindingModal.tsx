@@ -18,6 +18,7 @@ import { useGetAllOrgUsersQuery } from "@/redux/apis/organization/org.user.api"
 import type { IAction, IActionMessage } from "@/types/finding"
 import { toLocalDatetimeInputValue } from "./dueDateInput"
 import { fileType } from "@/utils/fileType"
+import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import {
   AlertCircle,
   AlertTriangle,
@@ -76,16 +77,17 @@ const defaultDueDate = () => {
 }
 
 const PRIORITY_STYLES: Record<string, string> = {
-  Low: "text-risk-low dark:text-risk-low",
-  Medium: "text-risk-medium dark:text-risk-medium",
-  High: "text-risk-high dark:text-risk-high",
+  Low: SEVERITY_STYLES.low.text,
+  Medium: SEVERITY_STYLES.medium.text,
+  High: SEVERITY_STYLES.high.text,
 }
 
+// Same status->severity mapping as FindingDetails.tsx/AllFindingsPage.tsx.
 const STATUS_STYLES: Record<string, string> = {
-  TO_DO: "text-blue-600 dark:text-blue-400",
-  IN_PROGRESS: "text-yellow-600 dark:text-yellow-400",
-  COMPLETE: "text-green-600 dark:text-green-400",
-  CANT_DO: "text-red-600 dark:text-red-400",
+  TO_DO: SEVERITY_STYLES.medium.text,
+  IN_PROGRESS: SEVERITY_STYLES.info.text,
+  COMPLETE: SEVERITY_STYLES.low.text,
+  CANT_DO: SEVERITY_STYLES.critical.text,
 }
 
 export default function CreateNewFindingModal({

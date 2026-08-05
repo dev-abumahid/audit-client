@@ -1,4 +1,5 @@
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
+import Pagination from "@/components/shared/Pagination"
 import type {
   AuditEngagement,
   AuditEngagementWrite,
@@ -15,8 +16,6 @@ import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import {
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
   FileText,
   Loader2,
@@ -33,6 +32,7 @@ import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import RiskMultiSelect from "./RiskMultiSelect"
 
 // Same base-URL convention the Compliance module uses for its direct
@@ -149,34 +149,24 @@ export default function AuditPage() {
     setPage(1)
   }
 
-  const getPageNumbers = () => {
-    const maxVisible = 5
-    let start = Math.max(1, page - Math.floor(maxVisible / 2))
-    const end = Math.min(totalPages, start + maxVisible - 1)
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1)
-    }
-    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
-  }
-
   const STATUS_CONFIG: Record<
     string,
     { label: string; bg: string; text: string }
   > = {
     planned: {
       label: t("organization.audit.statusPlanned"),
-      bg: "bg-blue-500/10",
-      text: "text-blue-600",
+      bg: SEVERITY_STYLES.info.bg,
+      text: SEVERITY_STYLES.info.text,
     },
     in_progress: {
       label: t("organization.audit.statusInProgress"),
-      bg: "bg-orange-500/10",
-      text: "text-orange-600",
+      bg: SEVERITY_STYLES.medium.bg,
+      text: SEVERITY_STYLES.medium.text,
     },
     completed: {
       label: t("organization.audit.statusCompleted"),
-      bg: "bg-green-500/10",
-      text: "text-green-600",
+      bg: SEVERITY_STYLES.low.bg,
+      text: SEVERITY_STYLES.low.text,
     },
   }
 
@@ -354,7 +344,7 @@ export default function AuditPage() {
     <div className="space-y-6 p-6">
       <div className="animate-fade-in flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
             {t("organization.audit.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -436,7 +426,7 @@ export default function AuditPage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-muted-foreground">
+                      <span className="font-mono-data text-xs font-bold text-muted-foreground">
                         {eng.ref}
                       </span>
                       <span
@@ -596,42 +586,14 @@ export default function AuditPage() {
           </div>
         )}
 
-        {/* Pagination (shown only when the result set spans more than one page) */}
-        {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(p - 1, 1))}
-              disabled={page === 1}
-              aria-label={t("organization.audit.prevPage")}
-              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <ChevronLeft size={20} />
-            </button>
-
-            {getPageNumbers().map((pageNum) => (
-              <button
-                key={pageNum}
-                onClick={() => setPage(pageNum)}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                  page === pageNum
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-muted"
-                }`}
-              >
-                {pageNum}
-              </button>
-            ))}
-
-            <button
-              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-              disabled={page === totalPages}
-              aria-label={t("organization.audit.nextPage")}
-              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <ChevronRight size={20} />
-            </button>
-          </div>
-        )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          prevAriaLabel={t("organization.audit.prevPage")}
+          nextAriaLabel={t("organization.audit.nextPage")}
+          className="mt-6"
+        />
       </div>
 
       {/* Create / Edit Modal */}

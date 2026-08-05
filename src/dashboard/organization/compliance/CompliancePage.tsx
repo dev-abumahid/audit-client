@@ -1,4 +1,12 @@
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
+import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import Pagination from "@/components/shared/Pagination"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import CreateNewFindingModal from "@/dashboard/organization/findings/CreateNewFindingModal"
 import { formatDateOnlyForDisplay } from "@/dashboard/organization/findings/dueDateInput"
 import type {
@@ -20,21 +28,22 @@ import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { COMPLIANCE_DOMAINS } from "@/utils/complianceConfig"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import {
   AlertTriangle,
   Ban,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   History,
   Loader2,
   MinusCircle,
+  MoreVertical,
   Paperclip,
   Pencil,
   Plus,
   RotateCw,
   Save,
+  Scale,
   Trash2,
   Upload,
   X,
@@ -61,9 +70,9 @@ const STATUS_ICONS: Record<string, React.ElementType> = {
 }
 
 const STATUS_BADGE: Record<string, string> = {
-  compliant: "bg-risk-low/10 text-risk-low",
-  in_progress: "bg-amber-500/10 text-amber-600",
-  non_compliant: "bg-risk-critical/10 text-risk-critical",
+  compliant: severityBadgeClasses("low"),
+  in_progress: severityBadgeClasses("medium"),
+  non_compliant: severityBadgeClasses("critical"),
   not_applicable: "bg-muted text-muted-foreground",
 }
 
@@ -73,9 +82,9 @@ const RECURRENCE_KEYS = ["", "monthly", "quarterly", "annual"] as const
 
 // Red/orange/green banding from the scorecard endpoint (CDC 7.7 thresholds).
 const BAND_CLASSES: Record<ComplianceScoreBand, string> = {
-  green: "bg-risk-low/10 text-risk-low border-risk-low/30",
-  orange: "bg-amber-500/10 text-amber-600 border-amber-500/30",
-  red: "bg-risk-critical/10 text-risk-critical border-risk-critical/30",
+  green: severityBadgeClasses("low", { border: true }),
+  orange: severityBadgeClasses("medium", { border: true }),
+  red: severityBadgeClasses("critical", { border: true }),
   none: "bg-muted text-muted-foreground border-border",
 }
 
@@ -154,6 +163,8 @@ export default function CompliancePage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [uploading, setUploading] = useState(false)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // aexa-frontend#490 -- role="dialog"/focus-trap/Escape for this page's
   // three hand-rolled overlays, same pattern KriDashboardPage uses (round
@@ -232,18 +243,6 @@ export default function CompliancePage() {
   const handleStatusChange = (value: string) => {
     setFilterStatus(value)
     setPage(1)
-  }
-
-  // Windowed page numbers around the current page (same pattern as
-  // AllFindingsPage), so the control stays compact for large result sets.
-  const getPageNumbers = () => {
-    const maxVisible = 5
-    let start = Math.max(1, page - Math.floor(maxVisible / 2))
-    const end = Math.min(totalPages, start + maxVisible - 1)
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1)
-    }
-    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
   // Domain/status labels are echoed as raw keys until i18n initializes (tests),
@@ -365,12 +364,18 @@ export default function CompliancePage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t("organization.compliance.deleteConfirm"))) return
+  const handleDelete = (id: string) => {
+    setDeleteTargetId(id)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetId) return
+    setIsDeleting(true)
     try {
-      const res = await deleteCompliance(id).unwrap()
+      const res = await deleteCompliance(deleteTargetId).unwrap()
       if (res.success) {
         toast.success(t("organization.compliance.toast.deleteSuccess"))
+        setDeleteTargetId(null)
       } else {
         toast.error(
           res.message || t("organization.compliance.toast.deleteFailed")
@@ -381,6 +386,8 @@ export default function CompliancePage() {
         (err as { data?: { message?: string } })?.data?.message ||
         t("organization.compliance.toast.deleteFailed")
       toast.error(message)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -471,7 +478,7 @@ export default function CompliancePage() {
     <div className="space-y-5 p-4 lg:p-6">
       <div className="animate-fade-in flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground lg:text-2xl">
+          <h1 className="font-heading text-xl font-bold tracking-tight text-foreground lg:text-2xl">
             {t("organization.compliance.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -534,8 +541,8 @@ export default function CompliancePage() {
       <div className="animate-slide-up grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-risk-low/30 bg-risk-low/5 p-3 lg:p-4">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-risk-low" />
-            <span className="font-mono-data text-xl font-bold text-risk-low lg:text-2xl">
+            <CheckCircle2 className={`h-5 w-5 ${SEVERITY_STYLES.low.text}`} />
+            <span className={`font-mono-data text-xl font-bold lg:text-2xl ${SEVERITY_STYLES.low.text}`}>
               {compliantCount}
             </span>
           </div>
@@ -545,8 +552,8 @@ export default function CompliancePage() {
         </div>
         <div className="rounded-xl border border-risk-critical/30 bg-risk-critical/5 p-3 lg:p-4">
           <div className="flex items-center gap-2">
-            <Ban className="h-5 w-5 text-risk-critical" />
-            <span className="font-mono-data text-xl font-bold text-risk-critical lg:text-2xl">
+            <Ban className={`h-5 w-5 ${SEVERITY_STYLES.critical.text}`} />
+            <span className={`font-mono-data text-xl font-bold lg:text-2xl ${SEVERITY_STYLES.critical.text}`}>
               {nonCompliantCount}
             </span>
           </div>
@@ -702,7 +709,7 @@ export default function CompliancePage() {
                     <span
                       className={`font-mono-data text-xs ${
                         isOverdue
-                          ? "font-bold text-risk-critical"
+                          ? `font-bold ${SEVERITY_STYLES.critical.text}`
                           : "text-muted-foreground"
                       }`}
                     >
@@ -711,7 +718,7 @@ export default function CompliancePage() {
                         : "—"}
                     </span>
                     {isOverdue && (
-                      <span className="mt-0.5 flex items-center justify-center gap-1 text-[10px] font-medium text-risk-critical">
+                      <span className={`mt-0.5 flex items-center justify-center gap-1 text-[10px] font-medium ${SEVERITY_STYLES.critical.text}`}>
                         <AlertTriangle className="h-2.5 w-2.5" />
                         {t("organization.compliance.overdueLabel")}
                       </span>
@@ -764,62 +771,64 @@ export default function CompliancePage() {
                           {t("organization.compliance.createAction.button")}
                         </button>
                       )}
-                      <div className="flex items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                        {canWrite && (
-                          <>
-                            <button
-                              onClick={() => openEdit(obl)}
-                              aria-label={t(
-                                "organization.compliance.editObligation"
-                              )}
-                              className="rounded p-1 text-muted-foreground hover:bg-muted"
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </button>
-                            {/* aexa-server#250: re-attest is legitimate for
-                                any obligation, recurring or not -- the
-                                history entry itself is a real audit-trail
-                                fact independent of whether there's a
-                                cadence to advance. Same write gate as
-                                edit/delete (assertCanWriteOrgResource). */}
-                            <button
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            aria-label={t(
+                              "organization.compliance.moreActionsLabel",
+                              { title: obl.title }
+                            )}
+                            className="focus-ring rounded-lg p-2 text-muted-foreground hover:bg-muted"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {canWrite && (
+                            <DropdownMenuItem onClick={() => openEdit(obl)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                              {t("organization.compliance.editObligation")}
+                            </DropdownMenuItem>
+                          )}
+                          {/* aexa-server#250: re-attest is legitimate for
+                              any obligation, recurring or not -- the
+                              history entry itself is a real audit-trail
+                              fact independent of whether there's a
+                              cadence to advance. Same write gate as
+                              edit/delete (assertCanWriteOrgResource). */}
+                          {canWrite && (
+                            <DropdownMenuItem
                               onClick={(e) => {
-                                pendingFocusRef.current = e.currentTarget
+                                pendingFocusRef.current =
+                                  e.currentTarget as unknown as HTMLElement
                                 openAttest(obl)
                               }}
-                              aria-label={t(
-                                "organization.compliance.attest.button"
-                              )}
-                              className="rounded p-1 text-muted-foreground hover:bg-muted"
                             >
-                              <RotateCw className="h-3 w-3" />
-                            </button>
-                          </>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            pendingFocusRef.current = e.currentTarget
-                            openHistory(obl)
-                          }}
-                          aria-label={t(
-                            "organization.compliance.attest.historyButton"
+                              <RotateCw className="h-3.5 w-3.5" />
+                              {t("organization.compliance.attest.button")}
+                            </DropdownMenuItem>
                           )}
-                          className="rounded p-1 text-muted-foreground hover:bg-muted"
-                        >
-                          <History className="h-3 w-3" />
-                        </button>
-                        {canWrite && (
-                          <button
-                            onClick={() => handleDelete(obl.id)}
-                            aria-label={t(
-                              "organization.compliance.deleteObligation"
-                            )}
-                            className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              pendingFocusRef.current =
+                                e.currentTarget as unknown as HTMLElement
+                              openHistory(obl)
+                            }}
                           >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        )}
-                      </div>
+                            <History className="h-3.5 w-3.5" />
+                            {t("organization.compliance.attest.historyButton")}
+                          </DropdownMenuItem>
+                          {canWrite && (
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => handleDelete(obl.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              {t("organization.compliance.deleteObligation")}
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </td>
                 </tr>
@@ -835,49 +844,21 @@ export default function CompliancePage() {
         )}
 
         {!isLoading && obligations.length === 0 && (
-          <div className="p-12 text-center text-muted-foreground">
-            {t("organization.compliance.empty")}
+          <div className="flex flex-col items-center py-16 text-center text-muted-foreground">
+            <Scale className="mb-3 h-10 w-10 text-muted-foreground/40" />
+            <p>{t("organization.compliance.empty")}</p>
           </div>
         )}
       </div>
 
       {/* Pagination — server-side; hidden when everything fits on one page. */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(p - 1, 1))}
-            disabled={page === 1}
-            aria-label={t("organization.compliance.pagination.previous")}
-            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-
-          {getPageNumbers().map((pageNum) => (
-            <button
-              key={pageNum}
-              onClick={() => setPage(pageNum)}
-              aria-current={page === pageNum ? "page" : undefined}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                page === pageNum
-                  ? "bg-primary text-primary-foreground"
-                  : "text-foreground hover:bg-muted"
-              }`}
-            >
-              {pageNum}
-            </button>
-          ))}
-
-          <button
-            onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-            disabled={page === totalPages}
-            aria-label={t("organization.compliance.pagination.next")}
-            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        prevAriaLabel={t("organization.compliance.pagination.previous")}
+        nextAriaLabel={t("organization.compliance.pagination.next")}
+      />
 
       {/* Create / Edit Modal */}
       {showForm && (
@@ -1087,7 +1068,7 @@ export default function CompliancePage() {
                   would actually be rejected) is assertCompliantHasEvidence on
                   the backend. */}
               {form.status === "compliant" && form.attachments.length === 0 && (
-                <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                <div className={`flex items-start gap-2 rounded-md px-3 py-2 text-xs ${severityBadgeClasses("medium", { border: true })}`}>
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   {t("organization.compliance.form.evidenceRequiredWarning")}
                 </div>
@@ -1343,6 +1324,14 @@ export default function CompliancePage() {
           </div>
         </div>
       )}
+
+      <DeleteAlertModal
+        open={!!deleteTargetId}
+        setOpen={(open) => !open && setDeleteTargetId(null)}
+        onConfirm={handleConfirmDelete}
+        loading={isDeleting}
+        title={t("organization.compliance.deleteConfirm")}
+      />
     </div>
   )
 }

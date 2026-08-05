@@ -1,5 +1,12 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
-import { Building, ChevronDown } from "lucide-react"
+import { Building2, MapPin } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 interface SiteFilterProps {
@@ -7,6 +14,12 @@ interface SiteFilterProps {
   onChange: (siteId: string | null) => void
   className?: string
 }
+
+// Radix Select requires a non-empty string value for every item -- "" would
+// collide with its own "no selection" sentinel -- so null (the "all sites,
+// grouped" state) is represented as this sentinel string at the Select layer
+// and translated back to null in onValueChange.
+const GROUP_VALUE = "__group__"
 
 export default function SiteFilter({
   value,
@@ -30,27 +43,27 @@ export default function SiteFilter({
   if (!isLoading && sites.length === 0) return null
 
   return (
-    <div className={`relative ${className}`}>
-      <Building className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-      <select
-        value={value || "__group__"}
-        onChange={(e) =>
-          onChange(e.target.value === "__group__" ? null : e.target.value)
-        }
-        disabled={isLoading}
-        className="h-9 w-full appearance-none rounded-lg border border-input bg-card pr-8 pl-9 text-xs font-medium text-foreground focus:ring-2 focus:ring-ring focus:outline-none disabled:opacity-50"
-      >
-        <option value="__group__">
-          🏢 {t("organization.siteFilter.groupView")}
-        </option>
+    <Select
+      value={value || GROUP_VALUE}
+      onValueChange={(v) => onChange(v === GROUP_VALUE ? null : v)}
+      disabled={isLoading}
+    >
+      <SelectTrigger className={`h-9 w-full text-xs font-medium ${className}`}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={GROUP_VALUE}>
+          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+          {t("organization.siteFilter.groupView")}
+        </SelectItem>
         {sites.map((s) => (
-          <option key={s.id} value={s.id}>
-            📍 {s.name}
+          <SelectItem key={s.id} value={s.id}>
+            <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+            {s.name}
             {s.country ? ` (${s.country})` : ""}
-          </option>
+          </SelectItem>
         ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-    </div>
+      </SelectContent>
+    </Select>
   )
 }

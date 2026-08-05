@@ -298,7 +298,7 @@ const EditTemplatePage = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="max-w-md text-center">
-          <h1 className="mb-2 text-xl font-semibold text-foreground">
+          <h1 className="mb-2 font-heading text-xl font-semibold text-foreground">
             {t("organization.templates.edit.systemTemplateBlockedTitle")}
           </h1>
           <p className="mb-6 text-muted-foreground">
@@ -543,7 +543,7 @@ const EditTemplatePage = () => {
             aria-labelledby="edit-add-new-modal-title"
             className="w-80 overflow-hidden rounded-2xl bg-card shadow-2xl"
           >
-            <div className="bg-primary px-5 py-4 text-white">
+            <div className="bg-primary px-5 py-4 text-primary-foreground">
               <h3 id="edit-add-new-modal-title" className="font-semibold">
                 {t("organization.templates.create.addNew")}
               </h3>

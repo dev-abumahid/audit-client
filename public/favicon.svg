@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 8 124 124" role="img" aria-labelledby="qiyrix-icon-title">
+  <title id="qiyrix-icon-title">Qiyrix</title>
+  <style>
+    svg {
+      --logo-primary: #0F1E3D;
+      --logo-ring: #5C6B85;
+      --logo-accent: #00BFA0;
+      --logo-accent-ring: #66D9CE;
+    }
+    @media (prefers-color-scheme: dark) {
+      svg {
+        --logo-primary: #E8ECF4;
+        --logo-ring: #8B96AC;
+        --logo-accent: #2DD9CE;
+        --logo-accent-ring: #4FA89D;
+      }
+    }
+  </style>
+
+  <circle cx="72" cy="70" r="30" fill="none" stroke="var(--logo-ring)" stroke-width="3.5" stroke-dasharray="9 6" />
+
+  <g stroke="var(--logo-primary)" stroke-width="3.6">
+    <line x1="72" y1="18" x2="72" y2="70" />
+    <line x1="120.86" y1="52.21" x2="72" y2="70" />
+    <line x1="117" y1="96" x2="72" y2="70" />
+    <line x1="80.13" y1="121.36" x2="72" y2="70" />
+    <line x1="27" y1="96" x2="72" y2="70" />
+    <line x1="32.76" y1="35.88" x2="72" y2="70" />
+  </g>
+
+  <g fill="var(--logo-primary)">
+    <circle cx="72" cy="18" r="6.5" />
+    <circle cx="120.86" cy="52.21" r="6" />
+    <circle cx="117" cy="96" r="7" />
+    <circle cx="80.13" cy="121.36" r="6.5" />
+    <circle cx="27" cy="96" r="6" />
+    <circle cx="32.76" cy="35.88" r="7" />
+  </g>
+
+  <circle cx="72" cy="70" r="17" fill="none" stroke="var(--logo-accent-ring)" stroke-width="3" />
+  <circle cx="72" cy="70" r="10.5" fill="var(--logo-accent)" />
+</svg>

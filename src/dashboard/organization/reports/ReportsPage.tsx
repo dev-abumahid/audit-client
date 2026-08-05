@@ -6,6 +6,7 @@ import {
   usePublishReportMutation,
 } from "@/redux/apis/organization/report.api"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { severityBadgeClasses } from "@/utils/severityStyles"
 import {
   AlertTriangle,
   Calendar,
@@ -42,9 +43,9 @@ const REPORT_TYPES: { value: ReportType; enabled: boolean }[] = [
 ]
 
 const STATUS_STYLES: Record<Report["status"], string> = {
-  GENERATING: "bg-blue-500/10 text-blue-600",
-  READY: "bg-risk-medium/10 text-risk-medium",
-  PUBLISHED: "bg-risk-low/10 text-risk-low",
+  GENERATING: severityBadgeClasses("info"),
+  READY: severityBadgeClasses("medium"),
+  PUBLISHED: severityBadgeClasses("low"),
   FAILED: "bg-destructive/10 text-destructive",
 }
 
@@ -158,7 +159,7 @@ export default function ReportsPage() {
     <div className="space-y-6 p-6">
       <div className="animate-fade-in flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
             {t("organization.reports.title")}
           </h1>
           <p className="text-sm text-muted-foreground">

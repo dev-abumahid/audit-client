@@ -1,13 +1,10 @@
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Search,
-} from "lucide-react"
+import { ChevronDown, Download, Search } from "lucide-react"
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
+import Pagination from "@/components/shared/Pagination"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { severityBadgeClasses } from "@/utils/severityStyles"
+import { toast } from "sonner"
 
 interface Transaction {
   _id: string
@@ -146,13 +143,13 @@ const AdminTransactions: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "completed":
-        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+        return severityBadgeClasses("low")
       case "pending":
-        return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+        return severityBadgeClasses("medium")
       case "failed":
-        return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+        return severityBadgeClasses("critical")
       default:
-        return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+        return severityBadgeClasses("neutral")
     }
   }
 
@@ -175,7 +172,7 @@ const AdminTransactions: React.FC = () => {
         {/* Header */}
         <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-3xl font-semibold text-foreground">
+            <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
               {t("admin.transactions.title")}
             </h1>
             <p className="mt-1 text-muted-foreground">
@@ -186,7 +183,7 @@ const AdminTransactions: React.FC = () => {
           {/* No export endpoint exists yet -- this tells the admin honestly
               rather than claiming a request was sent to the backend. */}
           <button
-            onClick={() => alert(t("admin.transactions.exportSent"))}
+            onClick={() => toast.success(t("admin.transactions.exportSent"))}
             className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Download className="h-4 w-4" />
@@ -269,7 +266,7 @@ const AdminTransactions: React.FC = () => {
                       key={tx._id}
                       className="transition-colors hover:bg-muted/50"
                     >
-                      <td className="px-6 py-4 font-mono text-sm text-foreground">
+                      <td className="font-mono-data px-6 py-4 text-sm text-foreground">
                         {tx.transactionId}
                       </td>
                       <td className="px-6 py-4 text-sm font-medium text-foreground">
@@ -281,7 +278,7 @@ const AdminTransactions: React.FC = () => {
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         {tx.planType}
                       </td>
-                      <td className="px-6 py-4 text-right font-medium text-foreground">
+                      <td className="font-mono-data px-6 py-4 text-right font-medium text-foreground">
                         {formatAmount(tx.amount)}
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -291,7 +288,7 @@ const AdminTransactions: React.FC = () => {
                           {getStatusLabel(tx.status)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                      <td className="font-mono-data px-6 py-4 text-sm text-muted-foreground">
                         {formatDate(tx.createdAt)}
                       </td>
                     </tr>
@@ -352,48 +349,19 @@ const AdminTransactions: React.FC = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex flex-col items-center justify-between gap-4 border-t border-border px-6 py-4 sm:flex-row">
-              <div className="text-sm text-muted-foreground">
-                {t("admin.transactions.pagination", {
+            <div className="border-t border-border px-6 py-4">
+              <Pagination
+                page={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                prevAriaLabel={t("admin.transactions.paginationPrevious")}
+                nextAriaLabel={t("admin.transactions.paginationNext")}
+                label={t("admin.transactions.pagination", {
                   from: (currentPage - 1) * limit + 1,
                   to: Math.min(currentPage * limit, totalItems),
                   total: totalItems,
                 })}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="rounded-lg border p-2 hover:bg-muted disabled:opacity-50"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
-                      className={`rounded-lg px-3 py-1 text-sm ${
-                        currentPage === page
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
-
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="rounded-lg border p-2 hover:bg-muted disabled:opacity-50"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
+              />
             </div>
           )}
         </div>

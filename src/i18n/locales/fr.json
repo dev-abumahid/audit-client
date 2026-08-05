@@ -275,7 +275,8 @@
     "portal": {
       "greeting": "Bienvenue, {{name}}",
       "placeholder": "Vos constats assignés apparaîtront ici bientôt.",
-      "signOut": "Se déconnecter"
+      "signOut": "Se déconnecter",
+      "logoAlt": "Logo de l'entreprise"
     }
   },
   "dashboard": {
@@ -350,6 +351,8 @@
         "colUpdated": "Mis à jour le",
         "colActions": "Actions",
         "pagination": "Affichage de {{from}} à {{to}} sur {{total}}",
+        "prevPage": "Page précédente",
+        "nextPage": "Page suivante",
         "deleteTitle": "Supprimer le modèle",
         "deleteDescription": "Voulez-vous vraiment supprimer ce modèle ? Cette action est irréversible.",
         "deleteFailed": "Échec de la suppression du modèle",
@@ -563,6 +566,8 @@
       "empty": "Aucune inspection trouvée",
       "orgFallback": "Org",
       "pageOf": "Page {{current}} sur {{total}}",
+      "prevPage": "Page précédente",
+      "nextPage": "Page suivante",
       "deleteTitle": "Supprimer l'inspection ?",
       "deleteDescription": "Cela supprimera définitivement l'inspection ainsi que toutes ses notes et actions.",
       "deleteSuccessToast": "Inspection supprimée avec succès",
@@ -829,6 +834,16 @@
       "newSite": "Nouveau site",
       "editSiteLabel": "Modifier {{name}}",
       "deleteSiteLabel": "Supprimer {{name}}",
+      "moreActionsLabel": "Plus d'actions pour {{name}}",
+      "editAction": "Modifier",
+      "deleteAction": "Supprimer",
+      "summary": {
+        "totalSites": "Sites",
+        "totalRisks": "Risques (tous sites)",
+        "criticalRisks": "Risques critiques",
+        "aiGeneratedRisks": "Risques signalés par l'IA",
+        "cappedHint": "Calculé sur les 100 premiers risques (tous sites) — le total réel peut être plus élevé"
+      },
       "expandSiteLabel": "Afficher les détails de {{name}}",
       "collapseSiteLabel": "Masquer les détails de {{name}}",
       "closeModalLabel": "Fermer",
@@ -898,12 +913,15 @@
       "trendLabel": "Tendance :",
       "suggestedOwnerLabel": "Propriétaire suggéré :",
       "confirmedRisksHeading": "Risques confirmés (dans le registre)",
+      "noConfirmedRisks": "Aucun risque confirmé pour ce site pour le moment.",
       "aiGeneratedBadge": "IA",
       "manualBadge": "Manuel",
       "deleteButton": "Supprimer",
       "addNewSiteTitle": "Ajouter un nouveau site",
       "editSiteTitle": "Modifier les informations du site",
       "showingRange": "Affichage de {{from}}-{{to}} sur {{total}}",
+      "prevPage": "Page précédente",
+      "nextPage": "Page suivante",
       "nameRequired": "Le nom est requis",
       "riskNameRequired": "Le nom du risque est requis",
       "riskStatusRequired": "Le statut est requis",
@@ -1049,6 +1067,7 @@
       "deleteConfirm": "Supprimer cette obligation de conformité ?",
       "editObligation": "Modifier l'obligation",
       "deleteObligation": "Supprimer l'obligation",
+      "moreActionsLabel": "Plus d'actions pour {{title}}",
       "pagination": {
         "previous": "Page précédente",
         "next": "Page suivante"
@@ -1336,6 +1355,7 @@
         "analyzeCount_one": "Analyser {{count}} article",
         "analyzeCount_other": "Analyser {{count}} articles",
         "analyzing": "Analyse en cours…",
+        "aiReportsLabel": "Rapports IA",
         "predict": "Prédire les tendances",
         "predicting": "Prédiction en cours…",
         "mitigations": "Générer des mesures d'atténuation",
@@ -1462,6 +1482,8 @@
       "noFindingsYet": "Aucun constat pour le moment",
       "adjustSearch": "Essayez d'ajuster votre recherche ou vos critères de filtre.",
       "getStarted": "Commencez par créer votre premier constat.",
+      "prevPage": "Page précédente",
+      "nextPage": "Page suivante",
       "fileUploaded": "Fichier téléversé",
       "mediaUploadFailed": "Échec du téléversement du média.",
       "commentFailed": "Action mise à jour, mais le commentaire n'a pas pu être enregistré.",
@@ -2080,6 +2102,8 @@
       "colDate": "Date",
       "noResults": "Aucune transaction trouvée",
       "pagination": "Affichage de {{from}} à {{to}} sur {{total}} transactions",
+      "paginationPrevious": "Page précédente",
+      "paginationNext": "Page suivante",
       "status": {
         "completed": "Terminé",
         "pending": "En attente",

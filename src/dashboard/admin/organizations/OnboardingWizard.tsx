@@ -1,7 +1,8 @@
-import { Bot, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react"
+import { Bot, Building2, Check, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react"
 import React, { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import { SEVERITY_STYLES } from "@/utils/severityStyles"
 
 import {
   Dialog,
@@ -475,7 +476,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 </div>
               </div>
               {formError && (
-                <p className="text-sm text-red-600 dark:text-red-400">
+                <p className={`text-sm ${SEVERITY_STYLES.critical.text}`}>
                   {formError}
                 </p>
               )}
@@ -725,7 +726,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 {reviewSites.map((site, si) => (
                   <div key={si} className="rounded-xl border border-border p-3">
                     <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-                      🏢{" "}
+                      <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                       {site.site_name || t("admin.onboarding.review.unnamed")}
                     </h3>
                     {site.risks.length === 0 && (
@@ -858,7 +859,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                               aria-label={t(
                                 "admin.onboarding.review.excludeRisk"
                               )}
-                              className="text-muted-foreground hover:text-red-500"
+                              className="text-muted-foreground hover:text-red-700 dark:hover:text-red-400"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -906,8 +907,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           {/* Step: Done */}
           {step === "done" && commitResult && (
             <div className="space-y-5 py-4 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl dark:bg-emerald-900/30">
-                ✓
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+                <Check className="h-7 w-7 text-emerald-700 dark:text-emerald-400" />
               </div>
               <h3 className="text-lg font-semibold text-foreground">
                 {t("admin.onboarding.done.title", {

@@ -51,8 +51,10 @@ describe("DeletePricingModal", () => {
   it("pairs the icon circle's light background with a dark mode variant", () => {
     render(<DeletePricingModal open={true} setOpen={vi.fn()} plan={plan} />)
 
-    const icon = screen.getByText("🗑")
-    expect(icon.parentElement).toHaveClass("bg-red-100", "dark:bg-red-900/30")
+    // Trash2 Lucide icon, not the 🗑 emoji glyph.
+    const icon = document.querySelector("svg.text-red-600")
+    expect(icon).toBeInTheDocument()
+    expect(icon?.parentElement).toHaveClass("bg-red-100", "dark:bg-red-900/30")
     expect(icon).toHaveClass("text-red-600", "dark:text-red-400")
   })
 

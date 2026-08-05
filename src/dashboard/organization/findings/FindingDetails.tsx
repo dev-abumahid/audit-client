@@ -4,6 +4,7 @@ import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteInspection } from "@/utils/assignmentScope"
+import { severityBadgeClasses } from "@/utils/severityStyles"
 import {
   useAddFindingMessageMutation,
   useDeleteFindingByIdMutation,
@@ -57,11 +58,14 @@ const STATUS_DISPLAY_KEYS: Record<string, string> = {
   CANT_DO: "organization.findings.statusCantDo",
 }
 
+// Raw --risk-* text on its own tint background fails WCAG AA (verified in
+// src/utils/severityStyles.ts) -- severityBadgeClasses() gives the
+// corrected text/bg/border pairing instead.
 const STATUS_STYLE: Record<string, string> = {
-  TO_DO: "bg-risk-medium/10 text-risk-medium border-risk-medium/20",
-  IN_PROGRESS: "bg-risk-info/10 text-risk-info border-risk-info/20",
-  COMPLETE: "bg-risk-low/10 text-risk-low border-risk-low/20",
-  CANT_DO: "bg-risk-critical/10 text-risk-critical border-risk-critical/20",
+  TO_DO: severityBadgeClasses("medium", { border: true }),
+  IN_PROGRESS: severityBadgeClasses("info", { border: true }),
+  COMPLETE: severityBadgeClasses("low", { border: true }),
+  CANT_DO: severityBadgeClasses("critical", { border: true }),
 }
 
 const PRIORITY_DISPLAY_KEYS: Record<string, string> = {
@@ -71,9 +75,9 @@ const PRIORITY_DISPLAY_KEYS: Record<string, string> = {
 }
 
 const PRIORITY_STYLE: Record<string, string> = {
-  Low: "bg-risk-low/10 text-risk-low border-risk-low/20",
-  Medium: "bg-risk-medium/10 text-risk-medium border-risk-medium/20",
-  High: "bg-risk-high/10 text-risk-high border-risk-high/20",
+  Low: severityBadgeClasses("low", { border: true }),
+  Medium: severityBadgeClasses("medium", { border: true }),
+  High: severityBadgeClasses("high", { border: true }),
 }
 
 const StatusIcon = ({ status }: { status?: string }) => {
@@ -471,7 +475,7 @@ export default function FindingDetails() {
             >
               <ChevronLeft className="h-4 w-4" /> {t("organization.findings.back")}
             </button>
-            <h1 className="mb-3 text-2xl font-bold text-foreground">
+            <h1 className="mb-3 font-heading text-2xl font-bold tracking-tight text-foreground">
               {action.actionTitle}
             </h1>
             <div className="flex flex-wrap gap-2">

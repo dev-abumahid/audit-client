@@ -275,7 +275,8 @@
     "portal": {
       "greeting": "Welcome, {{name}}",
       "placeholder": "Your assigned findings will appear here soon.",
-      "signOut": "Sign out"
+      "signOut": "Sign out",
+      "logoAlt": "Company logo"
     }
   },
   "dashboard": {
@@ -350,6 +351,8 @@
         "colUpdated": "Updated",
         "colActions": "Actions",
         "pagination": "Showing {{from}} to {{to}} of {{total}}",
+        "prevPage": "Previous page",
+        "nextPage": "Next page",
         "deleteTitle": "Delete template",
         "deleteDescription": "Are you sure you want to delete this template? This action cannot be undone.",
         "deleteFailed": "Failed to delete template",
@@ -563,6 +566,8 @@
       "empty": "No inspections found",
       "orgFallback": "Org",
       "pageOf": "Page {{current}} of {{total}}",
+      "prevPage": "Previous page",
+      "nextPage": "Next page",
       "deleteTitle": "Delete Inspection?",
       "deleteDescription": "This will permanently remove the inspection and all its notes, actions.",
       "deleteSuccessToast": "Inspection deleted successfully",
@@ -829,6 +834,16 @@
       "newSite": "New Site",
       "editSiteLabel": "Edit {{name}}",
       "deleteSiteLabel": "Delete {{name}}",
+      "moreActionsLabel": "More actions for {{name}}",
+      "editAction": "Edit",
+      "deleteAction": "Delete",
+      "summary": {
+        "totalSites": "Sites",
+        "totalRisks": "Org-wide risks",
+        "criticalRisks": "Critical risks",
+        "aiGeneratedRisks": "AI-flagged risks",
+        "cappedHint": "Counted from the first 100 org-wide risks — the real total may be higher"
+      },
       "expandSiteLabel": "Expand {{name}} details",
       "collapseSiteLabel": "Collapse {{name}} details",
       "closeModalLabel": "Close",
@@ -898,12 +913,15 @@
       "trendLabel": "Trend:",
       "suggestedOwnerLabel": "Suggested owner:",
       "confirmedRisksHeading": "Confirmed risks (in the register)",
+      "noConfirmedRisks": "No confirmed risks yet for this site.",
       "aiGeneratedBadge": "AI",
       "manualBadge": "Manual",
       "deleteButton": "Delete",
       "addNewSiteTitle": "Add New Site",
       "editSiteTitle": "Edit Site Information",
       "showingRange": "Showing {{from}}-{{to}} of {{total}}",
+      "prevPage": "Previous page",
+      "nextPage": "Next page",
       "nameRequired": "Name is required",
       "riskNameRequired": "Risk name is required",
       "riskStatusRequired": "Status is required",
@@ -1049,6 +1067,7 @@
       "deleteConfirm": "Delete this compliance obligation?",
       "editObligation": "Edit obligation",
       "deleteObligation": "Delete obligation",
+      "moreActionsLabel": "More actions for {{title}}",
       "pagination": {
         "previous": "Previous page",
         "next": "Next page"
@@ -1336,6 +1355,7 @@
         "analyzeCount_one": "Analyze {{count}} article",
         "analyzeCount_other": "Analyze {{count}} articles",
         "analyzing": "Analyzing…",
+        "aiReportsLabel": "AI reports",
         "predict": "Predict trends",
         "predicting": "Predicting…",
         "mitigations": "Generate mitigations",
@@ -1462,6 +1482,8 @@
       "noFindingsYet": "No findings yet",
       "adjustSearch": "Try adjusting your search or filter criteria.",
       "getStarted": "Get started by creating your first finding.",
+      "prevPage": "Previous page",
+      "nextPage": "Next page",
       "fileUploaded": "File uploaded",
       "mediaUploadFailed": "Media upload failed.",
       "commentFailed": "Action updated, but the comment failed to save.",
@@ -2080,6 +2102,8 @@
       "colDate": "Date",
       "noResults": "No transactions found",
       "pagination": "Showing {{from}} to {{to}} of {{total}} transactions",
+      "paginationPrevious": "Previous page",
+      "paginationNext": "Next page",
       "status": {
         "completed": "Completed",
         "pending": "Pending",

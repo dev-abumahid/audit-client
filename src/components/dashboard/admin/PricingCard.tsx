@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button"
+import { Check } from "lucide-react"
 import React from "react"
 import { useTranslation } from "react-i18next"
 
@@ -60,7 +62,7 @@ const PricingCard: React.FC<Props> = ({ plan, onEdit, onDelete }) => {
           <ul className="space-y-2.5">
             {plan.planFeatures.map((feature, index) => (
               <li key={index} className="flex items-start gap-2 text-sm">
-                <span className="mt-0.5 text-emerald-500">✔</span>
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 <span className="text-foreground">{feature}</span>
               </li>
             ))}
@@ -70,19 +72,23 @@ const PricingCard: React.FC<Props> = ({ plan, onEdit, onDelete }) => {
 
       {/* Action Buttons */}
       <div className="mt-8 flex gap-3">
-        <button
+        <Button
           onClick={onEdit}
-          className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-muted"
+          variant="outline"
+          size="lg"
+          className="flex-1 rounded-xl py-3 text-sm"
         >
           {t("admin.settings.pricing.card.edit")}
-        </button>
+        </Button>
 
-        <button
+        <Button
           onClick={onDelete}
-          className="flex-1 rounded-xl border border-destructive/30 bg-destructive/5 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+          variant="destructive"
+          size="lg"
+          className="flex-1 rounded-xl py-3 text-sm"
         >
           {t("admin.settings.pricing.card.delete")}
-        </button>
+        </Button>
       </div>
     </div>
   )

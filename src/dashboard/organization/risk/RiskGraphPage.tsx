@@ -8,12 +8,14 @@ import {
   topPercentileByPageRank,
 } from "@/utils/pageRank"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
+import { severityBadgeClasses } from "@/utils/severityStyles"
 import {
   AlertTriangle,
   ArrowRight,
   ChevronDown,
   ChevronUp,
   Loader2,
+  X,
   Zap,
 } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -41,15 +43,15 @@ const LINK_TYPE_META: Record<
   { badgeClassName: string; labelKey: string }
 > = {
   CAUSES: {
-    badgeClassName: "bg-destructive/10 text-destructive",
+    badgeClassName: severityBadgeClasses("critical"),
     labelKey: "organization.riskGraph.legendCauses",
   },
   AMPLIFIES: {
-    badgeClassName: "bg-orange-500/10 text-orange-600",
+    badgeClassName: severityBadgeClasses("high"),
     labelKey: "organization.riskGraph.legendAmplifies",
   },
   CORRELATES: {
-    badgeClassName: "bg-blue-500/10 text-blue-600",
+    badgeClassName: severityBadgeClasses("info"),
     labelKey: "organization.riskGraph.legendCorrelates",
   },
 }
@@ -270,7 +272,7 @@ export default function RiskGraphPage() {
     <div className="space-y-5 p-6">
       <div className="animate-fade-in flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
             {t("organization.riskGraph.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -287,15 +289,15 @@ export default function RiskGraphPage() {
       {/* Legend */}
       <div className="animate-slide-up flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
-          <span className="h-2 w-6 rounded-full bg-destructive" />
+          <span className="h-2 w-6 rounded-full bg-risk-critical" />
           {t("organization.riskGraph.legendCauses")}
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="h-2 w-6 rounded-full bg-orange-500" />
+          <span className="h-2 w-6 rounded-full bg-risk-high" />
           {t("organization.riskGraph.legendAmplifies")}
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="h-2 w-6 rounded-full bg-blue-500 opacity-60" />
+          <span className="h-2 w-6 rounded-full bg-risk-info opacity-60" />
           {t("organization.riskGraph.legendCorrelates")}
         </div>
         <div className="flex items-center gap-1.5">
@@ -305,9 +307,10 @@ export default function RiskGraphPage() {
         {selectedRisk && (
           <button
             onClick={() => setSelectedRisk(null)}
-            className="ml-2 rounded-md bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
+            className="ml-2 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
           >
-            ✕ {t("organization.riskGraph.clearSelection")}
+            <X className="h-3 w-3" />
+            {t("organization.riskGraph.clearSelection")}
           </button>
         )}
       </div>
@@ -341,12 +344,17 @@ export default function RiskGraphPage() {
               const isDimmed =
                 selectedRisk && !isCascade && link.source_ref !== selectedRisk
 
+              // hsl(var(--x)) so these track the theme's actual light/dark
+              // token values -- this used to hardcode the light-mode HSL
+              // literals directly, so every edge kept its light-mode hue in
+              // dark mode too (--risk-critical/high/info all shift lightness
+              // between themes).
               const color =
                 link.link_type === "CAUSES"
-                  ? "hsl(0, 72%, 51%)"
+                  ? "hsl(var(--risk-critical))"
                   : link.link_type === "AMPLIFIES"
-                    ? "hsl(25, 95%, 53%)"
-                    : "hsl(199, 89%, 48%)"
+                    ? "hsl(var(--risk-high))"
+                    : "hsl(var(--risk-info))"
 
               // Arrow marker
               const dx = target.x - source.x
@@ -364,7 +372,7 @@ export default function RiskGraphPage() {
                     y1={source.y}
                     x2={ex}
                     y2={ey}
-                    stroke={isCascade ? "hsl(0, 90%, 50%)" : color}
+                    stroke={isCascade ? "hsl(var(--destructive))" : color}
                     // The real RiskLink model (aexa-frontend#142) has no
                     // strength/weight column -- Fullbloom's own RiskLink
                     // doesn't carry one either -- so a fixed width per
@@ -390,7 +398,7 @@ export default function RiskGraphPage() {
                 markerHeight="6"
                 orient="auto"
               >
-                <polygon points="0 0, 10 3.5, 0 7" fill="hsl(0, 90%, 50%)" />
+                <polygon points="0 0, 10 3.5, 0 7" fill="hsl(var(--destructive))" />
               </marker>
             </defs>
 
@@ -432,7 +440,9 @@ export default function RiskGraphPage() {
                       r={nodeRadius + 6}
                       fill="none"
                       stroke={
-                        isSelected ? "hsl(var(--primary))" : "hsl(0, 80%, 50%)"
+                        isSelected
+                          ? "hsl(var(--primary))"
+                          : "hsl(var(--destructive))"
                       }
                       strokeWidth={2}
                       strokeDasharray="4 2"
@@ -481,7 +491,7 @@ export default function RiskGraphPage() {
                     x={pos.x}
                     y={pos.y + 9}
                     textAnchor="middle"
-                    className="fill-muted-foreground font-mono text-[8px] select-none"
+                    className="fill-muted-foreground font-mono-data text-[8px] select-none"
                   >
                     {t("organization.riskGraph.pagerankAbbrLabel")}
                     {getNormalizedPageRank(risk.ref).toFixed(0)}
@@ -509,7 +519,7 @@ export default function RiskGraphPage() {
                   <span className="text-muted-foreground">
                     {t("organization.riskGraph.pageRank")}
                   </span>
-                  <p className="font-mono font-bold text-foreground">
+                  <p className="font-mono-data font-bold text-foreground">
                     {getNormalizedPageRank(selectedRiskData.ref).toFixed(0)}
                   </p>
                 </div>
@@ -517,7 +527,7 @@ export default function RiskGraphPage() {
                   <span className="text-muted-foreground">
                     {t("organization.riskGraph.maxImpact")}
                   </span>
-                  <p className="font-mono font-bold text-foreground">
+                  <p className="font-mono-data font-bold text-foreground">
                     {/* aexa-frontend#376 -- financial_impact_max is stored
                         in k€ (the form's own "k€" label, submitted
                         unmodified), so divide by 1,000 to get M€, not
@@ -582,7 +592,7 @@ export default function RiskGraphPage() {
                             target: shortRef(chain.refs[chain.refs.length - 1]),
                           })}
                         </span>
-                        <span className="font-mono text-[10px] font-bold text-destructive">
+                        <span className="font-mono-data text-[10px] font-bold text-destructive">
                           {/* aexa-frontend#376 -- totalImpact sums
                               financial_impact_max values, which are stored
                               in k€; divide by 1,000 for M€. */}
@@ -594,7 +604,7 @@ export default function RiskGraphPage() {
                           <span key={ref} className="flex items-center gap-1">
                             <button
                               onClick={() => setSelectedRisk(ref)}
-                              className="font-mono font-bold text-foreground hover:text-primary"
+                              className="font-mono-data font-bold text-foreground hover:text-primary"
                               title={ref}
                             >
                               {shortRef(ref)}
@@ -625,14 +635,14 @@ export default function RiskGraphPage() {
                   className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/50"
                 >
                   <span
-                    className="font-mono font-bold text-foreground"
+                    className="font-mono-data font-bold text-foreground"
                     title={link.source_ref}
                   >
                     {shortRef(link.source_ref)}
                   </span>
                   <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />
                   <span
-                    className="font-mono font-bold text-foreground"
+                    className="font-mono-data font-bold text-foreground"
                     title={link.target_ref}
                   >
                     {shortRef(link.target_ref)}

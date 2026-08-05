@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react"
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -44,7 +45,7 @@ const DeletePricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
         <DialogHeader className="mb-6">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-              <span className="text-xl text-red-600 dark:text-red-400">🗑</span>
+              <Trash2 className="h-4.5 w-4.5 text-red-600 dark:text-red-400" />
             </div>
             <DialogTitle className="text-xl font-semibold text-foreground">
               {t("admin.settings.pricing.deleteModal.title")}

@@ -1,3 +1,4 @@
+import { severityBadgeClasses } from "@/utils/severityStyles"
 import { type LucideIcon, Minus, TrendingDown, TrendingUp } from "lucide-react"
 
 interface MetricCardProps {
@@ -26,7 +27,7 @@ export default function MetricCard({
 
   return (
     <div
-      className={`group rounded-xl border border-border bg-card p-5 shadow-sm transition-shadow duration-200 hover:shadow-md ${className}`}
+      className={`group rounded-xl border border-border bg-card p-5 transition-colors duration-200 hover:border-primary/30 ${className}`}
     >
       <div className="flex items-start justify-between">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -34,11 +35,9 @@ export default function MetricCard({
         </div>
         {trend && (
           <div
-            className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-              trendGood
-                ? "bg-risk-low/10 text-risk-low"
-                : "bg-risk-critical/10 text-risk-critical"
-            }`}
+            className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${severityBadgeClasses(
+              trendGood ? "low" : "critical"
+            )}`}
           >
             <TrendIcon className="h-3 w-3" />
             {trendValue}

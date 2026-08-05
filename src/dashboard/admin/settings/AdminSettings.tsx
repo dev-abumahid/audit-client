@@ -77,7 +77,7 @@ const AdminSettings: React.FC = () => {
       <div className="mx-auto max-w-5xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-foreground">
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
             {t("admin.settings.title")}
           </h1>
           <p className="mt-1 text-muted-foreground">
