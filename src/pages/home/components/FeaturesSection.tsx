@@ -1,16 +1,18 @@
+import { useRevealOnScroll } from "@/hooks/useRevealOnScroll"
 import {
+  BarChart3,
   ClipboardCheck,
   FileText,
   ListChecks,
   MapPin,
-  Users,
-  UsersRound,
+  Target,
 } from "lucide-react"
 import React from "react"
 import { useTranslation } from "react-i18next"
 
 const FeaturesSection: React.FC = () => {
   const { t } = useTranslation()
+  const [revealRef, revealVisible] = useRevealOnScroll<HTMLDivElement>()
   const features = [
     {
       icon: FileText,
@@ -28,7 +30,7 @@ const FeaturesSection: React.FC = () => {
       description: t("home.featureSection.features.2.description"),
     },
     {
-      icon: Users,
+      icon: BarChart3,
       title: t("home.featureSection.features.3.title"),
       description: t("home.featureSection.features.3.description"),
     },
@@ -38,7 +40,7 @@ const FeaturesSection: React.FC = () => {
       description: t("home.featureSection.features.4.description"),
     },
     {
-      icon: UsersRound,
+      icon: Target,
       title: t("home.featureSection.features.5.title"),
       description: t("home.featureSection.features.5.description"),
     },
@@ -47,70 +49,61 @@ const FeaturesSection: React.FC = () => {
   return (
     <section
       id="features"
-      className="scroll-mt-16 bg-background px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16"
+      className="scroll-mt-16 bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20"
     >
       <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-12 text-center sm:mb-16">
-          <h2 className="mb-3 text-xl leading-tight font-bold text-foreground sm:mb-5 sm:text-3xl md:text-4xl lg:text-5xl">
+        {/* Header - plain (no italic accent): that treatment is reserved for
+            the hero and authority band so it still signals emphasis instead
+            of reading as a repeated template default. */}
+        <div className="mb-12 max-w-2xl sm:mb-16">
+          <span className="text-xs font-semibold tracking-wide text-teal-700 uppercase dark:text-primary">
+            {t("home.featureSection.eyebrow")}
+          </span>
+          <h2 className="mt-3 mb-4 font-heading text-2xl leading-tight font-semibold text-balance text-foreground sm:text-3xl md:text-4xl">
             {t("home.featureSection.title1")}{" "}
-            <span className="text-primary">
-              {t("home.featureSection.title2")}
-            </span>
+            <span>{t("home.featureSection.title2")}</span>
           </h2>
-          <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
+          <p className="max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
             {t("home.featureSection.description")}
           </p>
         </div>
 
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2 lg:gap-12">
-          {/* Left Side - Image */}
-          <div className="order-2 lg:order-1">
-            <div className="relative overflow-hidden rounded-2xl border border-border">
-              <img
-                src="https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=800&h=1000&fit=crop"
-                alt={t("home.featureSection.imageAlt")}
-                className="h-auto w-full object-cover"
-              />
-            </div>
-          </div>
-
-          {/* Right Side - Features List */}
-          <div className="order-1 space-y-3 lg:order-2">
-            {/* aexa-frontend#510 round 13: these cards previously used
-                cursor-pointer + group-hover text/background states with no
-                onClick or keyboard handler behind them, implying
-                interactivity that didn't exist. There's no per-feature
-                detail view or anchor target to wire up here, so the
-                interactive-looking styling is removed rather than faked. */}
-            {features.map((feature, index) => (
-              <div
-                key={index}
-                className="flex gap-4 rounded-xl border p-2 sm:gap-5"
-              >
-                {/* Icon */}
-                <div className="shrink-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 sm:h-12 sm:w-12">
-                    <feature.icon
-                      className="h-5 w-5 text-primary sm:h-6 sm:w-6"
-                      strokeWidth={2.5}
-                    />
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1">
-                  <h3 className="mb-2 text-lg font-semibold text-foreground sm:mb-3 sm:text-xl">
-                    {feature.title}
-                  </h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
-                    {feature.description}
-                  </p>
-                </div>
+        {/* Feature Grid */}
+        <div
+          ref={revealRef}
+          className="grid grid-cols-1 gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-12"
+        >
+          {features.map((feature, index) => (
+            <div
+              key={index}
+              className={`transition-all duration-700 ease-out ${
+                revealVisible
+                  ? "translate-y-0 opacity-100"
+                  : "translate-y-4 opacity-0"
+              }`}
+              style={{ transitionDelay: revealVisible ? `${index * 70}ms` : "0ms" }}
+            >
+              {/* Asymmetric corner-rounding + accent underline, not a plain
+                  filled rounded-square: that shape is the default "feature
+                  grid" icon tile in essentially every Tailwind/shadcn
+                  template. This keeps the filled-tile language that
+                  distinguishes it from HeroFeatures' outlined tiles, but
+                  gives it its own identifiable silhouette rather than
+                  being the generic baseline. No hover state: these are
+                  static info cards with no onClick/keyboard handler behind
+                  them, and a hover-triggered style implies clickability
+                  that doesn't exist (aexa-frontend#510). */}
+              <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-tr-xl rounded-bl-xl border-b-2 border-primary bg-primary/10">
+                <feature.icon className="h-5 w-5 text-primary" strokeWidth={2} />
               </div>
-            ))}
-          </div>
+              <h3 className="mb-2 text-lg font-semibold text-foreground sm:text-xl">
+                {feature.title}
+              </h3>
+              <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
+                {feature.description}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </section>

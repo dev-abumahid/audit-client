@@ -6,12 +6,17 @@ import HeroSection from "./HeroSection"
 // ── i18n ──────────────────────────────────────────────────────────────────────
 const { mockT } = vi.hoisted(() => ({
   mockT: vi.fn((key: string) => {
+    if (key === "home.hero.capabilities") {
+      return ["Risk register & KRIs", "Compliance obligations"]
+    }
     const map: Record<string, string> = {
+      "home.hero.eyebrow": "Governance, Risk & Compliance",
       "home.hero.title1": "Manage risk",
       "home.hero.title2": "with confidence",
       "home.hero.subtitle": "A GRC platform for modern teams",
       "home.hero.btnStart": "Get Started",
       "home.hero.btnDemo": "Book a Demo",
+      "home.hero.heroCaption": "Executive risk overview inside Qiyrix",
       "auth.signUp.title": "Get Started with Us",
       "auth.signUp.subTitle": "Create your account to get started",
       "auth.signUp.organizationName": "Organization Name",
@@ -81,11 +86,16 @@ describe("HeroSection", () => {
   })
 
   // Round 12 audit (aexa-frontend#502): the hero image's alt text was a
-  // hardcoded, non-descriptive "hero-img" literal.
-  it("routes the hero image's alt text through t(), not the hardcoded 'hero-img' literal", () => {
+  // hardcoded, non-descriptive "hero-img" literal. The static <img> was
+  // later replaced with a theme-aware HeroProductVisual component wrapped
+  // in a role="img" element, so the accessible name is now asserted via
+  // aria-label rather than the alt attribute.
+  it("routes the hero visual's accessible name through t(), not a hardcoded literal", () => {
     renderHero()
 
-    expect(screen.getByAltText("home.hero.heroImageAlt")).toBeInTheDocument()
+    expect(
+      screen.getByRole("img", { name: "home.hero.heroImageAlt" })
+    ).toBeInTheDocument()
     expect(screen.queryByAltText("hero-img")).not.toBeInTheDocument()
   })
 

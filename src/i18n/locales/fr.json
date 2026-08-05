@@ -1,132 +1,174 @@
 {
   "home": {
     "hero": {
-      "title1": "Numérisez vos inspections de lieu de travail &",
-      "title2": "Opérations simples, rapides et fiables",
-      "subtitle": "Créez des inspections, attribuez des actions, gérez les sites, les utilisateurs, les groupes – tout cela depuis une plateforme intelligente conçue pour vos équipes de première ligne.",
+      "eyebrow": "Gouvernance, risque et conformité",
+      "title1": "Gouvernez le risque et la conformité",
+      "title2": "avec des preuves que votre conseil peut vérifier.",
+      "subtitle": "Qiyrix consolide vos données éparpillées dans un registre partagé, pour que chaque risque, obligation et constat d'audit reste visible pour les équipes qui doivent agir et pour les dirigeants qui doivent en répondre.",
+      "capabilities": [
+        "Registre des risques et KRI",
+        "Obligations de conformité",
+        "Piste d'audit complète",
+        "Gouvernance par rôle"
+      ],
       "btnStart": "Commencer",
-      "btnDemo": "Réservez démo",
-      "heroImageAlt": "Capture d'écran du tableau de bord de la plateforme"
+      "btnDemo": "Contacter les ventes",
+      "heroImageAlt": "Aperçu du produit Qiyrix montrant une matrice des risques, le suivi des obligations de conformité, une vue d'ensemble exécutive des risques et des questions de modèle d'audit générées par IA",
+      "heroCaption": "Vue d'ensemble exécutive des risques dans Qiyrix",
+      "visual": {
+        "liveLabel": "En direct · Registre des risques",
+        "riskMatrix": "Matrice des risques",
+        "likelihood": "Probabilité",
+        "impact": "Impact",
+        "compliance": "Conformité",
+        "obligationsTracked": "12 obligations suivies",
+        "obligations": {
+          "dataRetention": { "title": "Politique de conservation des données", "status": "Conforme" },
+          "vendorAccess": { "title": "Revue d'accès fournisseurs", "status": "Non conforme" },
+          "incidentDrill": { "title": "Exercice de réponse aux incidents", "status": "Bientôt dû" }
+        },
+        "executiveOverview": "Vue d'ensemble exécutive",
+        "activeRisks": "Risques actifs",
+        "complianceRate": "Taux de conformité",
+        "generateTemplate": "Générer un modèle d'audit",
+        "templatePrompt": "Décrivez un sujet, comme « Revue de sécurité fournisseurs »",
+        "question1": "L'accès fournisseur est-il révisé chaque trimestre ?",
+        "question2": "Téléversez la preuve du dernier audit d'accès",
+        "yesNo": "Oui/Non",
+        "media": "Média"
+      }
     },
     "heroFeatures": {
-      "title1": "Conçu pour les équipes modernes qui",
-      "title2": "gagnent en efficacité",
-      "description": "Notre plateforme permet aux équipes de travailler de manière plus sûre, plus rapide et mieux organisée. Que vous gériez plusieurs sites, inspectiez des équipements, attribuiez des tâches ou collaboriez entre équipes — nos outils digitaux centralisent tout dans un tableau de bord intuitif et une application mobile.",
+      "eyebrow": "Comment ça marche",
+      "title1": "Conçu pour la façon dont le risque",
+      "title2": "est réellement gouverné",
+      "description": "Chaque flux de travail, de l'attribution des rôles à la validation des audits, passe par la même plateforme ici, pour que rien ne soit suivi deux fois et que rien ne disparaisse entre deux audits.",
       "features": [
         {
-          "title": "Simple et intuitif pour toutes les équipes",
-          "description": "Une prise en main rapide, sans formation complexe"
+          "title": "Trois rôles, un seul registre",
+          "description": "Les rôles Admin, Auditeur principal et Utilisateur restreint délimitent précisément ce que chaque personne peut voir, modifier ou approuver dans votre organisation."
         },
         {
-          "title": "Pensé pour le mobile",
-          "description": "Travaillez efficacement, où que vous soyez"
+          "title": "Des KRI mis à jour en temps réel",
+          "description": "Suivez vos indicateurs clés de risque par rapport à vos seuils et observez les tendances évoluer en temps réel, avant le prochain rapport programmé."
         },
         {
-          "title": "Données en temps réel",
-          "description": "Accédez instantanément aux informations clés"
+          "title": "Une piste d'audit qui tient la route",
+          "description": "Chaque inspection, action et validation est horodatée et traçable, pour que la saison des audits ne soit plus une course aux preuves."
         },
         {
-          "title": "Sécurisé et 100 % cloud",
-          "description": "Une infrastructure fiable, conçue pour les entreprises"
+          "title": "Assisté par IA, validé par des humains",
+          "description": "Générez des modèles d'audit et d'inspection avec l'IA, puis adaptez-les à vos propres contrôles. Vous relisez et approuvez chacun d'eux."
         }
       ]
     },
     "featureSection": {
-      "title1": "Tout ce dont vous avez besoin sur",
-      "title2": "une seule plateforme",
-      "description": "Des fonctionnalités puissantes conçues pour optimiser vos opérations et améliorer votre productivité",
+      "eyebrow": "Plateforme",
+      "title1": "Un seul espace pour le risque,",
+      "title2": "les audits et l'action",
+      "description": "Un seul modèle de données sous-tend chaque module : un risque, un test de contrôle et l'audit qui le vérifie pointent tous vers le même enregistrement.",
       "features": [
         {
-          "title": "Créez et personnalisez des modèles dynamiques",
-          "description": "Concevez des modèles d’inspection adaptés à vos processus — checklists, formulaires, audits de sécurité, contrôles qualité, et bien plus. Dupliquez, modifiez et partagez-les instantanément avec votre équipe."
+          "title": "Modèles conformes, prêts pour l'audit",
+          "description": "Configurez une fois vos checklists, protocoles d'audit et tests de contrôle, puis versionnez-les et réutilisez-les dans chaque équipe et chaque site."
         },
         {
-          "title": "Réalisez des inspections partout, à tout moment",
-          "description": "Effectuez vos inspections directement depuis votre application mobile ou votre tableau de bord. Ajoutez photos, notes et évaluations, puis générez des rapports instantanément en un clic."
+          "title": "Audits et inspections, où que vous soyez",
+          "description": "Capturez constats, preuves et photos depuis le web ou le mobile, puis générez un rapport probant dès que vous avez terminé."
         },
         {
-          "title": "Assignez des actions et suivez leur progression",
-          "description": "Un problème détecté ? Assignez-le immédiatement à la bonne personne. Suivez les statuts, les échéances et les progrès pour ne rien laisser passer."
+          "title": "Les constats deviennent des actions suivies",
+          "description": "Chaque problème est assigné à un responsable avec une échéance, et reste visible jusqu'à sa résolution réelle."
         },
         {
-          "title": "Gérez les utilisateurs avec des contrôles avancés",
-          "description": "Invitez vos collaborateurs et attribuez des rôles selon leurs responsabilités. Contrôlez précisément qui peut voir, modifier ou gérer chaque aspect de vos opérations."
+          "title": "Des rapports prêts pour le conseil",
+          "description": "Exportez des rapports PDF prêts pour le conseil, couvrant chaque risque ouvert, écart de contrôle et résultat d'audit, mis en forme pour votre conseil et vos auditeurs externes."
         },
         {
-          "title": "Organisez vos activités par site",
-          "description": "Gérez inspections, incidents, utilisateurs et activités par emplacement. Idéal pour les entreprises avec plusieurs sites, agences ou chantiers."
+          "title": "Le risque de chaque site, en une vue",
+          "description": "Consolidez l'exposition de chaque site dans une seule vue, conçue pour les organisations multi-sites et multi-entités."
         },
         {
-          "title": "Collaborez efficacement en équipe",
-          "description": "Créez des groupes personnalisés pour fluidifier la communication et les flux de travail — maintenance, sécurité, qualité, prestataires, et plus encore."
+          "title": "Les risques les plus exposés, en premier",
+          "description": "Des recommandations assistées par IA classent le registre selon un score d'exposition réel."
         }
-      ],
-      "imageAlt": "Ouvriers du BTP portant un équipement de sécurité et consultant des documents"
+      ]
     },
     "testimonials": {
-      "title1": "Adopté par des équipes qui",
-      "title2": "misent sur la fiabilité",
-      "description": "Exemples illustratifs de la façon dont les équipes utilisent Qiyrix au quotidien pour gérer les risques, les inspections et la conformité.",
+      "eyebrow": "En pratique",
+      "title1": "Comment les équipes utilisent",
+      "title2": "Qiyrix au quotidien",
+      "description": "Exemples illustratifs d'équipes qui mettent Qiyrix en pratique. Pas des citations clients vérifiées.",
+      "illustrativeLabel": "Exemple illustratif",
       "reviews": [
         {
-          "quote": "Cette plateforme a rendu nos inspections trois fois plus rapides. Notre équipe apprécie sa simplicité d’utilisation.",
-          "name": "Responsable des opérations",
-          "position": "Entreprise industrielle"
+          "quote": "Notre registre des risques vit enfin en un seul endroit au lieu de six feuilles de calcul, et les KRI se mettent à jour dès qu'une inspection se termine.",
+          "name": "Responsable conformité",
+          "position": "Services financiers, grande entreprise"
         },
         {
-          "quote": "L’attribution instantanée des actions a résolu nos problèmes de suivi. Un système remarquable !",
-          "name": "Responsable sécurité",
-          "position": "Entreprise de construction"
+          "quote": "Les auditeurs demandent des preuves et reçoivent aussitôt un export propre, sans aller-retours par courriel.",
+          "name": "Responsable audit interne",
+          "position": "Industrie, entreprise de taille moyenne"
         },
         {
-          "quote": "La gestion de plusieurs sites n’a jamais été aussi organisée. Je recommande vivement.",
-          "name": "Coordinateur de site",
-          "position": "Chaîne de distribution"
+          "quote": "L'accès par rôle nous a permis d'intégrer des utilisateurs au niveau des sites sans leur donner de visibilité sur l'ensemble du registre des risques.",
+          "name": "Gestionnaire des risques",
+          "position": "Groupe de santé multi-sites"
+        },
+        {
+          "quote": "Les dossiers pour le conseil prenaient une semaine à assembler à la main. Aujourd'hui, c'est un export du même registre que nous utilisons chaque jour.",
+          "name": "VP, Audit interne",
+          "position": "Groupe logistique international"
         }
       ]
     },
     "faq": {
-      "title1": "Questions fréquemment",
-      "title2": "posées",
-      "description": "Tout ce que vous devez savoir sur notre plateforme",
+      "eyebrow": "FAQ",
+      "title1": "Les questions que se posent",
+      "title2": "les équipes de gouvernance",
+      "description": "Les questions concrètes que les équipes posent le plus souvent, de la connexion des données au déroulement du déploiement.",
       "questions": [
         {
-          "question": "La plateforme est-elle disponible sur mobile et sur le web ?",
-          "answer": "Oui, vous pouvez accéder au tableau de bord via le web et réaliser des inspections depuis le web ou l’application mobile."
+          "question": "Comment tout est-il relié en coulisses ?",
+          "answer": "Chaque module lit et écrit sur la même source de vérité : mettre à jour un contrôle de conformité ou clore un constat se répercute instantanément partout ailleurs, sans rien à resynchroniser ni à ressaisir à la main."
         },
         {
-          "question": "Puis-je personnaliser mes propres modèles ?",
-          "answer": "Oui, vous pouvez créer et personnaliser des modèles adaptés à vos besoins. Créez des checklists, formulaires, audits de sécurité, et bien plus."
+          "question": "Pouvons-nous modéliser notre propre registre des risques et nos contrôles ?",
+          "answer": "Oui. Configurez vos propres catégories de risque, KRI et modèles de contrôle. Qiyrix n'impose pas de taxonomie fixe à votre organisation."
         },
         {
-          "question": "Comment fonctionne la gestion des utilisateurs et des rôles ?",
-          "answer": "Invitez vos collaborateurs et attribuez-leur des rôles avec des permissions spécifiques. Vous contrôlez qui peut voir, modifier ou gérer chaque partie de vos opérations."
+          "question": "Comment fonctionne l'accès par rôle ?",
+          "answer": "Les permissions sont définies par rôle, pas par utilisateur. Changez ce qu'un Utilisateur restreint, un Auditeur principal ou un Admin peut faire à l'échelle de la plateforme, et cela s'applique partout sans reconfigurer chaque risque ou site individuellement."
         },
         {
-          "question": "Proposez-vous un essai gratuit ?",
-          "answer": "Oui, un essai gratuit est disponible pour vous permettre de découvrir toutes les fonctionnalités avant de vous engager."
+          "question": "Prenez-vous en charge plusieurs sites ou entités ?",
+          "answer": "Oui. Chaque site ou unité d'affaires remonte automatiquement, sans que la direction ait à réconcilier manuellement des registres séparés."
         },
         {
-          "question": "Prenez-vous en charge plusieurs sites ?",
-          "answer": "Absolument. Organisez inspections, utilisateurs et activités par site — idéal pour les entreprises avec plusieurs agences ou chantiers."
+          "question": "Quel est le rôle de l'IA ?",
+          "answer": "L'IA propose des points de départ, elle ne prend pas les décisions de gouvernance. Modèles, classements de risque et actions recommandées passent tous par l'approbation de votre équipe avant de devenir un enregistrement officiel."
         }
       ]
     },
     "navbar": {
+      "howItWorksLink": "Comment ça marche",
+      "platformLink": "Plateforme",
+      "faqLink": "FAQ",
       "dashboard": "Tableau de bord",
       "login": "Connexion",
-      "signUp": "S'inscrire",
+      "signUp": "Commencer",
       "toggleMenu": "Basculer le menu"
     },
     "footer": {
-      "description": "La plateforme complète pour numériser les inspections et opérations en milieu de travail. Simple, rapide et fiable.",
+      "description": "Un espace dédié au travail de gouvernance, pour qu'un constat ne reste jamais bloqué dans une boîte mail ou une feuille de calcul.",
       "quickLinksTitle": "Liens rapides",
       "featuresLink": "Fonctionnalités",
       "faqLink": "FAQ",
       "contactTitle": "Contact",
       "phone": "+44 2 3456 7890",
       "email": "hello@qiyrix.com",
-      "copyright": "© {{year}} Qiyrix — Tous droits réservés.",
+      "copyright": "© {{year}} Qiyrix. Tous droits réservés.",
       "terms": "Conditions",
       "privacyPolicy": "Politique de confidentialité"
     }

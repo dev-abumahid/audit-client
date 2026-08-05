@@ -15,7 +15,7 @@ export default function LanguageSwitcher() {
           <button
             key={lang.code}
             onClick={() => i18n.changeLanguage(lang.code)}
-            className={`px-4 py-3 text-[10px] font-semibold transition-colors ${
+            className={`focus-ring px-4 py-3 text-[10px] font-semibold transition-colors ${
               i18n.language?.startsWith(lang.code)
                 ? "bg-primary text-primary-foreground"
                 : "text-sidebar-foreground hover:bg-sidebar-accent"

@@ -19,12 +19,12 @@ describe("TestimonialsSection", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("renders the section headers and all three reviews' keys", () => {
+  it("renders the section headers and all four reviews' keys", () => {
     render(<TestimonialsSection />)
 
     expect(screen.getByText("home.testimonials.title1")).toBeInTheDocument()
     expect(screen.getByText("home.testimonials.title2")).toBeInTheDocument()
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       expect(
         screen.getByText(`home.testimonials.reviews.${i}.quote`, {
           exact: false,
@@ -59,8 +59,8 @@ describe("TestimonialsSection", () => {
     expect(screen.queryByRole("heading", { level: 4 })).not.toBeInTheDocument()
 
     const h3s = screen.getAllByRole("heading", { level: 3 })
-    expect(h3s).toHaveLength(3)
-    for (let i = 0; i < 3; i++) {
+    expect(h3s).toHaveLength(4)
+    for (let i = 0; i < 4; i++) {
       expect(
         screen.getByRole("heading", {
           level: 3,
@@ -68,5 +68,14 @@ describe("TestimonialsSection", () => {
         })
       ).toBeInTheDocument()
     }
+  })
+
+  // aexa-frontend#510: a hover-triggered lift/shadow/border on these static
+  // illustrative-quote cards implied clickability with no onClick/keyboard
+  // handler behind them.
+  it("does not style the testimonial cards as clickable", () => {
+    const { container } = render(<TestimonialsSection />)
+    expect(container.querySelector(".cursor-pointer")).not.toBeInTheDocument()
+    expect(container.querySelector(".group")).not.toBeInTheDocument()
   })
 })

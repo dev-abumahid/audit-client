@@ -18,8 +18,16 @@ export function ModeToggle() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="icon">
-          <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+          {/* transition-transform, not transition-all: on the landing
+              page's collapsible mobile nav, this icon sits inside a
+              container whose `visibility` toggles when the menu opens/
+              closes. transition-all was also interpolating that (and any
+              other inherited property change), letting a frame of the icon
+              paint through before the ancestor's visibility change took
+              effect. Scoping to transform (the only thing that actually
+              needs to animate here) removes that stray paint. */}
+          <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-transform dark:scale-0 dark:-rotate-90" />
+          <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-transform dark:scale-100 dark:rotate-0" />
           <span className="sr-only">{t("common.toggleTheme")}</span>
         </Button>
       </DropdownMenuTrigger>

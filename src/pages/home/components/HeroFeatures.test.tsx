@@ -52,11 +52,7 @@ describe("HeroFeatures", () => {
   // exists, the styling was removed rather than faked.
   it("does not style the feature cards as clickable", () => {
     const { container } = render(<HeroFeatures />)
-    const card = screen
-      .getByText("home.heroFeatures.features.0.title")
-      .closest("div.rounded-2xl")
-    expect(card).not.toHaveClass("cursor-pointer")
-    expect(card).not.toHaveClass("hover:shadow-md")
+    expect(container.querySelector(".cursor-pointer")).not.toBeInTheDocument()
     expect(container.querySelector(".group")).not.toBeInTheDocument()
   })
 })

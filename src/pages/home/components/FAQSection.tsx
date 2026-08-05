@@ -1,4 +1,3 @@
-import { Minus, Plus } from "lucide-react"
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -45,12 +44,15 @@ const FAQSection: React.FC = () => {
     >
       <div className="mx-auto max-w-4xl">
         {/* Header */}
-        <div className="mb-12 text-center sm:mb-16">
-          <h2 className="mb-3 text-xl leading-tight font-bold text-foreground sm:mb-5 sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="mb-12 sm:mb-16">
+          <span className="text-xs font-semibold tracking-wide text-teal-700 uppercase dark:text-primary">
+            {t("home.faq.eyebrow")}
+          </span>
+          <h2 className="mt-3 mb-4 font-heading text-2xl leading-tight font-semibold text-balance text-foreground sm:text-3xl md:text-4xl">
             {t("home.faq.title1")}{" "}
-            <span className="text-primary">{t("home.faq.title2")}</span>
+            <span>{t("home.faq.title2")}</span>
           </h2>
-          <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
+          <p className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
             {t("home.faq.description")}
           </p>
         </div>
@@ -68,28 +70,37 @@ const FAQSection: React.FC = () => {
                 aria-expanded={openIndex === index}
                 aria-controls={`faq-answer-${index}`}
                 id={`faq-question-${index}`}
-                className="group flex w-full items-center justify-between px-6 py-5 text-left transition-colors hover:bg-accent/10 sm:px-8 sm:py-6"
+                className="focus-ring group flex w-full items-center justify-between px-6 py-5 text-left transition-colors hover:bg-accent/10 sm:px-8 sm:py-6"
               >
-                <span className="pr-4 text-base font-medium text-foreground sm:text-lg">
+                <span className="pr-4 text-base font-semibold text-foreground sm:text-lg">
                   {faq.question}
                 </span>
 
-                <div className="shrink-0">
-                  {openIndex === index ? (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary sm:h-9 sm:w-9">
-                      <Minus
-                        className="h-5 w-5 text-primary-foreground"
-                        strokeWidth={2.5}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted transition-colors group-hover:bg-muted-foreground/10 sm:h-9 sm:w-9">
-                      <Plus
-                        className="h-5 w-5 text-muted-foreground"
-                        strokeWidth={2.5}
-                      />
-                    </div>
-                  )}
+                {/* Single icon that morphs between + and − via transform,
+                    instead of swapping two DOM nodes on toggle */}
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors duration-150 sm:h-9 sm:w-9 ${
+                    openIndex === index
+                      ? "bg-primary"
+                      : "bg-muted group-hover:bg-muted-foreground/10"
+                  }`}
+                >
+                  <div className="relative h-3.5 w-3.5">
+                    <span
+                      className={`absolute top-1/2 left-0 h-0.5 w-3.5 -translate-y-1/2 rounded-full transition-colors duration-150 ${
+                        openIndex === index
+                          ? "bg-primary-foreground"
+                          : "bg-muted-foreground"
+                      }`}
+                    />
+                    <span
+                      className={`absolute top-0 left-1/2 w-0.5 -translate-x-1/2 rounded-full transition-all duration-150 ${
+                        openIndex === index
+                          ? "h-0 bg-primary-foreground"
+                          : "h-3.5 bg-muted-foreground"
+                      }`}
+                    />
+                  </div>
                 </div>
               </button>
 
@@ -97,6 +108,17 @@ const FAQSection: React.FC = () => {
                   mounted) so aria-controls on the button above always
                   resolves to a real element in the DOM, even while
                   collapsed. Visibility is toggled via `hidden` instead. */}
+              {/* Not height/opacity-animated like the icon above: the
+                  `hidden` attribute is what makes this panel genuinely
+                  invisible to assistive tech (it resolves to computed
+                  display:none), and CSS can't transition display:none.
+                  Animating it would mean either overriding [hidden]'s
+                  display via author CSS -- which un-hides the panel from
+                  screen readers while it's still supposed to be closed --
+                  or reaching for `@starting-style`/`allow-discrete`, whose
+                  browser support isn't verified for this stack. Left as an
+                  instant toggle rather than risk a real (untested-by-CI)
+                  a11y regression for a cosmetic mismatch with the icon. */}
               <div
                 id={`faq-answer-${index}`}
                 role="region"

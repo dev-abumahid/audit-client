@@ -1,132 +1,174 @@
 {
   "home": {
     "hero": {
-      "title1": "Digitize Your Workplace Inspections &",
-      "title2": "Operations Simple, Fast, Reliable",
-      "subtitle": "Create inspections, assign actions, manage sites, users, groups—everything from one smart platform designed for your frontline workforce.",
+      "eyebrow": "Governance, Risk & Compliance",
+      "title1": "Govern risk and compliance",
+      "title2": "with proof your board can verify.",
+      "subtitle": "Qiyrix turns scattered spreadsheets into one shared record, so every risk, obligation, and audit finding stays visible to the people who have to act on it and the board that has to answer for it.",
+      "capabilities": [
+        "Risk register & KRIs",
+        "Compliance obligations",
+        "Full audit trail",
+        "Role-based governance"
+      ],
       "btnStart": "Get Started",
-      "btnDemo": "Book a Demo",
-      "heroImageAlt": "Screenshot of the platform dashboard"
+      "btnDemo": "Contact Sales",
+      "heroImageAlt": "Qiyrix product preview showing a risk matrix, compliance obligation tracking, an executive risk overview, and AI-generated audit template questions",
+      "heroCaption": "Executive risk overview inside Qiyrix",
+      "visual": {
+        "liveLabel": "Live · Risk Register",
+        "riskMatrix": "Risk Matrix",
+        "likelihood": "Likelihood",
+        "impact": "Impact",
+        "compliance": "Compliance",
+        "obligationsTracked": "12 obligations tracked",
+        "obligations": {
+          "dataRetention": { "title": "Data Retention Policy", "status": "Compliant" },
+          "vendorAccess": { "title": "Vendor Access Review", "status": "Non-compliant" },
+          "incidentDrill": { "title": "Incident Response Drill", "status": "Due soon" }
+        },
+        "executiveOverview": "Executive Overview",
+        "activeRisks": "Active risks",
+        "complianceRate": "Compliance rate",
+        "generateTemplate": "Generate Audit Template",
+        "templatePrompt": "Describe a topic, like \"Vendor security review\"",
+        "question1": "Is vendor access reviewed quarterly?",
+        "question2": "Upload evidence of the last access audit",
+        "yesNo": "Yes/No",
+        "media": "Media"
+      }
     },
     "heroFeatures": {
-      "title1": "Built for Modern Teams Who",
-      "title2": "Work Smarter",
-      "description": "Our platform helps teams run safer, faster and more organized operations. Whether you're managing multiple sites, inspecting equipment, assigning tasks, or collaborating across teams—our digital tools bring everything into one simple dashboard and mobile app.",
+      "eyebrow": "How it works",
+      "title1": "Built for how risk actually",
+      "title2": "gets governed",
+      "description": "Every workflow, from role assignment to audit sign-off, runs through the same platform here, so nothing gets tracked twice and nothing falls out of view between audits.",
       "features": [
         {
-          "title": "Easy to use for all teams",
-          "description": "Intuitive interface designed for everyone"
+          "title": "Three roles, one system of record",
+          "description": "Admin, Lead Auditor, and Light user roles scope exactly what each person can see, edit, or approve across your organization."
         },
         {
-          "title": "Mobile-first workflows",
-          "description": "Work seamlessly on any device"
+          "title": "KRIs that update in real time",
+          "description": "Track key risk indicators against your thresholds and watch trend lines move in real time, before the next scheduled report."
         },
         {
-          "title": "Real-time insights",
-          "description": "Data at your fingertips, instantly"
+          "title": "An audit trail that holds up",
+          "description": "Every inspection, action, and sign-off is timestamped and traceable, so audit season stops being a scramble for evidence."
         },
         {
-          "title": "Secure & cloud-based",
-          "description": "Enterprise-grade security & reliability"
+          "title": "AI-assisted, human-approved",
+          "description": "Draft audit and inspection templates with AI, then adapt them to your own controls. You review and approve every one."
         }
       ]
     },
     "featureSection": {
-      "title1": "Everything You Need in",
-      "title2": "One Platform",
-      "description": "Powerful features designed to streamline your operations and boost productivity",
+      "eyebrow": "Platform",
+      "title1": "One workspace for",
+      "title2": "risk, audits, and action",
+      "description": "One data model underlies every module: a risk, a control test, and the audit that verifies it all point to the same record.",
       "features": [
         {
-          "title": "Create & Customize Dynamic Templates",
-          "description": "Build inspection templates that fit your workflow—checklists, forms, safety audits, quality checks, and more. Duplicate, edit, and share them instantly with your team."
+          "title": "Compliance-grade templates",
+          "description": "Configure checklists, audit protocols, and control tests once, then version and reuse them across every team and site."
         },
         {
-          "title": "Conduct Inspections Anytime, Anywhere",
-          "description": "Perform inspections directly from your mobile app or dashboard. Capture photos, notes, and ratings, then generate instant reports in one click."
+          "title": "Audits and inspections, anywhere",
+          "description": "Capture findings, evidence, and photos from web or mobile, then generate a defensible report the moment you finish."
         },
         {
-          "title": "Assign Actions & Track Progress",
-          "description": "Found an issue? Assign it to the right person instantly. Track status, deadlines, and completion to ensure nothing is missed."
+          "title": "Findings become tracked actions",
+          "description": "Every issue is assigned an owner and a deadline, and stays visible until it's actually resolved."
         },
         {
-          "title": "Manage Users With Smart Controls",
-          "description": "Invite team members and assign roles based on responsibilities. Control exactly who can view, edit, or manage each part of your operations."
+          "title": "Board-ready reporting",
+          "description": "Export board-ready PDF reports covering every open risk, control gap, and audit outcome, formatted for your board and external auditors."
         },
         {
-          "title": "Organize Everything by Location",
-          "description": "Manage inspections, issues, users, and activities by site. Ideal for businesses with multiple branches, stores, or job sites."
+          "title": "See every site's risk in one view",
+          "description": "Consolidate exposure across every location into a single view, built for multi-site and multi-entity organizations."
         },
         {
-          "title": "Collaborate Seamlessly With Teams",
-          "description": "Create custom groups to streamline communication and workflows—maintenance, safety, quality teams, contractors, and more."
+          "title": "Highest-exposure risks, surfaced first",
+          "description": "AI-assisted recommendations rank the register by real exposure score."
         }
-      ],
-      "imageAlt": "Construction workers with safety equipment reviewing documents"
+      ]
     },
     "testimonials": {
-      "title1": "Trusted by Teams Who",
-      "title2": "Value Reliability",
-      "description": "Illustrative examples of how teams use Qiyrix to manage risk, inspections, and compliance every day.",
+      "eyebrow": "In practice",
+      "title1": "How teams use",
+      "title2": "Qiyrix day to day",
+      "description": "Illustrative examples of teams putting Qiyrix to work. Not verified customer quotes.",
+      "illustrativeLabel": "Illustrative example",
       "reviews": [
         {
-          "quote": "This platform made our inspections 3× faster. Our team loves how easy it is to use.",
-          "name": "Operations Manager",
-          "position": "Manufacturing Corp"
+          "quote": "Our risk register finally lives in one place instead of six spreadsheets, and KRIs update the moment an inspection closes.",
+          "name": "Head of Compliance",
+          "position": "Enterprise Financial Services"
         },
         {
-          "quote": "Assigning actions instantly solved our follow-up problems. Brilliant system!",
-          "name": "Safety Supervisor",
-          "position": "Construction Ltd"
+          "quote": "Auditors request evidence and get a clean export back immediately, no back-and-forth over email.",
+          "name": "Internal Audit Lead",
+          "position": "Mid-Market Manufacturing"
         },
         {
-          "quote": "Managing multiple sites has never been this organized. Highly recommended.",
-          "name": "Site Coordinator",
-          "position": "Retail Chain"
+          "quote": "Role-based access meant we could bring in site-level users without giving them visibility into the full risk register.",
+          "name": "Risk Manager",
+          "position": "Multi-Site Healthcare Group"
+        },
+        {
+          "quote": "Board packs used to take a week to assemble by hand. Now it's an export from the same register we work in every day.",
+          "name": "VP, Internal Audit",
+          "position": "Global Logistics Enterprise"
         }
       ]
     },
     "faq": {
-      "title1": "Frequently Asked",
-      "title2": "Questions",
-      "description": "Everything you need to know about our platform",
+      "eyebrow": "FAQ",
+      "title1": "Questions governance",
+      "title2": "teams ask us",
+      "description": "The practical questions teams ask most, from how data connects to how rollout actually works.",
       "questions": [
         {
-          "question": "Is the platform available on both mobile and web?",
-          "answer": "Yes, you can access the dashboard on the web and perform inspections from both web and mobile apps."
+          "question": "How is everything connected under the hood?",
+          "answer": "Every module reads and writes the same source of truth, so updating a compliance check or closing a finding shows up everywhere else instantly, with nothing to sync or re-enter by hand."
         },
         {
-          "question": "Can I customize my own templates?",
-          "answer": "Yes, you can create and customize templates to match your workflow. Build checklists, forms, safety audits, and more."
+          "question": "Can we model our own risk register and controls?",
+          "answer": "Yes. Configure your own risk categories, KRIs, and control templates. Qiyrix doesn't force a fixed taxonomy on your organization."
         },
         {
-          "question": "How does user and role management work?",
-          "answer": "You can invite team members and assign roles with specific permissions. Control who can view, edit, or manage different parts of your operations."
+          "question": "How does role-based access work?",
+          "answer": "Permissions are set per role, not per user. Change what a Light user, Lead Auditor, or Admin can do platform-wide, and it applies everywhere without reconfiguring each risk or site individually."
         },
         {
-          "question": "Do you offer a free trial?",
-          "answer": "Yes, we offer a free trial so you can explore all features and see how the platform fits your team before committing."
+          "question": "Do you support multiple sites or entities?",
+          "answer": "Yes. Every site or business unit reports up automatically, so leadership isn't manually reconciling separate registers."
         },
         {
-          "question": "Do you support multiple sites?",
-          "answer": "Absolutely. Organize inspections, users, and activities by location—perfect for companies with multiple branches or job sites."
+          "question": "Where does AI fit in?",
+          "answer": "AI suggests starting points, it doesn't make governance decisions. Templates, risk rankings, and recommended actions all route through your team for approval before anything becomes official record."
         }
       ]
     },
     "navbar": {
+      "howItWorksLink": "How It Works",
+      "platformLink": "Platform",
+      "faqLink": "FAQ",
       "dashboard": "Dashboard",
       "login": "Login",
-      "signUp": "Sign Up",
+      "signUp": "Get Started",
       "toggleMenu": "Toggle menu"
     },
     "footer": {
-      "description": "The complete platform for digitizing workplace inspections and operations. Simple, fast, and reliable.",
+      "description": "A dedicated home for governance work, so a finding never gets stuck in someone's inbox or spreadsheet.",
       "quickLinksTitle": "Quick Links",
       "featuresLink": "Features",
       "faqLink": "FAQ",
       "contactTitle": "Contact",
       "phone": "+44 2 3456 7890",
       "email": "hello@qiyrix.com",
-      "copyright": "© {{year}} Qiyrix — All rights reserved.",
+      "copyright": "© {{year}} Qiyrix. All rights reserved.",
       "terms": "Terms",
       "privacyPolicy": "Privacy Policy"
     }
