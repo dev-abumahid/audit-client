@@ -1,6 +1,18 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import AlertsPage from "./AlertsPage"
+
+// aexa-frontend#530: an alert with kri_id set now renders a <Link> to the
+// KRI dashboard, so this needs a Router context -- same convention as
+// InspectionTable.test.tsx's renderTable().
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <AlertsPage />
+    </MemoryRouter>
+  )
+}
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -81,7 +93,7 @@ describe("AlertsPage", () => {
       data: undefined,
       isLoading: true,
     })
-    render(<AlertsPage />)
+    renderPage()
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
@@ -91,12 +103,12 @@ describe("AlertsPage", () => {
       isLoading: false,
       error: { status: 500 },
     })
-    render(<AlertsPage />)
+    renderPage()
     expect(screen.getByText("organization.alerts.loadFailed")).toBeInTheDocument()
   })
 
   it("shows the empty state when there are no alerts", () => {
-    render(<AlertsPage />)
+    renderPage()
     expect(screen.getByText("organization.alerts.empty")).toBeInTheDocument()
   })
 
@@ -105,7 +117,7 @@ describe("AlertsPage", () => {
       data: { data: [makeAlert()] },
       isLoading: false,
     })
-    render(<AlertsPage />)
+    renderPage()
 
     expect(
       screen.getByText("Overdue actions exceeded threshold")
@@ -119,7 +131,7 @@ describe("AlertsPage", () => {
       data: { data: [makeAlert({ is_read: false })] },
       isLoading: false,
     })
-    render(<AlertsPage />)
+    renderPage()
 
     expect(screen.getByText("organization.alerts.new")).toBeInTheDocument()
     expect(
@@ -132,7 +144,7 @@ describe("AlertsPage", () => {
       data: { data: [makeAlert({ is_read: true })] },
       isLoading: false,
     })
-    render(<AlertsPage />)
+    renderPage()
 
     expect(screen.queryByText("organization.alerts.new")).not.toBeInTheDocument()
     expect(
@@ -147,7 +159,7 @@ describe("AlertsPage", () => {
     })
     mockMarkAlertRead.mockReturnValue({ unwrap: () => Promise.resolve({}) })
 
-    render(<AlertsPage />)
+    renderPage()
     await userEvent.click(screen.getByRole("button", { name: "organization.alerts.markAsRead" }))
 
     await waitFor(() =>
@@ -164,7 +176,7 @@ describe("AlertsPage", () => {
       unwrap: () => Promise.reject({ data: { message: "Failed to update" } }),
     })
 
-    render(<AlertsPage />)
+    renderPage()
     await userEvent.click(screen.getByRole("button", { name: "organization.alerts.markAsRead" }))
 
     await waitFor(() =>
@@ -184,7 +196,7 @@ describe("AlertsPage", () => {
       },
       isLoading: false,
     })
-    render(<AlertsPage />)
+    renderPage()
 
     expect(screen.getByText("organization.alerts.activeCount")).toBeInTheDocument()
   })
@@ -196,7 +208,7 @@ describe("AlertsPage", () => {
       data: { data: [makeAlert({ type: "kri_threshold_breach" })] },
       isLoading: false,
     })
-    render(<AlertsPage />)
+    renderPage()
 
     expect(
       screen.getByText("organization.alerts.type.kriThresholdBreach")
@@ -209,7 +221,7 @@ describe("AlertsPage", () => {
       data: { data: [makeAlert({ type: "some_future_backend_type" })] },
       isLoading: false,
     })
-    render(<AlertsPage />)
+    renderPage()
 
     expect(screen.getByText("some_future_backend_type")).toBeInTheDocument()
   })
@@ -222,7 +234,7 @@ describe("AlertsPage", () => {
       data: { data: [makeAlert({ id: "a1", severity: "low" })] },
       isLoading: false,
     })
-    render(<AlertsPage />)
+    renderPage()
 
     // Colors now come from severityStyles.ts's verified-AA-safe pairing
     // (see src/utils/severityStyles.ts) rather than the raw --risk-* token
@@ -245,7 +257,7 @@ describe("AlertsPage", () => {
       },
       isLoading: false,
     })
-    render(<AlertsPage />)
+    renderPage()
 
     expect(screen.getByText("Critical one")).toBeInTheDocument()
     expect(screen.getByText("High one")).toBeInTheDocument()
@@ -279,7 +291,7 @@ describe("AlertsPage", () => {
       },
       isLoading: false,
     })
-    render(<AlertsPage />)
+    renderPage()
 
     const criticalChip = screen.getAllByRole("button").find((btn) =>
       btn.querySelector(".text-red-700")
@@ -303,7 +315,7 @@ describe("AlertsPage", () => {
       data: { data: [makeAlert()] },
       isLoading: false,
     })
-    render(<AlertsPage />)
+    renderPage()
 
     expect(screen.getAllByRole("heading", { level: 1 }).length).toBe(1)
     expect(screen.getAllByRole("heading", { level: 2 }).length).toBe(1)
@@ -318,12 +330,41 @@ describe("AlertsPage", () => {
       data: { data: [makeAlert({ createdAt: "2026-06-21T10:00:00.000Z" })] },
       isLoading: false,
     })
-    render(<AlertsPage />)
+    renderPage()
 
     const expected = new Date("2026-06-21T10:00:00.000Z").toLocaleDateString(
       "fr-FR",
       { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }
     )
     expect(screen.getByText(expected)).toBeInTheDocument()
+  })
+
+  // aexa-frontend#530: kri_id was populated on every kri_threshold_breach
+  // alert but never surfaced -- this is the Alert-side half of the fix.
+  describe("View KRI link (#530)", () => {
+    it("shows a View KRI link to the KRI dashboard when kri_id is set", () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert({ kri_id: "kri-1" })] },
+        isLoading: false,
+      })
+      renderPage()
+
+      const link = screen.getByRole("link", {
+        name: "organization.alerts.viewKri",
+      })
+      expect(link).toHaveAttribute("href", "/organization/kri?highlight=kri-1")
+    })
+
+    it("does not show a View KRI link when kri_id is null", () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert({ kri_id: null })] },
+        isLoading: false,
+      })
+      renderPage()
+
+      expect(
+        screen.queryByRole("link", { name: "organization.alerts.viewKri" })
+      ).not.toBeInTheDocument()
+    })
   })
 })

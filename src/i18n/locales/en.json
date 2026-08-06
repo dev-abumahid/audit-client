@@ -292,6 +292,8 @@
       "loadError": "Failed to load KRIs. Please try again later.",
       "noKris": "No KRIs yet",
       "unknownRisk": "Unknown risk",
+      "relatedAlertsTooltip_one": "{{count}} related alert",
+      "relatedAlertsTooltip_other": "{{count}} related alerts",
       "save": "Save",
       "cancel": "Cancel",
       "targetLabel": "Target",
@@ -1451,6 +1453,7 @@
       "aiGenerated": "AI Generated",
       "new": "New",
       "markAsRead": "Mark as read",
+      "viewKri": "View KRI",
       "empty": "No alerts yet",
       "emptyFiltered": "No alerts match this filter",
       "type": {

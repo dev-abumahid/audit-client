@@ -5,6 +5,7 @@ import {
   useGetKriReadingsQuery,
   useSubmitKriValueMutation,
 } from "@/redux/apis/organization/kri.api"
+import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useModalA11y } from "@/hooks/useModalA11y"
@@ -22,8 +23,9 @@ import {
   TrendingUp,
   X,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { useLocation, useSearchParams } from "react-router"
 import {
   Line,
   LineChart,
@@ -62,11 +64,77 @@ export default function KriDashboardPage() {
     siteId: "",
     category: "",
   })
+  // aexa-frontend#530: drives the per-card alert-count badge below -- the
+  // other, already-shipped half of this cross-link is AlertsPage.tsx's
+  // "View KRI" link, which lands here with a ?highlight= param.
+  const { data: alertsResponse } = useGetAllAlertsQuery(undefined)
   const [createKri] = useCreateNewKriMutation()
   const [submitKriValue] = useSubmitKriValueMutation()
 
   const kris = kriResponse?.data ?? []
   const risks = riskResponse?.data ?? []
+  const alerts = alertsResponse?.data ?? []
+  // Unread only: a read alert no longer represents an outstanding issue on
+  // the KRI, so it shouldn't keep inflating this badge indefinitely.
+  const unreadAlertsByKriId = alerts.reduce<Record<string, any[]>>(
+    (acc, alert: any) => {
+      if (alert.kri_id && !alert.is_read) {
+        acc[alert.kri_id] = [...(acc[alert.kri_id] ?? []), alert]
+      }
+      return acc
+    },
+    {}
+  )
+  const SEVERITY_RANK: Record<string, number> = {
+    critical: 3,
+    high: 2,
+    medium: 1,
+    low: 0,
+  }
+  const highestSeverity = (kriAlerts: any[]) =>
+    kriAlerts.reduce(
+      (worst, alert) =>
+        (SEVERITY_RANK[alert.severity] ?? 0) > (SEVERITY_RANK[worst] ?? -1)
+          ? alert.severity
+          : worst,
+      "low"
+    )
+
+  // aexa-frontend#530: scrolls to and briefly highlights the KRI card an
+  // AlertsPage "View KRI" link was clicked for. Only fires once the KRI
+  // list has actually loaded (an empty `kris` array on first render would
+  // find no matching element yet) and only once per highlight param value,
+  // not on every re-render -- otherwise a later unrelated state update
+  // (e.g. opening the update-value modal) would yank the scroll position
+  // back to the highlighted card.
+  const [searchParams] = useSearchParams()
+  const highlightKriId = searchParams.get("highlight")
+  const [activeHighlight, setActiveHighlight] = useState<string | null>(null)
+  // Keyed by `${highlightKriId}:${location.key}`, not just the id: two
+  // different alerts can reference the same KRI, so clicking "View KRI"
+  // again for the same id -- a genuine new navigation, with a new
+  // location.key from react-router -- must still re-trigger the highlight,
+  // even though the id itself repeats. Re-renders that don't touch the
+  // location (e.g. opening the update-value modal) keep the same key and
+  // are still correctly ignored.
+  const highlightedRef = useRef<string | null>(null)
+  const location = useLocation()
+  useEffect(() => {
+    if (!highlightKriId || kris.length === 0) return
+    const highlightKey = `${highlightKriId}:${location.key}`
+    if (highlightedRef.current === highlightKey) return
+    const el = document.getElementById(`kri-${highlightKriId}`)
+    if (!el) return
+    highlightedRef.current = highlightKey
+    el.scrollIntoView({ behavior: "smooth", block: "center" })
+    setActiveHighlight(highlightKriId)
+    const timeout = setTimeout(() => setActiveHighlight(null), 3000)
+    return () => clearTimeout(timeout)
+    // `kris.length`, not `kris`: `kris` (kriResponse?.data ?? []) is a
+    // fresh array reference every render, which would re-run this effect
+    // constantly -- it only actually needs to re-fire when the list
+    // resolves from empty to populated.
+  }, [highlightKriId, kris.length, location.key])
 
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_KRI)
@@ -263,10 +331,18 @@ export default function KriDashboardPage() {
 
           const risk = risks.find((r: any) => r.id === kri.risk_id)
 
+          const kriAlerts = unreadAlertsByKriId[kri.id] ?? []
+          const alertCount = kriAlerts.length
+
           return (
             <div
               key={kri.id}
-              className={`rounded-xl border-2 ${statusColor} bg-card p-4 lg:p-5`}
+              id={`kri-${kri.id}`}
+              className={`rounded-xl border-2 ${statusColor} bg-card p-4 transition-shadow lg:p-5 ${
+                activeHighlight === kri.id
+                  ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                  : ""
+              }`}
             >
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
@@ -280,21 +356,42 @@ export default function KriDashboardPage() {
                       : ""}
                   </p>
                 </div>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${severityBadgeClasses(
-                    kri.status === "ALERT"
-                      ? "critical"
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {/* aexa-frontend#530: the KRI-side half of the Alert<->KRI
+                      cross-link -- a non-interactive count, not a link into
+                      AlertsPage, since that page has no URL-based filter to
+                      land on (scope cut, same discipline as #529's "Manage
+                      in Register" vs. rebuilding the edit form). Counts
+                      unread alerts only, colored by their highest severity,
+                      so it reads as "outstanding issues," not a permanent
+                      all-time tally. */}
+                  {alertCount > 0 && (
+                    <span
+                      title={t("organization.kri.relatedAlertsTooltip", {
+                        count: alertCount,
+                      })}
+                      className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${severityBadgeClasses(highestSeverity(kriAlerts))}`}
+                    >
+                      <AlertTriangle className="h-3 w-3" />
+                      {alertCount}
+                    </span>
+                  )}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${severityBadgeClasses(
+                      kri.status === "ALERT"
+                        ? "critical"
+                        : kri.status === "WARNING"
+                          ? "medium"
+                          : "low"
+                    )}`}
+                  >
+                    {kri.status === "ALERT"
+                      ? t("organization.kri.status.alert")
                       : kri.status === "WARNING"
-                        ? "medium"
-                        : "low"
-                  )}`}
-                >
-                  {kri.status === "ALERT"
-                    ? t("organization.kri.status.alert")
-                    : kri.status === "WARNING"
-                      ? t("organization.kri.status.warning")
-                      : t("organization.kri.status.ok")}
-                </span>
+                        ? t("organization.kri.status.warning")
+                        : t("organization.kri.status.ok")}
+                  </span>
+                </div>
               </div>
 
               <div className="mt-3 flex items-baseline gap-2">

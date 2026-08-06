@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter, useNavigate } from "react-router"
 import KriDashboardPage from "./KriDashboardPage"
 
 vi.mock("sonner", () => ({
@@ -91,6 +92,47 @@ vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
 }))
 
+// aexa-frontend#530: drives the new per-card alert-count badge.
+const mockUseGetAllAlertsQuery = vi.fn()
+vi.mock("@/redux/apis/organization/alert.api", () => ({
+  useGetAllAlertsQuery: (...args: unknown[]) =>
+    mockUseGetAllAlertsQuery(...args),
+}))
+
+// aexa-frontend#530: the KRI name is now scrollable-to via a ?highlight=
+// URL param (from AlertsPage's "View KRI" link), so this needs a Router
+// context -- same convention as InspectionTable.test.tsx's renderTable().
+// initialEntries lets the highlight tests below drive the ?highlight= param
+// through a real URL, same as the rest of the app would.
+function renderPage(initialPath = "/") {
+  return render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <KriDashboardPage />
+    </MemoryRouter>
+  )
+}
+
+// aexa-frontend#530 round 3: a real client-side re-navigation to the exact
+// same `?highlight=` URL (e.g. two different alerts referencing the same
+// KRI, clicked one after another without a full page reload) must still
+// re-trigger the scroll/highlight -- a plain "have I already highlighted
+// this id" ref would treat it as a no-op. This harness drives that
+// re-navigation the same way AlertsPage's <Link> would, without unmounting
+// KriDashboardPage in between.
+function ReNavigateHarness({ to }: { to: string }) {
+  const navigate = useNavigate()
+  return (
+    <div>
+      <button onClick={() => navigate(to)}>renavigate</button>
+      <KriDashboardPage />
+    </div>
+  )
+}
+
+// jsdom doesn't implement Element.scrollIntoView at all (not even as a
+// no-op) -- the highlight effect below would throw without this stub.
+Element.prototype.scrollIntoView = vi.fn()
+
 function makeKri(overrides = {}) {
   return {
     id: "kri-1",
@@ -117,6 +159,7 @@ describe("KriDashboardPage", () => {
     mockRole = "ADMIN"
     mockUseGetAllKriQuery.mockReset()
     mockUseGetAllRisksQuery.mockReset()
+    mockUseGetAllAlertsQuery.mockReset()
     mockCreateKri.mockReset()
     mockSubmitKriValue.mockReset()
     mockUseGetKriReadingsQuery.mockReset()
@@ -124,6 +167,7 @@ describe("KriDashboardPage", () => {
     mockToastError.mockReset()
     mockLanguage = "en"
     mockFormatLocaleDate.mockClear()
+    ;(Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>).mockClear()
 
     mockUseGetAllKriQuery.mockReturnValue({
       data: { data: [] },
@@ -132,6 +176,7 @@ describe("KriDashboardPage", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: [makeRisk()] },
     })
+    mockUseGetAllAlertsQuery.mockReturnValue({ data: { data: [] } })
     mockUseGetKriReadingsQuery.mockReturnValue({
       data: { data: [] },
       isLoading: false,
@@ -145,7 +190,7 @@ describe("KriDashboardPage", () => {
       isLoading: false,
     })
 
-    render(<KriDashboardPage />)
+    renderPage()
 
     expect(
       screen.getByText("organization.kri.newKri")
@@ -165,7 +210,7 @@ describe("KriDashboardPage", () => {
       isLoading: false,
     })
 
-    render(<KriDashboardPage />)
+    renderPage()
 
     expect(
       screen.queryByText("organization.kri.newKri")
@@ -185,7 +230,7 @@ describe("KriDashboardPage", () => {
       isLoading: false,
     })
 
-    render(<KriDashboardPage />)
+    renderPage()
 
     expect(
       screen.queryByText("organization.kri.newKri")
@@ -194,7 +239,7 @@ describe("KriDashboardPage", () => {
 
   it("shows a loading state", () => {
     mockUseGetAllKriQuery.mockReturnValue({ data: undefined, isLoading: true })
-    render(<KriDashboardPage />)
+    renderPage()
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
@@ -204,12 +249,12 @@ describe("KriDashboardPage", () => {
       isLoading: false,
       error: { status: 500 },
     })
-    render(<KriDashboardPage />)
+    renderPage()
     expect(screen.getByText("organization.kri.loadError")).toBeInTheDocument()
   })
 
   it("shows the empty state when there are no KRIs", () => {
-    render(<KriDashboardPage />)
+    renderPage()
     expect(screen.getByText("organization.kri.noKris")).toBeInTheDocument()
   })
 
@@ -219,7 +264,7 @@ describe("KriDashboardPage", () => {
       isLoading: false,
     })
 
-    render(<KriDashboardPage />)
+    renderPage()
 
     expect(screen.getByText("Overdue actions")).toBeInTheDocument()
     expect(screen.getByText(/Fire safety risk/)).toBeInTheDocument()
@@ -247,7 +292,7 @@ describe("KriDashboardPage", () => {
       isLoading: false,
     })
 
-    render(<KriDashboardPage />)
+    renderPage()
 
     expect(
       screen.getByText((_, el) => el?.textContent === "Fire safety risk · Quarterly")
@@ -268,7 +313,7 @@ describe("KriDashboardPage", () => {
       isLoading: false,
     })
 
-    render(<KriDashboardPage />)
+    renderPage()
 
     expect(
       screen.getByText((_, el) => el?.textContent === "Fire safety risk · biweekly")
@@ -293,7 +338,7 @@ describe("KriDashboardPage", () => {
       isLoading: false,
     })
 
-    render(<KriDashboardPage />)
+    renderPage()
 
     // Summary labels ("Alert"/"Warning"/"OK") also appear as per-card status
     // badges (audit round 3 fixed the badges to go through the same i18n
@@ -323,7 +368,7 @@ describe("KriDashboardPage", () => {
   it("creates a new KRI with the selected risk_id and shows a success toast", async () => {
     mockCreateKri.mockReturnValue({ unwrap: () => Promise.resolve({}) })
 
-    render(<KriDashboardPage />)
+    renderPage()
     await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.newKri/i }))
 
     await userEvent.type(screen.getByPlaceholderText("organization.kri.form.namePlaceholder"), "New KRI")
@@ -363,7 +408,7 @@ describe("KriDashboardPage", () => {
     })
     mockUseGetAllKriQuery.mockReturnValue({ data: { data: [] } })
 
-    render(<KriDashboardPage />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", { name: /organization\.kri\.newKri/i })
     )
@@ -384,7 +429,7 @@ describe("KriDashboardPage", () => {
     })
     mockUseGetAllKriQuery.mockReturnValue({ data: { data: [] } })
 
-    render(<KriDashboardPage />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", { name: /organization\.kri\.newKri/i })
     )
@@ -408,7 +453,7 @@ describe("KriDashboardPage", () => {
     })
     mockUseGetAllKriQuery.mockReturnValue({ data: { data: [] } })
 
-    render(<KriDashboardPage />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", { name: /organization\.kri\.newKri/i })
     )
@@ -427,7 +472,7 @@ describe("KriDashboardPage", () => {
     })
     mockUseGetAllKriQuery.mockReturnValue({ data: { data: [] } })
 
-    render(<KriDashboardPage />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", { name: /organization\.kri\.newKri/i })
     )
@@ -441,7 +486,7 @@ describe("KriDashboardPage", () => {
   })
 
   it("rejects creating a KRI when target and alert threshold are equal", async () => {
-    render(<KriDashboardPage />)
+    renderPage()
     await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.newKri/i }))
 
     await userEvent.type(screen.getByPlaceholderText("organization.kri.form.namePlaceholder"), "Bad KRI")
@@ -462,7 +507,7 @@ describe("KriDashboardPage", () => {
     })
     mockSubmitKriValue.mockReturnValue({ unwrap: () => Promise.resolve({}) })
 
-    render(<KriDashboardPage />)
+    renderPage()
     await userEvent.click(screen.getByTitle("organization.kri.updateValueTooltip"))
 
     const input = screen.getByDisplayValue("50")
@@ -485,7 +530,7 @@ describe("KriDashboardPage", () => {
       isLoading: false,
     })
 
-    render(<KriDashboardPage />)
+    renderPage()
     await userEvent.click(screen.getByTitle("organization.kri.updateValueTooltip"))
 
     const input = screen.getByDisplayValue("50")
@@ -504,7 +549,7 @@ describe("KriDashboardPage", () => {
         isLoading: false,
       })
 
-      render(<KriDashboardPage />)
+      renderPage()
 
       expect(mockUseGetKriReadingsQuery).toHaveBeenCalledWith(
         expect.objectContaining({ id: "" }),
@@ -518,7 +563,7 @@ describe("KriDashboardPage", () => {
         isLoading: false,
       })
 
-      render(<KriDashboardPage />)
+      renderPage()
       await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
 
       expect(mockUseGetKriReadingsQuery).toHaveBeenCalledWith(
@@ -533,7 +578,7 @@ describe("KriDashboardPage", () => {
         isLoading: false,
       })
 
-      render(<KriDashboardPage />)
+      renderPage()
       await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
 
       expect(
@@ -556,7 +601,7 @@ describe("KriDashboardPage", () => {
         isLoading: false,
       })
 
-      const { container } = render(<KriDashboardPage />)
+      const { container } = renderPage()
       await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
 
       // recharts' ResponsiveContainer never measures a real size under
@@ -588,7 +633,7 @@ describe("KriDashboardPage", () => {
         isLoading: false,
       })
 
-      render(<KriDashboardPage />)
+      renderPage()
       await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
 
       expect(mockFormatLocaleDate).toHaveBeenCalledWith(
@@ -618,7 +663,7 @@ describe("KriDashboardPage", () => {
         isLoading: false,
       })
 
-      render(<KriDashboardPage />)
+      renderPage()
       await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
 
       expect(mockFormatLocaleDate).toHaveBeenCalledWith(
@@ -634,7 +679,7 @@ describe("KriDashboardPage", () => {
         isLoading: false,
       })
 
-      render(<KriDashboardPage />)
+      renderPage()
       await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
       expect(
         screen.getByText("organization.kri.trend.empty")
@@ -659,7 +704,7 @@ describe("KriDashboardPage", () => {
         isLoading: false,
       })
 
-      render(<KriDashboardPage />)
+      renderPage()
 
       expect(
         screen.getByText("organization.kri.overdueLabel")
@@ -672,7 +717,7 @@ describe("KriDashboardPage", () => {
         isLoading: false,
       })
 
-      render(<KriDashboardPage />)
+      renderPage()
 
       expect(
         screen.queryByText("organization.kri.overdueLabel")
@@ -688,7 +733,7 @@ describe("KriDashboardPage", () => {
         data: { data: [makeKri()] },
         isLoading: false,
       })
-      render(<KriDashboardPage />)
+      renderPage()
 
       await userEvent.click(
         screen.getByTitle("organization.kri.updateValueTooltip")
@@ -702,7 +747,7 @@ describe("KriDashboardPage", () => {
     })
 
     it("marks the New KRI modal as a labeled dialog and closes it on Escape", async () => {
-      render(<KriDashboardPage />)
+      renderPage()
 
       await userEvent.click(
         screen.getByRole("button", { name: /organization\.kri\.newKri/i })
@@ -724,7 +769,7 @@ describe("KriDashboardPage", () => {
         data: { data: [] },
         isLoading: false,
       })
-      render(<KriDashboardPage />)
+      renderPage()
 
       await userEvent.click(
         screen.getByTitle("organization.kri.trend.viewTooltip")
@@ -737,7 +782,7 @@ describe("KriDashboardPage", () => {
     })
 
     it("does not steal focus from the name field while typing in the New KRI modal", async () => {
-      render(<KriDashboardPage />)
+      renderPage()
 
       await userEvent.click(
         screen.getByRole("button", { name: /organization\.kri\.newKri/i })
@@ -766,7 +811,7 @@ describe("KriDashboardPage", () => {
         data: { data: [makeKri()] },
         isLoading: false,
       })
-      render(<KriDashboardPage />)
+      renderPage()
 
       await userEvent.click(
         screen.getByTitle("organization.kri.updateValueTooltip")
@@ -778,7 +823,7 @@ describe("KriDashboardPage", () => {
     })
 
     it("pairs every New KRI modal field to its label via htmlFor/id", async () => {
-      render(<KriDashboardPage />)
+      renderPage()
 
       await userEvent.click(
         screen.getByRole("button", { name: /organization\.kri\.newKri/i })
@@ -800,6 +845,157 @@ describe("KriDashboardPage", () => {
           })
         ).toBeInTheDocument()
       }
+    })
+  })
+
+  // aexa-frontend#530: the KRI-side half of the Alert<->KRI cross-link.
+  describe("related-alerts badge and highlight (#530)", () => {
+    it("shows an alert-count badge when alerts reference this KRI", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ id: "kri-1" })] },
+        isLoading: false,
+      })
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            { id: "a1", kri_id: "kri-1" },
+            { id: "a2", kri_id: "kri-1" },
+            { id: "a3", kri_id: "kri-other" },
+          ],
+        },
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByTitle("organization.kri.relatedAlertsTooltip")
+      ).toHaveTextContent("2")
+    })
+
+    it("excludes read alerts from the count, so resolving them shrinks the badge", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ id: "kri-1" })] },
+        isLoading: false,
+      })
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            { id: "a1", kri_id: "kri-1", is_read: false },
+            { id: "a2", kri_id: "kri-1", is_read: true },
+          ],
+        },
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByTitle("organization.kri.relatedAlertsTooltip")
+      ).toHaveTextContent("1")
+    })
+
+    it("colors the badge by the highest severity among the KRI's unread alerts", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ id: "kri-1" })] },
+        isLoading: false,
+      })
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            { id: "a1", kri_id: "kri-1", is_read: false, severity: "low" },
+            { id: "a2", kri_id: "kri-1", is_read: false, severity: "critical" },
+          ],
+        },
+      })
+
+      renderPage()
+
+      const badge = screen.getByTitle("organization.kri.relatedAlertsTooltip")
+      expect(badge.className).toContain("text-red-700")
+    })
+
+    it("does not fall back to critical/red styling when no unread alert is actually critical or high", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ id: "kri-1" })] },
+        isLoading: false,
+      })
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [{ id: "a1", kri_id: "kri-1", is_read: false, severity: "low" }],
+        },
+      })
+
+      renderPage()
+
+      const badge = screen.getByTitle("organization.kri.relatedAlertsTooltip")
+      expect(badge.className).not.toContain("text-red-700")
+    })
+
+    it("shows no alert-count badge when no alert references this KRI", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ id: "kri-1" })] },
+        isLoading: false,
+      })
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [{ id: "a1", kri_id: "kri-other" }] },
+      })
+
+      renderPage()
+
+      expect(
+        screen.queryByTitle("organization.kri.relatedAlertsTooltip")
+      ).not.toBeInTheDocument()
+    })
+
+    it("scrolls to and highlights the KRI card matching ?highlight=", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ id: "kri-1" })] },
+        isLoading: false,
+      })
+
+      renderPage("/?highlight=kri-1")
+
+      await waitFor(() =>
+        expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+      )
+      const card = document.getElementById("kri-kri-1")
+      expect(card?.className).toContain("ring-2")
+    })
+
+    it("re-triggers the scroll/highlight on a second real navigation to the same ?highlight= id", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ id: "kri-1" })] },
+        isLoading: false,
+      })
+      const user = userEvent.setup()
+
+      render(
+        <MemoryRouter initialEntries={["/?highlight=kri-1"]}>
+          <ReNavigateHarness to="/?highlight=kri-1" />
+        </MemoryRouter>
+      )
+
+      await waitFor(() =>
+        expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1)
+      )
+
+      await user.click(screen.getByRole("button", { name: "renavigate" }))
+
+      await waitFor(() =>
+        expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(2)
+      )
+    })
+
+    it("does not scroll or highlight anything when no ?highlight= param is present", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ id: "kri-1" })] },
+        isLoading: false,
+      })
+
+      renderPage("/")
+
+      expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
+      const card = document.getElementById("kri-kri-1")
+      expect(card?.className).not.toContain("ring-2")
     })
   })
 })

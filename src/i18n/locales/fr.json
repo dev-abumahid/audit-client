@@ -292,6 +292,8 @@
       "loadError": "Échec du chargement des ICR. Veuillez réessayer plus tard.",
       "noKris": "Aucun ICR pour le moment",
       "unknownRisk": "Risque inconnu",
+      "relatedAlertsTooltip_one": "{{count}} alerte associée",
+      "relatedAlertsTooltip_other": "{{count}} alertes associées",
       "save": "Enregistrer",
       "cancel": "Annuler",
       "targetLabel": "Cible",
@@ -1451,6 +1453,7 @@
       "aiGenerated": "Généré par IA",
       "new": "Nouveau",
       "markAsRead": "Marquer comme lu",
+      "viewKri": "Voir l'ICR",
       "empty": "Aucune alerte pour le moment",
       "emptyFiltered": "Aucune alerte ne correspond à ce filtre",
       "type": {

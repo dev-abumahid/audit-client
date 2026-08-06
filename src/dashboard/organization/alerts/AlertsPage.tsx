@@ -10,6 +10,7 @@ import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import { Bell, Clock, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { Link } from "react-router"
 import { toast } from "sonner"
 
 type Severity = "critical" | "high" | "medium" | "low"
@@ -217,15 +218,30 @@ export default function AlertsPage() {
                     })}
                   </span>
 
-                  {!alert.is_read && (
-                    <button
-                      onClick={() => handleMarkRead(alert.id)}
-                      disabled={isMarkingRead}
-                      className="rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
-                    >
-                      {t("organization.alerts.markAsRead")}
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {/* aexa-frontend#530: kri_id is populated for every
+                        kri_threshold_breach alert but was never surfaced --
+                        this is the one-way-blind half of the cross-link,
+                        the other half (alert counts on the KRI card) lives
+                        in KriDashboardPage.tsx. */}
+                    {alert.kri_id && (
+                      <Link
+                        to={`/organization/kri?highlight=${encodeURIComponent(alert.kri_id)}`}
+                        className="focus-ring rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10"
+                      >
+                        {t("organization.alerts.viewKri")}
+                      </Link>
+                    )}
+                    {!alert.is_read && (
+                      <button
+                        onClick={() => handleMarkRead(alert.id)}
+                        disabled={isMarkingRead}
+                        className="focus-ring rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+                      >
+                        {t("organization.alerts.markAsRead")}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
