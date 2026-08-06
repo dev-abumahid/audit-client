@@ -1,6 +1,11 @@
 import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import InspectionReport from "./InspectionReport"
+
+// aexa-frontend#552: the site label is now a real <Link>, so every render()
+// needs a Router context.
+const withRouter = { wrapper: MemoryRouter }
 
 // Controllable `i18n.language` for the locale-formatting test below, while
 // every other test in this file keeps relying on the real (uninitialized)
@@ -90,7 +95,7 @@ describe("InspectionReport", () => {
   it("shows a loading state while there is no inspection data yet", () => {
     mockUseGetSingleInspectionQuery.mockReturnValue({ data: undefined })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     // i18n isn't initialized in the test environment, so t() echoes the raw
     // key back (see RiskRegisterPage.test.tsx for the same convention).
@@ -104,7 +109,7 @@ describe("InspectionReport", () => {
       data: { data: makeInspection() },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     // Bug-fix batch: the status badge used to render the raw enum value
     // ("COMPLETED") instead of the humanized translation key shared with
@@ -120,6 +125,24 @@ describe("InspectionReport", () => {
     expect(screen.getByText("3/3")).toBeInTheDocument() // totalAnswered/totalQuestions
   })
 
+  // aexa-frontend#552: the site label was plain text even though
+  // inspection.site.id was already available -- reuses the established
+  // ?siteId=&search= pattern (#533/#541) since SitesEntities has no
+  // per-site detail route.
+  it("links the site label into Sites, scoped to that site", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    const link = screen.getByRole("link", { name: "HQ Casablanca" })
+    expect(link).toHaveAttribute(
+      "href",
+      "/organization/sites?siteId=site-1&search=HQ%20Casablanca"
+    )
+  })
+
   // Regression (aexa-frontend round-9 audit #463): the page h1 (report
   // title) was followed directly by an h3 (each template page's title, e.g.
   // "General"), with no h2 anywhere in between. Page titles are now h2,
@@ -129,7 +152,7 @@ describe("InspectionReport", () => {
       data: { data: makeInspection() },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     expect(
       screen.getByRole("heading", { level: 1, name: "Fire Safety Audit" })
@@ -144,7 +167,7 @@ describe("InspectionReport", () => {
       data: { data: makeInspection() },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     expect(screen.getByText("organization.inspection.yes")).toBeInTheDocument()
     expect(screen.getByText("Checked twice")).toBeInTheDocument()
@@ -155,7 +178,7 @@ describe("InspectionReport", () => {
       data: { data: makeInspection() },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     expect(screen.getByText("7")).toBeInTheDocument()
     // aexa-frontend#378: the "date"-type answer used a bare
@@ -175,7 +198,7 @@ describe("InspectionReport", () => {
       data: { data: makeInspection() },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     const expected = new Date("2026-06-01").toLocaleDateString("fr-FR", {
       year: "numeric",
@@ -190,7 +213,7 @@ describe("InspectionReport", () => {
       data: { data: makeInspection({ questionAnswers: [] }) },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     expect(
       screen.getAllByText("organization.inspection.noAnswerProvided").length
@@ -224,7 +247,7 @@ describe("InspectionReport", () => {
       },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     const extinguisherCard = screen
       .getByText("Extinguisher present?")
@@ -266,7 +289,7 @@ describe("InspectionReport", () => {
       },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     const extinguisherCard = screen
       .getByText("Extinguisher present?")
@@ -292,7 +315,7 @@ describe("InspectionReport", () => {
       },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     expect(
       screen.getByRole("heading", {
@@ -315,7 +338,7 @@ describe("InspectionReport", () => {
       },
     })
 
-    expect(() => render(<InspectionReport />)).not.toThrow()
+    expect(() => render(<InspectionReport />, withRouter)).not.toThrow()
     expect(screen.getByText("100%off.pdf")).toBeInTheDocument()
   })
 
@@ -324,7 +347,7 @@ describe("InspectionReport", () => {
       data: { data: makeInspection({ attachments: [] }) },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     expect(
       screen.queryByRole("heading", {
@@ -342,7 +365,7 @@ describe("InspectionReport", () => {
       },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     expect(
       screen.getByText("organization.inspection.unsplitText")
@@ -382,7 +405,7 @@ describe("InspectionReport", () => {
       },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
     expect(
       screen.queryByText("organization.inspection.mediaPreview")
     ).not.toBeInTheDocument()
@@ -434,7 +457,7 @@ describe("InspectionReport", () => {
       },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
     await userEvent.click(screen.getByRole("button", { name: "organization.inspection.mediaThumbnailAlt" }))
 
     expect(
@@ -475,7 +498,7 @@ describe("InspectionReport", () => {
       },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
     await userEvent.click(screen.getByRole("button", { name: "organization.inspection.mediaThumbnailAlt" }))
 
     const dialog = screen.getByRole("dialog")
@@ -517,7 +540,7 @@ describe("InspectionReport", () => {
           }),
         },
       })
-      return render(<InspectionReport />)
+      return render(<InspectionReport />, withRouter)
     }
 
     it("renders a video media file as a <video> thumbnail and a <video controls> lightbox, not a broken <img>", async () => {
@@ -582,7 +605,7 @@ describe("InspectionReport", () => {
       },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     await userEvent.click(
       screen.getByText("organization.inspection.viewFullSize")
@@ -636,7 +659,7 @@ describe("InspectionReport", () => {
       },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     const video = document.querySelector("video")
     expect(video).toBeInTheDocument()
@@ -651,7 +674,7 @@ describe("InspectionReport", () => {
       },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     const link = screen.getByRole("link", { name: /report\.pdf/ })
     expect(link).toHaveAttribute("href", "https://cdn.example.com/report.pdf")
@@ -668,7 +691,7 @@ describe("InspectionReport", () => {
       data: { data: makeInspection() },
     })
 
-    render(<InspectionReport />)
+    render(<InspectionReport />, withRouter)
 
     const nav = screen.getByRole("navigation", {
       name: "organization.inspection.sections",

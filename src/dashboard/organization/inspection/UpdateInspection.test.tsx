@@ -6,7 +6,15 @@ import {
   within,
 } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import UpdateInspection from "./UpdateInspection"
+
+// aexa-frontend#552: the site label is now a real <Link>, so every render()
+// needs a Router context. RTL's `wrapper` option applies to `rerender()`
+// too, so this is a drop-in addition rather than needing a renderPage()
+// helper everywhere (same convention as CorrelationMatrixPage.test.tsx's
+// #549 fix).
+const withRouter = { wrapper: MemoryRouter }
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
@@ -122,7 +130,7 @@ describe("UpdateInspection", () => {
       isLoading: true,
     })
 
-    render(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
 
     // i18n isn't initialized in the test environment, so t() echoes the raw
     // key back (see RiskRegisterPage.test.tsx for the same convention).
@@ -137,7 +145,7 @@ describe("UpdateInspection", () => {
       isLoading: false,
     })
 
-    render(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
 
     expect(
       screen.getByText("organization.inspection.notFound")
@@ -150,7 +158,7 @@ describe("UpdateInspection", () => {
       isLoading: false,
     })
 
-    render(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
 
     // editTitle interpolates {{name}}, but the uninitialized test t() echoes
     // just the key without interpolation.
@@ -169,6 +177,23 @@ describe("UpdateInspection", () => {
     expect(screen.queryByText("IN_PROGRESS")).not.toBeInTheDocument()
   })
 
+  // aexa-frontend#552: same site cross-link as InspectionReport.tsx --
+  // reuses the established ?siteId=&search= pattern (#533/#541).
+  it("links the site label into Sites, scoped to that site", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    const link = screen.getByRole("link", { name: "HQ Casablanca" })
+    expect(link).toHaveAttribute(
+      "href",
+      "/organization/sites?siteId=site-1&search=HQ%20Casablanca"
+    )
+  })
+
   // Regression (round 3 audit): a template with zero pages left both the
   // sticky page-nav list and the main content area completely blank, with
   // no explanation -- e.g. the "AI-Generated Findings (system, do not
@@ -183,7 +208,7 @@ describe("UpdateInspection", () => {
       isLoading: false,
     })
 
-    render(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
 
     expect(
       screen.getAllByText("organization.inspection.noPagesTitle").length
@@ -209,7 +234,7 @@ describe("UpdateInspection", () => {
       isLoading: false,
     })
 
-    render(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
 
     expect(screen.getAllByRole("heading", { level: 1 }).length).toBe(1)
     expect(
@@ -223,7 +248,7 @@ describe("UpdateInspection", () => {
       isLoading: false,
     })
 
-    render(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
 
     expect(screen.getByText("Recommendation section")).toBeInTheDocument()
     expect(screen.getByText("Unsplit text section")).toBeInTheDocument()
@@ -234,7 +259,7 @@ describe("UpdateInspection", () => {
       data: { data: makeInspection() },
       isLoading: false,
     })
-    const { rerender } = render(<UpdateInspection />)
+    const { rerender } = render(<UpdateInspection />, withRouter)
     expect(
       screen.getByRole("button", {
         name: "organization.inspection.uploadNote",
@@ -262,7 +287,7 @@ describe("UpdateInspection", () => {
       unwrap: () => Promise.resolve({}),
     })
 
-    render(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
     const checkbox = screen.getAllByRole("checkbox")[0]
     await userEvent.click(checkbox)
 
@@ -288,7 +313,7 @@ describe("UpdateInspection", () => {
       isLoading: false,
     })
 
-    render(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
     const checkbox = screen.getAllByRole("checkbox")[0]
     // fireEvent (not userEvent) avoids userEvent's internal async delays, which deadlock
     // when the whole test runs under fake timers.
@@ -306,7 +331,7 @@ describe("UpdateInspection", () => {
     })
     mockUpdateInspection.mockReturnValue({ unwrap: () => Promise.resolve({}) })
 
-    render(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization\.inspection\.statusInProgress/i,
@@ -336,7 +361,7 @@ describe("UpdateInspection", () => {
       isLoading: false,
     })
 
-    render(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization\.inspection\.statusInProgress/i,
@@ -358,7 +383,7 @@ describe("UpdateInspection", () => {
       isLoading: false,
     })
 
-    render(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
     await userEvent.click(
       screen.getAllByRole("button", {
         name: "organization.inspection.addFinding",
@@ -374,7 +399,7 @@ describe("UpdateInspection", () => {
       isLoading: false,
     })
 
-    render(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.inspection.uploadNote",
@@ -395,7 +420,7 @@ describe("UpdateInspection", () => {
         isLoading: false,
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
 
       expect(screen.getByText("report.pdf")).toBeInTheDocument()
     })
@@ -416,7 +441,7 @@ describe("UpdateInspection", () => {
         unwrap: () => Promise.resolve({}),
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
       const file = new File(["x"], "new.pdf", { type: "application/pdf" })
       const inputs = document.querySelectorAll('input[type="file"]')
       // First file input on the page is the attachments uploader (header section).
@@ -454,7 +479,7 @@ describe("UpdateInspection", () => {
         unwrap: () => Promise.resolve({}),
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
       const file = new File(["x"], "new.pdf", { type: "application/pdf" })
       const inputs = document.querySelectorAll('input[type="file"]')
       await userEvent.upload(inputs[0] as HTMLInputElement, file)
@@ -488,7 +513,7 @@ describe("UpdateInspection", () => {
         unwrap: () => Promise.resolve({}),
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
       await userEvent.click(screen.getAllByTitle("organization.inspection.remove")[1])
 
       await waitFor(() =>
@@ -519,7 +544,7 @@ describe("UpdateInspection", () => {
         unwrap: () => firstRemovePromise,
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
       const removeButtons = screen.getAllByTitle("organization.inspection.remove")
       await userEvent.click(removeButtons[0])
 
@@ -540,7 +565,7 @@ describe("UpdateInspection", () => {
           Promise.reject({ data: { message: "File too large" } }),
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
       const file = new File(["x"], "new.pdf", { type: "application/pdf" })
       const inputs = document.querySelectorAll('input[type="file"]')
       await userEvent.upload(inputs[0] as HTMLInputElement, file)
@@ -568,7 +593,7 @@ describe("UpdateInspection", () => {
         unwrap: () => Promise.reject({ data: {} }),
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
       const file = new File(["x"], "new.pdf", { type: "application/pdf" })
       const inputs = document.querySelectorAll('input[type="file"]')
       await userEvent.upload(inputs[0] as HTMLInputElement, file)
@@ -620,7 +645,7 @@ describe("UpdateInspection", () => {
         isLoading: false,
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
 
       const removeButton = screen.getByRole("button", {
         name: "organization.inspection.remove",
@@ -659,7 +684,7 @@ describe("UpdateInspection", () => {
         unwrap: () => Promise.resolve({}),
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
       const file = new File(["x"], "clip.mp4", { type: "video/mp4" })
       const input = document.getElementById(
         "update-external-media-q-1"
@@ -711,7 +736,7 @@ describe("UpdateInspection", () => {
         isLoading: false,
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
 
       const video = document.querySelector("video")
       expect(video).toBeInTheDocument()
@@ -748,10 +773,16 @@ describe("UpdateInspection", () => {
         isLoading: false,
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
 
-      const link = screen.getByRole("link")
-      expect(link).toHaveAttribute("href", "https://cdn.example.com/report.pdf")
+      // aexa-frontend#552 added a second <a> on this page (the site-name
+      // cross-link), so this now needs to target the attachment link
+      // specifically rather than assume it's the only one -- this link is
+      // icon-only (no accessible name), so disambiguate by href instead.
+      const link = screen
+        .getAllByRole("link")
+        .find((el) => el.getAttribute("href") === "https://cdn.example.com/report.pdf")
+      expect(link).toBeDefined()
       expect(link).toHaveAttribute("target", "_blank")
     })
   })
@@ -797,7 +828,7 @@ describe("UpdateInspection", () => {
         isLoading: false,
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
 
       const video = document.querySelector("video")
       expect(video).toBeInTheDocument()
@@ -815,7 +846,7 @@ describe("UpdateInspection", () => {
         isLoading: false,
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
 
       const link = screen.getByRole("link", { name: /report\.pdf/ })
       expect(link).toHaveAttribute("href", "https://cdn.example.com/report.pdf")
@@ -831,7 +862,7 @@ describe("UpdateInspection", () => {
         isLoading: false,
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
 
       expect(
         screen.getByAltText("organization.inspection.uploadedMediaAlt")
@@ -869,7 +900,7 @@ describe("UpdateInspection", () => {
         isLoading: false,
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
 
       const thumbnail = screen.getByAltText(
         "organization.inspection.uploadedMediaAlt"
@@ -889,7 +920,7 @@ describe("UpdateInspection", () => {
         isLoading: false,
       })
 
-      render(<UpdateInspection />)
+      render(<UpdateInspection />, withRouter)
 
       const nav = screen.getByRole("navigation", {
         name: "organization.inspection.pages",

@@ -34,7 +34,7 @@ import {
 import type { TFunction } from "i18next"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useNavigate, useParams } from "react-router"
+import { Link, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -694,7 +694,16 @@ const InspectionReport = () => {
               <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
                 {t("organization.inspection.siteLabel")}{" "}
                 <Globe className="h-3.5 w-3.5 text-primary" />{" "}
-                {inspection.site.name}
+                {/* aexa-frontend#552: inspection.site.id was already
+                    available but rendered as plain text -- reuses the
+                    established ?siteId=&search= pattern (#533/#541) since
+                    SitesEntities has no per-site detail route. */}
+                <Link
+                  to={`/organization/sites?siteId=${encodeURIComponent(inspection.site.id)}&search=${encodeURIComponent(inspection.site.name)}`}
+                  className="focus-ring text-primary hover:underline"
+                >
+                  {inspection.site.name}
+                </Link>
               </p>
             )}
           </div>

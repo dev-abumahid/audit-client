@@ -40,7 +40,7 @@ import {
 import { severityBadgeClasses } from "@/utils/severityStyles"
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useNavigate, useParams } from "react-router"
+import { Link, useNavigate, useParams } from "react-router"
 import TextareaAutosize from "react-textarea-autosize"
 import { toast } from "sonner"
 import CreateNewFindingModal from "../findings/CreateNewFindingModal"
@@ -811,7 +811,16 @@ export default function UpdateInspection() {
               </h1>
               {inspection?.site && (
                 <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Globe className="h-4 w-4" /> {inspection.site.name}
+                  <Globe className="h-4 w-4" />{" "}
+                  {/* aexa-frontend#552: same site cross-link as
+                      InspectionReport.tsx -- reuses the established
+                      ?siteId=&search= pattern (#533/#541). */}
+                  <Link
+                    to={`/organization/sites?siteId=${encodeURIComponent(inspection.site.id)}&search=${encodeURIComponent(inspection.site.name)}`}
+                    className="focus-ring text-primary hover:underline"
+                  >
+                    {inspection.site.name}
+                  </Link>
                 </p>
               )}
               <div className="mt-2 flex items-center gap-2">
