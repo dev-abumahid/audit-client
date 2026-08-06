@@ -1,8 +1,20 @@
 import { render, screen } from "@testing-library/react"
 import type { ReactNode } from "react"
+import { MemoryRouter } from "react-router"
 import Overview from "./Overview"
 import enTranslations from "@/i18n/locales/en.json"
 import frTranslations from "@/i18n/locales/fr.json"
+
+// aexa-frontend#529 cross-linking sweep: a tipping-point risk's name is now
+// a <Link> to its detail page, so this needs a Router context -- same
+// convention as InspectionTable.test.tsx's renderTable().
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <Overview />
+    </MemoryRouter>
+  )
+}
 
 // This file never triggers src/i18n/i18n.ts's side-effect init, so
 // react-i18next's real t() falls back to returning the raw key with no
@@ -279,7 +291,7 @@ describe("Overview", () => {
 
   it("shows a loading state while any of risks/KRIs/alerts/actions/inspections are loading", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: undefined, isLoading: true })
-    render(<Overview />)
+    renderPage()
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
@@ -288,19 +300,19 @@ describe("Overview", () => {
       data: undefined,
       isLoading: true,
     })
-    render(<Overview />)
+    renderPage()
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
   it("shows a loading state while findings/inspections specifically are loading", () => {
     mockUseGetAllInspectionQuery.mockReturnValue({ data: undefined, isLoading: true })
-    render(<Overview />)
+    renderPage()
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
   it("shows a loading state while sites are loading", () => {
     mockUseGetAllSitesQuery.mockReturnValue({ data: undefined, isLoading: true })
-    render(<Overview />)
+    renderPage()
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
@@ -318,7 +330,7 @@ describe("Overview", () => {
       isLoading: false,
     })
 
-    render(<Overview />)
+    renderPage()
 
     expect(capturedPieProps?.paddingAngle).toBe(0)
   })
@@ -334,7 +346,7 @@ describe("Overview", () => {
       isLoading: false,
     })
 
-    render(<Overview />)
+    renderPage()
 
     expect(capturedPieProps?.paddingAngle).toBe(3)
   })
@@ -342,7 +354,7 @@ describe("Overview", () => {
   // Regression (issue #355): 6 MetricCards in a 4-column grid left the last
   // row half-empty (4 + 2). lg:grid-cols-3 divides 6 evenly into 2 full rows.
   it("lays the 6 metric cards out in a grid that divides evenly", () => {
-    const { container } = render(<Overview />)
+    const { container } = renderPage()
 
     const metricsGrid = container.querySelector(".grid.gap-4")
     expect(metricsGrid).toHaveClass("lg:grid-cols-3")
@@ -360,7 +372,7 @@ describe("Overview", () => {
       },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     expect(screen.getByText("2")).toBeInTheDocument()
   })
@@ -376,7 +388,7 @@ describe("Overview", () => {
       },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     expect(screen.getByText("2")).toBeInTheDocument()
   })
@@ -391,7 +403,7 @@ describe("Overview", () => {
       },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     expect(screen.getByText("1")).toBeInTheDocument()
   })
@@ -408,7 +420,7 @@ describe("Overview", () => {
       },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     expect(screen.getByText("2")).toBeInTheDocument()
   })
@@ -426,7 +438,7 @@ describe("Overview", () => {
       },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     expect(screen.getByText("3")).toBeInTheDocument()
   })
@@ -445,7 +457,7 @@ describe("Overview", () => {
       },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     expect(screen.getByText("€5.0M")).toBeInTheDocument()
     expect(screen.queryByText("€8.6M")).not.toBeInTheDocument()
@@ -456,7 +468,7 @@ describe("Overview", () => {
       data: { data: [makeAlert()] },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     expect(
       screen.getByText("Overdue actions exceeded threshold")
@@ -493,7 +505,7 @@ describe("Overview", () => {
       isLoading: false,
     })
 
-    render(<Overview />)
+    renderPage()
 
     expect(screen.getByText("Central Cyber Risk")).toBeInTheDocument()
     expect(screen.queryByText("Peripheral Ops Risk")).not.toBeInTheDocument()
@@ -530,7 +542,7 @@ describe("Overview", () => {
       isLoading: false,
     })
 
-    render(<Overview />)
+    renderPage()
 
     expect(screen.getByText("Hub Beyond The Page Limit")).toBeInTheDocument()
   })
@@ -545,7 +557,7 @@ describe("Overview", () => {
       },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     // Category labels resolve through t() (organization.riskCategories.*, not
     // a hardcoded string — aexa-frontend#197); this repo's tests assert the
@@ -577,7 +589,7 @@ describe("Overview", () => {
       },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     expect(
       screen
@@ -593,7 +605,7 @@ describe("Overview", () => {
       data: { data: { risks: [], riskLinks: [], actions: [] } },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     expect(
       screen.getByText("organization.overview.bottomRow.empty")
@@ -605,7 +617,7 @@ describe("Overview", () => {
       data: { data: [makeRisk({ id: "r1" })] },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     expect(screen.getByText("1 identified risk")).toBeInTheDocument()
     expect(screen.queryByText("1 identified risks")).not.toBeInTheDocument()
@@ -618,13 +630,13 @@ describe("Overview", () => {
       },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     expect(screen.getByText("2 identified risks")).toBeInTheDocument()
   })
 
   it("labels the EBITDA median stat P50, not P5 (the value shown is ebitdaData's P50 entry)", () => {
-    render(<Overview />)
+    renderPage()
 
     expect(screen.getByText(/P50 \(Median\)/)).toBeInTheDocument()
     expect(screen.queryByText(/P5 \(Median\)/)).not.toBeInTheDocument()
@@ -632,7 +644,7 @@ describe("Overview", () => {
 
   it("shows an empty state in Recent Alerts when there are no alerts", () => {
     mockUseGetAllAlertsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
-    render(<Overview />)
+    renderPage()
 
     expect(
       screen.getByText("organization.overview.alert.empty")
@@ -644,7 +656,7 @@ describe("Overview", () => {
       data: { data: [makeAlert()] },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     expect(
       screen.queryByText("organization.overview.alert.empty")
@@ -661,7 +673,7 @@ describe("Overview", () => {
       data: { data: [makeAlert({ createdAt: "2026-06-21T10:00:00.000Z" })] },
       isLoading: false,
     })
-    render(<Overview />)
+    renderPage()
 
     const expectedEn = new Date(
       "2026-06-21T10:00:00.000Z"
@@ -690,7 +702,7 @@ describe("Overview", () => {
   // instead of currency-formatted EBITDA ("€23.1M"), unlike every other
   // number on this card (legend, Y-axis).
   it("formats the EBITDA chart tooltip as currency, matching the Y-axis/legend formatting", () => {
-    render(<Overview />)
+    renderPage()
 
     const ebitdaTooltip = capturedTooltipProps.find(
       (props) => typeof props.formatter === "function"
@@ -746,7 +758,7 @@ describe("Overview", () => {
         },
         isLoading: false,
       })
-      render(<Overview />)
+      renderPage()
       expect(screen.getByText(/Northwind Trading/)).toBeInTheDocument()
     })
 
@@ -755,7 +767,7 @@ describe("Overview", () => {
         data: { data: null },
         isLoading: false,
       })
-      render(<Overview />)
+      renderPage()
       // t() falls back to echoing the raw key in this test env for
       // defaultOrgName (not specifically overridden above), so the
       // interpolated description contains the raw key as the fallback name.
@@ -769,7 +781,7 @@ describe("Overview", () => {
   // headings with no h2 in between, breaking heading-level order for
   // screen-reader users.
   it("has an h2 between the page h1 and its h3 section headings", () => {
-    render(<Overview />)
+    renderPage()
 
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument()
     expect(

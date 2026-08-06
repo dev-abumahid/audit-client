@@ -1,8 +1,20 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import RiskRegisterPage from "./RiskRegisterPage"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+
+// aexa-frontend#529: the risk name is now a <Link> to the new per-risk
+// detail page, so this needs a Router context -- same convention as
+// InspectionTable.test.tsx's renderTable().
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <RiskRegisterPage />
+    </MemoryRouter>
+  )
+}
 
 // This file never triggers src/i18n/i18n.ts's side-effect init, so
 // react-i18next's real t() falls back to returning the raw key with no
@@ -131,7 +143,7 @@ describe("RiskRegisterPage", () => {
   it("renders the singular subtitle for a single visible risk", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     expect(screen.getByText("1 risk found")).toBeInTheDocument()
     expect(screen.queryByText("Risks found")).not.toBeInTheDocument()
@@ -142,7 +154,7 @@ describe("RiskRegisterPage", () => {
       data: { data: [makeRisk(), makeRisk({ id: "risk-2" })] },
     })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     expect(screen.getByText("2 risks found")).toBeInTheDocument()
   })
@@ -151,7 +163,7 @@ describe("RiskRegisterPage", () => {
     mockRole = "ADMIN"
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     expect(
       screen.getByRole("button", {
@@ -174,7 +186,7 @@ describe("RiskRegisterPage", () => {
     mockRole = "VIEWER"
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     expect(
       screen.queryByRole("button", {
@@ -197,7 +209,7 @@ describe("RiskRegisterPage", () => {
     mockRole = "LIGHT_USER"
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     expect(
       screen.queryByRole("button", {
@@ -209,7 +221,7 @@ describe("RiskRegisterPage", () => {
   it("renders risk rows with name, site, category and score", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     expect(screen.getByText("Supply chain disruption")).toBeInTheDocument()
     // "HQ Casablanca" also appears as a site-filter option, so there are two matches
@@ -246,7 +258,7 @@ describe("RiskRegisterPage", () => {
       },
     })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     const lowScoreBadge = screen.getByText("5")
     expect(lowScoreBadge.className).toContain("bg-emerald-500/15")
@@ -265,7 +277,7 @@ describe("RiskRegisterPage", () => {
       data: { data: [makeRisk({ category: "cyber" })] },
     })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     const badge = screen
       .getAllByText("organization.riskCategories.catCyber")
@@ -279,7 +291,7 @@ describe("RiskRegisterPage", () => {
       data: { data: [makeRisk({ category: "totally_unknown" })] },
     })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     expect(screen.getByText("totally_unknown")).toBeInTheDocument()
   })
@@ -289,7 +301,7 @@ describe("RiskRegisterPage", () => {
       data: { data: [makeRisk({ financial_impact_max: 500000 })] },
     })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     // The Min/Max Impact form fields are labeled "k€" and submitted
     // unmodified, so the stored value is already in k€: 500,000 k€ / 1,000
@@ -301,7 +313,7 @@ describe("RiskRegisterPage", () => {
   it("shows empty state when there are no risks", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 
-    const { container } = render(<RiskRegisterPage />)
+    const { container } = renderPage()
 
     expect(container.querySelector("tbody")?.children.length).toBe(0)
   })
@@ -311,7 +323,7 @@ describe("RiskRegisterPage", () => {
       data: { data: [makeRisk({ site: undefined, site_id: "" })] },
     })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     // i18n isn't initialized in the test environment, so t() echoes the raw
     // key back (see RiskMatrixPage.test.tsx for the same convention). The
@@ -325,7 +337,7 @@ describe("RiskRegisterPage", () => {
   it('opens the create modal when "Add New Risk" is clicked', async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 
-    render(<RiskRegisterPage />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.riskRegister.addNewRisk",
@@ -350,7 +362,7 @@ describe("RiskRegisterPage", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
     mockIsRiskCreating = true
 
-    render(<RiskRegisterPage />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.riskRegister.addNewRisk",
@@ -369,7 +381,7 @@ describe("RiskRegisterPage", () => {
   it("aexa-frontend#228: constrains inherent_score, residual_score and probability to 0-100", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 
-    const { container } = render(<RiskRegisterPage />)
+    const { container } = renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.riskRegister.addNewRisk",
@@ -391,7 +403,7 @@ describe("RiskRegisterPage", () => {
   it("shows validation errors when submitting with required fields empty", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 
-    render(<RiskRegisterPage />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.riskRegister.addNewRisk",
@@ -421,7 +433,7 @@ describe("RiskRegisterPage", () => {
       unwrap: () => Promise.resolve({ success: true, message: "Risk created" }),
     })
 
-    const { container } = render(<RiskRegisterPage />)
+    const { container } = renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.riskRegister.addNewRisk",
@@ -454,7 +466,7 @@ describe("RiskRegisterPage", () => {
   it("pre-fills the edit form with existing risk data", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
 
-    const { container } = render(<RiskRegisterPage />)
+    const { container } = renderPage()
     const editButtons = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-pencil"))
@@ -474,7 +486,7 @@ describe("RiskRegisterPage", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    render(<RiskRegisterPage />)
+    renderPage()
     const deleteButtons = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-trash2"))
@@ -495,7 +507,7 @@ describe("RiskRegisterPage", () => {
         }),
     })
 
-    render(<RiskRegisterPage />)
+    renderPage()
     const deleteButtons = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-trash2"))
@@ -528,7 +540,7 @@ describe("RiskRegisterPage", () => {
         }),
     })
 
-    const { container } = render(<RiskRegisterPage />)
+    const { container } = renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.riskRegister.addNewRisk",
@@ -569,7 +581,7 @@ describe("RiskRegisterPage", () => {
         }),
     })
 
-    const { container } = render(<RiskRegisterPage />)
+    const { container } = renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.riskRegister.addNewRisk",
@@ -625,7 +637,7 @@ describe("RiskRegisterPage", () => {
       },
     })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     // Before toggling, all three rows are visible.
     expect(screen.getByText("Awaiting sign-off")).toBeInTheDocument()
@@ -655,7 +667,7 @@ describe("RiskRegisterPage", () => {
           Promise.resolve({ success: true, message: "Risk created" }),
       })
 
-      const { container } = render(<RiskRegisterPage />)
+      const { container } = renderPage()
       await userEvent.click(
         screen.getByRole("button", {
           name: "organization.riskRegister.addNewRisk",
@@ -725,7 +737,7 @@ describe("RiskRegisterPage", () => {
           Promise.resolve({ success: true, message: "Risk created" }),
       })
 
-      const { container } = render(<RiskRegisterPage />)
+      const { container } = renderPage()
       await userEvent.click(
         screen.getByRole("button", {
           name: "organization.riskRegister.addNewRisk",
@@ -782,7 +794,7 @@ describe("RiskRegisterPage", () => {
           Promise.resolve({ success: true, message: "Risk updated" }),
       })
 
-      const { container } = render(<RiskRegisterPage />)
+      const { container } = renderPage()
       const editButtons = screen
         .getAllByRole("button")
         .filter((b) => b.querySelector("svg.lucide-pencil"))
@@ -853,7 +865,7 @@ describe("RiskRegisterPage", () => {
           Promise.resolve({ success: true, message: "Risk updated" }),
       })
 
-      const { container } = render(<RiskRegisterPage />)
+      const { container } = renderPage()
       const editButtons = screen
         .getAllByRole("button")
         .filter((b) => b.querySelector("svg.lucide-pencil"))
@@ -891,7 +903,7 @@ describe("RiskRegisterPage", () => {
         },
       })
 
-      render(<RiskRegisterPage />)
+      renderPage()
 
       expect(screen.getByTestId("override-stale-badge")).toBeInTheDocument()
     })
@@ -910,7 +922,7 @@ describe("RiskRegisterPage", () => {
         },
       })
 
-      render(<RiskRegisterPage />)
+      renderPage()
 
       expect(
         screen.queryByTestId("override-stale-badge")
@@ -925,7 +937,7 @@ describe("RiskRegisterPage", () => {
         data: { data: [makeRisk({ residual_is_override: false })] },
       })
 
-      render(<RiskRegisterPage />)
+      renderPage()
 
       expect(
         screen.queryByTestId("override-stale-badge")
@@ -939,7 +951,7 @@ describe("RiskRegisterPage", () => {
   it("filters risks by search term via the query hook", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 
-    render(<RiskRegisterPage />)
+    renderPage()
     await userEvent.type(
       screen.getByPlaceholderText(
         "organization.riskRegister.searchPlaceholder"
@@ -965,7 +977,7 @@ describe("RiskRegisterPage", () => {
       data: { data: [{ id: "site-1", name: "Main Plant" }] },
     })
 
-    render(<RiskRegisterPage />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.riskRegister.addNewRisk",
@@ -1007,7 +1019,7 @@ describe("RiskRegisterPage", () => {
   it("gives the per-row Edit and Delete icon buttons accessible names", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
 
-    render(<RiskRegisterPage />)
+    renderPage()
 
     expect(
       screen.getByRole("button", {
@@ -1027,7 +1039,7 @@ describe("RiskRegisterPage", () => {
   it("marks the Add/Edit Risk modal as a labeled dialog and closes it on Escape", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 
-    render(<RiskRegisterPage />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.riskRegister.addNewRisk",

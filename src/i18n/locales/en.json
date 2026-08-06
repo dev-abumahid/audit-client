@@ -1049,7 +1049,16 @@
       "overrideActiveBadge": "{{label}} overridden",
       "overrideTooltip": "{{label}} overridden by {{by}} on {{date}}",
       "overrideUnknownActor": "unknown user",
-      "overrideUnknownDate": "an unknown date"
+      "overrideUnknownDate": "an unknown date",
+      "detailsLoading": "Loading risk…",
+      "detailsNotFound": "Risk not found",
+      "detailsGoBack": "Go back",
+      "detailsBack": "Back",
+      "detailsManageInRegister": "Manage in Register",
+      "detailsCreatedLabel": "Created",
+      "detailsUpdatedLabel": "Last updated",
+      "detailsApprovalTitle": "Approval",
+      "lineOfDefenseLabel": "Line of Defense"
     },
     "compliance": {
       "title": "Compliance Obligations",
@@ -1310,7 +1319,7 @@
       "linkedRisksLabel": "Linked Risks:",
       "startedLabel": "Started:",
       "closedLabel": "Closed:",
-      "openInRegister": "Open in Risk Register",
+      "viewRiskDetails": "View risk details",
       "empty": "No audit engagements found",
       "missionListHeading": "Audit Missions",
       "editMission": "Edit {{title}}",

@@ -20,6 +20,19 @@ const risksApi = baseApi.injectEndpoints({
       }),
       providesTags: ["RISK"],
     }),
+    // aexa-frontend#529: powers the new per-risk detail page. Note the
+    // single-risk response does NOT carry `approval`/`approvalStatus` --
+    // those are attached only by getAllRisks's list serializer server-side
+    // (see types/organization.d.ts's Risk.approval comment) -- callers that
+    // need approval state fetch it separately via
+    // useGetRiskApprovalStateQuery, same as this endpoint's own consumer.
+    getSingleRisk: builder.query<ApiResponse<Risk>, string>({
+      query: (id) => ({
+        url: `/risk/${id}`,
+        method: "GET",
+      }),
+      providesTags: ["RISK"],
+    }),
     // aexa-frontend#261: also invalidates CORRELATION_MATRIX -- deleting a
     // Risk removes it (and any RiskLink/Action rows keyed on its `ref`) from
     // getCorrelationMatrixData's cached result too. Without this, a deleted
@@ -62,6 +75,7 @@ const risksApi = baseApi.injectEndpoints({
 
 export const {
   useGetAllRisksQuery,
+  useGetSingleRiskQuery,
   useDeleteRiskMutation,
   useCreateNewRiskMutation,
   useUpdateRiskMutation,

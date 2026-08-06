@@ -31,6 +31,7 @@ import {
   Zap,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import { Link } from "react-router"
 import {
   Area,
   AreaChart,
@@ -448,9 +449,16 @@ export default function Overview() {
                   {risk.ref}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">
+                  {/* aexa-frontend#167 cross-linking theme: found while
+                      reviewing #529 -- this was the one remaining place a
+                      risk rendered as plain, non-interactive text despite
+                      risk.id already being in scope. */}
+                  <Link
+                    to={`/organization/risks/${risk.id}`}
+                    className="focus-ring block truncate rounded text-sm font-medium text-primary hover:underline"
+                  >
                     {risk.name}
-                  </p>
+                  </Link>
                   <p className="text-xs text-muted-foreground">
                     {RISK_CATEGORIES[risk.category] &&
                       t(

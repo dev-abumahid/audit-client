@@ -809,7 +809,9 @@ export default function IntelligencePage() {
                       <div className="mt-2">
                         {item.created_risk_id ? (
                           <Link
-                            to="/organization/risks"
+                            // aexa-frontend#529: now links to the specific
+                            // risk instead of the whole register list.
+                            to={`/organization/risks/${item.created_risk_id}`}
                             className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                           >
                             <CheckCircle2 className="h-3 w-3" />

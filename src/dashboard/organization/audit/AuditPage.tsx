@@ -549,13 +549,14 @@ export default function AuditPage() {
                       <span key={risk.id} className="flex items-center">
                         <button
                           type="button"
-                          // The Risk Register doesn't support deep-linking to a
-                          // single risk by id (its filters are local state, not
-                          // URL params), so this navigates to the register list
-                          // rather than a per-risk detail view that doesn't
-                          // exist. See aexa-frontend#165.
-                          onClick={() => navigate("/organization/risks")}
-                          title={t("organization.audit.openInRegister")}
+                          // aexa-frontend#529: Risk now has a real per-risk
+                          // detail page -- this used to navigate to the
+                          // whole register list (see #165) since no
+                          // per-risk route existed.
+                          onClick={() =>
+                            navigate(`/organization/risks/${risk.id}`)
+                          }
+                          title={t("organization.audit.viewRiskDetails")}
                           className="font-medium text-primary hover:underline"
                         >
                           {risk.name}

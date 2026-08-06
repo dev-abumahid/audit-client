@@ -871,7 +871,9 @@ describe("AuditPage", () => {
       expect(callArg.data.riskIds).toEqual(["risk-1"])
     })
 
-    it("navigates to the Risk Register when a linked risk in a card is clicked", async () => {
+    // aexa-frontend#529: Risk now has a real per-risk detail page, so this
+    // navigates to the specific risk instead of the whole register list.
+    it("navigates to the specific risk's detail page when a linked risk in a card is clicked", async () => {
       const user = userEvent.setup()
       mockUseGetAllAuditEngagementsQuery.mockReturnValue({
         data: { data: [makeEngagement()] },
@@ -888,7 +890,7 @@ describe("AuditPage", () => {
         within(card).getByRole("button", { name: "Data breach" })
       )
 
-      expect(mockNavigate).toHaveBeenCalledWith("/organization/risks")
+      expect(mockNavigate).toHaveBeenCalledWith("/organization/risks/risk-1")
     })
   })
 

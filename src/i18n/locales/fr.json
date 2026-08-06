@@ -1049,7 +1049,16 @@
       "overrideActiveBadge": "{{label}} remplacé",
       "overrideTooltip": "{{label}} remplacé par {{by}} le {{date}}",
       "overrideUnknownActor": "utilisateur inconnu",
-      "overrideUnknownDate": "une date inconnue"
+      "overrideUnknownDate": "une date inconnue",
+      "detailsLoading": "Chargement du risque…",
+      "detailsNotFound": "Risque introuvable",
+      "detailsGoBack": "Retour",
+      "detailsBack": "Retour",
+      "detailsManageInRegister": "Gérer dans le registre",
+      "detailsCreatedLabel": "Créé le",
+      "detailsUpdatedLabel": "Dernière mise à jour",
+      "detailsApprovalTitle": "Approbation",
+      "lineOfDefenseLabel": "Ligne de défense"
     },
     "compliance": {
       "title": "Obligations de conformité",
@@ -1310,7 +1319,7 @@
       "linkedRisksLabel": "Risques liés :",
       "startedLabel": "Débuté :",
       "closedLabel": "Clôturé :",
-      "openInRegister": "Ouvrir dans le registre des risques",
+      "viewRiskDetails": "Voir les détails du risque",
       "empty": "Aucune mission d'audit trouvée",
       "missionListHeading": "Missions d'audit",
       "editMission": "Modifier {{title}}",

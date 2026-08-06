@@ -21,6 +21,7 @@ import { useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { Link } from "react-router"
 import { toast } from "sonner"
 
 const EMPTY_RISK: Partial<Risk> = {
@@ -387,7 +388,15 @@ export default function RiskRegisterPage() {
                     className={`border-b transition-colors hover:bg-muted/30`}
                   >
                     <td className="max-w-32 px-3 py-2.5 lg:max-w-48">
-                      <p className="truncate font-medium">{risk.name}</p>
+                      {/* aexa-frontend#529: the register itself is now also
+                          an entry point into the per-risk detail page, not
+                          just an editable list. */}
+                      <Link
+                        to={`/organization/risks/${risk.id}`}
+                        className="focus-ring block truncate rounded font-medium text-primary hover:underline"
+                      >
+                        {risk.name}
+                      </Link>
                       <p className="hidden truncate text-[10px] text-muted-foreground sm:block">
                         {risk.description}
                       </p>
