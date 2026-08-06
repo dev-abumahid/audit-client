@@ -37,6 +37,7 @@ import {
 import type { FormEvent } from "react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { Link } from "react-router"
 import { toast } from "sonner"
 import { severityBadgeClasses } from "@/utils/severityStyles"
 
@@ -1035,7 +1036,15 @@ function RiskDetailCard({
       <div className="flex justify-between">
         <div>
           <p className="font-mono text-xs text-primary">{risk.ref}</p>
-          <p className="text-sm font-medium">{risk.name}</p>
+          {/* aexa-frontend#549: risk.id/site_id were already on this card's
+              data but rendered as plain text -- same gap #548 fixed on the
+              functionally-identical RiskDetailCard in RiskMatrixPage.tsx. */}
+          <Link
+            to={`/organization/risks/${risk.id}`}
+            className="focus-ring text-sm font-medium text-primary hover:underline"
+          >
+            {risk.name}
+          </Link>
         </div>
         <RiskBadge
           level={getRiskSeverityLevel(risk.residual_score)}
@@ -1044,10 +1053,13 @@ function RiskDetailCard({
       </div>
 
       {siteName && (
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+        <Link
+          to={`/organization/sites?siteId=${encodeURIComponent(risk.site_id)}&search=${encodeURIComponent(siteName)}`}
+          className="focus-ring flex items-center gap-1 text-[10px] text-primary hover:underline"
+        >
           <MapPin className="h-3 w-3" />
           {siteName}
-        </div>
+        </Link>
       )}
 
       <p className="line-clamp-2 text-xs text-muted-foreground">
@@ -1122,12 +1134,20 @@ function BucketList({
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-mono">{risk.ref}</span>
-                      <span className="truncate">{risk.name}</span>
+                      <Link
+                        to={`/organization/risks/${risk.id}`}
+                        className="focus-ring truncate text-primary hover:underline"
+                      >
+                        {risk.name}
+                      </Link>
                     </div>
                     {siteName && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <Link
+                        to={`/organization/sites?siteId=${encodeURIComponent(risk.site_id)}&search=${encodeURIComponent(siteName)}`}
+                        className="focus-ring text-[10px] text-primary hover:underline"
+                      >
                         {siteName}
-                      </span>
+                      </Link>
                     )}
                   </div>
                 )

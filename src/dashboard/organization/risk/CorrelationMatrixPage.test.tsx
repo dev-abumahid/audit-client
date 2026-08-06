@@ -6,7 +6,14 @@ import {
   within,
 } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import CorrelationMatrixPage from "./CorrelationMatrixPage"
+
+// aexa-frontend#549: RiskDetailCard/BucketList risk rows now render real
+// <Link>s, so every render() needs a Router context. RTL's `wrapper` option
+// applies to `rerender()` too (see the `rerenderPage` usage below), so this
+// is a drop-in addition rather than needing a renderPage() helper everywhere.
+const withRouter = { wrapper: MemoryRouter }
 
 // SiteFilter independently calls useGetAllSitesQuery for its dropdown --
 // stubbed out so this test file stays scoped to the page's own data wiring,
@@ -211,7 +218,7 @@ async function renderWithExpandedAiBucket(bucket = makeAiRiskBucket()) {
       }),
   })
 
-  render(<CorrelationMatrixPage />)
+  render(<CorrelationMatrixPage />, withRouter)
 
   await userEvent.click(
     screen.getByRole("button", {
@@ -266,7 +273,7 @@ describe("CorrelationMatrixPage", () => {
       isFetching: true,
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
@@ -275,7 +282,7 @@ describe("CorrelationMatrixPage", () => {
       risks: [makeRisk({ ref: "CYB-001", name: "Cyberattaque ransomware" })],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     expect(
       screen.getByText("organization.correlationMatrix.title")
@@ -306,7 +313,7 @@ describe("CorrelationMatrixPage", () => {
       riskLinks: [makeLink({ source_ref: "OPS-002", target_ref: "CYB-001" })],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     // OPS-002 CAUSES CYB-001, so both risks land in a populated grid cell
     // (CYB-001 has 1 root cause, OPS-002 has 1 consequence) -- clicking any
@@ -316,6 +323,106 @@ describe("CorrelationMatrixPage", () => {
     })
     fireEvent.click(populatedCells[0])
     expect(screen.getByText(/^(CYB-001|OPS-002)$/)).toBeInTheDocument()
+  })
+
+  // aexa-frontend#549: RiskDetailCard's risk name and site name were plain
+  // text even though risk.id/site_id were already on the card's data --
+  // same gap #548 fixed on the functionally-identical card in
+  // RiskMatrixPage.tsx.
+  it("links the selected risk's name and site in the detail card", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: { data: [{ id: "site1", name: "Casablanca HQ" }] },
+      isLoading: false,
+    })
+    setMatrixData({
+      risks: [
+        makeRisk({
+          id: "risk-uuid-1",
+          ref: "CYB-001",
+          name: "Cyberattaque ransomware",
+          site_id: "site1",
+        }),
+      ],
+    })
+
+    render(<CorrelationMatrixPage />, withRouter)
+
+    const populatedCells = screen.getAllByRole("button", {
+      name: /^1 risk\(s\)/,
+    })
+    fireEvent.click(populatedCells[0])
+
+    const riskLink = screen.getByRole("link", {
+      name: "Cyberattaque ransomware",
+    })
+    expect(riskLink).toHaveAttribute(
+      "href",
+      "/organization/risks/risk-uuid-1"
+    )
+
+    const siteLink = screen.getByRole("link", { name: /Casablanca HQ/ })
+    expect(siteLink).toHaveAttribute(
+      "href",
+      "/organization/sites?siteId=site1&search=Casablanca%20HQ"
+    )
+  })
+
+  // aexa-frontend#549 (review round 1): BucketList's risk rows (Systemic
+  // Buckets view) got the same Link treatment as RiskDetailCard above but
+  // had no dedicated test -- a bucket only forms from >=2 risks sharing the
+  // same category+site (see riskBuckets' bucketMap grouping), so this needs
+  // its own fixture rather than reusing the single-risk one above.
+  it("links a Systemic Bucket's risk rows to risk/site detail", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: { data: [{ id: "site1", name: "Casablanca HQ" }] },
+      isLoading: false,
+    })
+    setMatrixData({
+      risks: [
+        makeRisk({
+          id: "risk-uuid-1",
+          ref: "CYB-001",
+          name: "Cyberattaque ransomware",
+          category: "cyber",
+          site_id: "site1",
+        }),
+        makeRisk({
+          id: "risk-uuid-2",
+          ref: "CYB-002",
+          name: "Data breach",
+          category: "cyber",
+          site_id: "site1",
+        }),
+      ],
+    })
+
+    render(<CorrelationMatrixPage />, withRouter)
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewBuckets",
+      })
+    )
+    // The bucket's own toggle button is named `${categoryLabel} — ${site}`
+    // (riskBuckets' bucketMap key), not a risk name -- "Casablanca HQ" is
+    // the one substring guaranteed to appear in it given this fixture.
+    await userEvent.click(
+      screen.getByRole("button", { name: /Casablanca HQ/ })
+    )
+
+    const riskLink = screen.getByRole("link", {
+      name: "Cyberattaque ransomware",
+    })
+    expect(riskLink).toHaveAttribute(
+      "href",
+      "/organization/risks/risk-uuid-1"
+    )
+
+    const siteLinks = screen.getAllByRole("link", { name: "Casablanca HQ" })
+    expect(siteLinks[0]).toHaveAttribute(
+      "href",
+      "/organization/sites?siteId=site1&search=Casablanca%20HQ"
+    )
   })
 
   // Regression (issue #357/#358): "group by category" rendered the raw
@@ -336,7 +443,7 @@ describe("CorrelationMatrixPage", () => {
       risks: [makeRisk({ id: "r1", ref: "CYB-001", category: "cyber" })],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     expect(
       screen.queryByRole("button", {
@@ -350,7 +457,7 @@ describe("CorrelationMatrixPage", () => {
       risks: [makeRisk({ id: "r1", ref: "CYB-001", category: "cyber" })],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
       screen.getByRole("button", {
@@ -374,7 +481,7 @@ describe("CorrelationMatrixPage", () => {
       risks: [makeRisk({ id: "r1", ref: "SUP-001", category: "supply_chain" })],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
       screen.getByRole("button", {
@@ -397,7 +504,7 @@ describe("CorrelationMatrixPage", () => {
     mockRole = "ADMIN"
     setMatrixData({ riskLinks: [makeLink()] })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     expect(
       screen.getByRole("button", {
@@ -418,7 +525,7 @@ describe("CorrelationMatrixPage", () => {
     mockRole = "ADMIN"
     setMatrixData({ riskLinks: [makeLink({ link_type: "AMPLIFIES" })] })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     expect(
       screen.getByText("organization.correlationMatrix.linkTypeAmplifies")
@@ -430,7 +537,7 @@ describe("CorrelationMatrixPage", () => {
     mockRole = "VIEWER"
     setMatrixData({ riskLinks: [makeLink()] })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     expect(
       screen.queryByRole("button", {
@@ -448,7 +555,7 @@ describe("CorrelationMatrixPage", () => {
     mockRole = "LEAD_AUDITOR"
     setMatrixData({ riskLinks: [makeLink()] })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     expect(
       screen.getByRole("button", {
@@ -461,7 +568,7 @@ describe("CorrelationMatrixPage", () => {
     mockRole = "LIGHT_USER"
     setMatrixData({ riskLinks: [makeLink()] })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     expect(
       screen.queryByRole("button", {
@@ -475,7 +582,7 @@ describe("CorrelationMatrixPage", () => {
       risks: [makeRisk({ id: "r1", ref: "CYB-001" })],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
       screen.getByRole("button", {
@@ -514,7 +621,7 @@ describe("CorrelationMatrixPage", () => {
       ],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
       screen.getByRole("button", {
@@ -562,7 +669,7 @@ describe("CorrelationMatrixPage", () => {
       ],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
       screen.getByRole("button", {
@@ -601,7 +708,7 @@ describe("CorrelationMatrixPage", () => {
     })
     setMatrixData({ riskLinks: [makeLink({ id: "link-42" })] })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
       screen.getByRole("button", {
@@ -622,7 +729,7 @@ describe("CorrelationMatrixPage", () => {
     })
     setMatrixData({ riskLinks: [makeLink({ id: "link-42" })] })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
       screen.getByRole("button", {
@@ -655,7 +762,7 @@ describe("CorrelationMatrixPage", () => {
       }
     })
 
-    const { rerender } = render(<CorrelationMatrixPage />)
+    const { rerender } = render(<CorrelationMatrixPage />, withRouter)
     const rerenderPage = () => rerender(<CorrelationMatrixPage />)
 
     await userEvent.click(
@@ -727,7 +834,7 @@ describe("CorrelationMatrixPage", () => {
         }),
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
       screen.getByRole("button", {
@@ -750,7 +857,7 @@ describe("CorrelationMatrixPage", () => {
         Promise.reject({ data: { message: "AI service error: 502" } }),
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
       screen.getByRole("button", {
@@ -905,7 +1012,7 @@ describe("CorrelationMatrixPage", () => {
         }),
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.correlationMatrix.viewAiBuckets",
@@ -982,7 +1089,7 @@ describe("CorrelationMatrixPage", () => {
         }),
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.correlationMatrix.viewAiBuckets",
@@ -1040,7 +1147,7 @@ describe("CorrelationMatrixPage", () => {
       ],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     fireEvent.click(
       screen.getByRole("button", {
@@ -1072,7 +1179,7 @@ describe("CorrelationMatrixPage", () => {
       ],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     fireEvent.click(
       screen.getByRole("button", {
@@ -1102,7 +1209,7 @@ describe("CorrelationMatrixPage", () => {
       ],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     fireEvent.click(
       screen.getByRole("button", {
@@ -1137,7 +1244,7 @@ describe("CorrelationMatrixPage", () => {
       ],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     fireEvent.click(
       screen.getByRole("button", {
@@ -1189,7 +1296,7 @@ describe("CorrelationMatrixPage", () => {
 
   it("resets selectedCell when matrixSize changes, instead of showing a raw {{...}} placeholder for an out-of-range cell", async () => {
     setCornerCellMatrixData()
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     // The (row 4, col 4) corner cell holds exactly TGT-001 (4 root causes,
     // 4 consequences) -- select it.
@@ -1221,7 +1328,7 @@ describe("CorrelationMatrixPage", () => {
 
   it("resets selectedCell when the site filter changes, instead of showing a raw {{...}} placeholder for a stale cell", async () => {
     setCornerCellMatrixData()
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
       screen.getByRole("button", {
@@ -1270,7 +1377,7 @@ describe("CorrelationMatrixPage", () => {
       ],
     })
 
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
       screen.getByRole("button", {
@@ -1293,7 +1400,7 @@ describe("CorrelationMatrixPage", () => {
       risks: [makeRisk({ id: "r1", ref: "CYB-001" })],
       riskLinks: [],
     })
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     // 5x5 default matrix = 25 cells.
     const cellButtons = screen
@@ -1315,7 +1422,7 @@ describe("CorrelationMatrixPage", () => {
         makeAction({ id: "a2", priority: "High" }),
       ],
     })
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
       screen.getByRole("button", {
@@ -1336,7 +1443,7 @@ describe("CorrelationMatrixPage", () => {
   // by h4s) with no h2 in between, breaking heading-level order for
   // screen-reader users.
   it("has an h2 between the page h1 and its h3/h4 section headings", () => {
-    render(<CorrelationMatrixPage />)
+    render(<CorrelationMatrixPage />, withRouter)
 
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument()
     expect(
