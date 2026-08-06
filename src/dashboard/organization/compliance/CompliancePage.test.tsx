@@ -406,6 +406,66 @@ describe("CompliancePage", () => {
     expect(screen.getByText("1/2")).toBeInTheDocument()
   })
 
+  // aexa-frontend#553: the scorecard matrix's per-site row header showed
+  // the site name as plain text even though its real site id (siteKey) was
+  // already available -- reuses the established ?siteId=&search= pattern
+  // (#533/#541). The synthetic "__org__" bucket (tested above via
+  // site_id: null) must stay unlinked since it isn't a real site.
+  it("links a real site's scorecard row into Sites, scoped to that site", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: { data: [{ id: "site-1", name: "Casablanca HQ" }] },
+    })
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [makeObligation({ status: "compliant" })] },
+      isLoading: false,
+    })
+    mockUseGetComplianceScorecardQuery.mockReturnValue({
+      data: {
+        data: {
+          overall: { compliant: 1, total: 2, ratio: 0.5, band: "red" },
+          byDomain: [
+            {
+              domain: "data_protection",
+              compliant: 1,
+              total: 2,
+              ratio: 0.5,
+              band: "red",
+            },
+          ],
+          bySite: [
+            {
+              site_id: "site-1",
+              site_name: "Casablanca HQ",
+              compliant: 1,
+              total: 2,
+              ratio: 0.5,
+              band: "red",
+            },
+          ],
+          matrix: [
+            {
+              site_id: "site-1",
+              site_name: "Casablanca HQ",
+              domain: "data_protection",
+              compliant: 1,
+              total: 2,
+              ratio: 0.5,
+              band: "red",
+            },
+          ],
+        },
+      },
+    })
+
+    renderPage()
+
+    const link = screen.getByRole("link", { name: "Casablanca HQ" })
+    expect(link).toHaveAttribute(
+      "href",
+      "/organization/sites?siteId=site-1&search=Casablanca%20HQ"
+    )
+  })
+
   it("submits the create form and calls createCompliance with filled data", async () => {
     const user = userEvent.setup()
     mockUseGetAllComplianceQuery.mockReturnValue({

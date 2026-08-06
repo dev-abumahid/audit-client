@@ -611,9 +611,21 @@ export default function CompliancePage() {
                 {matrixSiteKeys.map((siteKey) => (
                   <tr key={siteKey}>
                     <td className="px-2 py-1 font-medium text-foreground">
-                      {siteKey === "__org__"
-                        ? t("organization.compliance.scorecard.orgWide")
-                        : siteName(siteKey)}
+                      {/* aexa-frontend#553: siteKey (the real site id) was
+                          already available but rendered as plain text --
+                          reuses the established ?siteId=&search= pattern
+                          (#533/#541). "__org__" is a synthetic bucket, not a
+                          real site, so it's never linked. */}
+                      {siteKey === "__org__" ? (
+                        t("organization.compliance.scorecard.orgWide")
+                      ) : (
+                        <Link
+                          to={`/organization/sites?siteId=${encodeURIComponent(siteKey)}&search=${encodeURIComponent(siteName(siteKey) ?? "")}`}
+                          className="focus-ring text-primary hover:underline"
+                        >
+                          {siteName(siteKey)}
+                        </Link>
+                      )}
                     </td>
                     {matrixDomains.map((d) => {
                       const cell = cellFor(siteKey, d)
