@@ -757,6 +757,26 @@ describe("IntelligencePage", () => {
       expect(screen.queryByText("Ransomware exposure")).not.toBeInTheDocument()
     })
 
+    // aexa-frontend#540: risk_name was plain text with no way to jump to
+    // the risk it mitigates, unlike the identical risk_id cross-link this
+    // page already had for item.created_risk_id.
+    it("links the mitigation panel's risk name to its risk detail page (#540)", () => {
+      mockRunsFor("MITIGATIONS", {
+        mitigations: [
+          {
+            risk_id: "risk-77",
+            risk_name: "Ransomware exposure",
+            actions: [],
+          },
+        ],
+      })
+
+      renderPage()
+
+      const link = screen.getByRole("link", { name: "Ransomware exposure" })
+      expect(link).toHaveAttribute("href", "/organization/risks/risk-77")
+    })
+
     it("renders the RCSA panel for a well-formed result and rejects a malformed one", () => {
       mockRunsFor("RCSA", {
         rcsa_date: "2026-01-01",

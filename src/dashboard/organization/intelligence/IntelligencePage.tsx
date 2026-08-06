@@ -509,9 +509,16 @@ export default function IntelligencePage() {
                   key={riskMitigation.risk_id}
                   className="rounded-lg border border-border p-3"
                 >
-                  <p className="mb-2 text-sm font-medium text-foreground">
+                  {/* aexa-frontend#540: same risk_id -> risk cross-link
+                      already applied a few sections down on this page for
+                      item.created_risk_id -- this second mitigations-panel
+                      instance was missed in that pass. */}
+                  <Link
+                    to={`/organization/risks/${riskMitigation.risk_id}`}
+                    className="focus-ring mb-2 block text-sm font-medium text-primary hover:underline"
+                  >
                     {riskMitigation.risk_name}
-                  </p>
+                  </Link>
                   <div className="space-y-2">
                     {riskMitigation.actions.map((action, i) => (
                       <div
