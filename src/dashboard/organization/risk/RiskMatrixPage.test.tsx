@@ -1,6 +1,18 @@
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import RiskMatrixPage from "./RiskMatrixPage"
+
+// aexa-frontend#548: the selected-cell RiskCard's risk name and site name
+// are now <Link>s, so this needs a Router context -- same convention as
+// Overview.test.tsx's renderPage().
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <RiskMatrixPage />
+    </MemoryRouter>
+  )
+}
 
 // This file never triggers src/i18n/i18n.ts's side-effect init, so
 // react-i18next's real t() falls back to returning the raw key with no
@@ -129,7 +141,7 @@ describe("RiskMatrixPage", () => {
 
   it("shows a loading state while risks are loading", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: undefined, isLoading: true })
-    render(<RiskMatrixPage />)
+    renderPage()
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
@@ -141,7 +153,7 @@ describe("RiskMatrixPage", () => {
   // src/pages/home/components/HeroProductVisual.tsx CELL_CLASS).
   it("colors the lowest-severity legend swatch the same as the matrix cells (bg-risk-low/55)", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     const label = screen.getByText("organization.riskMatrix.weak")
     const swatch = label.previousElementSibling
@@ -153,7 +165,7 @@ describe("RiskMatrixPage", () => {
       data: { data: [makeRisk()] },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     // probability/inherent_score are both a 0-100 scale, normalized to 0-1
     // before mapping onto the grid: 85/100=0.85 -> row round(0.85*4)=3
@@ -168,7 +180,7 @@ describe("RiskMatrixPage", () => {
       data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     // probability 0, inherent_score 0 -> bottom-left cell (row 0, col 0)
     expect(
@@ -188,7 +200,7 @@ describe("RiskMatrixPage", () => {
       data: { data: [makeRisk({ probability: 15, inherent_score: 40 })] },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     // 15/100=0.15 -> row round(0.15*4)=1 ("Unlikely");
     // 40/100=0.4 -> col round(0.4*4)=2 ("Moderate")
@@ -207,13 +219,55 @@ describe("RiskMatrixPage", () => {
       data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     await userEvent.click(
       screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
     )
 
     expect(screen.getByText("Casablanca HQ")).toBeInTheDocument()
+  })
+
+  // aexa-frontend#548: the selected-cell RiskCard showed risk name and site
+  // name as plain text even though risk.id/site_id were already on the card's
+  // data -- dead-ending the matrix instead of cross-linking into Risk/Sites.
+  it("links the selected risk's name to its detail page", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [makeRisk({ probability: 0, inherent_score: 0 })],
+      },
+      isLoading: false,
+    })
+    renderPage()
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    const link = screen.getByRole("link", {
+      name: "Supply Chain Disruption",
+    })
+    expect(link).toHaveAttribute("href", "/organization/risks/risk-1")
+  })
+
+  it("links the selected risk's site name into Sites, scoped to that site", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [makeRisk({ probability: 0, inherent_score: 0 })],
+      },
+      isLoading: false,
+    })
+    renderPage()
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    const link = screen.getByRole("link", { name: /Casablanca HQ/ })
+    expect(link).toHaveAttribute(
+      "href",
+      "/organization/sites?siteId=site-1&search=Casablanca%20HQ"
+    )
   })
 
   // Regression: the Group Mode toggle hardcoded English/French label pairs
@@ -229,7 +283,7 @@ describe("RiskMatrixPage", () => {
       data: { data: [] },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     expect(
       screen.getByRole("button", {
@@ -250,7 +304,7 @@ describe("RiskMatrixPage", () => {
       data: { data: [makeRisk()] },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     expect(screen.getByText("1 risk")).toBeInTheDocument()
     expect(screen.queryByText(/risque/)).not.toBeInTheDocument()
@@ -261,7 +315,7 @@ describe("RiskMatrixPage", () => {
       data: { data: [] },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     expect(
       screen.getByText(
@@ -279,7 +333,7 @@ describe("RiskMatrixPage", () => {
       data: { data: [makeRisk()] },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     expect(
       screen.getByText("1 risk positioned — Click on a cell to see details")
@@ -297,7 +351,7 @@ describe("RiskMatrixPage", () => {
       data: { data: [] },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     expect(screen.getByText("Impact →")).toBeInTheDocument()
     // Default matrix size is 5x5.
@@ -315,7 +369,7 @@ describe("RiskMatrixPage", () => {
       data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     await userEvent.click(
       screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
@@ -343,7 +397,7 @@ describe("RiskMatrixPage", () => {
       },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     // The risk card (and its PageRank badge) only renders once its matrix
     // cell is selected.
@@ -372,7 +426,7 @@ describe("RiskMatrixPage", () => {
       },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     await userEvent.click(
       screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
@@ -401,7 +455,7 @@ describe("RiskMatrixPage", () => {
       },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     await userEvent.click(
       screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
@@ -422,7 +476,7 @@ describe("RiskMatrixPage", () => {
       },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     await userEvent.click(
       screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
@@ -450,7 +504,7 @@ describe("RiskMatrixPage", () => {
       },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     // Switch to "By type" grouping (only then does the details panel render
     // a group header above the risk cards) and select the cell.
@@ -485,7 +539,7 @@ describe("RiskMatrixPage", () => {
         data: { data: [] },
         isLoading: false,
       })
-      render(<RiskMatrixPage />)
+      renderPage()
 
       const btn5 = screen.getByRole("button", { name: "5×5" })
       const btn3 = screen.getByRole("button", { name: "3×3" })
@@ -502,7 +556,7 @@ describe("RiskMatrixPage", () => {
         data: { data: [] },
         isLoading: false,
       })
-      render(<RiskMatrixPage />)
+      renderPage()
 
       const groupAll = screen.getByRole("button", {
         name: "organization.correlationMatrix.groupAll",
@@ -527,7 +581,7 @@ describe("RiskMatrixPage", () => {
         },
         isLoading: false,
       })
-      render(<RiskMatrixPage />)
+      renderPage()
 
       const cell = screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
       expect(cell).toHaveAttribute("aria-pressed", "false")
@@ -549,7 +603,7 @@ describe("RiskMatrixPage", () => {
         },
         isLoading: false,
       })
-      render(<RiskMatrixPage />)
+      renderPage()
 
       const cell = screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
       expect(cell).toHaveAttribute(
@@ -567,7 +621,7 @@ describe("RiskMatrixPage", () => {
       data: { data: [] },
       isLoading: false,
     })
-    render(<RiskMatrixPage />)
+    renderPage()
 
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument()
     expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument()
