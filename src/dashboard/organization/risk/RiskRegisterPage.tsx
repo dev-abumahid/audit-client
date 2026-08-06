@@ -404,7 +404,14 @@ export default function RiskRegisterPage() {
                     <td className="hidden px-3 py-2.5 sm:table-cell">
                       <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                         {risk?.site?.name ? (
-                          risk.site.name
+                          // aexa-frontend#541: same ?siteId=&search= pattern
+                          // #533 used for a Finding's site.
+                          <Link
+                            to={`/organization/sites?siteId=${encodeURIComponent(risk.site.id)}&search=${encodeURIComponent(risk.site.name)}`}
+                            className="focus-ring text-primary hover:underline"
+                          >
+                            {risk.site.name}
+                          </Link>
                         ) : (
                           <>
                             <Building2 className="h-3 w-3 shrink-0" />

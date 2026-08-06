@@ -153,7 +153,10 @@ describe("RiskDetails", () => {
     expect(screen.getByText("38")).toBeInTheDocument()
   })
 
-  it("shows its site's name when the risk has a site", () => {
+  // aexa-frontend#541: the site name is now a real link into SitesEntities
+  // (same ?siteId=&search= pattern #533 used for a Finding's site), not
+  // just inert text.
+  it("links its site's name to SitesEntities with siteId and search pre-filled", () => {
     mockUseGetSingleRiskQuery.mockReturnValue({
       data: { data: makeRisk() },
       isLoading: false,
@@ -161,7 +164,11 @@ describe("RiskDetails", () => {
 
     renderPage()
 
-    expect(screen.getByText("HQ Casablanca")).toBeInTheDocument()
+    const link = screen.getByRole("link", { name: "HQ Casablanca" })
+    expect(link).toHaveAttribute(
+      "href",
+      "/organization/sites?siteId=site-1&search=HQ%20Casablanca"
+    )
   })
 
   it("falls back to a group label when the risk has no site", () => {

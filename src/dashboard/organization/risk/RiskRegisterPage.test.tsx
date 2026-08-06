@@ -236,6 +236,21 @@ describe("RiskRegisterPage", () => {
     expect(screen.getByText("5")).toBeInTheDocument() // residual_score badge
   })
 
+  // aexa-frontend#541: the Site column's name is now a real link into
+  // SitesEntities (same ?siteId=&search= pattern #533 used for a Finding's
+  // site), not just inert text.
+  it("links the Site column's name to SitesEntities with siteId and search pre-filled (#541)", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+
+    renderPage()
+
+    const link = screen.getByRole("link", { name: "HQ Casablanca" })
+    expect(link).toHaveAttribute(
+      "href",
+      "/organization/sites?siteId=site-1&search=HQ%20Casablanca"
+    )
+  })
+
   // Regression (issue #421): the Score column badge used to be colored by
   // risk.velocity (rate-of-change) instead of the actual residual_score
   // severity, so a low-severity risk with a "critical" velocity rendered

@@ -15,7 +15,7 @@ import {
   User,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { useNavigate, useParams } from "react-router"
+import { Link, useNavigate, useParams } from "react-router"
 import RiskApprovalControls from "./RiskApprovalControls"
 import RiskOverrideBadge from "./RiskOverrideBadge"
 
@@ -343,7 +343,16 @@ export default function RiskDetails() {
           </h2>
           <p className="flex items-center gap-1.5 text-sm text-foreground">
             {risk.site?.name ? (
-              risk.site.name
+              // aexa-frontend#541: same ?siteId=&search= pattern #533 used
+              // for a Finding's site -- SitesEntities has no per-site
+              // route, so this reuses its existing search-narrow +
+              // auto-expand-and-highlight mechanism instead of building one.
+              <Link
+                to={`/organization/sites?siteId=${encodeURIComponent(risk.site.id)}&search=${encodeURIComponent(risk.site.name)}`}
+                className="focus-ring text-primary hover:underline"
+              >
+                {risk.site.name}
+              </Link>
             ) : (
               <span className="flex items-center gap-1 text-muted-foreground">
                 <Building2 className="h-3.5 w-3.5 shrink-0" />
