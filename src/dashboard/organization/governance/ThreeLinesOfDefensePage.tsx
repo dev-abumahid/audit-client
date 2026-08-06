@@ -164,10 +164,10 @@ interface ItemRowProps {
   onReassign: (line: LineOfDefense) => void
   // aexa-frontend#532: the only way to act on an item here was reassigning
   // its line -- there was no way to drill into the record itself. Optional
-  // since not every entity kind has a real destination yet (Compliance/
-  // Audit have no per-record detail page, so their rows pass none and stay
-  // plain text -- same scope discipline as #529/#530/#531 rather than
-  // building pages just for this back-link).
+  // since Compliance and Audit have no per-record detail page (aexa-frontend
+  // #561) -- their rows link to their respective list instead, same scope
+  // discipline as #529/#530/#531 rather than building pages just for this
+  // back-link.
   linkTo?: string
 }
 
@@ -494,6 +494,13 @@ export default function ThreeLinesOfDefensePage() {
                           onReassign={(nextLine) =>
                             reassign("compliance", obligation.id, nextLine)
                           }
+                          // aexa-frontend#561: this was the only one of the
+                          // 5 entity sections on this board with no linkTo
+                          // at all. CompliancePage has no per-obligation
+                          // route or ?search= support of its own (unlike
+                          // SitesEntities), so this links to the list, same
+                          // as Audit's own linkTo below.
+                          linkTo="/organization/compliance"
                         />
                       ))}
                     </Section>

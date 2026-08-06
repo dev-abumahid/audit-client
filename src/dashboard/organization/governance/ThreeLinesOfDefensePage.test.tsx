@@ -708,10 +708,13 @@ describe("ThreeLinesOfDefensePage", () => {
   })
 
   // aexa-frontend#532: item titles now link into their entity's detail page
-  // where one exists (Risk, Action, KRI-dashboard-highlight, Audit list) --
-  // Compliance has no destination yet and stays plain text.
-  describe("navigation into entity detail pages (#532)", () => {
-    it("links Risk, Action, KRI, and Audit titles to their real destinations", () => {
+  // where one exists (Risk, Action, KRI-dashboard-highlight, Audit list).
+  // aexa-frontend#561: Compliance also links now -- like Audit, it has no
+  // per-obligation route or ?search= support of its own, so it links to
+  // the list rather than nothing (the only section previously without a
+  // linkTo at all).
+  describe("navigation into entity detail pages (#532, #561)", () => {
+    it("links Risk, Action, KRI, Compliance, and Audit titles to their real destinations", () => {
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
         data: makeData(),
         isLoading: false,
@@ -729,6 +732,9 @@ describe("ThreeLinesOfDefensePage", () => {
         screen.getByRole("link", { name: "Supplier Lead Time" })
       ).toHaveAttribute("href", "/organization/kri?highlight=kri-1")
       expect(
+        screen.getByRole("link", { name: "GDPR data mapping" })
+      ).toHaveAttribute("href", "/organization/compliance")
+      expect(
         screen.getByRole("link", { name: "Q3 internal audit" })
       ).toHaveAttribute("href", "/organization/audit")
     })
@@ -744,20 +750,6 @@ describe("ThreeLinesOfDefensePage", () => {
       expect(
         screen.getByRole("link", { name: "Legacy remediation item" })
       ).toHaveAttribute("href", "/organization/finding/action-unclassified")
-    })
-
-    it("leaves a Compliance obligation title as plain text -- no per-obligation detail page exists yet", () => {
-      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
-        data: makeData(),
-        isLoading: false,
-      })
-
-      renderPage()
-
-      expect(
-        screen.queryByRole("link", { name: "GDPR data mapping" })
-      ).not.toBeInTheDocument()
-      expect(screen.getByText("GDPR data mapping")).toBeInTheDocument()
     })
   })
 })
