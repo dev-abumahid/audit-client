@@ -1059,6 +1059,9 @@
       "createAction": {
         "button": "Créer une action"
       },
+      "viewAction": {
+        "button": "Voir l'action"
+      },
       "searchPlaceholder": "Rechercher une obligation, description ou responsable...",
       "searchLabel": "Rechercher des obligations",
       "allDomains": "Tous les domaines",
@@ -1562,6 +1565,7 @@
       "tabMessages": "Messages",
       "tabAttachments": "Pièces jointes",
       "back": "Retour",
+      "remediates": "Corrige : {{title}}",
       "noDescription": "Aucune description fournie.",
       "timeline": "Chronologie",
       "dueDate": "Date d'échéance",

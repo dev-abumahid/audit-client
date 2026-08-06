@@ -1059,6 +1059,9 @@
       "createAction": {
         "button": "Create Action"
       },
+      "viewAction": {
+        "button": "View Action"
+      },
       "searchPlaceholder": "Search obligations, description or owner...",
       "searchLabel": "Search obligations",
       "allDomains": "All Domains",
@@ -1562,6 +1565,7 @@
       "tabMessages": "Messages",
       "tabAttachments": "Attachments",
       "back": "Back",
+      "remediates": "Remediates: {{title}}",
       "noDescription": "No description provided.",
       "timeline": "Timeline",
       "dueDate": "Due Date",

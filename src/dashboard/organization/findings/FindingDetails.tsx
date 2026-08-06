@@ -28,6 +28,7 @@ import {
   MapPin,
   MessageSquare,
   Paperclip,
+  Scale,
   Send,
   Trash2,
   Upload,
@@ -498,6 +499,25 @@ export default function FindingDetails() {
                 })}
               </span>
             </div>
+            {/* aexa-server#531: complianceObligationId has been writable
+                since #166's "Create Action" flow but only just started
+                coming back on read -- this is the other end of that link,
+                surfaced only for actions that actually have one (most
+                don't). CompliancePage has no per-obligation detail
+                route/highlight mechanism yet, so this links to the list
+                page rather than building one just for this back-link
+                (same scope discipline as #529/#530). */}
+            {action.complianceObligation && (
+              <Link
+                to="/organization/compliance"
+                className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Scale className="h-3.5 w-3.5" />
+                {t("organization.findings.remediates", {
+                  title: action.complianceObligation.title,
+                })}
+              </Link>
+            )}
             <div className="mt-3">
               <FindingClosureControls action={action} />
             </div>

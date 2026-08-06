@@ -792,4 +792,39 @@ describe("FindingDetails", () => {
       await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled())
     })
   })
+
+  describe("compliance obligation back-link (aexa-server#531)", () => {
+    it("shows a link back to the obligation this finding remediates when complianceObligation is set", () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            complianceObligation: { id: "comp-1", title: "GDPR Article 30" },
+          }),
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const link = screen.getByRole("link", {
+        name: /organization\.findings\.remediates/,
+      })
+      expect(link).toHaveAttribute("href", "/organization/compliance")
+    })
+
+    it("shows no back-link when the finding has no linked obligation", () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: { data: makeAction({ complianceObligation: null }) },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.queryByRole("link", {
+          name: /organization\.findings\.remediates/,
+        })
+      ).not.toBeInTheDocument()
+    })
+  })
 })

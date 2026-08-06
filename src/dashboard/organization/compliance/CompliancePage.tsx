@@ -1,4 +1,5 @@
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
+import { Link } from "react-router"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import Pagination from "@/components/shared/Pagination"
 import {
@@ -31,6 +32,7 @@ import { formatLocaleDate } from "@/utils/formatDate"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import {
   AlertTriangle,
+  ArrowUpRight,
   Ban,
   CheckCircle2,
   Clock,
@@ -761,16 +763,39 @@ export default function CompliancePage() {
                           -group (not further hover-gated like edit/delete) so the
                           remediation nudge is actually discoverable -- but #217
                           still gates it on canWrite since it creates a Finding,
-                          the same write action gated everywhere else. */}
-                      {obl.status === "non_compliant" && canWrite && (
-                        <button
-                          onClick={() => openCreateAction(obl)}
-                          className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/20"
-                        >
-                          <Plus className="h-3 w-3" />
-                          {t("organization.compliance.createAction.button")}
-                        </button>
-                      )}
+                          the same write action gated everywhere else.
+                          aexa-server#531: once one exists, show "View Action"
+                          instead -- the obligation's `actions` list is now
+                          populated on read, so this no longer risks offering
+                          to create a duplicate for an obligation that already
+                          has an open remediation. Links to the first one:
+                          an obligation practically has at most one live
+                          remediation action, and the UI has no way to create
+                          a second from this button anyway.
+                          `?.` on `obl.actions` even though the type says
+                          it's always an array: this frontend and
+                          aexa-server#531 (which starts actually populating
+                          it) can deploy independently, so a rollback or
+                          out-of-order release must not crash this row. */}
+                      {obl.status === "non_compliant" &&
+                        canWrite &&
+                        (obl.actions?.length ? (
+                          <Link
+                            to={`/organization/finding/${obl.actions[0].id}`}
+                            className="focus-ring flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/20"
+                          >
+                            <ArrowUpRight className="h-3 w-3" />
+                            {t("organization.compliance.viewAction.button")}
+                          </Link>
+                        ) : (
+                          <button
+                            onClick={() => openCreateAction(obl)}
+                            className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/20"
+                          >
+                            <Plus className="h-3 w-3" />
+                            {t("organization.compliance.createAction.button")}
+                          </button>
+                        ))}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button

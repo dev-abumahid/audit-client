@@ -1,7 +1,18 @@
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type React from "react"
+import { MemoryRouter } from "react-router"
 import CompliancePage from "./CompliancePage"
+
+// aexa-server#531: the "View Action" link needs a Router context, same
+// convention as InspectionTable.test.tsx's renderTable().
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <CompliancePage />
+    </MemoryRouter>
+  )
+}
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
@@ -172,6 +183,10 @@ function makeObligation(overrides = {}) {
     recurrence: null,
     next_review_date: null,
     overdue: false,
+    // aexa-server#531: populated once a remediation action exists for this
+    // obligation -- empty by default so existing tests keep seeing the
+    // pre-#531 "Create Action" behavior unless a test opts into overriding it.
+    actions: [] as { id: string; actionTitle: string; status: string }[],
     ...overrides,
   }
 }
@@ -216,7 +231,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     expect(
       screen.getByText("organization.compliance.newObligation")
@@ -238,7 +253,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     expect(
       screen.queryByText("organization.compliance.newObligation")
@@ -259,7 +274,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     expect(
       screen.queryByText("organization.compliance.newObligation")
@@ -272,7 +287,7 @@ describe("CompliancePage", () => {
       isLoading: true,
     })
 
-    const { container } = render(<CompliancePage />)
+    const { container } = renderPage()
 
     expect(container.querySelector(".animate-spin")).toBeInTheDocument()
     expect(
@@ -286,7 +301,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     expect(screen.getByText("GDPR Article 30 records")).toBeInTheDocument()
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
@@ -307,7 +322,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     expect(screen.getByText("1 obligation tracked")).toBeInTheDocument()
     expect(screen.queryByText("1 obligations tracked")).not.toBeInTheDocument()
@@ -322,7 +337,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     expect(screen.getByText("2 obligations tracked")).toBeInTheDocument()
   })
@@ -333,7 +348,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     expect(
       screen.getByText("organization.compliance.empty")
@@ -383,7 +398,7 @@ describe("CompliancePage", () => {
       },
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     // Overall ratio 0.5 -> 50%
     expect(screen.getByText("50%")).toBeInTheDocument()
@@ -402,7 +417,7 @@ describe("CompliancePage", () => {
         Promise.resolve({ success: true, message: "Obligation created" }),
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     await user.click(
       screen.getByRole("button", {
@@ -438,7 +453,7 @@ describe("CompliancePage", () => {
         Promise.resolve({ success: true, message: "Obligation updated" }),
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
     // Edit is now inside the row's "more actions" dropdown.
@@ -475,7 +490,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     await user.click(
       screen.getByRole("button", {
@@ -500,7 +515,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
     expect(
@@ -526,7 +541,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
     const trigger = within(row).getByRole("button", {
@@ -553,7 +568,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
     await user.click(
@@ -579,7 +594,7 @@ describe("CompliancePage", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
     await user.click(
@@ -605,7 +620,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     const row = screen.getByText("GDPR Article 30 records").closest("tr")!
     await user.click(
@@ -631,7 +646,7 @@ describe("CompliancePage", () => {
       unwrap: () => Promise.reject({ data: { message: "Server unavailable" } }),
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     await user.click(
       screen.getByRole("button", {
@@ -662,7 +677,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     const firstArgs = mockUseGetAllComplianceQuery.mock.calls[0][0]
     expect(firstArgs).toMatchObject({
@@ -685,7 +700,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     expect(
       screen.queryByLabelText("organization.compliance.pagination.next")
@@ -702,7 +717,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     // Page buttons 1..3 are rendered.
     expect(screen.getByRole("button", { name: "1" })).toBeInTheDocument()
@@ -736,7 +751,11 @@ describe("CompliancePage", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    const { rerender } = render(<CompliancePage />)
+    const { rerender } = render(
+      <MemoryRouter>
+        <CompliancePage />
+      </MemoryRouter>
+    )
 
     await user.click(
       screen.getByLabelText("organization.compliance.pagination.next")
@@ -781,7 +800,11 @@ describe("CompliancePage", () => {
       },
       isLoading: false,
     })
-    rerender(<CompliancePage />)
+    rerender(
+      <MemoryRouter>
+        <CompliancePage />
+      </MemoryRouter>
+    )
 
     await waitFor(() => {
       lastArgs =
@@ -802,7 +825,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     // Advance to page 2 first, then change a filter — page must reset to 1.
     await user.click(
@@ -839,7 +862,7 @@ describe("CompliancePage", () => {
       },
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     // Whole-org compliant (40) and non-compliant (9) counts, not the single
     // in_progress row on the current page.
@@ -864,7 +887,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     expect(
       screen.queryByRole("button", {
@@ -902,7 +925,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     const failRow = screen.getByText("Failing obligation").closest("tr")!
     const okRow = screen.getByText("Passing obligation").closest("tr")!
@@ -932,6 +955,61 @@ describe("CompliancePage", () => {
     ).not.toBeInTheDocument()
   })
 
+  it("shows View Action instead of Create Action once a remediation action already exists (aexa-server#531)", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [
+          makeObligation({
+            id: "comp-fail",
+            title: "Failing obligation",
+            status: "non_compliant",
+            actions: [{ id: "action-1", actionTitle: "Fix it", status: "TO_DO" }],
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const failRow = screen.getByText("Failing obligation").closest("tr")!
+
+    expect(
+      within(failRow).queryByRole("button", {
+        name: /organization\.compliance\.createAction\.button/i,
+      })
+    ).not.toBeInTheDocument()
+    const viewLink = within(failRow).getByRole("link", {
+      name: /organization\.compliance\.viewAction\.button/i,
+    })
+    expect(viewLink).toHaveAttribute("href", "/organization/finding/action-1")
+  })
+
+  it("falls back to Create Action instead of crashing when actions is missing (backend/frontend deploy out of order)", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [
+          makeObligation({
+            id: "comp-fail",
+            title: "Failing obligation",
+            status: "non_compliant",
+            actions: undefined,
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    expect(() => renderPage()).not.toThrow()
+
+    const failRow = screen.getByText("Failing obligation").closest("tr")!
+    expect(
+      within(failRow).getByRole("button", {
+        name: /organization\.compliance\.createAction\.button/i,
+      })
+    ).toBeInTheDocument()
+  })
+
   it("pre-fills a description that references the obligation even when it has no description", async () => {
     const user = userEvent.setup()
     mockUseGetAllComplianceQuery.mockReturnValue({
@@ -948,7 +1026,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     await user.click(
       screen.getByRole("button", {
@@ -980,7 +1058,7 @@ describe("CompliancePage", () => {
       isLoading: false,
     })
 
-    render(<CompliancePage />)
+    renderPage()
 
     // Modal is not mounted until the button is clicked.
     expect(screen.queryByTestId("create-action-modal")).not.toBeInTheDocument()
@@ -1016,7 +1094,7 @@ describe("CompliancePage", () => {
         unwrap: () => Promise.resolve({ success: true }),
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       await user.click(
         screen.getByRole("button", {
@@ -1057,7 +1135,7 @@ describe("CompliancePage", () => {
         unwrap: () => Promise.resolve({ success: true }),
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       await user.click(
         screen.getByRole("button", {
@@ -1092,7 +1170,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       const row = screen.getByText("GDPR Article 30 records").closest("tr")!
       await user.click(
@@ -1130,7 +1208,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       expect(
         screen.getByText("organization.compliance.overdueLabel")
@@ -1150,7 +1228,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       expect(
         screen.queryByText("organization.compliance.overdueLabel")
@@ -1164,7 +1242,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       await user.click(
         screen.getByRole("button", {
@@ -1198,7 +1276,7 @@ describe("CompliancePage", () => {
         unwrap: () => Promise.resolve({ success: true }),
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       await user.click(
         screen.getByRole("button", {
@@ -1234,7 +1312,7 @@ describe("CompliancePage", () => {
         unwrap: () => Promise.resolve({ success: true }),
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       await user.click(
         screen.getByRole("button", {
@@ -1266,7 +1344,7 @@ describe("CompliancePage", () => {
           Promise.reject({ data: { message: "Obligation not found" } }),
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       await user.click(
         screen.getByRole("button", {
@@ -1308,7 +1386,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       await user.click(
         screen.getByRole("button", {
@@ -1339,7 +1417,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       await user.click(
         screen.getByRole("button", {
@@ -1380,7 +1458,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       await user.click(
         screen.getByRole("button", {
@@ -1420,7 +1498,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       await user.click(
         screen.getByRole("button", {
@@ -1448,7 +1526,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       await user.click(
         screen.getByRole("button", {
@@ -1467,7 +1545,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       expect(mockUseGetComplianceAttestationsQuery).toHaveBeenCalledWith(
         expect.objectContaining({ id: "" }),
@@ -1491,7 +1569,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       const rowA = screen.getByText("GDPR Article 30 records").closest("tr")!
       await user.click(
@@ -1556,7 +1634,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       expect(screen.getByText("Dec 31, 2026")).toBeInTheDocument()
       expect(screen.getByText(/Jun 15, 2027/)).toBeInTheDocument()
@@ -1575,7 +1653,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       expect(screen.getByText("Jan 1, 2026")).toBeInTheDocument()
     })
@@ -1596,7 +1674,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       const row = screen.getByText("GDPR Article 30 records").closest("tr")!
       await user.click(
@@ -1629,7 +1707,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       expect(screen.getByText(/Mar 1, 2027/)).toBeInTheDocument()
     })
@@ -1655,7 +1733,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       const expectedDueDate = new Date(
         Date.UTC(2026, 11, 31)
@@ -1700,7 +1778,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       const row = screen.getByText("GDPR Article 30 records").closest("tr")!
       await user.click(
@@ -1733,7 +1811,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
       await user.click(
         screen.getByRole("button", {
           name: /organization\.compliance\.newObligation/i,
@@ -1757,7 +1835,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
       await user.click(
         screen.getByRole("button", {
           name: "organization.compliance.attest.button",
@@ -1785,7 +1863,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
       await user.click(
         screen.getByRole("button", {
           name: "organization.compliance.attest.historyButton",
@@ -1821,7 +1899,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       const attestButton = screen.getByRole("button", {
         name: "organization.compliance.attest.button",
@@ -1851,7 +1929,7 @@ describe("CompliancePage", () => {
         isLoading: false,
       })
 
-      render(<CompliancePage />)
+      renderPage()
 
       expect(
         screen.getByRole("textbox", {

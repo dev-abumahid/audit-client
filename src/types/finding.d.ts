@@ -35,6 +35,12 @@ export interface IAction {
   cause?: string | null
   effect?: string | null
 
+  // aexa-frontend#166 wrote this on create; aexa-server#531 is the read-side
+  // fix that finally joins it back (GET /action/:id only -- the list
+  // endpoint wasn't touched, this is a detail-page-only feature).
+  complianceObligationId?: string | null
+  complianceObligation?: { id: string; title: string } | null
+
   // Relations
   site?: Site | null
   messages: IActionMessage[]

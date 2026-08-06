@@ -44,6 +44,11 @@ export interface ComplianceObligation {
   // this over re-deriving overdue-ness client-side (see with_overdue on
   // the backend) since it already accounts for next_review_date.
   overdue: boolean
+  // aexa-server#531 — remediation action(s) raised against this obligation
+  // (aexa-frontend#166's "Create Action" flow). Lets CompliancePage tell
+  // "no action yet" from "one already exists" instead of always offering to
+  // create a duplicate.
+  actions: { id: string; actionTitle: string; status: string }[]
 }
 
 // aexa-server#250 — a permanent, append-only re-attestation record. Never
