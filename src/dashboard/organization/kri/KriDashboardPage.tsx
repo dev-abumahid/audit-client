@@ -25,7 +25,7 @@ import {
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useLocation, useSearchParams } from "react-router"
+import { Link, useLocation, useSearchParams } from "react-router"
 import {
   Line,
   LineChart,
@@ -350,7 +350,20 @@ export default function KriDashboardPage() {
                     {kri.name}
                   </p>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {risk?.name ?? t("organization.kri.unknownRisk")}
+                    {/* aexa-frontend#542: kri.risk_id is the same FK this
+                        form uses to create the KRI -- a KRI's whole purpose
+                        is tied to a specific risk, and there was previously
+                        no way to jump to it from this dashboard. */}
+                    {risk ? (
+                      <Link
+                        to={`/organization/risks/${risk.id}`}
+                        className="focus-ring text-primary hover:underline"
+                      >
+                        {risk.name}
+                      </Link>
+                    ) : (
+                      t("organization.kri.unknownRisk")
+                    )}
                     {kri.frequency
                       ? ` · ${t(`organization.kri.frequency.${kri.frequency}`, { defaultValue: kri.frequency })}`
                       : ""}

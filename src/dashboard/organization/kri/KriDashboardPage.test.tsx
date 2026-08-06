@@ -848,6 +848,44 @@ describe("KriDashboardPage", () => {
     })
   })
 
+  // aexa-frontend#542: a KRI card's underlying risk was shown by name only,
+  // with no way to jump to it.
+  describe("underlying-risk link (#542)", () => {
+    it("links the risk name to its detail page when a matching risk is found", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ risk_id: "risk-1" })] },
+        isLoading: false,
+      })
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ id: "risk-1", name: "Fire safety risk" })] },
+      })
+
+      renderPage()
+
+      const link = screen.getByRole("link", { name: "Fire safety risk" })
+      expect(link).toHaveAttribute("href", "/organization/risks/risk-1")
+    })
+
+    it("falls back to the unknown-risk label with no link when risk_id matches nothing", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ risk_id: "risk-does-not-exist" })] },
+        isLoading: false,
+      })
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ id: "risk-1" })] },
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText(/organization\.kri\.unknownRisk/)
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole("link", { name: "Fire safety risk" })
+      ).not.toBeInTheDocument()
+    })
+  })
+
   // aexa-frontend#530: the KRI-side half of the Alert<->KRI cross-link.
   describe("related-alerts badge and highlight (#530)", () => {
     it("shows an alert-count badge when alerts reference this KRI", () => {
