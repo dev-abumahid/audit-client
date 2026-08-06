@@ -476,6 +476,37 @@ describe("Overview", () => {
     expect(screen.getByText("KRI Monitor")).toBeInTheDocument()
   })
 
+  // aexa-frontend#543: same cross-link AlertsPage.tsx already exposes for
+  // #530 -- this widget showed the same alerts with no way to reach the
+  // KRI they came from.
+  it("links to the underlying KRI when an alert has a kri_id", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert({ kri_id: "kri-1" })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    const link = screen.getByRole("link", {
+      name: "organization.alerts.viewKri",
+    })
+    expect(link).toHaveAttribute(
+      "href",
+      "/organization/kri?highlight=kri-1"
+    )
+  })
+
+  it("does not show a KRI link for an alert with no kri_id", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert({ kri_id: null })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    expect(
+      screen.queryByRole("link", { name: "organization.alerts.viewKri" })
+    ).not.toBeInTheDocument()
+  })
+
   it("shows the risk most linked-to by others in Tipping Points, ranked above a less-connected risk", () => {
     // Tipping Points reads its risk list from the correlation-matrix response
     // (unpaginated), not the useGetAllRisksQuery one (capped at limit:100 for

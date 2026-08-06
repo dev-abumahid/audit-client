@@ -536,6 +536,18 @@ export default function Overview() {
                           badge always read undefined * 100 = NaN%. Found
                           while typing this endpoint (issue #108). */}
                     </div>
+                    {/* aexa-frontend#543: same cross-link AlertsPage.tsx
+                        already exposes for #530 -- this widget showed the
+                        same alerts with no way to reach the KRI they came
+                        from. */}
+                    {alert.kri_id && (
+                      <Link
+                        to={`/organization/kri?highlight=${encodeURIComponent(alert.kri_id)}`}
+                        className="focus-ring mt-1 inline-block text-[11px] font-medium text-primary hover:underline"
+                      >
+                        {t("organization.alerts.viewKri")}
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
