@@ -947,9 +947,27 @@ export default function FindingDetails() {
               <p className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 <MapPin className="h-4 w-4" /> {t("organization.findings.site")}
               </p>
-              <p className="text-sm font-semibold text-foreground">
-                {action.site?.name || t("organization.findings.notSpecified")}
-              </p>
+              {/* aexa-frontend#533: SitesEntities has no per-site route (its
+                  detail view is an expand-in-place card on a paginated
+                  list, not a URL-addressable page) -- reuses the existing
+                  search mechanism instead of building one, same discipline
+                  as #529/#530/#531/#532's other scope cuts. `search`
+                  narrows the (server-side, all-pages) filter down to this
+                  site regardless of which page it originally lived on;
+                  `siteId` then picks the exact match out of that narrowed
+                  list to auto-expand and highlight. */}
+              {action.site ? (
+                <Link
+                  to={`/organization/sites?siteId=${encodeURIComponent(action.site.id)}&search=${encodeURIComponent(action.site.name)}`}
+                  className="focus-ring text-sm font-semibold text-primary hover:underline"
+                >
+                  {action.site.name}
+                </Link>
+              ) : (
+                <p className="text-sm font-semibold text-foreground">
+                  {t("organization.findings.notSpecified")}
+                </p>
+              )}
             </div>
             {/* Inspection Info - Placeholder */}
             <div className="rounded-xl border border-border bg-card p-5">

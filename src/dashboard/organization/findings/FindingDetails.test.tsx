@@ -827,4 +827,41 @@ describe("FindingDetails", () => {
       ).not.toBeInTheDocument()
     })
   })
+
+  describe("site back-link (aexa-frontend#533)", () => {
+    it("links the site name to SitesEntities with siteId and search pre-filled", () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            site: { id: "site-42", name: "Casablanca Warehouse" },
+          }),
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const link = screen.getByRole("link", { name: "Casablanca Warehouse" })
+      expect(link).toHaveAttribute(
+        "href",
+        "/organization/sites?siteId=site-42&search=Casablanca%20Warehouse"
+      )
+    })
+
+    it("shows plain non-linked text when the finding has no site", () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: { data: makeAction({ site: null }) },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("organization.findings.notSpecified")
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole("link", { name: /Warehouse|Casablanca/ })
+      ).not.toBeInTheDocument()
+    })
+  })
 })

@@ -58,6 +58,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 // The AI is prompted for Title-Case category names close to (but not always
@@ -137,12 +138,23 @@ export default function SitesEntities() {
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
 
+  // aexa-frontend#533: a ?siteId=&search= link (from FindingDetails.tsx)
+  // pre-fills the search box with the target site's name so it's on page 1
+  // regardless of which page it originally lived on -- see the highlight
+  // effect below for the id match + auto-expand that completes the link.
+  const [searchParams] = useSearchParams()
+  const highlightSiteId = searchParams.get("siteId")
+
   // Search and pagination state
-  const [searchTerm, setSearchTerm] = useState("")
+  const [searchTerm, setSearchTerm] = useState(
+    () => searchParams.get("search") ?? ""
+  )
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
   const debouncedSearch = useDebouncedValue(searchTerm, 500)
   const [expandedSite, setExpandedSite] = useState<string | null>(null)
+  const [activeHighlight, setActiveHighlight] = useState<string | null>(null)
+  const highlightedRef = useRef<string | null>(null)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [deleteSiteId, setDeleteSiteId] = useState<string | null>(null)
 
@@ -272,6 +284,29 @@ export default function SitesEntities() {
   const sites = sitesData?.data || []
   const meta = sitesData?.meta || { page: 1, limit: 10, total: 0 }
   const totalPages = Math.ceil(meta.total / meta.limit)
+
+  // aexa-frontend#533: once the search-narrowed list resolves, auto-expand
+  // + scroll + ring-highlight the site the link was for -- same
+  // mechanism/reasoning as KriDashboardPage.tsx's ?highlight= effect
+  // (#530), including the `sites.length`-not-`sites` dependency (a fresh
+  // array reference every render would otherwise re-run this constantly)
+  // and guarding against a no-op re-render vs. a genuine new navigation.
+  // The DOM lookup itself is the "is this id actually in the current,
+  // search-narrowed, current-page list" check -- no separate `.find()`
+  // over `sites` needed, which also avoids depending on that fresh-
+  // reference array directly.
+  useEffect(() => {
+    if (!highlightSiteId || sites.length === 0) return
+    if (highlightedRef.current === highlightSiteId) return
+    const el = document.getElementById(`site-${highlightSiteId}`)
+    if (!el) return
+    highlightedRef.current = highlightSiteId
+    setExpandedSite(highlightSiteId)
+    el.scrollIntoView({ behavior: "smooth", block: "center" })
+    setActiveHighlight(highlightSiteId)
+    const timeout = setTimeout(() => setActiveHighlight(null), 3000)
+    return () => clearTimeout(timeout)
+  }, [highlightSiteId, sites.length])
 
   // aexa-frontend#265: deleting the last site on the last page shrinks
   // totalPages without any filter change (the debouncedSearch effect above
@@ -717,7 +752,12 @@ export default function SitesEntities() {
           return (
             <div
               key={site.id}
-              className="overflow-hidden rounded-xl border border-border bg-card"
+              id={`site-${site.id}`}
+              className={`overflow-hidden rounded-xl border border-border bg-card transition-shadow ${
+                activeHighlight === site.id
+                  ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                  : ""
+              }`}
             >
               {/* Site Header */}
               <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">

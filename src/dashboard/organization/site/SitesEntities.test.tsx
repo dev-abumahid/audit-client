@@ -1,7 +1,24 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import React from "react"
+import { MemoryRouter } from "react-router"
 import SitesEntities from "./SitesEntities"
+
+// aexa-frontend#533: the search box is now pre-fillable from a ?search=
+// param and the highlight effect reads ?siteId=, so this needs a Router
+// context -- same convention as InspectionTable.test.tsx's renderTable().
+function renderPage(initialPath = "/") {
+  return render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <SitesEntities />
+    </MemoryRouter>
+  )
+}
+
+// jsdom doesn't implement scrollIntoView at all (unlike window.scrollTo,
+// which it stubs with a console warning) -- same fix as
+// KriDashboardPage.test.tsx's #530 highlight tests.
+Element.prototype.scrollIntoView = vi.fn()
 
 vi.mock("sonner", () => ({
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
@@ -134,6 +151,7 @@ describe("SitesEntities", () => {
     mockCreateNewRisk.mockReset()
     mockAnalyzeSiteRisks.mockReset()
     mockToastError.mockReset()
+    ;(Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>).mockClear()
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
     // Edit opens a per-site detail fetch (aexa-frontend#401); default to a
     // never-resolving promise so tests that don't care about it aren't
@@ -149,7 +167,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     expect(
       screen.getByText("organization.site&entities.newSite")
@@ -177,7 +195,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     expect(
       screen.getByRole("textbox", {
@@ -229,7 +247,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", { name: "organization.site&entities.newSite" })
     )
@@ -250,7 +268,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     expect(
       screen.queryByText("organization.site&entities.newSite")
@@ -275,7 +293,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     expect(
       screen.queryByText("organization.site&entities.newSite")
@@ -290,7 +308,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    const { container } = render(<SitesEntities />)
+    const { container } = renderPage()
 
     expect(
       container.querySelector("svg.lucide-loader-circle")
@@ -305,7 +323,7 @@ describe("SitesEntities", () => {
       error: { status: 500 },
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     // Regression (audit round 3): this state used to be hardcoded English
     // ("Error loading sites"/"Please try again later"), bypassing t()
@@ -331,7 +349,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     expect(screen.getByText("HQ Casablanca")).toBeInTheDocument()
     expect(
@@ -360,7 +378,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     expect(
       screen.queryByText(/organization\.site&entities\.siteLocationLabel/)
@@ -384,7 +402,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     const countryMatches = screen.getAllByText(/Morocco/)
     expect(countryMatches).toHaveLength(1)
@@ -401,7 +419,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     expect(screen.getByText("Finance")).toBeInTheDocument()
     expect(
@@ -427,7 +445,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     expect(screen.getByText("common.sourceBadge.manual")).toBeInTheDocument()
     expect(
@@ -444,7 +462,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     expect(
       screen.getByText("organization.site&entities.noSite")
@@ -459,7 +477,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.newSite/i,
@@ -501,7 +519,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.newSite/i,
@@ -537,7 +555,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.newSite/i,
@@ -566,7 +584,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.newSite/i,
@@ -598,7 +616,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    const { container } = render(<SitesEntities />)
+    const { container } = renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.newSite/i,
@@ -629,7 +647,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: true, data: makeSite() }),
     })
 
-    const { container } = render(<SitesEntities />)
+    const { container } = renderPage()
     const editButtons = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-pencil"))
@@ -670,7 +688,7 @@ describe("SitesEntities", () => {
         }),
     })
 
-    const { container } = render(<SitesEntities />)
+    const { container } = renderPage()
     const editButtons = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-pencil"))
@@ -695,7 +713,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.reject(new Error("network down")),
     })
 
-    const { container } = render(<SitesEntities />)
+    const { container } = renderPage()
     const editButtons = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-pencil"))
@@ -725,7 +743,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: false, data: null }),
     })
 
-    const { container } = render(<SitesEntities />)
+    const { container } = renderPage()
     const editButtons = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-pencil"))
@@ -774,7 +792,7 @@ describe("SitesEntities", () => {
         }),
     }))
 
-    const { container } = render(<SitesEntities />)
+    const { container } = renderPage()
     const editButtons = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-pencil"))
@@ -826,7 +844,7 @@ describe("SitesEntities", () => {
       unwrap: () => new Promise((resolve) => (resolveFetch = resolve)),
     })
 
-    const { container } = render(<SitesEntities />)
+    const { container } = renderPage()
     const editButtons = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-pencil"))
@@ -860,7 +878,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    render(<SitesEntities />)
+    renderPage()
     const deleteButtons = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-trash2"))
@@ -894,7 +912,7 @@ describe("SitesEntities", () => {
       },
     })
 
-    render(<SitesEntities />)
+    renderPage()
     const [expandButton] = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-chevron-down"))
@@ -946,7 +964,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    const { container } = render(<SitesEntities />)
+    const { container } = renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.addRisk/i,
@@ -984,7 +1002,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.addRisk/i,
@@ -1033,7 +1051,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.reject(new Error("network down")),
     })
 
-    const { container } = render(<SitesEntities />)
+    const { container } = renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.newSite/i,
@@ -1068,7 +1086,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.reject(new Error("locked")),
     })
 
-    render(<SitesEntities />)
+    renderPage()
     const deleteButtons = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-trash2"))
@@ -1109,7 +1127,7 @@ describe("SitesEntities", () => {
       },
     })
 
-    render(<SitesEntities />)
+    renderPage()
     const [expandButton] = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-chevron-down"))
@@ -1143,7 +1161,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: false }),
     })
 
-    render(<SitesEntities />)
+    renderPage()
     const [expandButton] = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-chevron-down"))
@@ -1179,7 +1197,7 @@ describe("SitesEntities", () => {
         Promise.reject({ data: { message: "Server unavailable" } }),
     })
 
-    const { container } = render(<SitesEntities />)
+    const { container } = renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.addRisk/i,
@@ -1232,7 +1250,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.reject({ data: { message: "Risk is locked" } }),
     })
 
-    render(<SitesEntities />)
+    renderPage()
     const [expandButton] = screen
       .getAllByRole("button")
       .filter((b) => b.querySelector("svg.lucide-chevron-down"))
@@ -1264,7 +1282,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: false }),
     })
 
-    const { container } = render(<SitesEntities />)
+    const { container } = renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.addRisk/i,
@@ -1302,7 +1320,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.addRisk/i,
@@ -1354,7 +1372,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.analyzeAi/i,
@@ -1384,7 +1402,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.analyzeAi/i,
@@ -1436,7 +1454,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.analyzeAi/i,
@@ -1461,7 +1479,7 @@ describe("SitesEntities", () => {
         Promise.reject({ data: { message: "AI service unavailable" } }),
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.analyzeAi/i,
@@ -1493,7 +1511,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.analyzeAi/i,
@@ -1553,7 +1571,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.analyzeAi/i,
@@ -1597,7 +1615,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.analyzeAi/i,
@@ -1646,7 +1664,7 @@ describe("SitesEntities", () => {
         }),
     }))
 
-    render(<SitesEntities />)
+    renderPage()
     const analyzeButtons = screen.getAllByRole("button", {
       name: /organization.site&entities.analyzeAi/i,
     })
@@ -1685,7 +1703,7 @@ describe("SitesEntities", () => {
       error: undefined,
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     expect(
       screen.getByText("organization.site&entities.showingRange")
@@ -1707,7 +1725,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    render(<SitesEntities />)
+    renderPage()
 
     const nextButton = () =>
       screen
@@ -1768,7 +1786,7 @@ describe("SitesEntities", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    render(<SitesEntities />)
+    renderPage()
     await userEvent.click(
       screen.getByRole("button", {
         name: /organization.site&entities.analyzeAi/i,
@@ -1790,5 +1808,75 @@ describe("SitesEntities", () => {
       ).not.toBeInTheDocument()
     )
     expect(screen.getByText("Flood exposure")).toBeInTheDocument()
+  })
+
+  // aexa-frontend#533: FindingDetails.tsx links here with ?siteId=&search=
+  // since SitesEntities has no per-site route -- the search param narrows
+  // the (paginated) list down to the target regardless of which page it
+  // originally lived on, then siteId picks the exact match to auto-expand
+  // and highlight.
+  describe("site highlight via ?siteId=&search= (#533)", () => {
+    it("pre-fills the search box from ?search= on mount", () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+
+      renderPage("/?siteId=site-1&search=HQ%20Casablanca")
+
+      expect(
+        screen.getByRole("textbox", {
+          name: "organization.site&entities.searchSitesLabel",
+        })
+      ).toHaveValue("HQ Casablanca")
+    })
+
+    it("auto-expands and scrolls to the site matching ?siteId=", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+
+      renderPage("/?siteId=site-1&search=HQ%20Casablanca")
+
+      await waitFor(() =>
+        expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+      )
+      const card = document.getElementById("site-site-1")
+      expect(card?.className).toContain("ring-2")
+    })
+
+    it("does not scroll or highlight anything when no ?siteId= param is present", () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+
+      renderPage("/")
+
+      expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
+      const card = document.getElementById("site-site-1")
+      expect(card?.className).not.toContain("ring-2")
+    })
+
+    it("does not crash or highlight anything when ?siteId= matches no site in the narrowed list", () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+
+      expect(() =>
+        renderPage("/?siteId=site-does-not-exist&search=nope")
+      ).not.toThrow()
+      expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
+    })
   })
 })
