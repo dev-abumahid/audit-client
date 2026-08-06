@@ -1,6 +1,18 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import ThreeLinesOfDefensePage from "./ThreeLinesOfDefensePage"
+
+// aexa-frontend#532: ItemRow titles are now Links to the entity's detail
+// page, so this needs a Router context -- same convention as
+// InspectionTable.test.tsx's renderTable().
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <ThreeLinesOfDefensePage />
+    </MemoryRouter>
+  )
+}
 
 // This file never triggers src/i18n/i18n.ts's side-effect init, so
 // react-i18next's real t() falls back to returning the raw key with no
@@ -159,7 +171,7 @@ describe("ThreeLinesOfDefensePage", () => {
       isLoading: false,
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     expect(
       screen.getByText("organization.threeLinesOfDefense.lines.first")
@@ -190,7 +202,7 @@ describe("ThreeLinesOfDefensePage", () => {
       isLoading: false,
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     const levels = screen
       .getAllByRole("heading")
@@ -213,7 +225,7 @@ describe("ThreeLinesOfDefensePage", () => {
       isLoading: false,
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     const title = screen.getByText("Supply chain disruption")
     expect(title).toHaveAttribute("title", "Supply chain disruption")
@@ -225,7 +237,7 @@ describe("ThreeLinesOfDefensePage", () => {
       isLoading: false,
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     expect(
       screen.getByText("organization.threeLinesOfDefense.unclassified.title")
@@ -243,7 +255,7 @@ describe("ThreeLinesOfDefensePage", () => {
       isLoading: false,
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     expect(
       screen.getAllByRole("button", {
@@ -259,7 +271,7 @@ describe("ThreeLinesOfDefensePage", () => {
       isLoading: false,
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     expect(
       screen.getAllByRole("button", {
@@ -275,7 +287,7 @@ describe("ThreeLinesOfDefensePage", () => {
       isLoading: false,
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     expect(
       screen.queryByRole("button", {
@@ -296,7 +308,7 @@ describe("ThreeLinesOfDefensePage", () => {
       isLoading: false,
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     expect(
       screen.queryByRole("button", {
@@ -314,7 +326,7 @@ describe("ThreeLinesOfDefensePage", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     // Supply chain disruption risk is in FIRST -- the other-line buttons are
     // "Move to 2nd Line" and "Move to 3rd Line".
@@ -341,7 +353,7 @@ describe("ThreeLinesOfDefensePage", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     // The unclassified action row has all 3 "move to" buttons since it has
     // no current line to exclude.
@@ -368,7 +380,7 @@ describe("ThreeLinesOfDefensePage", () => {
         Promise.reject({ data: { message: "Only ADMIN/LEAD_AUDITOR can do this" } }),
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     const moveButtons = screen.getAllByRole("button", {
       name: "organization.threeLinesOfDefense.moveToSecond",
@@ -388,7 +400,7 @@ describe("ThreeLinesOfDefensePage", () => {
       isLoading: true,
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     expect(
       screen.getByText("organization.threeLinesOfDefense.loading")
@@ -406,7 +418,7 @@ describe("ThreeLinesOfDefensePage", () => {
         isLoading: false,
       })
 
-      render(<ThreeLinesOfDefensePage />)
+      renderPage()
 
       expect(
         screen.getByText("organization.threeLinesOfDefense.lines.governingBody")
@@ -420,7 +432,7 @@ describe("ThreeLinesOfDefensePage", () => {
         isLoading: false,
       })
 
-      render(<ThreeLinesOfDefensePage />)
+      renderPage()
 
       expect(
         screen.getAllByRole("button", {
@@ -438,7 +450,7 @@ describe("ThreeLinesOfDefensePage", () => {
         unwrap: () => Promise.resolve({ success: true }),
       })
 
-      render(<ThreeLinesOfDefensePage />)
+      renderPage()
 
       const moveButtons = screen.getAllByRole("button", {
         name: "organization.threeLinesOfDefense.moveToGoverningBody",
@@ -462,7 +474,7 @@ describe("ThreeLinesOfDefensePage", () => {
         isLoading: false,
       })
 
-      render(<ThreeLinesOfDefensePage />)
+      renderPage()
 
       const riskRow = screen.getByText("Supply chain disruption").closest("div")!
         .parentElement!
@@ -485,7 +497,7 @@ describe("ThreeLinesOfDefensePage", () => {
         isLoading: false,
       })
 
-      render(<ThreeLinesOfDefensePage />)
+      renderPage()
 
       const riskRow = screen.getByText("Supply chain disruption").closest("div")!
         .parentElement!
@@ -508,7 +520,7 @@ describe("ThreeLinesOfDefensePage", () => {
         isLoading: false,
       })
 
-      render(<ThreeLinesOfDefensePage />)
+      renderPage()
 
       const auditRow = screen.getByText("Q3 internal audit").closest("div")!
         .parentElement!
@@ -523,7 +535,7 @@ describe("ThreeLinesOfDefensePage", () => {
         isLoading: false,
       })
 
-      render(<ThreeLinesOfDefensePage />)
+      renderPage()
 
       const auditRow = screen.getByText("Q3 internal audit").closest("div")!
         .parentElement!
@@ -538,7 +550,7 @@ describe("ThreeLinesOfDefensePage", () => {
       })
 
       mockRole = "ADMIN"
-      const { unmount } = render(<ThreeLinesOfDefensePage />)
+      const { unmount } = renderPage()
       let actionRow = screen.getByText("Patch critical vulnerability").closest("div")!
         .parentElement!
         .parentElement!
@@ -546,7 +558,7 @@ describe("ThreeLinesOfDefensePage", () => {
       unmount()
 
       mockRole = "LEAD_AUDITOR"
-      render(<ThreeLinesOfDefensePage />)
+      renderPage()
       actionRow = screen.getByText("Patch critical vulnerability").closest("div")!
         .parentElement!
         .parentElement!
@@ -560,7 +572,7 @@ describe("ThreeLinesOfDefensePage", () => {
         isLoading: false,
       })
 
-      render(<ThreeLinesOfDefensePage />)
+      renderPage()
 
       expect(mockUpdateCompliance).not.toHaveBeenCalled()
       const complianceRow = screen.getByText("GDPR data mapping").closest("div")!
@@ -634,7 +646,7 @@ describe("ThreeLinesOfDefensePage", () => {
       isLoading: false,
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     expect(screen.getByText("Cyber · Open")).toBeInTheDocument()
     // Classified (2nd Line) and Unclassified Actions sections render through
@@ -662,7 +674,7 @@ describe("ThreeLinesOfDefensePage", () => {
       refetch: mockRefetch,
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     expect(
       screen.getByText("organization.threeLinesOfDefense.loadFailed")
@@ -687,11 +699,65 @@ describe("ThreeLinesOfDefensePage", () => {
       isLoading: false,
     })
 
-    render(<ThreeLinesOfDefensePage />)
+    renderPage()
 
     // FIRST line now has no risks -- empty label should appear at least once.
     expect(
       screen.getAllByText("organization.threeLinesOfDefense.empty").length
     ).toBeGreaterThan(0)
+  })
+
+  // aexa-frontend#532: item titles now link into their entity's detail page
+  // where one exists (Risk, Action, KRI-dashboard-highlight, Audit list) --
+  // Compliance has no destination yet and stays plain text.
+  describe("navigation into entity detail pages (#532)", () => {
+    it("links Risk, Action, KRI, and Audit titles to their real destinations", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByRole("link", { name: "Supply chain disruption" })
+      ).toHaveAttribute("href", "/organization/risks/risk-1")
+      expect(
+        screen.getByRole("link", { name: "Patch critical vulnerability" })
+      ).toHaveAttribute("href", "/organization/finding/action-1")
+      expect(
+        screen.getByRole("link", { name: "Supplier Lead Time" })
+      ).toHaveAttribute("href", "/organization/kri?highlight=kri-1")
+      expect(
+        screen.getByRole("link", { name: "Q3 internal audit" })
+      ).toHaveAttribute("href", "/organization/audit")
+    })
+
+    it("links an unclassified Action's title the same as a classified one", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByRole("link", { name: "Legacy remediation item" })
+      ).toHaveAttribute("href", "/organization/finding/action-unclassified")
+    })
+
+    it("leaves a Compliance obligation title as plain text -- no per-obligation detail page exists yet", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.queryByRole("link", { name: "GDPR data mapping" })
+      ).not.toBeInTheDocument()
+      expect(screen.getByText("GDPR data mapping")).toBeInTheDocument()
+    })
   })
 })

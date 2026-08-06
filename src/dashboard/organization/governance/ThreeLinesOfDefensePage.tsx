@@ -26,6 +26,7 @@ import {
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { Link } from "react-router"
 import { toast } from "sonner"
 
 // Backend enum/domain values with no existing shared label map elsewhere in
@@ -161,6 +162,13 @@ interface ItemRowProps {
   canReassign: boolean
   isPending: boolean
   onReassign: (line: LineOfDefense) => void
+  // aexa-frontend#532: the only way to act on an item here was reassigning
+  // its line -- there was no way to drill into the record itself. Optional
+  // since not every entity kind has a real destination yet (Compliance/
+  // Audit have no per-record detail page, so their rows pass none and stay
+  // plain text -- same scope discipline as #529/#530/#531 rather than
+  // building pages just for this back-link).
+  linkTo?: string
 }
 
 function ItemRow({
@@ -171,6 +179,7 @@ function ItemRow({
   canReassign,
   isPending,
   onReassign,
+  linkTo,
 }: ItemRowProps) {
   const { t } = useTranslation()
   const otherLines = LINES.filter((line) => line !== currentLine)
@@ -182,9 +191,19 @@ function ItemRow({
           className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_STYLES[severity].dot}`}
         />
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium" title={title}>
-            {title}
-          </p>
+          {linkTo ? (
+            <Link
+              to={linkTo}
+              className="focus-ring block truncate text-xs font-medium text-foreground hover:underline"
+              title={title}
+            >
+              {title}
+            </Link>
+          ) : (
+            <p className="truncate text-xs font-medium" title={title}>
+              {title}
+            </p>
+          )}
           <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
         </div>
       </div>
@@ -325,7 +344,7 @@ export default function ThreeLinesOfDefensePage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 p-4 lg:p-6">
       <div>
         <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
           {t("organization.threeLinesOfDefense.title")}
@@ -406,6 +425,7 @@ export default function ThreeLinesOfDefensePage() {
                           onReassign={(nextLine) =>
                             reassign("risk", risk.id, nextLine)
                           }
+                          linkTo={`/organization/risks/${risk.id}`}
                         />
                       ))}
                     </Section>
@@ -428,6 +448,7 @@ export default function ThreeLinesOfDefensePage() {
                           onReassign={(nextLine) =>
                             reassign("action", action.id, nextLine)
                           }
+                          linkTo={`/organization/finding/${action.id}`}
                         />
                       ))}
                     </Section>
@@ -450,6 +471,7 @@ export default function ThreeLinesOfDefensePage() {
                           onReassign={(nextLine) =>
                             reassign("kri", kri.id, nextLine)
                           }
+                          linkTo={`/organization/kri?highlight=${encodeURIComponent(kri.id)}`}
                         />
                       ))}
                     </Section>
@@ -494,6 +516,11 @@ export default function ThreeLinesOfDefensePage() {
                           onReassign={(nextLine) =>
                             reassign("audit", engagement.id, nextLine)
                           }
+                          // AuditPage has no per-engagement URL/route -- it
+                          // opens engagements in an edit modal driven by
+                          // local state, not a navigable id. Links to the
+                          // list rather than nothing.
+                          linkTo="/organization/audit"
                         />
                       ))}
                     </Section>
@@ -534,6 +561,7 @@ export default function ThreeLinesOfDefensePage() {
                     onReassign={(nextLine) =>
                       reassign("action", action.id, nextLine)
                     }
+                    linkTo={`/organization/finding/${action.id}`}
                   />
                 ))}
               </Section>
