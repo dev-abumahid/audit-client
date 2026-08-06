@@ -58,7 +58,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { useSearchParams } from "react-router"
+import { Link, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 // The AI is prompted for Title-Case category names close to (but not always
@@ -1126,9 +1126,15 @@ export default function SitesEntities() {
                           </span>
 
                           <div className="flex min-w-0 flex-col items-start gap-1.5">
-                            <p className="truncate text-sm font-medium text-foreground">
+                            {/* aexa-frontend#551: risk.id was already the
+                                list key but rendered as plain text -- same
+                                gap #548/#549/#550 fixed elsewhere. */}
+                            <Link
+                              to={`/organization/risks/${risk.id}`}
+                              className="focus-ring truncate text-sm font-medium text-primary hover:underline"
+                            >
                               {risk.name}
-                            </p>
+                            </Link>
                             <p className="truncate text-[10px] text-muted-foreground">
                               {risk.description?.slice(0, 120)}
                             </p>

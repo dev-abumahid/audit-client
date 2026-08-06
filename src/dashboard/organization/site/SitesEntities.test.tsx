@@ -953,6 +953,41 @@ describe("SitesEntities", () => {
     expect(manualBadge).not.toHaveClass("text-base")
   })
 
+  // aexa-frontend#551: a confirmed risk's name was plain text even though
+  // risk.id was already the list key -- same gap #548/#549/#550 fixed
+  // elsewhere in the cross-linking sweep.
+  it("links a confirmed risk's name to its detail page", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "risk-99",
+            ref: "RSK-2026-0142",
+            name: "Flooding",
+            description: "Seasonal flood risk",
+            residual_score: 12,
+            ai_generated: false,
+          },
+        ],
+      },
+    })
+
+    renderPage()
+    const [expandButton] = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-chevron-down"))
+    await userEvent.click(expandButton)
+
+    const link = screen.getByRole("link", { name: "Flooding" })
+    expect(link).toHaveAttribute("href", "/organization/risks/risk-99")
+  })
+
   it("opens the manual risk form and submits it for the site", async () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,
