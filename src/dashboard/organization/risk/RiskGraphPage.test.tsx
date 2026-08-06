@@ -1,5 +1,10 @@
 import { render, screen, within } from "@testing-library/react"
+import { MemoryRouter } from "react-router"
 import RiskGraphPage from "./RiskGraphPage"
+
+// aexa-frontend#550: the selected-risk detail heading is now a real <Link>,
+// so every render() needs a Router context.
+const withRouter = { wrapper: MemoryRouter }
 
 const mockUseGetAllRisksQuery = vi.fn()
 const mockUseGetCorrelationMatrixDataQuery = vi.fn()
@@ -88,7 +93,7 @@ describe("RiskGraphPage", () => {
       data: undefined,
       isLoading: true,
     })
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
@@ -97,7 +102,7 @@ describe("RiskGraphPage", () => {
       data: undefined,
       isLoading: true,
     })
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
@@ -106,7 +111,7 @@ describe("RiskGraphPage", () => {
       data: { data: [makeRisk({ id: "risk-real-1" })] },
       isLoading: false,
     })
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
 
     // Short ids fit inside the node, so both the SVG <text> label and the
     // <title> tooltip render the id in full (two matching elements).
@@ -121,7 +126,7 @@ describe("RiskGraphPage", () => {
       data: { data: [makeRisk({ id: uuid })] },
       isLoading: false,
     })
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
 
     // The visible node label is truncated to the first 8 chars of the UUID...
     const label = screen.getByText("123e4567")
@@ -139,7 +144,7 @@ describe("RiskGraphPage", () => {
       },
       isLoading: false,
     })
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
 
     const nodeLabel = screen
       .getAllByText("risk-real-1")
@@ -158,6 +163,30 @@ describe("RiskGraphPage", () => {
     ).toBeInTheDocument()
   })
 
+  // aexa-frontend#550: the side panel's "id — name" heading was plain text
+  // even though selectedRiskData.id was already available -- same gap
+  // #548/#549 fixed on the risk-matrix pages.
+  it("links the selected risk's side-panel heading to its detail page", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event")
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [makeRisk({ id: "risk-real-1", name: "Supply Chain Disruption" })],
+      },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />, withRouter)
+
+    const nodeLabel = screen
+      .getAllByText("risk-real-1")
+      .find((el) => el.tagName.toLowerCase() === "text")!
+    await userEvent.click(nodeLabel)
+
+    const link = screen.getByRole("link", {
+      name: "risk-real-1 — Supply Chain Disruption",
+    })
+    expect(link).toHaveAttribute("href", "/organization/risks/risk-real-1")
+  })
+
   it("shows zero correlations when the org genuinely has no RiskLink rows yet", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: {
@@ -168,7 +197,7 @@ describe("RiskGraphPage", () => {
       },
       isLoading: false,
     })
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
 
     // t() echoes the key in the test env (i18n is not initialized in setup).
     expect(
@@ -206,7 +235,7 @@ describe("RiskGraphPage", () => {
       },
       isLoading: false,
     })
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
 
     expect(
       screen.getByText("organization.riskGraph.correlations (1)")
@@ -251,7 +280,7 @@ describe("RiskGraphPage", () => {
       },
       isLoading: false,
     })
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
 
     // The graph node's visible label is shortRef(risk.id) ("uuid-a"), not
     // its ref -- clicking it exercises setSelectedRisk(risk.ref) internally.
@@ -307,7 +336,7 @@ describe("RiskGraphPage", () => {
       },
       isLoading: false,
     })
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
 
     const hubLabel = screen
       .getAllByText("node-hub")
@@ -342,7 +371,7 @@ describe("RiskGraphPage", () => {
       data: { data: { riskLinks: [] } },
       isLoading: false,
     })
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
 
     // One Zap icon in the legend, plus exactly one on a node badge.
     expect(document.querySelectorAll(".lucide-zap")).toHaveLength(2)
@@ -388,7 +417,7 @@ describe("RiskGraphPage", () => {
       },
       isLoading: false,
     })
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
 
     // The hub has the highest real PageRank (two inbound links), so once
     // normalized against the graph's max score it renders "PR:100" despite
@@ -421,7 +450,7 @@ describe("RiskGraphPage", () => {
   // click but never exposed its expanded/collapsed state to assistive tech.
   it("reflects the Domino Scenarios panel's open/closed state via aria-expanded", async () => {
     const { default: userEvent } = await import("@testing-library/user-event")
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
 
     const toggle = screen.getByRole("button", {
       name: /organization\.riskGraph\.dominoScenarios/,
@@ -435,7 +464,7 @@ describe("RiskGraphPage", () => {
   // aexa-frontend#473 -- h1 used to be followed directly by h3s with no h2
   // in between, breaking heading-level order for screen readers.
   it("has an h2 between the page h1 and its h3 section headings", () => {
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
 
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument()
     expect(
@@ -452,7 +481,7 @@ describe("RiskGraphPage", () => {
       data: { data: [makeRisk({ id: "risk-real-1" })] },
       isLoading: false,
     })
-    render(<RiskGraphPage />)
+    render(<RiskGraphPage />, withRouter)
 
     const node = screen.getByRole("button", {
       name: /organization\.riskGraph\.nodeAriaLabel/,

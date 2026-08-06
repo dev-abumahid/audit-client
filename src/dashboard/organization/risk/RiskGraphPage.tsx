@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { Link } from "react-router"
 
 interface DominoChain {
   refs: string[]
@@ -508,8 +509,16 @@ export default function RiskGraphPage() {
           {/* Selected risk detail */}
           {selectedRiskData && (
             <div className="space-y-3 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
+              {/* aexa-frontend#550: selectedRiskData.id was already available
+                  but rendered as plain text -- same gap #548/#549 fixed on
+                  the RiskMatrix/CorrelationMatrix pages. */}
               <h3 className="text-sm font-bold text-foreground">
-                {selectedRiskData.id} — {selectedRiskData.name}
+                <Link
+                  to={`/organization/risks/${selectedRiskData.id}`}
+                  className="focus-ring hover:underline"
+                >
+                  {selectedRiskData.id} — {selectedRiskData.name}
+                </Link>
               </h3>
               <p className="line-clamp-3 text-xs text-muted-foreground">
                 {selectedRiskData.description}
