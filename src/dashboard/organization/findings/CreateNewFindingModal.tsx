@@ -219,6 +219,13 @@ export default function CreateNewFindingModal({
       condition: "",
       cause: "",
       effect: "",
+      // aexa-server#97: required on create (no sensible default -- an
+      // Action covers both 1st-line-like remediation work and 3rd-line-like
+      // audit findings, so guessing would misclassify roughly half of them,
+      // same reasoning as action.validation.ts's own comment on this
+      // field). Left unset here so the required-field validation below
+      // actually forces a choice instead of silently submitting a guess.
+      line_of_defense: null,
     },
   })
 
@@ -260,6 +267,10 @@ export default function CreateNewFindingModal({
         condition: editData.condition ?? "",
         cause: editData.cause ?? "",
         effect: editData.effect ?? "",
+        // Existing rows from before #97 may have no value -- update_action
+        // keeps this field optional (unlike create), so an untouched edit
+        // correctly stays null/"Unclassified" rather than forcing a guess.
+        line_of_defense: editData.line_of_defense ?? null,
       })
     } else {
       setSelectedInspectionId(additionalData?.inspectionId ?? "")
@@ -280,6 +291,7 @@ export default function CreateNewFindingModal({
         condition: "",
         cause: "",
         effect: "",
+        line_of_defense: null,
       })
     }
   }, [open, editData, reset])
@@ -381,6 +393,14 @@ export default function CreateNewFindingModal({
         condition: values.condition?.trim() || undefined,
         cause: values.cause?.trim() || undefined,
         effect: values.effect?.trim() || undefined,
+        // Required on create (action.validation.ts's create_action schema
+        // rejects a missing value with no default -- aexa-server#97), the
+        // required-field validation on the select below guarantees this is
+        // never "" by the time onSubmit runs for a new Action. Optional on
+        // edit: sending the existing value back is a no-op PATCH, same as
+        // priority/status above; only actually changes anything if the user
+        // touched the select.
+        line_of_defense: values.line_of_defense || undefined,
       }
 
       if (isEdit) {
@@ -601,6 +621,71 @@ export default function CreateNewFindingModal({
                     </select>
                   )}
                 />
+              )}
+            </div>
+
+            {/* Line of Defense -- aexa-server#97: required on create (see
+                onSubmit's payload comment for why), optional on edit. */}
+            <div>
+              <div className="flex items-center justify-between gap-4">
+                <label
+                  htmlFor="line-of-defense-select"
+                  className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground"
+                >
+                  <AlertCircle size={16} />{" "}
+                  {t("organization.findings.lineOfDefenseLabel")}
+                </label>
+                <Controller
+                  control={control}
+                  name="line_of_defense"
+                  rules={{
+                    required: isEdit
+                      ? false
+                      : t("organization.findings.lineOfDefenseRequired"),
+                  }}
+                  render={({ field }) => (
+                    <select
+                      {...field}
+                      id="line-of-defense-select"
+                      // Pre-#97 Actions have line_of_defense: null (see
+                      // IAction's own doc comment) -- an HTML <select>'s
+                      // value can't be null, only a string, so this falls
+                      // back to "" (the "Unclassified" option) for display
+                      // without changing what actually gets submitted.
+                      value={field.value ?? ""}
+                      className={`w-full max-w-55 rounded-lg border px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none ${
+                        errors.line_of_defense
+                          ? "border-destructive bg-destructive/10"
+                          : "border-input bg-background"
+                      }`}
+                    >
+                      <option value="" disabled={!isEdit}>
+                        {isEdit
+                          ? t("organization.findings.lineOfDefenseUnclassified")
+                          : t("organization.findings.lineOfDefenseSelect")}
+                      </option>
+                      <option value="FIRST">
+                        {t("organization.threeLinesOfDefense.lines.first")}
+                      </option>
+                      <option value="SECOND">
+                        {t("organization.threeLinesOfDefense.lines.second")}
+                      </option>
+                      <option value="THIRD">
+                        {t("organization.threeLinesOfDefense.lines.third")}
+                      </option>
+                      <option value="GOVERNING_BODY">
+                        {t(
+                          "organization.threeLinesOfDefense.lines.governingBody"
+                        )}
+                      </option>
+                    </select>
+                  )}
+                />
+              </div>
+              {errors.line_of_defense && (
+                <p className="mt-1.5 flex items-center justify-end gap-1.5 text-sm text-destructive">
+                  <AlertCircle size={14} /> {errors.line_of_defense.message}
+                </p>
               )}
             </div>
 

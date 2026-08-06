@@ -164,6 +164,10 @@ describe("CreateNewFindingModal", () => {
       screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
       "New finding"
     )
+    await userEvent.selectOptions(
+      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      "FIRST"
+    )
     await userEvent.click(
       screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
     )
@@ -191,6 +195,10 @@ describe("CreateNewFindingModal", () => {
     )
 
     // Title comes pre-filled from additionalData — no typing needed.
+    await userEvent.selectOptions(
+      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      "FIRST"
+    )
     await userEvent.click(
       screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
     )
@@ -254,6 +262,10 @@ describe("CreateNewFindingModal", () => {
 
     await waitFor(() => expect(mockUploadFile).toHaveBeenCalled())
 
+    await userEvent.selectOptions(
+      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      "FIRST"
+    )
     await userEvent.click(
       screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
     )
@@ -433,6 +445,10 @@ describe("CreateNewFindingModal", () => {
       screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
       "Finding with real member shape"
     )
+    await userEvent.selectOptions(
+      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      "FIRST"
+    )
     await userEvent.click(
       screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
     )
@@ -539,6 +555,10 @@ describe("CreateNewFindingModal", () => {
       screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
       "Plain remediation task"
     )
+    await userEvent.selectOptions(
+      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      "FIRST"
+    )
     await userEvent.click(
       screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
     )
@@ -581,6 +601,10 @@ describe("CreateNewFindingModal", () => {
     await userEvent.type(
       screen.getByPlaceholderText("organization.findings.effectPlaceholder"),
       "Increased fall risk"
+    )
+    await userEvent.selectOptions(
+      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      "FIRST"
     )
     await userEvent.click(
       screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
@@ -789,6 +813,10 @@ describe("CreateNewFindingModal", () => {
     await userEvent.type(
       screen.getByPlaceholderText("organization.findings.addUpdatePlaceholder"),
       "First comment"
+    )
+    await userEvent.selectOptions(
+      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      "FIRST"
     )
     await userEvent.click(
       screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
@@ -1301,6 +1329,100 @@ describe("CreateNewFindingModal", () => {
         await screen.findByText("organization.findings.dueDatePast")
       ).toBeInTheDocument()
       expect(mockCreateNewFinding).not.toHaveBeenCalled()
+    })
+  })
+
+  // aexa-server#97: create_action requires line_of_defense with no default
+  // (see action.validation.ts) -- this form previously never collected it
+  // at all, so every real "Create Finding" submission 400'd.
+  describe("line of defense (aexa-server#97)", () => {
+    it("blocks create and shows a validation error when no line is selected", async () => {
+      render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+      await userEvent.type(
+        screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
+        "New finding"
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
+      )
+
+      expect(
+        await screen.findByText("organization.findings.lineOfDefenseRequired")
+      ).toBeInTheDocument()
+      expect(mockCreateNewFinding).not.toHaveBeenCalled()
+    })
+
+    it("sends the selected line_of_defense on create", async () => {
+      mockCreateNewFinding.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+      await userEvent.type(
+        screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
+        "New finding"
+      )
+      await userEvent.selectOptions(
+        screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+        "THIRD"
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
+      )
+
+      await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
+      const payload = mockCreateNewFinding.mock.calls[0][0]
+      expect(payload.line_of_defense).toBe("THIRD")
+    })
+
+    it("does not require a line on edit, and pre-fills the existing classified value", async () => {
+      mockUpdateFindingById.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ line_of_defense: "SECOND" }) as any}
+        />
+      )
+
+      const select = screen.getByLabelText(
+        "organization.findings.lineOfDefenseLabel"
+      ) as HTMLSelectElement
+      expect(select.value).toBe("SECOND")
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.findings.updateFindingBtn" })
+      )
+
+      await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
+      const payload = mockUpdateFindingById.mock.calls[0][0].body
+      expect(payload.line_of_defense).toBe("SECOND")
+    })
+
+    it("does not block editing a pre-#97 Action that has no line_of_defense", async () => {
+      mockUpdateFindingById.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ line_of_defense: null }) as any}
+        />
+      )
+
+      const select = screen.getByLabelText(
+        "organization.findings.lineOfDefenseLabel"
+      ) as HTMLSelectElement
+      expect(select.value).toBe("")
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.findings.updateFindingBtn" })
+      )
+
+      await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
+      const payload = mockUpdateFindingById.mock.calls[0][0].body
+      expect(payload.line_of_defense).toBeUndefined()
     })
   })
 })
