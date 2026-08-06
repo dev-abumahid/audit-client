@@ -27,7 +27,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useNavigate } from "react-router"
+import { Link, useNavigate } from "react-router"
 import { toast } from "sonner"
 import CreateNewFindingModal from "./CreateNewFindingModal"
 
@@ -372,10 +372,26 @@ export default function AllFindingsPage() {
                               size={14}
                               className="text-muted-foreground"
                             />
-                            <span className="text-sm text-foreground">
-                              {action?.site?.name ||
-                                t("organization.findings.notAvailable")}
-                            </span>
+                            {action?.site ? (
+                              // aexa-frontend#562: action.site.id was
+                              // already available but rendered as plain
+                              // text -- reuses the established
+                              // ?siteId=&search= pattern (#533/#552). Row
+                              // itself navigates on click, so this needs
+                              // stopPropagation like the Edit/Delete
+                              // buttons in the same row already do.
+                              <Link
+                                to={`/organization/sites?siteId=${encodeURIComponent(action.site.id)}&search=${encodeURIComponent(action.site.name)}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="focus-ring text-sm text-primary hover:underline"
+                              >
+                                {action.site.name}
+                              </Link>
+                            ) : (
+                              <span className="text-sm text-foreground">
+                                {t("organization.findings.notAvailable")}
+                              </span>
+                            )}
                           </div>
                         </td>
 

@@ -1,6 +1,11 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import AllFindingsPage from "./AllFindingsPage"
+
+// aexa-frontend#562: the Site column is now a real <Link>, so every
+// render() needs a Router context.
+const withRouter = { wrapper: MemoryRouter }
 
 // Controllable `i18n.language` for the locale-formatting test below, while
 // every other test in this file keeps relying on the real (uninitialized)
@@ -118,7 +123,7 @@ describe("AllFindingsPage", () => {
 
   it("shows Create Finding, Edit and Delete for an ADMIN", () => {
     mockRole = "ADMIN"
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     expect(
       screen.getByText("organization.findings.createTitle")
@@ -132,7 +137,7 @@ describe("AllFindingsPage", () => {
   // icon buttons had no aria-label/title, so a screen reader announced
   // "button" with no indication of which action it performed.
   it("gives per-row Edit and Delete icon buttons an accessible name", () => {
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     const editButton = screen
       .getAllByRole("button")
@@ -145,11 +150,29 @@ describe("AllFindingsPage", () => {
     expect(deleteButton).toHaveAccessibleName("organization.findings.delete")
   })
 
+  // aexa-frontend#562: the Site column showed action.site.name as plain
+  // text even though action.site.id was already available -- reuses the
+  // established ?siteId=&search= pattern (#533/#552). The row itself
+  // navigates on click, so this also confirms the link stops that
+  // propagation rather than double-navigating.
+  it("links the Site column into Sites, scoped to that site, without triggering the row's own navigation", async () => {
+    render(<AllFindingsPage />, withRouter)
+
+    const link = screen.getByRole("link", { name: "HQ Casablanca" })
+    expect(link).toHaveAttribute(
+      "href",
+      "/organization/sites?siteId=site-1&search=HQ%20Casablanca"
+    )
+
+    await userEvent.click(link)
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
   // Regression (aexa-frontend round-9 audit #469): the site "Filter"
   // dropdown toggle had no aria-expanded/aria-haspopup, so screen-reader
   // users got no indication it was a disclosure control or of its state.
   it("marks the Filter dropdown toggle with aria-haspopup/aria-expanded that tracks open state", async () => {
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     const filterButton = screen.getByRole("button", {
       name: /organization\.findings\.filter/i,
@@ -166,7 +189,7 @@ describe("AllFindingsPage", () => {
   // h2 anywhere on the page. An always-present sr-only h2 now sits between
   // them regardless of which render path (results vs. empty state) is hit.
   it("keeps a valid heading hierarchy: an h2 exists between the page h1 and any h3", () => {
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     expect(screen.getAllByRole("heading", { level: 1 }).length).toBe(1)
     expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(
@@ -183,7 +206,7 @@ describe("AllFindingsPage", () => {
       refetch: vi.fn(),
     })
 
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     const headerCells = screen.getAllByRole("columnheader")
     const emptyCell = screen.getByText(
@@ -205,7 +228,7 @@ describe("AllFindingsPage", () => {
       refetch: vi.fn(),
     })
 
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     const date = new Date("2099-07-01T00:00:00.000Z")
     const expected = `${date.getDate()} ${date.toLocaleDateString("fr-FR", { month: "short" })} ${date.getFullYear()}`
@@ -214,7 +237,7 @@ describe("AllFindingsPage", () => {
 
   it("hides Create Finding, Edit and Delete for a VIEWER", () => {
     mockRole = "VIEWER"
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     expect(
       screen.queryByText("organization.findings.createTitle")
@@ -226,7 +249,7 @@ describe("AllFindingsPage", () => {
 
   it("hides write controls for a LIGHT_USER", () => {
     mockRole = "LIGHT_USER"
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     expect(
       screen.queryByText("organization.findings.createTitle")
@@ -240,7 +263,7 @@ describe("AllFindingsPage", () => {
   it("hides Edit/Delete for an unassigned LEAD_AUDITOR", () => {
     mockRole = "LEAD_AUDITOR"
     mockAssignedInspectionIds = new Set()
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     expect(
       screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
@@ -250,7 +273,7 @@ describe("AllFindingsPage", () => {
   it("shows Edit/Delete for a LEAD_AUDITOR assigned to the finding's parent inspection", () => {
     mockRole = "LEAD_AUDITOR"
     mockAssignedInspectionIds = new Set(["insp-1"])
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     expect(
       screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
@@ -260,7 +283,7 @@ describe("AllFindingsPage", () => {
   it("degrades a LEAD_AUDITOR back to allowed when assignment data is unavailable", () => {
     mockRole = "LEAD_AUDITOR"
     mockAssignedInspectionIds = undefined
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     expect(
       screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
@@ -268,7 +291,7 @@ describe("AllFindingsPage", () => {
   })
 
   it("clicking Edit opens the modal with the correct editData and does not navigate", async () => {
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     const editButton = screen
       .getAllByRole("button")
@@ -282,7 +305,7 @@ describe("AllFindingsPage", () => {
   })
 
   it("clicking Delete opens the DeleteAlertModal and does not navigate", async () => {
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     const deleteButton = screen
       .getAllByRole("button")
@@ -299,7 +322,7 @@ describe("AllFindingsPage", () => {
     mockDeleteAction.mockReturnValue({
       unwrap: () => Promise.resolve({ message: "Deleted" }),
     })
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     const deleteButton = screen
       .getAllByRole("button")
@@ -319,7 +342,7 @@ describe("AllFindingsPage", () => {
       unwrap: () =>
         Promise.reject({ data: { message: "Cannot delete finding" } }),
     })
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     const deleteButton = screen
       .getAllByRole("button")
@@ -350,7 +373,7 @@ describe("AllFindingsPage", () => {
       unwrap: () => Promise.resolve({ message: "Deleted" }),
     })
 
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     const nextButton = () =>
       screen
@@ -392,7 +415,7 @@ describe("AllFindingsPage", () => {
   })
 
   it("navigates to the detail page when a row (not the action buttons) is clicked", async () => {
-    render(<AllFindingsPage />)
+    render(<AllFindingsPage />, withRouter)
 
     await userEvent.click(screen.getByText("Fix broken railing"))
 
