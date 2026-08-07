@@ -3,6 +3,7 @@ import {
   buildRiskCorrelationEdges,
   computePageRank,
   topPercentileByPageRank,
+  topPercentileFromScores,
 } from "./pageRank"
 
 describe("computePageRank", () => {
@@ -126,5 +127,50 @@ describe("topPercentileByPageRank", () => {
     }))
     const result = topPercentileByPageRank(nodes, edges, 0.15)
     expect(result[0]).toBe("hub")
+  })
+})
+
+// aexa-frontend#575 review: RiskGraphPage was calling computePageRank twice
+// per render (once directly, once again inside topPercentileByPageRank on
+// the same nodes/edges) -- topPercentileFromScores lets a caller that
+// already has a computePageRank result reuse it instead.
+describe("topPercentileFromScores", () => {
+  it("returns an empty array for no nodes", () => {
+    expect(topPercentileFromScores([], {}, 0.15)).toEqual([])
+  })
+
+  it("always returns at least one node, even when the percentile rounds down to zero", () => {
+    const nodes = ["a", "b", "c"]
+    const scores = { a: 0.3, b: 0.4, c: 0.3 }
+    expect(topPercentileFromScores(nodes, scores, 0.15)).toHaveLength(1)
+  })
+
+  it("ranks nodes by the given scores, highest first, without recomputing PageRank", () => {
+    const nodes = ["hub", "a", "b", "c", "d", "e", "f", "g"]
+    const scores = {
+      hub: 0.5,
+      a: 0.1,
+      b: 0.1,
+      c: 0.1,
+      d: 0.05,
+      e: 0.05,
+      f: 0.05,
+      g: 0.05,
+    }
+    const result = topPercentileFromScores(nodes, scores, 0.25)
+    expect(result[0]).toBe("hub")
+    expect(result).toHaveLength(2)
+  })
+
+  it("matches topPercentileByPageRank's result when given that same computation's scores", () => {
+    const nodes = ["hub", "a", "b", "c", "d", "e", "f", "g"]
+    const edges = ["a", "b", "c", "d", "e", "f", "g"].map((source) => ({
+      source,
+      target: "hub",
+    }))
+    const scores = computePageRank(nodes, edges)
+    expect(topPercentileFromScores(nodes, scores, 0.15)).toEqual(
+      topPercentileByPageRank(nodes, edges, 0.15)
+    )
   })
 })

@@ -5,7 +5,7 @@ import type { Risk, RiskLink, RiskLinkType } from "@/types/organization"
 import {
   buildRiskCorrelationEdges,
   computePageRank,
-  topPercentileByPageRank,
+  topPercentileFromScores,
 } from "@/utils/pageRank"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { computeRiskGraphLayout } from "@/utils/riskGraphLayout"
@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Search,
   X,
   Zap,
 } from "lucide-react"
@@ -95,6 +96,7 @@ export default function RiskGraphPage() {
   const [siteFilter, setSiteFilter] = useState<string | null>(null)
   const [selectedRisk, setSelectedRisk] = useState<string | null>(null)
   const [showDomino, setShowDomino] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
 
   // Filter risks by site
   const filteredRisks = useMemo(() => {
@@ -128,6 +130,28 @@ export default function RiskGraphPage() {
     () => new Map(filteredRisks.map((r) => [r.ref, r])),
     [filteredRisks]
   )
+
+  // aexa-frontend#575 review: with 80+ risks on the graph, there was no way
+  // to find a specific one except visually hunting the canvas or scrolling
+  // the Correlations list -- every reference graph tool in the research
+  // (Neo4j Bloom's search, Datadog's faceted search) treats search as the
+  // primary way power users navigate a large graph, not an enhancement.
+  const searchMatches = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return []
+    return filteredRisks
+      .filter(
+        (r) =>
+          r.ref.toLowerCase().includes(query) ||
+          r.name.toLowerCase().includes(query)
+      )
+      .slice(0, 8)
+  }, [searchQuery, filteredRisks])
+
+  function selectSearchMatch(ref: string) {
+    setSelectedRisk(ref)
+    setSearchQuery("")
+  }
 
   // Build domino chains (longest causal paths)
   const dominoChains = useMemo((): DominoChain[] => {
@@ -172,10 +196,10 @@ export default function RiskGraphPage() {
     return chains.sort((a, b) => b.totalImpact - a.totalImpact).slice(0, 5)
   }, [filteredRisks, filteredLinks])
 
-  // A "tipping point" node is one in the top 15% by real PageRank over the
-  // org's actual risk-correlation graph (RiskLink CAUSES/AMPLIFIES/CORRELATES
-  // edges, resolved by ref) -- the same methodology and threshold as
-  // Overview.tsx's "Systemic Tipping Points" section (aexa-frontend#25).
+  // Real computed PageRank per risk, normalized to a 0-100 scale (same
+  // normalization Overview.tsx's "Systemic Tipping Points" section uses)
+  // for node sizing, node labels, and the side panel -- replaces the fake
+  // manually-entered risk.pagerank_score field (aexa-frontend#422).
   // Risk.pagerank_score is NOT used here: it's a manually-entered form field
   // never derived from anything (see risk.validation.ts / Overview.tsx's own
   // comment), so it isn't a real centrality measure despite the name.
@@ -186,17 +210,6 @@ export default function RiskGraphPage() {
       ),
     [correlationMatrixResponse]
   )
-  const tippingPointRefs = useMemo(() => {
-    const refs = filteredRisks.map((r) => r.ref)
-    if (refs.length === 0) return new Set<string>()
-    return new Set(topPercentileByPageRank(refs, correlationEdges, 0.15))
-  }, [filteredRisks, correlationEdges])
-
-  // Real computed PageRank per risk, normalized to a 0-100 scale (same
-  // normalization Overview.tsx's "Systemic Tipping Points" section uses)
-  // for node sizing, node labels, and the side panel -- replaces the fake
-  // manually-entered risk.pagerank_score field (see comment above,
-  // aexa-frontend#422).
   const pageRankScores = useMemo(
     () =>
       computePageRank(
@@ -205,11 +218,38 @@ export default function RiskGraphPage() {
       ),
     [filteredRisks, correlationEdges]
   )
-  const maxPageRankScore = Math.max(0, ...Object.values(pageRankScores))
+  // A "tipping point" node is one in the top 15% by the PageRank just
+  // computed above -- the same methodology and threshold as Overview.tsx's
+  // "Systemic Tipping Points" section (aexa-frontend#25). Derived from
+  // pageRankScores via topPercentileFromScores rather than calling
+  // topPercentileByPageRank (which would recompute PageRank from scratch on
+  // the same nodes/edges): this used to run the full 100-iteration power
+  // iteration twice on every render.
+  const tippingPointRefs = useMemo(() => {
+    const refs = filteredRisks.map((r) => r.ref)
+    if (refs.length === 0) return new Set<string>()
+    return new Set(topPercentileFromScores(refs, pageRankScores, 0.15))
+  }, [filteredRisks, pageRankScores])
+  const maxPageRankScore = Object.values(pageRankScores).reduce(
+    (max, score) => Math.max(max, score),
+    0
+  )
   const getNormalizedPageRank = (ref: string) =>
     maxPageRankScore > 0
       ? (pageRankScores[ref] / maxPageRankScore) * 100
       : 0
+
+  // Outgoing-edge adjacency for cascade BFS below, built once per
+  // filteredLinks change instead of the BFS rescanning the full link array
+  // on every queue pop (was O(V*E) per click; this makes it O(V+E)).
+  const outgoingAdjacency = useMemo(() => {
+    const adjacency = new Map<string, string[]>()
+    for (const l of filteredLinks) {
+      if (!adjacency.has(l.source_ref)) adjacency.set(l.source_ref, [])
+      adjacency.get(l.source_ref)!.push(l.target_ref)
+    }
+    return adjacency
+  }, [filteredLinks])
 
   // Get cascade effects for a selected risk
   const cascadeRefs = useMemo(() => {
@@ -220,15 +260,13 @@ export default function RiskGraphPage() {
       const current = queue.shift()!
       if (refs.has(current)) continue
       refs.add(current)
-      for (const l of filteredLinks) {
-        if (l.source_ref === current && !refs.has(l.target_ref)) {
-          queue.push(l.target_ref)
-        }
+      for (const target of outgoingAdjacency.get(current) ?? []) {
+        if (!refs.has(target)) queue.push(target)
       }
     }
     refs.delete(selectedRisk)
     return refs
-  }, [selectedRisk, filteredLinks])
+  }, [selectedRisk, outgoingAdjacency])
 
   // Force-directed-ish layout using category clustering, extracted to
   // computeRiskGraphLayout (src/utils/riskGraphLayout.ts) so its
@@ -265,11 +303,62 @@ export default function RiskGraphPage() {
             {t("organization.riskGraph.description")}
           </p>
         </div>
-        <SiteFilter
-          value={siteFilter}
-          onChange={setSiteFilter}
-          className="w-56"
-        />
+        <div className="flex items-center gap-2">
+          <div className="relative w-56">
+            <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("organization.riskGraph.searchPlaceholder")}
+              aria-label={t("organization.riskGraph.searchLabel")}
+              // aexa-frontend#577 review: the results dropdown had no ARIA
+              // wiring at all -- a screen-reader user tabbing through the
+              // input had no indication matches existed or how to reach
+              // them. role="combobox" is a simplification of the full
+              // ARIA 1.2 combobox pattern (no aria-activedescendant/arrow-
+              // key roving focus -- results are reached via Tab, same as
+              // any other button on the page), but it does announce that
+              // expanding a listbox of results is possible and where it is.
+              role="combobox"
+              aria-expanded={searchMatches.length > 0}
+              aria-controls="risk-graph-search-results"
+              aria-autocomplete="list"
+              className="focus-ring h-9 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-xs"
+            />
+            {searchMatches.length > 0 && (
+              <ul
+                id="risk-graph-search-results"
+                role="listbox"
+                aria-label={t("organization.riskGraph.searchLabel")}
+                className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-border bg-card shadow-lg"
+              >
+                {searchMatches.map((r) => (
+                  <li key={r.ref} role="presentation">
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={false}
+                      onClick={() => selectSearchMatch(r.ref)}
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
+                    >
+                      <span className="font-mono-data font-bold text-foreground">
+                        {r.ref}
+                      </span>
+                      <span className="truncate text-muted-foreground">
+                        {r.name}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <SiteFilter
+            value={siteFilter}
+            onChange={setSiteFilter}
+            className="w-56"
+          />
+        </div>
       </div>
 
       {/* Legend */}
@@ -290,6 +379,13 @@ export default function RiskGraphPage() {
           <Zap className="h-3 w-3 text-accent" />
           {t("organization.riskGraph.legendTippingPoint")}
         </div>
+        <div className="flex items-center gap-1.5">
+          <span className="flex items-center">
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+            <span className="ml-0.5 h-2.5 w-2.5 rounded-full bg-muted-foreground" />
+          </span>
+          {t("organization.riskGraph.legendNodeSize")}
+        </div>
         {selectedRisk && (
           <button
             onClick={() => setSelectedRisk(null)}
@@ -309,8 +405,16 @@ export default function RiskGraphPage() {
             this page's two top-level sections, so each gets its own
             visually-hidden h2 -- the h3s already inside them stay nested as
             they render today. */}
-        <div className="animate-slide-up rounded-xl border border-border bg-card p-4 xl:col-span-2">
+        <div className="animate-slide-up relative rounded-xl border border-border bg-card p-4 xl:col-span-2">
           <h2 className="sr-only">{t("organization.riskGraph.graphSectionHeading")}</h2>
+          {filteredRisks.length === 0 && (
+            <div
+              className="absolute inset-4 flex items-center justify-center text-center text-sm text-muted-foreground"
+              style={{ minHeight: 400 }}
+            >
+              {t("organization.riskGraph.emptyState")}
+            </div>
+          )}
           <svg
             viewBox={`0 0 ${graphWidth} ${graphHeight}`}
             className="h-auto w-full"
@@ -367,7 +471,27 @@ export default function RiskGraphPage() {
                     strokeWidth={isCascade ? 5 : 3}
                     strokeOpacity={isDimmed ? 0.08 : isCascade ? 0.8 : 0.35}
                     strokeLinecap="round"
-                    markerEnd={isCascade ? "url(#arrowCascade)" : undefined}
+                    // Test hook only (not used for rendering) -- lets tests
+                    // target a specific link_type's <line> directly instead
+                    // of inferring it from marker-end/stroke-opacity, which
+                    // only disambiguates correctly for a specific fixture
+                    // shape (aexa-frontend#577 review).
+                    data-link-type={link.link_type}
+                    // aexa-frontend#575 review: CAUSES/AMPLIFIES direction was
+                    // only visible once a cascade was selected (arrowCascade),
+                    // so the unselected graph couldn't communicate direction
+                    // at all even though these are directed edges (CORRELATES
+                    // has no inherent direction, per pageRank.ts, so it stays
+                    // arrowless here too).
+                    markerEnd={
+                      isCascade
+                        ? "url(#arrowCascade)"
+                        : link.link_type === "CAUSES"
+                          ? "url(#arrowCauses)"
+                          : link.link_type === "AMPLIFIES"
+                            ? "url(#arrowAmplifies)"
+                            : undefined
+                    }
                   />
                 </g>
               )
@@ -385,6 +509,36 @@ export default function RiskGraphPage() {
                 orient="auto"
               >
                 <polygon points="0 0, 10 3.5, 0 7" fill="hsl(var(--destructive))" />
+              </marker>
+              <marker
+                id="arrowCauses"
+                viewBox="0 0 10 7"
+                refX="10"
+                refY="3.5"
+                markerWidth="5"
+                markerHeight="5"
+                orient="auto"
+              >
+                <polygon
+                  points="0 0, 10 3.5, 0 7"
+                  fill="hsl(var(--risk-critical))"
+                  fillOpacity={0.35}
+                />
+              </marker>
+              <marker
+                id="arrowAmplifies"
+                viewBox="0 0 10 7"
+                refX="10"
+                refY="3.5"
+                markerWidth="5"
+                markerHeight="5"
+                orient="auto"
+              >
+                <polygon
+                  points="0 0, 10 3.5, 0 7"
+                  fill="hsl(var(--risk-high))"
+                  fillOpacity={0.35}
+                />
               </marker>
             </defs>
 

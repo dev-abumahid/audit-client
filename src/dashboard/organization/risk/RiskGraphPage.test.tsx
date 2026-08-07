@@ -578,4 +578,123 @@ describe("RiskGraphPage", () => {
     await userEvent.keyboard(" ")
     expect(node).toHaveAttribute("aria-pressed", "false")
   })
+
+  // aexa-frontend#575 review: with 80+ risks on the graph there was no way
+  // to find a specific one except visually hunting the canvas.
+  describe("search (#575 review)", () => {
+    it("shows matching risks by ref or name as the user types, and selects one on click", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "node-a", ref: "RISK-A", name: "Warehouse Fire" }),
+            makeRisk({ id: "node-b", ref: "RISK-B", name: "Vendor Breach" }),
+          ],
+        },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const searchInput = screen.getByRole("combobox", {
+        name: "organization.riskGraph.searchLabel",
+      })
+      await userEvent.type(searchInput, "Warehouse")
+
+      // "RISK-A" also matches the graph node's own aria-label ("Risk
+      // RISK-A"), so scope to the search dropdown's listbox specifically.
+      const dropdown = screen.getByRole("listbox")
+      const match = within(dropdown).getByRole("option", { name: /RISK-A/ })
+      expect(match).toBeInTheDocument()
+      expect(
+        within(dropdown).queryByRole("option", { name: /RISK-B/ })
+      ).not.toBeInTheDocument()
+
+      await userEvent.click(match)
+
+      // Selecting via search reuses the same selectedRisk state the graph
+      // node click path does -- the side panel heading confirms the right
+      // risk got selected, and the search field clears itself.
+      expect(
+        screen.getByRole("heading", { name: "RISK-A — Warehouse Fire" })
+      ).toBeInTheDocument()
+      expect(searchInput).toHaveValue("")
+    })
+
+    it("shows no dropdown when the query matches nothing", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const searchInput = screen.getByRole("combobox", {
+        name: "organization.riskGraph.searchLabel",
+      })
+      await userEvent.type(searchInput, "nonexistent-query")
+
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+      expect(searchInput).toHaveAttribute("aria-expanded", "false")
+    })
+  })
+
+  // aexa-frontend#575 review: the legend documented edge colors and the
+  // tipping-point icon but never explained that node size encodes PageRank.
+  it("includes a legend entry explaining that node size encodes PageRank", () => {
+    render(<RiskGraphPage />, withRouter)
+    expect(
+      screen.getByText("organization.riskGraph.legendNodeSize")
+    ).toBeInTheDocument()
+  })
+
+  // aexa-frontend#575 review: a site-filtered-to-zero-risks state rendered a
+  // blank canvas with no explanation.
+  it("shows an empty-state message when no risks match the current filters", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    render(<RiskGraphPage />, withRouter)
+    expect(
+      screen.getByText("organization.riskGraph.emptyState")
+    ).toBeInTheDocument()
+  })
+
+  // aexa-frontend#575 review: CAUSES/AMPLIFIES direction was only visible
+  // once a cascade was selected -- the unselected graph couldn't
+  // communicate direction at all.
+  it("marks default (unselected) CAUSES/AMPLIFIES edges with a directional arrow, and leaves CORRELATES arrowless", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "node-a", ref: "RISK-A" }),
+          makeRisk({ id: "node-b", ref: "RISK-B" }),
+          makeRisk({ id: "node-c", ref: "RISK-C" }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: [
+            { source_ref: "RISK-A", target_ref: "RISK-B", link_type: "CAUSES" },
+            { source_ref: "RISK-B", target_ref: "RISK-C", link_type: "CORRELATES" },
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    const { container } = render(<RiskGraphPage />, withRouter)
+
+    // data-link-type targets each link's line unambiguously by its actual
+    // link_type instead of inferring it from marker-end/stroke-opacity,
+    // which only happened to disambiguate correctly for this exact fixture
+    // shape (aexa-frontend#577 review).
+    const causesLine = container.querySelector('line[data-link-type="CAUSES"]')
+    const correlatesLine = container.querySelector(
+      'line[data-link-type="CORRELATES"]'
+    )
+    expect(causesLine).not.toBeNull()
+    expect(causesLine).toHaveAttribute("marker-end", "url(#arrowCauses)")
+    expect(correlatesLine).not.toBeNull()
+    expect(correlatesLine).not.toHaveAttribute("marker-end")
+  })
 })

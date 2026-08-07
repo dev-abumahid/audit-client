@@ -132,9 +132,23 @@ export function topPercentileByPageRank(
   percentile: number
 ): string[] {
   if (nodes.length === 0) return []
-  const scores = computePageRank(nodes, edges)
+  return topPercentileFromScores(nodes, computePageRank(nodes, edges), percentile)
+}
+
+/**
+ * Same ranking/slicing as topPercentileByPageRank, but takes already-computed
+ * scores instead of recomputing PageRank -- for callers (e.g. RiskGraphPage)
+ * that already have a computePageRank result for the same nodes/edges and
+ * would otherwise run the full power iteration twice on every render.
+ */
+export function topPercentileFromScores(
+  nodes: string[],
+  scores: Record<string, number>,
+  percentile: number
+): string[] {
+  if (nodes.length === 0) return []
   const count = Math.max(1, Math.ceil(nodes.length * percentile))
   return [...nodes]
-    .sort((a, b) => scores[b] - scores[a])
+    .sort((a, b) => (scores[b] ?? 0) - (scores[a] ?? 0))
     .slice(0, count)
 }

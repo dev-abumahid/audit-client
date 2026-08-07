@@ -1271,7 +1271,11 @@
       "noDominoChains": "Aucune chaîne domino détectée avec les filtres actuels.",
       "correlations": "Corrélations",
       "chainName": "Chaîne {{source}} → {{target}}",
-      "nodeAriaLabel": "Risque {{riskId}}"
+      "nodeAriaLabel": "Risque {{riskId}}",
+      "searchPlaceholder": "Rechercher un risque par réf. ou nom...",
+      "searchLabel": "Rechercher un risque par référence ou nom",
+      "legendNodeSize": "Taille = PageRank",
+      "emptyState": "Aucun risque ne correspond aux filtres actuels."
     },
     "settings": {
       "passwordChange": {
