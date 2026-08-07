@@ -229,6 +229,31 @@ describe("InspectionTable", () => {
     expect(screen.queryByText("IN_PROGRESS")).not.toBeInTheDocument()
   })
 
+  // aexa-frontend#563: the Site column showed item.site.name as plain text
+  // even though item.site.id was already available -- reuses the
+  // established ?siteId=&search= pattern (#533/#552).
+  it("links the Site column into Sites, scoped to that site", async () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: {
+        data: [makeInspection()],
+        meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+      },
+      isLoading: false,
+    })
+
+    renderTable()
+
+    await waitFor(() =>
+      expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+    )
+
+    const link = screen.getByRole("link", { name: "HQ Casablanca" })
+    expect(link).toHaveAttribute(
+      "href",
+      "/organization/sites?siteId=s-1&search=HQ%20Casablanca"
+    )
+  })
+
   // aexa-frontend round-3 audit bug #3: item.updatedAt used to be formatted
   // with no locale argument at all, i.e. whatever locale the visiting
   // browser happens to be in, rather than the app's active UI language.

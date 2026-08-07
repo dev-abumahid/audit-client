@@ -35,7 +35,7 @@ import { severityBadgeClasses } from "@/utils/severityStyles"
 import { Edit2, Eye, Plus, Search, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useNavigate } from "react-router"
+import { Link, useNavigate } from "react-router"
 import { toast } from "sonner"
 import StartInspectionModal from "./StartInspectionModal"
 
@@ -303,7 +303,22 @@ const InspectionTable = () => {
                   return (
                   <TableRow key={item.id} className="animate-fade-in hover:bg-muted/50">
                     <TableCell>{item.template?.templateName || "—"}</TableCell>
-                    <TableCell>{item.site?.name || "—"}</TableCell>
+                    <TableCell>
+                      {/* aexa-frontend#563: item.site.id was already
+                          available but rendered as plain text -- reuses
+                          the established ?siteId=&search= pattern
+                          (#533/#552). */}
+                      {item.site ? (
+                        <Link
+                          to={`/organization/sites?siteId=${encodeURIComponent(item.site.id)}&search=${encodeURIComponent(item.site.name)}`}
+                          className="focus-ring text-primary hover:underline"
+                        >
+                          {item.site.name}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
                     <TableCell>
                       {formatLocaleDate(item.updatedAt, i18n.language)}
                     </TableCell>
