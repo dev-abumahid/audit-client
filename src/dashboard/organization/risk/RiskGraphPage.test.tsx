@@ -978,6 +978,52 @@ describe("RiskGraphPage", () => {
       )
     })
 
+    // aexa-frontend#577 round 21 review: recenterOn initially still read
+    // the raw, un-pinned `positions` -- recentering on a search match that
+    // had been manually dragged (round 21) would jump to its stale
+    // pre-drag layout coordinates instead of where it actually is now.
+    it("recenters on a dragged node's current (not stale pre-drag) position", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "node-a", ref: "RISK-A", name: "Warehouse Fire" }),
+          ],
+        },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      const viewBox = svg.getAttribute("viewBox")!.split(" ").map(Number)
+      const [, , graphWidth, graphHeight] = viewBox
+      const node = screen.getByRole("button", { name: /^Risk RISK-A/ })
+
+      // Drag the node to a new position first.
+      fireEvent.mouseDown(node, { clientX: 100, clientY: 100 })
+      fireEvent.mouseMove(svg, { clientX: 160, clientY: 120 })
+      fireEvent.mouseUp(svg)
+      const draggedX = Number(node.querySelector("circle")!.getAttribute("cx"))
+      const draggedY = Number(node.querySelector("circle")!.getAttribute("cy"))
+
+      const searchInput = screen.getByRole("combobox", {
+        name: "organization.riskGraph.searchLabel",
+      })
+      await userEvent.type(searchInput, "Warehouse")
+      const dropdown = screen.getByRole("listbox")
+      await userEvent.click(
+        within(dropdown).getByRole("option", { name: /RISK-A/ })
+      )
+
+      const expectedX = graphWidth / 2 - draggedX * 1
+      const expectedY = graphHeight / 2 - draggedY * 1
+      expect(
+        container.querySelector("svg > g[transform]")!.getAttribute("transform")
+      ).toBe(`translate(${expectedX} ${expectedY}) scale(1)`)
+    })
+
     // aexa-frontend#577 round 20 (round 17/19 judge review): Escape had no
     // effect on this input -- it only ever cleared selectedRisk via a
     // handler on a different element entirely (the graph panel div).
@@ -2518,6 +2564,253 @@ describe("RiskGraphPage", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "Risk RISK-A" }))
       expect(hoverRing(container, "RISK-A")).toBeNull()
+    })
+  })
+
+  // aexa-frontend#577 round 21 (round 17 judge review): the layout is
+  // otherwise fully static once computed -- every reference tool
+  // researched for #577 (Cytoscape, Gephi, D3 force demos) lets a user
+  // manually drag a node to declutter a local area.
+  describe("node drag-to-reposition (#577 round 21)", () => {
+    function getMainCircle(node: HTMLElement) {
+      // A plain, unselected/unhovered node renders exactly one <circle> --
+      // the hover ring and cascade ring are both conditional and absent
+      // here, so this is unambiguous.
+      return node.querySelector("circle")!
+    }
+
+    it("moves a node to a new position when dragged, and does not also toggle its selection", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      const circle = getMainCircle(node)
+      const startX = Number(circle.getAttribute("cx"))
+      const startY = Number(circle.getAttribute("cy"))
+
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      // jsdom's getBoundingClientRect returns all zeros -- same fallback to
+      // a 1:1 units-per-pixel ratio the existing pan tests rely on, at the
+      // default (unzoomed) scale of 1.
+      fireEvent.mouseDown(node, { clientX: 100, clientY: 100 })
+      fireEvent.mouseMove(svg, { clientX: 140, clientY: 130 })
+      fireEvent.mouseUp(svg)
+      // The browser's own trailing click after mouseup, same as the
+      // background-drag/deselect tests above.
+      fireEvent.click(node)
+
+      const movedCircle = getMainCircle(node)
+      expect(Number(movedCircle.getAttribute("cx"))).toBe(startX + 40)
+      expect(Number(movedCircle.getAttribute("cy"))).toBe(startY + 30)
+      expect(node).toHaveAttribute("aria-pressed", "false")
+    })
+
+    // aexa-frontend#577 round 21 review: the edge-rendering loop initially
+    // still read the raw, un-pinned `positions` for link endpoints --
+    // dragging a node moved the node itself but left its edges anchored at
+    // the old position, visually detaching it from its own links.
+    it("moves a dragged node's connected edge along with it, instead of leaving the edge behind", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "a", ref: "RISK-A" }),
+            makeRisk({ id: "b", ref: "RISK-B" }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+        data: {
+          data: {
+            riskLinks: [
+              {
+                source_ref: "RISK-A",
+                target_ref: "RISK-B",
+                link_type: "CAUSES",
+              },
+            ],
+          },
+        },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RISK-A" })
+      const line = document.querySelector('line[data-link-type="CAUSES"]')!
+      const startX1 = Number(line.getAttribute("x1"))
+      const startY1 = Number(line.getAttribute("y1"))
+
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      fireEvent.mouseDown(node, { clientX: 100, clientY: 100 })
+      fireEvent.mouseMove(svg, { clientX: 140, clientY: 130 })
+      fireEvent.mouseUp(svg)
+
+      const movedLine = document.querySelector(
+        'line[data-link-type="CAUSES"]'
+      )!
+      expect(Number(movedLine.getAttribute("x1"))).toBe(startX1 + 40)
+      expect(Number(movedLine.getAttribute("y1"))).toBe(startY1 + 30)
+    })
+
+    // aexa-frontend#577 round 21 review: didDragRef is meant to be consumed
+    // by whichever click handler runs right after a drag's mouseup, but if
+    // the drag ends over a *different* sibling node, the browser's click-
+    // dispatch algorithm targets their shared parent <g> -- which has no
+    // click handler at all -- so nothing would ever consume the flag,
+    // leaving it stuck true and silently swallowing some later, unrelated
+    // click. handleSvgMouseUp's deferred (setTimeout 0) cleanup exists to
+    // catch exactly this.
+    it("does not leave a later, unrelated click suppressed after a node-drag ends over a different node", async () => {
+      // try/finally: if render or an assertion throws before reaching the
+      // real-timers restore below, fake timers would otherwise leak into
+      // every later test in this file.
+      vi.useFakeTimers()
+      try {
+        mockUseGetAllRisksQuery.mockReturnValue({
+          data: {
+            data: [
+              makeRisk({ id: "a", ref: "RISK-A" }),
+              makeRisk({ id: "b", ref: "RISK-B" }),
+            ],
+          },
+          isLoading: false,
+        })
+        render(<RiskGraphPage />, withRouter)
+
+        const nodeA = screen.getByRole("button", { name: "Risk RISK-A" })
+        const svg = screen.getByLabelText(
+          "organization.riskGraph.graphKeyboardLabel"
+        )
+        fireEvent.mouseDown(nodeA, { clientX: 100, clientY: 100 })
+        fireEvent.mouseMove(svg, { clientX: 140, clientY: 130 })
+        fireEvent.mouseUp(svg)
+        // No click fires here -- mirrors "released over a different node,
+        // whose shared ancestor has no click handler," so nothing consumes
+        // didDragRef the normal way.
+
+        vi.runAllTimers()
+
+        const nodeB = screen.getByRole("button", { name: "Risk RISK-B" })
+        fireEvent.click(nodeB)
+        expect(nodeB).toHaveAttribute("aria-pressed", "true")
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it("still selects a node on a plain click with no drag", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      fireEvent.mouseDown(node, { clientX: 100, clientY: 100 })
+      fireEvent.mouseUp(
+        screen.getByLabelText("organization.riskGraph.graphKeyboardLabel")
+      )
+      fireEvent.click(node)
+
+      expect(node).toHaveAttribute("aria-pressed", "true")
+    })
+
+    it("shows a pin indicator on a dragged node, and reverts it to its computed position on double-click", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      const originalCx = getMainCircle(node).getAttribute("cx")
+      const originalCy = getMainCircle(node).getAttribute("cy")
+
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      fireEvent.mouseDown(node, { clientX: 100, clientY: 100 })
+      fireEvent.mouseMove(svg, { clientX: 140, clientY: 130 })
+      fireEvent.mouseUp(svg)
+
+      expect(
+        screen.getByText("organization.riskGraph.pinnedLabel")
+      ).toBeInTheDocument()
+
+      fireEvent.doubleClick(node)
+
+      expect(getMainCircle(node).getAttribute("cx")).toBe(originalCx)
+      expect(getMainCircle(node).getAttribute("cy")).toBe(originalCy)
+      expect(
+        screen.queryByText("organization.riskGraph.pinnedLabel")
+      ).not.toBeInTheDocument()
+    })
+
+    // aexa-frontend#577 round 21: dragging is a pointer-only gesture with no
+    // other way to reposition a node -- WCAG 2.5.7 (Dragging Movements)
+    // requires a non-drag alternative.
+    it("nudges the selected node's position with Shift+Arrow instead of panning the view", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      fireEvent.click(node)
+      expect(node).toHaveAttribute("aria-pressed", "true")
+
+      const startCx = Number(getMainCircle(node).getAttribute("cx"))
+      const startCy = Number(getMainCircle(node).getAttribute("cy"))
+
+      fireEvent.keyDown(node, { key: "ArrowRight", shiftKey: true })
+
+      expect(Number(getMainCircle(node).getAttribute("cx"))).toBe(
+        startCx + 10
+      )
+      expect(Number(getMainCircle(node).getAttribute("cy"))).toBe(startCy)
+      // The view itself must not have panned -- this is a node nudge, not
+      // the plain arrow-key pan case already covered elsewhere.
+      expect(
+        container.querySelector("svg > g[transform]")!.getAttribute("transform")
+      ).toBe("translate(0 0) scale(1)")
+    })
+
+    // aexa-frontend#577 round 21 review: handleGraphKeyDown fires for *any*
+    // focused descendant of the graph panel (arrow-key pan needs this --
+    // see its own comment), so gating the nudge only on `selectedRisk`
+    // state (without confirming the actual focused element is that node)
+    // would let Shift+Arrow silently nudge a selected-but-not-focused node
+    // from anywhere else in the panel, e.g. a keyboard user tabbed onto the
+    // reset-zoom button.
+    it("does not nudge the selected node when Shift+Arrow is pressed on a different focused element in the panel", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      fireEvent.click(node)
+      expect(node).toHaveAttribute("aria-pressed", "true")
+
+      const startCx = getMainCircle(node).getAttribute("cx")
+      const resetZoomButton = screen.getByRole("button", {
+        name: "organization.riskGraph.resetZoom",
+      })
+      fireEvent.keyDown(resetZoomButton, {
+        key: "ArrowRight",
+        shiftKey: true,
+      })
+
+      expect(getMainCircle(node).getAttribute("cx")).toBe(startCx)
     })
   })
 })

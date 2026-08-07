@@ -29,6 +29,7 @@ import {
   Keyboard,
   Loader2,
   Maximize,
+  Pin,
   Search,
   X,
   Zap,
@@ -59,6 +60,13 @@ const MINIMAP_HEIGHT = 100
 // unitsPerPixel conversion, just skipping the conversion since there's no
 // pixel delta to convert from a key press.
 const KEYBOARD_PAN_STEP = 40
+// aexa-frontend#577 round 21: dragging a node to reposition it has no
+// literal keyboard equivalent, and WCAG 2.5.7 (Dragging Movements)
+// requires one -- Shift+Arrow nudges the *selected* node instead of panning
+// the view (see handleGraphKeyDown) when this app's own Escape-to-deselect
+// (round 16) leaves a risk selected. Smaller than KEYBOARD_PAN_STEP since
+// this is meant for fine local adjustment, not covering distance.
+const NODE_NUDGE_STEP = 10
 
 // aexa-frontend#577: the domino-chain DFS below explores every simple path
 // through the CAUSES/AMPLIFIES subgraph. Two independent safety valves,
@@ -136,14 +144,18 @@ interface RiskGraphNodeProps {
   isCascaded: boolean
   isHovered: boolean
   isDimmed: boolean
+  isPinned: boolean
   isTippingPoint: boolean
   tippingPointLabel: string
+  pinnedLabel: string
   titleText: string
   labelText: string
   pagerankText: string
   ariaLabel: string
   onSelect: (ref: string) => void
   onHoverChange: (ref: string | null) => void
+  onDragStart: (ref: string, clientX: number, clientY: number) => void
+  onUnpin: (ref: string) => void
 }
 
 const RiskGraphNode = memo(function RiskGraphNode({
@@ -156,18 +168,26 @@ const RiskGraphNode = memo(function RiskGraphNode({
   isCascaded,
   isHovered,
   isDimmed,
+  isPinned,
   isTippingPoint,
   tippingPointLabel,
+  pinnedLabel,
   titleText,
   labelText,
   pagerankText,
   ariaLabel,
   onSelect,
   onHoverChange,
+  onDragStart,
+  onUnpin,
 }: RiskGraphNodeProps) {
   return (
     <g
-      className="focus-ring-svg cursor-pointer"
+      // aexa-frontend#577 round 21: cursor-grab/active:cursor-grabbing
+      // (matching the background pan surface's own convention) rather than
+      // cursor-pointer -- dragging is now this node's primary supported
+      // gesture, a plain click (no movement) still selects it either way.
+      className="focus-ring-svg cursor-grab active:cursor-grabbing"
       onClick={() => onSelect(riskRef)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -175,12 +195,22 @@ const RiskGraphNode = memo(function RiskGraphNode({
           onSelect(riskRef)
         }
       }}
+      onMouseDown={(e) => {
+        e.preventDefault()
+        onDragStart(riskRef, e.clientX, e.clientY)
+      }}
+      onDoubleClick={() => onUnpin(riskRef)}
       onMouseEnter={() => onHoverChange(riskRef)}
       onMouseLeave={() => onHoverChange(null)}
       tabIndex={0}
       role="button"
       aria-pressed={isSelected}
       aria-label={ariaLabel}
+      // aexa-frontend#577 round 21 review: lets handleGraphKeyDown's
+      // Shift+Arrow nudge confirm the actual DOM focus target is this
+      // specific node before nudging it, not just that `selectedRisk`
+      // state happens to match -- see that handler's own comment for why.
+      data-risk-ref={riskRef}
       opacity={isDimmed ? 0.15 : 1}
     >
       {/* aexa-frontend#577 round 16: a solid, non-animated ring in the
@@ -244,6 +274,22 @@ const RiskGraphNode = memo(function RiskGraphNode({
         >
           <title>{tippingPointLabel}</title>
         </Zap>
+      )}
+      {/* aexa-frontend#577 round 21: mirrors the tipping-point Zap icon's
+          own convention (opposite corner, so the two never collide) --
+          otherwise a manually-repositioned node looks indistinguishable
+          from one the layout placed there itself, and a user has no visual
+          cue that double-clicking it does anything. */}
+      {isPinned && (
+        <Pin
+          x={x - nodeRadius * 0.5 - 12}
+          y={y - nodeRadius - 10}
+          width={12}
+          height={12}
+          className="fill-muted-foreground text-muted-foreground"
+        >
+          <title>{pinnedLabel}</title>
+        </Pin>
       )}
       <text
         x={x}
@@ -616,6 +662,35 @@ export default function RiskGraphPage() {
     initialDistance: number
     initialScale: number
   } | null>(null)
+  // aexa-frontend#577 round 21: every reference graph tool (Cytoscape,
+  // Gephi, D3 force demos) lets a user manually drag a node to declutter a
+  // local area -- the force-directed layout (round 13) is otherwise fully
+  // static once computed, with no way to nudge an individual node without
+  // recomputing the whole graph. Dragged nodes are "pinned" here rather
+  // than mutating computeRiskGraphLayout's own output: keyed by ref, a
+  // pinned position overrides that one node's computed position (see
+  // effectivePositions below) without needing computeRiskGraphLayout
+  // itself to know pins exist, and survives that layout recomputing (e.g.
+  // a filter change adding/removing other risks) since it's independent
+  // state, not part of the memoized layout result.
+  const [pinnedPositions, setPinnedPositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({})
+  // Mirrors panState/pinchState's own pattern: mousedown on a node seeds
+  // this with the node's ref and its starting screen + content position;
+  // mousemove (shared with the pan/pinch handlers on the same <svg>, see
+  // handleSvgMouseMove below) updates pinnedPositions live; mouseup clears
+  // it. didDragRef (already used to stop a background-pan from also
+  // deselecting on mouseup) is reused here for the identical reason: a
+  // node's own onClick still fires on mouseup regardless of how far it
+  // moved in between, so a real node-drag must not also toggle selection.
+  const dragNodeState = useRef<{
+    ref: string
+    startX: number
+    startY: number
+    originX: number
+    originY: number
+  } | null>(null)
 
   // Filter risks by site
   const siteFilteredRisks = useMemo(() => {
@@ -704,6 +779,16 @@ export default function RiskGraphPage() {
   // on every render would give every node a "new" onSelect prop each time,
   // defeating the point of memoizing them.
   const handleNodeSelect = useCallback((ref: string) => {
+    // aexa-frontend#577 round 21: a node's own onClick still fires on
+    // mouseup regardless of how far it moved in between, so without this a
+    // real node-drag would also toggle selection the instant the mouse
+    // button is released -- same didDragRef consume-once guard
+    // handleBackgroundClick already uses for the identical problem with
+    // background-pan drags.
+    if (didDragRef.current) {
+      didDragRef.current = false
+      return
+    }
     setSelectedRisk((prev) => (prev === ref ? null : ref))
   }, [])
 
@@ -936,6 +1021,28 @@ export default function RiskGraphPage() {
     [filteredRisks, filteredLinks]
   )
 
+  // aexa-frontend#577 round 21: the single source of truth every consumer
+  // of node positions (the main render loop, the minimap, recenterOn
+  // below) should read from -- a pinned/dragged position overrides the
+  // computed one for that ref, everything else falls through to
+  // computeRiskGraphLayout's own result unchanged. Only allocates a new
+  // object when a pin actually exists, so this stays referentially equal
+  // to `positions` itself (and doesn't needlessly defeat memoization) on
+  // every render before a user has ever dragged a node. Declared before
+  // recenterOn below (not just before the render loop that also reads it)
+  // since useCallback's dependency array is evaluated eagerly -- ordering
+  // it after recenterOn hit a genuine temporal-dead-zone error, caught
+  // immediately by `npm run typecheck`, the same class of bug round 19's
+  // own comment on this exact pattern already documents.
+  const effectivePositions = useMemo(() => {
+    if (Object.keys(pinnedPositions).length === 0) return positions
+    const merged = { ...positions }
+    for (const [ref, pos] of Object.entries(pinnedPositions)) {
+      if (merged[ref]) merged[ref] = pos
+    }
+    return merged
+  }, [positions, pinnedPositions])
+
   // aexa-frontend#577 round 17 review: selecting a search result only ever
   // set selectedRisk -- it never touched `view`, so a match found after the
   // user had panned/zoomed away stayed selected but off-screen, defeating
@@ -952,14 +1059,18 @@ export default function RiskGraphPage() {
   // selectDominoRef -- which calls this -- down to the new memoized
   // DominoChainRefButton as a prop; a fresh function identity every render
   // would defeat that memoization the same way an inline arrow prop would.
-  // positions/graphWidth/graphHeight are read directly (not via a
+  // effectivePositions/graphWidth/graphHeight are read directly (not via a
   // functional setState update, unlike `v` in setView below), so they must
   // be real dependencies -- this only gets a new identity when the layout
-  // itself recomputes (filteredRisks/filteredLinks changing), never on a
-  // pan/zoom-only re-render.
+  // itself recomputes, or a node is pinned/unpinned/dragged, never on a
+  // plain pan/zoom-only re-render.
   const recenterOn = useCallback(
     (ref: string) => {
-      const pos = positions[ref]
+      // aexa-frontend#577 round 21 review: effectivePositions, not the raw
+      // computed `positions` -- otherwise recentering on a dragged/pinned
+      // node (via search or a domino-chain ref) would jump to its stale
+      // pre-drag layout coordinates instead of where it actually is.
+      const pos = effectivePositions[ref]
       if (pos) {
         setView((v) => ({
           ...v,
@@ -968,7 +1079,7 @@ export default function RiskGraphPage() {
         }))
       }
     },
-    [positions, graphWidth, graphHeight]
+    [effectivePositions, graphWidth, graphHeight]
   )
 
   function selectSearchMatch(ref: string) {
@@ -1051,6 +1162,53 @@ export default function RiskGraphPage() {
   // whether keyboard focus is on the canvas itself or on a node inside it
   // -- a keyboard user tabbing onto a node still needs to pan around it.
   function handleGraphKeyDown(e: React.KeyboardEvent) {
+    // aexa-frontend#577 round 21: node dragging is a pointer-only gesture
+    // with no other way to reposition a node -- WCAG 2.5.7 requires a
+    // single-pointer-without-dragging (or, per its own guidance, any
+    // non-drag) alternative for exactly this case. Checked before the
+    // switch below since it's the same physical keys (arrows) as panning,
+    // distinguished only by the Shift modifier and a live selection.
+    //
+    // round 21 review: this handler fires for *any* focused descendant of
+    // the graph panel (per its own comment above, e.g. a keyboard user
+    // tabbed onto the zoom/export buttons) -- gating only on `selectedRisk`
+    // state, without checking that the actual focused element is that
+    // node, would let Shift+Arrow silently nudge a selected-but-not-
+    // focused node from anywhere else in the panel. data-risk-ref (set on
+    // every RiskGraphNode's own <g>) confirms the real focus target
+    // matches before nudging.
+    const focusedRiskRef = (e.target as Element).getAttribute("data-risk-ref")
+    if (
+      e.shiftKey &&
+      selectedRisk &&
+      focusedRiskRef === selectedRisk &&
+      (e.key === "ArrowUp" ||
+        e.key === "ArrowDown" ||
+        e.key === "ArrowLeft" ||
+        e.key === "ArrowRight")
+    ) {
+      const pos = effectivePositions[selectedRisk]
+      if (pos) {
+        e.preventDefault()
+        const dx =
+          e.key === "ArrowLeft"
+            ? -NODE_NUDGE_STEP
+            : e.key === "ArrowRight"
+              ? NODE_NUDGE_STEP
+              : 0
+        const dy =
+          e.key === "ArrowUp"
+            ? -NODE_NUDGE_STEP
+            : e.key === "ArrowDown"
+              ? NODE_NUDGE_STEP
+              : 0
+        setPinnedPositions((prev) => ({
+          ...prev,
+          [selectedRisk]: { x: pos.x + dx, y: pos.y + dy },
+        }))
+      }
+      return
+    }
     switch (e.key) {
       case "ArrowUp":
         e.preventDefault()
@@ -1374,6 +1532,114 @@ export default function RiskGraphPage() {
   function handlePanEnd() {
     panState.current = null
   }
+
+  // aexa-frontend#577 round 21: starts a per-node drag, mirroring
+  // handlePanStart's own shape -- called from RiskGraphNode's onMouseDown
+  // (its own mousedown, not the background rect's, so it never competes
+  // with handlePanStart: they're siblings in the DOM, only one of which is
+  // ever the actual mousedown target). Reads the node's *current* position
+  // (its pin if it already has one, otherwise the computed layout
+  // position) as the drag's origin, so re-dragging an already-pinned node
+  // moves it relative to where it currently sits, not back from its
+  // original computed spot. useCallback (like handleNodeSelect/
+  // handleHoverChange above) since this is passed directly to every
+  // memoized RiskGraphNode as a prop -- a fresh identity every render would
+  // defeat that memoization the same way an inline arrow prop would.
+  const handleNodeDragStart = useCallback(
+    (ref: string, clientX: number, clientY: number) => {
+      const currentPos = effectivePositions[ref]
+      if (!currentPos) return
+      didDragRef.current = false
+      dragNodeState.current = {
+        ref,
+        startX: clientX,
+        startY: clientY,
+        originX: currentPos.x,
+        originY: currentPos.y,
+      }
+    },
+    [effectivePositions]
+  )
+  function handleNodeDragMove(e: React.MouseEvent) {
+    if (!dragNodeState.current || !svgRef.current) return
+    if (
+      Math.abs(e.clientX - dragNodeState.current.startX) > 3 ||
+      Math.abs(e.clientY - dragNodeState.current.startY) > 3
+    ) {
+      didDragRef.current = true
+    }
+    const renderedWidth = svgRef.current.getBoundingClientRect().width
+    const viewBoxUnitsPerPixel =
+      renderedWidth > 0 ? graphWidth / renderedWidth : 1
+    // Unlike handlePanMove's own conversion, a node's x/y live *inside* the
+    // <g transform="... scale(view.scale)"> group -- the same screen-pixel
+    // movement covers fewer content units when zoomed in, so this also
+    // divides by the current zoom scale (handlePanMove doesn't need to,
+    // since view.x/y themselves are applied outside that scale()).
+    const contentUnitsPerPixel = viewBoxUnitsPerPixel / view.scale
+    const { ref, startX, startY, originX, originY } = dragNodeState.current
+    const nextX = originX + (e.clientX - startX) * contentUnitsPerPixel
+    const nextY = originY + (e.clientY - startY) * contentUnitsPerPixel
+    setPinnedPositions((prev) => ({ ...prev, [ref]: { x: nextX, y: nextY } }))
+  }
+  function handleNodeDragEnd() {
+    dragNodeState.current = null
+  }
+
+  // Combined onMouseMove/onMouseUp for the main <svg> -- a node-drag and a
+  // background-pan are mutually exclusive (only one of dragNodeState.current/
+  // panState.current is ever set at a time, from whichever element's own
+  // mousedown fired), so each tick routes to exactly one of the two.
+  function handleSvgMouseMove(e: React.MouseEvent) {
+    if (dragNodeState.current) {
+      handleNodeDragMove(e)
+      return
+    }
+    handlePanMove(e)
+  }
+  function handleSvgMouseUp() {
+    handleNodeDragEnd()
+    handlePanEnd()
+    // aexa-frontend#577 round 21 review: didDragRef is normally consumed by
+    // whichever element's own click handler runs right after this mouseup
+    // (the dragged node's own onClick, or handleBackgroundClick) -- but if
+    // a node-drag ends with the mouse released over a *different* sibling
+    // node, the browser's click-dispatch algorithm targets their shared
+    // parent <g> (the nearest common ancestor of the mousedown/mouseup
+    // targets), which has no click handler at all. Nothing would ever
+    // consume the flag in that case, leaving it stuck true and wrongly
+    // swallowing some unrelated future click. mousedown/mouseup/click all
+    // fire synchronously in that order within the same tick, so a deferred
+    // (setTimeout 0) cleanup runs *after* whichever click handler had the
+    // chance to consume it first -- a genuine consumer still wins normally;
+    // this only catches the case where nothing did.
+    if (didDragRef.current) {
+      setTimeout(() => {
+        didDragRef.current = false
+      }, 0)
+    }
+  }
+
+  // aexa-frontend#577 round 21: double-click is this app's existing
+  // "reset"-style gesture for other controls on this page (the reset-zoom
+  // button is a single click, but double-click-to-reset is the de facto
+  // standard for repositionable elements in every reference tool
+  // researched for #577) -- clears a node's pin so it reverts to
+  // computeRiskGraphLayout's own computed position on the next layout
+  // recompute (or immediately, since effectivePositions falls through to
+  // `positions` for any ref with no pin).
+  // useCallback for the same reason as handleNodeDragStart above -- passed
+  // to every memoized RiskGraphNode as onUnpin. Empty deps (functional
+  // setState update, never needs pinnedPositions in its own closure) keeps
+  // this stable across every render, matching handleNodeSelect's pattern.
+  const unpinNode = useCallback((ref: string) => {
+    setPinnedPositions((prev) => {
+      if (!(ref in prev)) return prev
+      const next = { ...prev }
+      delete next[ref]
+      return next
+    })
+  }, [])
 
   // aexa-frontend#577 round 16 follow-up (user feedback): clicking empty
   // canvas space now clears the current selection, matching every reference
@@ -1785,9 +2051,9 @@ export default function RiskGraphPage() {
             style={{ minHeight: 400 }}
             tabIndex={0}
             aria-label={t("organization.riskGraph.graphKeyboardLabel")}
-            onMouseMove={handlePanMove}
-            onMouseUp={handlePanEnd}
-            onMouseLeave={handlePanEnd}
+            onMouseMove={handleSvgMouseMove}
+            onMouseUp={handleSvgMouseUp}
+            onMouseLeave={handleSvgMouseUp}
             onTouchStart={handleTouchStartPinch}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -1812,8 +2078,13 @@ export default function RiskGraphPage() {
             >
               {/* Links */}
               {filteredLinks.map((link, i) => {
-                const source = positions[link.source_ref]
-                const target = positions[link.target_ref]
+                // aexa-frontend#577 round 21 review: effectivePositions, not
+                // the raw computed `positions` -- otherwise a dragged node's
+                // edges stay anchored at its pre-drag position instead of
+                // following it, visually detaching the node from its own
+                // links the moment it's moved.
+                const source = effectivePositions[link.source_ref]
+                const target = effectivePositions[link.target_ref]
                 if (!source || !target) return null
 
                 const isCascade = Boolean(
@@ -1959,7 +2230,7 @@ export default function RiskGraphPage() {
 
               {/* Nodes */}
               {filteredRisks.map((risk) => {
-                const pos = positions[risk.ref]
+                const pos = effectivePositions[risk.ref]
                 if (!pos) return null
                 const nodeRadius = 18 + getNormalizedPageRank(risk.ref) / 6
                 const cat = RISK_CATEGORIES[risk.category]
@@ -1982,10 +2253,12 @@ export default function RiskGraphPage() {
                     isCascaded={isCascaded}
                     isHovered={risk.ref === hoveredRef}
                     isDimmed={isDimmed}
+                    isPinned={risk.ref in pinnedPositions}
                     isTippingPoint={tippingPointRefs.has(risk.ref)}
                     tippingPointLabel={t(
                       "organization.riskGraph.legendTippingPoint"
                     )}
+                    pinnedLabel={t("organization.riskGraph.pinnedLabel")}
                     titleText={`${risk.ref} — ${risk.name}`}
                     labelText={shortRef(risk.ref)}
                     pagerankText={`${t("organization.riskGraph.pagerankAbbrLabel")}${getNormalizedPageRank(risk.ref).toFixed(0)}`}
@@ -1994,6 +2267,8 @@ export default function RiskGraphPage() {
                     })}
                     onSelect={handleNodeSelect}
                     onHoverChange={handleHoverChange}
+                    onDragStart={handleNodeDragStart}
+                    onUnpin={unpinNode}
                   />
                 )
               })}
@@ -2099,7 +2374,11 @@ export default function RiskGraphPage() {
                   fill="transparent"
                 />
                 {filteredRisks.map((risk) => {
-                  const pos = positions[risk.ref]
+                  // aexa-frontend#577 round 21: effectivePositions, not the
+                  // raw computed `positions` -- otherwise a manually dragged
+                  // node's minimap dot would silently disagree with where
+                  // the node actually renders on the main canvas.
+                  const pos = effectivePositions[risk.ref]
                   if (!pos) return null
                   const catColor =
                     RISK_CATEGORIES[risk.category]?.color ||
