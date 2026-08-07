@@ -1280,6 +1280,8 @@
       "zoomOut": "Zoom arrière",
       "resetZoom": "Réinitialiser le zoom",
       "graphKeyboardLabel": "Graphe de dépendances. Utilisez les flèches pour vous déplacer, plus et moins pour zoomer, et 0 pour réinitialiser la vue.",
+      "keyboardHintAriaLabel": "Raccourcis clavier",
+      "keyboardHintTooltip": "Raccourcis clavier : flèches pour se déplacer, plus et moins pour zoomer, 0 pour réinitialiser la vue.",
       "export": "Exporter",
       "exportPng": "Exporter en PNG",
       "exportSvg": "Exporter en SVG",

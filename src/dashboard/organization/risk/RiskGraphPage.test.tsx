@@ -1425,6 +1425,33 @@ describe("RiskGraphPage", () => {
     })
   })
 
+  // aexa-frontend#577 round 14: arrow-key pan and +/-/0 zoom (round 8) were
+  // only ever announced via the <svg>'s aria-label -- invisible to a sighted
+  // mouse-first user who'd never think to check accessibility metadata.
+  describe("keyboard-shortcut affordance (#577 round 14)", () => {
+    it("shows a visible keyboard-shortcut hint button near the zoom controls, with the same info the graph's own aria-label states", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const hintButton = screen.getByRole("button", {
+        name: "organization.riskGraph.keyboardHintAriaLabel",
+      })
+      expect(hintButton).toHaveAttribute(
+        "title",
+        "organization.riskGraph.keyboardHintTooltip"
+      )
+
+      // Distinct from the <svg>'s own aria-label -- both must stay
+      // individually addressable, not collapse into one ambiguous match.
+      expect(
+        screen.getByLabelText("organization.riskGraph.graphKeyboardLabel")
+      ).not.toBe(hintButton)
+    })
+  })
+
   // aexa-frontend#577 round 9: every reference graph-viz tool in the
   // original research (Cytoscape, Gephi, Neo4j Bloom) supports exporting
   // the current view as an image and the underlying data as a table --

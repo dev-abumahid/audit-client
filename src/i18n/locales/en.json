@@ -1280,6 +1280,8 @@
       "zoomOut": "Zoom out",
       "resetZoom": "Reset zoom",
       "graphKeyboardLabel": "Dependency graph. Use arrow keys to pan, plus and minus to zoom, and 0 to reset the view.",
+      "keyboardHintAriaLabel": "Keyboard shortcuts",
+      "keyboardHintTooltip": "Keyboard shortcuts: arrow keys to pan, plus and minus to zoom, 0 to reset the view.",
       "export": "Export",
       "exportPng": "Export as PNG",
       "exportSvg": "Export as SVG",

@@ -25,6 +25,7 @@ import {
   FileSpreadsheet,
   FileText,
   Image as ImageIcon,
+  Keyboard,
   Loader2,
   Maximize,
   Search,
@@ -1618,6 +1619,30 @@ export default function RiskGraphPage() {
               className="focus-ring rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <Maximize className="h-4 w-4" />
+            </button>
+            {/* aexa-frontend#577 round 14: the graph is fully keyboard-operable
+                (arrow-key pan, +/-/0 zoom -- round 8) but that was previously
+                announced only via the <svg>'s aria-label, invisible to a
+                sighted mouse-first user. A `title` tooltip on hover/focus
+                mirrors this codebase's existing tooltip convention (no
+                dedicated Tooltip component -- see RiskOverrideBadge.tsx). Not
+                a button that does anything itself, just a discoverability
+                affordance, so it's not wired to zoomBy/setView -- no
+                tabIndex override needed either, a native <button> is already
+                focusable (unlike the <svg>/<g role="button"> elements
+                elsewhere in this file, which do need one). Uses its own
+                aria-label and tooltip text (distinct from the <svg>'s
+                graphKeyboardLabel, which describes the graph itself) so the
+                two elements remain individually addressable by assistive
+                tech and by tests, and the tooltip reads naturally as
+                describing this button rather than the canvas behind it. */}
+            <button
+              type="button"
+              title={t("organization.riskGraph.keyboardHintTooltip")}
+              aria-label={t("organization.riskGraph.keyboardHintAriaLabel")}
+              className="focus-ring rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Keyboard className="h-4 w-4" />
             </button>
           </div>
           {/* Minimap -- only past MINIMAP_MIN_RISKS risks, per the constant's
