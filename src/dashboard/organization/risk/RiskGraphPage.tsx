@@ -118,6 +118,15 @@ export default function RiskGraphPage() {
     originX: number
     originY: number
   } | null>(null)
+  // aexa-frontend#577 round-3 review: the svg's `touch-none` class (added
+  // alongside round 2's mouse-only pan/zoom) blocks the browser's native
+  // touch scroll/pinch-zoom with no replacement -- touch/tablet users had
+  // *worse* graph interaction after round 2 than before it. pinchState
+  // backs the two-finger pinch-to-zoom handlers below.
+  const pinchState = useRef<{
+    initialDistance: number
+    initialScale: number
+  } | null>(null)
 
   // Filter risks by site
   const filteredRisks = useMemo(() => {
@@ -395,6 +404,75 @@ export default function RiskGraphPage() {
     panState.current = null
   }
 
+  // Touch equivalents of the mouse handlers above: one finger pans (same
+  // math as handlePanMove, driven from the background rect so a tap on a
+  // node still just selects it), two fingers pinch-to-zoom (same
+  // center-anchor math as zoomBy/the wheel handler).
+  function touchDistance(touches: React.TouchList) {
+    const dx = touches[0].clientX - touches[1].clientX
+    const dy = touches[0].clientY - touches[1].clientY
+    return Math.hypot(dx, dy)
+  }
+  function handleTouchStartPan(e: React.TouchEvent) {
+    if (e.touches.length !== 1) return
+    const t = e.touches[0]
+    panState.current = {
+      startX: t.clientX,
+      startY: t.clientY,
+      originX: view.x,
+      originY: view.y,
+    }
+  }
+  function handleTouchStartPinch(e: React.TouchEvent) {
+    if (e.touches.length !== 2) return
+    // A second finger landing mid-pan supersedes the pan -- resuming pan
+    // cleanly once the pinch ends would need re-basing panState's origin,
+    // which isn't worth the complexity here; the user just re-touches to
+    // resume panning after a pinch, same as most touch graph UIs.
+    panState.current = null
+    pinchState.current = {
+      initialDistance: touchDistance(e.touches),
+      initialScale: view.scale,
+    }
+  }
+  function handleTouchMove(e: React.TouchEvent) {
+    if (e.touches.length === 2 && pinchState.current) {
+      const distance = touchDistance(e.touches)
+      const nextScale = Math.min(
+        MAX_ZOOM,
+        Math.max(
+          MIN_ZOOM,
+          pinchState.current.initialScale *
+            (distance / pinchState.current.initialDistance)
+        )
+      )
+      const cx = graphWidth / 2
+      const cy = graphHeight / 2
+      setView((v) => ({
+        scale: nextScale,
+        x: v.x + (v.scale - nextScale) * cx,
+        y: v.y + (v.scale - nextScale) * cy,
+      }))
+      return
+    }
+    if (e.touches.length === 1 && panState.current && svgRef.current) {
+      const t = e.touches[0]
+      const renderedWidth = svgRef.current.getBoundingClientRect().width
+      const unitsPerPixel = renderedWidth > 0 ? graphWidth / renderedWidth : 1
+      const nextX =
+        panState.current.originX +
+        (t.clientX - panState.current.startX) * unitsPerPixel
+      const nextY =
+        panState.current.originY +
+        (t.clientY - panState.current.startY) * unitsPerPixel
+      setView((v) => ({ ...v, x: nextX, y: nextY }))
+    }
+  }
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (e.touches.length < 2) pinchState.current = null
+    if (e.touches.length < 1) panState.current = null
+  }
+
   if (isLoading || isCorrelationLoading) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -540,6 +618,10 @@ export default function RiskGraphPage() {
             onMouseMove={handlePanMove}
             onMouseUp={handlePanEnd}
             onMouseLeave={handlePanEnd}
+            onTouchStart={handleTouchStartPinch}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
           >
             {/* Pan surface -- sits behind everything so dragging the
                 background pans the view without a mousedown on a node also
@@ -551,6 +633,7 @@ export default function RiskGraphPage() {
               height={graphHeight}
               fill="transparent"
               onMouseDown={handlePanStart}
+              onTouchStart={handleTouchStartPan}
               className="cursor-grab active:cursor-grabbing"
             />
             <g

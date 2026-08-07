@@ -829,6 +829,97 @@ describe("RiskGraphPage", () => {
       )
     })
 
+    // aexa-frontend#577 round-3 review: the svg's touch-none class blocked
+    // the browser's native touch scroll/pinch-zoom with no replacement --
+    // touch/tablet users had *worse* graph interaction after round 2's
+    // mouse-only pan/zoom than before it existed at all.
+    it("pans the view with a single-finger touch drag", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      const background = container.querySelector("svg > rect")!
+      const svg = background.closest("svg")!
+      fireEvent.touchStart(background, {
+        touches: [{ clientX: 100, clientY: 100 }],
+      })
+      fireEvent.touchMove(svg, {
+        touches: [{ clientX: 140, clientY: 130 }],
+      })
+      fireEvent.touchEnd(svg, { touches: [] })
+
+      expect(getTransformGroup(container).getAttribute("transform")).toBe(
+        "translate(40 30) scale(1)"
+      )
+    })
+
+    it("zooms with a two-finger pinch, anchored the same way as scroll/button zoom", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      const background = container.querySelector("svg > rect")!
+      const svg = background.closest("svg")!
+      // Fingers start 100px apart, end 200px apart -- a 2x pinch-out should
+      // double the scale (clamped at MAX_ZOOM=3, so 1 -> 2 stays under it).
+      fireEvent.touchStart(svg, {
+        touches: [
+          { clientX: 100, clientY: 100 },
+          { clientX: 200, clientY: 100 },
+        ],
+      })
+      fireEvent.touchMove(svg, {
+        touches: [
+          { clientX: 50, clientY: 100 },
+          { clientX: 250, clientY: 100 },
+        ],
+      })
+      fireEvent.touchEnd(svg, { touches: [] })
+
+      expect(getTransformGroup(container).getAttribute("transform")).toMatch(
+        /scale\(2\)$/
+      )
+    })
+
+    it("a second finger landing mid-pan switches to pinch instead of continuing to pan", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      const background = container.querySelector("svg > rect")!
+      const svg = background.closest("svg")!
+      fireEvent.touchStart(background, {
+        touches: [{ clientX: 100, clientY: 100 }],
+      })
+      // Second finger lands -- this must supersede the pan, not blend with
+      // it (handleTouchStartPinch nulls panState.current).
+      fireEvent.touchStart(svg, {
+        touches: [
+          { clientX: 100, clientY: 100 },
+          { clientX: 200, clientY: 100 },
+        ],
+      })
+      fireEvent.touchMove(svg, {
+        touches: [
+          { clientX: 100, clientY: 100 },
+          { clientX: 200, clientY: 100 },
+        ],
+      })
+      fireEvent.touchEnd(svg, { touches: [] })
+
+      // No pinch distance change (100 -> 100), so scale stays 1 and no
+      // leftover pan translation from the superseded single-finger drag.
+      expect(getTransformGroup(container).getAttribute("transform")).toBe(
+        "translate(0 0) scale(1)"
+      )
+    })
+
     it("resets the view when the site filter changes, but not on unrelated re-renders", async () => {
       const { default: userEvent } = await import("@testing-library/user-event")
       mockUseGetAllRisksQuery.mockReturnValue({
