@@ -31,6 +31,24 @@ const MIN_ZOOM = 0.5
 const MAX_ZOOM = 3
 const DEFAULT_VIEW = { scale: 1, x: 0, y: 0 }
 
+// aexa-frontend#577: the domino-chain DFS below explores every simple path
+// through the CAUSES/AMPLIFIES subgraph. Two independent safety valves,
+// since either alone can still blow up on real data:
+//   - MAX_CHAIN_DEPTH bounds any single path's length. Without it, a chain
+//     that legitimately has no depth limit (only per-path cycle guarding)
+//     can traverse the entire graph on a long, densely-linked causal chain.
+//   - MAX_PATHS_EXPLORED is a hard budget on total DFS calls, independent
+//     of depth: a wide (high branching factor) graph can still explode
+//     combinatorially within a shallow depth limit (e.g. 8 levels of
+//     branching factor 5 is ~5^8 = ~390,625 paths). This caps worst-case
+//     work to a constant, regardless of graph shape.
+// Both are generous enough to never trigger on realistic risk-register
+// sizes (dozens to low hundreds of risks) while bounding the pathological
+// case (a densely-interlinked causal graph, e.g. adversarial or malformed
+// import data) to bounded, interactive-speed work.
+const MAX_CHAIN_DEPTH = 8
+const MAX_PATHS_EXPLORED = 5000
+
 interface DominoChain {
   refs: string[]
   totalImpact: number
@@ -432,37 +450,118 @@ export default function RiskGraphPage() {
       (l) => l.link_type === "CAUSES" || l.link_type === "AMPLIFIES"
     )
     const adjacency: Record<string, string[]> = {}
+    const hasIncoming = new Set<string>()
     for (const l of causesLinks) {
       if (!adjacency[l.source_ref]) adjacency[l.source_ref] = []
       adjacency[l.source_ref].push(l.target_ref)
+      hasIncoming.add(l.target_ref)
     }
 
     const chains: DominoChain[] = []
     const riskMap = new Map(filteredRisks.map((r) => [r.ref, r]))
+    // Clamped to >= 0: the root-restriction below relies on "a chain
+    // starting mid-graph never outscores its root's full chain," which is
+    // only true if extending a chain can never *decrease* its total. The
+    // form has no min/validate rule on financial_impact_max (it's a plain
+    // number field), so a saved risk really can carry a negative value --
+    // without the clamp a root's real chain could rank below a mid-graph
+    // suffix that skips a negative-impact node, silently dropping the
+    // higher-impact chain the root-restriction assumes it always keeps.
+    const recordChain = (path: string[]) => {
+      const totalImpact = path.reduce((sum, p) => {
+        const risk = riskMap.get(p)
+        return sum + Math.max(0, risk ? Number(risk.financial_impact_max) : 0)
+      }, 0)
+      chains.push({ refs: [...path], totalImpact })
+    }
 
+    let pathsExplored = 0
     const dfs = (ref: string, path: string[], visited: Set<string>) => {
+      if (pathsExplored >= MAX_PATHS_EXPLORED) return
+      pathsExplored++
       if (visited.has(ref)) return
       visited.add(ref)
       path.push(ref)
       const next = adjacency[ref] || []
       if (next.length === 0 && path.length >= 3) {
-        const totalImpact = path.reduce((sum, p) => {
-          const risk = riskMap.get(p)
-          return sum + (risk ? Number(risk.financial_impact_max) : 0)
-        }, 0)
-        chains.push({
-          refs: [...path],
-          totalImpact,
-        })
-      }
-      for (const n of next) {
-        dfs(n, path, visited)
+        recordChain(path)
+      } else if (path.length >= MAX_CHAIN_DEPTH) {
+        // Hit the depth cap (>= 3, since MAX_CHAIN_DEPTH is) with more
+        // causal links still ahead -- record the chain as far as it was
+        // explored rather than silently dropping it (a truncated real
+        // chain still ranks and displays fine; only its financial-impact
+        // total is a lower bound).
+        recordChain(path)
+      } else {
+        for (const n of next) {
+          dfs(n, path, visited)
+        }
       }
       path.pop()
       visited.delete(ref)
     }
 
+    // Starting DFS only from true roots (nodes with no incoming CAUSES/
+    // AMPLIFIES edge), not every node with an outgoing one: any chain
+    // starting mid-graph is a suffix of some root's chain (never a higher
+    // total, given the clamp above), and skipping non-root starts avoids
+    // re-exploring the same downstream subgraph once per node that feeds
+    // into it -- the main source of the combinatorial blowup on
+    // densely-linked graphs.
+    const roots = Object.keys(adjacency).filter((ref) => !hasIncoming.has(ref))
+
+    // Full graph reachability from the roots above (plain BFS, unbounded
+    // depth -- NOT the chain-building dfs() above, so it isn't itself
+    // limited by MAX_CHAIN_DEPTH/MAX_PATHS_EXPLORED) used only to find the
+    // root-restriction's one real gap: a cycle with no true root of its
+    // own, e.g. A->B->C->A plus C->D -- A/B/C all have an incoming edge so
+    // none qualifies as a root, but D is a real, non-cyclic terminus the
+    // pre-restriction DFS (which started from every outgoing-edge node)
+    // did reach. This is deliberately a *different* set than "every node
+    // dfs() actually visited": a node past MAX_CHAIN_DEPTH from its root is
+    // reachable (this BFS has no depth limit) but dfs() stopped short of
+    // it on purpose -- conflating the two would re-explore that node from
+    // scratch as a fresh "root" and report its causal path a second time
+    // as a separate, confusing chain instead of the single truncated one.
+    const reachableFromRoot = new Set<string>(roots)
+    const bfsQueue = [...roots]
+    while (bfsQueue.length > 0) {
+      const ref = bfsQueue.shift()!
+      for (const next of adjacency[ref] || []) {
+        if (!reachableFromRoot.has(next)) {
+          reachableFromRoot.add(next)
+          bfsQueue.push(next)
+        }
+      }
+    }
+
+    for (const ref of roots) {
+      if (pathsExplored >= MAX_PATHS_EXPLORED) break
+      dfs(ref, [], new Set())
+    }
+
+    // Second pass: any node with an outgoing edge that's outside every
+    // root's reachable set is only reachable via a cycle with no true root
+    // of its own (see reachableFromRoot's comment above) -- start DFS from
+    // one representative per such rootless component so a real acyclic
+    // tail hanging off it still gets found.
     for (const ref of Object.keys(adjacency)) {
+      if (pathsExplored >= MAX_PATHS_EXPLORED) break
+      if (reachableFromRoot.has(ref)) continue
+      // Extend reachability with everything this pseudo-root can reach
+      // *before* moving to the next adjacency key -- otherwise every other
+      // node in this same rootless component would look "unreached" too
+      // and get its own redundant DFS start, reproducing the exact
+      // duplicate-suffix problem the root-restriction exists to avoid.
+      const extra = [ref]
+      while (extra.length > 0) {
+        const next = extra.shift()!
+        if (reachableFromRoot.has(next)) continue
+        reachableFromRoot.add(next)
+        for (const n of adjacency[next] || []) {
+          if (!reachableFromRoot.has(n)) extra.push(n)
+        }
+      }
       dfs(ref, [], new Set())
     }
 

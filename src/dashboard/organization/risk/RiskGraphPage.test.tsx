@@ -153,7 +153,9 @@ describe("RiskGraphPage", () => {
     expect(label.tagName.toLowerCase()).toBe("text")
     // ...while the full ref and name are preserved in the <title> tooltip.
     const tooltip = screen.getByText(
-      (_, el) => el?.tagName.toLowerCase() === "title" && el.textContent === `${longRef} — Supply Chain Disruption`
+      (_, el) =>
+        el?.tagName.toLowerCase() === "title" &&
+        el.textContent === `${longRef} — Supply Chain Disruption`
     )
     expect(tooltip).toBeInTheDocument()
   })
@@ -382,10 +384,10 @@ describe("RiskGraphPage", () => {
     // panel's header shows the selected risk's ref and name. The same
     // "ref — name" text also appears in the node's own <title> tooltip, so
     // scope to the heading link specifically.
-    const headingMatches = screen.getAllByText("RISK-A — Supply Chain Disruption")
-    expect(
-      headingMatches.some((el) => el.closest("h3") !== null)
-    ).toBe(true)
+    const headingMatches = screen.getAllByText(
+      "RISK-A — Supply Chain Disruption"
+    )
+    expect(headingMatches.some((el) => el.closest("h3") !== null)).toBe(true)
     expect(screen.getAllByText(/RISK-HUB/).length).toBeGreaterThan(0)
   })
 
@@ -550,15 +552,261 @@ describe("RiskGraphPage", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "false")
   })
 
+  // aexa-frontend#577 round 7: the domino-chain DFS used to start a fresh
+  // traversal from every node with an outgoing CAUSES/AMPLIFIES link, not
+  // just true roots -- on a linear chain A->B->C->D that reported the same
+  // causal chain twice ([A,B,C,D] from A, and the redundant suffix [B,C,D]
+  // from B), needlessly duplicating a real chain and wasting DFS work that
+  // gets much more expensive on a densely-linked graph. Restricting starts
+  // to nodes with no incoming link fixes this without losing coverage: any
+  // chain starting mid-graph is a (lower-impact) suffix of its root's chain.
+  it("restricts the domino-chain DFS to true roots so a linear causal chain is reported once, not once per intermediate node", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "a", ref: "RISK-A" }),
+          makeRisk({ id: "b", ref: "RISK-B" }),
+          makeRisk({ id: "c", ref: "RISK-C" }),
+          makeRisk({ id: "d", ref: "RISK-D" }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: [
+            { source_ref: "RISK-A", target_ref: "RISK-B", link_type: "CAUSES" },
+            { source_ref: "RISK-B", target_ref: "RISK-C", link_type: "CAUSES" },
+            { source_ref: "RISK-C", target_ref: "RISK-D", link_type: "CAUSES" },
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />, withRouter)
+
+    const toggle = screen.getByRole("button", {
+      name: /organization\.riskGraph\.dominoScenarios/,
+    })
+    expect(toggle).toHaveTextContent("(1)")
+  })
+
+  // aexa-frontend#577 round 7: the DFS had no depth limit, only per-path
+  // cycle avoidance -- a single long causal chain (independent of any
+  // branching) could traverse the entire graph. MAX_CHAIN_DEPTH bounds any
+  // one chain's length; a chain longer than the cap is still reported
+  // (truncated), not silently dropped.
+  it("truncates a domino chain at the depth cap instead of exploring the full causal chain", () => {
+    const refs = Array.from({ length: 11 }, (_, i) => `RISK-${i + 1}`)
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: refs.map((ref) => makeRisk({ id: ref, ref })),
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: refs.slice(0, -1).map((ref, i) => ({
+            source_ref: ref,
+            target_ref: refs[i + 1],
+            link_type: "CAUSES",
+          })),
+        },
+      },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />, withRouter)
+
+    const toggle = screen.getByRole("button", {
+      name: /organization\.riskGraph\.dominoScenarios/,
+    })
+    expect(toggle).toHaveTextContent("(1)")
+
+    const dominoPanel = toggle.closest(".rounded-xl") as HTMLElement
+    const refButtons = within(dominoPanel).getAllByTitle(/^RISK-\d+$/)
+    expect(refButtons).toHaveLength(8)
+  })
+
+  // aexa-frontend#577 round 7: a wide (high branching factor), deep causal
+  // graph can blow up combinatorially even within the depth cap above (e.g.
+  // 8 levels at branching factor 4 is 4^7 ~ 16,384 paths per root) --
+  // MAX_PATHS_EXPLORED bounds total DFS work regardless of graph shape, so
+  // this must render promptly instead of hanging the page.
+  it("stays responsive on a densely-linked causal graph via the path-exploration budget", () => {
+    // Depth is already bounded to MAX_CHAIN_DEPTH (8) regardless of LAYERS,
+    // so branching alone must be enough to matter: 8 wide x 7 remaining
+    // levels after the root is ~8^7 ~ 2,097,152 paths per root, x8 roots ~
+    // 16.8M -- without the budget this either times out this test (Vitest's
+    // default 5s) or takes many seconds; with it, this must stay fast. A
+    // narrower graph wouldn't actually exercise the budget: dominoChains is
+    // unconditionally .slice(0, 5)'d, so a chain-count assertion alone can't
+    // tell "the budget capped this" apart from "there just weren't many
+    // paths" -- the wall-clock assertion below is what actually tests it.
+    const LAYERS = 9
+    const WIDTH = 8
+    const risks = []
+    const riskLinks = []
+    for (let layer = 0; layer < LAYERS; layer++) {
+      for (let node = 0; node < WIDTH; node++) {
+        const ref = `L${layer}-${node}`
+        risks.push(makeRisk({ id: ref, ref }))
+        if (layer > 0) {
+          for (let prevNode = 0; prevNode < WIDTH; prevNode++) {
+            riskLinks.push({
+              source_ref: `L${layer - 1}-${prevNode}`,
+              target_ref: ref,
+              link_type: "CAUSES",
+            })
+          }
+        }
+      }
+    }
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: risks },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: { data: { riskLinks } },
+      isLoading: false,
+    })
+
+    const start = performance.now()
+    render(<RiskGraphPage />, withRouter)
+    const elapsed = performance.now() - start
+
+    // The budget's whole point is bounding total DFS work to a constant --
+    // this graph's unbounded path count (~16.8M) would take vastly longer
+    // than this without it.
+    expect(elapsed).toBeLessThan(2000)
+
+    const toggle = screen.getByRole("button", {
+      name: /organization\.riskGraph\.dominoScenarios/,
+    })
+    // Still bounded to the top-5 chains regardless of how many the budget
+    // let it explore.
+    expect(toggle).toHaveTextContent(/\((?:[0-5])\)/)
+  })
+
+  // aexa-frontend#577 round 7 review: the root-restriction above assumes a
+  // chain's total impact only ever grows as it extends, which is only true
+  // if financial_impact_max can't be negative -- but the form has no
+  // min/validate rule on it (a plain number field), so a saved risk really
+  // can carry one. Without clamping each node's contribution to >= 0, a
+  // root's real chain (e.g. R(-1000) -> A(50) -> B(50) -> C(50)) could sum
+  // to less than a mid-graph suffix the root-restriction now skips
+  // exploring (A -> B -> C, without R's negative value dragging it down),
+  // silently reporting the wrong (or a negative-total) chain.
+  it("clamps a negative financial_impact_max to 0 so a root's real chain isn't scored below what a skipped mid-graph suffix would have been", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            id: "root",
+            ref: "RISK-ROOT",
+            financial_impact_max: -1000000,
+          }),
+          makeRisk({ id: "a", ref: "RISK-A", financial_impact_max: 200000 }),
+          makeRisk({ id: "b", ref: "RISK-B", financial_impact_max: 200000 }),
+          makeRisk({ id: "c", ref: "RISK-C", financial_impact_max: 200000 }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: [
+            {
+              source_ref: "RISK-ROOT",
+              target_ref: "RISK-A",
+              link_type: "CAUSES",
+            },
+            { source_ref: "RISK-A", target_ref: "RISK-B", link_type: "CAUSES" },
+            { source_ref: "RISK-B", target_ref: "RISK-C", link_type: "CAUSES" },
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />, withRouter)
+
+    const toggle = screen.getByRole("button", {
+      name: /organization\.riskGraph\.dominoScenarios/,
+    })
+    expect(toggle).toHaveTextContent("(1)")
+
+    const dominoPanel = toggle.closest(".rounded-xl") as HTMLElement
+    // The root's real chain (all 4 refs) is still found, and its total
+    // (600.0M€ = 0 clamped + 200k*3, in k€) is never negative despite the
+    // root's -1000000 raw value.
+    expect(
+      within(dominoPanel)
+        .getAllByTitle(/^RISK-/)
+        .map((el) => el.title)
+    ).toEqual(["RISK-ROOT", "RISK-A", "RISK-B", "RISK-C"])
+    expect(within(dominoPanel).getByText("600.0M€")).toBeInTheDocument()
+  })
+
+  // aexa-frontend#577 round 7 review: restricting DFS starts to nodes with
+  // no incoming link misses a real chain when a cycle has no true root of
+  // its own but still has an acyclic exit -- e.g. A->B->C->A (a closed
+  // loop, so A/B/C all have an incoming link and none qualifies as a root)
+  // plus C->D (a real, non-cyclic terminus). The old pre-root-restriction
+  // DFS found this by starting from every outgoing-edge node; a naive
+  // root-only restriction would silently drop it. The second DFS pass
+  // (starting from any outgoing-edge node no root's traversal ever reached)
+  // exists specifically to catch this.
+  it("still finds the acyclic tail past a cycle that has no true root of its own", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "a", ref: "RISK-A" }),
+          makeRisk({ id: "b", ref: "RISK-B" }),
+          makeRisk({ id: "c", ref: "RISK-C" }),
+          makeRisk({ id: "d", ref: "RISK-D" }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: [
+            { source_ref: "RISK-A", target_ref: "RISK-B", link_type: "CAUSES" },
+            { source_ref: "RISK-B", target_ref: "RISK-C", link_type: "CAUSES" },
+            { source_ref: "RISK-C", target_ref: "RISK-A", link_type: "CAUSES" },
+            { source_ref: "RISK-C", target_ref: "RISK-D", link_type: "CAUSES" },
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />, withRouter)
+
+    const toggle = screen.getByRole("button", {
+      name: /organization\.riskGraph\.dominoScenarios/,
+    })
+    expect(toggle).toHaveTextContent("(1)")
+
+    const dominoPanel = toggle.closest(".rounded-xl") as HTMLElement
+    expect(
+      within(dominoPanel)
+        .getAllByTitle(/^RISK-/)
+        .map((el) => el.title)
+    ).toEqual(["RISK-A", "RISK-B", "RISK-C", "RISK-D"])
+  })
+
   // aexa-frontend#473 -- h1 used to be followed directly by h3s with no h2
   // in between, breaking heading-level order for screen readers.
   it("has an h2 between the page h1 and its h3 section headings", () => {
     render(<RiskGraphPage />, withRouter)
 
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument()
-    expect(
-      screen.getAllByRole("heading", { level: 2 }).length
-    ).toBeGreaterThan(0)
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(
+      0
+    )
   })
 
   // aexa-frontend#497 -- graph nodes were plain <g onClick> elements with no
@@ -656,7 +904,10 @@ describe("RiskGraphPage", () => {
   // aexa-frontend#575 review: a site-filtered-to-zero-risks state rendered a
   // blank canvas with no explanation.
   it("shows an empty-state message when no risks match the current filters", () => {
-    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
     render(<RiskGraphPage />, withRouter)
     expect(
       screen.getByText("organization.riskGraph.emptyState")
@@ -682,7 +933,11 @@ describe("RiskGraphPage", () => {
         data: {
           riskLinks: [
             { source_ref: "RISK-A", target_ref: "RISK-B", link_type: "CAUSES" },
-            { source_ref: "RISK-B", target_ref: "RISK-C", link_type: "CORRELATES" },
+            {
+              source_ref: "RISK-B",
+              target_ref: "RISK-C",
+              link_type: "CORRELATES",
+            },
           ],
         },
       },
@@ -722,9 +977,8 @@ describe("RiskGraphPage", () => {
       })
       const { container } = render(<RiskGraphPage />, withRouter)
 
-      const initialTransform = getTransformGroup(container).getAttribute(
-        "transform"
-      )
+      const initialTransform =
+        getTransformGroup(container).getAttribute("transform")
       expect(initialTransform).toBe("translate(0 0) scale(1)")
 
       await userEvent.click(
@@ -732,9 +986,8 @@ describe("RiskGraphPage", () => {
           name: "organization.riskGraph.zoomIn",
         })
       )
-      const zoomedInTransform = getTransformGroup(container).getAttribute(
-        "transform"
-      )
+      const zoomedInTransform =
+        getTransformGroup(container).getAttribute("transform")
       expect(zoomedInTransform).not.toBe(initialTransform)
       expect(zoomedInTransform).toMatch(/scale\(1\.2\)/)
 
@@ -752,9 +1005,8 @@ describe("RiskGraphPage", () => {
           name: "organization.riskGraph.zoomOut",
         })
       )
-      const zoomedOutTransform = getTransformGroup(container).getAttribute(
-        "transform"
-      )
+      const zoomedOutTransform =
+        getTransformGroup(container).getAttribute("transform")
       expect(zoomedOutTransform).not.toBe(initialTransform)
       // 1 * (1/1.2) -- zoomOut uses the reciprocal factor of zoomIn's.
       expect(zoomedOutTransform).toMatch(/scale\(0\.8\d*\)/)
@@ -996,26 +1248,34 @@ describe("RiskGraphPage", () => {
         name: /organization\.riskCategories/,
       })
       expect(chips).toHaveLength(2)
-      chips.forEach((chip) => expect(chip).toHaveAttribute("aria-pressed", "true"))
+      chips.forEach((chip) =>
+        expect(chip).toHaveAttribute("aria-pressed", "true")
+      )
 
       // Both nodes present before any toggle.
-      expect(screen.getByRole("button", { name: /^Risk RISK-A/ })).toBeInTheDocument()
-      expect(screen.getByRole("button", { name: /^Risk RISK-B/ })).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", { name: /^Risk RISK-A/ })
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", { name: /^Risk RISK-B/ })
+      ).toBeInTheDocument()
 
-      const cyberChip = chips.find((c) =>
-        c.textContent?.includes("catCyber")
-      )!
+      const cyberChip = chips.find((c) => c.textContent?.includes("catCyber"))!
       await userEvent.click(cyberChip)
 
       expect(cyberChip).toHaveAttribute("aria-pressed", "false")
       expect(
         screen.queryByRole("button", { name: /^Risk RISK-A/ })
       ).not.toBeInTheDocument()
-      expect(screen.getByRole("button", { name: /^Risk RISK-B/ })).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", { name: /^Risk RISK-B/ })
+      ).toBeInTheDocument()
 
       await userEvent.click(cyberChip)
       expect(cyberChip).toHaveAttribute("aria-pressed", "true")
-      expect(screen.getByRole("button", { name: /^Risk RISK-A/ })).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", { name: /^Risk RISK-A/ })
+      ).toBeInTheDocument()
     })
 
     it("resets the view when a category is toggled, same as a site filter change", async () => {
