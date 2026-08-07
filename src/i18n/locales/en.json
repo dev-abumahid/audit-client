@@ -1284,7 +1284,8 @@
       "exportPng": "Export as PNG",
       "exportSvg": "Export as SVG",
       "exportCsv": "Export data (CSV)",
-      "exportPngFailed": "Couldn't export the graph as a PNG. Try again, or use Export as SVG instead."
+      "exportPngFailed": "Couldn't export the graph as a PNG. Try again, or use Export as SVG instead.",
+      "minimapLabel": "Minimap. Click anywhere to jump the main view there, or press Enter to reset to the full view."
     },
     "settings": {
       "passwordChange": {

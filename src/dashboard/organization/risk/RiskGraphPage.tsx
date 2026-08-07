@@ -41,6 +41,14 @@ import { toast } from "sonner"
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 3
 const DEFAULT_VIEW = { scale: 1, x: 0, y: 0 }
+// aexa-frontend#577: a small graph already fits the viewport at scale 1 --
+// a minimap only earns its screen space (and the visual clutter of an
+// extra overlay) once there's actually more graph than the viewport can
+// show at once, which is what makes navigating it hard enough to want an
+// overview in the first place.
+const MINIMAP_MIN_RISKS = 9
+const MINIMAP_WIDTH = 140
+const MINIMAP_HEIGHT = 100
 // aexa-frontend#577: mouse-drag/touch-drag panning had no keyboard
 // equivalent -- a keyboard-only user could zoom (the +/- buttons are
 // already real, tabbable buttons) but had no way to pan at all once
@@ -368,6 +376,7 @@ export default function RiskGraphPage() {
   // and drag handlers below.
   const [view, setView] = useState(DEFAULT_VIEW)
   const svgRef = useRef<SVGSVGElement>(null)
+  const minimapRef = useRef<SVGSVGElement>(null)
   const panState = useRef<{
     startX: number
     startY: number
@@ -789,6 +798,43 @@ export default function RiskGraphPage() {
         e.preventDefault()
         setView(DEFAULT_VIEW)
         break
+    }
+  }
+
+  // Jumps the main view so the clicked minimap point becomes the new
+  // viewport center, at the current zoom level -- a single click to
+  // recenter on a distant cluster, rather than requiring several drags
+  // across a zoomed-in graph to get there.
+  function handleMinimapClick(e: React.MouseEvent<SVGSVGElement>) {
+    if (!minimapRef.current) return
+    const rect = minimapRef.current.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) return
+    // The minimap's own viewBox spans the full graph content space
+    // (0..graphWidth, 0..graphHeight), so converting a click's rendered
+    // pixel position back to content coordinates is the same ratio as the
+    // main graph's own unitsPerPixel conversions elsewhere in this file.
+    const contentX = ((e.clientX - rect.left) / rect.width) * graphWidth
+    const contentY = ((e.clientY - rect.top) / rect.height) * graphHeight
+    setView((v) => ({
+      ...v,
+      x: graphWidth / 2 - contentX * v.scale,
+      y: graphHeight / 2 - contentY * v.scale,
+    }))
+  }
+
+  // aexa-frontend#577 round-10 review: click-to-jump is inherently a
+  // pointer gesture (it targets an arbitrary 2D point), so there's no
+  // literal keyboard equivalent -- but the minimap still needs to be a
+  // reachable, operable control for a keyboard-only user, not a role="img"
+  // graphic they can't act on at all (the graph itself is already fully
+  // keyboard-operable via arrow-key pan and +/-/0 zoom, round 8). Enter/
+  // Space here reset to the default (full, centered) view -- "jump to the
+  // overview" is the closest keyboard-reachable equivalent of "click the
+  // minimap to jump somewhere."
+  function handleMinimapKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault()
+      setView(DEFAULT_VIEW)
     }
   }
 
@@ -1536,6 +1582,65 @@ export default function RiskGraphPage() {
               <Maximize className="h-4 w-4" />
             </button>
           </div>
+          {/* Minimap -- only past MINIMAP_MIN_RISKS risks, per the constant's
+              own comment. The viewport rectangle is derived from `view` by
+              inverting the same translate/scale transform the main <g>
+              below uses: a screen point at the viewBox's (0,0)/(graphWidth,
+              graphHeight) corners maps back to content coordinates
+              (-view.x/view.scale) and ((graphWidth-view.x)/view.scale), so
+              the visible region's origin and size are -view.x/view.scale,
+              -view.y/view.scale, graphWidth/view.scale, graphHeight/
+              view.scale. */}
+          {filteredRisks.length > MINIMAP_MIN_RISKS && (
+            <div className="absolute top-4 right-4 overflow-hidden rounded-lg border border-border bg-card/90 shadow-md">
+              <svg
+                ref={minimapRef}
+                viewBox={`0 0 ${graphWidth} ${graphHeight}`}
+                width={MINIMAP_WIDTH}
+                height={MINIMAP_HEIGHT}
+                role="button"
+                tabIndex={0}
+                aria-label={t("organization.riskGraph.minimapLabel")}
+                className="focus-ring-svg cursor-pointer"
+                onClick={handleMinimapClick}
+                onKeyDown={handleMinimapKeyDown}
+              >
+                <rect
+                  x={0}
+                  y={0}
+                  width={graphWidth}
+                  height={graphHeight}
+                  fill="transparent"
+                />
+                {filteredRisks.map((risk) => {
+                  const pos = positions[risk.ref]
+                  if (!pos) return null
+                  const catColor =
+                    RISK_CATEGORIES[risk.category]?.color ||
+                    "hsl(220, 10%, 46%)"
+                  return (
+                    <circle
+                      key={risk.ref}
+                      cx={pos.x}
+                      cy={pos.y}
+                      r={Math.max(graphWidth, graphHeight) * 0.012}
+                      fill={catColor}
+                    />
+                  )
+                })}
+                <rect
+                  x={-view.x / view.scale}
+                  y={-view.y / view.scale}
+                  width={graphWidth / view.scale}
+                  height={graphHeight / view.scale}
+                  fill="hsl(var(--primary) / 0.15)"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={Math.max(graphWidth, graphHeight) * 0.006}
+                  pointerEvents="none"
+                />
+              </svg>
+            </div>
+          )}
         </div>
 
         {/* Side panel */}

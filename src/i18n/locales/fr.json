@@ -1284,7 +1284,8 @@
       "exportPng": "Exporter en PNG",
       "exportSvg": "Exporter en SVG",
       "exportCsv": "Exporter les données (CSV)",
-      "exportPngFailed": "Impossible d'exporter le graphe en PNG. Réessayez, ou utilisez plutôt l'export SVG."
+      "exportPngFailed": "Impossible d'exporter le graphe en PNG. Réessayez, ou utilisez plutôt l'export SVG.",
+      "minimapLabel": "Mini-carte. Cliquez n'importe où pour y déplacer la vue principale, ou appuyez sur Entrée pour réinitialiser la vue complète."
     },
     "settings": {
       "passwordChange": {

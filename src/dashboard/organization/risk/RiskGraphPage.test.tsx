@@ -1676,6 +1676,143 @@ describe("RiskGraphPage", () => {
     })
   })
 
+  // aexa-frontend#577 round 10: a small graph already fits the viewport at
+  // scale 1 -- once there's more graph than the viewport can show at once
+  // (many risks, likely zoomed/panned around), there was no overview of
+  // where the current viewport sits relative to the whole graph.
+  describe("minimap (#577 round 10)", () => {
+    function manyRisks(count: number) {
+      return Array.from({ length: count }, (_, i) =>
+        makeRisk({ id: `node-${i}`, ref: `RISK-${i}` })
+      )
+    }
+
+    function getMainGraphViewBoxSize() {
+      const mainSvg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      const [, , width, height] = (mainSvg.getAttribute("viewBox") ?? "")
+        .split(" ")
+        .map(Number)
+      return { width, height }
+    }
+
+    it("does not render a minimap for a graph small enough to already fit the viewport", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: manyRisks(9) },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      expect(
+        screen.queryByLabelText("organization.riskGraph.minimapLabel")
+      ).not.toBeInTheDocument()
+    })
+
+    it("renders a minimap with one dot per risk and a viewport rectangle once there are enough risks", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: manyRisks(10) },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const minimap = screen.getByLabelText(
+        "organization.riskGraph.minimapLabel"
+      )
+      expect(minimap.querySelectorAll("circle")).toHaveLength(10)
+
+      // The viewport rectangle (the last <rect>, after the transparent
+      // background one) must match the main graph's own viewBox exactly
+      // at the default (unzoomed, unpanned) view -- the whole graph is
+      // the visible viewport.
+      const { width, height } = getMainGraphViewBoxSize()
+      const rects = minimap.querySelectorAll("rect")
+      const viewportRect = rects[rects.length - 1]
+      // -view.x/view.scale at the default view.x=0 is JS's negative zero,
+      // which stringifies to "0" (String(-0) === "0"), not "-0".
+      expect(viewportRect).toHaveAttribute("x", "0")
+      expect(viewportRect).toHaveAttribute("y", "0")
+      expect(viewportRect).toHaveAttribute("width", String(width))
+      expect(viewportRect).toHaveAttribute("height", String(height))
+    })
+
+    it("recenters the main view on the clicked minimap point", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: manyRisks(10) },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      const minimap = screen.getByLabelText(
+        "organization.riskGraph.minimapLabel"
+      ) as unknown as SVGSVGElement
+      // jsdom's getBoundingClientRect returns all zeros by default, which
+      // handleMinimapClick treats as "not yet laid out" and ignores --
+      // mock a real rendered size so the click math actually runs.
+      vi.spyOn(minimap, "getBoundingClientRect").mockReturnValue({
+        left: 0,
+        top: 0,
+        width: 140,
+        height: 100,
+        right: 140,
+        bottom: 100,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      })
+
+      // Clicking the minimap's top-left corner (content coordinate 0,0)
+      // should recenter the main view so that point becomes the new
+      // viewport center: x = graphWidth/2, y = graphHeight/2, at the
+      // unchanged (default) scale.
+      fireEvent.click(minimap, { clientX: 0, clientY: 0 })
+
+      const { width, height } = getMainGraphViewBoxSize()
+      const group = container.querySelector("svg > g[transform]")!
+      expect(group.getAttribute("transform")).toBe(
+        `translate(${width / 2} ${height / 2}) scale(1)`
+      )
+    })
+
+    // aexa-frontend#577 round-10 review: click-to-jump is inherently a
+    // pointer gesture with no literal keyboard equivalent, but the minimap
+    // still needs to be a reachable, operable control -- not a role="img"
+    // graphic a keyboard-only user can't act on at all (the graph itself
+    // is already fully keyboard-operable via round 8's arrow-key pan and
+    // +/-/0 zoom).
+    it("is keyboard-focusable and resets the view on Enter", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: manyRisks(10) },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      // Zoom in first so there's an actual view to reset -- otherwise
+      // Enter resetting to the already-default view wouldn't distinguish
+      // "it did something" from "it did nothing".
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskGraph.zoomIn" })
+      )
+      const zoomedTransform = container
+        .querySelector("svg > g[transform]")!
+        .getAttribute("transform")
+      expect(zoomedTransform).not.toBe("translate(0 0) scale(1)")
+
+      const minimap = screen.getByLabelText(
+        "organization.riskGraph.minimapLabel"
+      )
+      expect(minimap.tagName.toLowerCase()).toBe("svg")
+      expect((minimap as unknown as HTMLElement).tabIndex).toBe(0)
+
+      fireEvent.keyDown(minimap, { key: "Enter" })
+
+      expect(
+        container.querySelector("svg > g[transform]")!.getAttribute("transform")
+      ).toBe("translate(0 0) scale(1)")
+    })
+  })
+
   // aexa-frontend#577 round 4: RISK_CATEGORIES already drove node color and
   // the category-clustered layout, but there was no way to isolate or hide
   // a category -- only the site filter existed.
