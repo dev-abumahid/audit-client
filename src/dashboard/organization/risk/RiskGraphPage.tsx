@@ -1,4 +1,10 @@
 import SiteFilter from "@/components/dashboard/organization/SiteFilter"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useGetCorrelationMatrixDataQuery } from "@/redux/apis/organization/riskLink.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import type { Risk, RiskLink, RiskLinkType } from "@/types/organization"
@@ -15,6 +21,10 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronUp,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  Image as ImageIcon,
   Loader2,
   Maximize,
   Search,
@@ -26,6 +36,7 @@ import {
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
+import { toast } from "sonner"
 
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 3
@@ -765,6 +776,202 @@ export default function RiskGraphPage() {
     }
   }
 
+  // aexa-frontend#577: every reference graph-viz tool in the original
+  // research (Cytoscape, Gephi, Neo4j Bloom) supports exporting the current
+  // view as an image and the underlying data as a table -- this graph had
+  // neither, so a risk manager wanting to drop the dependency graph into a
+  // board deck or hand the risk list to someone in Excel had no way to.
+  function triggerDownload(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  // Recursively copies each element's actually-rendered style (fill,
+  // stroke, font, etc.) from the live DOM onto the matching node in a
+  // detached clone, as inline `style`. This is the one thing that makes
+  // the clone renderable as a standalone file: most of the graph's colors
+  // come from Tailwind utility classes (fill-foreground, bg-risk-critical
+  // via the .stroke-current pattern, etc.) whose actual CSS rules live in
+  // the app's compiled stylesheet, which an exported SVG/PNG obviously
+  // doesn't carry with it -- and the handful of colors set as literal
+  // hsl(var(--x)) attributes (RiskGraphNode's selection ring, cascade/link
+  // colors) reference custom properties defined on :root, which are
+  // equally absent outside this document. getComputedStyle resolves both
+  // to their actual rendered value (e.g. "rgb(16, 139, 116)"), which is
+  // theme-correct (light/dark) and needs no separate <style>/token setup
+  // in the export.
+  function inlineComputedStyles(source: Element, clone: Element) {
+    const computed = getComputedStyle(source)
+    const styleProps = [
+      "fill",
+      "stroke",
+      "stroke-width",
+      "stroke-opacity",
+      "stroke-dasharray",
+      "fill-opacity",
+      "opacity",
+      "font-family",
+      "font-size",
+      "font-weight",
+      "text-anchor",
+    ]
+    // Preserve whatever inline style cloneNode already carried over (e.g.
+    // the root <svg>'s own style={{ minHeight: 400 }}) instead of
+    // overwriting it -- harmless today since width/height get set
+    // explicitly afterward regardless, but there's no reason to clobber it.
+    let styleText = clone.getAttribute("style") ?? ""
+    if (styleText && !styleText.endsWith(";")) styleText += ";"
+    for (const prop of styleProps) {
+      const value = computed.getPropertyValue(prop)
+      if (value) styleText += `${prop}:${value};`
+    }
+    if (styleText) clone.setAttribute("style", styleText)
+    // Pairs children by index rather than identity -- only safe because
+    // `clone` is a cloneNode(true) of `source` taken (and walked) in the
+    // same synchronous call, so the two trees are still structurally
+    // identical. Do not call this across a render/await boundary (e.g.
+    // after a state update that could change selectedRisk/cascadeRefs and
+    // thus which conditional children exist) -- the index pairing would
+    // silently misapply styles to the wrong sibling with no error.
+    for (let i = 0; i < source.children.length; i++) {
+      const sourceChild = source.children[i]
+      const cloneChild = clone.children[i]
+      if (sourceChild && cloneChild) {
+        inlineComputedStyles(sourceChild, cloneChild)
+      }
+    }
+  }
+
+  // Builds a standalone, self-contained SVG document string from the live
+  // graph -- shared by both the SVG and PNG export paths below (PNG just
+  // rasterizes this via an <img>/<canvas> round-trip).
+  function buildExportSvgString(): string | null {
+    if (!svgRef.current) return null
+    const clone = svgRef.current.cloneNode(true) as SVGSVGElement
+    inlineComputedStyles(svgRef.current, clone)
+    clone.setAttribute("width", String(graphWidth))
+    clone.setAttribute("height", String(graphHeight))
+    // The live <svg> has no background of its own (it's transparent, and
+    // relies on the surrounding card's bg-card) -- without one, an
+    // exported file opened outside the app renders dark theme text/shapes
+    // on a transparent (usually white, in most viewers) background.
+    const cardHsl = getComputedStyle(document.documentElement)
+      .getPropertyValue("--card")
+      .trim()
+    const background = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "rect"
+    )
+    background.setAttribute("width", "100%")
+    background.setAttribute("height", "100%")
+    background.setAttribute("fill", cardHsl ? `hsl(${cardHsl})` : "white")
+    clone.insertBefore(background, clone.firstChild)
+    const serialized = new XMLSerializer().serializeToString(clone)
+    return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${serialized}`
+  }
+
+  function exportGraphAsSvg() {
+    const svgString = buildExportSvgString()
+    if (!svgString) return
+    const blob = new Blob([svgString], {
+      type: "image/svg+xml;charset=utf-8",
+    })
+    triggerDownload(blob, "risk-graph.svg")
+  }
+
+  function exportGraphAsPng() {
+    const svgString = buildExportSvgString()
+    if (!svgString) return
+    const svgBlob = new Blob([svgString], {
+      type: "image/svg+xml;charset=utf-8",
+    })
+    const url = URL.createObjectURL(svgBlob)
+    const image = new Image()
+    image.onload = () => {
+      // 2x the graph's own coordinate size for a crisp export regardless
+      // of the browser's current on-screen render size (which shrinks to
+      // fit its container width, per computeRiskGraphLayout).
+      const scaleFactor = 2
+      const canvas = document.createElement("canvas")
+      canvas.width = graphWidth * scaleFactor
+      canvas.height = graphHeight * scaleFactor
+      const ctx = canvas.getContext("2d")
+      URL.revokeObjectURL(url)
+      if (!ctx) return
+      ctx.scale(scaleFactor, scaleFactor)
+      ctx.drawImage(image, 0, 0, graphWidth, graphHeight)
+      canvas.toBlob((blob) => {
+        if (blob) triggerDownload(blob, "risk-graph.png")
+      }, "image/png")
+    }
+    // Without this, a decode failure (malformed SVG from an edge case
+    // inlineComputedStyles doesn't handle, or a browser refusing to
+    // rasterize it) leaked the blob URL for the tab's lifetime and left
+    // the user thinking the export just silently did nothing.
+    image.onerror = () => {
+      URL.revokeObjectURL(url)
+      toast.error(t("organization.riskGraph.exportPngFailed"))
+    }
+    image.src = url
+  }
+
+  // risk.ref/name/category are free text from the Risk Register, not
+  // sanitized before this export -- a cell starting with =, +, -, or @
+  // executes as a formula when the CSV is opened in Excel/LibreOffice
+  // ("CSV injection"), e.g. a risk named =HYPERLINK("http://evil","x").
+  // Prefixing with a leading apostrophe is the standard mitigation: Excel
+  // treats a leading `'` as "force text" and doesn't display it, so a
+  // legitimate risk name is unaffected.
+  //
+  // Text fields only, not the numeric columns below: a leading `-` also
+  // matches this same regex, and financial_impact_min/max have no
+  // min="0" constraint in the risk form -- a legitimately negative value
+  // would otherwise get force-text-prefixed too, silently turning a real
+  // number column into text in the exported spreadsheet (breaks
+  // SUM/sorting-as-number) for a value that was never attacker-controlled
+  // input in the first place.
+  function csvTextField(value: string) {
+    const escaped = /^[=+\-@]/.test(value) ? `'${value}` : value
+    return /[",\n]/.test(escaped) ? `"${escaped.replace(/"/g, '""')}"` : escaped
+  }
+
+  // The graph's own data, not the full Risk Register export (a separate,
+  // already-existing concern) -- scoped to exactly what's visible on the
+  // current graph (respecting the site/category filters), with the same
+  // real computed PageRank the nodes themselves display.
+  function exportDataAsCsv() {
+    const header = [
+      "Ref",
+      "Name",
+      "Category",
+      "Financial Impact Min (k€)",
+      "Financial Impact Max (k€)",
+      "Probability (%)",
+      "PageRank",
+    ]
+    const rows = filteredRisks.map((risk) => [
+      csvTextField(risk.ref),
+      csvTextField(risk.name),
+      csvTextField(risk.category),
+      // Plain numbers, not user-editable free text -- no CSV-injection
+      // guard needed, and applying one would corrupt legitimate negative
+      // values (see csvTextField's comment above).
+      String(risk.financial_impact_min),
+      String(risk.financial_impact_max),
+      String(risk.probability),
+      getNormalizedPageRank(risk.ref).toFixed(0),
+    ])
+    const csv = [header, ...rows].map((row) => row.join(",")).join("\r\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    triggerDownload(blob, "risk-graph-data.csv")
+  }
+
   function handlePanStart(e: React.MouseEvent) {
     panState.current = {
       startX: e.clientX,
@@ -1010,12 +1217,37 @@ export default function RiskGraphPage() {
         {selectedRisk && (
           <button
             onClick={() => setSelectedRisk(null)}
-            className="ml-2 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
+            className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
           >
             <X className="h-3 w-3" />
             {t("organization.riskGraph.clearSelection")}
           </button>
         )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="focus-ring ml-auto flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-foreground hover:bg-muted"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {t("organization.riskGraph.export")}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={exportGraphAsPng}>
+              <ImageIcon className="h-3.5 w-3.5" />
+              {t("organization.riskGraph.exportPng")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportGraphAsSvg}>
+              <FileText className="h-3.5 w-3.5" />
+              {t("organization.riskGraph.exportSvg")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportDataAsCsv}>
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              {t("organization.riskGraph.exportCsv")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">

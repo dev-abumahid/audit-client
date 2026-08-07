@@ -1279,7 +1279,12 @@
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
       "resetZoom": "Reset zoom",
-      "graphKeyboardLabel": "Dependency graph. Use arrow keys to pan, plus and minus to zoom, and 0 to reset the view."
+      "graphKeyboardLabel": "Dependency graph. Use arrow keys to pan, plus and minus to zoom, and 0 to reset the view.",
+      "export": "Export",
+      "exportPng": "Export as PNG",
+      "exportSvg": "Export as SVG",
+      "exportCsv": "Export data (CSV)",
+      "exportPngFailed": "Couldn't export the graph as a PNG. Try again, or use Export as SVG instead."
     },
     "settings": {
       "passwordChange": {

@@ -1279,7 +1279,12 @@
       "zoomIn": "Zoom avant",
       "zoomOut": "Zoom arrière",
       "resetZoom": "Réinitialiser le zoom",
-      "graphKeyboardLabel": "Graphe de dépendances. Utilisez les flèches pour vous déplacer, plus et moins pour zoomer, et 0 pour réinitialiser la vue."
+      "graphKeyboardLabel": "Graphe de dépendances. Utilisez les flèches pour vous déplacer, plus et moins pour zoomer, et 0 pour réinitialiser la vue.",
+      "export": "Exporter",
+      "exportPng": "Exporter en PNG",
+      "exportSvg": "Exporter en SVG",
+      "exportCsv": "Exporter les données (CSV)",
+      "exportPngFailed": "Impossible d'exporter le graphe en PNG. Réessayez, ou utilisez plutôt l'export SVG."
     },
     "settings": {
       "passwordChange": {

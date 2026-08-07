@@ -1,6 +1,12 @@
 import { fireEvent, render, screen, within } from "@testing-library/react"
+import type React from "react"
 import { MemoryRouter } from "react-router"
+import { toast } from "sonner"
 import RiskGraphPage from "./RiskGraphPage"
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}))
 
 // aexa-frontend#550: the selected-risk detail heading is now a real <Link>,
 // so every render() needs a Router context.
@@ -56,6 +62,29 @@ vi.mock("@/components/dashboard/organization/SiteFilter", () => ({
     capturedSiteFilterOnChange = props.onChange
     return null
   },
+}))
+
+// Radix DropdownMenu needs pointer-capture APIs jsdom doesn't implement --
+// same pattern CompliancePage.test.tsx uses. Content is rendered
+// unconditionally (no open/closed simulation) so the export menu items are
+// directly queryable without needing to click the trigger first.
+vi.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuItem: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode
+    onClick?: (e: React.MouseEvent) => void
+  }) => <button onClick={onClick}>{children}</button>,
 }))
 
 function makeRisk(overrides = {}) {
@@ -1045,12 +1074,14 @@ describe("RiskGraphPage", () => {
       })
       const { container } = render(<RiskGraphPage />, withRouter)
 
-      // container.querySelector("svg") would match whichever <svg> comes
-      // first in the DOM -- often a lucide icon (e.g. the search input's
-      // Search icon), not the graph -- so derive the graph's own <svg> from
-      // its background rect instead.
-      const background = container.querySelector("svg > rect")!
-      const svg = background.closest("svg")!
+      // Not container.querySelector("svg > rect") -- lucide-react icons
+      // (round 9's export menu adds one, Image, whose icon literally is a
+      // rect) can also match "svg > rect", so the aria-label is the only
+      // selector that unambiguously identifies the graph's own <svg>.
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      const background = svg.querySelector("rect")!
       // jsdom's getBoundingClientRect returns all zeros -- the component
       // falls back to a 1:1 units-per-pixel ratio in that case, so a
       // 40px drag should translate to a 40-unit pan.
@@ -1092,8 +1123,10 @@ describe("RiskGraphPage", () => {
       })
       const { container } = render(<RiskGraphPage />, withRouter)
 
-      const background = container.querySelector("svg > rect")!
-      const svg = background.closest("svg")!
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      const background = svg.querySelector("rect")!
       fireEvent.touchStart(background, {
         touches: [{ clientX: 100, clientY: 100 }],
       })
@@ -1114,8 +1147,9 @@ describe("RiskGraphPage", () => {
       })
       const { container } = render(<RiskGraphPage />, withRouter)
 
-      const background = container.querySelector("svg > rect")!
-      const svg = background.closest("svg")!
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
       // Fingers start 100px apart, end 200px apart -- a 2x pinch-out should
       // double the scale (clamped at MAX_ZOOM=3, so 1 -> 2 stays under it).
       fireEvent.touchStart(svg, {
@@ -1144,8 +1178,10 @@ describe("RiskGraphPage", () => {
       })
       const { container } = render(<RiskGraphPage />, withRouter)
 
-      const background = container.querySelector("svg > rect")!
-      const svg = background.closest("svg")!
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      const background = svg.querySelector("rect")!
       fireEvent.touchStart(background, {
         touches: [{ clientX: 100, clientY: 100 }],
       })
@@ -1292,6 +1328,257 @@ describe("RiskGraphPage", () => {
           ) as HTMLElement & { tabIndex: number }
         ).tabIndex
       ).toBe(0)
+    })
+  })
+
+  // aexa-frontend#577 round 9: every reference graph-viz tool in the
+  // original research (Cytoscape, Gephi, Neo4j Bloom) supports exporting
+  // the current view as an image and the underlying data as a table --
+  // this graph had neither.
+  describe("export (#577 round 9)", () => {
+    // jsdom doesn't implement URL.createObjectURL, and clicking a real <a
+    // href> triggers jsdom's "not implemented: navigation" -- stub both so
+    // the download flow runs without either.
+    function stubDownload() {
+      const createObjectURLSpy = vi
+        .spyOn(URL, "createObjectURL")
+        .mockReturnValue("blob:mock-url")
+      const revokeObjectURLSpy = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => {})
+      let downloadedFilename = ""
+      const clickSpy = vi
+        .spyOn(HTMLAnchorElement.prototype, "click")
+        .mockImplementation(function (this: HTMLAnchorElement) {
+          downloadedFilename = this.download
+        })
+      return {
+        createObjectURLSpy,
+        getDownloadedFilename: () => downloadedFilename,
+        restore: () => {
+          createObjectURLSpy.mockRestore()
+          revokeObjectURLSpy.mockRestore()
+          clickSpy.mockRestore()
+        },
+      }
+    }
+
+    it("exports the graph as a standalone SVG file", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+      const download = stubDownload()
+
+      await userEvent.click(
+        screen.getByText("organization.riskGraph.exportSvg")
+      )
+
+      expect(download.getDownloadedFilename()).toBe("risk-graph.svg")
+      const blob = download.createObjectURLSpy.mock.calls[0][0] as Blob
+      expect(blob.type).toBe("image/svg+xml;charset=utf-8")
+      // Standalone (parseable outside the app, with its own explicit
+      // width/height -- the live <svg> only has a viewBox and relies on its
+      // CSS class for on-screen sizing) and includes the actual node data,
+      // not an empty shell.
+      const text = await blob.text()
+      expect(text).toContain('<?xml version="1.0"')
+      expect(text).toContain('width="')
+      expect(text).toContain("RSK-001")
+
+      download.restore()
+    })
+
+    it("exports the graph's underlying data as CSV, scoped to the current filters", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({
+              ref: "RSK-001",
+              name: "Supply, Chain Disruption",
+              category: "supply_chain",
+              financial_impact_min: 50000,
+              financial_impact_max: 200000,
+              probability: 60,
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+      const download = stubDownload()
+
+      await userEvent.click(
+        screen.getByText("organization.riskGraph.exportCsv")
+      )
+
+      expect(download.getDownloadedFilename()).toBe("risk-graph-data.csv")
+      const blob = download.createObjectURLSpy.mock.calls[0][0] as Blob
+      expect(blob.type).toBe("text/csv;charset=utf-8;")
+      const text = await blob.text()
+      const [header, row] = text.split("\r\n")
+      expect(header).toBe(
+        "Ref,Name,Category,Financial Impact Min (k€),Financial Impact Max (k€),Probability (%),PageRank"
+      )
+      // The risk's own name contains a comma -- must be quoted, not split
+      // into extra fields.
+      expect(row).toBe(
+        'RSK-001,"Supply, Chain Disruption",supply_chain,50000,200000,60,100'
+      )
+
+      download.restore()
+    })
+
+    it("kicks off a PNG export via an SVG-to-canvas round trip without throwing", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+      const createObjectURLSpy = vi
+        .spyOn(URL, "createObjectURL")
+        .mockReturnValue("blob:mock-url")
+      const revokeObjectURLSpy = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => {})
+
+      // jsdom doesn't actually decode images, so the onload -> canvas ->
+      // toBlob -> download tail of exportGraphAsPng never runs here -- this
+      // only exercises (and guards against a regression in) the part that
+      // does run synchronously: building the export SVG and handing it to
+      // the browser's image-loading pipeline.
+      await userEvent.click(
+        screen.getByText("organization.riskGraph.exportPng")
+      )
+
+      expect(createObjectURLSpy).toHaveBeenCalled()
+      const blob = createObjectURLSpy.mock.calls[0][0] as Blob
+      expect(blob.type).toBe("image/svg+xml;charset=utf-8")
+
+      createObjectURLSpy.mockRestore()
+      revokeObjectURLSpy.mockRestore()
+    })
+
+    // aexa-frontend#577 round-9 review: only image.onload was wired -- a
+    // decode failure left the object URL leaked (never revoked) and the
+    // user with zero feedback that the export silently did nothing.
+    it("revokes the object URL and shows an error toast if the PNG image fails to decode", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+      const createObjectURLSpy = vi
+        .spyOn(URL, "createObjectURL")
+        .mockReturnValue("blob:mock-url")
+      const revokeObjectURLSpy = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => {})
+      // jsdom never fires a real Image's onload/onerror -- stub the global
+      // so setting .src synchronously simulates a decode failure.
+      const OriginalImage = globalThis.Image
+      class FailingImage {
+        onload: (() => void) | null = null
+        onerror: (() => void) | null = null
+        set src(_value: string) {
+          this.onerror?.()
+        }
+      }
+      // @ts-expect-error -- deliberately narrower than the real Image type
+      globalThis.Image = FailingImage
+
+      await userEvent.click(
+        screen.getByText("organization.riskGraph.exportPng")
+      )
+
+      expect(revokeObjectURLSpy).toHaveBeenCalledWith("blob:mock-url")
+      expect(toast.error).toHaveBeenCalledWith(
+        "organization.riskGraph.exportPngFailed"
+      )
+
+      globalThis.Image = OriginalImage
+      createObjectURLSpy.mockRestore()
+      revokeObjectURLSpy.mockRestore()
+    })
+
+    // aexa-frontend#577 round-9 review: risk.name/category are free text
+    // from the Risk Register -- a cell starting with =/+/-/@ executes as a
+    // formula when the CSV is opened in Excel/LibreOffice ("CSV
+    // injection"), e.g. a risk literally named =HYPERLINK(...).
+    it("prefixes a CSV field starting with =, +, -, or @ with an apostrophe to prevent formula injection", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({
+              ref: "RSK-001",
+              name: '=HYPERLINK("http://evil.example","click me")',
+              category: "cyber",
+              probability: 60,
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+      const download = stubDownload()
+
+      await userEvent.click(
+        screen.getByText("organization.riskGraph.exportCsv")
+      )
+
+      const blob = download.createObjectURLSpy.mock.calls[0][0] as Blob
+      const text = await blob.text()
+      const [, row] = text.split("\r\n")
+      expect(row).toBe(
+        'RSK-001,"\'=HYPERLINK(""http://evil.example"",""click me"")",cyber,50000,200000,60,100'
+      )
+
+      download.restore()
+    })
+
+    // aexa-frontend#577 round-9 review, round 2: the formula-injection
+    // guard above was applied to every column, including the numeric
+    // financial-impact ones -- a leading "-" also matches the same
+    // =/+/-/@ regex, and the risk form has no min="0" constraint on those
+    // fields, so a legitimately negative value got force-text-prefixed
+    // too, silently corrupting the exported column's numeric type even
+    // though the value was never attacker-controlled free text.
+    it("does not apostrophe-prefix a legitimately negative financial impact value", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({
+              ref: "RSK-001",
+              financial_impact_min: -500,
+              financial_impact_max: -100,
+              probability: 60,
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+      const download = stubDownload()
+
+      await userEvent.click(
+        screen.getByText("organization.riskGraph.exportCsv")
+      )
+
+      const blob = download.createObjectURLSpy.mock.calls[0][0] as Blob
+      const text = await blob.text()
+      const [, row] = text.split("\r\n")
+      expect(row).toBe(
+        "RSK-001,Supply Chain Disruption,supply_chain,-500,-100,60,100"
+      )
+
+      download.restore()
     })
   })
 
