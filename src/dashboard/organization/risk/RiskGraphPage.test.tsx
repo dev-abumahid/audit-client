@@ -977,6 +977,56 @@ describe("RiskGraphPage", () => {
         `translate(${expectedX} ${expectedY}) scale(1)`
       )
     })
+
+    // aexa-frontend#577 round 20 (round 17/19 judge review): Escape had no
+    // effect on this input -- it only ever cleared selectedRisk via a
+    // handler on a different element entirely (the graph panel div).
+    it("closes the results dropdown on Escape", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001", name: "Warehouse Fire" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const searchInput = screen.getByRole("combobox", {
+        name: "organization.riskGraph.searchLabel",
+      })
+      await userEvent.type(searchInput, "Warehouse")
+      expect(screen.getByRole("listbox")).toBeInTheDocument()
+
+      await userEvent.keyboard("{Escape}")
+
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+      expect(searchInput).toHaveValue("")
+    })
+
+    // aexa-frontend#577 round 20 (round 17/19 judge review): the dropdown
+    // had no height cap, so with enough matches it could grow tall enough to
+    // visually overlap the graph canvas below -- clicks in that overlap hit
+    // the canvas (and its background-click deselect) instead of the covered
+    // result. max-h-64/overflow-y-auto makes the overlap structurally
+    // impossible, the same cap the correlations list already uses.
+    it("caps the results dropdown's height instead of letting it grow tall enough to overlap the graph canvas", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: Array.from({ length: 8 }, (_, i) =>
+            makeRisk({ id: `r${i}`, ref: `MATCH-${i}`, name: "Match Risk" })
+          ),
+        },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const searchInput = screen.getByRole("combobox", {
+        name: "organization.riskGraph.searchLabel",
+      })
+      await userEvent.type(searchInput, "Match")
+
+      const dropdown = screen.getByRole("listbox")
+      expect(dropdown).toHaveClass("max-h-64", "overflow-y-auto")
+    })
   })
 
   // aexa-frontend#575 review: the legend documented edge colors and the
@@ -1768,6 +1818,33 @@ describe("RiskGraphPage", () => {
       expect(
         screen.getByLabelText("organization.riskGraph.graphKeyboardLabel")
       ).not.toBe(hintButton)
+    })
+
+    // aexa-frontend#577 round 20 (round 17 judge review): a `title`-only
+    // tooltip was a dead click (nothing visible happened) and unreachable on
+    // touch (no hover, no press-and-hold title support on most mobile
+    // browsers). Wrapping the button in this app's Popover component gives
+    // it a real, touch-reachable click affordance showing the same text.
+    it("opens a visible popover with the same shortcut text when the hint button is clicked", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const hintButton = screen.getByRole("button", {
+        name: "organization.riskGraph.keyboardHintAriaLabel",
+      })
+      expect(
+        screen.queryByText("organization.riskGraph.keyboardHintTooltip")
+      ).not.toBeInTheDocument()
+
+      await userEvent.click(hintButton)
+
+      expect(
+        screen.getByText("organization.riskGraph.keyboardHintTooltip")
+      ).toBeInTheDocument()
     })
   })
 
