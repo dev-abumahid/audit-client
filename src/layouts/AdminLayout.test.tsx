@@ -25,6 +25,11 @@ vi.mock("react-i18next", () => ({
 // ── sonner ────────────────────────────────────────────────────────────────────
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+// ── theme provider (ModeToggle's dependency) ────────────────────────────────────
+vi.mock("@/components/theme-provider", () => ({
+  useTheme: () => ({ theme: "system", setTheme: vi.fn() }),
+}))
+
 // ── react-router navigate ─────────────────────────────────────────────────────
 const mockNavigate = vi.fn()
 vi.mock("react-router", async (importOriginal) => {
@@ -115,6 +120,16 @@ describe("AdminLayout (aexa-frontend#248)", () => {
   it("does not render a non-functional header search box (aexa-frontend#385)", () => {
     renderAdminLayout()
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+  })
+
+  // The dashboard shell previously had no dark/light toggle at all, unlike
+  // the landing page's NavBar which has always rendered ModeToggle -- this
+  // was the only surface in the logged-in app with no way to switch themes.
+  it("renders a theme toggle in the header (dashboard dark/light parity)", () => {
+    renderAdminLayout()
+    expect(
+      screen.getAllByText("common.toggleTheme").length
+    ).toBeGreaterThan(0)
   })
 
   it("does not link the bell icon anywhere and shows no fake notification dot (aexa-frontend#365, #366)", () => {

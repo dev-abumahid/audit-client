@@ -1,3 +1,4 @@
+import { ModeToggle } from "@/components/mode-toggle"
 import LanguageSwitcher from "@/components/shared/LanguageSwitcher"
 import Logo from "@/components/shared/Logo"
 import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
@@ -312,6 +313,7 @@ export default function OrganizationLayout() {
           </div>
 
           <div className="flex items-center gap-3">
+            <ModeToggle />
             <LanguageSwitcher />
             <Link
               to="/organization/alerts"

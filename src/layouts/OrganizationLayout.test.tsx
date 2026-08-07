@@ -21,6 +21,11 @@ vi.mock("react-i18next", () => ({
 // ── sonner ────────────────────────────────────────────────────────────────────
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+// ── theme provider (ModeToggle's dependency) ────────────────────────────────────
+vi.mock("@/components/theme-provider", () => ({
+  useTheme: () => ({ theme: "system", setTheme: vi.fn() }),
+}))
+
 // ── react-router navigate ─────────────────────────────────────────────────────
 const mockNavigate = vi.fn()
 vi.mock("react-router", async (importOriginal) => {
@@ -57,6 +62,23 @@ function renderOrganizationLayout() {
     </MemoryRouter>
   )
 }
+
+// The dashboard shell previously had no dark/light toggle at all, unlike
+// the landing page's NavBar which has always rendered ModeToggle -- this was
+// the only surface in the logged-in app with no way to switch themes.
+describe("OrganizationLayout theme toggle", () => {
+  beforeEach(() => {
+    mockUseGetAllAlertsQuery.mockReset()
+    mockUseGetAllAlertsQuery.mockReturnValue({ data: { data: [] } })
+  })
+
+  it("renders a theme toggle in the header (dashboard dark/light parity)", () => {
+    renderOrganizationLayout()
+    expect(
+      screen.getAllByText("common.toggleTheme").length
+    ).toBeGreaterThan(0)
+  })
+})
 
 describe("OrganizationLayout logout (aexa-frontend#249)", () => {
   beforeEach(() => {

@@ -1,3 +1,4 @@
+import { ModeToggle } from "@/components/mode-toggle"
 import LanguageSwitcher from "@/components/shared/LanguageSwitcher"
 import Logo from "@/components/shared/Logo"
 import { baseApi } from "@/redux/baseApi"
@@ -235,6 +236,7 @@ export default function AdminLayout() {
           </div>
 
           <div className="flex items-center gap-3">
+            <ModeToggle />
             <LanguageSwitcher />
             {/* No admin alerts/notifications feature exists yet (there's no
                 /admin/alerts route and no admin notification state) -- this
