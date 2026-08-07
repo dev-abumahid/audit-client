@@ -30,6 +30,14 @@ import { Link } from "react-router"
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 3
 const DEFAULT_VIEW = { scale: 1, x: 0, y: 0 }
+// aexa-frontend#577: mouse-drag/touch-drag panning had no keyboard
+// equivalent -- a keyboard-only user could zoom (the +/- buttons are
+// already real, tabbable buttons) but had no way to pan at all once
+// zoomed in. Graph units, not screen pixels, so the step feels consistent
+// regardless of current zoom -- same reasoning as handlePanMove's own
+// unitsPerPixel conversion, just skipping the conversion since there's no
+// pixel delta to convert from a key press.
+const KEYBOARD_PAN_STEP = 40
 
 // aexa-frontend#577: the domino-chain DFS below explores every simple path
 // through the CAUSES/AMPLIFIES subgraph. Two independent safety valves,
@@ -715,6 +723,48 @@ export default function RiskGraphPage() {
     })
   }
 
+  // Arrow keys pan (like a map: Right reveals content further right, so
+  // the transform's x shifts left -- the opposite sign from dragging,
+  // which moves the content with the pointer); +/- zoom (mirrors the
+  // on-screen buttons); 0 resets (mirrors the reset-zoom button). Attached
+  // to the whole graph panel below, not just the <svg>, so it fires
+  // whether keyboard focus is on the canvas itself or on a node inside it
+  // -- a keyboard user tabbing onto a node still needs to pan around it.
+  function handleGraphKeyDown(e: React.KeyboardEvent) {
+    switch (e.key) {
+      case "ArrowUp":
+        e.preventDefault()
+        setView((v) => ({ ...v, y: v.y + KEYBOARD_PAN_STEP }))
+        break
+      case "ArrowDown":
+        e.preventDefault()
+        setView((v) => ({ ...v, y: v.y - KEYBOARD_PAN_STEP }))
+        break
+      case "ArrowLeft":
+        e.preventDefault()
+        setView((v) => ({ ...v, x: v.x + KEYBOARD_PAN_STEP }))
+        break
+      case "ArrowRight":
+        e.preventDefault()
+        setView((v) => ({ ...v, x: v.x - KEYBOARD_PAN_STEP }))
+        break
+      case "+":
+      case "=":
+        e.preventDefault()
+        zoomBy(1.2)
+        break
+      case "-":
+      case "_":
+        e.preventDefault()
+        zoomBy(1 / 1.2)
+        break
+      case "0":
+        e.preventDefault()
+        setView(DEFAULT_VIEW)
+        break
+    }
+  }
+
   function handlePanStart(e: React.MouseEvent) {
     panState.current = {
       startX: e.clientX,
@@ -976,7 +1026,10 @@ export default function RiskGraphPage() {
             this page's two top-level sections, so each gets its own
             visually-hidden h2 -- the h3s already inside them stay nested as
             they render today. */}
-        <div className="animate-slide-up relative rounded-xl border border-border bg-card p-4 xl:col-span-2">
+        <div
+          className="animate-slide-up relative rounded-xl border border-border bg-card p-4 xl:col-span-2"
+          onKeyDown={handleGraphKeyDown}
+        >
           <h2 className="sr-only">
             {t("organization.riskGraph.graphSectionHeading")}
           </h2>
@@ -991,8 +1044,10 @@ export default function RiskGraphPage() {
           <svg
             ref={svgRef}
             viewBox={`0 0 ${graphWidth} ${graphHeight}`}
-            className="h-auto w-full touch-none"
+            className="focus-ring-svg h-auto w-full touch-none"
             style={{ minHeight: 400 }}
+            tabIndex={0}
+            aria-label={t("organization.riskGraph.graphKeyboardLabel")}
             onMouseMove={handlePanMove}
             onMouseUp={handlePanEnd}
             onMouseLeave={handlePanEnd}

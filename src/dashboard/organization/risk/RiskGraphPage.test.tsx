@@ -1208,6 +1208,91 @@ describe("RiskGraphPage", () => {
         "translate(0 0) scale(1)"
       )
     })
+
+    // aexa-frontend#577 round 8: the +/- zoom buttons were real, tabbable
+    // buttons, but there was no keyboard equivalent for panning at all --
+    // a keyboard-only user could zoom in and then had no way to see
+    // anything outside the initial viewport.
+    it("pans via arrow keys, zooms via +/-, and resets via 0", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+      // Not container.querySelector("svg") -- lucide-react icons (Search,
+      // ZoomIn, the sidebar toggle, etc.) also render as raw <svg> tags, so
+      // an unqualified selector can grab an unrelated icon instead of the
+      // graph canvas. The aria-label uniquely identifies the real one.
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+
+      fireEvent.keyDown(svg, { key: "ArrowRight" })
+      // Right pans the viewport right (reveals content further right), the
+      // opposite sign from dragging -- same convention as a map, not a
+      // hand-drag.
+      expect(getTransformGroup(container).getAttribute("transform")).toBe(
+        "translate(-40 0) scale(1)"
+      )
+
+      fireEvent.keyDown(svg, { key: "ArrowDown" })
+      expect(getTransformGroup(container).getAttribute("transform")).toBe(
+        "translate(-40 -40) scale(1)"
+      )
+
+      fireEvent.keyDown(svg, { key: "ArrowLeft" })
+      fireEvent.keyDown(svg, { key: "ArrowUp" })
+      expect(getTransformGroup(container).getAttribute("transform")).toBe(
+        "translate(0 0) scale(1)"
+      )
+
+      fireEvent.keyDown(svg, { key: "+" })
+      expect(getTransformGroup(container).getAttribute("transform")).toMatch(
+        /scale\(1\.2\)/
+      )
+
+      fireEvent.keyDown(svg, { key: "0" })
+      expect(getTransformGroup(container).getAttribute("transform")).toBe(
+        "translate(0 0) scale(1)"
+      )
+
+      fireEvent.keyDown(svg, { key: "-" })
+      expect(getTransformGroup(container).getAttribute("transform")).toMatch(
+        /scale\(0\.8\d*\)/
+      )
+    })
+
+    // The handler is on the graph panel div, not just the <svg>, precisely
+    // so a keyboard user who tabbed onto a node (not the canvas itself)
+    // can still pan around it.
+    it("pans via arrow keys even when a graph node, not the canvas, has focus", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      fireEvent.keyDown(node, { key: "ArrowRight" })
+
+      expect(getTransformGroup(container).getAttribute("transform")).toBe(
+        "translate(-40 0) scale(1)"
+      )
+    })
+
+    it("gives the graph canvas a tabIndex and an aria-label describing the keyboard controls", () => {
+      render(<RiskGraphPage />, withRouter)
+      // tabIndex is a DOM property, not a plain HTML attribute (the actual
+      // attribute is lowercase "tabindex") -- toHaveAttribute("tabIndex")
+      // would silently never match.
+      expect(
+        (
+          screen.getByLabelText(
+            "organization.riskGraph.graphKeyboardLabel"
+          ) as HTMLElement & { tabIndex: number }
+        ).tabIndex
+      ).toBe(0)
+    })
   })
 
   // aexa-frontend#577 round 4: RISK_CATEGORIES already drove node color and

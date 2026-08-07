@@ -1278,7 +1278,8 @@
       "emptyState": "No risks match the current filters.",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
-      "resetZoom": "Reset zoom"
+      "resetZoom": "Reset zoom",
+      "graphKeyboardLabel": "Dependency graph. Use arrow keys to pan, plus and minus to zoom, and 0 to reset the view."
     },
     "settings": {
       "passwordChange": {

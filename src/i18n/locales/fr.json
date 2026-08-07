@@ -1278,7 +1278,8 @@
       "emptyState": "Aucun risque ne correspond aux filtres actuels.",
       "zoomIn": "Zoom avant",
       "zoomOut": "Zoom arrière",
-      "resetZoom": "Réinitialiser le zoom"
+      "resetZoom": "Réinitialiser le zoom",
+      "graphKeyboardLabel": "Graphe de dépendances. Utilisez les flèches pour vous déplacer, plus et moins pour zoomer, et 0 pour réinitialiser la vue."
     },
     "settings": {
       "passwordChange": {
