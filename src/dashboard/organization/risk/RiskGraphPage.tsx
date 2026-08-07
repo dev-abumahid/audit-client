@@ -7,7 +7,7 @@ import {
   computePageRank,
   topPercentileFromScores,
 } from "@/utils/pageRank"
-import { RISK_CATEGORIES } from "@/utils/riskConfig"
+import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
 import { computeRiskGraphLayout } from "@/utils/riskGraphLayout"
 import { severityBadgeClasses } from "@/utils/severityStyles"
 import {
@@ -101,6 +101,15 @@ export default function RiskGraphPage() {
     [correlationMatrixResponse]
   )
   const [siteFilter, setSiteFilter] = useState<string | null>(null)
+  // aexa-frontend#577: RISK_CATEGORIES already drives node color and the
+  // category-clustered layout (riskGraphLayout.ts), but there was no way to
+  // isolate or hide a category -- only the site filter existed. Categories
+  // *excluded* from view (empty = show all) rather than an included-set, so
+  // a newly-appearing category (e.g. after switching sites) defaults to
+  // visible instead of silently hidden.
+  const [excludedCategories, setExcludedCategories] = useState<Set<string>>(
+    new Set()
+  )
   const [selectedRisk, setSelectedRisk] = useState<string | null>(null)
   const [showDomino, setShowDomino] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -129,10 +138,41 @@ export default function RiskGraphPage() {
   } | null>(null)
 
   // Filter risks by site
-  const filteredRisks = useMemo(() => {
+  const siteFilteredRisks = useMemo(() => {
     if (!siteFilter) return risks
     return risks.filter((r) => r.site_id === siteFilter)
   }, [risks, siteFilter])
+
+  // Every category actually present in the current site's risks, in a
+  // stable order -- drives the filter chip row below. Computed from
+  // siteFilteredRisks (not the category-filtered result) so a category the
+  // user has hidden still shows its own chip to toggle back on.
+  const availableCategories = useMemo(
+    () => Array.from(new Set(siteFilteredRisks.map((r) => r.category))).sort(),
+    [siteFilteredRisks]
+  )
+
+  function toggleCategory(category: string) {
+    // Toggling a category reshuffles the whole category-ring layout
+    // (riskGraphLayout.ts), so the same reasoning as handleSiteFilterChange
+    // applies: reset the view rather than leave the user panned/zoomed into
+    // a region that no longer has anything at that position.
+    setView(DEFAULT_VIEW)
+    setExcludedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(category)) {
+        next.delete(category)
+      } else {
+        next.add(category)
+      }
+      return next
+    })
+  }
+
+  const filteredRisks = useMemo(() => {
+    if (excludedCategories.size === 0) return siteFilteredRisks
+    return siteFilteredRisks.filter((r) => !excludedCategories.has(r.category))
+  }, [siteFilteredRisks, excludedCategories])
 
   // RiskLink.source_ref/target_ref reference risks by their `ref` field
   // (e.g. "RISK-001"), not their uuid `id` -- confirmed against
@@ -325,6 +365,7 @@ export default function RiskGraphPage() {
   function handleSiteFilterChange(next: string | null) {
     setSiteFilter(next)
     setView(DEFAULT_VIEW)
+    setExcludedCategories(new Set())
   }
 
   // Native (non-passive) wheel listener, since React's onWheel is passive
@@ -481,9 +522,9 @@ export default function RiskGraphPage() {
     )
   }
 
-  const selectedRiskData = selectedRisk
-    ? filteredRisks.find((r) => r.ref === selectedRisk)
-    : null
+  // riskByRef map lookup instead of filteredRisks.find() -- same O(1) win
+  // the Links list below already gets from the same map.
+  const selectedRiskData = selectedRisk ? riskByRef.get(selectedRisk) : null
 
   return (
     <div className="space-y-5 p-6">
@@ -553,6 +594,41 @@ export default function RiskGraphPage() {
           />
         </div>
       </div>
+
+      {/* Category filter -- RISK_CATEGORIES already drives node color and
+          the category-clustered layout, but there was no way to isolate or
+          hide a category, only the site filter (aexa-frontend#577). */}
+      {availableCategories.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {availableCategories.map((category) => {
+            const isExcluded = excludedCategories.has(category)
+            const color =
+              RISK_CATEGORIES[category]?.color || "hsl(220, 10%, 46%)"
+            return (
+              <button
+                key={category}
+                type="button"
+                onClick={() => toggleCategory(category)}
+                aria-pressed={!isExcluded}
+                className={`focus-ring flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-medium transition-opacity ${
+                  isExcluded
+                    ? "border-border text-muted-foreground opacity-50"
+                    : "border-transparent text-foreground"
+                }`}
+                style={
+                  isExcluded ? undefined : { backgroundColor: `${color}26` }
+                }
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+                {riskCategoryLabel(t, category)}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Legend */}
       <div className="animate-slide-up flex flex-wrap items-center gap-4 text-xs text-muted-foreground">

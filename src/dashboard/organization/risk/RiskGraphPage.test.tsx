@@ -957,4 +957,96 @@ describe("RiskGraphPage", () => {
       )
     })
   })
+
+  // aexa-frontend#577 round 4: RISK_CATEGORIES already drove node color and
+  // the category-clustered layout, but there was no way to isolate or hide
+  // a category -- only the site filter existed.
+  describe("category filter (#577 round 4)", () => {
+    it("shows no category chips when every risk shares one category", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "node-a", ref: "RISK-A", category: "cyber" }),
+            makeRisk({ id: "node-b", ref: "RISK-B", category: "cyber" }),
+          ],
+        },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      expect(
+        screen.queryByRole("button", { name: /organization\.riskCategories/ })
+      ).not.toBeInTheDocument()
+    })
+
+    it("hides a category's nodes when its chip is toggled off, and shows it again on re-toggle", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "node-a", ref: "RISK-A", category: "cyber" }),
+            makeRisk({ id: "node-b", ref: "RISK-B", category: "financial" }),
+          ],
+        },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const chips = screen.getAllByRole("button", {
+        name: /organization\.riskCategories/,
+      })
+      expect(chips).toHaveLength(2)
+      chips.forEach((chip) => expect(chip).toHaveAttribute("aria-pressed", "true"))
+
+      // Both nodes present before any toggle.
+      expect(screen.getByRole("button", { name: /^Risk RISK-A/ })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /^Risk RISK-B/ })).toBeInTheDocument()
+
+      const cyberChip = chips.find((c) =>
+        c.textContent?.includes("catCyber")
+      )!
+      await userEvent.click(cyberChip)
+
+      expect(cyberChip).toHaveAttribute("aria-pressed", "false")
+      expect(
+        screen.queryByRole("button", { name: /^Risk RISK-A/ })
+      ).not.toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /^Risk RISK-B/ })).toBeInTheDocument()
+
+      await userEvent.click(cyberChip)
+      expect(cyberChip).toHaveAttribute("aria-pressed", "true")
+      expect(screen.getByRole("button", { name: /^Risk RISK-A/ })).toBeInTheDocument()
+    })
+
+    it("resets the view when a category is toggled, same as a site filter change", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "node-a", ref: "RISK-A", category: "cyber" }),
+            makeRisk({ id: "node-b", ref: "RISK-B", category: "financial" }),
+          ],
+        },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskGraph.zoomIn" })
+      )
+      const svgGroup = container.querySelector("svg > g[transform]")!
+      expect(svgGroup.getAttribute("transform")).not.toBe(
+        "translate(0 0) scale(1)"
+      )
+
+      const cyberChip = screen
+        .getAllByRole("button", { name: /organization\.riskCategories/ })
+        .find((c) => c.textContent?.includes("catCyber"))!
+      await userEvent.click(cyberChip)
+
+      expect(
+        container.querySelector("svg > g[transform]")!.getAttribute("transform")
+      ).toBe("translate(0 0) scale(1)")
+    })
+  })
 })
