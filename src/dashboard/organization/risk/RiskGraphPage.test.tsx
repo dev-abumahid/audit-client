@@ -13,15 +13,21 @@ const mockUseGetCorrelationMatrixDataQuery = vi.fn()
 // I18nextProvider in the tree, which every other assertion in this file
 // relies on. pagerankAbbrLabel is special-cased to its real English value
 // ("PR:") since the node-label tests below assert the rendered "PR:<n>"
-// text, same pattern as RiskMatrixPage.test.tsx.
+// text, same pattern as RiskMatrixPage.test.tsx. nodeAriaLabel is likewise
+// special-cased to interpolate {{riskId}} (aexa-frontend#575's fix passes
+// risk.ref there, not risk.id -- a test needs the real interpolated value
+// to tell those apart, which the raw-key fallback below can't provide).
 vi.mock("react-i18next", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-i18next")>()
   return {
     ...mod,
     useTranslation: () => ({
-      t: (key: string) => {
+      t: (key: string, params?: Record<string, unknown>) => {
         if (key === "organization.riskGraph.pagerankAbbrLabel") {
           return "PR:"
+        }
+        if (key === "organization.riskGraph.nodeAriaLabel") {
+          return `Risk ${params?.riskId ?? ""}`
         }
         return key
       },
@@ -106,48 +112,77 @@ describe("RiskGraphPage", () => {
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
-  it("renders real risk ids as graph nodes, not the old mock fixture ids", () => {
+  it("renders real risk refs as graph nodes, not the old mock fixture ids", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
-      data: { data: [makeRisk({ id: "risk-real-1" })] },
+      data: { data: [makeRisk({ ref: "RSK-001" })] },
       isLoading: false,
     })
     render(<RiskGraphPage />, withRouter)
 
-    // Short ids fit inside the node, so both the SVG <text> label and the
-    // <title> tooltip render the id in full (two matching elements).
-    const matches = screen.getAllByText("risk-real-1")
+    // Short refs fit inside the node, so the SVG <text> label renders it in
+    // full.
+    const matches = screen.getAllByText("RSK-001")
     expect(matches.some((el) => el.tagName.toLowerCase() === "text")).toBe(true)
     expect(screen.queryByText("risk_fire")).not.toBeInTheDocument()
   })
 
-  it("truncates a full-length UUID node label but keeps the full id in a tooltip", () => {
-    const uuid = "123e4567-e89b-12d3-a456-426614174000"
+  // aexa-frontend#575: node labels used to be shortRef(risk.id) -- the
+  // opaque uuid, not the human-readable ref every other part of this page
+  // (domino chains, correlations list, cascade summary) and every sibling
+  // risk page already keys on. Never noticed because the page had only ever
+  // been exercised with 1-2 risks; load-testing with 80+ risks made the
+  // uuid-prefix labels' illegibility obvious.
+  it("truncates a full-length ref in the node label but shows the full ref and name in a tooltip", () => {
+    const longRef = "SUP-STRESS-TEST-0001"
     mockUseGetAllRisksQuery.mockReturnValue({
-      data: { data: [makeRisk({ id: uuid })] },
+      data: {
+        data: [makeRisk({ ref: longRef, name: "Supply Chain Disruption" })],
+      },
       isLoading: false,
     })
     render(<RiskGraphPage />, withRouter)
 
-    // The visible node label is truncated to the first 8 chars of the UUID...
-    const label = screen.getByText("123e4567")
+    // The visible node label is truncated to the first 8 chars of the ref...
+    const label = screen.getByText("SUP-STRE")
     expect(label.tagName.toLowerCase()).toBe("text")
-    // ...while the full UUID is preserved only in the <title> tooltip.
-    const fullId = screen.getByText(uuid)
-    expect(fullId.tagName.toLowerCase()).toBe("title")
+    // ...while the full ref and name are preserved in the <title> tooltip.
+    const tooltip = screen.getByText(
+      (_, el) => el?.tagName.toLowerCase() === "title" && el.textContent === `${longRef} — Supply Chain Disruption`
+    )
+    expect(tooltip).toBeInTheDocument()
+  })
+
+  // aexa-frontend#575: the node's accessible name interpolated risk.id (a
+  // uuid a screen-reader user has no way to act on) instead of risk.ref.
+  it("gives a graph node an accessible name built from its ref, not its uuid id", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [makeRisk({ id: "risk-real-1", ref: "RSK-001" })],
+      },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />, withRouter)
+
+    expect(
+      screen.getByRole("button", { name: "Risk RSK-001" })
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Risk risk-real-1" })
+    ).not.toBeInTheDocument()
   })
 
   it("aexa-frontend#376: shows selected risk's max impact as M€ from its stored k€ units", async () => {
     const { default: userEvent } = await import("@testing-library/user-event")
     mockUseGetAllRisksQuery.mockReturnValue({
       data: {
-        data: [makeRisk({ id: "risk-real-1", financial_impact_max: 500000 })],
+        data: [makeRisk({ ref: "RSK-001", financial_impact_max: 500000 })],
       },
       isLoading: false,
     })
     render(<RiskGraphPage />, withRouter)
 
     const nodeLabel = screen
-      .getAllByText("risk-real-1")
+      .getAllByText("RSK-001")
       .find((el) => el.tagName.toLowerCase() === "text")!
     await userEvent.click(nodeLabel)
 
@@ -165,24 +200,33 @@ describe("RiskGraphPage", () => {
 
   // aexa-frontend#550: the side panel's "id — name" heading was plain text
   // even though selectedRiskData.id was already available -- same gap
-  // #548/#549 fixed on the risk-matrix pages.
+  // #548/#549 fixed on the risk-matrix pages. aexa-frontend#575: the
+  // visible label switched from the uuid id to the human-readable ref
+  // (matching every sibling page's equivalent heading), while the link
+  // target keeps using the uuid id, since that's the real route param.
   it("links the selected risk's side-panel heading to its detail page", async () => {
     const { default: userEvent } = await import("@testing-library/user-event")
     mockUseGetAllRisksQuery.mockReturnValue({
       data: {
-        data: [makeRisk({ id: "risk-real-1", name: "Supply Chain Disruption" })],
+        data: [
+          makeRisk({
+            id: "risk-real-1",
+            ref: "RSK-001",
+            name: "Supply Chain Disruption",
+          }),
+        ],
       },
       isLoading: false,
     })
     render(<RiskGraphPage />, withRouter)
 
     const nodeLabel = screen
-      .getAllByText("risk-real-1")
+      .getAllByText("RSK-001")
       .find((el) => el.tagName.toLowerCase() === "text")!
     await userEvent.click(nodeLabel)
 
     const link = screen.getByRole("link", {
-      name: "risk-real-1 — Supply Chain Disruption",
+      name: "RSK-001 — Supply Chain Disruption",
     })
     expect(link).toHaveAttribute("href", "/organization/risks/risk-real-1")
   })
@@ -318,10 +362,10 @@ describe("RiskGraphPage", () => {
     })
     render(<RiskGraphPage />, withRouter)
 
-    // The graph node's visible label is shortRef(risk.id) ("uuid-a"), not
-    // its ref -- clicking it exercises setSelectedRisk(risk.ref) internally.
+    // The graph node's visible label is shortRef(risk.ref) ("RISK-A") --
+    // clicking it exercises setSelectedRisk(risk.ref) internally.
     const nodeALabel = screen
-      .getAllByText("uuid-a")
+      .getAllByText("RISK-A")
       .find((el) => el.tagName.toLowerCase() === "text")!
     await userEvent.click(nodeALabel)
 
@@ -329,11 +373,14 @@ describe("RiskGraphPage", () => {
     // reachable if the link's ref-space source/target actually resolved to
     // real node positions/selection state (cascadeRefs, positions,
     // selectedRiskData are all keyed by ref, per the fix above). The side
-    // panel's header shows the selected risk's uuid id and name.
+    // panel's header shows the selected risk's ref and name. The same
+    // "ref — name" text also appears in the node's own <title> tooltip, so
+    // scope to the heading link specifically.
+    const headingMatches = screen.getAllByText("RISK-A — Supply Chain Disruption")
     expect(
-      screen.getByText("uuid-a — Supply Chain Disruption")
-    ).toBeInTheDocument()
-    expect(screen.getAllByText(/uuid-hub/).length).toBeGreaterThan(0)
+      headingMatches.some((el) => el.closest("h3") !== null)
+    ).toBe(true)
+    expect(screen.getAllByText(/RISK-HUB/).length).toBeGreaterThan(0)
   })
 
   // aexa-frontend#397: the legend's "Tipping Point" entry used to be dead --
@@ -375,7 +422,7 @@ describe("RiskGraphPage", () => {
     render(<RiskGraphPage />, withRouter)
 
     const hubLabel = screen
-      .getAllByText("node-hub")
+      .getAllByText("RISK-HUB")
       .find((el) => el.tagName.toLowerCase() === "text")!
     const hubGroup = hubLabel.closest("g") as unknown as HTMLElement
     expect(
@@ -383,7 +430,7 @@ describe("RiskGraphPage", () => {
     ).toBeInTheDocument()
 
     const isolatedLabel = screen
-      .getAllByText("node-a")
+      .getAllByText("RISK-A")
       .find((el) => el.tagName.toLowerCase() === "text")!
     const isolatedGroup = isolatedLabel.closest("g") as unknown as HTMLElement
     expect(
@@ -459,16 +506,16 @@ describe("RiskGraphPage", () => {
     // normalized against the graph's max score it renders "PR:100" despite
     // its fake pagerank_score of 3.
     const hubLabel = screen
-      .getAllByText("node-hub")
+      .getAllByText("RISK-HUB")
       .find((el) => el.tagName.toLowerCase() === "text")!
     const hubGroup = hubLabel.closest("g") as unknown as HTMLElement
     expect(within(hubGroup).getByText("PR:100")).toBeInTheDocument()
     expect(within(hubGroup).queryByText("PR:3")).not.toBeInTheDocument()
 
-    // node-a has no inbound links, so its real PageRank is below the hub's
+    // RISK-A has no inbound links, so its real PageRank is below the hub's
     // -- it must not render the fake pagerank_score of 999.
     const nodeALabel = screen
-      .getAllByText("node-a")
+      .getAllByText("RISK-A")
       .find((el) => el.tagName.toLowerCase() === "text")!
     const nodeAGroup = nodeALabel.closest("g") as unknown as HTMLElement
     expect(within(nodeAGroup).queryByText("PR:999")).not.toBeInTheDocument()
@@ -519,9 +566,7 @@ describe("RiskGraphPage", () => {
     })
     render(<RiskGraphPage />, withRouter)
 
-    const node = screen.getByRole("button", {
-      name: /organization\.riskGraph\.nodeAriaLabel/,
-    })
+    const node = screen.getByRole("button", { name: /^Risk / })
     expect(node.tagName.toLowerCase()).toBe("g")
     expect(node).toHaveAttribute("tabindex", "0")
     expect(node).toHaveAttribute("aria-pressed", "false")

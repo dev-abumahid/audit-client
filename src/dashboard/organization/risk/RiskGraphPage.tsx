@@ -8,6 +8,7 @@ import {
   topPercentileByPageRank,
 } from "@/utils/pageRank"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
+import { computeRiskGraphLayout } from "@/utils/riskGraphLayout"
 import { severityBadgeClasses } from "@/utils/severityStyles"
 import {
   AlertTriangle,
@@ -229,42 +230,17 @@ export default function RiskGraphPage() {
     return refs
   }, [selectedRisk, filteredLinks])
 
-  // Force-directed-ish layout using category clustering
-  // Keyed by risk.ref (not risk.id) -- see the filteredRefs comment above on
-  // why this component identifies risks by ref throughout, to match how
-  // RiskLink.source_ref/target_ref actually reference them.
-  const positions = useMemo(() => {
-    const pos: Record<string, { x: number; y: number }> = {}
-    const categories = Array.from(new Set(filteredRisks.map((r) => r.category)))
-    const cx = 450,
-      cy = 300
-
-    // Arrange category clusters in a larger circle
-    const catPositions: Record<string, { cx: number; cy: number }> = {}
-    categories.forEach((cat, i) => {
-      const angle = (2 * Math.PI * i) / categories.length - Math.PI / 2
-      catPositions[cat] = {
-        cx: cx + 180 * Math.cos(angle),
-        cy: cy + 160 * Math.sin(angle),
-      }
-    })
-
-    // Position each risk within its category cluster
-    categories.forEach((cat) => {
-      const catRisks = filteredRisks.filter((r) => r.category === cat)
-      const { cx: ccx, cy: ccy } = catPositions[cat]
-      catRisks.forEach((r, i) => {
-        const angle = (2 * Math.PI * i) / catRisks.length
-        const spread = Math.min(60, 30 + catRisks.length * 8)
-        pos[r.ref] = {
-          x: ccx + spread * Math.cos(angle),
-          y: ccy + spread * Math.sin(angle),
-        }
-      })
-    })
-
-    return pos
-  }, [filteredRisks])
+  // Force-directed-ish layout using category clustering, extracted to
+  // computeRiskGraphLayout (src/utils/riskGraphLayout.ts) so its
+  // no-overlap-at-scale behavior is independently unit-tested rather than
+  // only exercised through this component. Keyed by risk.ref (not risk.id)
+  // -- see the filteredRefs comment above on why this component identifies
+  // risks by ref throughout, to match how RiskLink.source_ref/target_ref
+  // actually reference them.
+  const { positions, width: graphWidth, height: graphHeight } = useMemo(
+    () => computeRiskGraphLayout(filteredRisks.map((r) => ({ ref: r.ref, category: r.category }))),
+    [filteredRisks]
+  )
 
   if (isLoading || isCorrelationLoading) {
     return (
@@ -336,7 +312,7 @@ export default function RiskGraphPage() {
         <div className="animate-slide-up rounded-xl border border-border bg-card p-4 xl:col-span-2">
           <h2 className="sr-only">{t("organization.riskGraph.graphSectionHeading")}</h2>
           <svg
-            viewBox="0 0 900 600"
+            viewBox={`0 0 ${graphWidth} ${graphHeight}`}
             className="h-auto w-full"
             style={{ minHeight: 400 }}
           >
@@ -438,7 +414,7 @@ export default function RiskGraphPage() {
                   role="button"
                   aria-pressed={isSelected}
                   aria-label={t("organization.riskGraph.nodeAriaLabel", {
-                    riskId: risk.id,
+                    riskId: risk.ref,
                   })}
                   opacity={isDimmed ? 0.15 : 1}
                 >
@@ -475,7 +451,9 @@ export default function RiskGraphPage() {
                     strokeWidth={2}
                     strokeOpacity={0.7}
                   />
-                  <title>{risk.id}</title>
+                  <title>
+                    {risk.ref} — {risk.name}
+                  </title>
                   {tippingPointRefs.has(risk.ref) && (
                     <Zap
                       x={pos.x + nodeRadius * 0.5}
@@ -495,7 +473,7 @@ export default function RiskGraphPage() {
                     textAnchor="middle"
                     className="fill-foreground text-[11px] font-bold select-none"
                   >
-                    {shortRef(risk.id)}
+                    {shortRef(risk.ref)}
                   </text>
                   <text
                     x={pos.x}
@@ -520,13 +498,18 @@ export default function RiskGraphPage() {
             <div className="space-y-3 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
               {/* aexa-frontend#550: selectedRiskData.id was already available
                   but rendered as plain text -- same gap #548/#549 fixed on
-                  the RiskMatrix/CorrelationMatrix pages. */}
+                  the RiskMatrix/CorrelationMatrix pages. aexa-frontend#575:
+                  the link target still needs the uuid `id`, but the visible
+                  label should be the human-readable `ref` like every
+                  sibling page's equivalent header (CorrelationMatrixPage's
+                  RiskDetailCard, RiskMatrixPage) -- this one alone showed
+                  the raw uuid. */}
               <h3 className="text-sm font-bold text-foreground">
                 <Link
                   to={`/organization/risks/${selectedRiskData.id}`}
                   className="focus-ring hover:underline"
                 >
-                  {selectedRiskData.id} — {selectedRiskData.name}
+                  {selectedRiskData.ref} — {selectedRiskData.name}
                 </Link>
               </h3>
               <p className="line-clamp-3 text-xs text-muted-foreground">
