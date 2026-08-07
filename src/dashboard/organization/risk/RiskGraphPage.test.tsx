@@ -988,6 +988,100 @@ describe("RiskGraphPage", () => {
     expect(correlatesLine).not.toHaveAttribute("marker-end")
   })
 
+  // aexa-frontend#577: the default (unselected) CAUSES/AMPLIFIES
+  // arrowheads used to render at fillOpacity 0.35 -- identical to the
+  // line's own default strokeOpacity -- so the arrowhead visually blended
+  // into the line it was attached to, leaving direction unreadable (user
+  // report). The arrowhead must render solid regardless of how translucent
+  // the connecting line itself is drawn.
+  it("renders default (unselected) CAUSES/AMPLIFIES arrowheads solid, not translucent like the line they're on", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "node-a", ref: "RISK-A" }),
+          makeRisk({ id: "node-b", ref: "RISK-B" }),
+          makeRisk({ id: "node-c", ref: "RISK-C" }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: [
+            { source_ref: "RISK-A", target_ref: "RISK-B", link_type: "CAUSES" },
+            {
+              source_ref: "RISK-B",
+              target_ref: "RISK-C",
+              link_type: "AMPLIFIES",
+            },
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    const { container } = render(<RiskGraphPage />, withRouter)
+
+    const causesArrowPolygon = container.querySelector(
+      "marker#arrowCauses polygon"
+    )
+    const amplifiesArrowPolygon = container.querySelector(
+      "marker#arrowAmplifies polygon"
+    )
+    expect(causesArrowPolygon).not.toHaveAttribute("fill-opacity")
+    expect(amplifiesArrowPolygon).not.toHaveAttribute("fill-opacity")
+  })
+
+  // aexa-frontend#577 round-9.5 review: a shared <marker> can't itself
+  // react to one particular line's isDimmed -- making the default
+  // arrowhead solid (above) without a dimmed variant meant selecting a
+  // risk turned every unrelated, nearly-invisible (strokeOpacity 0.08)
+  // edge into a fully solid, brightly colored triangle with no visible
+  // line connecting it to its nodes ("confetti"). A dimmed edge's
+  // arrowhead must switch to a dimmed marker matching the line's own
+  // opacity.
+  it("switches an unrelated edge's arrowhead to a dimmed variant once a risk is selected, instead of leaving it solid", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event")
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "node-a", ref: "RISK-A" }),
+          makeRisk({ id: "node-b", ref: "RISK-B" }),
+          makeRisk({ id: "node-c", ref: "RISK-C" }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: [
+            { source_ref: "RISK-A", target_ref: "RISK-B", link_type: "CAUSES" },
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    const { container } = render(<RiskGraphPage />, withRouter)
+
+    // Before selection, the A->B edge isn't dimmed -- solid marker.
+    const causesLine = container.querySelector('line[data-link-type="CAUSES"]')
+    expect(causesLine).toHaveAttribute("marker-end", "url(#arrowCauses)")
+
+    // Selecting an unrelated risk (C, with no links of its own) dims
+    // A->B: it's not part of C's cascade (empty) and its source isn't C.
+    await userEvent.click(screen.getByRole("button", { name: "Risk RISK-C" }))
+
+    expect(causesLine).toHaveAttribute(
+      "marker-end",
+      "url(#arrowCausesDimmed)"
+    )
+    const dimmedPolygon = container.querySelector(
+      "marker#arrowCausesDimmed polygon"
+    )
+    expect(dimmedPolygon).toHaveAttribute("fill-opacity", "0.08")
+  })
+
   // aexa-frontend#577: the single most-cited gap against every reference
   // graph-viz tool -- the graph only ever shrunk-to-fit as more risks were
   // added, with no way to zoom in on a dense cluster or pan around.

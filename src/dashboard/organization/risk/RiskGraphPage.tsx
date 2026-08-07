@@ -284,13 +284,29 @@ const RiskGraphLinkLine = memo(function RiskGraphLinkLine({
       // unselected graph couldn't communicate direction at all even though
       // these are directed edges (CORRELATES has no inherent direction, per
       // pageRank.ts, so it stays arrowless here too).
+      //
+      // aexa-frontend#577 round-9.5 review: a <marker> is a single shared
+      // <defs> element referenced by every line of that link_type, so it
+      // can't itself react to one particular line's isDimmed -- making the
+      // default arrowhead solid (this same round's fix, for legibility)
+      // meant a *dimmed* edge (strokeOpacity 0.08, nearly invisible) still
+      // ended in a fully solid, brightly colored triangle: selecting a
+      // risk turned every unrelated edge into scattered solid-triangle
+      // "confetti" with no visible line connecting them to their nodes.
+      // The Dimmed marker variants use the line's own dimmed opacity
+      // (0.08) so a de-emphasized edge reads as uniformly faint,
+      // arrowhead included.
       markerEnd={
         isCascade
           ? "url(#arrowCascade)"
           : linkType === "CAUSES"
-            ? "url(#arrowCauses)"
+            ? isDimmed
+              ? "url(#arrowCausesDimmed)"
+              : "url(#arrowCauses)"
             : linkType === "AMPLIFIES"
-              ? "url(#arrowAmplifies)"
+              ? isDimmed
+                ? "url(#arrowAmplifiesDimmed)"
+                : "url(#arrowAmplifies)"
               : undefined
       }
     />
@@ -1383,10 +1399,39 @@ export default function RiskGraphPage() {
                   markerHeight="4.9"
                   orient="auto"
                 >
+                  {/* Solid, not the line's own 0.35 strokeOpacity: with a
+                      matching fillOpacity the arrowhead visually blended
+                      into the line it's attached to, leaving no clear
+                      "this end is the point" shape -- direction was
+                      basically unreadable at default zoom (user report).
+                      A solid arrowhead against a translucent line is the
+                      normal convention (Neo4j Bloom, Cytoscape) precisely
+                      so direction stays legible regardless of how dim the
+                      edge itself is drawn. */}
                   <polygon
                     points="0 0, 10 3.5, 0 7"
                     fill="hsl(var(--risk-critical))"
-                    fillOpacity={0.35}
+                  />
+                </marker>
+                {/* Dimmed variant, used only when this edge's line itself
+                    is dimmed (strokeOpacity 0.08) -- see the markerEnd
+                    comment above for why a shared <marker> needs a
+                    separate id per opacity state instead of just reading
+                    the line's own opacity. */}
+                <marker
+                  id="arrowCausesDimmed"
+                  viewBox="0 0 10 7"
+                  refX="10"
+                  refY="3.5"
+                  markerUnits="userSpaceOnUse"
+                  markerWidth="7"
+                  markerHeight="4.9"
+                  orient="auto"
+                >
+                  <polygon
+                    points="0 0, 10 3.5, 0 7"
+                    fill="hsl(var(--risk-critical))"
+                    fillOpacity={0.08}
                   />
                 </marker>
                 <marker
@@ -1402,7 +1447,22 @@ export default function RiskGraphPage() {
                   <polygon
                     points="0 0, 10 3.5, 0 7"
                     fill="hsl(var(--risk-high))"
-                    fillOpacity={0.35}
+                  />
+                </marker>
+                <marker
+                  id="arrowAmplifiesDimmed"
+                  viewBox="0 0 10 7"
+                  refX="10"
+                  refY="3.5"
+                  markerUnits="userSpaceOnUse"
+                  markerWidth="7"
+                  markerHeight="4.9"
+                  orient="auto"
+                >
+                  <polygon
+                    points="0 0, 10 3.5, 0 7"
+                    fill="hsl(var(--risk-high))"
+                    fillOpacity={0.08}
                   />
                 </marker>
               </defs>
