@@ -167,6 +167,13 @@ export default function CorrelationMatrixPage() {
     () => matrixResponse?.data.riskLinks ?? [],
     [matrixResponse]
   )
+  // aexa-frontend#569: the Existing Links panel below shows each link's
+  // source/target by ref -- resolve ref -> risk so those can link into the
+  // risk's own detail page, same as RiskDetailCard/BucketList already do.
+  const riskByRef = useMemo(
+    () => new Map(risks.map((r) => [r.ref, r])),
+    [risks]
+  )
   const findings = useMemo(
     () => matrixResponse?.data.actions ?? [],
     [matrixResponse]
@@ -775,13 +782,31 @@ export default function CorrelationMatrixPage() {
                     className="flex items-center justify-between rounded-md border border-border bg-background px-2.5 py-1.5 text-xs"
                   >
                     <span className="font-mono">
-                      {link.source_ref}
+                      {riskByRef.has(link.source_ref) ? (
+                        <Link
+                          to={`/organization/risks/${riskByRef.get(link.source_ref)!.id}`}
+                          className="focus-ring text-primary hover:underline"
+                        >
+                          {link.source_ref}
+                        </Link>
+                      ) : (
+                        link.source_ref
+                      )}
                       <span className="mx-1.5 text-muted-foreground">
                         {t(
                           `${NS}.linkType${link.link_type.charAt(0)}${link.link_type.slice(1).toLowerCase()}`
                         )}
                       </span>
-                      {link.target_ref}
+                      {riskByRef.has(link.target_ref) ? (
+                        <Link
+                          to={`/organization/risks/${riskByRef.get(link.target_ref)!.id}`}
+                          className="focus-ring text-primary hover:underline"
+                        >
+                          {link.target_ref}
+                        </Link>
+                      ) : (
+                        link.target_ref
+                      )}
                     </span>
                     {canManageLinks && (
                       <button

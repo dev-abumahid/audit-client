@@ -322,7 +322,14 @@ describe("CorrelationMatrixPage", () => {
       name: /^1 risk\(s\)/,
     })
     fireEvent.click(populatedCells[0])
-    expect(screen.getByText(/^(CYB-001|OPS-002)$/)).toBeInTheDocument()
+    // aexa-frontend#569 added a second place ("Existing Links") that also
+    // renders these exact refs, now as <Link>s -- match specifically on the
+    // detail card's own <p> ref element rather than any element with this
+    // text.
+    const refMatches = screen.getAllByText(/^(CYB-001|OPS-002)$/)
+    expect(
+      refMatches.some((el) => el.tagName.toLowerCase() === "p")
+    ).toBe(true)
   })
 
   // aexa-frontend#549: RiskDetailCard's risk name and site name were plain
@@ -531,6 +538,34 @@ describe("CorrelationMatrixPage", () => {
       screen.getByText("organization.correlationMatrix.linkTypeAmplifies")
     ).toBeInTheDocument()
     expect(screen.queryByText("AMPLIFIES")).not.toBeInTheDocument()
+  })
+
+  // aexa-frontend#569: the Existing Links list showed each link's
+  // source/target by ref as plain text, with no way to jump to the risk it
+  // names, even though the page already loads the full risks array (the
+  // same source RiskDetailCard/BucketList already use for #549's links).
+  it("links a resolvable source/target ref to its risk, and leaves an unresolvable ref as plain text", () => {
+    mockRole = "ADMIN"
+    setMatrixData({
+      risks: [
+        makeRisk({ id: "risk-cyb", ref: "CYB-001" }),
+        // Deliberately no risk for "OPS-002" -- link.source_ref stays
+        // unresolved so the fallback-to-plain-text path is real, not
+        // vacuous (every ref happening to resolve would hide a broken
+        // lookup).
+      ],
+      riskLinks: [makeLink({ source_ref: "OPS-002", target_ref: "CYB-001" })],
+    })
+
+    render(<CorrelationMatrixPage />, withRouter)
+
+    const link = screen.getByRole("link", { name: "CYB-001" })
+    expect(link).toHaveAttribute("href", "/organization/risks/risk-cyb")
+
+    expect(screen.getByText("OPS-002")).toBeInTheDocument()
+    expect(
+      screen.queryByRole("link", { name: "OPS-002" })
+    ).not.toBeInTheDocument()
   })
 
   it("hides the Add Link control and delete buttons for a non-privileged role", () => {
