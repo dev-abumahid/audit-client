@@ -254,6 +254,31 @@ describe("InspectionTable", () => {
     )
   })
 
+  // aexa-frontend#564: the Template column showed item.template.templateName
+  // as plain text even though item.template.id was already available --
+  // same route TemplatesPage.tsx already links to.
+  it("links the Template column to its report page", async () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: {
+        data: [makeInspection()],
+        meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+      },
+      isLoading: false,
+    })
+
+    renderTable()
+
+    await waitFor(() =>
+      expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+    )
+
+    const link = screen.getByRole("link", { name: "Fire Safety Audit" })
+    expect(link).toHaveAttribute(
+      "href",
+      "/organization/audit/template/report/t-1"
+    )
+  })
+
   // aexa-frontend round-3 audit bug #3: item.updatedAt used to be formatted
   // with no locale argument at all, i.e. whatever locale the visiting
   // browser happens to be in, rather than the app's active UI language.

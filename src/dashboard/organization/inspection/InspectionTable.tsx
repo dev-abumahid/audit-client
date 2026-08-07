@@ -302,7 +302,21 @@ const InspectionTable = () => {
                   )
                   return (
                   <TableRow key={item.id} className="animate-fade-in hover:bg-muted/50">
-                    <TableCell>{item.template?.templateName || "—"}</TableCell>
+                    <TableCell>
+                      {/* aexa-frontend#564: item.template.id was already
+                          available but rendered as plain text -- same
+                          route TemplatesPage.tsx already links to. */}
+                      {item.template ? (
+                        <Link
+                          to={`/organization/audit/template/report/${item.template.id}`}
+                          className="focus-ring text-primary hover:underline"
+                        >
+                          {item.template.templateName}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
                     <TableCell>
                       {/* aexa-frontend#563: item.site.id was already
                           available but rendered as plain text -- reuses
