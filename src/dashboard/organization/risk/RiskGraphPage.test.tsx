@@ -919,6 +919,64 @@ describe("RiskGraphPage", () => {
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
       expect(searchInput).toHaveAttribute("aria-expanded", "false")
     })
+
+    // aexa-frontend#577 round 18 (round 17 judge review): selecting a
+    // search result only ever set selectedRisk -- a match found after the
+    // user had panned away from it stayed selected but off-screen, the
+    // exact scenario search exists to solve on a large graph.
+    it("recenters the view on the selected search match, keeping the current zoom level", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "node-a", ref: "RISK-A", name: "Warehouse Fire" }),
+            makeRisk({ id: "node-b", ref: "RISK-B", name: "Vendor Breach" }),
+          ],
+        },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      const viewBox = svg.getAttribute("viewBox")!.split(" ").map(Number)
+      const [, , graphWidth, graphHeight] = viewBox
+      const targetNode = screen.getByRole("button", { name: /^Risk RISK-A/ })
+      const targetCircle = targetNode.querySelector("circle")!
+      const targetX = Number(targetCircle.getAttribute("cx"))
+      const targetY = Number(targetCircle.getAttribute("cy"))
+
+      // Pan away from the target node first -- the scenario this fix
+      // exists for.
+      const background = svg.querySelector("rect")!
+      fireEvent.mouseDown(background, { clientX: 100, clientY: 100 })
+      fireEvent.mouseMove(svg, { clientX: 500, clientY: 500 })
+      fireEvent.mouseUp(svg)
+
+      const getTransform = () =>
+        container.querySelector("svg > g[transform]")!.getAttribute("transform")
+      expect(getTransform()).toBe("translate(400 400) scale(1)")
+
+      const searchInput = screen.getByRole("combobox", {
+        name: "organization.riskGraph.searchLabel",
+      })
+      await userEvent.type(searchInput, "Warehouse")
+      const dropdown = screen.getByRole("listbox")
+      await userEvent.click(
+        within(dropdown).getByRole("option", { name: /RISK-A/ })
+      )
+
+      // Same formula as handleMinimapClick's own jump-to-point behaviour --
+      // recenters on the match's content coordinates at the *current* scale
+      // (1, unchanged by the pan above), not a reset back to scale 1 at the
+      // origin.
+      const expectedX = graphWidth / 2 - targetX * 1
+      const expectedY = graphHeight / 2 - targetY * 1
+      expect(getTransform()).toBe(
+        `translate(${expectedX} ${expectedY}) scale(1)`
+      )
+    })
   })
 
   // aexa-frontend#575 review: the legend documented edge colors and the
@@ -1626,6 +1684,64 @@ describe("RiskGraphPage", () => {
         ).tabIndex
       ).toBe(0)
     })
+  })
+
+  // aexa-frontend#577 round 18 review: the same "selected but off-screen"
+  // gap search selection had (fixed above via selectSearchMatch) also
+  // applied to domino-chain ref buttons, which only ever called
+  // setSelectedRisk directly. Both now share the recenterOn helper.
+  it("recenters the view when selecting a risk from the domino-chain list", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "a", ref: "RISK-A" }),
+          makeRisk({ id: "b", ref: "RISK-B" }),
+          makeRisk({ id: "c", ref: "RISK-C" }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: [
+            { source_ref: "RISK-A", target_ref: "RISK-B", link_type: "CAUSES" },
+            { source_ref: "RISK-B", target_ref: "RISK-C", link_type: "CAUSES" },
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    const { container } = render(<RiskGraphPage />, withRouter)
+
+    const svg = screen.getByLabelText(
+      "organization.riskGraph.graphKeyboardLabel"
+    )
+    const viewBox = svg.getAttribute("viewBox")!.split(" ").map(Number)
+    const [, , graphWidth, graphHeight] = viewBox
+    const targetNode = screen.getByRole("button", { name: /^Risk RISK-C/ })
+    const targetCircle = targetNode.querySelector("circle")!
+    const targetX = Number(targetCircle.getAttribute("cx"))
+    const targetY = Number(targetCircle.getAttribute("cy"))
+
+    // Pan away first, same as the search-recenter test above.
+    const background = svg.querySelector("rect")!
+    fireEvent.mouseDown(background, { clientX: 100, clientY: 100 })
+    fireEvent.mouseMove(svg, { clientX: 500, clientY: 500 })
+    fireEvent.mouseUp(svg)
+
+    const getTransform = () =>
+      container.querySelector("svg > g[transform]")!.getAttribute("transform")
+    expect(getTransform()).toBe("translate(400 400) scale(1)")
+
+    const dominoPanel = screen
+      .getByRole("button", { name: /organization\.riskGraph\.dominoScenarios/ })
+      .closest(".rounded-xl") as HTMLElement
+    fireEvent.click(within(dominoPanel).getByTitle("RISK-C"))
+
+    const expectedX = graphWidth / 2 - targetX * 1
+    const expectedY = graphHeight / 2 - targetY * 1
+    expect(getTransform()).toBe(`translate(${expectedX} ${expectedY}) scale(1)`)
   })
 
   // aexa-frontend#577 round 14: arrow-key pan and +/-/0 zoom (round 8) were

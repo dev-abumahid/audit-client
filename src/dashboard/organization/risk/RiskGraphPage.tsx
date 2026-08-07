@@ -536,9 +536,38 @@ export default function RiskGraphPage() {
       .slice(0, 8)
   }, [searchQuery, filteredRisks])
 
+  // aexa-frontend#577 round 17 review: selecting a search result only ever
+  // set selectedRisk -- it never touched `view`, so a match found after the
+  // user had panned/zoomed away stayed selected but off-screen, defeating
+  // the whole point of search on a large graph (this file's own comment on
+  // searchMatches above cites Neo4j Bloom/Datadog's search-as-primary-
+  // navigation model). Recenters using the exact same content-coordinate ->
+  // view-transform math as handleMinimapClick below, just skipping that
+  // function's pixel-to-content conversion step since the caller already has
+  // a ref, not a raw click event -- shared by the domino-chain refs below,
+  // which had the identical "selected but off-screen" gap (round 18
+  // review). Keeps the current zoom level, same as the minimap's own
+  // jump-to-point behavior, rather than also resetting scale.
+  function recenterOn(ref: string) {
+    const pos = positions[ref]
+    if (pos) {
+      setView((v) => ({
+        ...v,
+        x: graphWidth / 2 - pos.x * v.scale,
+        y: graphHeight / 2 - pos.y * v.scale,
+      }))
+    }
+  }
+
   function selectSearchMatch(ref: string) {
     setSelectedRisk(ref)
     setSearchQuery("")
+    recenterOn(ref)
+  }
+
+  function selectDominoRef(ref: string) {
+    setSelectedRisk(ref)
+    recenterOn(ref)
   }
 
   // Stable identity (empty deps, functional setState update so it never
@@ -1977,7 +2006,7 @@ export default function RiskGraphPage() {
                         {chain.refs.map((ref, j) => (
                           <span key={ref} className="flex items-center gap-1">
                             <button
-                              onClick={() => setSelectedRisk(ref)}
+                              onClick={() => selectDominoRef(ref)}
                               onMouseEnter={() => setHoveredRef(ref)}
                               onMouseLeave={() => setHoveredRef(null)}
                               className="font-mono-data font-bold text-foreground hover:text-primary"
