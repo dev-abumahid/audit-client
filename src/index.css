@@ -267,6 +267,21 @@
     @apply outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 
+  /* .focus-ring's ring is a box-shadow, which browsers don't paint on bare
+     SVG elements like <g> -- it has no CSS border-box for box-shadow to
+     render against, even though :focus-visible still matches and the
+     value still computes (confirmed via getComputedStyle: the box-shadow
+     layers are there, just invisible). CSS `outline` does render on SVG
+     elements in modern browsers, so SVG-based focusable elements (e.g.
+     RiskGraphPage's graph nodes) should use this instead of .focus-ring. */
+  .focus-ring-svg {
+    outline: none;
+  }
+  .focus-ring-svg:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+
   /* Sidebar is always dark regardless of light/dark theme, so its focus
      ring needs the sidebar tokens instead of .focus-ring's
      ring-offset-background, which would be wrong against that surface. */

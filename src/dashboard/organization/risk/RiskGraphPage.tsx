@@ -116,7 +116,7 @@ const RiskGraphNode = memo(function RiskGraphNode({
 }: RiskGraphNodeProps) {
   return (
     <g
-      className="cursor-pointer"
+      className="focus-ring-svg cursor-pointer"
       onClick={() => onSelect(riskRef)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -958,15 +958,28 @@ export default function RiskGraphPage() {
                 )
               })}
 
-              {/* Arrow defs */}
+              {/* Arrow defs. markerUnits="userSpaceOnUse" on all three: the
+                  SVG default (markerUnits="strokeWidth") scales a marker's
+                  rendered size by the *line's* stroke width, and since the
+                  cascade line bumps both its own strokeWidth (3->5, below)
+                  and its marker's markerWidth/Height (5->6) at the same
+                  time, those two multiply -- the cascade arrowhead rendered
+                  at roughly 2x the linear scale (~4x the area) of the other
+                  two, not the modest emphasis it was meant to be. userSpaceOnUse makes
+                  markerWidth/Height absolute sizes, independent of
+                  strokeWidth, so the explicit values below are the actual
+                  visual sizes (cascade ~30% larger than the others, a
+                  deliberate but modest emphasis instead of an accidental
+                  2x). */}
               <defs>
                 <marker
                   id="arrowCascade"
                   viewBox="0 0 10 7"
                   refX="10"
                   refY="3.5"
-                  markerWidth="6"
-                  markerHeight="6"
+                  markerUnits="userSpaceOnUse"
+                  markerWidth="9"
+                  markerHeight="6.3"
                   orient="auto"
                 >
                   <polygon
@@ -979,8 +992,9 @@ export default function RiskGraphPage() {
                   viewBox="0 0 10 7"
                   refX="10"
                   refY="3.5"
-                  markerWidth="5"
-                  markerHeight="5"
+                  markerUnits="userSpaceOnUse"
+                  markerWidth="7"
+                  markerHeight="4.9"
                   orient="auto"
                 >
                   <polygon
@@ -994,8 +1008,9 @@ export default function RiskGraphPage() {
                   viewBox="0 0 10 7"
                   refX="10"
                   refY="3.5"
-                  markerWidth="5"
-                  markerHeight="5"
+                  markerUnits="userSpaceOnUse"
+                  markerWidth="7"
+                  markerHeight="4.9"
                   orient="auto"
                 >
                   <polygon
