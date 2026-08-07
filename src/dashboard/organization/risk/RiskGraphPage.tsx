@@ -322,6 +322,25 @@ const RiskGraphLinkLine = memo(function RiskGraphLinkLine({
   )
 })
 
+// aexa-frontend#577 round 15 (efficiency re-score): same problem the round 5
+// RiskGraphNode/RiskGraphLinkLine memoization above already fixed for the
+// main graph, but left standing for the minimap -- its dots were a plain
+// .map() of inline <circle> elements, so every pan-drag mousemove/wheel-zoom
+// tick (which only ever changes the viewport-indicator <rect>, not any dot's
+// own position/color) still re-created and re-reconciled every dot. Same
+// fix: React.memo with only primitive props, no dependency on view/pan/zoom
+// state at all.
+interface MinimapDotProps {
+  x: number
+  y: number
+  r: number
+  fill: string
+}
+
+const MinimapDot = memo(function MinimapDot({ x, y, r, fill }: MinimapDotProps) {
+  return <circle cx={x} cy={y} r={r} fill={fill} />
+})
+
 export default function RiskGraphPage() {
   const { t } = useTranslation()
   const { data: riskResponse, isLoading } = useGetAllRisksQuery({
@@ -1682,10 +1701,10 @@ export default function RiskGraphPage() {
                     RISK_CATEGORIES[risk.category]?.color ||
                     "hsl(220, 10%, 46%)"
                   return (
-                    <circle
+                    <MinimapDot
                       key={risk.ref}
-                      cx={pos.x}
-                      cy={pos.y}
+                      x={pos.x}
+                      y={pos.y}
                       r={Math.max(graphWidth, graphHeight) * 0.012}
                       fill={catColor}
                     />
