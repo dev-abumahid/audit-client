@@ -1149,7 +1149,35 @@ export default function RiskGraphPage() {
 
   return (
     <div className="space-y-5 p-6">
-      <div className="animate-fade-in flex items-start justify-between">
+      {/* aexa-frontend#577 round 11: no flex-wrap here meant the title and
+          the search/site-filter controls (each a fixed w-56 = 224px) never
+          moved to their own line on a narrow viewport -- below roughly
+          480px wide (available width minus the page's own p-6 padding),
+          the search box visibly overlapped the wrapping h1 text and was
+          itself clipped at the screen edge, not just cramped. flex-wrap
+          lets the controls drop to their own row on phone-width screens;
+          sm:flex-nowrap keeps sm-and-up exactly as before (the title
+          shrinking/wrapping its own text next to the controls, not the
+          controls dropping below it) -- flex-wrap alone changes *when*
+          the browser wraps at all: without the sm:flex-nowrap override,
+          desktop widths that already fit fine today (by letting the
+          title's own flex-shrink wrap its text to two lines beside the
+          controls) would instead drop the controls to a new row the
+          moment the *unshrunk* title's width didn't fit next to them --
+          a real desktop regression this round almost shipped. sm:gap-0
+          cancels the new gap-3 back out at sm-and-up too -- gap-3 is
+          needed for the mobile stacked rows to have breathing room, but
+          this container never had a gap class before (justify-between's
+          own spacing did that job), so leaving gap-3 unconditional would
+          have forced a 12px minimum gap the old layout never enforced,
+          shrinking/wrapping the title a little earlier than before at
+          whatever handful of desktop widths used to leave less than that
+          between title and controls -- caught in review, same class of
+          "the fix's own side effect" as the flex-wrap-without-nowrap
+          issue above. The inner w-full sm:w-56 (below) is what lets the
+          mobile-only stacked row put the search box and site filter on
+          top of each other instead of still overflowing side by side. */}
+      <div className="animate-fade-in flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap sm:gap-0">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
             {t("organization.riskGraph.title")}
@@ -1158,8 +1186,8 @@ export default function RiskGraphPage() {
             {t("organization.riskGraph.description")}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative w-56">
+        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+          <div className="relative w-full sm:w-56">
             <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               value={searchQuery}
@@ -1211,7 +1239,7 @@ export default function RiskGraphPage() {
           <SiteFilter
             value={siteFilter}
             onChange={handleSiteFilterChange}
-            className="w-56"
+            className="w-full sm:w-56"
           />
         </div>
       </div>
