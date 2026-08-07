@@ -1206,6 +1206,93 @@ describe("RiskGraphPage", () => {
       )
     })
 
+    // aexa-frontend#577 round 16 follow-up (user feedback): every reference
+    // graph tool deselects on background click -- previously the only way
+    // was the explicit "Clear selection" chip.
+    it("deselects the current risk when clicking empty background space", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      fireEvent.click(node)
+      expect(node).toHaveAttribute("aria-pressed", "true")
+
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      const background = svg.querySelector("rect")!
+      fireEvent.click(background)
+
+      expect(node).toHaveAttribute("aria-pressed", "false")
+    })
+
+    it("does not deselect when a background click follows a real drag (a pan, not a click)", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      fireEvent.click(node)
+      expect(node).toHaveAttribute("aria-pressed", "true")
+
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      const background = svg.querySelector("rect")!
+      // A real drag: mousedown, move past the 3px threshold, mouseup, then
+      // the click event a real browser fires after mouseup on the same
+      // target -- exactly the sequence handlePanMove's didDragRef guards.
+      fireEvent.mouseDown(background, { clientX: 100, clientY: 100 })
+      fireEvent.mouseMove(svg, { clientX: 140, clientY: 130 })
+      fireEvent.mouseUp(svg)
+      fireEvent.click(background)
+
+      expect(node).toHaveAttribute("aria-pressed", "true")
+    })
+
+    it("deselects the current risk on Escape", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      fireEvent.click(node)
+      expect(node).toHaveAttribute("aria-pressed", "true")
+
+      fireEvent.keyDown(node, { key: "Escape" })
+
+      expect(node).toHaveAttribute("aria-pressed", "false")
+    })
+
+    // aexa-frontend#577 round 16 review: Escape only preventDefaults when it
+    // actually clears a selection, so it doesn't swallow a browser/OS
+    // default (e.g. exiting fullscreen) for no reason when nothing is
+    // selected.
+    it("does not call preventDefault on Escape when nothing is selected", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      const event = new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      })
+      node.dispatchEvent(event)
+
+      expect(event.defaultPrevented).toBe(false)
+    })
+
     // aexa-frontend#577 round-3 review: the svg's touch-none class blocked
     // the browser's native touch scroll/pinch-zoom with no replacement --
     // touch/tablet users had *worse* graph interaction after round 2's
@@ -1232,6 +1319,40 @@ describe("RiskGraphPage", () => {
       expect(getTransformGroup(container).getAttribute("transform")).toBe(
         "translate(40 30) scale(1)"
       )
+    })
+
+    // aexa-frontend#577 round 16 follow-up review: mobile browsers can still
+    // fire a compatibility "click" on the background rect after a touch
+    // drag (none of the touch handlers call preventDefault) -- the same
+    // didDragRef guard that protects the mouse-drag path must also cover
+    // this touch path, or a tablet user panning the graph would find their
+    // selection cleared the moment they lift their finger.
+    it("does not deselect when a background click follows a real touch-drag pan", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      fireEvent.click(node)
+      expect(node).toHaveAttribute("aria-pressed", "true")
+
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      const background = svg.querySelector("rect")!
+      fireEvent.touchStart(background, {
+        touches: [{ clientX: 100, clientY: 100 }],
+      })
+      fireEvent.touchMove(svg, {
+        touches: [{ clientX: 140, clientY: 130 }],
+      })
+      fireEvent.touchEnd(svg, { touches: [] })
+      // The browser's own trailing compatibility click after a touch drag.
+      fireEvent.click(background)
+
+      expect(node).toHaveAttribute("aria-pressed", "true")
     })
 
     it("zooms with a two-finger pinch, anchored the same way as scroll/button zoom", () => {
@@ -1263,6 +1384,88 @@ describe("RiskGraphPage", () => {
       expect(getTransformGroup(container).getAttribute("transform")).toMatch(
         /scale\(2\)$/
       )
+    })
+
+    // aexa-frontend#577 round 16 follow-up review, round 2: a second finger
+    // landing at all is already a deliberate gesture, never an accidental
+    // tap -- without setting didDragRef in handleTouchStartPinch too, a
+    // pinch-zoom followed by a mobile browser's trailing compatibility
+    // click could incorrectly deselect right after a real zoom gesture.
+    it("does not deselect when a background click follows a real two-finger pinch", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      fireEvent.click(node)
+      expect(node).toHaveAttribute("aria-pressed", "true")
+
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      const background = svg.querySelector("rect")!
+      fireEvent.touchStart(svg, {
+        touches: [
+          { clientX: 100, clientY: 100 },
+          { clientX: 200, clientY: 100 },
+        ],
+      })
+      fireEvent.touchMove(svg, {
+        touches: [
+          { clientX: 50, clientY: 100 },
+          { clientX: 250, clientY: 100 },
+        ],
+      })
+      fireEvent.touchEnd(svg, { touches: [] })
+      fireEvent.click(background)
+
+      expect(node).toHaveAttribute("aria-pressed", "true")
+    })
+
+    // aexa-frontend#577 round 16 follow-up review, round 3: didDragRef is
+    // now consumed (reset to false) by the very click it suppresses, rather
+    // than requiring the *next gesture's own start* to reset it -- this
+    // covers any gesture entry point (3+ fingers, a hybrid touch+mouse
+    // device's click landing without a preceding single-finger reset) that
+    // sets the flag without a matching reset path, instead of enumerating
+    // every one individually. A 3-finger touch is one such entry point:
+    // neither handleTouchStartPan (`!== 1`) nor the old handleTouchStartPinch
+    // (`!== 2`) guard covered it -- handleTouchStartPinch now uses `&lt; 2`
+    // specifically so this still counts as a real gesture.
+    it("does not deselect when a background click follows a real three-finger touch, and behaves normally again on the click after that", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      fireEvent.click(node)
+      expect(node).toHaveAttribute("aria-pressed", "true")
+
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+      const background = svg.querySelector("rect")!
+      fireEvent.touchStart(svg, {
+        touches: [
+          { clientX: 100, clientY: 100 },
+          { clientX: 200, clientY: 100 },
+          { clientX: 300, clientY: 100 },
+        ],
+      })
+      fireEvent.touchEnd(svg, { touches: [] })
+      // This click is the gesture's own trailing compatibility click --
+      // suppressed once, and the flag is now consumed.
+      fireEvent.click(background)
+      expect(node).toHaveAttribute("aria-pressed", "true")
+
+      // A genuine, independent plain click on the background afterward
+      // must behave normally again, not stay silently disabled.
+      fireEvent.click(background)
+      expect(node).toHaveAttribute("aria-pressed", "false")
     })
 
     it("a second finger landing mid-pan switches to pinch instead of continuing to pan", () => {
@@ -1937,6 +2140,125 @@ describe("RiskGraphPage", () => {
       expect(
         container.querySelector("svg > g[transform]")!.getAttribute("transform")
       ).toBe("translate(0 0) scale(1)")
+    })
+  })
+
+  // aexa-frontend#577 round 16: the domino-chain refs and correlations list
+  // had no visual tie-back to the canvas -- hovering a list entry now
+  // previews its graph node via a dedicated ring (hsl(var(--ring))),
+  // distinct from the selected/cascaded ring, without disturbing
+  // selectedRisk.
+  describe("hover-to-highlight linking (#577 round 16)", () => {
+    function hoverRing(container: HTMLElement, ref: string) {
+      const node = within(container).getByRole("button", {
+        name: `Risk ${ref}`,
+      })
+      return node.querySelector('circle[stroke="hsl(var(--ring))"]')
+    }
+
+    it("highlights the matching graph node when hovering its ref in the domino-chain list, and clears on mouse-leave", () => {
+      // dominoChains only records a path once it reaches length >= 3 (see
+      // RiskGraphPage.tsx's dfs()), so a single A->B link alone never
+      // surfaces in this list -- a 3-node chain is the minimum fixture.
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "a", ref: "RISK-A" }),
+            makeRisk({ id: "b", ref: "RISK-B" }),
+            makeRisk({ id: "c", ref: "RISK-C" }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+        data: {
+          data: {
+            riskLinks: [
+              {
+                source_ref: "RISK-A",
+                target_ref: "RISK-B",
+                link_type: "CAUSES",
+              },
+              {
+                source_ref: "RISK-B",
+                target_ref: "RISK-C",
+                link_type: "CAUSES",
+              },
+            ],
+          },
+        },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      expect(hoverRing(container, "RISK-A")).toBeNull()
+
+      const dominoRefButton = within(
+        screen.getByRole("button", {
+          name: /organization\.riskGraph\.dominoScenarios/,
+        }).closest(".rounded-xl") as HTMLElement
+      ).getByTitle("RISK-A")
+
+      fireEvent.mouseEnter(dominoRefButton)
+      expect(hoverRing(container, "RISK-A")).not.toBeNull()
+      // Hovering one ref doesn't highlight the other.
+      expect(hoverRing(container, "RISK-B")).toBeNull()
+
+      fireEvent.mouseLeave(dominoRefButton)
+      expect(hoverRing(container, "RISK-A")).toBeNull()
+    })
+
+    it("highlights the matching graph node when hovering a ref in the correlations list", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "a", ref: "RISK-A" }),
+            makeRisk({ id: "b", ref: "RISK-B" }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+        data: {
+          data: {
+            riskLinks: [
+              {
+                source_ref: "RISK-A",
+                target_ref: "RISK-B",
+                link_type: "CORRELATES",
+              },
+            ],
+          },
+        },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      const correlationsHeading = screen.getByText(
+        /organization\.riskGraph\.correlations/
+      )
+      const correlationsPanel = correlationsHeading.closest(
+        ".rounded-xl"
+      ) as HTMLElement
+      const targetRefEl = within(correlationsPanel).getByTitle("RISK-B")
+
+      fireEvent.mouseEnter(targetRefEl)
+      expect(hoverRing(container, "RISK-B")).not.toBeNull()
+      expect(hoverRing(container, "RISK-A")).toBeNull()
+
+      fireEvent.mouseLeave(targetRefEl)
+      expect(hoverRing(container, "RISK-B")).toBeNull()
+    })
+
+    it("keeps the hover ring visually distinct from selection -- selecting a risk doesn't add the hover ring by itself", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ id: "a", ref: "RISK-A" })] },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      fireEvent.click(screen.getByRole("button", { name: "Risk RISK-A" }))
+      expect(hoverRing(container, "RISK-A")).toBeNull()
     })
   })
 })

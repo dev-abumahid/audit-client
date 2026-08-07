@@ -133,6 +133,7 @@ interface RiskGraphNodeProps {
   catColor: string
   isSelected: boolean
   isCascaded: boolean
+  isHovered: boolean
   isDimmed: boolean
   isTippingPoint: boolean
   tippingPointLabel: string
@@ -141,6 +142,7 @@ interface RiskGraphNodeProps {
   pagerankText: string
   ariaLabel: string
   onSelect: (ref: string) => void
+  onHoverChange: (ref: string | null) => void
 }
 
 const RiskGraphNode = memo(function RiskGraphNode({
@@ -151,6 +153,7 @@ const RiskGraphNode = memo(function RiskGraphNode({
   catColor,
   isSelected,
   isCascaded,
+  isHovered,
   isDimmed,
   isTippingPoint,
   tippingPointLabel,
@@ -159,6 +162,7 @@ const RiskGraphNode = memo(function RiskGraphNode({
   pagerankText,
   ariaLabel,
   onSelect,
+  onHoverChange,
 }: RiskGraphNodeProps) {
   return (
     <g
@@ -170,12 +174,33 @@ const RiskGraphNode = memo(function RiskGraphNode({
           onSelect(riskRef)
         }
       }}
+      onMouseEnter={() => onHoverChange(riskRef)}
+      onMouseLeave={() => onHoverChange(null)}
       tabIndex={0}
       role="button"
       aria-pressed={isSelected}
       aria-label={ariaLabel}
       opacity={isDimmed ? 0.15 : 1}
     >
+      {/* aexa-frontend#577 round 16: a solid, non-animated ring in the
+          theme's dedicated --ring token -- distinct from the dashed,
+          animated selected (primary) / cascaded (destructive) ring below,
+          so a risk hovered from the domino-chain/correlations lists reads
+          as its own state rather than being confused with selection or
+          cascade-highlighting. Drawn at a smaller offset (+3 vs +6) so it
+          doesn't visually collide with that ring on the rare case both are
+          true at once (e.g. hovering the currently-selected risk's own
+          list entry). */}
+      {isHovered && (
+        <circle
+          cx={x}
+          cy={y}
+          r={nodeRadius + 3}
+          fill="none"
+          stroke="hsl(var(--ring))"
+          strokeWidth={2}
+        />
+      )}
       {/* Cascade highlight */}
       {(isSelected || isCascaded) && (
         <circle
@@ -386,6 +411,12 @@ export default function RiskGraphPage() {
     new Set()
   )
   const [selectedRisk, setSelectedRisk] = useState<string | null>(null)
+  // aexa-frontend#577 round 16: the domino-chain refs and correlations list
+  // had no visual tie-back to the canvas -- a user had to click a ref (and
+  // lose their place in the list, since clicking selects/navigates) just to
+  // see where it sits in the graph. A separate hover-only ref lets the list
+  // preview a node's position without disturbing selectedRisk.
+  const [hoveredRef, setHoveredRef] = useState<string | null>(null)
   const [showDomino, setShowDomino] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   // aexa-frontend#577: the single most-cited gap against every reference
@@ -403,6 +434,17 @@ export default function RiskGraphPage() {
     originX: number
     originY: number
   } | null>(null)
+  // aexa-frontend#577 round 16 follow-up (user feedback): a plain "click" on
+  // the background rect fires on mouseup regardless of how far the pointer
+  // moved in between, so without this a background-pan drag would also
+  // deselect the current risk the moment the mouse button is released --
+  // set on every real pan movement past a small threshold, checked (and
+  // reset) by handleBackgroundClick below. Shared by both the mouse
+  // (handlePanStart/handlePanMove) and touch (handleTouchStartPan/
+  // handleTouchMove) pan paths -- mobile browsers can still fire a
+  // compatibility "click" after a touch drag, so the same guard is needed
+  // on both.
+  const didDragRef = useRef(false)
   // aexa-frontend#577 round-3 review: the svg's `touch-none` class (added
   // alongside round 2's mouse-only pan/zoom) blocks the browser's native
   // touch scroll/pinch-zoom with no replacement -- touch/tablet users had
@@ -506,6 +548,12 @@ export default function RiskGraphPage() {
   // defeating the point of memoizing them.
   const handleNodeSelect = useCallback((ref: string) => {
     setSelectedRisk((prev) => (prev === ref ? null : ref))
+  }, [])
+
+  // Stable identity (like handleNodeSelect above) so it doesn't defeat
+  // RiskGraphNode's memoization -- passed to every node as onHoverChange.
+  const handleHoverChange = useCallback((ref: string | null) => {
+    setHoveredRef(ref)
   }, [])
 
   // Build domino chains (longest causal paths)
@@ -828,6 +876,20 @@ export default function RiskGraphPage() {
         e.preventDefault()
         setView(DEFAULT_VIEW)
         break
+      // aexa-frontend#577 round 16 follow-up (user feedback): the mouse-only
+      // "Clear selection" chip and the new click-empty-space-to-deselect
+      // (handleBackgroundClick) both had no keyboard equivalent -- Escape is
+      // the conventional "dismiss/deselect" key across this app's own modals
+      // (useModalA11y) and every reference graph tool researched for #577.
+      // Only acts if something is actually selected, so Escape doesn't
+      // swallow a browser/OS default (e.g. exiting fullscreen) for no
+      // reason when there's nothing to clear.
+      case "Escape":
+        if (selectedRisk) {
+          e.preventDefault()
+          setSelectedRisk(null)
+        }
+        break
     }
   }
 
@@ -1065,6 +1127,7 @@ export default function RiskGraphPage() {
   }
 
   function handlePanStart(e: React.MouseEvent) {
+    didDragRef.current = false
     panState.current = {
       startX: e.clientX,
       startY: e.clientY,
@@ -1074,6 +1137,16 @@ export default function RiskGraphPage() {
   }
   function handlePanMove(e: React.MouseEvent) {
     if (!panState.current || !svgRef.current) return
+    // 3px is a generous "still basically a click" tolerance -- real pointer
+    // devices (especially trackpads) always jitter a pixel or two even on
+    // an intended click, so a 0px/1px threshold would misclassify plain
+    // clicks as drags and never deselect on background click at all.
+    if (
+      Math.abs(e.clientX - panState.current.startX) > 3 ||
+      Math.abs(e.clientY - panState.current.startY) > 3
+    ) {
+      didDragRef.current = true
+    }
     // Convert screen-pixel drag distance to the graph's own coordinate
     // units via the SVG's actual rendered width vs. its viewBox width --
     // a 1:1 pixel mapping would pan too fast/slow depending on how much
@@ -1096,6 +1169,31 @@ export default function RiskGraphPage() {
     panState.current = null
   }
 
+  // aexa-frontend#577 round 16 follow-up (user feedback): clicking empty
+  // canvas space now clears the current selection, matching every reference
+  // graph tool researched for this issue (Cytoscape, Gephi, Neo4j Bloom all
+  // deselect on background click) -- previously the only way to deselect
+  // was the explicit "Clear selection" chip in the legend row. Gated on
+  // didDragRef so a background-drag pan doesn't also deselect the instant
+  // the mouse button is released (see handlePanMove's threshold check).
+  // aexa-frontend#577 round 16 follow-up, round 3 review: rather than chase
+  // every specific gesture entry point that could leave didDragRef stuck
+  // (3+ finger touches, a hybrid touch+mouse device's next click landing
+  // without a preceding single-finger reset, etc.), this consumes the flag
+  // exactly once per click instead of requiring the *next gesture's own
+  // start* to reset it. Any click immediately following a real drag/gesture
+  // -- however that gesture began -- is treated as that gesture's trailing
+  // click and swallowed once; every click after that behaves normally
+  // again, categorically closing the "stuck disabled until another real
+  // pan happens" failure mode instead of enumerating more finger counts.
+  function handleBackgroundClick() {
+    if (didDragRef.current) {
+      didDragRef.current = false
+      return
+    }
+    setSelectedRisk(null)
+  }
+
   // Touch equivalents of the mouse handlers above: one finger pans (same
   // math as handlePanMove, driven from the background rect so a tap on a
   // node still just selects it), two fingers pinch-to-zoom (same
@@ -1107,6 +1205,7 @@ export default function RiskGraphPage() {
   }
   function handleTouchStartPan(e: React.TouchEvent) {
     if (e.touches.length !== 1) return
+    didDragRef.current = false
     const t = e.touches[0]
     panState.current = {
       startX: t.clientX,
@@ -1116,7 +1215,13 @@ export default function RiskGraphPage() {
     }
   }
   function handleTouchStartPinch(e: React.TouchEvent) {
-    if (e.touches.length !== 2) return
+    // >= 2, not === 2: a stray 3rd+ finger shouldn't opt this gesture out of
+    // multi-touch handling (touchDistance below only ever reads touches[0]/
+    // touches[1] regardless of how many are actually down, so extra fingers
+    // don't change the pinch math either way) -- and per the comment below,
+    // 2-or-more fingers landing at all is what disqualifies a trailing
+    // click, not exactly-2.
+    if (e.touches.length < 2) return
     // A second finger landing mid-pan supersedes the pan -- resuming pan
     // cleanly once the pinch ends would need re-basing panState's origin,
     // which isn't worth the complexity here; the user just re-touches to
@@ -1126,6 +1231,14 @@ export default function RiskGraphPage() {
       initialDistance: touchDistance(e.touches),
       initialScale: view.scale,
     }
+    // Round 1 review gap: a second finger landing at all is already a
+    // deliberate multi-touch gesture, never an accidental tap -- without
+    // this, a pinch-zoom that happened to start before the first finger's
+    // own movement crossed handleTouchMove's 3px threshold would leave
+    // didDragRef false, and a mobile browser's trailing compatibility click
+    // after the pinch ends would incorrectly deselect right after a real
+    // zoom gesture (same failure mode the touch-pan fix above addresses).
+    didDragRef.current = true
   }
   function handleTouchMove(e: React.TouchEvent) {
     if (e.touches.length === 2 && pinchState.current) {
@@ -1149,6 +1262,17 @@ export default function RiskGraphPage() {
     }
     if (e.touches.length === 1 && panState.current && svgRef.current) {
       const t = e.touches[0]
+      // Same 3px tolerance and same reason as handlePanMove's own check --
+      // without it, a touch tap-then-lift (which browsers can still follow
+      // with a compatibility "click" on the background rect, since none of
+      // these touch handlers call preventDefault) would incorrectly count
+      // as a completed drag.
+      if (
+        Math.abs(t.clientX - panState.current.startX) > 3 ||
+        Math.abs(t.clientY - panState.current.startY) > 3
+      ) {
+        didDragRef.current = true
+      }
       const renderedWidth = svgRef.current.getBoundingClientRect().width
       const unitsPerPixel = renderedWidth > 0 ? graphWidth / renderedWidth : 1
       const nextX =
@@ -1238,6 +1362,15 @@ export default function RiskGraphPage() {
               aria-autocomplete="list"
               className="focus-ring h-9 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-xs"
             />
+            {/* aexa-frontend#577 round 16 review: this dropdown also lists
+                clickable risk refs, the same shape of element the domino-
+                chain/correlations lists got hover-highlighting for below --
+                deliberately left out of that round's scope. It's a
+                transient typeahead result set (types to open, click/Escape/
+                blur to dismiss) rather than a persistent panel sitting next
+                to the graph, so there's no window in which a user would be
+                looking at both the dropdown and the graph at once to
+                benefit from a hover preview. */}
             {searchMatches.length > 0 && (
               <ul
                 id="risk-graph-search-results"
@@ -1418,6 +1551,7 @@ export default function RiskGraphPage() {
               height={graphHeight}
               fill="transparent"
               onMouseDown={handlePanStart}
+              onClick={handleBackgroundClick}
               onTouchStart={handleTouchStartPan}
               className="cursor-grab active:cursor-grabbing"
             />
@@ -1594,6 +1728,7 @@ export default function RiskGraphPage() {
                     catColor={catColor}
                     isSelected={isSelected}
                     isCascaded={isCascaded}
+                    isHovered={risk.ref === hoveredRef}
                     isDimmed={isDimmed}
                     isTippingPoint={tippingPointRefs.has(risk.ref)}
                     tippingPointLabel={t(
@@ -1606,6 +1741,7 @@ export default function RiskGraphPage() {
                       riskId: risk.ref,
                     })}
                     onSelect={handleNodeSelect}
+                    onHoverChange={handleHoverChange}
                   />
                 )
               })}
@@ -1842,6 +1978,8 @@ export default function RiskGraphPage() {
                           <span key={ref} className="flex items-center gap-1">
                             <button
                               onClick={() => setSelectedRisk(ref)}
+                              onMouseEnter={() => setHoveredRef(ref)}
+                              onMouseLeave={() => setHoveredRef(null)}
                               className="font-mono-data font-bold text-foreground hover:text-primary"
                               title={ref}
                             >
@@ -1875,6 +2013,8 @@ export default function RiskGraphPage() {
                   {riskByRef.has(link.source_ref) ? (
                     <Link
                       to={`/organization/risks/${riskByRef.get(link.source_ref)!.id}`}
+                      onMouseEnter={() => setHoveredRef(link.source_ref)}
+                      onMouseLeave={() => setHoveredRef(null)}
                       className="focus-ring font-mono-data font-bold text-primary hover:underline"
                       title={link.source_ref}
                     >
@@ -1882,6 +2022,8 @@ export default function RiskGraphPage() {
                     </Link>
                   ) : (
                     <span
+                      onMouseEnter={() => setHoveredRef(link.source_ref)}
+                      onMouseLeave={() => setHoveredRef(null)}
                       className="font-mono-data font-bold text-foreground"
                       title={link.source_ref}
                     >
@@ -1892,6 +2034,8 @@ export default function RiskGraphPage() {
                   {riskByRef.has(link.target_ref) ? (
                     <Link
                       to={`/organization/risks/${riskByRef.get(link.target_ref)!.id}`}
+                      onMouseEnter={() => setHoveredRef(link.target_ref)}
+                      onMouseLeave={() => setHoveredRef(null)}
                       className="focus-ring font-mono-data font-bold text-primary hover:underline"
                       title={link.target_ref}
                     >
@@ -1899,6 +2043,8 @@ export default function RiskGraphPage() {
                     </Link>
                   ) : (
                     <span
+                      onMouseEnter={() => setHoveredRef(link.target_ref)}
+                      onMouseLeave={() => setHoveredRef(null)}
                       className="font-mono-data font-bold text-foreground"
                       title={link.target_ref}
                     >
