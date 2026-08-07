@@ -682,13 +682,18 @@ export default function RiskGraphPage() {
     return refs
   }, [selectedRisk, outgoingAdjacency])
 
-  // Force-directed-ish layout using category clustering, extracted to
-  // computeRiskGraphLayout (src/utils/riskGraphLayout.ts) so its
-  // no-overlap-at-scale behavior is independently unit-tested rather than
-  // only exercised through this component. Keyed by risk.ref (not risk.id)
-  // -- see the filteredRefs comment above on why this component identifies
-  // risks by ref throughout, to match how RiskLink.source_ref/target_ref
-  // actually reference them.
+  // aexa-frontend#577 round 13: genuinely force-directed now, not just
+  // "-ish" -- computeRiskGraphLayout (src/utils/riskGraphLayout.ts) runs a
+  // d3-force simulation seeded from the same category-ring math this used
+  // to be, so its no-overlap-at-scale/determinism/topology behavior stays
+  // independently unit-tested rather than only exercised through this
+  // component. filteredLinks is now a real dependency (it wasn't before
+  // round 13, when layout was topology-blind by construction) -- passed
+  // through so risks connected by an actual CAUSES/AMPLIFIES/CORRELATES
+  // edge end up positioned near each other, not just near same-category
+  // risks. Keyed by risk.ref (not risk.id) -- see the filteredRefs comment
+  // above on why this component identifies risks by ref throughout, to
+  // match how RiskLink.source_ref/target_ref actually reference them.
   const {
     positions,
     width: graphWidth,
@@ -696,9 +701,14 @@ export default function RiskGraphPage() {
   } = useMemo(
     () =>
       computeRiskGraphLayout(
-        filteredRisks.map((r) => ({ ref: r.ref, category: r.category }))
+        filteredRisks.map((r) => ({ ref: r.ref, category: r.category })),
+        filteredLinks.map((l) => ({
+          source: l.source_ref,
+          target: l.target_ref,
+          kind: l.link_type,
+        }))
       ),
-    [filteredRisks]
+    [filteredRisks, filteredLinks]
   )
 
   // Reset pan/zoom when the site filter changes -- otherwise a user zoomed
