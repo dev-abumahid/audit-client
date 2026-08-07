@@ -2753,6 +2753,60 @@ describe("RiskGraphPage", () => {
       ).not.toBeInTheDocument()
     })
 
+    // aexa-frontend#577 round 21 follow-up (user feedback): the Pin icon's
+    // own tiny hover tooltip is nearly impossible to hover precisely at
+    // typical panel size/zoom -- the explanation needs to live somewhere
+    // with a real hit area (hovering the whole node) or no hover
+    // requirement at all (the side panel), not just on the icon itself.
+    it("mentions being pinned in the node's own (much larger) tooltip, and in the side panel once selected", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001", name: "Warehouse Fire" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: "Risk RSK-001" })
+      const svg = screen.getByLabelText(
+        "organization.riskGraph.graphKeyboardLabel"
+      )
+
+      // Not selected, not dragged yet -- neither surface mentions pinning.
+      expect(node.querySelector("title")!.textContent).toBe(
+        "RSK-001 — Warehouse Fire"
+      )
+
+      fireEvent.mouseDown(node, { clientX: 100, clientY: 100 })
+      fireEvent.mouseMove(svg, { clientX: 140, clientY: 130 })
+      fireEvent.mouseUp(svg)
+
+      // The main node's own tooltip -- hovering anywhere on the node body,
+      // not just the small Pin icon -- now includes the same explanation.
+      expect(node.querySelector("title")!.textContent).toBe(
+        "RSK-001 — Warehouse Fire (organization.riskGraph.pinnedLabel)"
+      )
+
+      // The side panel only appears once the risk is actually selected --
+      // dragging alone doesn't select it, so only the Pin icon's own
+      // <title> matches so far.
+      expect(
+        screen.getAllByText("organization.riskGraph.pinnedLabel")
+      ).toHaveLength(1)
+
+      // The drag's own trailing click is swallowed (same didDragRef
+      // consume-once guard the drag/selection test above covers) -- a
+      // second, real click is what actually selects it.
+      fireEvent.click(node)
+      expect(node).toHaveAttribute("aria-pressed", "false")
+      fireEvent.click(node)
+      expect(node).toHaveAttribute("aria-pressed", "true")
+
+      // Now genuinely two matches exist -- the Pin icon's own <title> and
+      // the new side-panel notice -- both correctly present.
+      expect(
+        screen.getAllByText("organization.riskGraph.pinnedLabel")
+      ).toHaveLength(2)
+    })
+
     // aexa-frontend#577 round 21: dragging is a pointer-only gesture with no
     // other way to reposition a node -- WCAG 2.5.7 (Dragging Movements)
     // requires a non-drag alternative.

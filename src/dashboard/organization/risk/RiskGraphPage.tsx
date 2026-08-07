@@ -2259,7 +2259,18 @@ export default function RiskGraphPage() {
                       "organization.riskGraph.legendTippingPoint"
                     )}
                     pinnedLabel={t("organization.riskGraph.pinnedLabel")}
-                    titleText={`${risk.ref} — ${risk.name}`}
+                    // aexa-frontend#577 round 21 follow-up (user feedback):
+                    // the Pin icon's own <title> was the only place this was
+                    // explained, and the icon's rendered hit area is tiny
+                    // (scales down to a few CSS pixels at this panel's
+                    // typical size/zoom) -- appending the same explanation
+                    // to the main node's tooltip means hovering *anywhere*
+                    // on the node (a much larger, easy target) surfaces it.
+                    titleText={
+                      risk.ref in pinnedPositions
+                        ? `${risk.ref} — ${risk.name} (${t("organization.riskGraph.pinnedLabel")})`
+                        : `${risk.ref} — ${risk.name}`
+                    }
                     labelText={shortRef(risk.ref)}
                     pagerankText={`${t("organization.riskGraph.pagerankAbbrLabel")}${getNormalizedPageRank(risk.ref).toFixed(0)}`}
                     ariaLabel={t("organization.riskGraph.nodeAriaLabel", {
@@ -2471,6 +2482,19 @@ export default function RiskGraphPage() {
                   <p className="mt-1 text-[10px] text-muted-foreground">
                     {Array.from(cascadeRefs).map(shortRef).join(" → ")}
                   </p>
+                </div>
+              )}
+              {/* aexa-frontend#577 round 21 follow-up (user feedback): the
+                  Pin icon on the graph node communicates the same thing
+                  ("was this dragged, or did the layout put it there, and
+                  how do I undo it") but only via a hover tooltip on a tiny
+                  icon -- this panel is already the guaranteed-visible place
+                  a user looks at once a risk is selected, no hover
+                  precision needed at all. */}
+              {selectedRisk && selectedRisk in pinnedPositions && (
+                <div className="flex items-center gap-1.5 rounded-md bg-muted p-2 text-[10px] text-muted-foreground">
+                  <Pin className="h-3 w-3 shrink-0" />
+                  {t("organization.riskGraph.pinnedLabel")}
                 </div>
               )}
             </div>
