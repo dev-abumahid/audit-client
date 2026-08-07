@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
 import { MemoryRouter } from "react-router"
 import RiskGraphPage from "./RiskGraphPage"
 
@@ -47,9 +47,15 @@ vi.mock("@/redux/apis/organization/riskLink.api", () => ({
 
 // SiteFilter independently calls useGetAllSitesQuery -- stubbed out so this
 // test file stays scoped to RiskGraphPage's own data wiring, same pattern
-// Overview.test.tsx uses for CriticalAlertBanner.
+// Overview.test.tsx uses for CriticalAlertBanner. Captures the onChange prop
+// so tests can simulate a site-filter change (e.g. the zoom-reset test
+// below) without needing to render SiteFilter's own real dropdown UI.
+let capturedSiteFilterOnChange: ((next: string | null) => void) | null = null
 vi.mock("@/components/dashboard/organization/SiteFilter", () => ({
-  default: () => null,
+  default: (props: { onChange: (next: string | null) => void }) => {
+    capturedSiteFilterOnChange = props.onChange
+    return null
+  },
 }))
 
 function makeRisk(overrides = {}) {
@@ -696,5 +702,168 @@ describe("RiskGraphPage", () => {
     expect(causesLine).toHaveAttribute("marker-end", "url(#arrowCauses)")
     expect(correlatesLine).not.toBeNull()
     expect(correlatesLine).not.toHaveAttribute("marker-end")
+  })
+
+  // aexa-frontend#577: the single most-cited gap against every reference
+  // graph-viz tool -- the graph only ever shrunk-to-fit as more risks were
+  // added, with no way to zoom in on a dense cluster or pan around.
+  describe("zoom and pan (#577 round 2)", () => {
+    function getTransformGroup(container: HTMLElement) {
+      const group = container.querySelector("svg > g[transform]")
+      expect(group).not.toBeNull()
+      return group as SVGGElement
+    }
+
+    it("zooms in and out via the on-screen controls, and resets via the reset button", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      const initialTransform = getTransformGroup(container).getAttribute(
+        "transform"
+      )
+      expect(initialTransform).toBe("translate(0 0) scale(1)")
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskGraph.zoomIn",
+        })
+      )
+      const zoomedInTransform = getTransformGroup(container).getAttribute(
+        "transform"
+      )
+      expect(zoomedInTransform).not.toBe(initialTransform)
+      expect(zoomedInTransform).toMatch(/scale\(1\.2\)/)
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskGraph.resetZoom",
+        })
+      )
+      expect(getTransformGroup(container).getAttribute("transform")).toBe(
+        "translate(0 0) scale(1)"
+      )
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskGraph.zoomOut",
+        })
+      )
+      const zoomedOutTransform = getTransformGroup(container).getAttribute(
+        "transform"
+      )
+      expect(zoomedOutTransform).not.toBe(initialTransform)
+      // 1 * (1/1.2) -- zoomOut uses the reciprocal factor of zoomIn's.
+      expect(zoomedOutTransform).toMatch(/scale\(0\.8\d*\)/)
+    })
+
+    it("clamps zoom-in at the maximum scale instead of growing unbounded", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      const zoomInButton = screen.getByRole("button", {
+        name: "organization.riskGraph.zoomIn",
+      })
+      // 1 * 1.2^N grows past the documented MAX_ZOOM of 3 well before 20
+      // clicks -- confirms clamping, not just "a big number". Each click
+      // also re-centers x/y around the viewBox center (see zoomBy), so
+      // only the scale factor itself is asserted here, not the exact
+      // translate -- once clamped, repeated clicks stop changing scale
+      // (nextScale === v.scale) but the x/y anchor math still runs every
+      // time, which is fine (it's a no-op once already centered).
+      for (let i = 0; i < 20; i++) {
+        await userEvent.click(zoomInButton)
+      }
+      expect(getTransformGroup(container).getAttribute("transform")).toMatch(
+        /scale\(3\)$/
+      )
+    })
+
+    it("pans the view by dragging the background surface", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      // container.querySelector("svg") would match whichever <svg> comes
+      // first in the DOM -- often a lucide icon (e.g. the search input's
+      // Search icon), not the graph -- so derive the graph's own <svg> from
+      // its background rect instead.
+      const background = container.querySelector("svg > rect")!
+      const svg = background.closest("svg")!
+      // jsdom's getBoundingClientRect returns all zeros -- the component
+      // falls back to a 1:1 units-per-pixel ratio in that case, so a
+      // 40px drag should translate to a 40-unit pan.
+      fireEvent.mouseDown(background, { clientX: 100, clientY: 100 })
+      fireEvent.mouseMove(svg, { clientX: 140, clientY: 130 })
+      fireEvent.mouseUp(svg)
+
+      expect(getTransformGroup(container).getAttribute("transform")).toBe(
+        "translate(40 30) scale(1)"
+      )
+    })
+
+    it("does not pan when dragging starts on a graph node (so node clicks aren't hijacked)", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      const node = screen.getByRole("button", { name: /^Risk / })
+      const svg = node.closest("svg")!
+      fireEvent.mouseDown(node, { clientX: 100, clientY: 100 })
+      fireEvent.mouseMove(svg, { clientX: 140, clientY: 130 })
+      fireEvent.mouseUp(svg)
+
+      expect(getTransformGroup(container).getAttribute("transform")).toBe(
+        "translate(0 0) scale(1)"
+      )
+    })
+
+    it("resets the view when the site filter changes, but not on unrelated re-renders", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001", site_id: "site-1" })] },
+        isLoading: false,
+      })
+      const { container, rerender } = render(<RiskGraphPage />, withRouter)
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskGraph.zoomIn",
+        })
+      )
+      const zoomedTransform =
+        getTransformGroup(container).getAttribute("transform")
+      expect(zoomedTransform).not.toBe("translate(0 0) scale(1)")
+
+      // An unrelated re-render (e.g. new risk data arriving for the same
+      // site) must NOT reset the zoomed view -- only an actual site filter
+      // change should.
+      rerender(<RiskGraphPage />)
+      expect(getTransformGroup(container).getAttribute("transform")).toBe(
+        zoomedTransform
+      )
+
+      // Simulate selecting a different site via the real SiteFilter's
+      // onChange, captured by the mock above -- this exercises
+      // handleSiteFilterChange, the actual reset path (not a useEffect
+      // keyed on siteFilter, per the #577 round-2 fix for React Compiler's
+      // set-state-in-effect rule).
+      capturedSiteFilterOnChange?.("site-2")
+      rerender(<RiskGraphPage />)
+      expect(getTransformGroup(container).getAttribute("transform")).toBe(
+        "translate(0 0) scale(1)"
+      )
+    })
   })
 })

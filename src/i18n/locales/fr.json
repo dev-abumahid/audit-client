@@ -1275,7 +1275,10 @@
       "searchPlaceholder": "Rechercher un risque par réf. ou nom...",
       "searchLabel": "Rechercher un risque par référence ou nom",
       "legendNodeSize": "Taille = PageRank",
-      "emptyState": "Aucun risque ne correspond aux filtres actuels."
+      "emptyState": "Aucun risque ne correspond aux filtres actuels.",
+      "zoomIn": "Zoom avant",
+      "zoomOut": "Zoom arrière",
+      "resetZoom": "Réinitialiser le zoom"
     },
     "settings": {
       "passwordChange": {

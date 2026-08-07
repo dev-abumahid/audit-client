@@ -16,13 +16,20 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Maximize,
   Search,
   X,
   Zap,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
+
+const MIN_ZOOM = 0.5
+const MAX_ZOOM = 3
+const DEFAULT_VIEW = { scale: 1, x: 0, y: 0 }
 
 interface DominoChain {
   refs: string[]
@@ -97,6 +104,20 @@ export default function RiskGraphPage() {
   const [selectedRisk, setSelectedRisk] = useState<string | null>(null)
   const [showDomino, setShowDomino] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  // aexa-frontend#577: the single most-cited gap against every reference
+  // graph-viz tool (Cytoscape/Gephi/Neo4j Bloom) -- the graph only ever
+  // shrunk-to-fit as more risks were added, with no way to zoom in on a
+  // dense cluster or pan around. `view` holds the pan/zoom transform
+  // applied to the graph's content group; svgRef/panState back the wheel
+  // and drag handlers below.
+  const [view, setView] = useState(DEFAULT_VIEW)
+  const svgRef = useRef<SVGSVGElement>(null)
+  const panState = useRef<{
+    startX: number
+    startY: number
+    originX: number
+    originY: number
+  } | null>(null)
 
   // Filter risks by site
   const filteredRisks = useMemo(() => {
@@ -235,9 +256,7 @@ export default function RiskGraphPage() {
     0
   )
   const getNormalizedPageRank = (ref: string) =>
-    maxPageRankScore > 0
-      ? (pageRankScores[ref] / maxPageRankScore) * 100
-      : 0
+    maxPageRankScore > 0 ? (pageRankScores[ref] / maxPageRankScore) * 100 : 0
 
   // Outgoing-edge adjacency for cascade BFS below, built once per
   // filteredLinks change instead of the BFS rescanning the full link array
@@ -275,10 +294,106 @@ export default function RiskGraphPage() {
   // -- see the filteredRefs comment above on why this component identifies
   // risks by ref throughout, to match how RiskLink.source_ref/target_ref
   // actually reference them.
-  const { positions, width: graphWidth, height: graphHeight } = useMemo(
-    () => computeRiskGraphLayout(filteredRisks.map((r) => ({ ref: r.ref, category: r.category }))),
+  const {
+    positions,
+    width: graphWidth,
+    height: graphHeight,
+  } = useMemo(
+    () =>
+      computeRiskGraphLayout(
+        filteredRisks.map((r) => ({ ref: r.ref, category: r.category }))
+      ),
     [filteredRisks]
   )
+
+  // Reset pan/zoom when the site filter changes -- otherwise a user zoomed
+  // into one filter's graph could land disoriented, panned off-canvas,
+  // after switching sites. Reset from the event handler that changes
+  // siteFilter (below), not a useEffect keyed on it: an effect-based reset
+  // still renders one frame with the stale view before the effect fires,
+  // an avoidable cascading render for something already known at the
+  // moment the filter actually changes.
+  function handleSiteFilterChange(next: string | null) {
+    setSiteFilter(next)
+    setView(DEFAULT_VIEW)
+  }
+
+  // Native (non-passive) wheel listener, since React's onWheel is passive
+  // by default -- e.dontDefault() on a passive listener is a no-op, and the
+  // page would scroll underneath the graph on every zoom gesture.
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      setView((v) => {
+        const nextScale = Math.min(
+          MAX_ZOOM,
+          Math.max(MIN_ZOOM, v.scale * (1 - e.deltaY * 0.001))
+        )
+        // Keep the graph's visual center anchored under the cursor's
+        // general area (the viewBox center, not the literal cursor
+        // position -- see zoomBy's comment for why) as scale changes.
+        const cx = graphWidth / 2
+        const cy = graphHeight / 2
+        return {
+          scale: nextScale,
+          x: v.x + (v.scale - nextScale) * cx,
+          y: v.y + (v.scale - nextScale) * cy,
+        }
+      })
+    }
+    svg.addEventListener("wheel", handleWheel, { passive: false })
+    return () => svg.removeEventListener("wheel", handleWheel)
+  }, [graphWidth, graphHeight])
+
+  // Zoom in/out around the viewBox center, same anchor math as the wheel
+  // handler above, for the on-screen +/- buttons (touch-friendly, and
+  // discoverable without knowing scroll-to-zoom is even possible).
+  function zoomBy(factor: number) {
+    setView((v) => {
+      const nextScale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.scale * factor))
+      const cx = graphWidth / 2
+      const cy = graphHeight / 2
+      return {
+        scale: nextScale,
+        x: v.x + (v.scale - nextScale) * cx,
+        y: v.y + (v.scale - nextScale) * cy,
+      }
+    })
+  }
+
+  function handlePanStart(e: React.MouseEvent) {
+    panState.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: view.x,
+      originY: view.y,
+    }
+  }
+  function handlePanMove(e: React.MouseEvent) {
+    if (!panState.current || !svgRef.current) return
+    // Convert screen-pixel drag distance to the graph's own coordinate
+    // units via the SVG's actual rendered width vs. its viewBox width --
+    // a 1:1 pixel mapping would pan too fast/slow depending on how much
+    // the viewBox is currently scaled down to fit the container.
+    const renderedWidth = svgRef.current.getBoundingClientRect().width
+    const unitsPerPixel = renderedWidth > 0 ? graphWidth / renderedWidth : 1
+    // Capture everything needed from panState.current now, before calling
+    // setView -- React may run this updater after a later render (a
+    // mouseup that nulls panState.current in between), so reading
+    // panState.current again *inside* the updater risks a null deref.
+    const nextX =
+      panState.current.originX +
+      (e.clientX - panState.current.startX) * unitsPerPixel
+    const nextY =
+      panState.current.originY +
+      (e.clientY - panState.current.startY) * unitsPerPixel
+    setView((v) => ({ ...v, x: nextX, y: nextY }))
+  }
+  function handlePanEnd() {
+    panState.current = null
+  }
 
   if (isLoading || isCorrelationLoading) {
     return (
@@ -355,7 +470,7 @@ export default function RiskGraphPage() {
           </div>
           <SiteFilter
             value={siteFilter}
-            onChange={setSiteFilter}
+            onChange={handleSiteFilterChange}
             className="w-56"
           />
         </div>
@@ -406,7 +521,9 @@ export default function RiskGraphPage() {
             visually-hidden h2 -- the h3s already inside them stay nested as
             they render today. */}
         <div className="animate-slide-up relative rounded-xl border border-border bg-card p-4 xl:col-span-2">
-          <h2 className="sr-only">{t("organization.riskGraph.graphSectionHeading")}</h2>
+          <h2 className="sr-only">
+            {t("organization.riskGraph.graphSectionHeading")}
+          </h2>
           {filteredRisks.length === 0 && (
             <div
               className="absolute inset-4 flex items-center justify-center text-center text-sm text-muted-foreground"
@@ -416,237 +533,293 @@ export default function RiskGraphPage() {
             </div>
           )}
           <svg
+            ref={svgRef}
             viewBox={`0 0 ${graphWidth} ${graphHeight}`}
-            className="h-auto w-full"
+            className="h-auto w-full touch-none"
             style={{ minHeight: 400 }}
+            onMouseMove={handlePanMove}
+            onMouseUp={handlePanEnd}
+            onMouseLeave={handlePanEnd}
           >
-            {/* Links */}
-            {filteredLinks.map((link, i) => {
-              const source = positions[link.source_ref]
-              const target = positions[link.target_ref]
-              if (!source || !target) return null
+            {/* Pan surface -- sits behind everything so dragging the
+                background pans the view without a mousedown on a node also
+                starting a pan (which would fight the node's own onClick). */}
+            <rect
+              x={0}
+              y={0}
+              width={graphWidth}
+              height={graphHeight}
+              fill="transparent"
+              onMouseDown={handlePanStart}
+              className="cursor-grab active:cursor-grabbing"
+            />
+            <g
+              transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}
+            >
+              {/* Links */}
+              {filteredLinks.map((link, i) => {
+                const source = positions[link.source_ref]
+                const target = positions[link.target_ref]
+                if (!source || !target) return null
 
-              const isCascade =
-                selectedRisk &&
-                (link.source_ref === selectedRisk ||
-                  cascadeRefs.has(link.source_ref)) &&
-                cascadeRefs.has(link.target_ref)
-              const isDimmed =
-                selectedRisk && !isCascade && link.source_ref !== selectedRisk
+                const isCascade =
+                  selectedRisk &&
+                  (link.source_ref === selectedRisk ||
+                    cascadeRefs.has(link.source_ref)) &&
+                  cascadeRefs.has(link.target_ref)
+                const isDimmed =
+                  selectedRisk && !isCascade && link.source_ref !== selectedRisk
 
-              // hsl(var(--x)) so these track the theme's actual light/dark
-              // token values -- this used to hardcode the light-mode HSL
-              // literals directly, so every edge kept its light-mode hue in
-              // dark mode too (--risk-critical/high/info all shift lightness
-              // between themes).
-              const color =
-                link.link_type === "CAUSES"
-                  ? "hsl(var(--risk-critical))"
-                  : link.link_type === "AMPLIFIES"
-                    ? "hsl(var(--risk-high))"
-                    : "hsl(var(--risk-info))"
+                // hsl(var(--x)) so these track the theme's actual light/dark
+                // token values -- this used to hardcode the light-mode HSL
+                // literals directly, so every edge kept its light-mode hue in
+                // dark mode too (--risk-critical/high/info all shift lightness
+                // between themes).
+                const color =
+                  link.link_type === "CAUSES"
+                    ? "hsl(var(--risk-critical))"
+                    : link.link_type === "AMPLIFIES"
+                      ? "hsl(var(--risk-high))"
+                      : "hsl(var(--risk-info))"
 
-              // Arrow marker
-              const dx = target.x - source.x
-              const dy = target.y - source.y
-              const len = Math.sqrt(dx * dx + dy * dy)
-              const nodeR = 22
-              const ratio = (len - nodeR) / len
-              const ex = source.x + dx * ratio
-              const ey = source.y + dy * ratio
+                // Arrow marker
+                const dx = target.x - source.x
+                const dy = target.y - source.y
+                const len = Math.sqrt(dx * dx + dy * dy)
+                const nodeR = 22
+                const ratio = (len - nodeR) / len
+                const ex = source.x + dx * ratio
+                const ey = source.y + dy * ratio
 
-              return (
-                <g key={i}>
-                  <line
-                    x1={source.x}
-                    y1={source.y}
-                    x2={ex}
-                    y2={ey}
-                    stroke={isCascade ? "hsl(var(--destructive))" : color}
-                    // The real RiskLink model (aexa-frontend#142) has no
-                    // strength/weight column -- Fullbloom's own RiskLink
-                    // doesn't carry one either -- so a fixed width per
-                    // link_type is the correct stand-in rather than a
-                    // strength this model doesn't have.
-                    strokeWidth={isCascade ? 5 : 3}
-                    strokeOpacity={isDimmed ? 0.08 : isCascade ? 0.8 : 0.35}
-                    strokeLinecap="round"
-                    // Test hook only (not used for rendering) -- lets tests
-                    // target a specific link_type's <line> directly instead
-                    // of inferring it from marker-end/stroke-opacity, which
-                    // only disambiguates correctly for a specific fixture
-                    // shape (aexa-frontend#577 review).
-                    data-link-type={link.link_type}
-                    // aexa-frontend#575 review: CAUSES/AMPLIFIES direction was
-                    // only visible once a cascade was selected (arrowCascade),
-                    // so the unselected graph couldn't communicate direction
-                    // at all even though these are directed edges (CORRELATES
-                    // has no inherent direction, per pageRank.ts, so it stays
-                    // arrowless here too).
-                    markerEnd={
-                      isCascade
-                        ? "url(#arrowCascade)"
-                        : link.link_type === "CAUSES"
-                          ? "url(#arrowCauses)"
-                          : link.link_type === "AMPLIFIES"
-                            ? "url(#arrowAmplifies)"
-                            : undefined
-                    }
+                return (
+                  <g key={i}>
+                    <line
+                      x1={source.x}
+                      y1={source.y}
+                      x2={ex}
+                      y2={ey}
+                      stroke={isCascade ? "hsl(var(--destructive))" : color}
+                      // The real RiskLink model (aexa-frontend#142) has no
+                      // strength/weight column -- Fullbloom's own RiskLink
+                      // doesn't carry one either -- so a fixed width per
+                      // link_type is the correct stand-in rather than a
+                      // strength this model doesn't have.
+                      strokeWidth={isCascade ? 5 : 3}
+                      strokeOpacity={isDimmed ? 0.08 : isCascade ? 0.8 : 0.35}
+                      strokeLinecap="round"
+                      // Test hook only (not used for rendering) -- lets tests
+                      // target a specific link_type's <line> directly instead
+                      // of inferring it from marker-end/stroke-opacity, which
+                      // only disambiguates correctly for a specific fixture
+                      // shape (aexa-frontend#577 review).
+                      data-link-type={link.link_type}
+                      // aexa-frontend#575 review: CAUSES/AMPLIFIES direction was
+                      // only visible once a cascade was selected (arrowCascade),
+                      // so the unselected graph couldn't communicate direction
+                      // at all even though these are directed edges (CORRELATES
+                      // has no inherent direction, per pageRank.ts, so it stays
+                      // arrowless here too).
+                      markerEnd={
+                        isCascade
+                          ? "url(#arrowCascade)"
+                          : link.link_type === "CAUSES"
+                            ? "url(#arrowCauses)"
+                            : link.link_type === "AMPLIFIES"
+                              ? "url(#arrowAmplifies)"
+                              : undefined
+                      }
+                    />
+                  </g>
+                )
+              })}
+
+              {/* Arrow defs */}
+              <defs>
+                <marker
+                  id="arrowCascade"
+                  viewBox="0 0 10 7"
+                  refX="10"
+                  refY="3.5"
+                  markerWidth="6"
+                  markerHeight="6"
+                  orient="auto"
+                >
+                  <polygon
+                    points="0 0, 10 3.5, 0 7"
+                    fill="hsl(var(--destructive))"
                   />
-                </g>
-              )
-            })}
+                </marker>
+                <marker
+                  id="arrowCauses"
+                  viewBox="0 0 10 7"
+                  refX="10"
+                  refY="3.5"
+                  markerWidth="5"
+                  markerHeight="5"
+                  orient="auto"
+                >
+                  <polygon
+                    points="0 0, 10 3.5, 0 7"
+                    fill="hsl(var(--risk-critical))"
+                    fillOpacity={0.35}
+                  />
+                </marker>
+                <marker
+                  id="arrowAmplifies"
+                  viewBox="0 0 10 7"
+                  refX="10"
+                  refY="3.5"
+                  markerWidth="5"
+                  markerHeight="5"
+                  orient="auto"
+                >
+                  <polygon
+                    points="0 0, 10 3.5, 0 7"
+                    fill="hsl(var(--risk-high))"
+                    fillOpacity={0.35}
+                  />
+                </marker>
+              </defs>
 
-            {/* Arrow defs */}
-            <defs>
-              <marker
-                id="arrowCascade"
-                viewBox="0 0 10 7"
-                refX="10"
-                refY="3.5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto"
-              >
-                <polygon points="0 0, 10 3.5, 0 7" fill="hsl(var(--destructive))" />
-              </marker>
-              <marker
-                id="arrowCauses"
-                viewBox="0 0 10 7"
-                refX="10"
-                refY="3.5"
-                markerWidth="5"
-                markerHeight="5"
-                orient="auto"
-              >
-                <polygon
-                  points="0 0, 10 3.5, 0 7"
-                  fill="hsl(var(--risk-critical))"
-                  fillOpacity={0.35}
-                />
-              </marker>
-              <marker
-                id="arrowAmplifies"
-                viewBox="0 0 10 7"
-                refX="10"
-                refY="3.5"
-                markerWidth="5"
-                markerHeight="5"
-                orient="auto"
-              >
-                <polygon
-                  points="0 0, 10 3.5, 0 7"
-                  fill="hsl(var(--risk-high))"
-                  fillOpacity={0.35}
-                />
-              </marker>
-            </defs>
+              {/* Nodes */}
+              {filteredRisks.map((risk) => {
+                const pos = positions[risk.ref]
+                if (!pos) return null
+                const nodeRadius = 18 + getNormalizedPageRank(risk.ref) / 6
+                const cat = RISK_CATEGORIES[risk.category]
+                const catColor = cat?.color || "hsl(220, 10%, 46%)"
+                const isSelected = risk.ref === selectedRisk
+                const isCascaded = cascadeRefs.has(risk.ref)
+                const isDimmed = selectedRisk && !isSelected && !isCascaded
 
-            {/* Nodes */}
-            {filteredRisks.map((risk) => {
-              const pos = positions[risk.ref]
-              if (!pos) return null
-              const nodeRadius = 18 + getNormalizedPageRank(risk.ref) / 6
-              const cat = RISK_CATEGORIES[risk.category]
-              const catColor = cat?.color || "hsl(220, 10%, 46%)"
-              const isSelected = risk.ref === selectedRisk
-              const isCascaded = cascadeRefs.has(risk.ref)
-              const isDimmed = selectedRisk && !isSelected && !isCascaded
-
-              return (
-                <g
-                  key={risk.id}
-                  className="cursor-pointer"
-                  onClick={() => setSelectedRisk(isSelected ? null : risk.ref)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault()
+                return (
+                  <g
+                    key={risk.id}
+                    className="cursor-pointer"
+                    onClick={() =>
                       setSelectedRisk(isSelected ? null : risk.ref)
                     }
-                  }}
-                  tabIndex={0}
-                  role="button"
-                  aria-pressed={isSelected}
-                  aria-label={t("organization.riskGraph.nodeAriaLabel", {
-                    riskId: risk.ref,
-                  })}
-                  opacity={isDimmed ? 0.15 : 1}
-                >
-                  {/* Cascade highlight */}
-                  {(isSelected || isCascaded) && (
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        setSelectedRisk(isSelected ? null : risk.ref)
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-pressed={isSelected}
+                    aria-label={t("organization.riskGraph.nodeAriaLabel", {
+                      riskId: risk.ref,
+                    })}
+                    opacity={isDimmed ? 0.15 : 1}
+                  >
+                    {/* Cascade highlight */}
+                    {(isSelected || isCascaded) && (
+                      <circle
+                        cx={pos.x}
+                        cy={pos.y}
+                        r={nodeRadius + 6}
+                        fill="none"
+                        stroke={
+                          isSelected
+                            ? "hsl(var(--primary))"
+                            : "hsl(var(--destructive))"
+                        }
+                        strokeWidth={2}
+                        strokeDasharray="4 2"
+                      >
+                        <animate
+                          attributeName="stroke-dashoffset"
+                          values="0;12"
+                          dur="1s"
+                          repeatCount="indefinite"
+                        />
+                      </circle>
+                    )}
                     <circle
                       cx={pos.x}
                       cy={pos.y}
-                      r={nodeRadius + 6}
-                      fill="none"
-                      stroke={
-                        isSelected
-                          ? "hsl(var(--primary))"
-                          : "hsl(var(--destructive))"
-                      }
+                      r={nodeRadius}
+                      fill={catColor}
+                      fillOpacity={isSelected ? 0.35 : 0.15}
+                      stroke={catColor}
                       strokeWidth={2}
-                      strokeDasharray="4 2"
+                      strokeOpacity={0.7}
+                    />
+                    <title>
+                      {risk.ref} — {risk.name}
+                    </title>
+                    {tippingPointRefs.has(risk.ref) && (
+                      <Zap
+                        x={pos.x + nodeRadius * 0.5}
+                        y={pos.y - nodeRadius - 10}
+                        width={12}
+                        height={12}
+                        className="fill-accent text-accent"
+                      >
+                        <title>
+                          {t("organization.riskGraph.legendTippingPoint")}
+                        </title>
+                      </Zap>
+                    )}
+                    <text
+                      x={pos.x}
+                      y={pos.y - 4}
+                      textAnchor="middle"
+                      className="fill-foreground text-[11px] font-bold select-none"
                     >
-                      <animate
-                        attributeName="stroke-dashoffset"
-                        values="0;12"
-                        dur="1s"
-                        repeatCount="indefinite"
-                      />
-                    </circle>
-                  )}
-                  <circle
-                    cx={pos.x}
-                    cy={pos.y}
-                    r={nodeRadius}
-                    fill={catColor}
-                    fillOpacity={isSelected ? 0.35 : 0.15}
-                    stroke={catColor}
-                    strokeWidth={2}
-                    strokeOpacity={0.7}
-                  />
-                  <title>
-                    {risk.ref} — {risk.name}
-                  </title>
-                  {tippingPointRefs.has(risk.ref) && (
-                    <Zap
-                      x={pos.x + nodeRadius * 0.5}
-                      y={pos.y - nodeRadius - 10}
-                      width={12}
-                      height={12}
-                      className="fill-accent text-accent"
+                      {shortRef(risk.ref)}
+                    </text>
+                    <text
+                      x={pos.x}
+                      y={pos.y + 9}
+                      textAnchor="middle"
+                      className="font-mono-data fill-muted-foreground text-[8px] select-none"
                     >
-                      <title>
-                        {t("organization.riskGraph.legendTippingPoint")}
-                      </title>
-                    </Zap>
-                  )}
-                  <text
-                    x={pos.x}
-                    y={pos.y - 4}
-                    textAnchor="middle"
-                    className="fill-foreground text-[11px] font-bold select-none"
-                  >
-                    {shortRef(risk.ref)}
-                  </text>
-                  <text
-                    x={pos.x}
-                    y={pos.y + 9}
-                    textAnchor="middle"
-                    className="fill-muted-foreground font-mono-data text-[8px] select-none"
-                  >
-                    {t("organization.riskGraph.pagerankAbbrLabel")}
-                    {getNormalizedPageRank(risk.ref).toFixed(0)}
-                  </text>
-                </g>
-              )
-            })}
+                      {t("organization.riskGraph.pagerankAbbrLabel")}
+                      {getNormalizedPageRank(risk.ref).toFixed(0)}
+                    </text>
+                  </g>
+                )
+              })}
+            </g>
           </svg>
+          {/* Zoom controls -- discoverable on touch devices and for users
+              who wouldn't otherwise know scroll-to-zoom/drag-to-pan is
+              available at all (aexa-frontend#577). */}
+          <div className="absolute right-6 bottom-6 flex flex-col gap-1 rounded-lg border border-border bg-card p-1 shadow-md">
+            <button
+              type="button"
+              onClick={() => zoomBy(1.2)}
+              aria-label={t("organization.riskGraph.zoomIn")}
+              className="focus-ring rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => zoomBy(1 / 1.2)}
+              aria-label={t("organization.riskGraph.zoomOut")}
+              className="focus-ring rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setView(DEFAULT_VIEW)}
+              aria-label={t("organization.riskGraph.resetZoom")}
+              className="focus-ring rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Maximize className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Side panel */}
         <div className="animate-slide-up stagger-2 space-y-4">
-          <h2 className="sr-only">{t("organization.riskGraph.sidePanelSectionHeading")}</h2>
+          <h2 className="sr-only">
+            {t("organization.riskGraph.sidePanelSectionHeading")}
+          </h2>
           {/* Selected risk detail */}
           {selectedRiskData && (
             <div className="space-y-3 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">

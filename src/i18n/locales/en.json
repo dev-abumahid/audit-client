@@ -1275,7 +1275,10 @@
       "searchPlaceholder": "Find a risk by ref or name...",
       "searchLabel": "Find a risk by ref or name",
       "legendNodeSize": "Size = PageRank",
-      "emptyState": "No risks match the current filters."
+      "emptyState": "No risks match the current filters.",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "resetZoom": "Reset zoom"
     },
     "settings": {
       "passwordChange": {
