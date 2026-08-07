@@ -119,6 +119,15 @@ export default function RiskGraphPage() {
     )
   }, [links, filteredRefs])
 
+  // aexa-frontend#570: the Links list below shows each link's source/target
+  // by ref -- resolve ref -> risk so those can link into the risk's own
+  // detail page, same as #549's CorrelationMatrixPage.tsx and #550's
+  // selected-risk side panel above.
+  const riskByRef = useMemo(
+    () => new Map(filteredRisks.map((r) => [r.ref, r])),
+    [filteredRisks]
+  )
+
   // Build domino chains (longest causal paths)
   const dominoChains = useMemo((): DominoChain[] => {
     const causesLinks = filteredLinks.filter(
@@ -643,19 +652,39 @@ export default function RiskGraphPage() {
                   key={i}
                   className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/50"
                 >
-                  <span
-                    className="font-mono-data font-bold text-foreground"
-                    title={link.source_ref}
-                  >
-                    {shortRef(link.source_ref)}
-                  </span>
+                  {riskByRef.has(link.source_ref) ? (
+                    <Link
+                      to={`/organization/risks/${riskByRef.get(link.source_ref)!.id}`}
+                      className="focus-ring font-mono-data font-bold text-primary hover:underline"
+                      title={link.source_ref}
+                    >
+                      {shortRef(link.source_ref)}
+                    </Link>
+                  ) : (
+                    <span
+                      className="font-mono-data font-bold text-foreground"
+                      title={link.source_ref}
+                    >
+                      {shortRef(link.source_ref)}
+                    </span>
+                  )}
                   <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />
-                  <span
-                    className="font-mono-data font-bold text-foreground"
-                    title={link.target_ref}
-                  >
-                    {shortRef(link.target_ref)}
-                  </span>
+                  {riskByRef.has(link.target_ref) ? (
+                    <Link
+                      to={`/organization/risks/${riskByRef.get(link.target_ref)!.id}`}
+                      className="focus-ring font-mono-data font-bold text-primary hover:underline"
+                      title={link.target_ref}
+                    >
+                      {shortRef(link.target_ref)}
+                    </Link>
+                  ) : (
+                    <span
+                      className="font-mono-data font-bold text-foreground"
+                      title={link.target_ref}
+                    >
+                      {shortRef(link.target_ref)}
+                    </span>
+                  )}
                   <span
                     className={`ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-medium ${LINK_TYPE_META[link.link_type].badgeClassName}`}
                   >

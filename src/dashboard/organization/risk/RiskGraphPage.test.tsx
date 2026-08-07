@@ -246,6 +246,42 @@ describe("RiskGraphPage", () => {
     expect(screen.getAllByText("RISK-HUB").length).toBeGreaterThan(0)
   })
 
+  // aexa-frontend#570: the Links list's source/target refs were plain text
+  // even though the page already resolves refs to risks elsewhere (the
+  // selected-risk side panel above, #550) -- reuses the same lookup.
+  it("links the Links list's source/target refs to their risk detail pages", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "node-a", ref: "RISK-A" }),
+          makeRisk({ id: "node-hub", ref: "RISK-HUB" }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          riskLinks: [
+            {
+              source_ref: "RISK-A",
+              target_ref: "RISK-HUB",
+              link_type: "CAUSES",
+            },
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    render(<RiskGraphPage />, withRouter)
+
+    const sourceLink = screen.getByRole("link", { name: "RISK-A" })
+    expect(sourceLink).toHaveAttribute("href", "/organization/risks/node-a")
+
+    const targetLink = screen.getByRole("link", { name: "RISK-HUB" })
+    expect(targetLink).toHaveAttribute("href", "/organization/risks/node-hub")
+  })
+
   // RiskLink.source_ref/target_ref reference risks by their human-readable
   // `ref` (e.g. "RISK-A"), never their uuid `id` -- confirmed against
   // CorrelationMatrixPage.tsx's own identical filteredRefs, the page already
