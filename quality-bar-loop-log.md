@@ -461,3 +461,52 @@ industry-standards (still backend-blocked/larger-scope) and mobile
 (real, but the remaining findings are lower-urgency layout fixes, not a
 graph algorithm running on every render) — same reasoning pattern as
 round 6, and this closes efficiency's own longest-remaining item.
+
+### Round 8 outcome — merged as PR #603
+
+Shipped via `ship-with-review-loop`, converged clean on review round 2:
+
+- **Fix**: wrapped `categoryData` and the PageRank pipeline
+  (`pageRankScores`/`maxPageRankScore`/`tippingPointRisks`) in `useMemo`,
+  keyed on the actual underlying query responses rather than derived
+  `?? []` arrays (which would silently defeat the memo by producing a new
+  array reference every render). Deliberately left the cheap single-pass
+  filter counts and `totalRevenue` unmemoized — not what this finding was
+  about, and wrapping trivially cheap work in `useMemo` has its own
+  overhead.
+- **Review round 1**: no bugs. Independently verified all three `useMemo`
+  calls sit before both early returns (rules of hooks), every dependency
+  array is complete (including confirming `t`'s reference does change on
+  a language switch, so it's a valid dependency, not a stale-closure
+  risk), and the variables moved inside the PageRank memo's callback have
+  no lingering outer-scope references. One minor nit: a local `risks`
+  const inside that memo shadowed the outer-scope `risks` variable.
+  Fixed same round: renamed to `tippingRisks`.
+- **Review round 2**: clean, zero findings. Converged.
+- QA gate: typecheck clean, lint clean (0 errors — including
+  `react-hooks/exhaustive-deps`, which caught the `?? []`-defeats-memo
+  issue during self-review before the PR even opened), full suite
+  1546/1546 passing.
+- **Test discipline**: the new regression test spies on the real
+  `computePageRank` export and asserts it's called exactly once across
+  an initial render plus a re-render with unchanged data. Verified
+  against a negative control before committing — reverted the fix
+  locally, confirmed the test fails (2 calls), restored the fix, confirmed
+  it passes — proving the test actually exercises memoization rather than
+  just asserting the rendered numbers look right.
+- Live-verified: normal dashboard render, the Tipping Points section
+  (the PageRank-derived output), and the page-level error state (via
+  this session's own live rate-limit condition) all render correctly. One
+  stale `ReferenceError: topPercentileFromScores is not defined` console
+  entry was traced to a transient HMR artifact from the negative-control
+  test's stash/pop cycle, not a live bug — resolved by a fresh reload,
+  same stale-buffered-console-entry pattern documented earlier in this
+  session.
+
+Still open going into round 9: industry-standards (EBITDA chart blocked
+on backend work, chart-type mismatch, no time-range/freshness indicator,
+non-clickable KPI cards), UX (no drill-down, all-or-nothing loading,
+PageRank contradiction, alerts read-only with no CTA), the out-of-scope
+risk-detail-page routing bug, and mobile's touch-target/ref-badge
+findings. Efficiency has no open findings left as of this round — worth
+confirming with a fresh score before assuming it's cleared.
