@@ -36,6 +36,7 @@
     --color-accent-foreground: hsl(var(--accent-foreground));
 
     --color-destructive: hsl(var(--destructive));
+    --color-destructive-foreground: hsl(var(--destructive-foreground));
 
     --color-border: hsl(var(--border));
     --color-input: hsl(var(--input));
@@ -117,15 +118,36 @@
     --accent: 38 92% 50%;
     --accent-foreground: 0 0% 100%;
 
-    /* 49%, not the original 51%: measured (WCAG relative-luminance) at
-       4.47:1 against --background -- just under the 4.5:1 AA line for
-       normal-size text, the same gap --muted-foreground had above. Same
-       fix, same convention: nudge lightness only (hue/saturation
-       untouched, so this still reads as "red/error" and every
-       --destructive/NN alpha-tint usage scales proportionally), landing at
-       4.71:1 with a small safety margin rather than sitting right on the
-       threshold. */
-    --destructive: 0 72% 49%;
+    /* 44%, not 49% (aexa-frontend#623's first pass) or the original 51%.
+       #623 only checked text-destructive against a plain --background/
+       --card surface (49% clears that: 4.71:1/5.06:1). But this token is
+       just as often the text sitting ON TOP OF its own tint --
+       bg-destructive/10 text-destructive is the shared Button
+       "destructive" variant's resting (non-hover) state, and the same
+       three-class combo is hand-copied into a dozen error banners/badges
+       across the app (Kri/Alerts/RunInspection/InspectionActions/
+       AuditPage/etc). That's a text-vs-10%-self-tint contrast check, a
+       different (harder) number than text-vs-plain-surface: at 49% it was
+       only 4.32:1 against a card-backed 10% tint -- still failing AA.
+       44% clears every combination this token's real call sites hit at
+       rest: 5.61:1 vs --background, 6.02:1 vs --card, 4.77:1 vs a
+       10%-self-tint over --background, 5.11:1 vs a 10%-self-tint over
+       --card. Known, accepted gap: the *hover-only* escalation states
+       (bg-destructive/20, dark:/30 -- Button's hover state and a few
+       focus rings) still fall short (~4.0-4.3:1) -- clearing those would
+       require pushing this value so dark/washed-out it stops reading as
+       an urgent "red/error" color in its far more common resting-state
+       and plain-surface uses, for a transient, user-triggered hover state
+       that isn't the default content a screen reader or a glance at the
+       page encounters. */
+    --destructive: 0 72% 44%;
+    /* White reads clearly here (6.02:1) -- this is the *solid*
+       bg-destructive case (delete-confirmation buttons), not the tint
+       case above. See the --primary-foreground comment further up for
+       why this token needs a different value per theme rather than one
+       constant: the color that's readable against light-mode's --destructive
+       fails against dark mode's (below). */
+    --destructive-foreground: 0 0% 100%;
 
     --border: 220 13% 89%;
     --input: 220 13% 89%;
@@ -201,16 +223,23 @@
     --accent: 38 92% 50%;
     --accent-foreground: 0 0% 100%;
 
-    /* See the light-theme comment above -- same AA-contrast fix, opposite
-       direction (lighter, not darker) since this is text on a dark
-       background: measured at 3.90:1 against --background, well under the
-       4.5:1 AA line. 61% (not 59%) is tuned against --card (222 22% 11%,
-       slightly lighter than --background and the more common surface this
-       token actually renders on -- table rows, cards, modals), which only
-       clears AA at 59% by a hair (4.44:1, still failing); 61% lands at
-       4.72:1 against --card and 5.04:1 against --background, both with a
-       real safety margin. */
-    --destructive: 0 72% 61%;
+    /* See the light-theme comment above -- same fix, same reasoning, same
+       supersede-#623's-first-pass story, opposite direction (lighter, not
+       darker) since this is text on a dark background. 66% (not 61%)
+       clears text-vs-10%-self-tint too, not just text-vs-plain-surface:
+       5.29:1 vs a 10%-tint over --background, 4.90:1 vs a 10%-tint over
+       --card (61% only reached 4.26:1 there -- failing). Same accepted
+       gap as light mode: the hover-only bg-destructive/20+ states still
+       fall short (4.20:1 vs a 20%-tint over --card) -- see the
+       light-theme comment for why that's a deliberate stopping point,
+       not an oversight. */
+    --destructive: 0 72% 66%;
+    /* Dark ink, not white -- mirrors --primary-foreground's fix above for
+       the identical reason: white-on-solid-destructive only reaches
+       3.16:1 here (this token is quite light in dark mode, precisely
+       because #623/this fix needed it to clear AA against its own tint),
+       while the existing ink color clears 5.67:1. */
+    --destructive-foreground: 220 25% 10%;
 
     --border: 220 18% 18%;
     --input: 220 18% 18%;
