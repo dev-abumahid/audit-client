@@ -597,3 +597,53 @@ non-clickable KPI cards), UX (no drill-down, all-or-nothing loading,
 PageRank contradiction, alerts read-only with no CTA), mobile's
 remaining finding (`MetricCard` has zero responsive classes, long
 scroll on mobile), and the out-of-scope risk-detail-page routing bug.
+
+## Round 11 (re-score after PR #604)
+
+| Axis | Round 9 | Round 11 | Δ |
+|---|---|---|---|
+| Industry-standards | 5/10 | 5/10 | — |
+| UX | 7/10 | 7/10 | — |
+| Efficiency | 10/10 | 10/10 | — |
+| Accessibility | 7/10 | 7/10 | — |
+| Visual/design polish | 7/10 | 8/10 | ↑ |
+| Resilience & edge cases | 9/10 | 9/10 | — |
+| Code quality/maintainability | 7/10 | 7/10 | — |
+| Mobile/responsive | 6/10 | 8/10 | ↑↑ |
+
+**Average: 7.625/10** (up from 7.25/10) — not converged on average
+(need ≥9), but **only 1/8 axes remains below the floor of 7**:
+industry-standards. Every other axis now clears the floor. No
+regression, no stagnation (seven straight panels of average
+improvement) — guardrails clear, loop continues.
+
+Round 10's mobile fix landed cleanly across both axes it touched: the
+ref badge fix resolved outright for visual polish (the judge noted it
+now reads as an intentional pill, not an awkward stretched rectangle),
+and both touch-target fixes were live-measured exactly as intended for
+mobile (ref badge 62.6×36px single-line, risk-name link 44px height
+exactly, Retry button 69.6×46px). The efficiency judge, asked to be
+skeptical of the round-9 perfect score rather than rubber-stamp it,
+independently re-confirmed 10/10 after a fresh pass.
+
+One judge (mobile/responsive) initially stalled mid-run waiting on the
+session's rate limit without delivering a score — resumed it directly
+with an instruction to finish now rather than keep waiting, which
+worked cleanly and produced a fully-measured live report.
+
+### Chosen fix for round 12
+
+**Chart-type mismatch** (industry-standards' only remaining fix that
+isn't backend-blocked or a larger product decision): the EBITDA
+percentile/Monte Carlo data (`ebitdaData`, seven discrete P5–P95
+buckets) is rendered through a continuous `AreaChart`/`Area
+type="monotone"`, which visually implies a time series moving
+left-to-right rather than a static distribution snapshot — a real
+Grafana/Datadog/Tableau anti-pattern for percentile data. Switching to
+a bar chart (Recharts `BarChart`/`Bar`) is a pure frontend rendering
+change with no backend dependency, unlike the "fabricated chart" finding
+itself (no real endpoint exists to point at) or the "no time-range
+control"/"non-clickable KPI cards" findings (larger UX/product
+decisions — a time-range control needs a real data source to filter
+against, and KPI drill-down needs a defined destination per card,
+neither of which should be guessed at autonomously).
