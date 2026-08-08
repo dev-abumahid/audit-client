@@ -239,3 +239,42 @@ UX, efficiency, accessibility, mobile/responsive, code quality.
 indicator's mobile wrapping (force it onto its own line rather than pairing
 with the next filter), (3) fix the subtitle to not claim "0 risks found"
 during an error or loading state.
+
+## Round 5 — fix shipped (PR #618)
+
+Shipped all three round-4 findings in one PR (all touch the same header/
+top-of-page region, cheap and independent, no reason to split):
+
+1. Header subtitle now branches `risksLoading ? loading-text : risksError ?
+   error-text : normal-count-text`, mirroring the table body's own
+   loading/error/normal precedence instead of falling back to a false
+   "0 risks found".
+2. Loading row's `<span>` gained `role="status" aria-live="polite"`,
+   matching the sibling error row's `role="alert"`.
+3. Sites-error indicator gained `w-full basis-full ... sm:w-auto
+   sm:basis-auto` so it lands on its own line at mobile widths instead of
+   pairing with the next filter control.
+
+6 new/updated tests, all negative-control verified (reverted the fix,
+confirmed 6 failures, restored, confirmed pass). `npm run typecheck`,
+`npm run lint`, full `npx vitest run` (1598 tests) all clean. Live-verified
+in browser: forced a `/risk` 500 via a `window.fetch` monkey-patch, confirmed
+the header subtitle switched from "0 risks found" to "Failed to load risks.
+Please try again later." — matching the table's own error row. State fully
+restored afterward.
+
+Adversarial review (2 parallel angles: line-by-line/cross-file, and
+removed-behavior/altitude) came back clean on round 1 — no real bugs. One
+style nit surfaced (inline ternary vs. a named `subtitleText` variable,
+matching this file's existing `isClientFiltered`/`subtitleCount` convention)
+but judged too minor to justify its own fix round. One out-of-scope finding
+also surfaced: `CompliancePage.tsx` has the identical false-zero-count
+pattern on its own header subtitle (`totalCount` shown unconditionally, no
+`isError` even destructured from its query) — flagged as a separate
+follow-up task, not fixed here since it's a different page/file outside
+this loop's scope.
+
+Merged directly under standing authorization (one clean review round).
+
+**Next: re-run the judge panel** to score the page's post-fix state before
+picking round 6's fix (or checking convergence).
