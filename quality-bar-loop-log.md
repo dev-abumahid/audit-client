@@ -384,3 +384,41 @@ because:
   absorb. Mobile's remaining items (touch-target sizing, ref-badge
   wrapping) are real but lower urgency than a redundant O(V+E) graph
   computation running on every render.
+
+### Round 6 outcome — merged as PR #602
+
+Shipped via `ship-with-review-loop`, converged clean on review round 1:
+
+- **Fix**: swapped `topPercentileByPageRank(riskRefs, correlationEdges, 0.15)`
+  for `topPercentileFromScores(riskRefs, pageRankScores, 0.15)`, reusing
+  the `pageRankScores` already computed on the line above instead of
+  recomputing PageRank's full power iteration a second time.
+- **Review round 1**: clean. Verified `topPercentileByPageRank` is
+  literally implemented as `topPercentileFromScores(nodes,
+  computePageRank(nodes, edges), percentile)` internally, so the new call
+  site is not merely equivalent but calls the identical code path the old
+  one did — same sort, same tie-breaking, same slice logic, no possible
+  divergence. Argument order, imports (old function no longer imported,
+  no unused-import lint risk), and the existing cross-function test
+  (`pageRank.test.ts`, non-trivial 8-node star graph, `toEqual` on both
+  outputs) were all independently confirmed correct. Converged after one
+  round.
+- QA gate: typecheck clean, lint clean (0 errors), full suite 1545/1545
+  passing, including `Overview.test.tsx`'s PageRank-ranking behavioral
+  tests (Tipping Points ordering, hub-risk-outside-pagination) passing
+  unchanged.
+- Live-verification of this specific change's rendered output was blocked
+  by this session's own heavy-testing having tripped `aexa-server`'s
+  Redis-backed API rate limiter (429s, 15-minute window, independently
+  confirmed by round 5's resilience judge to be handled correctly by the
+  dashboard's own error state) — noted rather than worked around, since
+  this is a pure internal refactor with a formally-verified-identical
+  code path, not a rendering change.
+
+Still open going into round 7: industry-standards (EBITDA chart blocked
+on backend work, chart-type mismatch, no time-range/freshness indicator,
+non-clickable KPI cards), UX (no drill-down, all-or-nothing loading,
+PageRank contradiction, alerts read-only with no CTA), efficiency's
+remaining findings (zero memoization, triple-iterated categoryData), the
+out-of-scope risk-detail-page routing bug, and mobile's touch-target
+sizes.
