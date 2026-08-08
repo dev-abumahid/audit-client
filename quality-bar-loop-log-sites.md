@@ -903,3 +903,62 @@ hit-slop technique this loop introduced two rounds ago:
    what `useModalA11y` already does for the Create/Edit modal, since
    `DeleteAlertModal`'s fully-controlled usage (no `AlertDialogTrigger`)
    means Radix has nothing to auto-restore to.
+
+### Round 7 outcome — merged as PR #614
+
+Shipped via `ship-with-review-loop`, one commit, converged clean on
+review round 1:
+
+- **Fix 1 (hit-slop)**: switched the Delete button's `before:-inset-2.5`
+  (uniform, all 4 sides) to `before:inset-x-0 before:-inset-y-[12px]`
+  (vertical-only). The button is already 71px wide (confirmed true in
+  both English and French — French's longer "Supprimer" only makes it
+  wider), well over 44px, so horizontal extension was never needed and
+  was the actual cause of the badge overlap. The vertical value bumped
+  from an exact 11px (10px + 1px border compensation) to 12px after live
+  `elementFromPoint` edge-sampling showed 11px still landed 1px short at
+  the precise boundary, likely sub-pixel rounding at the button's
+  fractional coordinates.
+- **Fix 2 (focus restoration)**: added a `useEffect` inside
+  `DeleteAlertModal.tsx` that captures `document.activeElement` when
+  `open` becomes true and calls `.focus()` on it when `open` becomes
+  false — fixed once, in the shared component, closing the gap for
+  every current and future caller rather than pushing the fix onto each
+  page that uses it.
+- **Review round 1**: clean overall, with one useful gap flagged for
+  live verification rather than left as theory — the reviewer (lacking
+  session credentials to check live itself) flagged as "plausible,
+  unverified" whether the new vertical-only hit-slop might graze into
+  the card's own boundary or a sibling row at mobile widths, where the
+  layout switches to `flex-col`. Verified directly: at actual 375px
+  mobile width, the button's hit-slop extends 12px below its visible
+  edge while the card boundary sits 14.4px away — comfortably inside,
+  no breach. Also independently re-confirmed the CSS containing-block
+  reasoning (`buttonVariants` genuinely includes `border
+  border-transparent`; `rounded-md` doesn't affect the padding-box
+  containing-block calculation), that `.focus()` on a detached element
+  is a documented no-op (never throws), and that the theoretical
+  `open=true`-on-first-mount edge case doesn't occur in this codebase's
+  only two call sites (both always mount with `open={false}`).
+  Converged without needing a code change — the flagged concern didn't
+  materialize, but was worth checking rather than assuming.
+- QA gate: typecheck clean, lint clean (0 errors, same 5 pre-existing
+  warnings), full suite 1582/1582 passing, including a new focus-
+  restoration test verified via negative control (reverted the fix,
+  confirmed the test fails with focus on `<body>`, matching the exact
+  live-reproduced bug; restored the fix, confirmed it passes).
+- **Live-verified extensively, all read-only**: confirmed a click at
+  the "Manual" badge's own edge now correctly resolves to the badge,
+  not the Delete button (both at desktop and mobile widths); confirmed
+  the button's real hit area measures 45px via precise
+  `elementFromPoint` edge-sampling (both widths); confirmed
+  Escape-closing the risk-delete modal now correctly returns focus to
+  the triggering Delete button (`document.activeElement` verified);
+  and confirmed via a direct API fetch that the underlying risk record
+  ("Design audit sample risk") was never touched throughout any of this
+  verification.
+
+This closes both of round 7's regressions. Every axis is now expected
+to hold or recover on the next re-score; accessibility specifically
+should clear the 7/10 floor again now that its confirmed regression is
+fixed. Continuing the loop with a fresh 9-judge panel to confirm.
