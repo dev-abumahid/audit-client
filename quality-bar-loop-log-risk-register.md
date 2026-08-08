@@ -463,3 +463,63 @@ Round 2 of review came back clean. Merged under standing authorization.
 
 **Next: re-run the judge panel** to score the page's post-fix state before
 picking round 8's fix (or checking convergence).
+
+## Round 7 (post-fix judge panel)
+
+| Axis | Score | vs. Round 6 |
+|---|---|---|
+| Industry-standards | 4/10 | same |
+| UX | 6/10 | same |
+| Efficiency | 4/10 | same |
+| Accessibility | 7/10 | **-1** |
+| Visual polish | 8/10 | +1 |
+| Resilience & edge cases | 7/10 | +1 |
+| Code quality | 6/10 | same |
+| Mobile/responsive | 6/10 | same |
+| Security | 10/10 | same |
+
+**Average: 6.44/10** (up slightly from 6.33). 5 axes below floor (7):
+industry-standards, UX, efficiency, code quality, mobile/responsive.
+Accessibility, resilience, visual polish, and security all clear the
+floor.
+
+**Regression check:** round 7's shipped fix (delete double-submission
+guard) is real and correctly implemented -- confirmed by multiple judges
+reading the code and one live-verifying at both desktop and mobile widths
+(the "Deleting..." label fits cleanly in the h-11 button, dims correctly
+using the same disabled-button treatment as every other button in the
+app). But the fix itself introduced a genuine, concrete NEW accessibility
+gap: disabling the shared `DeleteAlertModal`'s Delete button via
+`disabled={loading}` forces the browser to blur a button the user just
+clicked (a disabled native button cannot hold focus), and the "Delete" ->
+"Deleting..." label swap has no `aria-live` wrapping it -- so a keyboard/
+screen-reader user loses precise focus context and gets no announcement
+at the exact moment their destructive-action click registers. This is a
+real regression this round's own diff caused (not judge-severity-drift),
+same as round 5's mobile-fix/visual-polish regression earlier in this
+loop -- per this loop's established discipline, fixed directly next
+rather than escalated.
+
+New findings, all pre-existing and independent of the regression above:
+- Resilience: `onSubmit` (create/update) has no internal re-entrancy guard
+  matching the one just added to `confirmDeleteRisk` -- and arguably worse,
+  since a double-fire there doesn't 404, it can silently create two
+  duplicate risk rows. Flagged, not yet fixed.
+- Resilience: cross-tab staleness -- deleting a risk from another
+  tab/session while this tab's delete-confirmation modal is still open
+  shows the same false "failed to delete" toast the round-7 fix eliminated
+  for same-tab double-clicks, since the fix can't distinguish "double
+  submit" from "already gone" without a real not-found special-case.
+- Code quality: the new `isRiskDeleting` guard introduces a second,
+  different double-submission-prevention strategy (an internal early
+  return) alongside the existing disabled-button-only approach used for
+  create/update -- inconsistent with its sibling pattern in the same file.
+
+**Next fix (Round 8):** fix the accessibility regression in the shared
+`DeleteAlertModal` component (benefits every caller, not just this page) --
+add an `aria-live` region announcing the "Deleting..." state change, and
+address the focus-strand (e.g. `aria-disabled` + a `pointer-events-none`/
+click-guard instead of the native `disabled` attribute, so the button stays
+focusable while still preventing re-entry). Concrete, well-defined, shared-
+component fix with a proportionally larger blast radius (positive) than
+this page's other single-file fixes.
