@@ -441,3 +441,62 @@ quality's remaining findings (eslint-disable hiding 6 real errors not 2,
 copy-pasted form-defaults literal, oversized multi-concern component,
 the new `riskLoadFailed`/`loadError` naming inconsistency). A fresh
 9-judge panel is the next step.
+
+### Out-of-band fix — merged as PR #611
+
+Between rounds, the user spotted a live visual bug directly (not from a
+judge panel): a confirmed risk's description text spilled off the right
+edge of its card instead of being ellipsized. Root cause: the risk
+name `Link` and description `<p>` sit inside a `flex flex-col
+items-start` wrapper — `items-start` sizes flex-column children to
+their own content width instead of stretching them, so `truncate`'s
+`overflow:hidden` had nothing to clip against.
+
+- **Fix**: added `w-full` to both the name `Link` and the description
+  `<p>`, and `flex-1` to their shared wrapper div so it receives a real,
+  bounded width from its own row instead of also sizing to content.
+- **Review round 1**: real gap caught, not a bug in the fix itself but
+  in its test coverage — the new regression test only asserted
+  `w-full`/`truncate`, but reasoned through the CSS and confirmed
+  `w-full` alone is inert here: a percentage width resolves against the
+  wrapper's own box, and without `flex-1` forcing `flex-basis: 0`, the
+  wrapper still sizes to its long-text content (`flex-basis: auto` =
+  max-content), so `w-full` would compute against an already-too-wide
+  box. Also confirmed no second instance of this bug pattern exists
+  elsewhere in the file (the AI-suggestion panel's similar-looking text
+  wraps normally instead of truncating, so it was never at risk).
+  Fixed same round: added a direct assertion on the wrapper's `flex-1`
+  class, verified via negative control (removed `flex-1`, confirmed the
+  test fails, restored it, confirmed it passes).
+- **Review round 2**: clean, zero findings — confirmed the fix is
+  genuinely test-only and the new assertion targets the correct DOM
+  element (traced the JSX to confirm `nameLink.parentElement` really is
+  the `flex-1` wrapper, not some intermediate element). Converged.
+- QA gate: typecheck clean, lint clean (0 errors, same 5 pre-existing
+  warnings), full suite 1580/1580 passing throughout both commits.
+- Live-verified against the exact real risk record that exhibited the
+  bug ("Design audit sample risk," the same record used for the round-3
+  read-only delete-confirmation verification): before the fix,
+  `getBoundingClientRect()` showed the description's right edge at
+  382.8px in a 375px viewport (spilling past the visible edge, with the
+  underlying box rendering ~65px too wide for its container); after,
+  the description renders fully within the card (`right: 318px`) and
+  truncates with an ellipsis, confirmed via both DOM measurement and
+  screenshot.
+- **Process note**: while investigating this fix, an unrelated `git
+  stash pop` accidentally restored a pre-existing, unrelated stashed
+  WIP from a much earlier session (explicitly labeled "not mine" in its
+  own stash message) into the working tree, producing merge conflicts
+  in 4 files that have nothing to do with this loop
+  (`NavBar.tsx`/`FAQSection.tsx`/`FeaturesSection.tsx`/`HeroSection.tsx`).
+  Caught immediately, reset and re-checked out those 4 files back to
+  `HEAD` (discarding only the accidental working-tree conflict, not the
+  stash entry itself, which remains safely preserved in the stash list
+  for whoever it actually belongs to), and confirmed the working tree
+  was clean again before continuing. No effect on this loop's actual
+  work.
+
+This is not tied to any specific judge round's findings above — a
+direct user report, fixed and verified the same way as any other round
+in this loop. Round 4's 9-judge panel (still pending) will pick up from
+here, on top of both PR #610 and PR #611.
