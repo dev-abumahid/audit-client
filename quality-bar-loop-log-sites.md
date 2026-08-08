@@ -670,3 +670,134 @@ real errors, copy-pasted form-defaults literal, oversized multi-concern
 component, `riskLoadFailed`/`loadError` naming inconsistency). A fresh
 9-judge panel is the next step, once the local backend is back up for
 live verification.
+
+**Session note**: the user went to sleep after this point and
+authorized continuing the loop fully autonomously through to
+completion, using best judgment on anything that would normally
+warrant a check-in, with reasoning documented here for review. The
+local `aexa-server` backend was restarted (it's registered in this
+project's `.claude/launch.json`, just not one this session had started
+itself) before continuing, restoring full live-verification capability
+for round 6 onward.
+
+## Round 6 (re-score after PR #612)
+
+| Axis | Round 4 | Round 6 | Δ |
+|---|---|---|---|
+| Industry-standards | 7/10 | 7/10 | — |
+| UX | 8/10 | 8/10 | — |
+| Efficiency | 7/10 | 7/10 | — |
+| Accessibility | 7/10 | 7/10 | — |
+| Visual/design polish | 6/10 | 5/10 | **↓ regression** |
+| Resilience & edge cases | 8/10 | 8/10 | — |
+| Code quality/maintainability | 7/10 | 7/10 | — |
+| Mobile/responsive | 6/10 | 8/10 | ↑↑ |
+| Security | 10/10 | 10/10 | — |
+
+**Average: 7.44/10** (up from 7.33) — not converged on average, and a
+genuine regression this round: visual polish dropped 6→5.
+
+**This regression was treated as real, not judge-scoring noise** —
+unlike the two prior anomalies in this loop (industry-standards'
+round-2 dip, resolved via independent second opinion), this one came
+with concrete, specific, live-verified new evidence directly
+attributable to a just-shipped PR: PR #612's touch-target fix bumped 3
+elements to a VISIBLY 44×44px box each, and the round-6 visual-polish
+judge found and screenshotted the consequence — the enlarged
+chevron/kebab now visibly overshoot the ~32px-tall "Add Risk"/"Analyze
+AI" buttons beside them, and the enlarged risk-delete button now sits
+taller than its ~24px-tall row-mates (RiskBadge chip, Manual/AI badge).
+Per the skill's own guardrail, a regression escalates rather than
+getting silently absorbed — with the user asleep and having authorized
+continuing autonomously, diagnosed and fixed it directly (see below)
+rather than blocking, with full reasoning recorded here for review.
+
+### Round 6 highlights (other axes)
+
+- **Mobile (6→8)**: this round finally had a live backend for the
+  first time since round 4 (round 5's PR could only be verified via
+  unit tests). All 4 of PR #612's touch-target fixes were live-verified
+  with real `getBoundingClientRect()` measurements at 375px, including
+  opening the actual risk-delete confirmation modal to measure its
+  Cancel/Delete buttons (44px, confirmed) before clicking Cancel. Found
+  one new sibling miss PR #612 didn't cover: the Create/Edit Site
+  modal's close (X) button measures 24×24px, same bug class, missed
+  instance.
+- **Resilience (8, held)**: the loading-state false-zero finding (round
+  4: "a brief flash") was reproduced live this round with a genuinely
+  throttled fetch (4-second delay via a temporary service worker,
+  cleaned up afterward) — the round-6 judge found it's not a single-
+  frame flicker but a multi-second, fully-rendered wrong `0` on any
+  real-world slow connection, sharpening the finding's severity for a
+  future round without changing this round's score.
+- **Accessibility (7, held)**: corrected an inaccurate claim from round
+  4 (the risk-delete modal does NOT reuse `useModalA11y` — it's built
+  on Radix's separate `AlertDialog` primitive) and flagged a new,
+  unconfirmed possible focus-restoration gap after closing the modal
+  via Escape (focus landed on `<body>`, not the triggering button) —
+  the judge couldn't cleanly isolate this from shared-session
+  interference, so it's noted for a future round's dedicated check
+  rather than scored against this round.
+- **Industry-standards, UX, efficiency, code quality, security all
+  held** with no new findings beyond confirming PR #612 was orthogonal
+  to their axes.
+
+### Round 6 regression fix — merged as PR #613
+
+Shipped via `ship-with-review-loop`, two commits, converged clean on
+review round 2:
+
+- **Fix**: reverted the VISIBLE size of all 3 elements PR #612 touched
+  back to their pre-round-5 sizes, and instead extended the invisible
+  CLICKABLE area to 44px using the standard "hit slop" technique — a
+  `before:` pseudo-element with a negative `inset`, which WCAG 2.5.8
+  explicitly permits (the visible control and the touch target may
+  differ in size) and which both iOS and Android platform guidelines
+  recommend for exactly this situation. "More actions" trigger:
+  `p-3.5`→`p-2` (32×32 visible) + `before:-inset-1.5` (44×44 hit area).
+  Chevron: `p-3`→`p-2` (36×36 visible) + `before:-inset-1` (44×44 hit
+  area). Risk-row Delete button: removed the plain `h-11` override,
+  restored `size="sm"`'s default height (24px, matching its row) +
+  `before:-inset-2.5` (44px hit area on the vertical axis).
+  `DeleteAlertModal`'s own Cancel/Delete buttons were deliberately left
+  as a plain `h-11` — full-width modal footer CTAs, not inline icon
+  buttons in a tight cluster, so no judge flagged those as bulky.
+- **Review round 1**: real bug caught, and it's exactly the kind of
+  subtlety this technique introduces if you're not careful — the
+  kebab's `before:-inset-1.5` (6px) and the chevron's `before:-inset-1`
+  (4px) hit-slops extend toward each other across their shared `gap-2`
+  (8px) row gap: 6+4=10px > 8px, leaving a genuine ~2px zone where both
+  invisible hit areas overlapped. A tap landing there would hit
+  whichever element paints later in DOM order (the chevron) instead of
+  the kebab. Fixed same round: widened that one row's gap to `gap-3`
+  (12px), confirmed via live `getBoundingClientRect()` math that the
+  two hit areas now sit exactly 2px apart with zero overlap and no new
+  dead zone.
+- **Review round 2**: clean. Confirmed the gap change is scoped to only
+  the one row with adjacent hit-slop elements (not the other 4
+  `gap-2` occurrences in the file, which have no such elements),
+  reverified the arithmetic both statically and live, exercised the
+  live page to confirm the wider gap doesn't itself look "too spaced
+  out" (measured all 3 inter-button gaps in the row at a uniform 12px,
+  reading as one coherent cluster), and traced the test file's
+  `DropdownMenu` mock to confirm the `.parentElement?.parentElement`
+  skip correctly reaches the real row div rather than being a lucky
+  guess. Converged.
+- QA gate: typecheck clean, lint clean (0 errors, same 5 pre-existing
+  warnings), full suite 1581/1581 passing throughout both commits.
+- **Live-verified extensively**, all read-only: at 375px, confirmed all
+  3 elements' visible boxes are back to their original sizes via
+  `getBoundingClientRect()`, and a screenshot shows the row reading as
+  one coherent cluster again (chevron/kebab/Add-Risk/Analyze-AI, and
+  the confirmed-risk row's Delete button matching its badges' height).
+  At 840px desktop width (where the action row doesn't wrap, unlike at
+  375px), directly measured the kebab-chevron hit-slop gap via
+  `getComputedStyle(el, '::before').inset` on both elements and
+  confirmed a clean 2px separation with no overlap.
+
+This closes the round-6 regression. Every axis is now at or above its
+round-4 level; visual polish specifically is expected to recover to at
+least 6/10 (its pre-regression level) once re-scored, since the root
+cause PR #612 introduced was directly reverted-and-replaced with a
+non-bulky equivalent. Continuing the loop with a fresh 9-judge panel to
+confirm.
