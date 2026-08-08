@@ -70,3 +70,35 @@ Round 2 of review came back clean (no findings) — merged via
 
 **Next: re-run the round-1 judge panel** to score the page's post-fix state
 before picking round 3's fix.
+
+## Round 2 (post-fix judge panel)
+
+| Axis | Score | vs. Round 1 |
+|---|---|---|
+| Industry-standards | 6/10 | +1 |
+| UX | 5/10 | same |
+| Efficiency | 6/10 | +1 |
+| Accessibility | 7/10 | same |
+| Visual polish | 6/10 | same |
+| Resilience & edge cases | 7/10 | -1 |
+| Code quality | 8/10 | +1 |
+| Mobile/responsive | 4/10 | same |
+| Security | 10/10 | same |
+
+**Average: 6.56/10** (up from 6.33). Still below target (9); 4 axes below floor (7): industry-standards, UX, efficiency, mobile/responsive.
+
+**Regression check:** resilience dropped 8→7. Diagnosed as judge-scoring calibration, not a real regression — the round-2 judge re-confirmed the exact same 3 pre-existing findings from round 1 (sites-query missing `isError`, `NaN` guard on financial impact, no loading skeleton), found the new pagination logic itself to be defensively coded with no new fragility, and explicitly called out that the drag is those 3 findings "sitting open two rounds later despite being flagged" — i.e. a stricter read of unaddressed known issues, not a new break introduced by round 2's diff. No new bug was found. Continuing the loop rather than escalating, consistent with this session's established practice for judge-noise vs. real regressions.
+
+Key findings by axis:
+
+- **Industry-standards (6/10):** pagination fix confirmed live and well-engineered (real `limit=20` request, server-derived `totalPages`, honest bounded fallback for the two client-only filters). Sorting, bulk operations, and column customization/export remain fully unaddressed (not this round's scope).
+- **UX (5/10):** the specific round-1 finding (subtitle contradicts the error state) is still live via a different path — `subtitleCount` falls back to `visibleRisks.length` (which is 0) when `riskData` is `undefined` during an error, so "0 risks found" still renders next to the error row. No retry affordance, cramped approval controls, undifferentiated modal, and no bulk/sort remain open.
+- **Efficiency (6/10):** real payload reduction confirmed in the normal case (20 vs 100 rows/fetch) with an honest, narrow fallback for the filtered case. Search debounce, per-row `useMyOrgRole()` re-derivation in `RiskApprovalControls`, and the unmemoized filter chain remain open (not this round's scope).
+- **Accessibility (7/10):** the new `Pagination` component is well-built (real `<button>`s, `aria-label`s, `aria-current="page"`, correct `disabled` at bounds) but round 1's 3 findings (`<th>` missing `scope`, empty actions-column header label, search input placeholder-as-name) are all still open.
+- **Visual polish (6/10):** `Pagination` integrates cleanly with no bolted-on look; all 4 round-1 findings (RiskBadge/SourceBadge non-reuse, font-mono-data inconsistency, no KPI strip) remain untouched.
+- **Resilience (7/10):** new pagination/client-filter logic is defensively coded (graceful `meta` degradation, correct `useClampPageToTotal` guarding); the 3 round-1 findings remain open across 2 rounds now.
+- **Code quality (8/10):** `Pagination` reuse confirmed idiomatic; `isClientFiltered` logic is well-commented and honestly scoped; 8 new pagination tests are substantive. Remaining open: file-wide `eslint-disable`, IIFE category badge, `RiskBadge` non-reuse, growing monolith size (now 1183 lines).
+- **Mobile/responsive (4/10, unchanged):** the new `Pagination` buttons (`icon-sm`, 24×24px) are bigger than the existing 20×20px row-action buttons but still under the 44×44 minimum — same category of miss, less severe, and moot with only 2 seeded risks (pager doesn't render). None of round 1's 4 substantive findings (Edit/Delete touch targets, name-column truncation, modal grid stacking, no card layout) were touched.
+- **Security (10/10, unchanged):** confirmed no new surface from `page` state (pure numeric, never URL-derived) or `isClientFiltered` (a derived boolean, no new sink).
+
+**Next fix (Round 3):** mobile/responsive is now the single lowest-scoring axis (4/10, unchanged across 2 rounds) with a concrete, well-precedented fix already used repeatedly elsewhere in this session (the Sites & Entities loop's hit-slop technique) — the Edit/Delete row-action buttons measure 20×20px live, well under the 44×44 touch-target minimum, sitting only ~4px apart with one being a destructive delete. This is the highest-leverage next fix: concrete, cheap, and directly targets the worst-scoring, longest-unaddressed axis.
