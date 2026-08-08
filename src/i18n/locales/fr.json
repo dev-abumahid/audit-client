@@ -1100,6 +1100,8 @@
       "domainFilterLabel": "Filtrer par domaine",
       "statusFilterLabel": "Filtrer par statut",
       "empty": "Aucune obligation de conformité trouvée",
+      "loading": "Chargement des obligations…",
+      "loadError": "Échec du chargement des obligations. Veuillez réessayer plus tard.",
       "deleteConfirm": "Supprimer cette obligation de conformité ?",
       "editObligation": "Modifier l'obligation",
       "deleteObligation": "Supprimer l'obligation",

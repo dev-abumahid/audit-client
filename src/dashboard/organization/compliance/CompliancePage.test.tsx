@@ -295,6 +295,54 @@ describe("CompliancePage", () => {
     ).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop-derived fix: totalCount fell back to
+  // obligations.length (0) whenever complianceData was undefined -- true
+  // during the initial fetch -- so the header used to read "0 obligations
+  // tracked" at the exact moment the table below correctly showed a
+  // loading spinner. Mirrors RiskRegisterPage's identical fix
+  // (aexa-frontend#618).
+  it("shows the loading message in the header subtitle instead of a false zero count", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    })
+
+    renderPage()
+
+    // both the header subtitle and the table's loading spinner render this
+    // same key's text (the spinner's copy is screen-reader-only), so two
+    // matches is the expected, correct outcome.
+    expect(
+      screen.getAllByText("organization.compliance.loading")
+    ).toHaveLength(2)
+    expect(screen.queryByText("0 obligations tracked")).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop-derived fix: this table had no error row at all -- a
+  // fetch failure and "the filter matched zero obligations" both
+  // previously rendered the exact same silent empty-state, and the header
+  // subtitle also fell back to a false "0 obligations tracked".
+  it("shows a distinct error row and error subtitle, not the empty state, when the query fails", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    })
+
+    renderPage()
+
+    // both the header subtitle and the table's error row render this same
+    // key's text, so two matches is the expected, correct outcome.
+    expect(
+      screen.getAllByText("organization.compliance.loadError")
+    ).toHaveLength(2)
+    expect(
+      screen.queryByText("organization.compliance.empty")
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText("0 obligations tracked")).not.toBeInTheDocument()
+  })
+
   it("renders obligation rows from the query with title and domain", () => {
     mockUseGetAllComplianceQuery.mockReturnValue({
       data: { data: [makeObligation()] },

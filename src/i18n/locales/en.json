@@ -1100,6 +1100,8 @@
       "domainFilterLabel": "Filter by domain",
       "statusFilterLabel": "Filter by status",
       "empty": "No compliance obligations found",
+      "loading": "Loading obligations…",
+      "loadError": "Failed to load obligations. Please try again later.",
       "deleteConfirm": "Delete this compliance obligation?",
       "editObligation": "Edit obligation",
       "deleteObligation": "Delete obligation",

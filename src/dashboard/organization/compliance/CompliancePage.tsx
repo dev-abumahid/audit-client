@@ -123,7 +123,18 @@ export default function CompliancePage() {
   // Filtering, searching and pagination are all applied server-side (the
   // /compliance list endpoint supports searchTerm / status / domain + page /
   // limit), so results are never silently capped at the first page.
-  const { data: complianceData, isLoading } = useGetAllComplianceQuery({
+  // quality-bar-loop-derived fix: this query never checked isError before --
+  // a genuine fetch failure fell through to `complianceData?.data || []`,
+  // rendering the same empty-table state as "no obligations match this
+  // filter" (the same false-all-clear pattern already fixed for
+  // RiskRegisterPage/aexa-frontend#620's round-4). Also feeds the header
+  // subtitle below, which previously read "0 obligations tracked" during
+  // both loading and error states.
+  const {
+    data: complianceData,
+    isLoading,
+    isError: complianceError,
+  } = useGetAllComplianceQuery({
     page,
     limit: PAGE_SIZE,
     searchTerm: search,
@@ -483,10 +494,27 @@ export default function CompliancePage() {
           <h1 className="font-heading text-xl font-bold tracking-tight text-foreground lg:text-2xl">
             {t("organization.compliance.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {t("organization.compliance.subtitle", {
-              count: totalCount,
-            })}
+          <p
+            className={
+              complianceError
+                ? "text-sm text-destructive"
+                : "text-sm text-muted-foreground"
+            }
+          >
+            {/* quality-bar-loop-derived fix: totalCount falls back to
+                obligations.length (0) whenever complianceData is undefined --
+                true during both the loading and error states -- so this
+                line used to claim "0 obligations tracked" at the exact
+                moment the table below correctly showed a loading spinner or
+                (after this same fix) a distinct error row. Mirrors
+                RiskRegisterPage's identical subtitle fix (aexa-frontend#618). */}
+            {isLoading
+              ? t("organization.compliance.loading")
+              : complianceError
+                ? t("organization.compliance.loadError")
+                : t("organization.compliance.subtitle", {
+                    count: totalCount,
+                  })}
           </p>
         </div>
         {canWrite && (
@@ -876,11 +904,31 @@ export default function CompliancePage() {
 
         {isLoading && (
           <div className="flex items-center justify-center p-12">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <Loader2
+              role="status"
+              aria-live="polite"
+              className="h-5 w-5 animate-spin text-muted-foreground"
+            />
+            <span className="sr-only">
+              {t("organization.compliance.loading")}
+            </span>
           </div>
         )}
 
-        {!isLoading && obligations.length === 0 && (
+        {/* quality-bar-loop-derived fix: this table had no error row at all
+            -- a fetch failure and "the filter matched zero obligations"
+            both previously rendered the exact same silent empty-state
+            below, indistinguishable from each other. */}
+        {!isLoading && complianceError && (
+          <div className="flex flex-col items-center py-16 text-center">
+            <Scale className="mb-3 h-10 w-10 text-destructive/40" />
+            <p role="alert" className="text-destructive">
+              {t("organization.compliance.loadError")}
+            </p>
+          </div>
+        )}
+
+        {!isLoading && !complianceError && obligations.length === 0 && (
           <div className="flex flex-col items-center py-16 text-center text-muted-foreground">
             <Scale className="mb-3 h-10 w-10 text-muted-foreground/40" />
             <p>{t("organization.compliance.empty")}</p>
