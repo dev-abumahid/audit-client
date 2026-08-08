@@ -181,6 +181,32 @@ describe("RiskRegisterPage", () => {
     expect(screen.getByText("2 risks found")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 9 (accessibility): the search input and both
+  // filter <select>s had no <label>, aria-label, or aria-labelledby at
+  // all -- a placeholder alone is not an accessible name, so a screen
+  // reader announced these as an unlabeled textbox/combobox.
+  it("gives the search input and both filter selects an accessible name", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+
+    renderPage()
+
+    expect(
+      screen.getByRole("textbox", {
+        name: "organization.riskRegister.searchLabel",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("combobox", {
+        name: "organization.riskRegister.siteFilterLabel",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("combobox", {
+        name: "organization.riskRegister.categoryFilterLabel",
+      })
+    ).toBeInTheDocument()
+  })
+
   // quality-bar-loop round 14 (industry-standards): the dashboard's
   // "Active Risks" card now links here with ?status=open. This page had no
   // status filter of any kind before this -- confirms the new client-side

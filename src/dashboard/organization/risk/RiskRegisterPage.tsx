@@ -419,6 +419,7 @@ export default function RiskRegisterPage() {
               setPage(1)
             }}
             placeholder={t("organization.riskRegister.searchPlaceholder")}
+            aria-label={t("organization.riskRegister.searchLabel")}
             className="h-9 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-xs"
           />
         </div>
@@ -429,6 +430,7 @@ export default function RiskRegisterPage() {
             setSiteFilter(e.target.value)
             setPage(1)
           }}
+          aria-label={t("organization.riskRegister.siteFilterLabel")}
           className="h-9 w-40 rounded-lg border border-input bg-card px-3 text-xs lg:w-52"
         >
           <option value="">{t("organization.riskRegister.allSite")}</option>
@@ -453,6 +455,7 @@ export default function RiskRegisterPage() {
             setFilterCat(e.target.value)
             setPage(1)
           }}
+          aria-label={t("organization.riskRegister.categoryFilterLabel")}
           className="h-9 rounded-lg border border-input bg-card px-3 text-xs"
         >
           <option value="">{t("organization.riskRegister.allCategory")}</option>
