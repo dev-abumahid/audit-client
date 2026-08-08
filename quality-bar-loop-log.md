@@ -964,3 +964,75 @@ classes), and the out-of-scope risk-detail-page routing bug. A fresh
 actually recovered (and ideally hold or improve further) without
 introducing any new regression, before picking round 17's fix or
 checking whether the loop should stop.
+
+## Round 17 (re-score after PR #607)
+
+| Axis | Round 15 | Round 17 | Δ |
+|---|---|---|---|
+| Industry-standards | 7/10 | 7/10 | — |
+| UX | 8/10 | 8/10 | — |
+| Efficiency | 10/10 | 10/10 | — |
+| Accessibility | 6/10 | 9/10 | ↑↑↑ |
+| Visual/design polish | 7/10 | 9/10 | ↑↑ |
+| Resilience & edge cases | 7/10 | 9/10 | ↑↑ |
+| Code quality/maintainability | 6/10 | 9/10 | ↑↑↑ |
+| Mobile/responsive | 8/10 | 8/10 | — |
+
+**Average: 8.625/10** (up from 7.375/10) — not converged on average (need
+≥9), but **every axis now clears the floor of 7**, all 4 of round 15's
+regressions fully recovered, three (accessibility, resilience, code
+quality) landing above their pre-regression round-13 peak. No new
+regression, no stagnation.
+
+### Round 17 highlights
+
+- **Accessibility (6→9)**: `role="status"` on `FilteredByNotice` confirmed
+  live to genuinely fire on all 4 pages using it (mounts fresh on the SPA
+  route transition, not hidden state present before an AT would be
+  listening). `InspectionTable.tsx`'s `aria-describedby` wiring to the
+  disabled status dropdown survived the extraction unchanged (`id` still
+  matches). AlertsPage's alternate `aria-pressed`-chip pattern (no
+  `FilteredByNotice`) independently confirmed as a legitimate substitute,
+  not a gap.
+- **Resilience (7→9)**: all 3 round-15 crash/false-all-clear findings
+  confirmed genuinely fixed and correctly wired, not just present —
+  `RiskRegisterPage.test.tsx`'s test explicitly asserts the error and
+  empty-state messages are mutually exclusive, would fail without the
+  fix. All 6 `RiskBadge` call sites checked; `neutral` fallback never
+  produces a mismatched bg/text/dot combination anywhere.
+- **Code quality (6→9)**: `FilteredByNotice` confirmed as a clean
+  extraction, genuinely adopted at all 4 sites (no old JSX left behind),
+  with per-page `className` variation judged contextually justified, not
+  arbitrary. The comment-accuracy issue caught during PR #607's own
+  review round 2 was confirmed genuinely fixed.
+- **Visual polish (7→9)**: `MetricCard`'s Link/div split confirmed live —
+  DOM inspection shows the 5 clickable cards carry `hover:border-primary/30`
+  + `focus-ring`, Revenue's plain div carries neither.
+- **Industry-standards, UX, efficiency, mobile all held steady** as
+  expected (PR #607 didn't target them). Two new minor observations
+  surfaced in passing, out of scope for this round:
+  - Mobile judge found `AllFindingsPage.tsx`'s new error row clips its
+    message off-screen at 375px width (7-column table forces horizontal
+    scroll to read the full sentence) — didn't drop the mobile score,
+    flagged for a future round.
+  - Code quality and resilience judges independently spotted the same
+    unguarded-lookup bug class elsewhere in the codebase, outside this
+    feature's files: `ThreeLinesOfDefensePage.tsx`'s `SEVERITY_STYLES[severity].dot`
+    and `AllFindingsPage.tsx`'s `STATUS_COLORS`/`PRIORITY_BADGES` lookups
+    have no fallback (styleless badge, not a crash, for unrecognized
+    values) — neither is a regression from this PR, both pre-date it.
+
+### Status check for the user
+
+Every axis now clears the floor of 7 for the first time in this loop.
+The only axis still below the 9/10 target by more than a point is
+industry-standards (7/10), and its 2 remaining findings are the same
+ones deferred across rounds 5, 7, 9, 11, 13, and now 17 for the same
+reason: they need product/design input this loop shouldn't guess at
+unilaterally — a real backend endpoint for EBITDA data, and a scoping
+decision for a time-range/freshness control. UX (8/10) and mobile (8/10)
+are each one point below target with no single judge-flagged fix as
+concrete as prior rounds' — UX's remaining items (all-or-nothing
+loading, PageRank duplicate-number contradiction, alerts read-only) and
+mobile's (`MetricCard` responsive classes) are all real but larger in
+scope than a single mechanical round.
