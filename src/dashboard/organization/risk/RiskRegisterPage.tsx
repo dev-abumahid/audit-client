@@ -351,9 +351,19 @@ export default function RiskRegisterPage() {
             {t("organization.riskRegister.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {t("organization.riskRegister.subtitle", {
-              count: subtitleCount,
-            })}
+            {/* quality-bar-loop round 5 (UX/resilience): subtitleCount falls
+                back to visibleRisks.length (0) whenever riskData is
+                undefined -- true during both the loading and error states --
+                so this line used to claim "0 risks found" at the exact
+                moment the table below correctly showed a distinct loading
+                spinner or error message. */}
+            {risksLoading
+              ? t("organization.riskRegister.loading")
+              : risksError
+                ? t("organization.riskRegister.loadError")
+                : t("organization.riskRegister.subtitle", {
+                    count: subtitleCount,
+                  })}
           </p>
         </div>
 
@@ -409,7 +419,10 @@ export default function RiskRegisterPage() {
           ))}
         </select>
         {sitesError && (
-          <span role="alert" className="text-[10px] text-destructive">
+          <span
+            role="alert"
+            className="w-full basis-full text-[10px] text-destructive sm:w-auto sm:basis-auto"
+          >
             {t("organization.riskRegister.siteLoadError")}
           </span>
         )}
@@ -646,7 +659,11 @@ export default function RiskRegisterPage() {
               {risksLoading && (
                 <tr>
                   <td colSpan={9} className="px-3 py-8 text-center">
-                    <span className="text-muted-foreground">
+                    <span
+                      role="status"
+                      aria-live="polite"
+                      className="text-muted-foreground"
+                    >
                       {t("organization.riskRegister.loading")}
                     </span>
                   </td>

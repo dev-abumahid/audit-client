@@ -399,9 +399,11 @@ describe("RiskRegisterPage", () => {
 
     renderPage()
 
+    // round 5 also surfaces this same key in the header subtitle (see the
+    // subtitle-count tests below), so two matches is expected here.
     expect(
-      screen.getByText("organization.riskRegister.loadError")
-    ).toBeInTheDocument()
+      screen.getAllByText("organization.riskRegister.loadError")
+    ).toHaveLength(2)
     expect(
       screen.queryByText("organization.riskRegister.noResults")
     ).not.toBeInTheDocument()
@@ -437,15 +439,33 @@ describe("RiskRegisterPage", () => {
 
     renderPage()
 
+    // round 5 also surfaces this same key in the header subtitle (see the
+    // subtitle-count tests below), so two matches is expected here.
     expect(
-      screen.getByText("organization.riskRegister.loading")
-    ).toBeInTheDocument()
+      screen.getAllByText("organization.riskRegister.loading")
+    ).toHaveLength(2)
     expect(
       screen.queryByText("organization.riskRegister.noResults")
     ).not.toBeInTheDocument()
     expect(
       screen.queryByText("organization.riskRegister.loadError")
     ).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 5 (accessibility): the loading row had no
+  // aria-live/role="status", unlike its sibling error row (role="alert"),
+  // so a screen-reader user got zero notification content was loading.
+  it("announces the loading row to screen readers via role=status", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: undefined,
+      isError: false,
+      isLoading: true,
+    })
+
+    renderPage()
+
+    const status = screen.getByRole("status")
+    expect(status).toHaveTextContent("organization.riskRegister.loading")
   })
 
   // quality-bar-loop round 4 (resilience): useGetAllSitesQuery never checked
@@ -463,6 +483,25 @@ describe("RiskRegisterPage", () => {
     expect(
       screen.getByText("organization.riskRegister.siteLoadError")
     ).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 5 (mobile): the sites-error indicator was a
+  // flex-wrap sibling with no block-level sizing, so at narrow widths it
+  // wrapped onto its own line paired with the *next* filter control
+  // instead of the site select it actually describes.
+  it("forces the sites-error indicator onto its own line at narrow widths", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+    })
+
+    renderPage()
+
+    const indicator = screen.getByText(
+      "organization.riskRegister.siteLoadError"
+    )
+    expect(indicator).toHaveClass("w-full", "basis-full")
   })
 
   it("shows fallback site label when risk has no site", () => {
@@ -1214,6 +1253,46 @@ describe("RiskRegisterPage", () => {
       renderPage()
 
       expect(screen.getByText("87 risks found")).toBeInTheDocument()
+    })
+
+    // quality-bar-loop round 5 (UX/resilience): subtitleCount falls back to
+    // visibleRisks.length (0) whenever riskData is undefined, which is true
+    // during the initial fetch -- the header used to read "0 risks found"
+    // at the exact moment the table below correctly showed a loading row.
+    it("shows the loading message in the header subtitle instead of a false zero count", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: undefined,
+        isError: false,
+        isLoading: true,
+      })
+
+      renderPage()
+
+      // both the header subtitle and the table's loading row render this
+      // same key's text, so two matches is the expected, correct outcome.
+      expect(
+        screen.getAllByText("organization.riskRegister.loading")
+      ).toHaveLength(2)
+      expect(screen.queryByText("0 risks found")).not.toBeInTheDocument()
+    })
+
+    // quality-bar-loop round 5 (UX/resilience): same false-zero-count bug,
+    // triggered by a fetch error instead of the loading state.
+    it("shows the load-error message in the header subtitle instead of a false zero count", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: undefined,
+        isError: true,
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // both the header subtitle and the table's error row render this
+      // same key's text, so two matches is the expected, correct outcome.
+      expect(
+        screen.getAllByText("organization.riskRegister.loadError")
+      ).toHaveLength(2)
+      expect(screen.queryByText("0 risks found")).not.toBeInTheDocument()
     })
 
     // Round-1 adversarial review: statusParam/pendingApprovalOnly are
