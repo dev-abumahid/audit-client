@@ -787,3 +787,80 @@ the same fix. Merged under standing authorization.
 picking round 10's fix (or checking convergence / hitting the max-rounds
 guardrail -- round 9 is the loop's 9th fix round of the default 10-round
 cap).
+
+## Round 9 (post-fix judge panel)
+
+Only the accessibility judge was re-dispatched. Rationale: PR #627 is a
+narrow, invisible `aria-label`-only change with zero effect on rendering,
+layout, computation, or any other judged axis -- re-running all 9 judges
+to re-confirm 8 axes that could not plausibly have moved would burn a
+full judge-panel dispatch for no new information. The other 8 axes carry
+forward unchanged from this round's pre-fix panel above.
+
+| Axis | Score | vs. pre-fix |
+|---|---|---|
+| Industry-standards | 4/10 | carried forward |
+| UX | 6/10 | carried forward |
+| Efficiency | 3/10 | carried forward |
+| Accessibility | 8/10 | **+2, live-verified** |
+| Visual polish | 7/10 | carried forward |
+| Resilience & edge cases | 7/10 | carried forward |
+| Code quality | 5/10 | carried forward |
+| Mobile/responsive | 4/10 | carried forward |
+| Security | 10/10 | carried forward |
+
+**Average: 6.0/10** (up from 5.78 pre-fix, still down from round 8's
+6.44). Accessibility judge confirmed live: `aria-label` now resolves
+correctly on the search input and both filter selects
+(`{"inputAriaLabel":"Search risks","selects":[{"ariaLabel":"Filter by
+site"},{"ariaLabel":"Filter by category"}]}`), fresh sweep found no new
+regressions, one new low-severity item noted for completeness only (the
+actions-column `&lt;th&gt;` has no accessible name) -- not counted against
+this round's score, since it's pre-existing and out of scope for PR #627.
+
+**Convergence check:** not converged. Average 6.0 &lt; 9 target. 5 axes
+still below the floor of 7: industry-standards (4), UX (6), efficiency
+(3), code quality (5), mobile/responsive (4).
+
+**Guardrail check -- stopping here:**
+- **Max rounds:** this is the loop's 9th completed fix round out of the
+  default 10-round cap. Only 1 round remains.
+- **Stagnation / declining trend:** round 8 peaked at 6.44. Round 9,
+  after a full fix-and-verify cycle, still lands at 6.0 -- net *below*
+  round 8 despite the additional work. This mirrors the exact pattern
+  that triggered the original round-8 stop.
+- **Math on the remaining budget:** reaching a 9.0 average from 6.0
+  requires +27 points of improvement spread across 9 axes. Even a
+  best-case, fully-successful fix on the single furthest-below-floor axis
+  (efficiency, 3 -&gt; 9) only moves the average by (9-3)/9 = 0.67, to
+  ~6.67. One more round cannot mathematically reach convergence -- the
+  two axes flagged at the original round-8 stop (industry-standards:
+  sorting/bulk/export; efficiency: search debounce, `watch()` scoping,
+  row memoization) require real feature/refactor work, not a single
+  small patch, to move by the amount needed.
+
+**Diagnosis:** the loop has now confirmed twice (round 8's stop, and
+round 9's fresh re-check) that small, cheap, single-file fixes --
+6 of which have shipped since the original stop (#619-#627) -- are
+insufficient to move the two structurally-low axes. Every fix shipped in
+this window improved a different page (CompliancePage) or a genuinely
+real but narrow gap on this page (accessibility labels); none touched
+sorting/bulk/export or the debounce/memoization work. Continuing to
+round 10 on another small, cheap fix would not change this outcome and
+would exhaust the loop's guardrail budget without a realistic path to
+9/10.
+
+**Recommendation:** stop the autonomous loop here rather than spend the
+last permitted round on another small fix that can't reach convergence.
+The two remaining structural workstreams from the original round-8 report
+still stand as the actual path to a meaningfully higher score:
+1. **Industry-standards (4/10):** add sorting, bulk actions, and
+   export -- the concrete gaps vs. reference data-grid tools (AG Grid,
+   TanStack Table) named in the original judge findings.
+2. **Efficiency (3/10):** debounce the search input, scope `watch()`
+   calls narrowly instead of watching the whole form, and memoize row
+   rendering.
+
+Recommend treating these as their own scoped, planned pieces of work
+(each easily its own multi-file PR) rather than continuing this
+quality-bar-loop's small-fix cadence into its last round.
