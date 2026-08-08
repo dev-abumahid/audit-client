@@ -381,7 +381,30 @@ describe("RiskRegisterPage", () => {
 
     const { container } = renderPage()
 
-    expect(container.querySelector("tbody")?.children.length).toBe(0)
+    // quality-bar-loop round 16 (resilience regression): this table used
+    // to have NO empty-state row at all -- "no risks match the filter"
+    // and a genuine fetch failure both rendered the identical
+    // header-only, zero-row table. Now renders one explicit row.
+    expect(container.querySelector("tbody")?.children.length).toBe(1)
+    expect(
+      screen.getByText("organization.riskRegister.noResults")
+    ).toBeInTheDocument()
+  })
+
+  it("shows a distinct error message, not the empty state, when the risks query fails", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByText("organization.riskRegister.loadError")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.riskRegister.noResults")
+    ).not.toBeInTheDocument()
   })
 
   it("shows fallback site label when risk has no site", () => {

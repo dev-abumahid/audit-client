@@ -171,19 +171,33 @@ export default function AlertsPage() {
             } ${alert.is_read ? "opacity-60" : ""}`}
           >
             <div className="flex items-start gap-4">
+              {/* quality-bar-loop round 16/17 (resilience regression, round
+                  2): this icon-background was a hand-rolled ternary chain
+                  that fell through to "low"/no styling for any severity
+                  outside the 3-4 values it happened to check -- e.g. an
+                  unrecognized severity rendered a neutral-gray icon (fixed
+                  round 16) sitting in a green "low-severity" box (missed
+                  round 16). Routing both bg and text through the same
+                  SEVERITY_STYLES lookup + neutral fallback keeps them from
+                  ever disagreeing again. (The card border above is a
+                  separate, deliberately binary "only critical gets a
+                  colored border" emphasis, not this same bug class --
+                  left as-is.) */}
               <div
                 className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                  alert.severity === "critical"
-                    ? "bg-risk-critical/10"
-                    : alert.severity === "high"
-                      ? "bg-risk-high/10"
-                      : alert.severity === "medium"
-                        ? "bg-risk-medium/10"
-                        : "bg-risk-low/10"
+                  (
+                    SEVERITY_STYLES[alert.severity as Severity] ??
+                    SEVERITY_STYLES.neutral
+                  ).bg
                 }`}
               >
                 <Bell
-                  className={`h-5 w-5 ${SEVERITY_STYLES[alert.severity as Severity].text}`}
+                  className={`h-5 w-5 ${
+                    (
+                      SEVERITY_STYLES[alert.severity as Severity] ??
+                      SEVERITY_STYLES.neutral
+                    ).text
+                  }`}
                 />
               </div>
 

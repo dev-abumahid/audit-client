@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import FilteredByNotice from "@/components/shared/FilteredByNotice"
 import Pagination from "@/components/shared/Pagination"
 import { Button } from "@/components/ui/button"
 import {
@@ -124,7 +125,17 @@ export default function AllFindingsPage() {
   const sites = sitesData?.data || []
 
   // Fetch findings with filters
-  const { data, isLoading, refetch } = useGetAllFindingsQuery({
+  // quality-bar-loop round 16 (resilience regression): this query never
+  // checked isError -- a genuine fetch failure fell through to `data?.data
+  // || []`, rendering the same empty-table state as "no findings match
+  // this filter," surfaced by round 14's dashboard link making an
+  // empty-looking result more reachable.
+  const {
+    data,
+    isLoading,
+    isError: findingsError,
+    refetch,
+  } = useGetAllFindingsQuery({
     page: openStatusFilter ? 1 : page,
     limit: openStatusFilter ? 100 : 20,
     searchTerm: search,
@@ -217,15 +228,12 @@ export default function AllFindingsPage() {
           )}
         </div>
         {openStatusFilter && (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <span>{t("organization.findings.filteredByOpenStatus")}</span>
-            <Link
-              to="/organization/findings"
-              className="focus-ring rounded text-primary hover:underline"
-            >
-              {t("organization.findings.clearStatusFilter")}
-            </Link>
-          </div>
+          <FilteredByNotice
+            className="mt-2"
+            label={t("organization.findings.filteredByOpenStatus")}
+            clearLabel={t("organization.findings.clearStatusFilter")}
+            clearHref="/organization/findings"
+          />
         )}
       </div>
 
@@ -360,7 +368,15 @@ export default function AllFindingsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {actions.length > 0 ? (
+                  {findingsError ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center">
+                        <span role="alert" className="text-muted-foreground">
+                          {t("organization.findings.loadError")}
+                        </span>
+                      </td>
+                    </tr>
+                  ) : actions.length > 0 ? (
                     actions.map((action) => {
                       const canWriteThisFinding = canWriteInspection(
                         role,

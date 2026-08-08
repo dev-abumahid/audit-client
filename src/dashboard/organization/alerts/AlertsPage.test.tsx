@@ -246,6 +246,22 @@ describe("AlertsPage", () => {
     expect(document.querySelector("svg.text-amber-800")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 16 (resilience regression): this indexed
+  // straight into SEVERITY_STYLES[alert.severity] with no fallback -- a
+  // genuine crash (`Cannot read properties of undefined`) for any alert
+  // whose severity isn't one of the 4 canonical values this page's own
+  // filter chips assume (e.g. a legacy/malformed record).
+  it("does not crash on an alert with an unrecognized severity value", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: {
+        data: [makeAlert({ id: "a1", severity: "unknown-legacy-value" })],
+      },
+      isLoading: false,
+    })
+
+    expect(() => renderPage()).not.toThrow()
+  })
+
   // aexa-frontend round-4 audit bug #332: the severity quick-filter chips
   // were inert <div>s. Clicking one should narrow the list, clicking again
   // should clear the filter (toggle behavior).

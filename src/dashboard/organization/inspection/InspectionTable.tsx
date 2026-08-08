@@ -24,6 +24,7 @@ import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { InspectionSummary } from "@/types/inspection"
 
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import FilteredByNotice from "@/components/shared/FilteredByNotice"
 import Pagination from "@/components/shared/Pagination"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
@@ -96,7 +97,16 @@ const InspectionTable = () => {
   const limit = 10
 
   // API Calls
-  const { data, isLoading } = useGetAllInspectionQuery({
+  // quality-bar-loop round 16 (resilience regression): this query never
+  // checked isError -- a genuine fetch failure fell through to `data?.data
+  // || []`, rendering the same empty-table state as "no inspections match
+  // this filter," surfaced by round 14's dashboard link making an
+  // empty-looking result more reachable.
+  const {
+    data,
+    isLoading,
+    isError: inspectionsError,
+  } = useGetAllInspectionQuery({
     page: activeStatusFilter ? 1 : currentPage,
     limit: activeStatusFilter ? 100 : limit,
     searchTerm: debouncedSearchTerm,
@@ -231,17 +241,13 @@ const InspectionTable = () => {
         </div>
 
         {activeStatusFilter && (
-          <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
-            <span id="active-status-filter-notice">
-              {t("organization.inspection.filteredByActiveStatus")}
-            </span>
-            <Link
-              to="/organization/audit/inspections"
-              className="focus-ring rounded text-primary hover:underline"
-            >
-              {t("organization.inspection.clearStatusFilter")}
-            </Link>
-          </div>
+          <FilteredByNotice
+            id="active-status-filter-notice"
+            className="mb-4"
+            label={t("organization.inspection.filteredByActiveStatus")}
+            clearLabel={t("organization.inspection.clearStatusFilter")}
+            clearHref="/organization/audit/inspections"
+          />
         )}
 
         {/* Filters */}
@@ -341,6 +347,14 @@ const InspectionTable = () => {
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center">
                     {t("organization.inspection.loading")}
+                  </TableCell>
+                </TableRow>
+              ) : inspectionsError ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    <span role="alert" className="text-muted-foreground">
+                      {t("organization.inspection.listLoadError")}
+                    </span>
                   </TableCell>
                 </TableRow>
               ) : inspections.length === 0 ? (

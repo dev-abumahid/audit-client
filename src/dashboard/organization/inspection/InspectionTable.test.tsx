@@ -521,6 +521,29 @@ describe("InspectionTable", () => {
     )
   })
 
+  // quality-bar-loop round 16 (resilience regression): this query never
+  // checked isError -- a genuine fetch failure fell through to `data?.data
+  // || []`, rendering the identical empty-state message as "no
+  // inspections match this filter."
+  it("shows a distinct error message, not the empty state, when the inspections query fails", async () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    })
+
+    renderTable()
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.inspection.listLoadError")
+      ).toBeInTheDocument()
+    )
+    expect(
+      screen.queryByText("organization.inspection.empty")
+    ).not.toBeInTheDocument()
+  })
+
   // aexa-frontend#242: Inspection had zero role gating, unlike every sibling
   // entity (Audit/Templates/Reports/Risk/Sites/Findings/KRI/Compliance),
   // already gated via useMyOrgRole()/canWriteOrgResource(role) per #217.

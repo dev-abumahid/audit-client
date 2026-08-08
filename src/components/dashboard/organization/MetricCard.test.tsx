@@ -20,6 +20,17 @@ describe("MetricCard", () => {
     expect(screen.getByText("€0.1M")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 16 (visual-polish regression): the hover
+  // affordance used to apply unconditionally to both the Link and div
+  // branches, so a card with no `to` (Revenue) still highlighted on hover
+  // exactly like a real link -- a false clickability signal.
+  it("does not carry the hover-clickable affordance when no `to` prop is given", () => {
+    render(<MetricCard title="Revenue" value="€0.1M" icon={Shield} />)
+
+    const card = screen.getByText("Revenue").closest("div.rounded-xl")
+    expect(card?.className).not.toContain("hover:border-primary/30")
+  })
+
   it("renders as a real Link to the given destination when `to` is provided", () => {
     render(
       <MemoryRouter>
@@ -36,6 +47,7 @@ describe("MetricCard", () => {
     expect(link).toHaveAttribute("href", "/organization/risks?status=open")
     expect(link).toHaveTextContent("Active Risks")
     expect(link).toHaveTextContent("3")
+    expect(link.className).toContain("hover:border-primary/30")
   })
 
   it("still renders the subtitle when both `to` and `subtitle` are provided", () => {

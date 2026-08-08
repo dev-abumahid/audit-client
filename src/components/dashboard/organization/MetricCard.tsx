@@ -44,15 +44,24 @@ export default function MetricCard({
     </>
   )
 
-  const sharedClassName = `group rounded-xl border border-border bg-card p-5 transition-colors duration-200 hover:border-primary/30 ${className}`
+  const sharedClassName = `group rounded-xl border border-border bg-card p-5 transition-colors duration-200 ${className}`
 
   if (to) {
     return (
-      <Link to={to} className={`focus-ring block ${sharedClassName}`}>
+      <Link
+        to={to}
+        className={`focus-ring block hover:border-primary/30 ${sharedClassName}`}
+      >
         {content}
       </Link>
     )
   }
 
+  // quality-bar-loop round 16 (visual-polish regression): the hover
+  // affordance used to apply unconditionally to both branches, so a card
+  // with no destination (Revenue) still highlighted on hover exactly like
+  // the 5 real links -- a false clickability signal, arguably worse than
+  // the original "looks clickable, isn't" finding this `to` prop was
+  // meant to close, since it's now the one visible outlier among 6.
   return <div className={sharedClassName}>{content}</div>
 }

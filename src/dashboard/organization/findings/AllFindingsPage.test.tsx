@@ -227,6 +227,28 @@ describe("AllFindingsPage", () => {
     expect(emptyCell).toHaveAttribute("colspan", String(headerCells.length))
   })
 
+  // quality-bar-loop round 16 (resilience regression): this query never
+  // checked isError -- a genuine fetch failure fell through to `data?.data
+  // || []`, rendering the identical empty-state message as "no findings
+  // match the current filters."
+  it("shows a distinct error message, not the empty state, when the findings query fails", () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: vi.fn(),
+    })
+
+    render(<AllFindingsPage />, withRouter)
+
+    expect(
+      screen.getByText("organization.findings.loadError")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.findings.noFindingsYet")
+    ).not.toBeInTheDocument()
+  })
+
   // aexa-frontend round-3 audit bug #3: the due-date month was hardcoded to
   // "en-US" regardless of the active UI language.
   it("formats the due date's month in French when the UI language is French", () => {

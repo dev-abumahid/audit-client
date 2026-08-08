@@ -13,7 +13,13 @@ export default function RiskBadge({
   size = "sm",
 }: RiskBadgeProps) {
   const { t } = useTranslation()
-  const c = SEVERITY_STYLES[level]
+  // quality-bar-loop round 16 (resilience regression, found alongside the
+  // same bug class in AlertsPage.tsx): `level` is typed to the 4 canonical
+  // values, but this component is fed real API data (alert.severity,
+  // risk severity, etc.) at several call sites with no runtime guard --
+  // an unrecognized value crashed every caller of this shared component,
+  // not just the one that first surfaced it.
+  const c = SEVERITY_STYLES[level] ?? SEVERITY_STYLES.neutral
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full ${c.bg} ${c.text} font-medium ${

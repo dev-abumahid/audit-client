@@ -5,6 +5,7 @@ import {
   useGetKriReadingsQuery,
   useSubmitKriValueMutation,
 } from "@/redux/apis/organization/kri.api"
+import FilteredByNotice from "@/components/shared/FilteredByNotice"
 import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
@@ -330,23 +331,21 @@ export default function KriDashboardPage() {
       </div>
 
       {statusParam && (
-        <div className="animate-fade-in flex items-center gap-2 text-xs text-muted-foreground">
-          <span>
-            {t("organization.kri.filteredByStatus", {
-              status:
-                statusParam === "ALERT"
-                  ? t("organization.kri.status.alert")
-                  : statusParam === "WARNING"
-                    ? t("organization.kri.status.warning")
-                    : statusParam === "OK"
-                      ? t("organization.kri.status.ok")
-                      : statusParam,
-            })}
-          </span>
-          <Link to="/organization/kri" className="focus-ring rounded text-primary hover:underline">
-            {t("organization.kri.clearFilter")}
-          </Link>
-        </div>
+        <FilteredByNotice
+          className="animate-fade-in"
+          label={t("organization.kri.filteredByStatus", {
+            status:
+              statusParam === "ALERT"
+                ? t("organization.kri.status.alert")
+                : statusParam === "WARNING"
+                  ? t("organization.kri.status.warning")
+                  : statusParam === "OK"
+                    ? t("organization.kri.status.ok")
+                    : statusParam,
+          })}
+          clearLabel={t("organization.kri.clearFilter")}
+          clearHref="/organization/kri"
+        />
       )}
 
       {/* KRI Cards */}

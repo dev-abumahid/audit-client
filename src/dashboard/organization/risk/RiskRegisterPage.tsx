@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import FilteredByNotice from "@/components/shared/FilteredByNotice"
 import {
   useCreateNewRiskMutation,
   useDeleteRiskMutation,
@@ -74,7 +75,13 @@ export default function RiskRegisterPage() {
   const addEditModalRef = useModalA11y(showModal, () => setShowModal(false))
 
   // RTQ query states
-  const { data: riskData } = useGetAllRisksQuery({
+  // quality-bar-loop round 16 (resilience regression): this query never
+  // checked isError before -- a genuine fetch failure fell through to
+  // `riskData?.data || []`, rendering an empty table indistinguishable
+  // from "the filter matched nothing" (the exact false-all-clear pattern
+  // round 1 fixed on Overview.tsx, surfaced here by round 14's dashboard
+  // link making an empty-looking result more reachable/likely to matter).
+  const { data: riskData, isError: risksError } = useGetAllRisksQuery({
     page: 1,
     limit: 100,
     searchTerm: search,
@@ -311,19 +318,13 @@ export default function RiskRegisterPage() {
         </div>
       </div>
       {statusParam && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>
-            {t("organization.riskRegister.filteredByStatus", {
-              status: statusParam,
-            })}
-          </span>
-          <Link
-            to="/organization/risks"
-            className="focus-ring rounded text-primary hover:underline"
-          >
-            {t("organization.riskRegister.clearFilter")}
-          </Link>
-        </div>
+        <FilteredByNotice
+          label={t("organization.riskRegister.filteredByStatus", {
+            status: statusParam,
+          })}
+          clearLabel={t("organization.riskRegister.clearFilter")}
+          clearHref="/organization/risks"
+        />
       )}
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
@@ -547,6 +548,29 @@ export default function RiskRegisterPage() {
                   </tr>
                 )
               })}
+              {/* quality-bar-loop round 16 (resilience regression): this
+                  table had no error or empty-result row at all -- a fetch
+                  failure and "the filter matched zero risks" both
+                  previously rendered the exact same silent, header-only
+                  table. */}
+              {risksError && (
+                <tr>
+                  <td colSpan={9} className="px-3 py-8 text-center">
+                    <span role="alert" className="text-muted-foreground">
+                      {t("organization.riskRegister.loadError")}
+                    </span>
+                  </td>
+                </tr>
+              )}
+              {!risksError && visibleRisks?.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-3 py-8 text-center">
+                    <span className="text-muted-foreground">
+                      {t("organization.riskRegister.noResults")}
+                    </span>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -35,4 +35,15 @@ describe("RiskBadge", () => {
     expect(screen.getByText("8.4")).toBeInTheDocument()
     expect(screen.queryByText("[i18n] Critical")).not.toBeInTheDocument()
   })
+
+  // quality-bar-loop round 16 (resilience regression): `level` is typed to
+  // the 4 canonical values, but every caller feeds it real API data
+  // (alert.severity, risk severity) with no runtime guard -- an
+  // unrecognized value used to crash with "Cannot read properties of
+  // undefined (reading 'bg')".
+  it("does not crash when given a level outside the canonical 4 values", () => {
+    // @ts-expect-error -- deliberately passing a value outside the typed
+    // union to reproduce what a real, unvalidated API response can send.
+    expect(() => render(<RiskBadge level="unknown-legacy-value" />)).not.toThrow()
+  })
 })
