@@ -1280,6 +1280,41 @@ describe("RiskRegisterPage", () => {
     )
   })
 
+  // quality-bar-loop round 9 (efficiency): `search` used to be passed
+  // straight into the query with no debounce -- every keystroke fired an
+  // immediate refetch. Same debounce-testing convention as
+  // IntelligencePage.test.tsx's "passes the debounced search term" test.
+  it("debounces the search term before passing it to the query hook", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+    renderPage()
+    mockUseGetAllRisksQuery.mockClear()
+
+    await user.type(
+      screen.getByPlaceholderText(
+        "organization.riskRegister.searchPlaceholder"
+      ),
+      "flood"
+    )
+
+    // Before the 300ms debounce elapses, the query must not yet have been
+    // called with the fully-typed term -- this is exactly the gap the fix
+    // closes.
+    expect(mockUseGetAllRisksQuery).not.toHaveBeenCalledWith(
+      expect.objectContaining({ searchTerm: "flood" })
+    )
+
+    vi.advanceTimersByTime(300)
+
+    await waitFor(() =>
+      expect(mockUseGetAllRisksQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ searchTerm: "flood" })
+      )
+    )
+    vi.useRealTimers()
+  })
+
   // quality-bar-loop round 2 (industry-standards/efficiency): page/limit were
   // previously hardcoded to page:1/limit:100, so an org with more than 100
   // risks silently lost every row past the 100th with no pagination UI at

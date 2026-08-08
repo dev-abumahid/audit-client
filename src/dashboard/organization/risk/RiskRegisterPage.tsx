@@ -10,6 +10,7 @@ import {
 } from "@/redux/apis/organization/risk.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
+import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import type { Risk, SiteSummary } from "@/types/organization"
@@ -20,12 +21,181 @@ import { severityBadgeClasses } from "@/utils/severityStyles"
 import RiskApprovalControls from "./RiskApprovalControls"
 import RiskOverrideBadge from "./RiskOverrideBadge"
 import { Bot, Building2, Clock, Loader, Pencil, Plus, Search, Trash2 } from "lucide-react"
-import { useState } from "react"
+import { memo, useCallback, useEffect, useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
 import { toast } from "sonner"
+
+interface RiskRowProps {
+  risk: Risk
+  canWrite: boolean
+  onEdit: (risk: Risk) => void
+  onDelete: (id: string) => void
+}
+
+// quality-bar-loop round 9 (efficiency): the table body used to be an inline
+// `.map()` re-creating every `<tr>` (and every closure inside it) on every
+// RiskRegisterPage re-render -- including re-renders that don't change any
+// row's own data (a filter keystroke before the debounced query resolves, a
+// pagination-adjacent state change, opening the Add/Edit modal). Same
+// memoization convention as RiskGraphPage's RiskGraphNode/RiskGraphLinkLine:
+// `onEdit`/`onDelete` must stay referentially stable (useCallback, see
+// openEdit/openDeleteModal below) for this memo() to actually skip work --
+// RTK Query keeps unchanged entities referentially stable across refetches
+// of the same cache entry, so `risk` itself is also a stable reference for
+// rows whose underlying data didn't change.
+const RiskRow = memo(function RiskRow({
+  risk,
+  canWrite,
+  onEdit,
+  onDelete,
+}: RiskRowProps) {
+  const { t } = useTranslation()
+  const cat = RISK_CATEGORIES[risk.category as keyof typeof RISK_CATEGORIES]
+  const catColor = cat?.color || "hsl(220, 10%, 46%)"
+
+  return (
+    <tr className="border-b transition-colors hover:bg-muted/30">
+      <td className="max-w-32 px-3 py-2.5 lg:max-w-48">
+        {/* aexa-frontend#529: the register itself is now also
+            an entry point into the per-risk detail page, not
+            just an editable list. */}
+        <Link
+          to={`/organization/risks/${risk.id}`}
+          className="focus-ring block truncate rounded font-medium text-primary hover:underline"
+        >
+          {risk.name}
+        </Link>
+        <p className="hidden truncate text-[10px] text-muted-foreground sm:block">
+          {risk.description}
+        </p>
+      </td>
+      <td className="hidden px-3 py-2.5 sm:table-cell">
+        <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          {risk?.site?.name ? (
+            // aexa-frontend#541: same ?siteId=&search= pattern
+            // #533 used for a Finding's site.
+            <Link
+              to={`/organization/sites?siteId=${encodeURIComponent(risk.site.id)}&search=${encodeURIComponent(risk.site.name)}`}
+              className="focus-ring text-primary hover:underline"
+            >
+              {risk.site.name}
+            </Link>
+          ) : (
+            <>
+              <Building2 className="h-3 w-3 shrink-0" />
+              {t("organization.riskRegister.groupFallback")}
+            </>
+          )}
+        </span>
+      </td>
+      <td className="hidden px-3 py-2.5 md:table-cell">
+        <span
+          className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+          style={{
+            backgroundColor: `color-mix(in srgb, ${catColor} 15%, transparent)`,
+            color: catColor,
+          }}
+        >
+          {cat ? t(`organization.riskCategories.${cat.labelKey}`) : risk.category}
+        </span>
+      </td>
+      <td className="px-3 py-2.5 text-center">
+        <div className="flex flex-col items-center gap-1">
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${severityBadgeClasses(
+              getRiskSeverityLevel(risk.residual_score)
+            )}`}
+          >
+            {risk.residual_score}
+          </span>
+          {/* aexa-frontend#269 -- the list-view half of "not
+              buried": the score column is the one place every
+              row's residual score already renders, so the
+              override/staleness badge for it lives right
+              underneath rather than requiring a row expand. */}
+          <RiskOverrideBadge
+            isOverride={!!risk.residual_is_override}
+            isStale={!!risk.residual_override_stale}
+            overriddenBy={risk.residual_overridden_by}
+            overriddenAt={risk.residual_overridden_at}
+            label={t("organization.riskRegister.residualScoreLabel")}
+          />
+        </div>
+      </td>
+      <td className="hidden px-3 py-2.5 text-center font-mono font-bold lg:table-cell">
+        {risk.pagerank_score}
+      </td>
+      <td className="hidden px-3 py-2.5 text-center font-mono lg:table-cell">
+        {/* aexa-frontend#376 -- the Min/Max Impact form
+            inputs are labeled "k€" (thousands of euros) and
+            submitted unmodified, so the stored value is
+            already in k€. 1,000 k€ = 1 M€, so this must divide
+            by 1,000, not 1,000,000 (which understated every
+            figure 1000x). */}
+        {/* quality-bar-loop round 4 (resilience): a missing
+            financial_impact_max (a nullable field, not
+            guaranteed populated on every risk) previously
+            rendered the literal string "NaNM" -- the site/
+            category columns already fall back gracefully, this
+            one didn't. */}
+        {risk.financial_impact_max == null
+          ? "—"
+          : `${(risk.financial_impact_max / 1000).toFixed(1)}M`}
+      </td>
+      <td className="px-3 py-2.5 text-[10px] text-muted-foreground">
+        {risk.ai_generated ? (
+          <span className="flex items-center gap-1">
+            <Bot className="h-3 w-3 shrink-0" />
+            {t("organization.riskRegister.aiGenerated")}
+          </span>
+        ) : (
+          t("organization.riskRegister.manual")
+        )}
+      </td>
+      <td className="px-3 py-2.5">
+        <RiskApprovalControls risk={risk} />
+      </td>
+      <td className="px-3 py-2.5">
+        {canWrite && (
+          // quality-bar-loop round 3 (mobile): these buttons
+          // measured 20x20px live -- well under the 44x44
+          // touch-target guideline, ~4px apart with one being
+          // destructive. Hit-slop (WCAG 2.5.8: visible size and
+          // touch-target size may differ) extends the real
+          // clickable area via a `before:` pseudo-element
+          // without changing the visible icon/padding. The
+          // actions column only has ~88px of content width
+          // (w-28 minus px-3 padding) for two buttons, so a
+          // full 44x44 on both axes doesn't fit side-by-side --
+          // gap-4 (16px) + -inset-x-2 (8px each side) gets a full
+          // 44px height and a real, if narrower, 36px width
+          // with zero overlap between the two hit zones
+          // (8+8=16=gap), an honest, bounded improvement over
+          // 20x20 rather than a false claim of full 44x44.
+          <div className="flex gap-4">
+            <button
+              onClick={() => onEdit(risk)}
+              className="relative rounded p-1 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:bg-muted"
+              aria-label={t("organization.riskRegister.editRisk")}
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+            <button
+              onClick={() => onDelete(risk.id)}
+              className="relative rounded p-1 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:bg-destructive/10 hover:text-destructive"
+              aria-label={t("organization.riskRegister.deleteRisk")}
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+      </td>
+    </tr>
+  )
+})
 
 const EMPTY_RISK: Partial<Risk> = {
   name: "",
@@ -104,6 +274,23 @@ export default function RiskRegisterPage() {
   // from "the filter matched nothing" (the exact false-all-clear pattern
   // round 1 fixed on Overview.tsx, surfaced here by round 14's dashboard
   // link making an empty-looking result more reachable/likely to matter).
+  // quality-bar-loop round 9 (efficiency): `search` was passed straight into
+  // the query with no debounce -- every keystroke fired a fresh network
+  // request/refetch. Same useDebouncedValue convention already used by
+  // TemplatesPage/SitesEntities. The input itself still binds to the raw
+  // `search` state (below) so typing feels instant; only the query arg is
+  // debounced.
+  const debouncedSearch = useDebouncedValue(search, 300)
+  // quality-bar-loop round 9 review (efficiency PR #628): setPage(1) used to
+  // fire synchronously in the search input's onChange, immediately, while
+  // debouncedSearch hadn't caught up yet. On any page other than 1, that
+  // fired one wasted request for {page:1, searchTerm:<stale value>} before
+  // the real debounced request landed 300ms later -- a visible flash of the
+  // wrong result set. Same useEffect([debouncedSearch]) convention as
+  // SitesEntities: only reset the page once the debounce actually settles.
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch])
   const {
     data: riskData,
     isError: risksError,
@@ -111,7 +298,7 @@ export default function RiskRegisterPage() {
   } = useGetAllRisksQuery({
     page: isClientFiltered ? 1 : page,
     limit: isClientFiltered ? 100 : PAGE_SIZE,
-    searchTerm: search,
+    searchTerm: debouncedSearch,
     siteId: siteFilter,
     category: filterCat,
   })
@@ -194,7 +381,11 @@ export default function RiskRegisterPage() {
     setShowModal(true)
   }
 
-  const openEdit = (risk: Risk) => {
+  // quality-bar-loop round 9 (efficiency): stable identity (empty deps --
+  // setEditId/reset/setShowModal are all stable setters/RHF functions) so
+  // this can be passed straight into the memoized RiskRow below without
+  // defeating its memoization on every RiskRegisterPage re-render.
+  const openEdit = useCallback((risk: Risk) => {
     setEditId(risk.id)
     reset({
       ...risk,
@@ -213,7 +404,7 @@ export default function RiskRegisterPage() {
       site_id: risk.site_id,
     })
     setShowModal(true)
-  }
+  }, [reset])
 
   const onSubmit: SubmitHandler<Risk> = async (data) => {
     // aexa-frontend#269 -- translate this form's client-facing
@@ -327,10 +518,12 @@ export default function RiskRegisterPage() {
   }
 
   // Deleting Options
-  const openDeleteModal = (id: string) => {
+  // quality-bar-loop round 9 (efficiency): stable identity, same rationale
+  // as openEdit above -- passed into the memoized RiskRow.
+  const openDeleteModal = useCallback((id: string) => {
     setDeleteRiskId(id)
     setIsDeleteModalOpen(true)
-  }
+  }, [])
 
   const confirmDeleteRisk = async () => {
     // quality-bar-loop round 7 review: the disabled prop on the confirm
@@ -416,7 +609,6 @@ export default function RiskRegisterPage() {
             value={search}
             onChange={(e) => {
               setSearch(e.target.value)
-              setPage(1)
             }}
             placeholder={t("organization.riskRegister.searchPlaceholder")}
             aria-label={t("organization.riskRegister.searchLabel")}
@@ -514,165 +706,15 @@ export default function RiskRegisterPage() {
               </tr>
             </thead>
             <tbody>
-              {visibleRisks?.map((risk) => {
-                return (
-                  <tr
-                    key={risk.id}
-                    className={`border-b transition-colors hover:bg-muted/30`}
-                  >
-                    <td className="max-w-32 px-3 py-2.5 lg:max-w-48">
-                      {/* aexa-frontend#529: the register itself is now also
-                          an entry point into the per-risk detail page, not
-                          just an editable list. */}
-                      <Link
-                        to={`/organization/risks/${risk.id}`}
-                        className="focus-ring block truncate rounded font-medium text-primary hover:underline"
-                      >
-                        {risk.name}
-                      </Link>
-                      <p className="hidden truncate text-[10px] text-muted-foreground sm:block">
-                        {risk.description}
-                      </p>
-                    </td>
-                    <td className="hidden px-3 py-2.5 sm:table-cell">
-                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                        {risk?.site?.name ? (
-                          // aexa-frontend#541: same ?siteId=&search= pattern
-                          // #533 used for a Finding's site.
-                          <Link
-                            to={`/organization/sites?siteId=${encodeURIComponent(risk.site.id)}&search=${encodeURIComponent(risk.site.name)}`}
-                            className="focus-ring text-primary hover:underline"
-                          >
-                            {risk.site.name}
-                          </Link>
-                        ) : (
-                          <>
-                            <Building2 className="h-3 w-3 shrink-0" />
-                            {t("organization.riskRegister.groupFallback")}
-                          </>
-                        )}
-                      </span>
-                    </td>
-                    <td className="hidden px-3 py-2.5 md:table-cell">
-                      {(() => {
-                        const cat =
-                          RISK_CATEGORIES[
-                            risk.category as keyof typeof RISK_CATEGORIES
-                          ]
-                        const catColor = cat?.color || "hsl(220, 10%, 46%)"
-                        return (
-                          <span
-                            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                            style={{
-                              backgroundColor: `color-mix(in srgb, ${catColor} 15%, transparent)`,
-                              color: catColor,
-                            }}
-                          >
-                            {cat
-                              ? t(`organization.riskCategories.${cat.labelKey}`)
-                              : risk.category}
-                          </span>
-                        )
-                      })()}
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${severityBadgeClasses(
-                            getRiskSeverityLevel(risk.residual_score)
-                          )}`}
-                        >
-                          {risk.residual_score}
-                        </span>
-                        {/* aexa-frontend#269 -- the list-view half of "not
-                            buried": the score column is the one place every
-                            row's residual score already renders, so the
-                            override/staleness badge for it lives right
-                            underneath rather than requiring a row expand. */}
-                        <RiskOverrideBadge
-                          isOverride={!!risk.residual_is_override}
-                          isStale={!!risk.residual_override_stale}
-                          overriddenBy={risk.residual_overridden_by}
-                          overriddenAt={risk.residual_overridden_at}
-                          label={t(
-                            "organization.riskRegister.residualScoreLabel"
-                          )}
-                        />
-                      </div>
-                    </td>
-                    <td className="hidden px-3 py-2.5 text-center font-mono font-bold lg:table-cell">
-                      {risk.pagerank_score}
-                    </td>
-                    <td className="hidden px-3 py-2.5 text-center font-mono lg:table-cell">
-                      {/* aexa-frontend#376 -- the Min/Max Impact form
-                          inputs are labeled "k€" (thousands of euros) and
-                          submitted unmodified, so the stored value is
-                          already in k€. 1,000 k€ = 1 M€, so this must divide
-                          by 1,000, not 1,000,000 (which understated every
-                          figure 1000x). */}
-                      {/* quality-bar-loop round 4 (resilience): a missing
-                          financial_impact_max (a nullable field, not
-                          guaranteed populated on every risk) previously
-                          rendered the literal string "NaNM" -- the site/
-                          category columns already fall back gracefully, this
-                          one didn't. */}
-                      {risk.financial_impact_max == null
-                        ? "—"
-                        : `${(risk.financial_impact_max / 1000).toFixed(1)}M`}
-                    </td>
-                    <td className="px-3 py-2.5 text-[10px] text-muted-foreground">
-                      {risk.ai_generated ? (
-                        <span className="flex items-center gap-1">
-                          <Bot className="h-3 w-3 shrink-0" />
-                          {t("organization.riskRegister.aiGenerated")}
-                        </span>
-                      ) : (
-                        t("organization.riskRegister.manual")
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <RiskApprovalControls risk={risk} />
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {canWrite && (
-                        // quality-bar-loop round 3 (mobile): these buttons
-                        // measured 20x20px live -- well under the 44x44
-                        // touch-target guideline, ~4px apart with one being
-                        // destructive. Hit-slop (WCAG 2.5.8: visible size and
-                        // touch-target size may differ) extends the real
-                        // clickable area via a `before:` pseudo-element
-                        // without changing the visible icon/padding. The
-                        // actions column only has ~88px of content width
-                        // (w-28 minus px-3 padding) for two buttons, so a
-                        // full 44x44 on both axes doesn't fit side-by-side --
-                        // gap-4 (16px) + -inset-x-2 (8px each side) gets a full
-                        // 44px height and a real, if narrower, 36px width
-                        // with zero overlap between the two hit zones
-                        // (8+8=16=gap), an honest, bounded improvement over
-                        // 20x20 rather than a false claim of full 44x44.
-                        <div className="flex gap-4">
-                          <button
-                            onClick={() => openEdit(risk)}
-                            className="relative rounded p-1 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:bg-muted"
-                            aria-label={t("organization.riskRegister.editRisk")}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </button>
-                          <button
-                            onClick={() => openDeleteModal(risk.id)}
-                            className="relative rounded p-1 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:bg-destructive/10 hover:text-destructive"
-                            aria-label={t(
-                              "organization.riskRegister.deleteRisk"
-                            )}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
+              {visibleRisks?.map((risk) => (
+                <RiskRow
+                  key={risk.id}
+                  risk={risk}
+                  canWrite={canWrite}
+                  onEdit={openEdit}
+                  onDelete={openDeleteModal}
+                />
+              ))}
               {/* quality-bar-loop round 4 (resilience): before this, an
                   in-flight initial fetch had no distinct visual from a
                   genuine zero-result empty state -- riskData is undefined
@@ -937,7 +979,7 @@ export default function RiskRegisterPage() {
                         <textarea
                           {...register("inherent_override_reason", {
                             validate: (value) =>
-                              !watch("inherent_is_override") ||
+                              !inherentIsOverride ||
                               !!value?.trim() ||
                               t(
                                 "organization.riskRegister.overrideReasonRequired"
@@ -971,7 +1013,7 @@ export default function RiskRegisterPage() {
                         <textarea
                           {...register("residual_override_reason", {
                             validate: (value) =>
-                              !watch("residual_is_override") ||
+                              !residualIsOverride ||
                               !!value?.trim() ||
                               t(
                                 "organization.riskRegister.overrideReasonRequired"
@@ -1002,14 +1044,14 @@ export default function RiskRegisterPage() {
                 {editId && (
                   <div className="flex flex-wrap gap-2">
                     <RiskOverrideBadge
-                      isOverride={!!watch("inherent_is_override")}
+                      isOverride={!!inherentIsOverride}
                       isStale={!!watch("inherent_override_stale")}
                       overriddenBy={watch("inherent_overridden_by")}
                       overriddenAt={watch("inherent_overridden_at")}
                       label={t("organization.riskRegister.inherentScoreLabel")}
                     />
                     <RiskOverrideBadge
-                      isOverride={!!watch("residual_is_override")}
+                      isOverride={!!residualIsOverride}
                       isStale={!!watch("residual_override_stale")}
                       overriddenBy={watch("residual_overridden_by")}
                       overriddenAt={watch("residual_overridden_at")}
