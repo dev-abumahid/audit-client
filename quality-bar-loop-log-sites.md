@@ -377,3 +377,67 @@ the other below-floor axes' findings because:
   discretionary refactors) or mobile's touch-target findings (real but
   spread across several small sizing tweaks with no single fix as
   concrete or as high-stakes as this one).
+
+### Round 3 outcome — merged as PR #610
+
+Shipped via `ship-with-review-loop`, converged clean on review round 1:
+
+- **Fix**: added `isRiskDeleteModalOpen`/`deleteRiskId` state,
+  `handleRiskDeleteModalOpen`/`handleConfirmRiskDelete` handlers, and a
+  second `<DeleteAlertModal>` instance — an exact mirror of the existing
+  site-delete pattern 3 lines above it in the same file. The row's
+  Delete button now only opens the confirmation modal; the mutation
+  only fires on confirm. `useDeleteRiskMutation()` now also destructures
+  `isLoading: isRiskDeleting`, passed to the modal as `loading` — closes
+  the round-2 UX judge's compounding finding (button never disabled
+  mid-request) for free, since the modal's own Delete button already
+  disables on `loading`.
+- **Review round 1**: clean. Confirmed the modal lifecycle matches
+  site-delete's established behavior exactly (closes + clears state on
+  success, stays open with state intact on both the non-throwing
+  `success: false` branch and the `catch` block, so a failed delete can
+  be retried without re-selecting anything), confirmed the two
+  `DeleteAlertModal` instances' state genuinely can't cross-talk (fully
+  independent `useState` pairs, no shared setters), confirmed a shared
+  `isRiskDeleting` flag is safe given the new flow makes concurrent
+  risk-delete mutations unreachable, and confirmed the 2 new i18n keys
+  sit at the correct nesting level in both locale files with a genuine
+  French translation. One fragility noted, not a bug: the test file's
+  mocked `DeleteAlertModal` renders identically for both instances, so
+  `getByText("Confirm delete")` would throw on ambiguity if both modals
+  were ever open simultaneously — currently unreachable given the real
+  component's state logic, worth a comment for future maintainers but
+  not blocking.
+- QA gate: typecheck clean, lint clean (0 errors, same 5 pre-existing
+  warnings), full suite 1579/1579 passing, including a new test
+  verifying the mutation doesn't fire until confirmed (verified via
+  negative control: reverted the fix, confirmed the mutation fired
+  immediately on the old Delete-button click as expected, restored the
+  fix, confirmed it passes) and 2 existing tests updated to add the new
+  confirm-click step.
+- **Live-verified end-to-end against the real running app, staying
+  strictly read-only**: clicked Delete on a genuine confirmed risk
+  record ("Design audit sample risk"), confirmed the modal opened with
+  the exact expected copy ("Are you sure? This will permanently remove
+  this risk from the register."), clicked Cancel, confirmed the modal
+  closed and the risk record was untouched — no site/risk records
+  created, edited, or deleted throughout implementation, review, or
+  verification.
+
+This closes the one finding both industry-standards and UX independently
+converged on across rounds 1–2. Still open going into round 4:
+industry-standards' remaining findings (single-expand limitation,
+invisible 100-row nested-risk cap, no bulk ops, no sort/filter,
+AI-suggestions not editable before import, no-retry error states), UX's
+remaining findings (silent-failure gap on non-throwing `success: false`
+site-save/delete responses, regressed risk-name whitespace validation,
+coarse partial-failure feedback on AI import), visual polish (Confirmed
+Risks panel alignment bug now on 2 code paths, hand-rolled stat tiles,
+inconsistent modal overlay, duplicated badge component, undersized
+AI-suggestion type scale), mobile (undersized touch targets, fixed-width
+search input, modal with no scroll safety net), resilience's newly
+spotted loading-state false-zero flash on the summary tiles, and code
+quality's remaining findings (eslint-disable hiding 6 real errors not 2,
+copy-pasted form-defaults literal, oversized multi-concern component,
+the new `riskLoadFailed`/`loadError` naming inconsistency). A fresh
+9-judge panel is the next step.
