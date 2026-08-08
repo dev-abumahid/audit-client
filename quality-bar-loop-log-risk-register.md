@@ -888,3 +888,27 @@ rather than burning a judge-panel dispatch per fix.
 bulk actions, CSV export. No sort/bulk convention exists elsewhere in the
 codebase yet (confirmed via research); export will reuse RiskGraphPage's
 existing CSV-export helpers (`triggerDownload`/`csvTextField`).
+
+## Structural workstream 2 (industry-standards) -- shipped, PR #629
+
+Added column sorting (Name/Score/PageRank/Impact, client-side/current-page
+only -- no sortBy convention exists anywhere in this codebase, documented
+as a scoped limitation matching the isClientFiltered precedent), bulk
+row-selection + bulk delete (reusing the single-delete mutation via
+Promise.allSettled, no bulk endpoint exists), and CSV export (a separate
+unpaginated fetch respecting current server-side filters, limit:1000).
+Extracted RiskGraphPage's CSV-injection-safe triggerDownload/csvTextField
+helpers into a new shared src/utils/csvExport.ts so both pages share one
+implementation instead of two copies drifting apart.
+
+Two review rounds: round 1 found one real issue (confirmBulkDelete
+cleared the whole selection even on partial failure, discarding the
+retry opportunity the partial-failure toast implies -- fixed to only
+drop successfully-deleted ids from the selection); round 2 came back
+clean. Merged.
+
+Both structural workstreams flagged at the original round-8 stop are now
+shipped (efficiency: PR #628; industry-standards: PR #629). Re-running
+the full 9-judge panel is the natural next step to check whether this
+closes enough of the gap to justify continuing the loop, or whether it
+should stop here given the earlier round-9 stagnation diagnosis.
