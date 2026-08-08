@@ -139,7 +139,7 @@ vi.mock("@/components/dashboard/organization/CriticalAlertBanner", () => ({
 // the test assert on paddingAngle itself rather than pixel geometry.
 let capturedPieProps: Record<string, unknown> | undefined
 // Captures every <Tooltip> the component renders, in render order, so a test
-// can pick out the EBITDA area chart's specifically (it's the one with a
+// can pick out the EBITDA chart's specifically (it's the one with a
 // `formatter` prop -- the category pie's Tooltip below it has none) and
 // invoke that formatter directly to check for the regression in #402
 // (formatter was commented out, leaving raw unformatted numbers on hover).
@@ -151,7 +151,7 @@ vi.mock("recharts", async (importOriginal) => {
     ResponsiveContainer: ({ children }: { children: ReactNode }) => (
       <div>{children}</div>
     ),
-    // Real PieChart/AreaChart skip rendering their children entirely when
+    // Real PieChart/BarChart skip rendering their children entirely when
     // they haven't received explicit width/height (which only the real
     // ResponsiveContainer's ResizeObserver-based measurement supplies --
     // absent under jsdom's 0x0 layout regardless of the ResponsiveContainer
@@ -159,8 +159,8 @@ vi.mock("recharts", async (importOriginal) => {
     // sidesteps that, which is also what lets the mocked <Tooltip> below
     // actually get invoked so its props can be captured.
     PieChart: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    AreaChart: ({ children }: { children: ReactNode }) => (
-      <div>{children}</div>
+    BarChart: ({ children }: { children: ReactNode }) => (
+      <div data-testid="mock-barchart">{children}</div>
     ),
     Pie: (props: Record<string, unknown>) => {
       capturedPieProps = props
@@ -934,7 +934,7 @@ describe("Overview", () => {
     }
   })
 
-  // Regression (issue #402): the EBITDA area chart's Tooltip formatter was
+  // Regression (issue #402): the EBITDA chart's Tooltip formatter was
   // commented out, so hovering showed raw unformatted numbers ("23100")
   // instead of currency-formatted EBITDA ("€23.1M"), unlike every other
   // number on this card (legend, Y-axis).
@@ -950,6 +950,18 @@ describe("Overview", () => {
       value: number
     ) => [string, string]
     expect(formatter(23100)).toEqual(["€23.1M", "EBITDA"])
+  })
+
+  // quality-bar-loop round 12 (industry-standards): the EBITDA chart used
+  // to render seven discrete percentile buckets (P5...P95) as a continuous
+  // AreaChart, which visually implies a time series rather than a static
+  // distribution snapshot -- a real Grafana/Datadog/Tableau anti-pattern
+  // for percentile data. Switched to a bar chart, where each bucket reads
+  // as an independent value with no implied continuity between bars.
+  it("renders the EBITDA percentile data as a bar chart, not a continuous area chart", () => {
+    renderPage()
+
+    expect(screen.getByTestId("mock-barchart")).toBeInTheDocument()
   })
 
   // Regression (issue #403): the Recent Alerts subtitle claimed "Last 48

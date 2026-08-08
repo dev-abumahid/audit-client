@@ -34,8 +34,8 @@ import { useEffect, useMemo, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 import {
-  Area,
-  AreaChart,
+  Bar,
+  BarChart,
   Cell,
   Pie,
   PieChart,
@@ -406,23 +406,17 @@ export default function Overview() {
           <p className="text-xs text-muted-foreground">
             {t("organization.overview.chart.des")}
           </p>
+          {/* quality-bar-loop round 12 (industry-standards): this is seven
+              discrete percentile buckets (P5...P95), not a time series --
+              an AreaChart's continuous, connected line visually implied a
+              trend moving left-to-right, the opposite of what a static
+              distribution snapshot is. A bar chart is the standard idiom
+              for percentile/Monte Carlo data in Grafana/Datadog/Tableau,
+              since each bar is independently readable with no implied
+              continuity between adjacent buckets. */}
           <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={ebitdaData}>
-                <defs>
-                  <linearGradient id="ebitdaGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor="hsl(var(--primary))"
-                      stopOpacity={0.3}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="hsl(var(--primary))"
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                </defs>
+              <BarChart data={ebitdaData}>
                 <XAxis
                   dataKey="name"
                   tick={{ fontSize: 11 }}
@@ -441,19 +435,18 @@ export default function Overview() {
                     fontSize: 12,
                   }}
                   labelStyle={{ color: "hsl(var(--popover-foreground))" }}
+                  cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
                   formatter={(v) => [
                     `€${(Number(v) / 1000).toFixed(1)}M`,
                     "EBITDA",
                   ]}
                 />
-                <Area
-                  type="monotone"
+                <Bar
                   dataKey="value"
-                  stroke="hsl(var(--primary))"
-                  fill="url(#ebitdaGrad)"
-                  strokeWidth={2}
+                  fill="hsl(var(--primary))"
+                  radius={[4, 4, 0, 0]}
                 />
-              </AreaChart>
+              </BarChart>
             </ResponsiveContainer>
           </div>
           <div className="mt-3 flex items-center gap-6 text-xs">
