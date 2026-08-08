@@ -120,3 +120,56 @@ all-or-nothing loading), efficiency (5/10, no memoization + duplicate
 PageRank computation), and the rest of resilience's remaining findings
 (no malformed-payload defense, all-or-nothing loading spinner) are still
 open — round 2 re-scores before picking the next fix.
+
+## Round 2 (re-score after PR #599)
+
+| Axis | Round 1 | Round 2 | Δ |
+|---|---|---|---|
+| Industry-standards | 4/10 | 4/10 | — |
+| UX | 5/10 | 5/10 | — |
+| Efficiency | 5/10 | 5/10 | — |
+| Accessibility | 6/10 | 5/10 | **↓ regression** |
+| Visual/design polish | 7/10 | 7/10 | — |
+| Resilience & edge cases | 3/10 | 7/10 | ↑↑ |
+| Code quality/maintainability | 7/10 | 7/10 | — |
+| Mobile/responsive | 6/10 | 6/10 | — |
+
+**Average: 5.75/10** (up from 5.4/10) — not converged (5/8 axes below floor of 7).
+
+**Guardrail tripped: regression.** Accessibility dropped 6→5. Per the skill's
+own guardrail, this stops the loop for user escalation rather than
+auto-picking round 3's fix.
+
+### Why the regression happened
+
+Round 1's fix added two new dynamic UI surfaces — `Overview.tsx`'s full-page
+error block and `CriticalAlertBanner.tsx`'s error notice — that didn't exist
+in round 1's baseline. Both inherited the same accessibility gaps round 1
+had only flagged on the charts (no `role="alert"`/`aria-live` on
+dynamically-appearing content, no focus management when the page's content
+is replaced) and introduced one new one: `CriticalAlertBanner`'s icon-only
+dismiss button (`&lt;X /&gt;`) has zero accessible name at all, worse than the
+pre-existing header bell case round 1 flagged, since it has no text
+fallback whatsoever. Net: two more places to fix, not new never-seen bugs.
+
+### Other notable round-2 findings
+
+- **Resilience's own review-loop fix may be dead code in production.**
+  Both the resilience and mobile judges independently found that
+  `CriticalAlertBanner`'s error path can never actually mount on the real
+  `/organization` route: `Overview.tsx`'s own `isError` gate already
+  includes `alertsError` (same query, same cache entry) and returns its
+  full-page error first, before `&lt;CriticalAlertBanner /&gt;` ever renders.
+  The dismiss/recover fix from PR #599's review round 2 is correct and
+  unit-tested, but currently unreachable through the app's real render
+  path — this needs its own decision (see below).
+- **New, out-of-scope bug spotted by the UX judge**: navigating to a risk
+  detail page (`/organization/risks/:id`) unexpectedly redirects back to
+  `/organization`, both via direct URL and via the risk-name link. Not
+  part of either target file; flagged for separate follow-up, not
+  addressed in this loop.
+- **New minor cross-axis observation**: the new error-state block's fixed
+  400px-tall centered box leaves a large dead-space gap on real viewports
+  (visual polish), and its Retry button is under the 44px touch-target
+  guideline (mobile/responsive) — both are refinements to the round-1 fix,
+  not new categories of problem.
