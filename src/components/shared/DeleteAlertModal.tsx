@@ -53,14 +53,18 @@ export default function DeleteAlertModal({
 
         <AlertDialogFooter className="mt-6 flex w-full flex-row gap-3 sm:justify-between sm:space-x-0">
           {/* Cancel Button */}
-          <AlertDialogCancel className="mt-0 flex-1 cursor-pointer rounded-xl border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+          {/* quality-bar-loop round 5 (mobile): default size resolves to
+              h-7 (28px), under the 44px touch-target guideline -- h-11
+              overrides just the height, same pattern already used for
+              this component's color/radius overrides. */}
+          <AlertDialogCancel className="mt-0 h-11 flex-1 cursor-pointer rounded-xl border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
             {t("common.deleteAlertModal.cancel")}
           </AlertDialogCancel>
 
           {/* Delete Button */}
           <AlertDialogAction
             onClick={onConfirm}
-            className="flex-1 cursor-pointer rounded-xl border-none bg-red-600 text-white shadow-sm hover:bg-red-700"
+            className="h-11 flex-1 cursor-pointer rounded-xl border-none bg-red-600 text-white shadow-sm hover:bg-red-700"
             disabled={loading}
           >
             {loading

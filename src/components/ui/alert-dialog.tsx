@@ -152,13 +152,19 @@ function AlertDialogAction({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Action> &
   Pick<React.ComponentProps<typeof Button>, "variant" | "size">) {
+  // quality-bar-loop round 5: `className` used to only reach the inner
+  // Radix primitive, never Button's own `className` prop -- Button's
+  // internal `cn(buttonVariants(...))` call is what actually resolves
+  // conflicting utilities (e.g. a caller's `h-11` vs. the size variant's
+  // `h-7`) via tailwind-merge. Passing through the primitive skips that
+  // resolution entirely: Radix's Slot then concatenates both class
+  // strings with no dedup, leaving the real CSS outcome to depend on
+  // Tailwind's generated declaration order rather than a guaranteed
+  // override. Passing `className` to Button itself fixes this for every
+  // caller, not just the one that happened to need it.
   return (
-    <Button variant={variant} size={size} asChild>
-      <AlertDialogPrimitive.Action
-        data-slot="alert-dialog-action"
-        className={cn(className)}
-        {...props}
-      />
+    <Button variant={variant} size={size} className={className} asChild>
+      <AlertDialogPrimitive.Action data-slot="alert-dialog-action" {...props} />
     </Button>
   )
 }
@@ -170,13 +176,10 @@ function AlertDialogCancel({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Cancel> &
   Pick<React.ComponentProps<typeof Button>, "variant" | "size">) {
+  // See AlertDialogAction's comment above -- same fix, same reasoning.
   return (
-    <Button variant={variant} size={size} asChild>
-      <AlertDialogPrimitive.Cancel
-        data-slot="alert-dialog-cancel"
-        className={cn(className)}
-        {...props}
-      />
+    <Button variant={variant} size={size} className={className} asChild>
+      <AlertDialogPrimitive.Cancel data-slot="alert-dialog-cancel" {...props} />
     </Button>
   )
 }

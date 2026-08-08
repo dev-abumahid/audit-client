@@ -869,8 +869,11 @@ export default function SitesEntities() {
                           disabled={
                             isLoadingEditSite && editingSite?.id === site.id
                           }
-                          className="focus-ring rounded-lg p-2 text-muted-foreground hover:bg-muted disabled:opacity-50"
+                          className="focus-ring rounded-lg p-3.5 text-muted-foreground hover:bg-muted disabled:opacity-50"
                         >
+                          {/* quality-bar-loop round 5 (mobile): p-3.5 around
+                              a 16px icon lands exactly on the 44x44px touch-
+                              target guideline (was p-2 -> 32x32px). */}
                           {isLoadingEditSite && editingSite?.id === site.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
@@ -903,8 +906,11 @@ export default function SitesEntities() {
                         : "organization.site&entities.expandSiteLabel",
                       { name: site.name }
                     )}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
+                    className="rounded-lg p-3 text-muted-foreground hover:bg-muted"
                   >
+                    {/* quality-bar-loop round 5 (mobile): p-3 around a 20px
+                        icon lands exactly on the 44x44px touch-target
+                        guideline (was p-2 -> 36x36px). */}
                     {isExpanded ? (
                       <ChevronUp className="h-5 w-5" />
                     ) : (
@@ -1205,10 +1211,15 @@ export default function SitesEntities() {
                               : t("organization.site&entities.manualBadge")}
                           </span>
                           {canWrite && (
+                            // quality-bar-loop round 5 (mobile): size="sm"
+                            // resolves to h-6 (24px), roughly half the 44px
+                            // touch-target guideline -- h-11 overrides just
+                            // the height, keeping "sm"'s text/icon/padding.
                             <Button
                               onClick={() => handleRiskDeleteModalOpen(risk.id)}
                               variant="destructive"
                               size="sm"
+                              className="h-11"
                             >
                               {t("organization.site&entities.deleteButton")}
                               <Trash2 />

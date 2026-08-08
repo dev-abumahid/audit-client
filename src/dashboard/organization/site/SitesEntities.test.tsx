@@ -213,6 +213,10 @@ describe("SitesEntities", () => {
     expect(moreActionsButton).toHaveAccessibleName(
       "organization.site&entities.moreActionsLabel"
     )
+    // quality-bar-loop round 5 (mobile): p-2 around a 16px icon measured
+    // 32x32px, under the 44px touch-target guideline -- p-3.5 lands exactly
+    // on 44px (14px padding * 2 + 16px icon).
+    expect(moreActionsButton).toHaveClass("p-3.5")
 
     const editButton = screen.getAllByRole("button").find((b) =>
       b.querySelector("svg.lucide-pencil")
@@ -233,6 +237,10 @@ describe("SitesEntities", () => {
     expect(expandButton).toHaveAccessibleName(
       "organization.site&entities.expandSiteLabel"
     )
+    // quality-bar-loop round 5 (mobile): p-2 around a 20px icon measured
+    // 36x36px, under the 44px touch-target guideline -- p-3 lands exactly
+    // on 44px (12px padding * 2 + 20px icon).
+    expect(expandButton).toHaveClass("p-3")
 
     await userEvent.click(expandButton)
     expect(expandButton).toHaveAttribute("aria-expanded", "true")
@@ -1006,6 +1014,13 @@ describe("SitesEntities", () => {
     expect(manualBadge).toHaveClass("bg-primary/10")
     expect(manualBadge).toHaveClass("text-primary")
     expect(manualBadge).not.toHaveClass("text-base")
+    // quality-bar-loop round 5 (mobile): the confirmed-risk row's Delete
+    // button used size="sm" (h-6, 24px tall), roughly half the 44px
+    // touch-target guideline -- h-11 overrides just the height.
+    const riskDeleteButton = screen.getByRole("button", {
+      name: /organization\.site&entities\.deleteButton/i,
+    })
+    expect(riskDeleteButton).toHaveClass("h-11")
   })
 
   // Regression: the name link and description sit in a `flex-col
