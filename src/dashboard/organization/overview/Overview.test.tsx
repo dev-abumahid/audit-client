@@ -387,6 +387,22 @@ describe("Overview", () => {
       expect(reloadSpy).toHaveBeenCalledTimes(1)
     })
 
+    // quality-bar-loop round 10 (mobile/responsive): measured 69.6x38px
+    // live, under the 44px touch-target guideline on the height axis.
+    it("gives the Retry button a touch target closer to the 44px guideline", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      })
+      renderPage()
+
+      const retryButton = screen.getByRole("button", {
+        name: "organization.overview.loadError.retry",
+      })
+      expect(retryButton.className).toContain("py-3")
+    })
+
     // quality-bar-loop round 2.5 (accessibility regression + resilience
     // dead-code fix, round 2 review): the error block can appear from a
     // background refetch failing after the page already rendered, not just
@@ -718,6 +734,54 @@ describe("Overview", () => {
     renderPage()
 
     expect(screen.getByText("Hub Beyond The Page Limit")).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 10 (mobile/responsive): the ref badge used to be
+  // a fixed h-9 w-9 square, wrapping a real ref like "CYB-001" onto two
+  // lines at any viewport width. min-w-9 + whitespace-nowrap lets it grow
+  // horizontally instead.
+  it("lets the Tipping Points ref badge grow instead of wrapping", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ id: "r1", ref: "CYB-001" })] },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: { risks: [makeRisk({ id: "r1", ref: "CYB-001" })], riskLinks: [] },
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const badge = screen.getByText("CYB-001")
+    expect(badge.className).toContain("min-w-9")
+    expect(badge.className).toContain("whitespace-nowrap")
+  })
+
+  // quality-bar-loop round 10 (mobile/responsive): this link measured
+  // 86.4x20px live, under the 44px touch-target guideline on the height
+  // axis. Plain py-3 (no negative margin -- see Overview.tsx's own comment
+  // on why the -my-3 cancellation trick doesn't work inside a flex item).
+  it("gives the Tipping Points risk-name link a taller touch target", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ id: "r1", ref: "CYB-001" })] },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          risks: [makeRisk({ id: "r1", ref: "CYB-001", name: "Central Cyber Risk" })],
+          riskLinks: [],
+        },
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const link = screen.getByRole("link", { name: "Central Cyber Risk" })
+    expect(link.className).toContain("py-3")
   })
 
   it("groups real risks by category for the category breakdown chart", () => {

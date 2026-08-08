@@ -315,7 +315,11 @@ export default function Overview() {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="focus-ring rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+          // quality-bar-loop round 10 (mobile/responsive): py-2 measured
+          // 69.6x38px live, under the 44x44px touch-target guideline on the
+          // height axis -- py-3 brings it to ~44px without materially
+          // changing the button's visual weight.
+          className="focus-ring rounded-lg border border-border px-4 py-3 text-sm font-medium text-foreground hover:bg-muted"
         >
           {t("organization.overview.loadError.retry")}
         </button>
@@ -565,7 +569,13 @@ export default function Overview() {
                 key={risk.id}
                 className="flex items-center gap-3 rounded-lg border border-border bg-background p-3"
               >
-                <div className="font-mono-data flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold">
+                {/* quality-bar-loop round 10 (mobile/responsive): a fixed
+                    h-9 w-9 square clipped real refs like "CYB-001" into two
+                    lines at any viewport width. min-w-9 + horizontal padding
+                    + whitespace-nowrap keeps short refs looking square while
+                    letting longer ones grow instead of wrapping; shrink-0
+                    stops the flex row from squeezing it back down. */}
+                <div className="font-mono-data flex h-9 min-w-9 shrink-0 items-center justify-center rounded-lg px-1.5 text-xs font-bold whitespace-nowrap">
                   {risk.ref}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -573,9 +583,21 @@ export default function Overview() {
                       reviewing #529 -- this was the one remaining place a
                       risk rendered as plain, non-interactive text despite
                       risk.id already being in scope. */}
+                  {/* quality-bar-loop round 10 (mobile/responsive): measured
+                      86.4x20px live, well under the 44px touch-target
+                      guideline on the height axis. An earlier version of
+                      this fix paired py-3 with -my-3 to cancel the added
+                      space out visually, but this Link's parent
+                      (`min-w-0 flex-1`) is a flex item -- flex items always
+                      establish their own block formatting context, which
+                      blocks the negative top margin from collapsing against
+                      the parent the way it would in normal block flow, so
+                      the link visibly crept upward instead of canceling out
+                      (caught in review). Plain py-3 with no negative margin
+                      is a few px taller per row but has no such edge case. */}
                   <Link
                     to={`/organization/risks/${risk.id}`}
-                    className="focus-ring block truncate rounded text-sm font-medium text-primary hover:underline"
+                    className="focus-ring block truncate rounded py-3 text-sm font-medium text-primary hover:underline"
                   >
                     {risk.name}
                   </Link>
