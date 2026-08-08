@@ -128,3 +128,47 @@ Adversarial review ran 3 rounds before coming back clean:
 
 **Next: re-run the judge panel** to score the page's post-fix state before
 picking round 4's fix.
+
+## Round 3 (post-fix judge panel)
+
+| Axis | Score | vs. Round 2 |
+|---|---|---|
+| Industry-standards | 6/10 | same |
+| UX | 5/10 | same |
+| Efficiency | 6/10 | same |
+| Accessibility | 7/10 | same |
+| Visual polish | 6/10 | same |
+| Resilience & edge cases | 4/10 | -3 |
+| Code quality | 8/10 | same |
+| Mobile/responsive | 5/10 | +1 |
+| Security | 10/10 | same |
+
+**Average: 6.33/10** (down slightly from 6.56, driven entirely by resilience).
+Still below target (9); 5 axes now below floor (7): industry-standards, UX,
+efficiency, resilience, mobile/responsive.
+
+**Regression check:** resilience dropped 7→4, the sharpest single-round move
+in this loop. Diagnosed as NOT a new bug: the round-3 diff was confirmed by
+the same judge to be isolated to CSS/markup (hit-slop only) with "no new
+fragility." The judge's own reasoning for the drop is explicit — the same 3
+findings from round 1 (sites-query missing `isError`, `NaN` guard on
+financial impact, no loading skeleton) are "now unaddressed across 3 rounds"
+and "no forward progress... is the dominant factor in scoring," plus a
+newly-articulated (but not newly-introduced) aggravating detail: the missing
+loading state means every page load flashes a false "no risks match" empty
+state before data arrives, since `riskData` is `undefined` on first render
+and nothing distinguishes "still loading" from "genuinely empty." That
+interaction has existed since round 16 predates this entire loop — it's a
+sharper articulation of a known gap, not a regression this round caused.
+Treating this as a genuine, if overdue, signal rather than noise: 3 rounds
+of picking other axes' fixes while resilience sat untouched is a real
+prioritization miss, not just judge variance.
+
+**Next fix (Round 4):** resilience is now the single lowest-scoring axis and
+has been flagged unaddressed for 3 consecutive rounds. Fixing all 3 items
+together in one round: (1) add `isError` handling to `useGetAllSitesQuery`
+(currently silently renders an empty site dropdown on a real outage), (2)
+guard `(risk.financial_impact_max / 1000).toFixed(1)` against
+null/undefined (currently renders literal "NaNM"), (3) add a loading state
+for the initial risk fetch so it's visually distinct from a genuine
+zero-result empty state.
