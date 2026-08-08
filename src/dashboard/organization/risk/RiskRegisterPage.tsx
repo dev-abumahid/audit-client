@@ -136,7 +136,12 @@ export default function RiskRegisterPage() {
   const [createNewRisk, { isLoading: isRiskCreating }] =
     useCreateNewRiskMutation()
   const [updateRisk, { isLoading: isRiskUpdating }] = useUpdateRiskMutation()
-  const [deleteRisk] = useDeleteRiskMutation()
+  // quality-bar-loop round 7 (resilience): isLoading was discarded here, so
+  // DeleteAlertModal's Delete button was never disabled while the request
+  // was in flight -- a double-click fired the mutation twice, and the
+  // second call 404s against the now-deleted row, surfacing a spurious
+  // "failed to delete" toast for a delete that had already succeeded.
+  const [deleteRisk, { isLoading: isRiskDeleting }] = useDeleteRiskMutation()
   // Custom make variables
   const risks: Risk[] = riskData?.data || []
   // quality-bar-loop round 14 (industry-standards): the dashboard's
@@ -328,7 +333,12 @@ export default function RiskRegisterPage() {
   }
 
   const confirmDeleteRisk = async () => {
-    if (!deleteRiskId) return
+    // quality-bar-loop round 7 review: the disabled prop on the confirm
+    // button is the primary guard, but it depends on a re-render landing
+    // before a second invocation -- this belt-and-suspenders check closes
+    // that theoretical window (e.g. a second call arriving before React
+    // commits the disabled state).
+    if (!deleteRiskId || isRiskDeleting) return
     try {
       const res = await deleteRisk(deleteRiskId).unwrap()
       if (res.success) {
@@ -1262,6 +1272,7 @@ export default function RiskRegisterPage() {
         open={isDeleteModalOpen}
         setOpen={setIsDeleteModalOpen}
         onConfirm={confirmDeleteRisk}
+        loading={isRiskDeleting}
       />
     </div>
   )

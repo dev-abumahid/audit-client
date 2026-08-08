@@ -69,6 +69,10 @@ const mockDeleteRisk = vi.fn()
 // Mutable per-test, same convention as mockRole above -- lets the loader
 // regression test below flip isRiskCreating to true without a static mock.
 let mockIsRiskCreating = false
+// quality-bar-loop round 7 (resilience): mutable per-test so the
+// double-submission-guard test below can flip this to true without a
+// static mock, same convention as mockIsRiskCreating above.
+let mockIsRiskDeleting = false
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
@@ -77,7 +81,10 @@ vi.mock("@/redux/apis/organization/risk.api", () => ({
     { isLoading: mockIsRiskCreating },
   ],
   useUpdateRiskMutation: () => [mockUpdateRisk, { isLoading: false }],
-  useDeleteRiskMutation: () => [mockDeleteRisk],
+  useDeleteRiskMutation: () => [
+    mockDeleteRisk,
+    { isLoading: mockIsRiskDeleting },
+  ],
 }))
 
 vi.mock("@/redux/apis/organization/sites.api", () => ({
@@ -85,8 +92,20 @@ vi.mock("@/redux/apis/organization/sites.api", () => ({
 }))
 
 vi.mock("@/components/shared/DeleteAlertModal", () => ({
-  default: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
-    open ? <button onClick={onConfirm}>Confirm delete</button> : null,
+  default: ({
+    open,
+    onConfirm,
+    loading,
+  }: {
+    open: boolean
+    onConfirm: () => void
+    loading?: boolean
+  }) =>
+    open ? (
+      <button onClick={onConfirm} disabled={loading}>
+        Confirm delete
+      </button>
+    ) : null,
 }))
 
 // The approval column's controls (badge + role-gated actions) are covered by
@@ -137,6 +156,7 @@ describe("RiskRegisterPage", () => {
     mockDeleteRisk.mockReset()
     mockToastError.mockReset()
     mockIsRiskCreating = false
+    mockIsRiskDeleting = false
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [makeSite()] } })
   })
 
@@ -772,6 +792,27 @@ describe("RiskRegisterPage", () => {
     expect(
       screen.getByRole("button", { name: /confirm delete/i })
     ).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 7 (resilience): isLoading from
+  // useDeleteRiskMutation was previously discarded, so the Delete button
+  // stayed enabled while a request was already in flight -- a double-click
+  // fired the mutation twice, and the second call 404s against the
+  // already-deleted row, surfacing a spurious "failed to delete" toast for
+  // a delete that had already succeeded.
+  it("disables the delete confirmation button while a delete is already in flight", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+    mockIsRiskDeleting = true
+
+    renderPage()
+    const deleteButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-trash2"))
+    await userEvent.click(deleteButtons[0])
+
+    expect(
+      screen.getByRole("button", { name: /confirm delete/i })
+    ).toBeDisabled()
   })
 
   it("shows an error toast and keeps the modal open when the create response indicates failure", async () => {
