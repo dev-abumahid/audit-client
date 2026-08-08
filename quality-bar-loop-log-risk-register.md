@@ -102,3 +102,29 @@ Key findings by axis:
 - **Security (10/10, unchanged):** confirmed no new surface from `page` state (pure numeric, never URL-derived) or `isClientFiltered` (a derived boolean, no new sink).
 
 **Next fix (Round 3):** mobile/responsive is now the single lowest-scoring axis (4/10, unchanged across 2 rounds) with a concrete, well-precedented fix already used repeatedly elsewhere in this session (the Sites & Entities loop's hit-slop technique) — the Edit/Delete row-action buttons measure 20×20px live, well under the 44×44 touch-target minimum, sitting only ~4px apart with one being a destructive delete. This is the highest-leverage next fix: concrete, cheap, and directly targets the worst-scoring, longest-unaddressed axis.
+
+## Round 3 — fix shipped (PR #616)
+
+Extended the Edit/Delete row-action buttons' touch targets via hit-slop (a
+`before:` pseudo-element extending the real clickable area without growing
+the visible button): widened the actions column (`w-20`→`w-28`) and the
+button gap (`gap-1`→`gap-4`) to fit a full 44px-tall, ~36px-wide hit zone on
+each button with zero overlap between them — an honest, bounded improvement
+given the column's limited content width, not a false claim of full 44x44
+on both axes. Live-verified via `elementFromPoint` edge-sampling.
+
+Adversarial review ran 3 rounds before coming back clean:
+- Round 1 review: no real functional bugs found (live-verified independently
+  — no page-level horizontal-scroll regression at desktop/tablet, no overlap
+  into the neighboring Approval column), but found the new test only
+  asserted button-level classes, missing coverage for the wrapping `gap-4`
+  and the column's `w-28` — either could regress independently and pass
+  unnoticed. Fixed with negative-controlled assertions for both.
+- Round 2 review: the new `w-28` assertion used a hardcoded `th` index
+  (`[8]`), fragile to future column reordering. Fixed by switching to
+  `thead th:last-child`.
+- Round 3 review: clean, no findings — merged via
+  `gh pr merge 616 --squash --admin` under the standing merge authorization.
+
+**Next: re-run the judge panel** to score the page's post-fix state before
+picking round 4's fix.
