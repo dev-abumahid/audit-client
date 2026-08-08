@@ -1036,3 +1036,72 @@ concrete as prior rounds' — UX's remaining items (all-or-nothing
 loading, PageRank duplicate-number contradiction, alerts read-only) and
 mobile's (`MetricCard` responsive classes) are all real but larger in
 scope than a single mechanical round.
+
+User chose to fix the 2 minor out-of-scope issues from round 17's
+"in passing" observations before deciding on next steps.
+
+### Round 17 cleanup — merged as PR #608
+
+Shipped via `ship-with-review-loop`, three commits, converged clean on
+review round 3:
+
+- **Investigated but deliberately not touched**:
+  `ThreeLinesOfDefensePage.tsx`'s `SEVERITY_STYLES[severity].dot` lookup.
+  Traced all 6 call sites and confirmed `severity` is typed as
+  `SeverityLevel` with every caller already defaulting `?? "neutral"`
+  before the value reaches it — type-safe at every real call site,
+  unlike the AlertsPage/RiskBadge cases (PR #607) which cast untyped
+  `any` API data past TypeScript's checks. Adding a fallback here would
+  guard against something that genuinely can't happen.
+- **Code quality/resilience fix**: `AllFindingsPage.tsx`'s
+  `STATUS_COLORS`/`PRIORITY_BADGES` had no fallback for a status/priority
+  outside the map — unlike the label text beside it (which already
+  degraded to the raw value), the badge className lookup returned
+  `undefined`, rendering a styleless badge. Added a shared `NEUTRAL_BADGE`
+  fallback, same pattern as `RiskBadge.tsx`'s fix.
+- **Mobile fix**: the error-state row's `text-center` centered the
+  message against the table's full scrollable width (widest among the 5
+  KPI drill-down destinations), clipping it off-screen at mobile widths
+  even before any scrolling. Left-aligned instead.
+- **Review round 1**: real bug caught. The just-fixed error row's twin —
+  the empty-state row a few dozen lines below — had the identical
+  clipping bug (`text-center` + `mx-auto` centering an icon/heading/
+  paragraph block against the full table width), now visibly
+  inconsistent with the just-left-aligned error row. Fixed same round
+  with a different technique: `sticky inset-x-0` (both `left:0` and
+  `right:0`) clamps the box to the currently-visible portion of the
+  scroll container regardless of the row's own width, so centering
+  *inside* that clamped box centers it on-screen — left-alignment would
+  have looked visually broken for this multi-element "icon + heading +
+  paragraph" illustration block, unlike the single-line error message.
+  Reviewer independently built a minimal repro and confirmed via
+  `getBoundingClientRect()` that the technique tracks live scroll
+  correctly (no detachment/jump) and matches plain `mx-auto` behavior at
+  wide desktop viewports with no overflow.
+- **Review round 2**: minor finding — having two different techniques
+  for visually-similar "message in a wide table row" problems on the
+  same page was flagged as worth a cross-referencing comment for future
+  maintainers (not a bug). Fixed same round, comment-only.
+- **Review round 3**: clean, zero findings. Confirmed the round-2 fix
+  was genuinely comment-only and factually accurate. Converged.
+- QA gate: typecheck clean, lint clean (0 errors, same 5 pre-existing
+  warnings), full suite 1576/1576 passing, including a new regression
+  test for the badge fallback verified via negative control (reverted
+  the fix, confirmed the test fails with `undefined` in the className,
+  restored the fix, confirmed it passes).
+- Live-verified both mobile fixes at 375px width by patching
+  `window.fetch` to force both a load failure and an empty result set
+  (the real `aexa-server` wasn't running at verification time): the
+  error message now renders fully within the viewport (`right: 356px`
+  vs. `viewportWidth: 375`, was clipped mid-sentence before the fix),
+  and the empty-state heading/paragraph both render fully on-screen
+  (`right: 275.9px` and `352px`).
+
+This closes both minor issues from round 17. Still open: industry-
+standards' 2 remaining findings (fabricated EBITDA data, no time-range/
+freshness indicator), UX's remaining findings (all-or-nothing loading,
+PageRank duplicate-number contradiction, alerts read-only), mobile's
+`MetricCard` responsive-classes finding, and the out-of-scope
+risk-detail-page routing bug — all still correctly deferred pending
+product/design input or a larger scoping decision than this loop should
+make unilaterally.
