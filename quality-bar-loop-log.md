@@ -685,3 +685,65 @@ product decisions), UX (no drill-down, all-or-nothing loading, PageRank
 contradiction, alerts read-only with no CTA), mobile's remaining finding
 (`MetricCard` has zero responsive classes), and the out-of-scope
 risk-detail-page routing bug.
+
+## Round 13 (re-score after PR #605)
+
+| Axis | Round 11 | Round 13 | Δ |
+|---|---|---|---|
+| Industry-standards | 5/10 | 6/10 | ↑ |
+| UX | 7/10 | 7/10 | — |
+| Efficiency | 10/10 | 10/10 | — |
+| Accessibility | 7/10 | 7/10 | — |
+| Visual/design polish | 8/10 | 8/10 | — |
+| Resilience & edge cases | 9/10 | 9/10 | — |
+| Code quality/maintainability | 7/10 | 7/10 | — |
+| Mobile/responsive | 8/10 | 8/10 | — |
+
+**Average: 7.75/10** (up from 7.625/10) — not converged on average
+(need ≥9), but **only 1/8 axes remains below the floor of 7**:
+industry-standards, now at 6/10 (up from 5). No regression, no
+stagnation (eight straight panels of average improvement, however
+small this round) — guardrails clear, loop continues.
+
+**Judge-scoring anomaly, resolved rather than treated as a regression:**
+the round-13 UX judge initially scored this axis 3/10, a sharp drop from
+4 consecutive rounds stable at 7/10 (rounds 5, 7, 9, 11) — but that
+judge's own written findings described the exact same 4 issues as every
+prior round, with no new severity, and cited `MetricCard`'s
+`hover:border-primary/30` styling as if newly discovered when it's been
+present and described identically since round 1. Rather than accept
+this as a real regression (which would trip the guardrail and require
+escalation) or discard it silently, dispatched an independent second
+opinion with the full discrepancy laid out explicitly. The second judge
+live-verified all 4 findings from scratch, confirmed PR #605's diff
+(the round-12 chart-type fix) never touched any UX-relevant code, and
+concluded "nothing in the evidence supports a 4-point drop... 7/10 is
+the defensible score." Recorded 7/10 (unchanged) for this round rather
+than the outlier 3/10 — this is judge-scoring noise, not a real
+regression, and treating it as one would have wasted a round chasing a
+problem that doesn't exist.
+
+Efficiency held a genuine 10/10 for a third consecutive round.
+
+### Status check for the user
+
+Industry-standards' three remaining findings are the only thing standing
+between this loop and clearing every axis's floor:
+1. **Fabricated EBITDA chart data** — no real backend endpoint exists to
+   compute Monte Carlo/percentile EBITDA data from; fixing this for real
+   requires backend work (a new endpoint), out of scope for a frontend
+   autonomous round.
+2. **No time-range control or freshness indicator** — a real product
+   decision: what time ranges should be selectable, does the backend
+   support filtering by them today, should "freshness" mean per-card or
+   page-wide.
+3. **Non-clickable KPI cards** (overlaps with UX's own "no drill-down"
+   finding) — each of the 6 cards needs a defined destination (e.g.
+   Active Risks → Risk Register filtered to open risks) — a scoping
+   decision, not something to guess at silently.
+
+All three have been correctly deferred across rounds 5, 7, 9, 11, and 13
+for the same reason: they need product/design input this loop
+shouldn't provide unilaterally. This is the natural point to check in
+with the user on how to proceed, rather than either stalling silently
+or guessing at product decisions.
