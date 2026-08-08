@@ -283,3 +283,97 @@ quality's remaining findings (file-wide eslint-disable hiding 2 real
 unused-var errors, copy-pasted form-defaults literal, oversized
 multi-concern component). A fresh 9-judge panel is the next step to
 confirm resilience recovered without introducing any regression.
+
+## Round 2 (re-score after PR #609)
+
+| Axis | Round 1 | Round 2 | Δ |
+|---|---|---|---|
+| Industry-standards | 6/10 | 6/10 | — |
+| UX | 6/10 | 6/10 | — |
+| Efficiency | 7/10 | 7/10 | — |
+| Accessibility | 7/10 | 7/10 | — |
+| Visual/design polish | 6/10 | 6/10 | — |
+| Resilience & edge cases | 5/10 | 8/10 | ↑↑↑ |
+| Code quality/maintainability | 7/10 | 7/10 | — |
+| Mobile/responsive | 6/10 | 6/10 | — |
+| Security | 10/10 | 10/10 | — |
+
+**Average: 7.0/10** (up from 6.67/10) — not converged (4/9 axes below
+floor of 7: industry-standards, UX, visual polish, mobile). No
+stagnation (average rose). No regression — see anomaly note below.
+
+**Judge-scoring anomaly, resolved rather than treated as a regression:**
+the round-2 industry-standards judge scored this axis 5/10, a drop from
+round 1's 6/10, citing "risk deletion has no confirmation" as a new
+finding serious enough to hold the score down. This is the exact same
+issue round 1's UX judge already identified — it was true in round 1,
+is still true in round 2, and PR #609 (an unrelated `isError` fix) never
+touched risk-delete code at all. Dispatched an independent second
+opinion with the discrepancy laid out explicitly: it confirmed the
+finding is real (verified `handleRiskDelete`'s call site directly) but
+concluded "nothing in the code that governs risk-delete confirmation
+changed between round 1 and round 2... What changed is which judge
+wrote it down, not what shipped. That's a scoring inconsistency ... not
+a regression." Recorded 6/10 (unchanged) rather than the outlier 5/10 —
+same resolution pattern as the Dashboard loop's round-13 UX anomaly.
+
+### Round 2 highlights
+
+- **Resilience (5→8)**: PR #609's fix verified live end-to-end again
+  from scratch by a fresh judge (not trusting the prior review's
+  claims) — patched `window.fetch`, expanded a site, confirmed the
+  `role="alert"` error message renders correctly. New gap found: neither
+  risk query destructures `isLoading`, so on first paint (before the
+  org-wide query resolves) the three summary tiles briefly show a false
+  `0` — the same bug class the fix just addressed for the error case,
+  now spotted for the loading case. Real but lower-severity (a brief
+  flash, not a persistent misleading state) — flagged for a future round
+  rather than blocking this one's score.
+- **Code quality (7, unchanged) — undercount corrected**: round 1 said
+  the file-wide eslint-disable hides 2 real errors; actually removing
+  the disable and running eslint shows 6 (2 unused-var + 4
+  no-explicit-any on other catch blocks). Also found PR #609 introduced
+  a small new duplication (3 near-identical `allRisksError ? "—" : ...`
+  ternaries) and a naming inconsistency (`riskLoadFailed` vs. the
+  codebase's established `loadError` convention used on every sibling
+  page) — net effect on the score was a wash against the pre-existing
+  unaddressed issues.
+- **Visual polish (6, unchanged)**: found that PR #609's own new error
+  message inherited the pre-existing Confirmed-Risks-panel alignment bug
+  (parent `text-center` vs. heading's `text-start` override) by copying
+  the same classes as the sibling empty-state paragraph — the same root
+  cause now fires on 2 code paths instead of 1, not a new defect but a
+  wider footprint of the same one.
+- **UX (6, unchanged)**: found a new compounding detail — the risk
+  delete mutation isn't gated on `isLoading`, so the button never
+  disables mid-request, sharpening (not independently adding to) the
+  no-confirmation finding: a double-click or slow network could fire two
+  overlapping deletes with zero visual feedback.
+- **Industry-standards, efficiency, accessibility, mobile, security all
+  held** with no new findings beyond the resolved anomaly above.
+
+### Chosen fix for round 3
+
+**Risk deletion has no confirmation dialog** (flagged independently by
+both the UX and industry-standards judges across 2 rounds, the only
+finding two different axes converged on): add a confirmation step to
+`handleRiskDelete`, reusing the exact `DeleteAlertModal` component and
+pattern already used for site deletion 3 lines above it in the same
+file — no new component, no design ambiguity, mechanical. Chosen over
+the other below-floor axes' findings because:
+- It's the single finding flagged by 2 independent judges across 2
+  rounds, versus every other open finding being axis-specific.
+- It's a genuine data-loss/safety risk (permanent deletion, one
+  misclick, zero undo) on a risk-management platform, not just a
+  polish gap.
+- Fixing it closes real ground on both industry-standards (reference
+  tools all confirm before destructive delete) and UX (removes the
+  inconsistency with site-delete, which already does this correctly)
+  simultaneously — the same "one fix, two axes" leverage pattern that
+  worked well in the Dashboard loop's `FilteredByNotice` fix.
+- It's the most mechanical of the open findings: the codebase already
+  has the exact modal and pattern to reuse, unlike visual polish's
+  hand-rolled-tiles/inconsistent-overlay findings (real but more
+  discretionary refactors) or mobile's touch-target findings (real but
+  spread across several small sizing tweaks with no single fix as
+  concrete or as high-stakes as this one).
