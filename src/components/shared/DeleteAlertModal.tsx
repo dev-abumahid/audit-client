@@ -43,6 +43,22 @@ export default function DeleteAlertModal({
   // triggerRef.current?.focus() on cleanup; this mirrors that for every
   // caller of this shared component (site delete, risk delete, and any
   // future one) in one place rather than pushing the fix onto each caller.
+  //
+  // Known, accepted limitation (round 8): this only restores focus for the
+  // cancel/Escape path, where the trigger is still in the DOM. On a
+  // *successful* delete, the row (and its trigger button) is removed from
+  // the list once the query refetches, so `previouslyFocusedElement`
+  // points at a detached node -- `.focus()` on it is a no-op, and the
+  // browser's own default (moving focus to <body> when the focused
+  // element is removed from the document) already runs before this
+  // effect's cleanup even gets a chance to act. There's no generically
+  // correct fallback target this shared, page-agnostic component could
+  // pick instead (the "next" element in a list, a page heading, etc. all
+  // require knowledge only the calling page has) -- this is the same
+  // trade-off mature dialog primitives (including Radix's own docs) call
+  // out explicitly rather than solve, and the success toast this
+  // component's callers already show carries the outcome for
+  // screen-reader users independent of where focus lands.
   const previouslyFocusedElement = useRef<HTMLElement | null>(null)
   useEffect(() => {
     if (open) {
