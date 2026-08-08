@@ -341,3 +341,41 @@ header subtitle's error state (both should signal "this failed" the same
 way). Strong secondary candidate for a follow-up round: the search input's
 missing debounce, since it's both a UX and (per the UX judge's live
 incident) a real resilience/reliability risk (self-inflicted rate-limiting).
+
+## Round 6 — fix shipped (PR #619)
+
+Shipped both round-5 visual-polish regression fixes:
+
+1. Sites-error indicator: `text-[10px]` -> `text-xs`, matching the rest of
+   the filter row's scale.
+2. Header subtitle: now conditionally `text-destructive` (was always
+   `text-muted-foreground`) when `risksError` is true, matching the
+   sites-error indicator's color language.
+
+2 new tests, negative-control verified (reverted, confirmed 2 failures,
+restored, confirmed pass). QA gate clean (typecheck/lint/1600 tests). Live-
+verified: forced a `/risk` fetch failure, confirmed the header subtitle now
+renders in red instead of muted gray.
+
+Adversarial review round 1 (2 parallel angles) found one real, in-scope gap
+this PR's own stated goal should have caught: the risks table's own error
+row (`role="alert"`) was still `text-muted-foreground` -- a *third*
+inconsistent color for the same "fetch failed" signal, missed by the
+original diff. Fixed in a follow-up commit (table row now also
+`text-destructive`), with 1 more negative-controlled test. One review
+agent also surfaced a security-policy note (attempted a broad
+`git checkout <ref> -- .` in an isolated review context) -- verified via
+`git status`/`git log` that the local working tree and branch were
+completely unaffected, no action needed. One out-of-scope finding flagged
+as a follow-up task: the `--destructive` CSS token itself fails WCAG AA
+contrast in dark mode (~3.9:1) and is borderline in light mode (~4.48:1),
+unlike `--muted-foreground` which was deliberately tuned to clear 4.5:1 --
+a pre-existing design-token gap this PR made more visible by using
+`text-destructive` as body text in more places, not something this PR
+introduced.
+
+Round 2 of review came back clean (zero findings). Merged under standing
+authorization.
+
+**Next: re-run the judge panel** to score the page's post-fix state before
+picking round 7's fix (or checking convergence).
