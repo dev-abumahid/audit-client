@@ -213,10 +213,25 @@ describe("SitesEntities", () => {
     expect(moreActionsButton).toHaveAccessibleName(
       "organization.site&entities.moreActionsLabel"
     )
-    // quality-bar-loop round 5 (mobile): p-2 around a 16px icon measured
-    // 32x32px, under the 44px touch-target guideline -- p-3.5 lands exactly
-    // on 44px (14px padding * 2 + 16px icon).
-    expect(moreActionsButton).toHaveClass("p-3.5")
+    // quality-bar-loop round 5 (mobile) bumped padding to p-3.5 for a real
+    // 44px touch target, but round 6 (visual-polish) found this visibly
+    // overshot its ~32px-tall row neighbors -- reverted the visible size to
+    // p-2 (32x32px) and extended the invisible clickable area to 44px via
+    // a `before:` hit-slop pseudo-element instead (asserted below).
+    expect(moreActionsButton).toHaveClass("p-2")
+    expect(moreActionsButton).toHaveClass("before:-inset-1.5")
+    // Round-1 review of PR #613: the kebab's before:-inset-1.5 (6px) and
+    // the chevron's before:-inset-1 (4px) hit-slops extend toward each
+    // other across the row's gap -- 6+4=10px would overlap a gap-2 (8px)
+    // gap, letting a tap in that ~2px sliver hit the wrong button. Asserts
+    // the row uses gap-3 (12px), which fits both hit-slops without
+    // overlapping (verified live via getBoundingClientRect() math).
+    // This file's DropdownMenu mock (above) wraps its children in an
+    // unstyled <div>, one level deeper than the real Radix component
+    // renders -- skip that mock-only wrapper to reach the real row div.
+    expect(moreActionsButton.parentElement?.parentElement).toHaveClass(
+      "gap-3"
+    )
 
     const editButton = screen.getAllByRole("button").find((b) =>
       b.querySelector("svg.lucide-pencil")
@@ -237,10 +252,10 @@ describe("SitesEntities", () => {
     expect(expandButton).toHaveAccessibleName(
       "organization.site&entities.expandSiteLabel"
     )
-    // quality-bar-loop round 5 (mobile): p-2 around a 20px icon measured
-    // 36x36px, under the 44px touch-target guideline -- p-3 lands exactly
-    // on 44px (12px padding * 2 + 20px icon).
-    expect(expandButton).toHaveClass("p-3")
+    // quality-bar-loop round 5/6: see the "more actions" trigger's comment
+    // above -- same hit-slop fix, visible size back to p-2 (36x36px).
+    expect(expandButton).toHaveClass("p-2")
+    expect(expandButton).toHaveClass("before:-inset-1")
 
     await userEvent.click(expandButton)
     expect(expandButton).toHaveAttribute("aria-expanded", "true")
@@ -1014,13 +1029,17 @@ describe("SitesEntities", () => {
     expect(manualBadge).toHaveClass("bg-primary/10")
     expect(manualBadge).toHaveClass("text-primary")
     expect(manualBadge).not.toHaveClass("text-base")
-    // quality-bar-loop round 5 (mobile): the confirmed-risk row's Delete
-    // button used size="sm" (h-6, 24px tall), roughly half the 44px
-    // touch-target guideline -- h-11 overrides just the height.
+    // quality-bar-loop round 5 (mobile) first fixed this row's Delete
+    // button (size="sm" = h-6, 24px tall) with a plain h-11 override, but
+    // round 6 (visual-polish) found a 44px-tall button next to this row's
+    // ~24px badges reads as an uneven baseline -- reverted to the visible
+    // "sm" height and extended the invisible clickable area via a
+    // `before:` hit-slop pseudo-element instead.
     const riskDeleteButton = screen.getByRole("button", {
       name: /organization\.site&entities\.deleteButton/i,
     })
-    expect(riskDeleteButton).toHaveClass("h-11")
+    expect(riskDeleteButton).not.toHaveClass("h-11")
+    expect(riskDeleteButton).toHaveClass("before:-inset-2.5")
   })
 
   // Regression: the name link and description sit in a `flex-col
