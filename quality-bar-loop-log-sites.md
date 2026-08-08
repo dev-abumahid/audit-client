@@ -594,3 +594,79 @@ findings because:
   are each real but individually smaller/more discretionary; no single
   one is as concrete or as widely repeated as this axis's touch-target
   problem.
+
+### Round 5 outcome — merged as PR #612
+
+Shipped via `ship-with-review-loop`, two commits, converged clean on
+review round 2:
+
+- **Fix**: bumped 4 elements to clear 44×44px — the expand/collapse
+  chevron (`p-2`→`p-3`), "more actions" trigger (`p-2`→`p-3.5`), the
+  risk-row delete `Button` (`className="h-11"` override on `size="sm"`),
+  and both buttons in the shared `DeleteAlertModal.tsx` (`h-11`) — the
+  last one closing the gap everywhere that component is used, not just
+  on this page.
+- **While implementing**, found the actual bug that would have made the
+  `DeleteAlertModal` fix unreliable: `AlertDialogAction`/`AlertDialogCancel`
+  only forwarded `className` to the inner Radix primitive, never to
+  `Button`'s own `className` prop — `Button`'s internal
+  `cn(buttonVariants(...))` call is what actually resolves conflicting
+  Tailwind utilities via `tailwind-merge`, and skipping it left Radix's
+  `Slot` to concatenate both class strings with no dedup, so the real
+  CSS winner depended on unpredictable Tailwind declaration order
+  rather than a guaranteed override. Verified this empirically before
+  fixing it: reverted just the wiring, rendered the component, and
+  confirmed the DOM className genuinely contained both `h-7` and `h-11`
+  simultaneously. Fixed the wiring so `className` reaches `Button`
+  directly — confirmed `DeleteAlertModal.tsx` is this component's only
+  caller in the codebase, so the fix is safe and contained.
+- **Review round 1**: real gap caught, not in the fix but in its test
+  coverage — the new `DeleteAlertModal.test.tsx` test only asserted
+  `toHaveClass("h-11")`, which the reviewer proved (by reverting just
+  the wiring and re-running) still passes against the broken wiring,
+  since `h-11` sits right next to the unresolved `h-7` either way.
+  Confirmed the wiring fix itself and pixel math (both `p-3`/`p-3.5`
+  computations) were correct, `DeleteAlertModal.tsx` really is the sole
+  caller, and `onClick`/`disabled` still pass through correctly. Fixed
+  same round: added `expect(...).not.toContain("h-7")` assertions,
+  verified via the same revert-and-rerun technique the reviewer used to
+  catch the gap in the first place.
+- **Review round 2**: clean. Confirmed the new assertions are
+  test-only, correctly placed, and would genuinely fail against the
+  pre-fix wiring (traced the logic in detail; the agent's own tools
+  couldn't execute a live revert-and-rerun, so it verified via careful
+  code tracing instead of the empirical method used in round 1).
+  Converged.
+- QA gate: typecheck clean, lint clean (0 errors, same 5 pre-existing
+  warnings), full suite 1581/1581 passing throughout both commits.
+- **Live browser verification was not possible this round** — the
+  local `aexa-server` backend went down entirely (`ERR_CONNECTION_REFUSED`)
+  partway through this round, is not a server this session started or
+  manages, and could not be restarted from here. Relied instead on: (1)
+  unit tests for all 4 sizing changes, each verified via negative
+  control; (2) a rigorous scratch-test proof that the `alert-dialog.tsx`
+  fix genuinely deduplicates `h-7`/`h-11` in the resolved className
+  string, not just that both happen to coexist. This is a purely
+  mechanical CSS sizing change with no functional/behavioral logic
+  touched, consistent with this session's established practice for
+  when live verification is genuinely blocked by infra.
+
+This closes mobile's single most persistent finding (flagged
+unaddressed in every round 1-4) and, as a side effect, hardens a
+generic UI primitive (`AlertDialogAction`/`AlertDialogCancel`'s
+`className` handling) that had a latent correctness bug affecting any
+future caller, not just this one. Still open going into round 6:
+industry-standards' remaining findings (single-expand, invisible
+100-row cap, no bulk ops, no sort/filter, non-editable AI suggestions,
+no-retry error states), UX's remaining findings (silent
+`success: false` handling on site save/delete now inconsistent with
+risk-delete's better handling, regressed risk-name whitespace
+validation, AI-suggestion import silently evicting failed items from
+the list), visual polish (alignment bug, hand-rolled tiles vs.
+`MetricCard`, modal overlay, duplicate badge, sub-floor type scale),
+resilience's loading-state false-zero flash and AI field validation
+gap, and code quality's remaining findings (eslint-disable hiding 6
+real errors, copy-pasted form-defaults literal, oversized multi-concern
+component, `riskLoadFailed`/`loadError` naming inconsistency). A fresh
+9-judge panel is the next step, once the local backend is back up for
+live verification.
