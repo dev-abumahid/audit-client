@@ -285,3 +285,43 @@ judge-flagged fix as concrete/cheap as this one), and efficiency's
 findings (real, but resilience/accessibility have priority per the "pick
 from below-floor axes" rule, and industry-standards +UX's overlapping fix
 is more clearly scoped this round).
+
+### Round 4 outcome — merged as PR #601
+
+Shipped via `ship-with-review-loop`, three commits, converged clean on
+review round 3:
+
+- **Core fix**: removed `trend`/`trendValue`/`trendGood` props from the
+  Active Risks, KRI Alerts, and Critical Alerts `MetricCard`s in
+  `Overview.tsx`, with a comment documenting why (no real data source)
+  and what would need to exist to bring trend badges back correctly.
+  Added a regression test asserting neither "+2" nor "+3" renders
+  anywhere on the page.
+- **Review round 1**: no bugs, but noted `MetricCard`'s entire
+  trend-rendering feature was now dead code (no caller anywhere in the
+  codebase passes those props anymore). Fixed same round: removed the
+  dead props/JSX/icon imports from `MetricCard.tsx` itself.
+- **Review round 2**: no bugs, but noted the outer flex wrapper div left
+  behind was now vestigial (wrapping only one child, `justify-between`
+  a no-op). Fixed same round: collapsed to a single wrapper.
+- **Review round 3**: clean, zero findings — confirmed no CSS selector or
+  test depends on the removed wrapper's DOM structure. Converged.
+- QA gate: typecheck clean, lint clean (0 errors), full suite 1545/1545
+  passing throughout all three commits.
+- Live-verified: screenshot confirmed all three fabricated trend badges
+  are gone from the rendered dashboard, no console errors. (The final
+  two cleanup commits were pure dead-code removal with zero caller-visible
+  behavior change, confirmed via the full passing test suite and code
+  review rather than a second live reload — a session-induced Redis-backed
+  API rate limit, tripped by this session's own heavy dashboard-reload
+  testing, blocked further live reloads at that point; noted here rather
+  than worked around, since the change carried no behavioral risk.)
+
+Still open going into round 5: industry-standards' remaining findings
+(fabricated EBITDA chart — blocked on backend work, chart-type mismatch,
+no time-range/freshness indicator, non-clickable KPI cards), UX's
+remaining findings (no drill-down, all-or-nothing loading, PageRank
+contradiction, alerts read-only with no CTA), efficiency (double PageRank
+computation, zero memoization, triple-iterated categoryData), the
+out-of-scope risk-detail-page routing bug, and mobile's touch-target
+sizes.
