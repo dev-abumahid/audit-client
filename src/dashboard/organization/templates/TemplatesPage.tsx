@@ -78,7 +78,8 @@ export default function TemplatesPage() {
   const dateFnsLocale = i18n.language?.startsWith("fr") ? fr : undefined
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
-  const [deleteTemplate] = useDeleteTemplateMutation()
+  const [deleteTemplate, { isLoading: isTemplateDeleting }] =
+    useDeleteTemplateMutation()
 
   const [searchInput, setSearchInput] = useState("")
   const [page, setPage] = useState(1)
@@ -118,7 +119,12 @@ export default function TemplatesPage() {
   }
 
   const handleConfirmDelete = async () => {
-    if (!selectedTemplateId) return
+    // Same discarded-isLoading double-submission bug fixed for
+    // RiskRegisterPage/aexa-frontend#620 -- the disabled button prop is the
+    // primary guard, but a defensive check inside the handler closes the
+    // theoretical window where a second call could land before a re-render
+    // commits the disabled state.
+    if (!selectedTemplateId || isTemplateDeleting) return
 
     try {
       const res = await deleteTemplate(selectedTemplateId).unwrap()
@@ -354,6 +360,7 @@ export default function TemplatesPage() {
         title={t("organization.templates.list.deleteTitle")}
         description={t("organization.templates.list.deleteDescription")}
         onConfirm={handleConfirmDelete}
+        loading={isTemplateDeleting}
       />
       <CreateTemplateWithAIDialog
         open={createTemplateModalOpen}

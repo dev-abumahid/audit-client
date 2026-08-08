@@ -60,7 +60,8 @@ export default function UploadNotesModal({
   const [extractNoteFromFile] = useExtractNoteFromFileMutation()
   const [updateNote] = useUpdateNoteMutation()
   const [splitInspectionNote] = useSplitInspectionNoteMutation()
-  const [deleteNote] = useDeleteNoteByIdMutation()
+  const [deleteNote, { isLoading: isNoteDeleting }] =
+    useDeleteNoteByIdMutation()
   const { data, refetch } = useGetNoteByInspectionIdQuery(inspectionId)
 
   const existingNote = data?.data
@@ -180,7 +181,12 @@ export default function UploadNotesModal({
   }
 
   const handleNoteDelete = async () => {
-    if (!existingNote?.id) return
+    // Same discarded-isLoading double-submission bug fixed for
+    // RiskRegisterPage/aexa-frontend#620 -- the disabled button prop is the
+    // primary guard, but a defensive check inside the handler closes the
+    // theoretical window where a second call could land before a re-render
+    // commits the disabled state.
+    if (!existingNote?.id || isNoteDeleting) return
 
     try {
       const res = await deleteNote(existingNote.id).unwrap()
@@ -279,6 +285,7 @@ export default function UploadNotesModal({
           title={t("organization.inspection.deleteConfirmTitle")}
           description={t("organization.inspection.deleteConfirmDescription")}
           onConfirm={handleNoteDelete}
+          loading={isNoteDeleting}
         />
       </>
     )

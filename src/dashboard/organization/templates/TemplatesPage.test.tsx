@@ -32,11 +32,18 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
 
 const mockUseGetAllTemplatesQuery = vi.fn()
 const mockDeleteTemplate = vi.fn()
+// Mutable per-test, same convention as RiskRegisterPage.test.tsx's
+// mockIsRiskDeleting -- lets the double-submission-guard test below flip
+// this to true without a static mock.
+let mockIsTemplateDeleting = false
 
 vi.mock("@/redux/apis/organization/template.api", () => ({
   useGetAllTemplatesQuery: (...args: unknown[]) =>
     mockUseGetAllTemplatesQuery(...args),
-  useDeleteTemplateMutation: () => [mockDeleteTemplate, { isLoading: false }],
+  useDeleteTemplateMutation: () => [
+    mockDeleteTemplate,
+    { isLoading: mockIsTemplateDeleting },
+  ],
 }))
 
 vi.mock("./shared/CreateTemplateWithAIDialog", () => ({
@@ -45,8 +52,20 @@ vi.mock("./shared/CreateTemplateWithAIDialog", () => ({
 }))
 
 vi.mock("@/components/shared/DeleteAlertModal", () => ({
-  default: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
-    open ? <button onClick={onConfirm}>Confirm delete</button> : null,
+  default: ({
+    open,
+    onConfirm,
+    loading,
+  }: {
+    open: boolean
+    onConfirm: () => void
+    loading?: boolean
+  }) =>
+    open ? (
+      <button onClick={onConfirm} disabled={loading}>
+        Confirm delete
+      </button>
+    ) : null,
 }))
 
 function makeTemplate(overrides = {}) {
@@ -67,6 +86,7 @@ describe("TemplatesPage", () => {
     mockRole = "ADMIN"
     mockUseGetAllTemplatesQuery.mockReset()
     mockDeleteTemplate.mockReset()
+    mockIsTemplateDeleting = false
     mockUseGetAllTemplatesQuery.mockReturnValue({
       data: { data: [makeTemplate()], meta: { total: 1 } },
       isLoading: false,
@@ -230,6 +250,29 @@ describe("TemplatesPage", () => {
         expect.objectContaining({ page: 2 })
       )
     )
+  })
+
+  // Same discarded-isLoading double-submission bug fixed for
+  // RiskRegisterPage/aexa-frontend#620 -- useDeleteTemplateMutation's
+  // isLoading was previously discarded, so the Delete confirmation button
+  // never disabled while a request was already in flight.
+  it("disables the delete confirmation button while a delete is already in flight", async () => {
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: { data: [makeTemplate()], meta: { total: 1 } },
+      isLoading: false,
+    })
+    mockIsTemplateDeleting = true
+
+    render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+    const deleteButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-trash2"))!
+    await userEvent.click(deleteButton)
+
+    expect(
+      screen.getByRole("button", { name: /confirm delete/i })
+    ).toBeDisabled()
   })
 
   // Bug-fix batch: templateDisc?.slice(0, 50) + " ..." rendered the literal

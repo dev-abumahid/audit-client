@@ -122,7 +122,8 @@ const InspectionTable = () => {
     limit: 1000,
     searchTerm: "",
   })
-  const [deleteInspection] = useDeleteInspectionMutation()
+  const [deleteInspection, { isLoading: isInspectionDeleting }] =
+    useDeleteInspectionMutation()
 
   const fetchedInspections = data?.data || []
   const inspections = activeStatusFilter
@@ -202,7 +203,12 @@ const InspectionTable = () => {
   }
 
   const handleConfirmDelete = async () => {
-    if (!deletedInspectionId) return
+    // Same discarded-isLoading double-submission bug fixed for
+    // RiskRegisterPage/aexa-frontend#620 -- the disabled button prop is the
+    // primary guard, but a defensive check inside the handler closes the
+    // theoretical window where a second call could land before a re-render
+    // commits the disabled state.
+    if (!deletedInspectionId || isInspectionDeleting) return
 
     try {
       const res = await deleteInspection(deletedInspectionId).unwrap()
@@ -482,6 +488,7 @@ const InspectionTable = () => {
         title={t("organization.inspection.deleteTitle")}
         description={t("organization.inspection.deleteDescription")}
         onConfirm={handleConfirmDelete}
+        loading={isInspectionDeleting}
       />
     </div>
   )

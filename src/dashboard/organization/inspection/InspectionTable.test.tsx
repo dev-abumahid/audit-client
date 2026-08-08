@@ -58,11 +58,18 @@ vi.mock("@/hooks/useMyAssignments", () => ({
 // ── RTK Query inspection API ──────────────────────────────────────────────────
 const mockUseGetAllInspectionQuery = vi.fn()
 const mockDeleteInspectionTrigger = vi.fn()
+// Mutable per-test, same convention as RiskRegisterPage.test.tsx's
+// mockIsRiskDeleting -- lets the double-submission-guard test below flip
+// this to true without a static mock.
+let mockIsInspectionDeleting = false
 
 vi.mock("@/redux/apis/organization/inspection.api", () => ({
   useGetAllInspectionQuery: (...args: unknown[]) =>
     mockUseGetAllInspectionQuery(...args),
-  useDeleteInspectionMutation: () => [mockDeleteInspectionTrigger],
+  useDeleteInspectionMutation: () => [
+    mockDeleteInspectionTrigger,
+    { isLoading: mockIsInspectionDeleting },
+  ],
 }))
 
 // ── RTK Query sites API ───────────────────────────────────────────────────────
@@ -82,8 +89,20 @@ vi.mock("./StartInspectionModal", () => ({
 
 // ── DeleteAlertModal ──────────────────────────────────────────────────────────
 vi.mock("@/components/shared/DeleteAlertModal", () => ({
-  default: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
-    open ? <button onClick={onConfirm}>Confirm delete</button> : null,
+  default: ({
+    open,
+    onConfirm,
+    loading,
+  }: {
+    open: boolean
+    onConfirm: () => void
+    loading?: boolean
+  }) =>
+    open ? (
+      <button onClick={onConfirm} disabled={loading}>
+        Confirm delete
+      </button>
+    ) : null,
 }))
 
 // ── UI primitives — bypass the duplicate-export bug in button.tsx ─────────────
@@ -219,6 +238,7 @@ describe("InspectionTable", () => {
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [] } })
     mockRole = "ADMIN"
     mockAssignedInspectionIds = new Set()
+    mockIsInspectionDeleting = false
   })
 
   it("renders the inspection table with data", async () => {
@@ -946,5 +966,31 @@ describe("InspectionTable", () => {
         expect.objectContaining({ page: 2 })
       )
     )
+  })
+
+  // Same discarded-isLoading double-submission bug fixed for
+  // RiskRegisterPage/aexa-frontend#620 -- useDeleteInspectionMutation's
+  // isLoading was previously discarded, so the Delete confirmation button
+  // never disabled while a request was already in flight.
+  it("disables the delete confirmation button while a delete is already in flight", async () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: { data: [makeInspection()] },
+      isLoading: false,
+    })
+    mockIsInspectionDeleting = true
+
+    renderTable()
+    await waitFor(() =>
+      expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+    )
+
+    const deleteButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-trash2"))!
+    await userEvent.click(deleteButton)
+
+    expect(
+      screen.getByRole("button", { name: /confirm delete/i })
+    ).toBeDisabled()
   })
 })

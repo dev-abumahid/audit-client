@@ -1908,6 +1908,8 @@
       "existingLinksHeading_other": "{{count}} risk links",
       "noLinksYet": "No risk links yet",
       "deleteLinkLabel": "Delete link {{source}} → {{target}}",
+      "deleteLinkConfirmTitle": "Delete risk link?",
+      "deleteLinkConfirmDescription": "This will permanently remove this link between the two risks.",
       "findingPriorityBucketName": "{{priority}} priority",
       "aiBucketingFailed": "Failed to run AI root-cause bucketing.",
       "aiMethodologyLabel": "Methodology: {{methodology}}",

@@ -14,12 +14,19 @@ const mockSplitInspectionNote = vi.fn()
 const mockDeleteNote = vi.fn()
 const mockUseGetNoteByInspectionIdQuery = vi.fn()
 const mockRefetch = vi.fn()
+// Mutable per-test, same convention as RiskRegisterPage.test.tsx's
+// mockIsRiskDeleting -- lets the double-submission-guard test below flip
+// this to true without a static mock.
+let mockIsNoteDeleting = false
 
 vi.mock("@/redux/apis/organization/note.api", () => ({
   useSaveRawNoteMutation: () => [mockUploadRawNote],
   useExtractNoteFromFileMutation: () => [mockExtractNoteFromFile],
   useUpdateNoteMutation: () => [mockUpdateNote],
-  useDeleteNoteByIdMutation: () => [mockDeleteNote],
+  useDeleteNoteByIdMutation: () => [
+    mockDeleteNote,
+    { isLoading: mockIsNoteDeleting },
+  ],
   useGetNoteByInspectionIdQuery: (...args: unknown[]) =>
     mockUseGetNoteByInspectionIdQuery(...args),
 }))
@@ -29,8 +36,20 @@ vi.mock("@/redux/apis/organization/inspection.api", () => ({
 }))
 
 vi.mock("@/components/shared/DeleteAlertModal", () => ({
-  default: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
-    open ? <button onClick={onConfirm}>Confirm delete</button> : null,
+  default: ({
+    open,
+    onConfirm,
+    loading,
+  }: {
+    open: boolean
+    onConfirm: () => void
+    loading?: boolean
+  }) =>
+    open ? (
+      <button onClick={onConfirm} disabled={loading}>
+        Confirm delete
+      </button>
+    ) : null,
 }))
 
 function renderModal(
@@ -57,6 +76,7 @@ describe("UploadNotesModal", () => {
     mockUseGetNoteByInspectionIdQuery.mockReset()
     mockRefetch.mockReset()
     mockToastError.mockReset()
+    mockIsNoteDeleting = false
     mockUseGetNoteByInspectionIdQuery.mockReturnValue({
       data: undefined,
       refetch: mockRefetch,
@@ -263,6 +283,27 @@ describe("UploadNotesModal", () => {
     )
 
     await waitFor(() => expect(mockDeleteNote).toHaveBeenCalledWith("note-1"))
+  })
+
+  // Same discarded-isLoading double-submission bug fixed for
+  // RiskRegisterPage/aexa-frontend#620 -- useDeleteNoteByIdMutation's
+  // isLoading was previously discarded, so the Delete confirmation button
+  // never disabled while a request was already in flight.
+  it("disables the delete confirmation button while a delete is already in flight", async () => {
+    mockUseGetNoteByInspectionIdQuery.mockReturnValue({
+      data: { data: { id: "note-1", extracted_text: "Some text" } },
+      refetch: mockRefetch,
+    })
+    mockIsNoteDeleting = true
+
+    renderModal()
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.deleteNote" })
+    )
+
+    expect(
+      screen.getByRole("button", { name: /confirm delete/i, hidden: true })
+    ).toBeDisabled()
   })
 
   it("shows an error toast when uploading raw text fails", async () => {

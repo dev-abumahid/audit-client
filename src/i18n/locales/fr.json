@@ -1908,6 +1908,8 @@
       "existingLinksHeading_other": "{{count}} liens de risque",
       "noLinksYet": "Aucun lien de risque pour le moment",
       "deleteLinkLabel": "Supprimer le lien {{source}} → {{target}}",
+      "deleteLinkConfirmTitle": "Supprimer le lien de risque ?",
+      "deleteLinkConfirmDescription": "Cela supprimera définitivement ce lien entre les deux risques.",
       "findingPriorityBucketName": "Priorité {{priority}}",
       "aiBucketingFailed": "Échec de l'analyse de regroupement des causes racines IA.",
       "aiMethodologyLabel": "Méthodologie : {{methodology}}",

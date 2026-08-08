@@ -1,5 +1,6 @@
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SiteFilter from "@/components/dashboard/organization/SiteFilter"
+import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   useCreateActionFromBucketMutation,
@@ -188,12 +189,17 @@ export default function CorrelationMatrixPage() {
 
   const [createRiskLink, { isLoading: isCreatingLink }] =
     useCreateRiskLinkMutation()
-  const [deleteRiskLink] = useDeleteRiskLinkMutation()
+  const [deleteRiskLink, { isLoading: isDeletingLink }] =
+    useDeleteRiskLinkMutation()
   const [runRootCauseBucketing, { isLoading: isAILoading }] =
     useRunRootCauseBucketingMutation()
   const [createActionFromBucket] = useCreateActionFromBucketMutation()
 
   const [siteFilter, setSiteFilter] = useState<string | null>(null)
+  const [linkPendingDelete, setLinkPendingDelete] = useState<RiskLink | null>(
+    null
+  )
+  const [isDeleteLinkModalOpen, setIsDeleteLinkModalOpen] = useState(false)
   const [selectedCell, setSelectedCell] = useState<{
     row: number
     col: number
@@ -440,11 +446,25 @@ export default function CorrelationMatrixPage() {
     }
   }
 
-  const handleDeleteLink = async (link: RiskLink) => {
+  const openDeleteLinkModal = (link: RiskLink) => {
+    setLinkPendingDelete(link)
+    setIsDeleteLinkModalOpen(true)
+  }
+
+  const confirmDeleteLink = async () => {
+    // Same discarded-isLoading double-submission bug fixed for
+    // RiskRegisterPage/aexa-frontend#620 -- the disabled button prop is the
+    // primary guard, but a defensive check inside the handler closes the
+    // theoretical window where a second call could land before a re-render
+    // commits the disabled state.
+    if (!linkPendingDelete || isDeletingLink) return
+
     try {
-      const res = await deleteRiskLink(link.id).unwrap()
+      const res = await deleteRiskLink(linkPendingDelete.id).unwrap()
       if (res.success) {
         toast.success(t(`${NS}.linkDeletedToast`))
+        setIsDeleteLinkModalOpen(false)
+        setLinkPendingDelete(null)
       } else {
         toast.error(res.message || t(`${NS}.linkDeleteFailed`))
       }
@@ -810,7 +830,7 @@ export default function CorrelationMatrixPage() {
                     </span>
                     {canManageLinks && (
                       <button
-                        onClick={() => handleDeleteLink(link)}
+                        onClick={() => openDeleteLinkModal(link)}
                         aria-label={t(`${NS}.deleteLinkLabel`, {
                           source: link.source_ref,
                           target: link.target_ref,
@@ -1038,6 +1058,20 @@ export default function CorrelationMatrixPage() {
           )}
         </div>
       </div>
+
+      {/* Delete Link Modal -- every other delete action in this codebase
+          (RiskRegisterPage, SitesEntities, InspectionTable, TemplatesPage,
+          UploadNotesModal) confirms via this shared component first; this
+          was the one delete action that fired immediately on click with no
+          confirmation step at all. */}
+      <DeleteAlertModal
+        open={isDeleteLinkModalOpen}
+        setOpen={setIsDeleteLinkModalOpen}
+        title={t(`${NS}.deleteLinkConfirmTitle`)}
+        description={t(`${NS}.deleteLinkConfirmDescription`)}
+        onConfirm={confirmDeleteLink}
+        loading={isDeletingLink}
+      />
     </div>
   )
 }

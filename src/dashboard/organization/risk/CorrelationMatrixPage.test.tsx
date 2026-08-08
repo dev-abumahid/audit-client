@@ -99,17 +99,49 @@ const mockCreateActionFromBucket = vi.fn()
 // the mutation hook (not local component state) -- see the "shows a loading
 // state" test below.
 let mockIsRunningBucketing = false
+// Same convention -- lets the double-submission-guard test below flip this
+// to true without a static mock.
+let mockIsDeletingLink = false
 
 vi.mock("@/redux/apis/organization/riskLink.api", () => ({
   useGetCorrelationMatrixDataQuery: (...args: unknown[]) =>
     mockUseGetCorrelationMatrixDataQuery(...args),
   useCreateRiskLinkMutation: () => [mockCreateRiskLink, { isLoading: false }],
-  useDeleteRiskLinkMutation: () => [mockDeleteRiskLink, { isLoading: false }],
+  useDeleteRiskLinkMutation: () => [
+    mockDeleteRiskLink,
+    { isLoading: mockIsDeletingLink },
+  ],
   useRunRootCauseBucketingMutation: () => [
     mockRunRootCauseBucketing,
     { isLoading: mockIsRunningBucketing },
   ],
   useCreateActionFromBucketMutation: () => [mockCreateActionFromBucket, {}],
+}))
+
+// quality-bar-loop-derived fix: this page previously deleted a risk link
+// immediately on click with no confirmation step -- now routes through the
+// same shared DeleteAlertModal every other delete action in this codebase
+// uses. Mocked the same way as RiskRegisterPage.test.tsx/InspectionTable.test.tsx.
+vi.mock("@/components/shared/DeleteAlertModal", () => ({
+  default: ({
+    open,
+    onConfirm,
+    loading,
+    setOpen,
+  }: {
+    open: boolean
+    onConfirm: () => void
+    loading?: boolean
+    setOpen?: (value: boolean) => void
+  }) =>
+    open ? (
+      <>
+        <button onClick={onConfirm} disabled={loading}>
+          Confirm delete
+        </button>
+        <button onClick={() => setOpen?.(false)}>Cancel delete</button>
+      </>
+    ) : null,
 }))
 
 vi.mock("@/redux/apis/organization/sites.api", () => ({
@@ -260,6 +292,7 @@ describe("CorrelationMatrixPage", () => {
     mockToastError.mockReset()
     mockRole = "ADMIN"
     mockIsRunningBucketing = false
+    mockIsDeletingLink = false
     mockUseGetAllSitesQuery.mockReturnValue({
       data: { data: [{ id: "site1", name: "Siège Paris" }] },
     })
@@ -736,7 +769,7 @@ describe("CorrelationMatrixPage", () => {
     )
   })
 
-  it("deletes a link when the delete button is clicked", async () => {
+  it("opens a delete confirmation and deletes the link on confirm", async () => {
     mockDeleteRiskLink.mockReturnValue({
       unwrap: () =>
         Promise.resolve({ success: true, message: "ok", data: makeLink() }),
@@ -749,6 +782,13 @@ describe("CorrelationMatrixPage", () => {
       screen.getByRole("button", {
         name: /organization\.correlationMatrix\.deleteLinkLabel/,
       })
+    )
+    // Previously this deleted immediately on the first click -- it now
+    // routes through the shared DeleteAlertModal like every other delete
+    // action in this codebase, so the mutation must not fire until confirm.
+    expect(mockDeleteRiskLink).not.toHaveBeenCalled()
+    await userEvent.click(
+      screen.getByRole("button", { name: /confirm delete/i })
     )
 
     await waitFor(() =>
@@ -771,10 +811,59 @@ describe("CorrelationMatrixPage", () => {
         name: /organization\.correlationMatrix\.deleteLinkLabel/,
       })
     )
+    await userEvent.click(
+      screen.getByRole("button", { name: /confirm delete/i })
+    )
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Risk link not found")
     )
+  })
+
+  // Same discarded-isLoading double-submission bug fixed for
+  // RiskRegisterPage/aexa-frontend#620 -- useDeleteRiskLinkMutation's
+  // isLoading was previously discarded, and this delete action had no
+  // confirmation modal at all (it fired immediately on click). Now routes
+  // through DeleteAlertModal, so the same loading-disable behavior applies.
+  it("disables the delete confirmation button while a delete is already in flight", async () => {
+    setMatrixData({ riskLinks: [makeLink({ id: "link-42" })] })
+    mockIsDeletingLink = true
+
+    render(<CorrelationMatrixPage />, withRouter)
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.correlationMatrix\.deleteLinkLabel/,
+      })
+    )
+
+    expect(
+      screen.getByRole("button", { name: /confirm delete/i })
+    ).toBeDisabled()
+  })
+
+  // Round-1 adversarial review of this PR: this is a genuinely new
+  // behavioral surface (deletion previously fired immediately on click,
+  // with no way to back out) -- verifies Cancel actually closes the modal
+  // without ever calling the mutation, not just that Confirm does.
+  it("does not delete the link when the confirmation is cancelled", async () => {
+    setMatrixData({ riskLinks: [makeLink({ id: "link-42" })] })
+
+    render(<CorrelationMatrixPage />, withRouter)
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.correlationMatrix\.deleteLinkLabel/,
+      })
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: /cancel delete/i })
+    )
+
+    expect(mockDeleteRiskLink).not.toHaveBeenCalled()
+    expect(
+      screen.queryByRole("button", { name: /confirm delete/i })
+    ).not.toBeInTheDocument()
   })
 
   it("shows a loading state on the AI analysis button while the mutation is in flight", async () => {
