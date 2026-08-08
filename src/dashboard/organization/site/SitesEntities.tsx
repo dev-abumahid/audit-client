@@ -1246,12 +1246,36 @@ export default function SitesEntities() {
                             // on baseline. Same hit-slop fix as the two icon
                             // buttons above: visible height stays h-6
                             // (matching its row neighbors), invisible
-                            // clickable area extended to 44px via `before:`.
+                            // clickable area extended via `before:`.
+                            //
+                            // Round 7 found 2 precise bugs in the first
+                            // attempt (a uniform before:-inset-2.5 on all 4
+                            // sides): (a) it also extended sideways into the
+                            // gap-2 (8px) toward this row's "Manual"/"AI
+                            // Generated" badge, live-measured to overlap it
+                            // by 2px -- fixed by dropping the horizontal
+                            // extension entirely (inset-x-0) since this
+                            // button is already 71px wide, well over 44px,
+                            // so it never needed one. (b) shadcn's Button
+                            // includes its own `border border-transparent`
+                            // (see buttonVariants in button.tsx) -- since an
+                            // absolutely-positioned `before:`'s containing
+                            // block is the padding box (border-box minus
+                            // border-width) of its positioned ancestor, that
+                            // 1px border ate 1px off each edge's reach,
+                            // measuring a real 42px instead of 44px.
+                            // -inset-y-[12px] closes the gap and adds a
+                            // small safety margin -- live `elementFromPoint`
+                            // edge-sampling (not just getComputedStyle,
+                            // which can mask sub-pixel rounding at exact
+                            // boundaries) confirmed -11px still landed 1px
+                            // short at the exact edge; -12px measures a
+                            // clean ≥44px real hit area with no ambiguity.
                             <Button
                               onClick={() => handleRiskDeleteModalOpen(risk.id)}
                               variant="destructive"
                               size="sm"
-                              className="relative before:absolute before:-inset-2.5 before:content-['']"
+                              className="relative before:absolute before:inset-x-0 before:-inset-y-[12px] before:content-['']"
                             >
                               {t("organization.site&entities.deleteButton")}
                               <Trash2 />

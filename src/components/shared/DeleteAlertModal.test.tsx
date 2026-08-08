@@ -1,4 +1,6 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+import { useState } from "react"
 import DeleteAlertModal from "./DeleteAlertModal"
 
 // aexa-frontend#263 -- i18n isn't initialized in the test environment, so
@@ -87,5 +89,38 @@ describe("DeleteAlertModal", () => {
     // assertion fails while the toHaveClass("h-11") ones above still pass).
     expect(cancelButton.className).not.toContain("h-7")
     expect(deleteButton.className).not.toContain("h-7")
+  })
+
+  // quality-bar-loop round 7 (accessibility): this component is always used
+  // fully controlled (open/setOpen from the caller's own state, no
+  // <AlertDialogTrigger>), so Radix had no trigger reference to restore
+  // focus to on close -- live-verified pressing Escape left focus on
+  // <body> instead of the button that opened the modal. Mirrors a real
+  // caller: a button toggling `open` via its own state, matching how
+  // SitesEntities.tsx actually uses this component.
+  it("restores focus to the triggering element after the modal closes", async () => {
+    function ControlledCaller() {
+      const [open, setOpen] = useState(false)
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Delete risk</button>
+          <DeleteAlertModal open={open} setOpen={setOpen} onConfirm={vi.fn()} />
+        </>
+      )
+    }
+
+    render(<ControlledCaller />)
+    const trigger = screen.getByRole("button", { name: "Delete risk" })
+    await userEvent.click(trigger)
+
+    expect(
+      await screen.findByRole("button", {
+        name: "common.deleteAlertModal.cancel",
+      })
+    ).toBeInTheDocument()
+
+    await userEvent.keyboard("{Escape}")
+
+    await waitFor(() => expect(trigger).toHaveFocus())
   })
 })

@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { AlertCircle } from "lucide-react"
+import { useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 type DeleteAlertModalProps = {
@@ -32,6 +33,24 @@ export default function DeleteAlertModal({
   const resolvedTitle = title ?? t("common.deleteAlertModal.defaultTitle")
   const resolvedDescription =
     description ?? t("common.deleteAlertModal.defaultDescription")
+
+  // quality-bar-loop round 7 (accessibility): this component is always used
+  // fully controlled (open/setOpen from the caller's own state, no
+  // <AlertDialogTrigger>), so Radix has no trigger reference to restore
+  // focus to on close -- confirmed live that pressing Escape left focus on
+  // <body> instead of the button that opened the modal. The sibling
+  // create/edit modal already solves this via useModalA11y's
+  // triggerRef.current?.focus() on cleanup; this mirrors that for every
+  // caller of this shared component (site delete, risk delete, and any
+  // future one) in one place rather than pushing the fix onto each caller.
+  const previouslyFocusedElement = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (open) {
+      previouslyFocusedElement.current = document.activeElement as HTMLElement | null
+    } else {
+      previouslyFocusedElement.current?.focus?.()
+    }
+  }, [open])
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>

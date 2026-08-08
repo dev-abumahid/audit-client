@@ -1039,7 +1039,22 @@ describe("SitesEntities", () => {
       name: /organization\.site&entities\.deleteButton/i,
     })
     expect(riskDeleteButton).not.toHaveClass("h-11")
-    expect(riskDeleteButton).toHaveClass("before:-inset-2.5")
+    // Round 7 found the initial `before:-inset-2.5` (uniform on all 4
+    // sides) both overlapped the adjacent badge horizontally (this button
+    // is already 71px wide, well over 44px, so it never needed a
+    // horizontal hit-slop) and measured only 42px tall in the real
+    // browser, not 44 -- shadcn's Button includes its own 1px
+    // `border-transparent`, which eats into an absolutely-positioned
+    // `before:`'s reach since its containing block is the padding box
+    // (border-box minus border-width). `inset-x-0` drops the horizontal
+    // extension entirely. `-inset-y-[11px]` (10px + 1px border
+    // compensation) still measured 1px short at the exact edge via live
+    // `elementFromPoint` sampling (sub-pixel rounding `getComputedStyle`
+    // alone didn't surface) -- `-inset-y-[12px]` adds a small safety
+    // margin and measures a clean ≥44px real hit area.
+    expect(riskDeleteButton).toHaveClass("before:inset-x-0")
+    expect(riskDeleteButton).toHaveClass("before:-inset-y-[12px]")
+    expect(riskDeleteButton).not.toHaveClass("before:-inset-2.5")
   })
 
   // Regression: the name link and description sit in a `flex-col
