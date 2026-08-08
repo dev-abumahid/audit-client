@@ -86,3 +86,37 @@ misleading "everything is 0" false all-clear. This is the single most severe,
 concrete, and highest-leverage finding across all 8 judges — a risk-management
 platform silently presenting fabricated-looking "all clear" data on total
 backend failure is a real trust/safety issue, not just a polish gap.
+
+### Round 1 outcome — merged as PR #599
+
+Shipped via `ship-with-review-loop`, 3 review rounds before converging clean:
+
+- **Implementation**: added `isError` checks to all 7 RTK Query hooks in
+  `Overview.tsx`, with a full-page error state (icon, message, Retry button
+  that reloads) taking over when any query errors. Added the same isError
+  check to `CriticalAlertBanner.tsx`'s own separate `useGetAllAlertsQuery()`
+  call — a second, independent instance of the identical false-all-clear
+  pattern the round-1 judges didn't call out individually but is in-scope
+  for the same fix.
+- **Review round 1** (on the initial commit): found `CriticalAlertBanner.tsx`
+  had no error check at all — same bug class as Overview.tsx, different file.
+  Fixed same round.
+- **Review round 2** (on the CriticalAlertBanner fix): found the error notice
+  and the normal banner shared one `dismissed` boolean — dismissing the error,
+  then a later refetch succeeding with real critical alerts, left the banner
+  permanently hidden (the same false-all-clear failure, delayed one step).
+  Fixed by splitting into independent `dismissed`/`errorDismissed` flags.
+- **Review round 3**: clean, no findings. Converged.
+- Live-verified against a real backend outage (`aexa-server` stopped,
+  `/organization` reloaded): both the full-page error state and the banner's
+  error notice render correctly; both return to normal once the backend is
+  back and the page reloads.
+- QA gate: typecheck clean, lint clean (0 errors), full suite 1537/1537
+  passing.
+
+This closes the resilience axis's most severe finding. Industry-standards
+(4/10, fabricated trend data + fabricated chart), UX (5/10, no drill-down +
+all-or-nothing loading), efficiency (5/10, no memoization + duplicate
+PageRank computation), and the rest of resilience's remaining findings
+(no malformed-payload defense, all-or-nothing loading spinner) are still
+open — round 2 re-scores before picking the next fix.
