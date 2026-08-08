@@ -157,6 +157,14 @@ export default function SitesEntities() {
   const highlightedRef = useRef<string | null>(null)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [deleteSiteId, setDeleteSiteId] = useState<string | null>(null)
+  // quality-bar-loop round 3 (industry-standards/UX, the only finding both
+  // axes independently converged on across 2 rounds): risk deletion used to
+  // fire straight from the button's onClick with no confirmation step at
+  // all, unlike site deletion 4 lines below -- one misclick permanently
+  // removed a risk from the register. Mirrors the site-delete modal state
+  // shape exactly.
+  const [isRiskDeleteModalOpen, setIsRiskDeleteModalOpen] = useState(false)
+  const [deleteRiskId, setDeleteRiskId] = useState<string | null>(null)
 
   // RTK Query
   const {
@@ -213,7 +221,7 @@ export default function SitesEntities() {
     (r) => getRiskSeverityLevel(r.residual_score) === "critical"
   ).length
   const aiGeneratedRiskCount = allRisks.filter((r) => r.ai_generated).length
-  const [deleteRisk] = useDeleteRiskMutation()
+  const [deleteRisk, { isLoading: isRiskDeleting }] = useDeleteRiskMutation()
   const [createNewRisk] = useCreateNewRiskMutation()
   const [analyzeSiteRisks] = useAnalyzeSiteRisksMutation()
   // Reset page when search changes
@@ -587,19 +595,25 @@ export default function SitesEntities() {
     }
   }
 
-  const handleRiskDelete = async (id: string) => {
+  const handleRiskDeleteModalOpen = (riskId: string) => {
+    setIsRiskDeleteModalOpen(true)
+    setDeleteRiskId(riskId)
+  }
+
+  const handleConfirmRiskDelete = async () => {
+    if (!deleteRiskId) return
     try {
-      const res = await deleteRisk(id).unwrap()
+      const res = await deleteRisk(deleteRiskId).unwrap()
       if (res?.success) {
         toast.success(t("organization.site&entities.riskDeletedSuccess"))
+        setIsRiskDeleteModalOpen(false)
+        setDeleteRiskId(null)
       } else {
         toast.error(t("organization.site&entities.deleteRiskFailed"))
       }
     } catch (error: any) {
-      // Direct action button, no confirmation modal/form state to reset here
-      // (unlike handleSave/handleConfirmDelete above). Translated fallback
-      // takes precedence over the raw backend message -- see the comment in
-      // handleAnalyzeSite's catch block (aexa-frontend#399).
+      // Translated fallback takes precedence over the raw backend message --
+      // see the comment in handleAnalyzeSite's catch block (aexa-frontend#399).
       toast.error(
         t("organization.site&entities.deleteRiskFailed") || error?.data?.message,
       )
@@ -1184,7 +1198,7 @@ export default function SitesEntities() {
                           </span>
                           {canWrite && (
                             <Button
-                              onClick={() => handleRiskDelete(risk.id)}
+                              onClick={() => handleRiskDeleteModalOpen(risk.id)}
                               variant="destructive"
                               size="sm"
                             >
@@ -1408,6 +1422,14 @@ export default function SitesEntities() {
         loading={isSiteDeleting}
         title={t("organization.site&entities.deleteSiteConfirmTitle")}
         description={t("organization.site&entities.deleteSiteConfirmDescription")}
+      />
+      <DeleteAlertModal
+        open={isRiskDeleteModalOpen}
+        setOpen={setIsRiskDeleteModalOpen}
+        onConfirm={handleConfirmRiskDelete}
+        loading={isRiskDeleting}
+        title={t("organization.site&entities.deleteRiskConfirmTitle")}
+        description={t("organization.site&entities.deleteRiskConfirmDescription")}
       />
     </div>
   )

@@ -26,6 +26,7 @@ vi.mock("sonner", () => ({
 
 import { toast } from "sonner"
 const mockToastError = vi.mocked(toast.error)
+const mockToastSuccess = vi.mocked(toast.success)
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -60,7 +61,7 @@ vi.mock("@/redux/apis/organization/sites.api", () => ({
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
-  useDeleteRiskMutation: () => [mockDeleteRisk],
+  useDeleteRiskMutation: () => [mockDeleteRisk, { isLoading: false }],
   useCreateNewRiskMutation: () => [mockCreateNewRisk, { isLoading: false }],
 }))
 
@@ -151,6 +152,7 @@ describe("SitesEntities", () => {
     mockCreateNewRisk.mockReset()
     mockAnalyzeSiteRisks.mockReset()
     mockToastError.mockReset()
+    mockToastSuccess.mockReset()
     ;(Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>).mockClear()
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
     // Edit opens a per-site detail fetch (aexa-frontend#401); default to a
@@ -1226,6 +1228,61 @@ describe("SitesEntities", () => {
     ).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 3 (industry-standards/UX, flagged independently
+  // by both axes across 2 rounds): risk deletion used to fire straight from
+  // the button's onClick with zero confirmation -- unlike site deletion,
+  // which already routes through DeleteAlertModal. Confirms the button now
+  // only opens the modal, the mutation doesn't fire until confirmed, and a
+  // successful confirm shows the success toast and closes the modal.
+  it("requires confirming through DeleteAlertModal before a risk is actually deleted", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "risk-99",
+            name: "Flooding",
+            residual_score: 12,
+            ai_generated: false,
+          },
+        ],
+      },
+    })
+    mockDeleteRisk.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    renderPage()
+    const [expandButton] = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-chevron-down"))
+    await userEvent.click(expandButton)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.site&entities\.deleteButton/i,
+      })
+    )
+
+    // The mutation must not fire just from clicking the row's Delete button.
+    expect(mockDeleteRisk).not.toHaveBeenCalled()
+    const confirmButton = screen.getByText("Confirm delete")
+
+    await userEvent.click(confirmButton)
+
+    expect(mockDeleteRisk).toHaveBeenCalledWith("risk-99")
+    await waitFor(() =>
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        "organization.site&entities.riskDeletedSuccess"
+      )
+    )
+    expect(screen.queryByText("Confirm delete")).not.toBeInTheDocument()
+  })
+
   it("shows an error toast when the risk-delete response indicates failure", async () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,
@@ -1259,6 +1316,10 @@ describe("SitesEntities", () => {
         name: /organization\.site&entities\.deleteButton/i,
       })
     )
+    // quality-bar-loop round 3: risk deletion now requires confirming
+    // through DeleteAlertModal, same as site deletion -- the row's own
+    // Delete button only opens the modal.
+    await userEvent.click(screen.getByText("Confirm delete"))
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith(
@@ -1348,6 +1409,7 @@ describe("SitesEntities", () => {
         name: /organization\.site&entities\.deleteButton/i,
       })
     )
+    await userEvent.click(screen.getByText("Confirm delete"))
 
     // Regression (aexa-frontend#399): translated fallback now takes
     // precedence over the raw (always-English) backend message.

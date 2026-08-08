@@ -906,6 +906,8 @@
       "deleteRiskFailed": "Échec de la suppression du risque",
       "deleteSiteConfirmTitle": "Êtes-vous sûr ?",
       "deleteSiteConfirmDescription": "Cette action supprimera définitivement ce site du système.",
+      "deleteRiskConfirmTitle": "Êtes-vous sûr ?",
+      "deleteRiskConfirmDescription": "Cette action supprimera définitivement ce risque du registre.",
       "errorLoadingSitesTitle": "Erreur lors du chargement des sites",
       "errorLoadingSitesDescription": "Veuillez réessayer plus tard",
       "riskNameLabel": "Nom du risque",

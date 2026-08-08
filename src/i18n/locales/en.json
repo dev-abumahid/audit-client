@@ -906,6 +906,8 @@
       "deleteRiskFailed": "Failed to delete risk",
       "deleteSiteConfirmTitle": "Are you sure?",
       "deleteSiteConfirmDescription": "This will permanently remove this site from the system.",
+      "deleteRiskConfirmTitle": "Are you sure?",
+      "deleteRiskConfirmDescription": "This will permanently remove this risk from the register.",
       "errorLoadingSitesTitle": "Error loading sites",
       "errorLoadingSitesDescription": "Please try again later",
       "riskNameLabel": "Risk Name",
