@@ -341,6 +341,59 @@ describe("SitesEntities", () => {
     expect(screen.queryByText("Error loading sites")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 1 (resilience): the org-wide risk query never
+  // checked isError -- a genuine fetch failure fell through to
+  // `allRisksData?.data ?? []`, rendering the summary tiles identically to
+  // a genuinely risk-free org (0 for all three risk-derived tiles) with no
+  // indication anything failed.
+  it("shows a dash instead of a false zero on the risk summary tiles when the org-wide risk query fails", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockReturnValue({ data: undefined, isError: true })
+
+    renderPage()
+
+    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(3)
+    expect(screen.queryByText("0")).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 1 (resilience): the per-site expanded-panel risk
+  // query never checked isError either -- a fetch failure rendered a blank
+  // body under the "Confirmed risks" heading (not even the "no risks"
+  // empty-state message, since `riskData?.data.length === 0` is `false`
+  // when `riskData` is `undefined`), indistinguishable from a slow-loading
+  // or broken panel with zero feedback.
+  it("shows a distinct error message, not the empty state, when a site's own risk query fails", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockImplementation((args: { siteId?: string }) =>
+      args?.siteId
+        ? { data: undefined, isError: true }
+        : { data: { data: [] }, isError: false }
+    )
+
+    renderPage()
+    const [expandButton] = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-chevron-down"))
+    await userEvent.click(expandButton)
+
+    expect(
+      screen.getByText("organization.site&entities.riskLoadFailed")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.site&entities.noConfirmedRisks")
+    ).not.toBeInTheDocument()
+  })
+
   it("renders site rows with name, location and country", () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,

@@ -174,7 +174,14 @@ export default function SitesEntities() {
   const [updateSite, { isLoading: isSiteUpdating }] = useUpdateSiteMutation()
   const [deleteSite, { isLoading: isSiteDeleting }] = useDeleteSiteMutation()
   const [fetchSiteById] = useLazyGetSiteByIdQuery()
-  const { data: riskData } = useGetAllRisksQuery(
+  // quality-bar-loop round 1 (resilience): neither of these two risk
+  // queries checked isError -- the same "false all-clear" pattern fixed
+  // repeatedly on Overview.tsx earlier this session (a fetch failure
+  // rendered identically to "zero risks" with no error indication at
+  // all). Unlike `useGetAllSitesQuery` above, which already handles its
+  // own isError with a real error card, these two never got the same
+  // treatment.
+  const { data: riskData, isError: riskError } = useGetAllRisksQuery(
     {
       siteId: expandedSite ?? "",
       page: 1,
@@ -188,7 +195,7 @@ export default function SitesEntities() {
   // RiskMatrixPage.tsx uses, purely to drive the summary strip's aggregate
   // counts -- distinct from `riskData` above, which is scoped to whichever
   // single site is currently expanded.
-  const { data: allRisksData } = useGetAllRisksQuery({
+  const { data: allRisksData, isError: allRisksError } = useGetAllRisksQuery({
     page: 1,
     limit: 100,
     searchTerm: "",
@@ -693,7 +700,7 @@ export default function SitesEntities() {
           </div>
           <div>
             <p className="font-mono-data text-xl font-bold text-foreground">
-              {allRisksData?.meta?.total ?? allRisks.length}
+              {allRisksError ? "—" : (allRisksData?.meta?.total ?? allRisks.length)}
             </p>
             <p className="text-xs text-muted-foreground">
               {t("organization.site&entities.summary.totalRisks")}
@@ -713,8 +720,14 @@ export default function SitesEntities() {
                   : undefined
               }
             >
-              {criticalRiskCount}
-              {isRiskSummaryCapped && "+"}
+              {allRisksError ? (
+                "—"
+              ) : (
+                <>
+                  {criticalRiskCount}
+                  {isRiskSummaryCapped && "+"}
+                </>
+              )}
             </p>
             <p className="text-xs text-muted-foreground">
               {t("organization.site&entities.summary.criticalRisks")}
@@ -734,8 +747,14 @@ export default function SitesEntities() {
                   : undefined
               }
             >
-              {aiGeneratedRiskCount}
-              {isRiskSummaryCapped && "+"}
+              {allRisksError ? (
+                "—"
+              ) : (
+                <>
+                  {aiGeneratedRiskCount}
+                  {isRiskSummaryCapped && "+"}
+                </>
+              )}
             </p>
             <p className="text-xs text-muted-foreground">
               {t("organization.site&entities.summary.aiGeneratedRisks")}
@@ -1109,7 +1128,11 @@ export default function SitesEntities() {
                     <Check className="h-3 w-3" />
                     {t("organization.site&entities.confirmedRisksHeading")}
                   </p>
-                  {riskData?.data.length === 0 ? (
+                  {riskError ? (
+                    <p role="alert" className="py-3 text-xs text-muted-foreground">
+                      {t("organization.site&entities.riskLoadFailed")}
+                    </p>
+                  ) : riskData?.data.length === 0 ? (
                     <p className="py-3 text-xs text-muted-foreground">
                       {t("organization.site&entities.noConfirmedRisks")}
                     </p>
