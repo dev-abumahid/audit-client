@@ -500,3 +500,97 @@ This is not tied to any specific judge round's findings above — a
 direct user report, fixed and verified the same way as any other round
 in this loop. Round 4's 9-judge panel (still pending) will pick up from
 here, on top of both PR #610 and PR #611.
+
+## Round 4 (re-score after PR #610, #611)
+
+| Axis | Round 2 | Round 4 | Δ |
+|---|---|---|---|
+| Industry-standards | 6/10 | 7/10 | ↑ |
+| UX | 6/10 | 8/10 | ↑↑ |
+| Efficiency | 7/10 | 7/10 | — |
+| Accessibility | 7/10 | 7/10 | — |
+| Visual/design polish | 6/10 | 6/10 | — |
+| Resilience & edge cases | 8/10 | 8/10 | — |
+| Code quality/maintainability | 7/10 | 7/10 | — |
+| Mobile/responsive | 6/10 | 6/10 | — |
+| Security | 10/10 | 10/10 | — |
+
+**Average: 7.33/10** (up from 7.0) — not converged on average (need ≥9),
+but **only 2/9 axes remain below the floor of 7**: visual polish and
+mobile, down from 4 below floor at round 2. No regression, no
+stagnation.
+
+### Round 4 highlights
+
+- **UX (6→8)**: the risk-delete confirmation fix live-verified end to
+  end (clicked Delete on a real record, confirmed the modal, clicked
+  Cancel, confirmed nothing was deleted, confirmed via network log that
+  no DELETE request fired before confirming) and the `isLoading` gating
+  confirmed closing the compounding double-delete gap. New, sharper
+  detail found in passing: `handleImportSuggestions` doesn't just give
+  coarse feedback on a failed AI-suggestion import — it unconditionally
+  evicts every attempted suggestion from the list regardless of success,
+  so a failed import silently loses the suggestion with no retry path
+  short of re-running Analyze AI. Also noted PR #610's new
+  `handleConfirmRiskDelete` now has better silent-failure handling
+  (a real `else` toast branch) than its sibling `handleConfirmDelete`
+  (site delete), flipping rather than closing the original asymmetry.
+- **Industry-standards (6→7)**: crossed the floor for the first time.
+  Confirmation-before-delete is credited as a genuine industry-standard
+  checkbox now ticked (every reference tool in this category confirms
+  destructive deletes), live-verified independently of the UX judge's
+  own check. The 6 other findings (single-expand, invisible 100-row
+  cap, no bulk ops, no sort/filter, non-editable AI suggestions,
+  no-retry error states) all remain open and unchanged.
+- **Resilience (8, held)**: both of PR #610's failure paths
+  (non-throwing `success: false` and a rejected promise) verified
+  correct — toast shown, modal stays open, no auto-dismiss, so retry is
+  possible. Spotted the same asymmetry the UX judge found from a
+  different angle: `handleConfirmDelete` (site delete) still lacks the
+  `else` branch risk-delete's new handler now has.
+- **Code quality (7, held)**: confirmed both PRs are clean and
+  consistent with established naming conventions (new state/handlers
+  mirror the site-delete pattern exactly, new i18n keys mirror their
+  site-delete siblings correctly, no repeat of the `riskLoadFailed`-
+  style naming drift), but none of round 2's 4 standing findings were
+  addressed by either PR.
+- **Mobile (6, held)**: live-verified the exact user-reported PR #611
+  fix at 375px on the actual flagged record — description now clips
+  cleanly within its box with real overflow properties confirmed via
+  DOM measurement, matching the earlier direct verification. New
+  finding: `DeleteAlertModal`'s own Cancel/Delete buttons resolve to
+  `size="default"` → 28px tall, under the 44px guideline — the new
+  risk-delete modal (and the pre-existing site-delete one, since both
+  share this component) inherits the exact touch-target problem this
+  axis exists to catch, undercutting the round-3 UX fix's completeness
+  from this axis's perspective.
+- **Visual polish, efficiency, accessibility, security all held** with
+  no new findings beyond confirming the shipped PRs introduced no
+  regressions.
+
+### Chosen fix for round 5
+
+**Touch-target sizing** (mobile's most persistent, most-repeated
+finding — flagged unaddressed in every round 1-4, and just spread to a
+new element via PR #610's own new modal): bump the expand/collapse
+chevron, "more actions" trigger, and risk-row delete button to clear
+44×44px, and fix `DeleteAlertModal.tsx`'s own Cancel/Delete buttons
+(currently `size="default"` → 28px, a shared component used by
+`RiskRegisterPage.tsx`, `AllFindingsPage.tsx`, `InspectionTable.tsx`,
+and both delete flows in this file). Chosen over visual polish's
+findings because:
+- It's the single most-repeated unaddressed finding across the whole
+  loop (4 consecutive rounds, unlike visual polish's 5 separate
+  findings each mentioned twice).
+- It's purely mechanical CSS sizing with no design ambiguity — every
+  target's current and needed size is already precisely measured in the
+  judges' own findings.
+- Fixing `DeleteAlertModal.tsx`'s buttons has leverage beyond this one
+  page: since it's the exact shared component used by 3 other pages
+  already touched in the Dashboard loop, this closes the same gap
+  everywhere it appears, not just here.
+- Visual polish's items (alignment bug, hand-rolled tiles vs.
+  `MetricCard`, modal overlay, duplicate badge, sub-floor type scale)
+  are each real but individually smaller/more discretionary; no single
+  one is as concrete or as widely repeated as this axis's touch-target
+  problem.
