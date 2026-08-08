@@ -379,3 +379,57 @@ authorization.
 
 **Next: re-run the judge panel** to score the page's post-fix state before
 picking round 7's fix (or checking convergence).
+
+## Round 6 (post-fix judge panel)
+
+| Axis | Score | vs. Round 5 |
+|---|---|---|
+| Industry-standards | 4/10 | same |
+| UX | 6/10 | same |
+| Efficiency | 4/10 | **-2** |
+| Accessibility | 8/10 | same |
+| Visual polish | 7/10 | +2 |
+| Resilience & edge cases | 6/10 | **-1** |
+| Code quality | 6/10 | same |
+| Mobile/responsive | 6/10 | same |
+| Security | 10/10 | same |
+
+**Average: 6.33/10** (down slightly from 6.44). 6 axes below floor (7):
+industry-standards, UX, efficiency, resilience, code quality,
+mobile/responsive.
+
+**Regression check:** round 6's actual diff (3 Tailwind className changes
+across 2 commits, confirmed via `git show` by multiple judges) was
+independently verified clean by every judge -- visual polish rose 5->7 as
+intended, and no judge found anything wrong with the shipped fix itself.
+The two score drops are NOT caused by round 6's diff:
+- **Efficiency (6->4):** a fresh, deeper pass found a concrete root cause
+  behind round 5's already-known "unmemoized filters recompute on
+  unrelated renders" finding -- two unscoped `watch()` calls (RHF's
+  `watch()`, not `useWatch`) force the entire page to re-render on every
+  modal keystroke, and the client-filtered path's `limit:100` fetch
+  compounds with the still-missing search debounce (undebounced keystrokes
+  now trigger 100-row fetches, not 20-row, in that mode). Same class of
+  persistent debt as round 4's industry-standards/code-quality drift, now
+  scored more harshly with more precise diagnosis -- not something round
+  6 introduced.
+- **Resilience (7->6):** a fresh finding, live-verified: `deleteRisk` is
+  destructured without `isLoading`, and `DeleteAlertModal` is invoked
+  without a `loading` prop, so its Delete button is never disabled while
+  the request is in flight -- a double-click fires the mutation twice, the
+  second call 404s against an already-deleted row, and the user sees a
+  spurious "failed to delete" toast for a delete that actually succeeded.
+  Concrete, real, and cheap to fix.
+- The UX judge's live test of the still-open missing-debounce issue
+  (typing a search term character-by-character) actually crashed and
+  auto-restarted the real dev backend from request volume, and produced
+  visibly dropped/garbled input characters plus a silent search-box reset
+  once the backend recovered -- strong empirical evidence this is a real,
+  not theoretical, problem, and a strong candidate for a near-term round.
+
+**Next fix (Round 7):** the delete double-submission guard (resilience) --
+pass `deleteRisk`'s `isLoading` through to `DeleteAlertModal`'s `loading`
+prop so the Delete button disables while the request is in flight. Concrete,
+well-defined, single-file change. Strong runner-up: the search debounce
+(now empirically confirmed to cause real backend instability, not just
+theoretical over-fetching) -- likely round 8 if not folded into round 7.
