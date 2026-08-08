@@ -814,3 +814,69 @@ round, still a long scroll on mobile), and the out-of-scope
 risk-detail-page routing bug. Industry-standards' KPI-clickability
 finding and UX's own no-drill-down finding should both score better
 this round given this fix directly addresses both.
+
+## Round 15 (re-score after PR #606) — GUARDRAIL: REGRESSION on 4 axes
+
+| Axis | Round 13 | Round 15 | Δ |
+|---|---|---|---|
+| Industry-standards | 6/10 | 7/10 | ↑ |
+| UX | 7/10 | 8/10 | ↑ |
+| Efficiency | 10/10 | 10/10 | — |
+| Accessibility | 7/10 | 6/10 | **↓ regression** |
+| Visual/design polish | 8/10 | 7/10 | **↓ regression** |
+| Resilience & edge cases | 9/10 | 7/10 | **↓↓ regression** |
+| Code quality/maintainability | 7/10 | 6/10 | **↓ regression** |
+| Mobile/responsive | 8/10 | 8/10 | — |
+
+**Average: 7.375/10** (down from 7.75/10) — average itself dropped this
+round, on top of 4 simultaneous axis regressions.
+
+Unlike round 13's UX anomaly (a single outlier score with no supporting
+new findings, resolved as judge noise via a second opinion), all 4
+regressions this round are independently well-substantiated with
+specific file:line evidence, not noise:
+
+1. **Code quality (7→6)**: the "filtered by X, clear filter" indicator
+   was copy-pasted near-identically across 4 of the 5 destination pages
+   (`RiskRegisterPage.tsx`, `KriDashboardPage.tsx`,
+   `AllFindingsPage.tsx`, `InspectionTable.tsx`) instead of being
+   extracted into a shared component — a real, avoidable new
+   duplication.
+2. **Resilience (9→7)**, three distinct findings:
+   - A genuine crash risk, independently verified by reading the code
+     directly: `AlertsPage.tsx:186` —
+     `SEVERITY_STYLES[alert.severity as Severity].text` has no fallback
+     for an out-of-enum severity value. This bug predates round 14 (the
+     `?severity=` filter didn't touch this line), but round 14 gave it
+     a new, more prominent entry point via the dashboard.
+   - `RiskRegisterPage.tsx` shows no empty-state message when
+     `?status=open` filters the table to zero rows (every other
+     destination page has one).
+   - `RiskRegisterPage.tsx`, `AllFindingsPage.tsx`, and
+     `InspectionTable.tsx` don't check `isError` on their own queries —
+     a genuine fetch failure on a destination page is indistinguishable
+     from "the filter matched nothing," the same false-all-clear
+     pattern round 1 fixed on Overview.tsx itself, now unaddressed on
+     3 pages people can reach via the dashboard's own new links.
+3. **Accessibility (7→6)**: none of the 5 destination pages announce
+   their "filtered by X" state to screen readers (no `role="status"`/
+   `aria-live`) — a screen-reader user who activates a KPI link lands on
+   a silently-narrowed page with no confirmation anything changed.
+4. **Visual polish (8→7)**: `MetricCard.tsx`'s `sharedClassName`
+   (including `hover:border-primary/30`) applies unconditionally to
+   both the `Link` and `div` render branches, so Revenue — now the one
+   non-clickable card among 6 — visually reads as equally clickable as
+   the other 5. Live-verified: hovering Revenue produces the identical
+   teal border highlight.
+
+**Diagnosis**: round 14's ship-with-review-loop (3 review rounds) was
+scoped to functional correctness of the new filtering logic and caught
+real bugs on that axis (the InspectionTable dropdown no-op, the a11y
+discoverability gap on the disabled control) — but none of those
+reviews were asked to evaluate the 5 destination pages for duplication,
+resilience, or accessibility as a cross-cutting concern the way this
+round's 8-judge panel did. The feature works exactly as designed; the
+debt is in what wasn't asked of it during review.
+
+Per the skill's guardrail, stopping here to escalate with this
+diagnosis rather than picking a fix and continuing.
