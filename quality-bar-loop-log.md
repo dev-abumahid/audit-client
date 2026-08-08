@@ -422,3 +422,42 @@ PageRank contradiction, alerts read-only with no CTA), efficiency's
 remaining findings (zero memoization, triple-iterated categoryData), the
 out-of-scope risk-detail-page routing bug, and mobile's touch-target
 sizes.
+
+## Round 7 (re-score after PR #602)
+
+| Axis | Round 5 | Round 7 | Δ |
+|---|---|---|---|
+| Industry-standards | 5/10 | 5/10 | — |
+| UX | 7/10 | 7/10 | — |
+| Efficiency | 5/10 | 6/10 | ↑ |
+| Accessibility | 7/10 | 7/10 | — |
+| Visual/design polish | 7/10 | 7/10 | — |
+| Resilience & edge cases | 9/10 | 9/10 | — |
+| Code quality/maintainability | 7/10 | 7/10 | — |
+| Mobile/responsive | 6/10 | 6/10 | — |
+
+**Average: 6.75/10** (up from 6.625/10) — not converged (3/8 axes below
+floor of 7: industry-standards, efficiency, mobile). No regression, no
+stagnation (five straight panels of average improvement: 5.4 → 5.75 →
+6.375 → 6.625 → 6.75) — guardrails clear, loop continues.
+
+The resilience judge additionally re-verified the PageRank refactor's
+edge-case handling from scratch (empty-nodes, missing-score-entry cases)
+rather than trusting PR #602's own review claim — confirmed identical to
+the pre-refactor path, since both old and new call sites funnel into the
+same `topPercentileFromScores` implementation.
+
+### Chosen fix for round 8
+
+**Zero memoization** (efficiency's remaining top finding): none of
+`Overview.tsx`'s derived values — `categoryData`, `pageRankScores`/
+`correlationEdges`/`tippingPointRisks` (the PageRank pipeline, up to 100
+power-iteration passes), or the filter-based KPI counts — are wrapped in
+`useMemo`, so all of them recompute from scratch on every render
+regardless of cause, including unrelated state changes in sibling
+components (e.g. `CriticalAlertBanner`'s own `dismissed` toggle) or the
+focus-management effects added in earlier rounds. Chosen over
+industry-standards (still backend-blocked/larger-scope) and mobile
+(real, but the remaining findings are lower-urgency layout fixes, not a
+graph algorithm running on every render) — same reasoning pattern as
+round 6, and this closes efficiency's own longest-remaining item.
