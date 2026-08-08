@@ -1277,6 +1277,50 @@ describe("RiskRegisterPage", () => {
     ).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 3 (mobile): the Edit/Delete row-action buttons
+  // measured 20x20px live -- well under the 44x44 touch-target guideline.
+  // Hit-slop (a before: pseudo-element) extends the real clickable area
+  // without growing the visible icon/padding -- asserts the hit-slop classes
+  // are present, not just that some class string exists.
+  it("extends the Edit/Delete row buttons' hit area via hit-slop, without growing the visible button", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+
+    const { container } = renderPage()
+
+    const editButton = screen.getByRole("button", {
+      name: "organization.riskRegister.editRisk",
+    })
+    const deleteButton = screen.getByRole("button", {
+      name: "organization.riskRegister.deleteRisk",
+    })
+    for (const button of [editButton, deleteButton]) {
+      expect(button).toHaveClass("relative")
+      expect(button).toHaveClass("before:absolute")
+      expect(button).toHaveClass("before:-inset-x-2")
+      expect(button).toHaveClass("before:-inset-y-3")
+      // Visible size must stay the same small icon-button padding -- the
+      // hit-slop technique only works if the pseudo-element extends beyond
+      // an unchanged visible button, not a bigger one.
+      expect(button).toHaveClass("p-1")
+    }
+    // The zero-overlap guarantee between the two hit zones depends on this
+    // gap (16px) matching 2x the buttons' before:-inset-x-2 (8px each) --
+    // a revert of just the gap while leaving the button classes untouched
+    // would reintroduce overlapping hit-slop and wasn't caught without this.
+    expect(editButton.parentElement).toHaveClass("gap-4")
+    // The actions column's own width has to be wide enough for the
+    // 36px-wide hit zones plus gap to fit without compressing back down --
+    // a revert of just this width (independent of the button classes)
+    // would reintroduce the cramped-column condition the buttons were
+    // sized for.
+    // :last-child rather than a hardcoded index -- the actions column is
+    // the table's last <th> today, but a fixed index would silently start
+    // asserting against the wrong header if an unrelated column were ever
+    // added/removed/reordered elsewhere in the table.
+    const actionsHeader = container.querySelector("thead th:last-child")
+    expect(actionsHeader).toHaveClass("w-28")
+  })
+
   // aexa-frontend#488 -- the Add/Edit Risk modal was a plain div with no
   // role="dialog", no aria-modal and no Escape handling, unlike KRI's
   // modals (round 10, #487).

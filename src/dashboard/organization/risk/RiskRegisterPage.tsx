@@ -459,7 +459,7 @@ export default function RiskRegisterPage() {
                 <th className="px-3 py-2.5 font-semibold text-muted-foreground">
                   {t("organization.riskRegister.colApproval")}
                 </th>
-                <th className="w-20 px-3 py-2.5 font-semibold text-muted-foreground"></th>
+                <th className="w-28 px-3 py-2.5 font-semibold text-muted-foreground"></th>
               </tr>
             </thead>
             <tbody>
@@ -576,17 +576,32 @@ export default function RiskRegisterPage() {
                     </td>
                     <td className="px-3 py-2.5">
                       {canWrite && (
-                        <div className="flex gap-1">
+                        // quality-bar-loop round 3 (mobile): these buttons
+                        // measured 20x20px live -- well under the 44x44
+                        // touch-target guideline, ~4px apart with one being
+                        // destructive. Hit-slop (WCAG 2.5.8: visible size and
+                        // touch-target size may differ) extends the real
+                        // clickable area via a `before:` pseudo-element
+                        // without changing the visible icon/padding. The
+                        // actions column only has ~88px of content width
+                        // (w-28 minus px-3 padding) for two buttons, so a
+                        // full 44x44 on both axes doesn't fit side-by-side --
+                        // gap-4 (16px) + -inset-x-2 (8px each side) gets a full
+                        // 44px height and a real, if narrower, 36px width
+                        // with zero overlap between the two hit zones
+                        // (8+8=16=gap), an honest, bounded improvement over
+                        // 20x20 rather than a false claim of full 44x44.
+                        <div className="flex gap-4">
                           <button
                             onClick={() => openEdit(risk)}
-                            className="rounded p-1 hover:bg-muted"
+                            className="relative rounded p-1 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:bg-muted"
                             aria-label={t("organization.riskRegister.editRisk")}
                           >
                             <Pencil className="h-3 w-3" />
                           </button>
                           <button
                             onClick={() => openDeleteModal(risk.id)}
-                            className="rounded p-1 hover:bg-destructive/10 hover:text-destructive"
+                            className="relative rounded p-1 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:bg-destructive/10 hover:text-destructive"
                             aria-label={t(
                               "organization.riskRegister.deleteRisk"
                             )}
