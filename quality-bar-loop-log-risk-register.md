@@ -42,3 +42,31 @@ Key findings by axis:
 - **Security (10/10):** no `dangerouslySetInnerHTML`; role gating via the established `useMyOrgRole`/`canWriteOrgResource` pattern is used consistently; `?status=` URL param only feeds a strict string-equality filter, no injection surface; no sensitive console logging. Clean.
 
 **Next fix (Round 2):** the missing-pagination gap is flagged independently by 3 axes (industry-standards: no page UI/silent data loss; efficiency: full-payload re-fetch with no debounce; code quality: sibling pages already reuse a shared `Pagination` component this page skips) — the single highest-leverage fix is wiring real pagination via the existing shared `Pagination` component, replacing the hardcoded `page:1, limit:100` fetch. This directly targets the worst structural gap in industry-standards and closes a real silent-data-loss bug at the same time.
+
+## Round 2 — fix shipped (PR #615)
+
+Wired real pagination: `page` state + shared `Pagination` component (`PAGE_SIZE=20`,
+matching `AuditPage`/`AllFindingsPage`'s convention), `totalPages` derived from
+the API's existing `meta.totalPage`, page resets to 1 on search/site/category
+filter changes, `useClampPageToTotal` added for the delete-last-row-on-last-page
+edge case.
+
+Adversarial review (`ship-with-review-loop`) found 2 real regressions in round 1
+of review, both fixed same round:
+- Header subtitle used the current page's row count (`visibleRisks.length`),
+  which with `PAGE_SIZE=20` always read "≤20 risks found" regardless of the
+  real match count — switched to the server's `meta.total` for the normal
+  browsing case.
+- `statusParam`/`pendingApprovalOnly` are client-side-only filters layered on
+  top of the paginated fetch. Dropping page size from 100→20 made this
+  interaction actively broken (a raw page could show zero filtered matches
+  while a live pager displayed an unrelated "page N of M"). Fixed by falling
+  back to the pre-pagination `limit:100`/no-pager behavior whenever either
+  filter is active — bounded scope, not full server-side filtering, but no
+  worse than the page's behavior before this round.
+
+Round 2 of review came back clean (no findings) — merged via
+`gh pr merge 615 --squash --admin` under the standing merge authorization.
+
+**Next: re-run the round-1 judge panel** to score the page's post-fix state
+before picking round 3's fix.
