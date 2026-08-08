@@ -523,3 +523,48 @@ click-guard instead of the native `disabled` attribute, so the button stays
 focusable while still preventing re-entry). Concrete, well-defined, shared-
 component fix with a proportionally larger blast radius (positive) than
 this page's other single-file fixes.
+
+## Round 8 — fix shipped (PR #621)
+
+Shipped both accessibility gaps in the shared `DeleteAlertModal.tsx`
+component (kept the native `disabled` attribute rather than switching to
+`aria-disabled`, since that would have lost the button's existing
+`disabled:opacity-50` styling for free -- solved the focus-strand
+differently instead): added a `useEffect` that moves focus to the
+still-enabled Cancel button when the focused Delete button becomes
+disabled, and a visually-hidden `aria-live="polite"` span announcing the
+"Deleting..." transition. 2 new tests, negative-control verified. QA gate
+clean (1604 tests).
+
+**Incident during live verification (disclosed in the PR body):** while
+attempting to live-verify the fix by hanging a DELETE request via a
+`window.fetch` monkey-patch, the patch failed to intercept RTK Query's
+`fetchBaseQuery` (which had already captured a reference to the original
+`fetch`), and clicking Delete went through as a real deletion of the
+"Design audit sample risk" test fixture on the preview account's "Judge
+Test Site." No production or real user data was affected -- this was
+isolated to a disposable preview/test account already used throughout this
+session's judge testing. The fixture was immediately recreated via the UI
+(same name/description/site/category) to restore the test environment.
+Given this risk, further live delete-click-through testing was skipped in
+favor of the unit tests, which already cover the focus-move and aria-live
+behavior with negative controls. Lesson for future rounds: a `window.fetch`
+monkey-patch applied via javascript_tool after page load is unreliable for
+intercepting requests from libraries (like RTK Query) that may capture
+their own `fetch` reference at module-init time -- do not rely on this
+technique for any interaction with a real, non-idempotent side effect
+(deletes, mutations) without first confirming the patch actually
+intercepts a benign GET request, or avoid live-testing the destructive path
+entirely in favor of unit tests with negative controls.
+
+Adversarial review (2 parallel angles: line-by-line/cross-file, and
+shared-component blast-radius) came back clean on round 1 -- confirmed the
+fix is inert/safe for the 3 `DeleteAlertModal` callers that don't pass
+`loading` at all, and traced all 9 usage sites across 8 files with no
+conflicts found. One minor, non-blocking future-proofing suggestion
+(the focus-move querySelector is positional rather than identity-based)
+was noted but not acted on. Merged under standing authorization.
+
+**Next: re-run the judge panel** to score the page's post-fix state before
+picking round 9's fix (or checking convergence). This is the loop's 8th
+fix round, per the 10-round guardrail -- worth watching for stagnation.
