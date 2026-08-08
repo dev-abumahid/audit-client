@@ -801,3 +801,105 @@ least 6/10 (its pre-regression level) once re-scored, since the root
 cause PR #612 introduced was directly reverted-and-replaced with a
 non-bulky equivalent. Continuing the loop with a fresh 9-judge panel to
 confirm.
+
+## Round 7 (re-score after PR #613)
+
+| Axis | Round 6 | Round 7 | Δ |
+|---|---|---|---|
+| Industry-standards | 7/10 | 7/10 | — |
+| UX | 8/10 | 7/10 | **↓ regression** |
+| Efficiency | 7/10 | 7/10 | — |
+| Accessibility | 7/10 | 6/10 | **↓ regression** |
+| Visual/design polish | 5/10 | 6/10 | ↑ (recovered) |
+| Resilience & edge cases | 8/10 | 8/10 | — |
+| Code quality/maintainability | 7/10 | 7/10 | — |
+| Mobile/responsive | 8/10 | 8/10 | — |
+| Security | 10/10 | 10/10 | — |
+
+**Average: 7.33/10** (unchanged from round 6, though the composition
+shifted) — accessibility is now the only axis below the 7/10 floor.
+
+**Visual polish recovery confirmed real**, not just claimed: the round
+7 judge independently re-measured all 3 elements PR #613 touched
+against their exact pre-round-5 spec sizes (32×32, 36×36, 24px tall)
+and found the site action row and confirmed-risk row both read as one
+coherent cluster again in fresh screenshots — the fix genuinely
+resolved the regression rather than trading one problem for another.
+
+**Two new regressions this round, both treated as real** (well-
+substantiated with precise, live-verified evidence, not judge-scoring
+noise):
+
+1. **UX (8→7) and Mobile (both flagged the same root cause from
+   different angles)**: PR #613's own risk-row Delete button hit-slop
+   has two precise, independently-confirmed defects:
+   - **Horizontal overlap onto the adjacent "Manual"/"AI Generated"
+     badge** (UX judge): the `before:-inset-2.5` hit-slop extends 10px
+     in *all four directions*, including sideways into the row's
+     `gap-2` (8px) toward the badge — live-measured a genuine 2px
+     overlap, meaning a tap on the last ~2px of what looks like inert
+     badge text silently opens the delete-confirmation modal instead.
+     This is the exact same overlap bug class review round 1 already
+     caught and fixed between the kebab and chevron — just missed one
+     row down, since that review never re-checked the Delete button's
+     own hit-slop against its OWN neighbor.
+   - **Real hit area is 42px tall, not 44px** (mobile judge, via
+     precise `elementFromPoint()` edge-sampling, not just reading the
+     declared CSS): the shadcn `Button` component's own base styling
+     includes `border border-transparent` — a real 1px border. Since
+     an absolutely-positioned `::before`'s containing block is the
+     *padding box* of its positioned ancestor (border-box minus
+     border-width, per the CSS spec), that 1px border eats into the
+     hit-slop's effective reach on every edge. `-inset-2.5` (10px)
+     nominally, but only ~9px of real extension beyond the border-box
+     on each side — 2px short of the 44px guideline on the constrained
+     (vertical) axis. Confirmed via `getComputedStyle(el,'::before')`
+     independently reporting a computed height of 42px, not 44px. This
+     is a subtlety in applying the hit-slop technique to a component
+     with its own border, not a flaw in the technique itself — the
+     raw `<button>` kebab/chevron have no such border and measured a
+     genuine, hit-tested 44×44px.
+2. **Accessibility (7→6)**: a focus-restoration gap first suspected
+   (but unconfirmed) in round 6 was cleanly reproduced twice this round
+   in an isolated tab with no shared-session interference: opening the
+   risk-delete confirmation modal correctly moves focus inside it
+   (to Cancel), but pressing Escape closes it and leaves focus on
+   `<body>`, not back on the button that opened it. Root cause: unlike
+   the Create/Edit site modal (which uses a custom `useModalA11y` hook
+   that explicitly calls `triggerRef.current?.focus()` on close),
+   `DeleteAlertModal` wraps Radix's `AlertDialog` in fully controlled
+   mode (`open`/`onOpenChange` from external state) with no
+   `<AlertDialogTrigger>` element for Radix to auto-restore focus to —
+   so nothing restores it. This bug predates PR #613 entirely (it's in
+   `DeleteAlertModal.tsx`/how `SitesEntities.tsx` uses it, unrelated to
+   any recent PR) but was only cleanly confirmed this round.
+
+### Round 7 other highlights
+
+- **Code quality (7, held)**: minor correction to a standing finding —
+  the triplicated form-defaults literal is actually duplicated at 2
+  sites, not 3 as previously stated (re-verified by diffing).
+- **Resilience, industry-standards, efficiency, security all held**
+  with no new findings.
+
+### Chosen fixes for round 8
+
+Both new regressions are being fixed together this round, since both
+are cheap, precisely-diagnosed, and directly related to the same
+hit-slop technique this loop introduced two rounds ago:
+
+1. **Delete button hit-slop**: switch from a uniform `-inset-2.5` on
+   all 4 sides to a vertical-only hit-slop (`inset-x-0` +
+   `-inset-y-[11px]`, the extra 1px compensating for the button's own
+   1px border) — this simultaneously fixes both defects: no more
+   horizontal extension means no more overlap onto the adjacent badge,
+   and the corrected vertical inset reaches a genuine 44px real height.
+   The button is already 71px wide, well over the 44px minimum, so a
+   horizontal hit-slop was never actually needed here.
+2. **`DeleteAlertModal` focus restoration**: the highest-leverage fix
+   available since accessibility is the only below-floor axis. Add
+   explicit focus-restoration logic — capture the triggering element
+   before opening, restore focus to it when the modal closes — mirroring
+   what `useModalA11y` already does for the Create/Edit modal, since
+   `DeleteAlertModal`'s fully-controlled usage (no `AlertDialogTrigger`)
+   means Radix has nothing to auto-restore to.
