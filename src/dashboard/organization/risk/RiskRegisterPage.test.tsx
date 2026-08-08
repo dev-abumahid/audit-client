@@ -1055,6 +1055,161 @@ describe("RiskRegisterPage", () => {
     )
   })
 
+  // quality-bar-loop round 2 (industry-standards/efficiency): page/limit were
+  // previously hardcoded to page:1/limit:100, so an org with more than 100
+  // risks silently lost every row past the 100th with no pagination UI at
+  // all. These tests guard the real pagination wiring that replaced it.
+  describe("pagination (quality-bar-loop round 2)", () => {
+    it("fetches with the real page size instead of a hardcoded limit:100", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+
+      renderPage()
+
+      expect(mockUseGetAllRisksQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1, limit: 20 })
+      )
+    })
+
+    it("renders pager controls and advances the query's page arg on next", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk()], meta: { page: 1, limit: 20, total: 40, totalPage: 2 } },
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.nextPage" })
+      )
+
+      await waitFor(() =>
+        expect(mockUseGetAllRisksQuery).toHaveBeenCalledWith(
+          expect.objectContaining({ page: 2 })
+        )
+      )
+    })
+
+    it("resets to page 1 when the search term changes", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk()], meta: { page: 2, limit: 20, total: 40, totalPage: 2 } },
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.nextPage" })
+      )
+      await userEvent.type(
+        screen.getByPlaceholderText(
+          "organization.riskRegister.searchPlaceholder"
+        ),
+        "f"
+      )
+
+      await waitFor(() =>
+        expect(mockUseGetAllRisksQuery).toHaveBeenLastCalledWith(
+          expect.objectContaining({ page: 1, searchTerm: "f" })
+        )
+      )
+    })
+
+    it("does not render pager controls when there is only one page", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk()], meta: { page: 1, limit: 20, total: 1, totalPage: 1 } },
+      })
+
+      renderPage()
+
+      expect(
+        screen.queryByRole("button", { name: "organization.riskRegister.nextPage" })
+      ).not.toBeInTheDocument()
+    })
+
+    // Round-1 adversarial review: confirms the pager actually renders (not
+    // just "hides correctly at totalPage:1") and exposes real page-number
+    // navigation, not just a next button.
+    it("renders numbered page buttons when there is more than one page", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk()], meta: { page: 1, limit: 20, total: 40, totalPage: 2 } },
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByRole("button", { name: "organization.riskRegister.nextPage" })
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", { name: "1", current: "page" })
+      ).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "2" })).toBeInTheDocument()
+    })
+
+    // Round-1 adversarial review: subtitle previously used visibleRisks.length,
+    // which is only the current 20-row page's count -- always "≤20 risks
+    // found" no matter how many actually match. meta.total is the server's
+    // true count for the current search/site/category args.
+    it("shows the subtitle count from the server's total, not just the current page's row count", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [makeRisk()],
+          meta: { page: 1, limit: 20, total: 87, totalPage: 5 },
+        },
+      })
+
+      renderPage()
+
+      expect(screen.getByText("87 risks found")).toBeInTheDocument()
+    })
+
+    // Round-1 adversarial review: statusParam/pendingApprovalOnly are
+    // client-side-only filters applied on top of whatever raw page the
+    // server returns. With PAGE_SIZE=20, a raw page can easily contain zero
+    // rows matching the active filter even though matches exist on other
+    // raw pages -- the pager would show "page 3 of N" server truth while
+    // the filtered view is empty, with no way to reach the real matches.
+    // Falling back to the old limit:100/no-pager behavior for this narrow
+    // case keeps it exactly as correct as before this PR, not worse.
+    it("fetches with limit:100 and hides the pager when a ?status= filter is active", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [makeRisk({ status: "open" })],
+          meta: { page: 1, limit: 100, total: 45, totalPage: 3 },
+        },
+      })
+
+      renderPage("/?status=open")
+
+      expect(mockUseGetAllRisksQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1, limit: 100 })
+      )
+      expect(
+        screen.queryByRole("button", { name: "organization.riskRegister.nextPage" })
+      ).not.toBeInTheDocument()
+    })
+
+    it("fetches with limit:100 and hides the pager when the pending-approval filter is active", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [makeRisk({ approvalStatus: "PENDING_APPROVAL" })],
+          meta: { page: 1, limit: 100, total: 45, totalPage: 3 },
+        },
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.filterPendingApproval",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockUseGetAllRisksQuery).toHaveBeenLastCalledWith(
+          expect.objectContaining({ page: 1, limit: 100 })
+        )
+      )
+      expect(
+        screen.queryByRole("button", { name: "organization.riskRegister.nextPage" })
+      ).not.toBeInTheDocument()
+    })
+  })
+
   // aexa-frontend#472 -- every <label> in this modal was a sibling of its
   // input with no htmlFor/id pairing, so a screen reader announced the
   // field's label as unrelated static text instead of the input's

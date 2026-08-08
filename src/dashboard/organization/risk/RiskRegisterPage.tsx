@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import FilteredByNotice from "@/components/shared/FilteredByNotice"
+import Pagination from "@/components/shared/Pagination"
 import {
   useCreateNewRiskMutation,
   useDeleteRiskMutation,
@@ -8,6 +9,7 @@ import {
   useUpdateRiskMutation,
 } from "@/redux/apis/organization/risk.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
+import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import type { Risk, SiteSummary } from "@/types/organization"
@@ -59,6 +61,12 @@ export default function RiskRegisterPage() {
   const [filterCat, setFilterCat] = useState("")
   const [search, setSearch] = useState("")
   const [siteFilter, setSiteFilter] = useState<string>("")
+  // quality-bar-loop round 2 (industry-standards/efficiency): page/limit
+  // were previously hardcoded to page:1/limit:100, so any org with more than
+  // 100 risks silently lost every row past the 100th with no indication --
+  // same PAGE_SIZE/useClampPageToTotal convention as AuditPage/TemplatesPage.
+  const PAGE_SIZE = 20
+  const [page, setPage] = useState(1)
   // "Pending my approval" quick-view (#163): narrows the list to risks whose
   // current approval cycle is live PENDING_APPROVAL, so an admin can find what
   // is awaiting sign-off without eyeballing every row's badge. Client-side —
@@ -74,6 +82,21 @@ export default function RiskRegisterPage() {
   // Risk modal, same pattern KriDashboardPage uses (round 10, #487).
   const addEditModalRef = useModalA11y(showModal, () => setShowModal(false))
 
+  // statusParam/pendingApprovalOnly (declared below, hoisted here as a flag)
+  // are CLIENT-side-only filters applied on top of whatever page the server
+  // returns -- they don't reach the API. Round-1 review caught that real
+  // server pagination made this combination actively broken rather than
+  // just approximate: with PAGE_SIZE=20 (vs the old limit:100), a raw page
+  // can easily contain zero rows matching the active status/approval filter
+  // even though matches exist on other raw pages, showing "No risks match"
+  // + a live pager over a totalPages count that has nothing to do with the
+  // filtered result. Rather than teach the server about these two ad-hoc
+  // client filters, fetch the old unpaginated-feeling limit:100 (matching
+  // this feature's pre-pagination behavior) and hide the pager whenever
+  // either is active, so this narrow, already-scoped case is no worse than
+  // it was before this round -- not "fixed" in the sense of full pagination
+  // over a filtered set, which would need a real server-side filter param.
+  const isClientFiltered = !!searchParams.get("status") || pendingApprovalOnly
   // RTQ query states
   // quality-bar-loop round 16 (resilience regression): this query never
   // checked isError before -- a genuine fetch failure fell through to
@@ -82,12 +105,18 @@ export default function RiskRegisterPage() {
   // round 1 fixed on Overview.tsx, surfaced here by round 14's dashboard
   // link making an empty-looking result more reachable/likely to matter).
   const { data: riskData, isError: risksError } = useGetAllRisksQuery({
-    page: 1,
-    limit: 100,
+    page: isClientFiltered ? 1 : page,
+    limit: isClientFiltered ? 100 : PAGE_SIZE,
     searchTerm: search,
     siteId: siteFilter,
     category: filterCat,
   })
+  const totalPages = isClientFiltered ? 0 : riskData?.meta?.totalPage || 0
+  // Delete-on-last-page safety net -- same rationale as AuditPage/#265: a
+  // filter change resets to page 1 proactively (see handleSearchChange etc.
+  // below), but deleting the last row on the last page shrinks totalPages
+  // without any filter changing, which this hook catches instead.
+  useClampPageToTotal(page, totalPages, setPage)
 
   const { data: allSites } = useGetAllSitesQuery({
     page: 1,
@@ -117,6 +146,19 @@ export default function RiskRegisterPage() {
         (risk) => risk.approvalStatus === "PENDING_APPROVAL"
       )
     : statusFilteredRisks
+  // Round-1 review: with real pagination, `visibleRisks.length` is only the
+  // current 20-row page's count, not "how many risks match" -- showing that
+  // as the header subtitle is actively misleading (e.g. always "≤20 risks
+  // found" for a search matching 87). `meta.total` is the server's true
+  // count for the current search/site/category args and is unaffected by
+  // which page you're on, so it's the right number for the normal browsing
+  // case. It isn't meaningful once a client-only filter (status/pending
+  // approval) narrows further -- those aren't reflected in meta.total at
+  // all -- so that case keeps the direct visible-row count, same as before
+  // this PR.
+  const subtitleCount = isClientFiltered
+    ? visibleRisks.length
+    : (riskData?.meta?.total ?? visibleRisks.length)
 
   // React Hook Form
   const {
@@ -300,7 +342,7 @@ export default function RiskRegisterPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {t("organization.riskRegister.subtitle", {
-              count: visibleRisks.length,
+              count: subtitleCount,
             })}
           </p>
         </div>
@@ -332,7 +374,10 @@ export default function RiskRegisterPage() {
           <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
             placeholder={t("organization.riskRegister.searchPlaceholder")}
             className="h-9 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-xs"
           />
@@ -340,7 +385,10 @@ export default function RiskRegisterPage() {
 
         <select
           value={siteFilter || ""}
-          onChange={(e) => setSiteFilter(e.target.value)}
+          onChange={(e) => {
+            setSiteFilter(e.target.value)
+            setPage(1)
+          }}
           className="h-9 w-40 rounded-lg border border-input bg-card px-3 text-xs lg:w-52"
         >
           <option value="">{t("organization.riskRegister.allSite")}</option>
@@ -353,7 +401,10 @@ export default function RiskRegisterPage() {
 
         <select
           value={filterCat}
-          onChange={(e) => setFilterCat(e.target.value)}
+          onChange={(e) => {
+            setFilterCat(e.target.value)
+            setPage(1)
+          }}
           className="h-9 rounded-lg border border-input bg-card px-3 text-xs"
         >
           <option value="">{t("organization.riskRegister.allCategory")}</option>
@@ -575,6 +626,14 @@ export default function RiskRegisterPage() {
           </table>
         </div>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        prevAriaLabel={t("organization.riskRegister.prevPage")}
+        nextAriaLabel={t("organization.riskRegister.nextPage")}
+      />
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">

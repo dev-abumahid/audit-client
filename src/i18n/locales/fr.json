@@ -950,6 +950,8 @@
       "clearFilter": "Effacer le filtre",
       "noResults": "Aucun risque ne correspond aux filtres actuels.",
       "loadError": "Échec du chargement des risques. Veuillez réessayer plus tard.",
+      "prevPage": "Page précédente",
+      "nextPage": "Page suivante",
       "delete": "Supprimé",
       "groupByType": "Grouper par type",
       "rootCause": "Cause racine IA",

@@ -950,6 +950,8 @@
       "clearFilter": "Clear filter",
       "noResults": "No risks match the current filters.",
       "loadError": "Failed to load risks. Please try again later.",
+      "prevPage": "Previous page",
+      "nextPage": "Next page",
       "delete": "Deleted",
       "groupByType": "Group by type",
       "rootCause": "Root Cause AI",
