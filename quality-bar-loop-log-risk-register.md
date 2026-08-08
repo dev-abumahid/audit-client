@@ -568,3 +568,135 @@ was noted but not acted on. Merged under standing authorization.
 **Next: re-run the judge panel** to score the page's post-fix state before
 picking round 9's fix (or checking convergence). This is the loop's 8th
 fix round, per the 10-round guardrail -- worth watching for stagnation.
+
+## Loop stopped after Round 8 — stagnation, escalating rather than continuing
+
+**Decision:** stopping here rather than running rounds 9-10, and reporting
+back rather than continuing silently. Two independent reasons converged:
+
+1. **Stagnation.** The average has moved between 5.89 and 6.56 for the
+   last 5 rounds straight (6.56 -> 6.33 -> 5.89 -> 6.44 -> 6.33 -> 6.44)
+   with no sustained upward trend -- every round's fix genuinely shipped
+   and genuinely helped its target finding, but the overall average keeps
+   drifting back down as other axes get re-scored more harshly for
+   persisting unaddressed. This is the loop's own stagnation guardrail in
+   spirit, if not its exact two-consecutive-rounds letter.
+2. **The two lowest-scoring axes need scope, not more patches.**
+   Industry-standards (4/10, unchanged across 5 straight rounds) is
+   missing column sorting, bulk actions, and CSV/PDF export -- each a real
+   feature, not a bug fix. Efficiency (4/10, down from 6) needs a
+   debounced search input plus switching several unscoped `watch()` calls
+   to `useWatch`/`getValues` and memoizing the row-render path -- a
+   meaningful refactor of this file's render architecture, not a
+   single-file patch. Continuing to ship small, cheap fixes to other axes
+   (as rounds 5-8 did) cannot move the average past roughly 6.5-7 while
+   these two structural gaps sit at 4/10 each.
+
+**Safety note:** round 8's live verification caused an unintended real
+deletion of a test-fixture risk (see that round's entry above for the
+full account) -- contained to a disposable preview account, disclosed in
+the PR, and the fixture was restored. No production or user data was
+affected. Flagging it here again because it's a legitimate incident from
+an unsupervised session, not because further action is needed.
+
+### Full scores-over-time table
+
+| Round | Industry | UX | Efficiency | A11y | Visual | Resilience | Code Qual. | Mobile | Security | **Avg** |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 5 | 5 | 5 | 7 | 6 | 8 | 7 | 4 | 10 | **6.33** |
+| 2 | 6 | 5 | 6 | 7 | 6 | 7 | 8 | 4 | 10 | **6.56** |
+| 3 | 6 | 5 | 6 | 7 | 6 | 4 | 8 | 5 | 10 | **6.33** |
+| 4 | 4 | 5 | 6 | 6 | 6 | 6 | 6 | 4 | 10 | **5.89** |
+| 5 | 4 | 6 | 6 | 8 | 5 | 7 | 6 | 6 | 10 | **6.44** |
+| 6 | 4 | 6 | 4 | 8 | 7 | 6 | 6 | 6 | 10 | **6.33** |
+| 7 | 4 | 6 | 4 | 7 | 8 | 7 | 6 | 6 | 10 | **6.44** |
+| 8 | *(not re-scored -- loop stopped before round 8's judge panel to avoid running another 9-judge round on a page about to be re-planned)* |
+
+### What was fixed, one line each
+
+- **Round 2 (PR #615):** real server-side pagination (20/page), replacing
+  a hardcoded, silently-truncating `page:1,limit:100` fetch.
+- **Round 3 (PR #616):** hit-slop touch targets on the Edit/Delete row
+  buttons (20x20px -> ~36x44px effective hit area).
+- **Round 4 (PR #617):** 3 resilience gaps -- sites-query error handling,
+  a `NaN`-rendering guard on financial impact, and a distinct loading row.
+- **Round 5 (PR #618):** header subtitle no longer falsely reads "0 risks
+  found" during loading/error states.
+- **Round 6 (PR #619, 2 commits):** fixed a visual-polish regression round
+  5's own CSS introduced (one-off font size, inconsistent error color) --
+  including a self-caught follow-up (the table's error row was still the
+  wrong color too).
+- **Round 7 (PR #620, 2 commits):** delete double-submission guard (button
+  now disables while a delete is in flight, plus a defensive internal
+  guard).
+- **Round 8 (PR #621):** fixed the accessibility regression round 7's own
+  fix introduced (focus-strand + silent state change on the shared
+  `DeleteAlertModal`'s Delete button) -- benefits every caller of that
+  component, not just this page.
+
+### What's still open, by axis
+
+- **Industry-standards (4/10, the worst axis):** no column sorting, no
+  bulk row actions, no CSV/PDF export. This needs real feature work.
+- **Efficiency (4/10, tied worst):** search has no debounce (empirically
+  confirmed to rate-limit/crash the dev backend during this loop's own
+  testing); several `watch()` calls from react-hook-form force whole-page
+  re-renders on every modal keystroke; the row list and its per-row
+  category/badge computation are unmemoized.
+- **UX (6/10):** no retry affordance on any error state; no unified
+  "clear all filters" action; the pager silently disappears (no
+  explanation) when the client-side status/pending-approval filters are
+  active.
+- **Code quality (6/10):** file has grown to ~1290 lines across 8 rounds
+  of in-place fixes with no extraction; file-wide `eslint-disable`
+  broader than the 2 lines that need it; an inline IIFE for category
+  badges; the shared `RiskBadge` component exists but isn't reused here.
+- **Mobile/responsive (6/10):** touch targets on filter controls are
+  36px, under the 44px guideline; the table needs horizontal scroll at
+  375px; the Add/Edit modal's numeric-score grids don't collapse to a
+  single column on mobile.
+- **Resilience (7/10, clears the floor):** the Add/Edit modal's own Site
+  dropdown has no sites-failure indicator of its own (the one message
+  lives on the list page, hidden behind the modal); `onSubmit`
+  (create/update) lacks the same internal re-entrancy guard round 7 added
+  for delete.
+- **Accessibility (7/10, clears the floor):** the header subtitle's
+  loading/error text has no `aria-live` of its own (lower severity --
+  the table's own live regions duplicate the same info).
+- **Visual polish (8/10) and security (10/10) both clear the floor
+  comfortably.**
+
+### Diagnosis: why the loop stalled rather than converging
+
+Every individual round's fix was real, correctly scoped, negative-control
+tested, and adversarially reviewed clean -- this isn't a case of sloppy
+work not landing. The pattern is structural: 6 of 8 rounds fixed
+resilience/UX/accessibility papercuts (each genuinely worth fixing), while
+the two lowest-scoring axes never received a round of their own, because
+each of their fixes is bigger than "highest-leverage single fix" scope --
+sorting/bulk/export is a multi-day feature; the search-debounce +
+`watch()`-scoping + row-memoization effort is a real refactor of this
+file's render architecture, not a drop-in patch. The loop's own
+fix-selection rule ("select the single highest-leverage concrete fix")
+kept correctly picking the cheapest available win each round, which meant
+industry-standards and efficiency were never that round's pick -- and an
+axis that's never addressed can't move.
+
+### Recommendation
+
+Two structural workstreams, each larger than this loop's per-round scope,
+would need to happen before another quality-bar-loop pass on this page
+could plausibly reach 9/10:
+
+1. **Data-grid feature work:** column sorting, row selection + bulk
+   actions, CSV/PDF export. Likely worth a design pass first (does this
+   warrant pulling in a table library, or hand-rolling against the
+   existing shared components?).
+2. **Render-performance pass:** debounce the search input; switch the
+   react-hook-form `watch()` calls in the Add/Edit modal to `useWatch`
+   scoped to just that subtree (or extract the modal into its own
+   component); memoize the row list and its per-row derived values.
+
+Once either lands, a fresh (or resumed) quality-bar-loop pass on this page
+would very likely clear the floor on both of today's worst axes and push
+the average meaningfully past 7.
