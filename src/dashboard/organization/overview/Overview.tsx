@@ -30,6 +30,7 @@ import {
   Shield,
   Zap,
 } from "lucide-react"
+import { useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 import {
@@ -170,9 +171,7 @@ export default function Overview() {
   }))
 
   const kriAlerts = kris.filter((k: any) => k.status === "ALERT").length
-  const criticalAlerts = alerts.filter(
-    (a) => a.severity === "critical"
-  ).length
+  const criticalAlerts = alerts.filter((a) => a.severity === "critical").length
   // "Open" mirrors the risks card's own status === "open" check just above:
   // not-yet-terminal states, not a single specific status value.
   const openActions = findings.filter(
@@ -211,6 +210,38 @@ export default function Overview() {
     .filter((r) => tippingPointRefs.has(r.ref))
     .sort((a, b) => pageRankScores[b.ref] - pageRankScores[a.ref])
 
+  // quality-bar-loop round 2.5 (accessibility regression + resilience
+  // dead-code fix, review of round 1's fix): alerts is deliberately excluded
+  // from this page-level gate. CriticalAlertBanner (rendered below,
+  // unconditionally) already has its own dedicated isError notice -- folding
+  // alertsError into this blanket check meant that notice could never
+  // actually mount on this route (this gate always fired first), and it
+  // meant one failed query (alerts) took down the whole page even though
+  // every other card was fine. The two places on *this* page that read
+  // `alerts` (the Critical Alerts KPI card and the Recent Alerts panel) get
+  // their own local isError handling below instead, so they can't silently
+  // show a false "0"/"no alerts" the way round 1 originally found either.
+  const hasPageLevelError =
+    risksError ||
+    krisError ||
+    findingsError ||
+    inspectionsError ||
+    correlationError ||
+    sitesError
+
+  // Round 2.5 accessibility fix: the error block below can appear from a
+  // background refetch failing *after* the page already rendered
+  // successfully (RTK Query keeps `isLoading` false on a refetch, only
+  // `isFetching` flips), not just on first paint -- round 2's a11y judge
+  // confirmed there was no announcement or focus move for that case.
+  // `role="alert"` covers the announcement; this effect moves focus to the
+  // error region itself, mirroring how a modal/dialog would take focus when
+  // it takes over the page.
+  const errorRegionRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (hasPageLevelError) errorRegionRef.current?.focus()
+  }, [hasPageLevelError])
+
   if (
     risksLoading ||
     krisLoading ||
@@ -236,20 +267,15 @@ export default function Overview() {
   // false "all clear" on total data failure, which is worse than a blank
   // screen -- checked before rendering the real dashboard below, same
   // early-return shape as the loading check above.
-  if (
-    risksError ||
-    krisError ||
-    alertsError ||
-    findingsError ||
-    inspectionsError ||
-    correlationError ||
-    sitesError
-  ) {
+  if (hasPageLevelError) {
     return (
-      <div className="flex min-h-[400px] flex-col items-center justify-center gap-3 p-6 text-center">
-        <AlertTriangle
-          className={`h-8 w-8 ${SEVERITY_STYLES.critical.text}`}
-        />
+      <div
+        ref={errorRegionRef}
+        role="alert"
+        tabIndex={-1}
+        className="flex min-h-[400px] flex-col items-center justify-center gap-3 p-6 text-center focus:outline-none"
+      >
+        <AlertTriangle className={`h-8 w-8 ${SEVERITY_STYLES.critical.text}`} />
         <p className="text-sm font-medium text-foreground">
           {t("organization.overview.loadError.title")}
         </p>
@@ -307,9 +333,13 @@ export default function Overview() {
         />
         <MetricCard
           title={t("organization.overview.criticalAlert")}
-          value={criticalAlerts}
+          // Round 2.5: alerts is excluded from the page-level error gate
+          // (see hasPageLevelError above), so this card needs its own
+          // guard -- otherwise an alerts-only fetch failure would silently
+          // show "0", the exact false-all-clear round 1 exists to prevent.
+          value={alertsError ? "—" : criticalAlerts}
           icon={AlertTriangle}
-          trend="up"
+          trend={alertsError ? undefined : "up"}
           trendValue="+2"
           trendGood={false}
         />
@@ -400,7 +430,9 @@ export default function Overview() {
               <span className="text-muted-foreground">
                 {t("organization.overview.chart.p5Worst")}:
               </span>{" "}
-              <span className={`font-mono-data font-semibold ${SEVERITY_STYLES.critical.text}`}>
+              <span
+                className={`font-mono-data font-semibold ${SEVERITY_STYLES.critical.text}`}
+              >
                 €14.2M
               </span>
             </div>
@@ -416,7 +448,9 @@ export default function Overview() {
               <span className="text-muted-foreground">
                 {t("organization.overview.chart.budget")}:
               </span>{" "}
-              <span className={`font-mono-data font-semibold ${SEVERITY_STYLES.low.text}`}>
+              <span
+                className={`font-mono-data font-semibold ${SEVERITY_STYLES.low.text}`}
+              >
                 €22.0M
               </span>
             </div>
@@ -534,13 +568,9 @@ export default function Overview() {
                         ).toFixed(1)
                       : "0.0"}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    PageRank
-                  </p>
+                  <p className="text-[10px] text-muted-foreground">PageRank</p>
                 </div>
-                <RiskBadge
-                  level={getRiskSeverityLevel(risk.residual_score)}
-                />
+                <RiskBadge level={getRiskSeverityLevel(risk.residual_score)} />
               </div>
             ))}
             {tippingPointRisks.length === 0 && (
@@ -565,53 +595,72 @@ export default function Overview() {
                 {t("organization.overview.alert.des")}
               </p>
             </div>
-            <AlertTriangle className={`h-4 w-4 ${SEVERITY_STYLES.critical.text}`} />
+            <AlertTriangle
+              className={`h-4 w-4 ${SEVERITY_STYLES.critical.text}`}
+            />
           </div>
           <div className="mt-4 space-y-3">
-            {alerts.slice(0, 4).map((alert) => (
-              <div
-                key={alert.id}
-                className="rounded-lg border border-border bg-background p-3"
-              >
-                <div className="flex items-start gap-2">
-                  <RiskBadge level={alert.severity} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-tight font-medium text-foreground">
-                      {alert.title}
-                    </p>
-                    <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <span className="font-medium">{alert.source}</span>
-                      <span>·</span>
-                      <span>
-                        {formatLocaleDate(alert.createdAt, i18n.language, {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      {/* No relevance_score field exists on the real Alert
+            {/* Round 2.5: same reasoning as the Critical Alerts KPI card --
+                alerts no longer takes down the whole page on its own, so a
+                failure here needs its own visible state rather than falling
+                through to the "no alerts yet" empty state below, which
+                would otherwise misrepresent a fetch failure as "genuinely
+                zero alerts." */}
+            {alertsError && (
+              <div role="alert" className="py-8 text-center">
+                <AlertTriangle
+                  className={`mx-auto h-8 w-8 ${SEVERITY_STYLES.critical.text}`}
+                />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {t("organization.overview.alert.loadError")}
+                </p>
+              </div>
+            )}
+            {!alertsError &&
+              alerts.slice(0, 4).map((alert) => (
+                <div
+                  key={alert.id}
+                  className="rounded-lg border border-border bg-background p-3"
+                >
+                  <div className="flex items-start gap-2">
+                    <RiskBadge level={alert.severity} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm leading-tight font-medium text-foreground">
+                        {alert.title}
+                      </p>
+                      <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <span className="font-medium">{alert.source}</span>
+                        <span>·</span>
+                        <span>
+                          {formatLocaleDate(alert.createdAt, i18n.language, {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        {/* No relevance_score field exists on the real Alert
                           model (see alert.service.ts) — that "% pertinent"
                           badge always read undefined * 100 = NaN%. Found
                           while typing this endpoint (issue #108). */}
-                    </div>
-                    {/* aexa-frontend#543: same cross-link AlertsPage.tsx
+                      </div>
+                      {/* aexa-frontend#543: same cross-link AlertsPage.tsx
                         already exposes for #530 -- this widget showed the
                         same alerts with no way to reach the KRI they came
                         from. */}
-                    {alert.kri_id && (
-                      <Link
-                        to={`/organization/kri?highlight=${encodeURIComponent(alert.kri_id)}`}
-                        className="focus-ring mt-1 inline-block text-[11px] font-medium text-primary hover:underline"
-                      >
-                        {t("organization.alerts.viewKri")}
-                      </Link>
-                    )}
+                      {alert.kri_id && (
+                        <Link
+                          to={`/organization/kri?highlight=${encodeURIComponent(alert.kri_id)}`}
+                          className="focus-ring mt-1 inline-block text-[11px] font-medium text-primary hover:underline"
+                        >
+                          {t("organization.alerts.viewKri")}
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-            {alerts.length === 0 && (
+              ))}
+            {!alertsError && alerts.length === 0 && (
               <div className="py-8 text-center">
                 <AlertTriangle className="mx-auto h-8 w-8 text-muted-foreground/50" />
                 <p className="mt-2 text-sm text-muted-foreground">

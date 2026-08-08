@@ -825,7 +825,8 @@
       "alert": {
         "title": "Recent alerts",
         "des": "Showing the 4 most recent",
-        "empty": "No alerts yet"
+        "empty": "No alerts yet",
+        "loadError": "Couldn't load alerts"
       },
       "loadError": {
         "title": "Couldn't load the dashboard",

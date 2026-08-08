@@ -825,7 +825,8 @@
       "alert": {
         "title": "Alertes récentes",
         "des": "Affichage des 4 plus récentes",
-        "empty": "Aucune alerte pour le moment"
+        "empty": "Aucune alerte pour le moment",
+        "loadError": "Impossible de charger les alertes"
       },
       "loadError": {
         "title": "Impossible de charger le tableau de bord",

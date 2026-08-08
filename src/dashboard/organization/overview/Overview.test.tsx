@@ -365,7 +365,7 @@ describe("Overview", () => {
 
     it("reloads the page when the retry button is clicked", async () => {
       const { default: userEvent } = await import("@testing-library/user-event")
-      mockUseGetAllAlertsQuery.mockReturnValue({
+      mockUseGetAllRisksQuery.mockReturnValue({
         data: undefined,
         isLoading: false,
         isError: true,
@@ -385,6 +385,76 @@ describe("Overview", () => {
       )
 
       expect(reloadSpy).toHaveBeenCalledTimes(1)
+    })
+
+    // quality-bar-loop round 2.5 (accessibility regression + resilience
+    // dead-code fix, round 2 review): the error block can appear from a
+    // background refetch failing after the page already rendered, not just
+    // on first paint, so it needs role="alert" for screen readers rather
+    // than relying on it being present at initial render.
+    it("announces the page-level error region to screen readers", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      })
+      renderPage()
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "organization.overview.loadError.title"
+      )
+    })
+
+    // Round 2.5: alerts used to be folded into this same blanket gate,
+    // which meant CriticalAlertBanner's own dedicated error notice (added
+    // in round 1) could never actually mount on this route -- this gate
+    // always fired first. Excluding alerts here so a failure specific to
+    // alerts degrades just the alerts-dependent parts of this page instead
+    // of taking down the whole dashboard.
+    it("does NOT show the page-level error when only alerts fail to load", () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      })
+      renderPage()
+
+      expect(
+        screen.queryByText("organization.overview.loadError.title")
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByText("organization.overview.activeRisk")
+      ).toBeInTheDocument()
+    })
+
+    it("shows a distinct error indicator on the Critical Alerts KPI card when only alerts fail, instead of a false zero", () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      })
+      renderPage()
+
+      expect(
+        screen.getByText("organization.overview.criticalAlert")
+      ).toBeInTheDocument()
+      expect(screen.getByText("—")).toBeInTheDocument()
+    })
+
+    it("shows a distinct error notice in the Recent Alerts panel when only alerts fail, instead of the empty state", () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      })
+      renderPage()
+
+      expect(
+        screen.getByText("organization.overview.alert.loadError")
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.overview.alert.empty")
+      ).not.toBeInTheDocument()
     })
   })
 

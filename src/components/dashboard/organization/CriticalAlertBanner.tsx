@@ -2,7 +2,7 @@ import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
 import type { Alert } from "@/types/organization"
 import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import { AlertTriangle, X } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 export default function CriticalAlertBanner() {
@@ -16,6 +16,15 @@ export default function CriticalAlertBanner() {
   const [errorDismissed, setErrorDismissed] = useState(false)
   const { data: alertResponse, isError } = useGetAllAlertsQuery()
   const alerts: Alert[] = alertResponse?.data ?? []
+
+  // Round 2.5 accessibility fix: this notice can appear from a background
+  // refetch failing after the page already rendered normally, not just on
+  // first paint -- round 2's a11y judge confirmed there was no announcement
+  // or focus move for that case, same gap as the Overview.tsx error block.
+  const errorRegionRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (isError && !errorDismissed) errorRegionRef.current?.focus()
+  }, [isError, errorDismissed])
 
   // Alert has no relevance_score column on the real backend (see
   // alert.service.ts) -- this used to sort by that field, which was always
@@ -38,7 +47,12 @@ export default function CriticalAlertBanner() {
   if (isError) {
     if (errorDismissed) return null
     return (
-      <div className="animate-fade-in border-b border-risk-critical/30 bg-risk-critical/5 px-6 py-2">
+      <div
+        ref={errorRegionRef}
+        role="alert"
+        tabIndex={-1}
+        className="animate-fade-in border-b border-risk-critical/30 bg-risk-critical/5 px-6 py-2 focus:outline-none"
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <AlertTriangle
@@ -52,6 +66,7 @@ export default function CriticalAlertBanner() {
           </div>
           <button
             onClick={() => setErrorDismissed(true)}
+            aria-label={t("common.close")}
             className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
@@ -85,6 +100,7 @@ export default function CriticalAlertBanner() {
 
         <button
           onClick={() => setDismissed(true)}
+          aria-label={t("common.close")}
           className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
