@@ -700,3 +700,67 @@ could plausibly reach 9/10:
 Once either lands, a fresh (or resumed) quality-bar-loop pass on this page
 would very likely clear the floor on both of today's worst axes and push
 the average meaningfully past 7.
+
+## Loop resumed at round 9 (user: "keep going with /quality-bar-loop")
+
+Neither of the two recommended structural workstreams (data-grid features,
+render-performance pass) had landed since the round-8 stop -- the 8 PRs
+that shipped in the interim (#619-#626) were narrower fixes discovered
+along the way (a visual-polish regression, a delete double-submit bug
+across 5 files, 2 rounds of global `--destructive` CSS token contrast
+tuning, and 2 CompliancePage-specific false-zero-count fixes on a
+different page entirely). None touched this page's sorting/bulk/export
+gap or its `watch()`/debounce/memoization gap.
+
+## Round 9 (fresh judge panel)
+
+| Axis | Score | vs. Round 8 |
+|---|---|---|
+| Industry-standards | 4/10 | same |
+| UX | 6/10 | same |
+| Efficiency | 3/10 | **-1** |
+| Accessibility | 6/10 | **-1** |
+| Visual polish | 7/10 | **-1** |
+| Resilience & edge cases | 7/10 | same |
+| Code quality | 5/10 | **-1** |
+| Mobile/responsive | 4/10 | **-2** |
+| Security | 10/10 | same |
+
+**Average: 5.78/10** (down from 6.44). Continues the decline pattern that
+triggered the original stop. 6 axes below floor (7): industry-standards,
+UX, efficiency, accessibility, code quality, mobile/responsive.
+
+**Regression check:** no fix has been shipped yet this round -- every score
+change above is a fresh judge pass finding something a prior round's judge
+either missed or scored more leniently, not a regression from shipped code.
+Two are genuinely new, concrete, previously-uncaught, live-verified
+findings worth acting on directly:
+- **Accessibility:** the search input and both filter `&lt;select&gt;`
+  elements (Site, Category) have no `&lt;label&gt;`, `aria-label`, or
+  `aria-labelledby` at all -- a real WCAG 4.1.2 (Name, Role, Value)
+  failure, live-verified via DOM inspection. Screen readers get zero
+  accessible name for the page's primary filtering controls, not even a
+  placeholder-text fallback (placeholders don't count as accessible
+  names). Cheap, concrete, high-confidence fix.
+- **Mobile:** the sidebar doesn't collapse into a mobile drawer at 375px,
+  consuming ~40% of the viewport alongside content -- but this looks like
+  an app-wide layout pattern (or lack thereof), not something scoped to
+  this one page, so it's flagged rather than picked as this round's fix.
+- **Visual polish:** the delete-confirmation modal's Delete button
+  (`bg-red-600`/`text-white`, hardcoded) never adopted either round of
+  `--destructive` token retuning (#623/#624) -- a pre-existing, separate
+  hardcoded color that both rounds of app-wide CSS work happened to miss.
+  Real, but a shared-component change (`DeleteAlertModal.tsx`), not
+  page-specific.
+- Efficiency and code quality both dropped from the same
+  already-documented, unaddressed root causes (unscoped `watch()` calls,
+  no memoization, the delete-guard's asymmetric pattern vs. create/update)
+  being re-scored more harshly on repeat viewing -- consistent with this
+  loop's established judge-severity-drift pattern on long-stalled axes,
+  not new information.
+
+**Next fix (Round 9):** the accessibility gap -- add proper labels
+(`aria-label` or a visually-hidden `&lt;label&gt;`) to the search input and
+the Site/Category filter `&lt;select&gt;`s. Concrete, cheap, single-file,
+live-verified-real, and doesn't require the larger structural work the
+round-8 stop flagged for industry-standards/efficiency.
