@@ -908,6 +908,24 @@ describe("Overview", () => {
     )
   })
 
+  // quality-bar-loop round 4 (industry-standards + UX, shared finding):
+  // three KPI cards used to carry a hardcoded trend="up" trendValue="+2"/"+3"
+  // badge with no real period-over-period data behind it anywhere in the
+  // codebase -- live-verified as actively misleading (Critical Alerts could
+  // show "0" next to a red "+2 up" badge). No historical-snapshot endpoint
+  // exists to compute a real delta from, so the badges were removed rather
+  // than kept fabricated.
+  it("does not show a fabricated trend badge on any KPI card", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ status: "open" })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    expect(screen.queryByText("+2")).not.toBeInTheDocument()
+    expect(screen.queryByText("+3")).not.toBeInTheDocument()
+  })
+
   // aexa-frontend#471 -- organization.overview.description hardcoded a
   // fictional company name ("CEBI International S.A.") under every
   // organization's dashboard. It now interpolates the real org name from

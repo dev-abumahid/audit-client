@@ -314,22 +314,27 @@ export default function Overview() {
           sighted layout (no visible section titles above these grids) stays
           untouched. */}
       <h2 className="sr-only">{t("organization.overview.metricsHeading")}</h2>
+      {/* quality-bar-loop round 4 (industry-standards + UX, shared finding):
+          three of these cards used to carry a hardcoded trend="up"
+          trendValue="+2"/"+3" badge with no period-over-period data
+          anywhere in the codebase to back it -- live-verified as actively
+          misleading (the Critical Alerts card could show "0" alongside a
+          red "+2 up" badge). No GET endpoint returns a previous snapshot to
+          diff against (same gap the EBITDA chart's own placeholder-data
+          comment documents), so there's no real delta to compute here --
+          removed rather than fabricated. If a real trend becomes available
+          (e.g. a historical-snapshot endpoint), add trend/trendValue back
+          driven by that data, not a hardcoded guess. */}
       <div className="animate-slide-up grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           title={t("organization.overview.activeRisk")}
           value={risks.filter((r) => r.status === "open").length}
           icon={Shield}
-          trend="up"
-          trendValue="+2"
-          trendGood={false}
         />
         <MetricCard
           title={t("organization.overview.kriAlert")}
           value={kriAlerts}
           icon={Activity}
-          trend="up"
-          trendValue="+3"
-          trendGood={false}
         />
         <MetricCard
           title={t("organization.overview.criticalAlert")}
@@ -339,15 +344,7 @@ export default function Overview() {
           // show "0", the exact false-all-clear round 1 exists to prevent.
           value={alertsError ? "—" : criticalAlerts}
           icon={AlertTriangle}
-          trend={alertsError ? undefined : "up"}
-          trendValue="+2"
-          trendGood={false}
         />
-        {/* No trend/trendValue on these three: unlike the cards above,
-            there's no prior-period snapshot anywhere to diff against, so
-            there's no real number to show here (the deltas on the other
-            cards are themselves static placeholders, not something to
-            copy). */}
         <MetricCard
           title={t("organization.overview.openActions")}
           value={openActions}
