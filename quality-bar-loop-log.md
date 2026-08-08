@@ -647,3 +647,41 @@ control"/"non-clickable KPI cards" findings (larger UX/product
 decisions — a time-range control needs a real data source to filter
 against, and KPI drill-down needs a defined destination per card,
 neither of which should be guessed at autonomously).
+
+### Round 12 outcome — merged as PR #605
+
+Shipped via `ship-with-review-loop`, converged clean on review round 1:
+
+- **Fix**: switched the EBITDA chart from `AreaChart`/`Area` to
+  `BarChart`/`Bar`, so each percentile bucket reads as an independent
+  value with no implied continuity between adjacent bars. Dropped the
+  now-unused `linearGradient` defs, added a subtle hover cursor
+  highlight (Recharts' standard bar-chart affordance). Everything else
+  (data, Y-axis formatting, Tooltip and its currency formatter)
+  unchanged.
+- **Review round 1**: clean. Independently verified against the actual
+  installed Recharts types (not just assumed) that `Bar`'s `fill`/
+  `radius` props and `Tooltip`'s `cursor` prop are used in their correct,
+  documented shapes; confirmed no dangling reference to the removed
+  `ebitdaGrad` gradient id anywhere else in the file; ran the suite
+  directly rather than trusting the PR's own claim. One pre-existing
+  test-coverage gap was noted (the recharts mock can't catch a broken
+  `dataKey` since it doesn't provide real chart layout context) but
+  confirmed to be identical to the prior `AreaChart` mock's own
+  limitation, not something this PR introduced or worsened.
+- QA gate: typecheck clean, lint clean (0 errors), full suite 1550/1550
+  passing, including a new regression test asserting the chart renders
+  as a `BarChart` and the existing #402 tooltip-formatter test
+  (unaffected by the chart-type change).
+- Live re-verification was blocked by this session's own heavy parallel
+  judge-agent testing having tripped the rate limiter again at the exact
+  point this fix needed to render — noted rather than worked around,
+  since the change is thoroughly covered by the unit tests above.
+
+Still open going into round 13: industry-standards' remaining 3 findings
+(fabricated EBITDA data itself — blocked on backend work, no
+time-range/freshness indicator, non-clickable KPI cards — both larger
+product decisions), UX (no drill-down, all-or-nothing loading, PageRank
+contradiction, alerts read-only with no CTA), mobile's remaining finding
+(`MetricCard` has zero responsive classes), and the out-of-scope
+risk-detail-page routing bug.
