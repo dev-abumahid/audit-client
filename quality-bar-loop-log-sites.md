@@ -226,3 +226,60 @@ a second page. Chosen over the other 4 below-floor axes because:
   product decision (bulk operations, sort/filter) or independently
   schedulable — resilience's fix is the most self-contained "this is
   just wrong, fix it" item.
+
+### Round 1 outcome — merged as PR #609
+
+Shipped via `ship-with-review-loop`, converged clean on review round 1:
+
+- **Fix**: both `useGetAllRisksQuery` calls (org-wide summary, per-site
+  expanded panel) now destructure `isError`. The 3 risk-derived summary
+  tiles (Org-wide risks, Critical risks, AI-flagged risks) show `"—"`
+  on error instead of a false `0`, matching `Overview.tsx`'s own
+  established convention. The per-site panel shows a distinct
+  `role="alert"` error message, checked before the existing empty-state
+  branch.
+- **Review round 1**: clean. Confirmed the error branch is correctly
+  prioritized over the empty-state/success branches in all 4 spots (3
+  tiles + 1 panel), confirmed `isRiskSummaryCapped` degrades safely to
+  `false` during an error (no stray "+" next to "—", no confusing
+  tooltip), traced the new tests' `mockImplementation` against the real
+  component's two call sites and confirmed the `args?.siteId` truthiness
+  check correctly differentiates them, and confirmed the new
+  `riskLoadFailed` i18n key was added at the right nesting level in both
+  locale files with a genuine (not copy-pasted) French translation. One
+  cosmetic indentation nit noted on pre-existing code (not introduced by
+  this diff) — left as-is, out of scope.
+- QA gate: typecheck clean, lint clean (0 errors, same 5 pre-existing
+  warnings), full suite 1578/1578 passing, including 2 new regression
+  tests verified via negative control (reverted the fix, confirmed both
+  fail exactly as expected — false `0`/blank panel — restored the fix,
+  confirmed they pass).
+- Live-verified the per-site error path end-to-end against the real
+  running app: patched `window.fetch` to force `/api/risk` to 500,
+  expanded a site, confirmed "Failed to load risks for this site.
+  Please try again later." rendered with `role="alert"` (screenshot +
+  DOM query). The org-wide summary-tile path uses the identical
+  `isError` pattern on the same hook but the query was already cached
+  from initial page load before the fetch patch was applied, and
+  forcing a genuine refetch would have required a hard reload that
+  clears the patch — relied on the negative-control-verified unit test
+  for that specific path instead, per this session's established
+  practice for this kind of live-verification gap.
+- Stayed strictly read-only against the shared dev/preview data
+  throughout implementation and review, per the round-1 incident note
+  above — no site/risk records created, edited, or deleted.
+
+Still open going into round 2: industry-standards (single-expand
+limitation, invisible 100-row nested-risk cap, no bulk ops, no sort/
+filter, no-retry error states), UX (risk-delete has no confirmation
+unlike site-delete, silent-failure gap on non-throwing `success: false`
+responses, regressed risk-name whitespace validation, coarse partial-
+failure feedback on AI import), visual polish (Confirmed Risks empty-
+state alignment bug, hand-rolled stat tiles diverging from shared
+`MetricCard`, inconsistent modal overlay, duplicated badge component,
+undersized AI-suggestion type scale), mobile (undersized touch targets,
+fixed-width search input, modal with no scroll safety net), and code
+quality's remaining findings (file-wide eslint-disable hiding 2 real
+unused-var errors, copy-pasted form-defaults literal, oversized
+multi-concern component). A fresh 9-judge panel is the next step to
+confirm resilience recovered without introducing any regression.
