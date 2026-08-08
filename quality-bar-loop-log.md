@@ -747,3 +747,70 @@ for the same reason: they need product/design input this loop
 shouldn't provide unilaterally. This is the natural point to check in
 with the user on how to proceed, rather than either stalling silently
 or guessing at product decisions.
+
+### Round 14 — scoped and implemented directly with the user
+
+User chose "Scope one of the 3 items now" and picked KPI card
+drill-down destinations. Full scoping done together (destination
+research per card, effort-vs-value tradeoffs), user chose "All 5 with
+full filtering" over the two cheaper options offered (navigation-only,
+or just the 2 easiest cards).
+
+**Shipped as PR #606**, converged after 3 review rounds:
+
+- **Feature**: `MetricCard.tsx` gained an optional `to` prop -- when
+  given, the whole card renders as a real `Link` (the existing
+  `hover:border-primary/30` styling now means something); when omitted,
+  unchanged plain div. 5 of 6 KPI cards now link to a real filtered view
+  of their own data, each reusing (or, where none existed, adding) that
+  destination page's own filter mechanism rather than duplicating logic
+  in Overview.tsx:
+  - Active Risks → `/organization/risks?status=open` (new client-side
+    filter — page had none before)
+  - KRI Alerts → `/organization/kri?status=ALERT` (extends the page's
+    existing `?highlight=` URL pattern)
+  - Critical Alerts → `/organization/alerts?severity=critical` (seeds
+    the page's existing `severityFilter` state)
+  - Open Actions → `/organization/findings?status=open`, TO_DO+IN_PROGRESS
+    (page is server-paginated with no status filter at all; fetches
+    `limit:100` instead of `20` while active, filters client-side —
+    same convention Overview.tsx's own KPI count already uses for this
+    data)
+  - Active Inspections → `/organization/audit/inspections?status=active`,
+    DRAFT+IN_PROGRESS (same `limit:100`-and-filter approach; the
+    existing status dropdown only supports one exact value)
+  - Revenue stays non-clickable — `SitesEntities.tsx` doesn't display
+    revenue anywhere today, no honest destination exists
+- **Review round 1**: real bug caught. `InspectionTable.tsx`'s existing
+  status dropdown had zero effect on results while `?status=active` was
+  applied (the query's status is force-overridden regardless) — a user
+  picking e.g. "Completed" saw the selection change with no effect on
+  the still-filtered results, a silent no-op. Fixed by disabling the
+  dropdown while the URL filter is active.
+- **Review round 2**: minor accessibility gap caught. The now-disabled
+  dropdown gave a keyboard/screen-reader user no explanation for why —
+  fixed with `aria-describedby` tying it to the existing "filtered by X"
+  notice text.
+- **Review round 3**: clean, zero findings. Converged.
+- QA gate: typecheck clean, lint clean (0 errors), full suite 1566/1566
+  passing throughout all commits, including new tests for every one of
+  the 5 new destinations (exact `href` assertions, query-arg assertions,
+  filtered-content assertions, clear-filter-link assertions) and a new
+  `MetricCard.test.tsx`.
+- **Live-verified all 5 destinations directly in the browser** once the
+  session's rate limit cleared: confirmed each card navigates to the
+  correct URL, each destination page shows the correct filtered content
+  plus its "showing X only / clear filter" indicator, and the
+  Inspections page's status dropdown visibly greys out while its URL
+  filter is active.
+
+Still open going into round 15: industry-standards' remaining 2 findings
+(fabricated EBITDA data — blocked on backend work; no time-range/
+freshness indicator — needs its own product decision), UX's remaining
+findings other than no-drill-down (all-or-nothing loading, PageRank
+contradiction, alerts read-only with no CTA), mobile's remaining finding
+(`MetricCard` still has zero responsive classes — untouched by this
+round, still a long scroll on mobile), and the out-of-scope
+risk-detail-page routing bug. Industry-standards' KPI-clickability
+finding and UX's own no-drill-down finding should both score better
+this round given this fix directly addresses both.
