@@ -350,13 +350,23 @@ export default function RiskRegisterPage() {
           <h1 className="font-heading text-xl font-bold tracking-tight text-foreground lg:text-2xl">
             {t("organization.riskRegister.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p
+            className={
+              risksError
+                ? "text-sm text-destructive"
+                : "text-sm text-muted-foreground"
+            }
+          >
             {/* quality-bar-loop round 5 (UX/resilience): subtitleCount falls
                 back to visibleRisks.length (0) whenever riskData is
                 undefined -- true during both the loading and error states --
                 so this line used to claim "0 risks found" at the exact
                 moment the table below correctly showed a distinct loading
-                spinner or error message. */}
+                spinner or error message. quality-bar-loop round 6 (visual
+                polish): the error branch now uses text-destructive, same as
+                the sites-error indicator below, so two fetch failures on the
+                same page signal severity the same way instead of one being
+                red and the other muted gray. */}
             {risksLoading
               ? t("organization.riskRegister.loading")
               : risksError
@@ -421,7 +431,7 @@ export default function RiskRegisterPage() {
         {sitesError && (
           <span
             role="alert"
-            className="w-full basis-full text-[10px] text-destructive sm:w-auto sm:basis-auto"
+            className="w-full basis-full text-xs text-destructive sm:w-auto sm:basis-auto"
           >
             {t("organization.riskRegister.siteLoadError")}
           </span>
@@ -677,7 +687,12 @@ export default function RiskRegisterPage() {
               {!risksLoading && risksError && (
                 <tr>
                   <td colSpan={9} className="px-3 py-8 text-center">
-                    <span role="alert" className="text-muted-foreground">
+                    {/* quality-bar-loop round 6 (visual polish): this row was
+                        still text-muted-foreground while the header subtitle
+                        and sites-error indicator both use text-destructive
+                        for the same "a fetch failed" signal -- a third,
+                        inconsistent color for an identical failure. */}
+                    <span role="alert" className="text-destructive">
                       {t("organization.riskRegister.loadError")}
                     </span>
                   </td>
