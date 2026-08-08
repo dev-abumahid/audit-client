@@ -278,3 +278,66 @@ Merged directly under standing authorization (one clean review round).
 
 **Next: re-run the judge panel** to score the page's post-fix state before
 picking round 6's fix (or checking convergence).
+
+## Round 5 (post-fix judge panel)
+
+| Axis | Score | vs. Round 4 |
+|---|---|---|
+| Industry-standards | 4/10 | same |
+| UX | 6/10 | +1 |
+| Efficiency | 6/10 | same |
+| Accessibility | 8/10 | +2 |
+| Visual polish | 5/10 | **-1** |
+| Resilience & edge cases | 7/10 | +1 |
+| Code quality | 6/10 | same |
+| Mobile/responsive | 6/10 | +2 |
+| Security | 10/10 | same |
+
+**Average: 6.44/10** (up from 5.89). 6 axes still below floor (7):
+industry-standards, UX, efficiency, visual polish, code quality,
+mobile/responsive. Accessibility, resilience, and security now clear the
+floor.
+
+**Regression check:** all three round-5 fixes were confirmed live-working
+(header subtitle no longer shows "0 risks found" during loading/error --
+confirmed via both a deliberate monkey-patch AND, independently, a real
+429 the dev API hit mid-review; loading row's `role="status"` confirmed;
+sites-error mobile line-wrap confirmed via live DOM injection of the
+shipped classes). No axis's *fix* backfired -- but the mobile fix's own
+CSS introduced a genuine, live-verified visual-polish regression: the
+sites-error span's `text-[10px]` is a one-off type-scale value (every
+other control on the page uses `text-xs`/12px), and its `text-destructive`
+red now visually disagrees with the header subtitle's `text-muted-foreground`
+gray for the *same class of failure* (a fetch error) sitting inches apart
+on screen. Per this loop's established discipline (real, concrete, cheap
+regressions get fixed directly rather than escalated), this is Round 6's
+fix rather than a stop-and-ask moment -- unlike a genuine ambiguous
+design tradeoff, this one has an unambiguous correct answer (match the
+existing `text-xs` scale, and pick one consistent color treatment for
+"a fetch failed" messaging).
+
+New findings surfaced this round, all independent of the regression above:
+- Accessibility: the header subtitle's loading/error text change has no
+  `aria-live` of its own (a smaller, adjacent gap to the one just fixed --
+  the table's own live regions duplicate the same info, so this is lower
+  severity, not blocking).
+- Resilience: the Add/Edit modal's own Site dropdown still has no
+  sites-failure awareness (same finding as round 4, confirmed still open,
+  not yet fixed -- flagged again as a candidate).
+- UX: no retry affordance on any error state (page reload is the only
+  recovery path); search has no debounce (fires a request per keystroke,
+  confirmed as the likely cause of a rate-limit the UX judge hit live
+  during testing); no unified "clear all filters" action.
+- Industry-standards/code-quality/efficiency: all confirmed unchanged from
+  round 4 (no sorting/bulk/export; inline ternary vs. named-const style
+  nit; unmemoized per-row closures/derived filters; eslint-disable scope;
+  IIFE; RiskBadge non-reuse) -- round 5's diff didn't touch any of these,
+  as expected.
+
+**Next fix (Round 6):** fix the visual-polish regression from round 5's own
+diff -- replace the sites-error span's `text-[10px]` with the page's
+existing `text-xs` scale, and make its color treatment consistent with the
+header subtitle's error state (both should signal "this failed" the same
+way). Strong secondary candidate for a follow-up round: the search input's
+missing debounce, since it's both a UX and (per the UX judge's live
+incident) a real resilience/reliability risk (self-inflicted rate-limiting).
