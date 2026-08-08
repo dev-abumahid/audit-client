@@ -556,3 +556,44 @@ industry-standards because:
   design ambiguity — grow the ref badge or truncate its content, add
   padding/min-height to the two undersized touch targets. Same
   "mechanical fix first" preference that guided rounds 6 and 8.
+
+### Round 10 outcome — merged as PR #604
+
+Shipped via `ship-with-review-loop`, two commits, converged clean on
+review round 2:
+
+- **Fix**: ref badge switched from a fixed `h-9 w-9` square to
+  `h-9 min-w-9 shrink-0` + horizontal padding + `whitespace-nowrap`, so
+  refs grow horizontally instead of wrapping. Retry button `py-2` → `py-3`.
+  Risk-name link initially got `py-3 -my-3`, intending the negative
+  margin to cancel the added padding out visually.
+- **Review round 1**: real bug caught, "CSS-only, low-risk" was not
+  entirely true. The Link's parent (`min-w-0 flex-1`) is a flex item,
+  which always establishes its own block formatting context — this
+  blocks the negative top margin from collapsing against the parent the
+  way it would in ordinary block flow, so the link visibly crept upward
+  instead of canceling out. The reviewer reproduced this with an
+  equivalent layout and measured the actual offset before reporting it,
+  not just citing the spec rule abstractly. Fixed same round: dropped
+  `-my-3` entirely, kept plain `py-3` (a few px of extra row height, no
+  edge case).
+- **Review round 2**: clean, zero findings — confirmed the fix-up was
+  complete (no dangling `-my-3` anywhere), the rewritten comment
+  correctly describes the broken approach in past tense rather than as
+  current behavior, and the plain `py-3` interacts correctly with the
+  row's `items-center` alignment. Converged.
+- QA gate: typecheck clean, lint clean (0 errors), full suite 1549/1549
+  passing.
+- Live-verified after the rate limit that blocked the initial PR's
+  live-check finally cleared: ref badge measured 62.6x36px (single line,
+  no more wrapping), risk-name link measured 59.9x44px (exactly meeting
+  the touch-target guideline, no visible shift), Retry button previously
+  confirmed at 69.6x46px. Screenshot confirmed "CYB-001" rendering on one
+  line.
+
+Still open going into round 11: industry-standards (EBITDA chart blocked
+on backend work, chart-type mismatch, no time-range/freshness indicator,
+non-clickable KPI cards), UX (no drill-down, all-or-nothing loading,
+PageRank contradiction, alerts read-only with no CTA), mobile's
+remaining finding (`MetricCard` has zero responsive classes, long
+scroll on mobile), and the out-of-scope risk-detail-page routing bug.
