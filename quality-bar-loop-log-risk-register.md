@@ -764,3 +764,26 @@ findings worth acting on directly:
 the Site/Category filter `&lt;select&gt;`s. Concrete, cheap, single-file,
 live-verified-real, and doesn't require the larger structural work the
 round-8 stop flagged for industry-standards/efficiency.
+
+## Round 9 — fix shipped (PR #627)
+
+Added `aria-label` to the search input and both filter `&lt;select&gt;`s,
+following the exact convention already established on `CompliancePage.tsx`.
+1 new test, negative-control verified (reverted each of the 3 additions
+individually, confirmed the test fails each time, restored, confirmed
+pass). QA gate clean (1613 tests). Live-verified: confirmed via DOM
+inspection that all three controls report the correct `aria-label`.
+
+Adversarial review (2 parallel angles: line-by-line/i18n, and a broader
+accessibility-completeness sweep of the rest of the page) came back clean
+on round 1 -- confirmed the accessible-name computation resolves correctly
+(aria-label wins over placeholder/option text), the i18n keys are valid in
+both locales, the test would genuinely catch a wrong-key typo, and a fresh
+sweep of the rest of the main list view (Pending-approval toggle,
+row-action buttons, Pagination) found no other unlabeled controls needing
+the same fix. Merged under standing authorization.
+
+**Next: re-run the judge panel** to score the page's post-fix state before
+picking round 10's fix (or checking convergence / hitting the max-rounds
+guardrail -- round 9 is the loop's 9th fix round of the default 10-round
+cap).
