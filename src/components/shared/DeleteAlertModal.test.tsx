@@ -123,4 +123,47 @@ describe("DeleteAlertModal", () => {
 
     await waitFor(() => expect(trigger).toHaveFocus())
   })
+
+  // quality-bar-loop round 8 (accessibility): the "Delete" -> "Deleting..."
+  // label swap has no live region wrapping it, so a screen-reader user gets
+  // no announcement that their click registered before the toast/close.
+  it("announces the Deleting state via an aria-live region", () => {
+    const { rerender } = render(
+      <DeleteAlertModal open onConfirm={vi.fn()} />
+    )
+
+    expect(screen.queryByText(/deleting/i)).not.toBeInTheDocument()
+
+    rerender(<DeleteAlertModal open onConfirm={vi.fn()} loading />)
+
+    const liveRegion = screen.getByText("common.deleteAlertModal.deleting", {
+      selector: '[aria-live="polite"]',
+    })
+    expect(liveRegion).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 8 (accessibility): disabling the Delete button
+  // via the native `disabled` attribute force-blurs it the instant loading
+  // starts -- live-verified this dropped focus to <body> instead of a
+  // meaningful control. Moving focus to the still-enabled Cancel button
+  // keeps it inside the dialog.
+  it("moves focus to Cancel when the focused Delete button becomes disabled", async () => {
+    const { rerender } = render(
+      <DeleteAlertModal open onConfirm={vi.fn()} />
+    )
+
+    const deleteButton = screen.getByRole("button", {
+      name: "common.deleteAlertModal.delete",
+    })
+    deleteButton.focus()
+    expect(deleteButton).toHaveFocus()
+
+    rerender(<DeleteAlertModal open onConfirm={vi.fn()} loading />)
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "common.deleteAlertModal.cancel" })
+      ).toHaveFocus()
+    )
+  })
 })

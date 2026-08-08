@@ -68,6 +68,25 @@ export default function DeleteAlertModal({
     }
   }, [open])
 
+  // quality-bar-loop round 8 (accessibility): `disabled={loading}` on the
+  // Delete button is a real native `disabled` attribute, so the instant a
+  // caller's mutation starts, the browser force-blurs the button the user
+  // just clicked -- there's no `tabIndex`/`aria-disabled` alternative that
+  // keeps it focusable, and the "Delete" -> "Deleting..." label swap has
+  // no live region, so a keyboard/screen-reader user loses focus context
+  // and gets no announcement at the exact moment their destructive-action
+  // click registers. Moving focus deliberately to the still-enabled Cancel
+  // button (rather than the browser's default of dropping it to <body>)
+  // keeps focus inside the dialog and on a meaningful control.
+  const footerRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (loading && footerRef.current?.contains(document.activeElement)) {
+      footerRef.current
+        .querySelector<HTMLButtonElement>("button:not([disabled])")
+        ?.focus()
+    }
+  }, [loading])
+
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogContent className="flex max-w-sm flex-col items-center justify-center rounded-3xl p-6 sm:p-8">
@@ -86,7 +105,17 @@ export default function DeleteAlertModal({
           </div>
         </AlertDialogHeader>
 
-        <AlertDialogFooter className="mt-6 flex w-full flex-row gap-3 sm:justify-between sm:space-x-0">
+        {/* quality-bar-loop round 8 (accessibility): announces the
+            "Deleting..." transition to screen readers -- the button label
+            swap alone is silent since there's no live region wrapping it. */}
+        <span aria-live="polite" className="sr-only">
+          {loading ? t("common.deleteAlertModal.deleting") : ""}
+        </span>
+
+        <AlertDialogFooter
+          ref={footerRef}
+          className="mt-6 flex w-full flex-row gap-3 sm:justify-between sm:space-x-0"
+        >
           {/* Cancel Button */}
           {/* quality-bar-loop round 5 (mobile): default size resolves to
               h-7 (28px), under the 44px touch-target guideline -- h-11
