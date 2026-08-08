@@ -173,3 +173,47 @@ fallback whatsoever. Net: two more places to fix, not new never-seen bugs.
   (visual polish), and its Retry button is under the 44px touch-target
   guideline (mobile/responsive) — both are refinements to the round-1 fix,
   not new categories of problem.
+
+### Round 2.5 outcome — merged as PR #600
+
+User chose to fix both the regression and the dead-code finding before
+continuing the loop, rather than deferring either. Shipped via
+`ship-with-review-loop`, converged clean on review round 1:
+
+- **Accessibility regression fix**: added `role="alert"` + a
+  focus-on-mount effect to both error surfaces (Overview's full-page
+  error block, CriticalAlertBanner's error notice) — these can appear
+  from a background refetch failing after the page already rendered
+  successfully (RTK Query keeps `isLoading` false on a refetch), not
+  just on first paint, so they need an explicit announcement rather than
+  relying on being present at initial render. Added
+  `aria-label={t("common.close")}` (matching the codebase's existing
+  convention) to both of CriticalAlertBanner's dismiss buttons.
+- **Dead-code fix**: excluded `alerts`/`alertsError` from Overview's
+  page-level `hasPageLevelError` gate. An alerts-only failure no longer
+  takes down the whole dashboard — the Critical Alerts KPI card shows
+  `—` instead of a false `0`, the Recent Alerts panel shows its own error
+  notice instead of the "no alerts yet" empty state, and
+  `CriticalAlertBanner`'s own error notice (previously unreachable) now
+  genuinely mounts.
+- **Review round 1**: clean, zero findings — hooks placement, the
+  focus-effect's first-render behavior, every `alerts`-reading call site,
+  cross-file reachability, i18n key placement, and test quality were all
+  independently traced and confirmed correct. Converged after one round.
+- QA gate: typecheck clean, lint clean (0 errors), full suite 1544/1544
+  passing.
+- Live-verified: a full backend outage still shows the page-level error
+  with `role="alert"` and focus correctly landing on it; recovers to
+  normal rendering once the backend is back, no new console errors. (The
+  narrower alerts-only-failure path is covered by the passing unit tests;
+  RTK Query's cache made it impractical to reproduce live without an
+  SPA-navigation remount, which reused cached alert data instead of
+  refetching.)
+
+Still open going into round 3: industry-standards (4/10, fabricated trend
+data + fabricated chart), UX (5/10, no drill-down + undifferentiated
+loading), efficiency (5/10, double PageRank computation + zero
+memoization), the remaining resilience gaps (loading skeleton,
+malformed-payload defense), the out-of-scope risk-detail-page routing bug
+spotted by the UX judge, and code quality's minor new duplication
+(CriticalAlertBanner's two near-identical banner blocks).
