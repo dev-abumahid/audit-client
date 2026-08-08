@@ -950,6 +950,8 @@
       "clearFilter": "Effacer le filtre",
       "noResults": "Aucun risque ne correspond aux filtres actuels.",
       "loadError": "Échec du chargement des risques. Veuillez réessayer plus tard.",
+      "loading": "Chargement des risques…",
+      "siteLoadError": "Échec du chargement des sites",
       "prevPage": "Page précédente",
       "nextPage": "Page suivante",
       "delete": "Supprimé",

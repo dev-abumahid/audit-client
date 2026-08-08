@@ -407,6 +407,64 @@ describe("RiskRegisterPage", () => {
     ).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 4 (resilience): a missing financial_impact_max
+  // (a nullable field) previously rendered the literal string "NaNM" --
+  // negative-controlled by reverting the guard locally and confirming this
+  // test fails with "NaNM" before restoring it.
+  it("shows a dash instead of NaNM when financial_impact_max is missing", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [makeRisk({ financial_impact_max: null })],
+      },
+    })
+
+    renderPage()
+
+    expect(screen.getByText("—")).toBeInTheDocument()
+    expect(screen.queryByText("NaNM")).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 4 (resilience): before this, an in-flight
+  // initial fetch had no distinct visual from a genuine zero-result empty
+  // state, so every page load briefly flashed "No risks match" before real
+  // data arrived.
+  it("shows a loading row, not the empty state, while the initial fetch is in flight", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: undefined,
+      isError: false,
+      isLoading: true,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByText("organization.riskRegister.loading")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.riskRegister.noResults")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.riskRegister.loadError")
+    ).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 4 (resilience): useGetAllSitesQuery never checked
+  // isError -- a real outage silently rendered the site filter as just "All
+  // Sites" with zero options and no indication anything failed.
+  it("shows an error indicator next to the site filter when the sites query fails", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByText("organization.riskRegister.siteLoadError")
+    ).toBeInTheDocument()
+  })
+
   it("shows fallback site label when risk has no site", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: [makeRisk({ site: undefined, site_id: "" })] },

@@ -950,6 +950,8 @@
       "clearFilter": "Clear filter",
       "noResults": "No risks match the current filters.",
       "loadError": "Failed to load risks. Please try again later.",
+      "loading": "Loading risks…",
+      "siteLoadError": "Failed to load sites",
       "prevPage": "Previous page",
       "nextPage": "Next page",
       "delete": "Deleted",

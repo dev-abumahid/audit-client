@@ -104,7 +104,11 @@ export default function RiskRegisterPage() {
   // from "the filter matched nothing" (the exact false-all-clear pattern
   // round 1 fixed on Overview.tsx, surfaced here by round 14's dashboard
   // link making an empty-looking result more reachable/likely to matter).
-  const { data: riskData, isError: risksError } = useGetAllRisksQuery({
+  const {
+    data: riskData,
+    isError: risksError,
+    isLoading: risksLoading,
+  } = useGetAllRisksQuery({
     page: isClientFiltered ? 1 : page,
     limit: isClientFiltered ? 100 : PAGE_SIZE,
     searchTerm: search,
@@ -118,7 +122,13 @@ export default function RiskRegisterPage() {
   // without any filter changing, which this hook catches instead.
   useClampPageToTotal(page, totalPages, setPage)
 
-  const { data: allSites } = useGetAllSitesQuery({
+  // quality-bar-loop round 4 (resilience): this query never checked isError
+  // -- a genuine outage silently rendered the site filter/modal dropdown as
+  // just "All Sites"/"Select site" with zero options and no indication
+  // anything failed, indistinguishable from "this org genuinely has no
+  // sites yet." Surfaced next to the site filter (the one place a user is
+  // actively relying on this list) rather than duplicated at every use site.
+  const { data: allSites, isError: sitesError } = useGetAllSitesQuery({
     page: 1,
     limit: 100,
     searchTerm: "",
@@ -398,6 +408,11 @@ export default function RiskRegisterPage() {
             </option>
           ))}
         </select>
+        {sitesError && (
+          <span role="alert" className="text-[10px] text-destructive">
+            {t("organization.riskRegister.siteLoadError")}
+          </span>
+        )}
 
         <select
           value={filterCat}
@@ -559,7 +574,15 @@ export default function RiskRegisterPage() {
                           already in k€. 1,000 k€ = 1 M€, so this must divide
                           by 1,000, not 1,000,000 (which understated every
                           figure 1000x). */}
-                      {(risk.financial_impact_max / 1000).toFixed(1)}M
+                      {/* quality-bar-loop round 4 (resilience): a missing
+                          financial_impact_max (a nullable field, not
+                          guaranteed populated on every risk) previously
+                          rendered the literal string "NaNM" -- the site/
+                          category columns already fall back gracefully, this
+                          one didn't. */}
+                      {risk.financial_impact_max == null
+                        ? "—"
+                        : `${(risk.financial_impact_max / 1000).toFixed(1)}M`}
                     </td>
                     <td className="px-3 py-2.5 text-[10px] text-muted-foreground">
                       {risk.ai_generated ? (
@@ -614,12 +637,27 @@ export default function RiskRegisterPage() {
                   </tr>
                 )
               })}
+              {/* quality-bar-loop round 4 (resilience): before this, an
+                  in-flight initial fetch had no distinct visual from a
+                  genuine zero-result empty state -- riskData is undefined
+                  while loading, so risks/visibleRisks are both [], and every
+                  single page load flashed "No risks match the current
+                  filters" for a moment before real data arrived. */}
+              {risksLoading && (
+                <tr>
+                  <td colSpan={9} className="px-3 py-8 text-center">
+                    <span className="text-muted-foreground">
+                      {t("organization.riskRegister.loading")}
+                    </span>
+                  </td>
+                </tr>
+              )}
               {/* quality-bar-loop round 16 (resilience regression): this
                   table had no error or empty-result row at all -- a fetch
                   failure and "the filter matched zero risks" both
                   previously rendered the exact same silent, header-only
                   table. */}
-              {risksError && (
+              {!risksLoading && risksError && (
                 <tr>
                   <td colSpan={9} className="px-3 py-8 text-center">
                     <span role="alert" className="text-muted-foreground">
@@ -628,7 +666,7 @@ export default function RiskRegisterPage() {
                   </td>
                 </tr>
               )}
-              {!risksError && visibleRisks?.length === 0 && (
+              {!risksLoading && !risksError && visibleRisks?.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-3 py-8 text-center">
                     <span className="text-muted-foreground">
