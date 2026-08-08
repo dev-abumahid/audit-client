@@ -826,6 +826,11 @@
         "title": "Recent alerts",
         "des": "Showing the 4 most recent",
         "empty": "No alerts yet"
+      },
+      "loadError": {
+        "title": "Couldn't load the dashboard",
+        "description": "Some data failed to load, so the numbers below may be incomplete or wrong. Try again, or check back shortly.",
+        "retry": "Retry"
       }
     },
     "site&entities": {
@@ -1925,7 +1930,8 @@
   },
   "alert": {
     "criticalAlertsBannerPlural": "critical unread alerts",
-    "criticalAlertsBanner": "critical unread alert"
+    "criticalAlertsBanner": "critical unread alert",
+    "criticalAlertsCheckFailed": "Couldn't check for critical alerts"
   },
   "riskLevel": {
     "critical": "Critical",

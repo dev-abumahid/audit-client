@@ -88,6 +88,65 @@ describe("CriticalAlertBanner", () => {
     expect(text).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 1 review (Overview.tsx's own resilience fix,
+  // same round): this component's fetch had no error check at all -- on
+  // failure, `alerts` fell through to `?? []`, `criticalAlerts.length`
+  // came out to 0, and the banner silently rendered nothing, the exact
+  // same false-all-clear pattern as the sibling Overview.tsx fix, but
+  // worse: this banner's entire purpose is surfacing critical alerts, so
+  // "renders nothing" is indistinguishable from "genuinely zero critical
+  // alerts."
+  it("shows a distinct error notice instead of silently rendering nothing when the fetch fails", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+    })
+    const { container } = render(<CriticalAlertBanner />)
+
+    expect(container).not.toBeEmptyDOMElement()
+    // No I18nextProvider in this test's tree, so react-i18next's real t()
+    // falls back to the raw key -- same convention other test files in
+    // this codebase rely on (e.g. RiskGraphPage.test.tsx).
+    expect(
+      screen.getByText("alert.criticalAlertsCheckFailed")
+    ).toBeInTheDocument()
+  })
+
+  it("dismisses the error notice when the close button is clicked, same as the normal banner", async () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+    })
+    const { container } = render(<CriticalAlertBanner />)
+
+    await userEvent.click(screen.getByRole("button"))
+
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  // Round 2 review: the error notice and the normal banner used to share one
+  // `dismissed` flag, so dismissing an error and then having the query
+  // recover with real critical alerts left the banner permanently hidden --
+  // the failure mode this whole fix exists to prevent, just delayed.
+  it("still shows real critical alerts after the error notice was dismissed and the fetch later recovers", async () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+    })
+    const { rerender } = render(<CriticalAlertBanner />)
+
+    await userEvent.click(screen.getByRole("button"))
+
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: {
+        data: [makeAlert({ severity: "critical", title: "Recovered alert" })],
+      },
+    })
+    rerender(<CriticalAlertBanner />)
+
+    expect(screen.getByText(/Recovered alert/)).toBeInTheDocument()
+  })
+
   it("dismisses the banner when the close button is clicked", async () => {
     mockUseGetAllAlertsQuery.mockReturnValue({
       data: { data: [makeAlert({ severity: "critical" })] },

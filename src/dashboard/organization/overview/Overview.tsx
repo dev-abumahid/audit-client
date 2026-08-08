@@ -69,42 +69,59 @@ export default function Overview() {
   const orgName =
     meResponse?.data?.organizationProfile?.organizationName ||
     t("organization.overview.defaultOrgName")
-  const { data: riskResponse, isLoading: risksLoading } = useGetAllRisksQuery(
-    {
-      page: 1,
-      limit: 100,
-      searchTerm: "",
-      siteId: "",
-      category: "",
-    }
-  )
-  const { data: kriResponse, isLoading: krisLoading } =
-    useGetAllKriQuery(undefined)
-  const { data: alertResponse, isLoading: alertsLoading } =
-    useGetAllAlertsQuery(undefined)
+  const {
+    data: riskResponse,
+    isLoading: risksLoading,
+    isError: risksError,
+  } = useGetAllRisksQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+    siteId: "",
+    category: "",
+  })
+  const {
+    data: kriResponse,
+    isLoading: krisLoading,
+    isError: krisError,
+  } = useGetAllKriQuery(undefined)
+  const {
+    data: alertResponse,
+    isLoading: alertsLoading,
+    isError: alertsError,
+  } = useGetAllAlertsQuery(undefined)
   // Same limit:100-and-count-client-side approach as the risks query above
   // — getAllFindings/getAllInspection have no status-only "give me the
   // count" endpoint, and #25 didn't ask for a new backend aggregation route.
-  const { data: findingResponse, isLoading: findingsLoading } =
-    useGetAllFindingsQuery({
-      page: 1,
-      limit: 100,
-      searchTerm: "",
-      siteId: "",
-    })
-  const { data: inspectionResponse, isLoading: inspectionsLoading } =
-    useGetAllInspectionQuery({
-      page: 1,
-      limit: 100,
-      searchTerm: "",
-      status: "",
-      siteId: "",
-    })
+  const {
+    data: findingResponse,
+    isLoading: findingsLoading,
+    isError: findingsError,
+  } = useGetAllFindingsQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+    siteId: "",
+  })
+  const {
+    data: inspectionResponse,
+    isLoading: inspectionsLoading,
+    isError: inspectionsError,
+  } = useGetAllInspectionQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+    status: "",
+    siteId: "",
+  })
   // Reuses the same endpoint the Correlation Matrix page (#142) calls — just
   // for its riskLinks here, to compute real PageRank over the risk-causality
   // graph for the Tipping Points section below (#25).
-  const { data: correlationMatrixResponse, isLoading: correlationLoading } =
-    useGetCorrelationMatrixDataQuery()
+  const {
+    data: correlationMatrixResponse,
+    isLoading: correlationLoading,
+    isError: correlationError,
+  } = useGetCorrelationMatrixDataQuery()
   // Same limit:100-and-sum-client-side approach as the risks/findings
   // queries above — GET /site has no aggregation route, so this reuses the
   // per-site `revenue` field (site.validation.ts) to total the Revenue KPI
@@ -115,13 +132,15 @@ export default function Overview() {
   // by this card until GET /site grows either a real aggregation route or
   // an unpaginated mode -- flagged here rather than fixed since that's
   // backend work out of scope for #427.
-  const { data: siteResponse, isLoading: sitesLoading } = useGetAllSitesQuery(
-    {
-      page: 1,
-      limit: 100,
-      searchTerm: "",
-    }
-  )
+  const {
+    data: siteResponse,
+    isLoading: sitesLoading,
+    isError: sitesError,
+  } = useGetAllSitesQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+  })
 
   const risks: Risk[] = riskResponse?.data ?? []
   const kris = kriResponse?.data ?? []
@@ -204,6 +223,46 @@ export default function Overview() {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  // quality-bar-loop round 1 (resilience, lowest-scoring axis): none of the
+  // seven queries above used to check isError, only isLoading -- a total
+  // backend outage silently fell through to every derived value (risks,
+  // kris, alerts, etc.) defaulting to `?? []`/`0`, rendering a fully
+  // normal-looking dashboard with every metric at zero and zero visual cue
+  // that data failed to load. For a risk/compliance platform, that's a
+  // false "all clear" on total data failure, which is worse than a blank
+  // screen -- checked before rendering the real dashboard below, same
+  // early-return shape as the loading check above.
+  if (
+    risksError ||
+    krisError ||
+    alertsError ||
+    findingsError ||
+    inspectionsError ||
+    correlationError ||
+    sitesError
+  ) {
+    return (
+      <div className="flex min-h-[400px] flex-col items-center justify-center gap-3 p-6 text-center">
+        <AlertTriangle
+          className={`h-8 w-8 ${SEVERITY_STYLES.critical.text}`}
+        />
+        <p className="text-sm font-medium text-foreground">
+          {t("organization.overview.loadError.title")}
+        </p>
+        <p className="max-w-sm text-xs text-muted-foreground">
+          {t("organization.overview.loadError.description")}
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="focus-ring rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+        >
+          {t("organization.overview.loadError.retry")}
+        </button>
       </div>
     )
   }

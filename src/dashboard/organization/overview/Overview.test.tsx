@@ -316,6 +316,78 @@ describe("Overview", () => {
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 1 (resilience axis, scored 3/10): none of the
+  // seven queries checked isError, only isLoading -- a total backend
+  // failure fell through to every derived value defaulting to `?? []`/`0`,
+  // rendering a fully normal-looking dashboard with every metric at zero
+  // and no visual cue that data failed to load at all. Live-verified by
+  // killing the backend and reloading /organization before this fix.
+  describe("load error handling (quality-bar-loop round 1)", () => {
+    it("shows an error state instead of a silently-zeroed dashboard when risks fail to load", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      })
+      renderPage()
+
+      expect(
+        screen.getByText("organization.overview.loadError.title")
+      ).toBeInTheDocument()
+      // The real dashboard content must NOT render alongside the error --
+      // a user should never see both "couldn't load" and a set of (fake,
+      // all-zero) metric numbers at the same time.
+      expect(
+        screen.queryByText("organization.overview.activeRisk")
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows the error state when any of the other six queries fail, not just risks", () => {
+      mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      })
+      renderPage()
+
+      expect(
+        screen.getByText("organization.overview.loadError.title")
+      ).toBeInTheDocument()
+    })
+
+    it("does not show the error state when every query succeeds", () => {
+      renderPage()
+
+      expect(
+        screen.queryByText("organization.overview.loadError.title")
+      ).not.toBeInTheDocument()
+    })
+
+    it("reloads the page when the retry button is clicked", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      })
+      renderPage()
+
+      const reloadSpy = vi.fn()
+      Object.defineProperty(window, "location", {
+        value: { reload: reloadSpy },
+        writable: true,
+      })
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.overview.loadError.retry",
+        })
+      )
+
+      expect(reloadSpy).toHaveBeenCalledTimes(1)
+    })
+  })
+
   // Regression (issue #354): paddingAngle={3} on the "Risks by category"
   // Pie applied a gap even with a single slice, rendering it as an
   // invisible sliver instead of a full ring.

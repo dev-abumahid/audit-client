@@ -826,6 +826,11 @@
         "title": "Alertes récentes",
         "des": "Affichage des 4 plus récentes",
         "empty": "Aucune alerte pour le moment"
+      },
+      "loadError": {
+        "title": "Impossible de charger le tableau de bord",
+        "description": "Certaines données n'ont pas pu être chargées, les chiffres ci-dessous peuvent donc être incomplets ou incorrects. Réessayez, ou revenez un peu plus tard.",
+        "retry": "Réessayer"
       }
     },
     "site&entities": {
@@ -1925,7 +1930,8 @@
   },
   "alert": {
     "criticalAlertsBanner": "alerte critique non lue",
-    "criticalAlertsBannerPlural": "alertes critiques non lues"
+    "criticalAlertsBannerPlural": "alertes critiques non lues",
+    "criticalAlertsCheckFailed": "Impossible de vérifier les alertes critiques"
   },
   "riskLevel": {
     "critical": "Critique",
