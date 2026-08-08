@@ -249,6 +249,28 @@ describe("AllFindingsPage", () => {
     ).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 17: STATUS_COLORS/PRIORITY_BADGES had no
+  // fallback for a status/priority outside the map -- unlike the label
+  // text next to it (which already fell back to the raw value), the badge
+  // className lookup returned `undefined`, rendering a styleless badge.
+  it("falls back to a neutral badge style for an unrecognized status or priority", () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        data: [makeAction({ status: "UNKNOWN_STATUS", priority: "Urgent" })],
+        meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+      },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+
+    render(<AllFindingsPage />, withRouter)
+
+    const statusBadge = screen.getByText("UNKNOWN_STATUS")
+    const priorityBadge = screen.getByText("Urgent")
+    expect(statusBadge.className).not.toContain("undefined")
+    expect(priorityBadge.className).not.toContain("undefined")
+  })
+
   // aexa-frontend round-3 audit bug #3: the due-date month was hardcoded to
   // "en-US" regardless of the active UI language.
   it("formats the due date's month in French when the UI language is French", () => {

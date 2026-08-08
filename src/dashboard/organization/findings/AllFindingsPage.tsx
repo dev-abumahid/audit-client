@@ -64,6 +64,14 @@ const PRIORITY_BADGES: Record<string, string> = {
   High: severityBadgeClasses("high"),
 }
 
+// quality-bar-loop round 17 (resilience, spotted in passing while fixing
+// the same bug class in AlertsPage.tsx/RiskBadge.tsx): unlike the label
+// text below (`STATUS_KEYS[x] ? t(...) : x`), the badge color lookups had
+// no fallback for a status/priority outside the map -- not a crash, but
+// `undefined` interpolated straight into the className renders a
+// styleless badge instead of a legible neutral one.
+const NEUTRAL_BADGE = severityBadgeClasses("neutral")
+
 // aexa-frontend round-3 audit bug #3: hardcoded "en-US" ignored the active
 // locale, always showing the month abbreviation in English even in French.
 // The day/year are locale-invariant Arabic numerals so only the month piece
@@ -370,7 +378,25 @@ export default function AllFindingsPage() {
                 <tbody>
                   {findingsError ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center">
+                      <td colSpan={7} className="px-4 py-12">
+                        {/* quality-bar-loop round 17 (mobile): `text-center`
+                            centered this message against the table's full
+                            scrollable width (widest among the KPI
+                            drill-down destinations), not the visible
+                            viewport -- since the centered position is
+                            computed from that full width, it sat off-screen
+                            at mobile widths even before any scrolling
+                            happened (`position: sticky` alone doesn't fix
+                            this -- it only clamps a scroll-triggered
+                            excursion, not an already off-center static
+                            position). Left-aligning keeps it anchored near
+                            the cell's own padding, always visible at
+                            scrollLeft: 0 regardless of the table's width.
+                            (The empty-state row below has the same root
+                            cause but stays centered via `sticky inset-x-0`
+                            instead -- that row's multi-element "icon +
+                            heading + paragraph" illustration reads as
+                            broken left-aligned, unlike this single line.) */}
                         <span role="alert" className="text-muted-foreground">
                           {t("organization.findings.loadError")}
                         </span>
@@ -443,7 +469,7 @@ export default function AllFindingsPage() {
                         {/* Status */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[action.status]}`}
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[action.status] ?? NEUTRAL_BADGE}`}
                           >
                             {STATUS_KEYS[action.status]
                               ? t(STATUS_KEYS[action.status])
@@ -454,7 +480,7 @@ export default function AllFindingsPage() {
                         {/* Priority */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_BADGES[action.priority]}`}
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_BADGES[action.priority] ?? NEUTRAL_BADGE}`}
                           >
                             {PRIORITY_KEYS[action.priority]
                               ? t(PRIORITY_KEYS[action.priority])
@@ -531,20 +557,32 @@ export default function AllFindingsPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center">
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                          <Plus size={24} className="text-muted-foreground" />
+                      <td colSpan={7} className="px-4 py-12">
+                        {/* quality-bar-loop round 17 (mobile, review-loop
+                            round 1): same off-screen-at-mobile-width bug
+                            just fixed on the error row above -- `text-center`
+                            centered this block against the table's full
+                            scrollable width instead of the visible
+                            viewport. `sticky inset-x-0` (left:0 + right:0)
+                            clamps the box to the currently-visible portion
+                            of the scroll container regardless of the row's
+                            own width, so centering it inside that box
+                            centers it on-screen instead. */}
+                        <div className="sticky inset-x-0 mx-auto flex w-fit flex-col items-center text-center">
+                          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                            <Plus size={24} className="text-muted-foreground" />
+                          </div>
+                          <h3 className="mb-2 text-lg font-medium text-foreground">
+                            {search || selectedSiteId
+                              ? t("organization.findings.noFindingsFound")
+                              : t("organization.findings.noFindingsYet")}
+                          </h3>
+                          <p className="text-muted-foreground">
+                            {search || selectedSiteId
+                              ? t("organization.findings.adjustSearch")
+                              : t("organization.findings.getStarted")}
+                          </p>
                         </div>
-                        <h3 className="mb-2 text-lg font-medium text-foreground">
-                          {search || selectedSiteId
-                            ? t("organization.findings.noFindingsFound")
-                            : t("organization.findings.noFindingsYet")}
-                        </h3>
-                        <p className="text-muted-foreground">
-                          {search || selectedSiteId
-                            ? t("organization.findings.adjustSearch")
-                            : t("organization.findings.getStarted")}
-                        </p>
                       </td>
                     </tr>
                   )}
