@@ -1162,17 +1162,25 @@ export default function SitesEntities() {
                             {risk.ref}
                           </span>
 
-                          <div className="flex min-w-0 flex-col items-start gap-1.5">
+                          <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+                            {/* `items-start` sizes flex-col children to their
+                                own content width instead of stretching them
+                                -- without `w-full` here, `truncate`'s
+                                overflow:hidden has nothing to clip against
+                                and long text spills past the card instead of
+                                being ellipsized (live-verified: a risk
+                                description spilled off the right edge of the
+                                mobile card). */}
                             {/* aexa-frontend#551: risk.id was already the
                                 list key but rendered as plain text -- same
                                 gap #548/#549/#550 fixed elsewhere. */}
                             <Link
                               to={`/organization/risks/${risk.id}`}
-                              className="focus-ring truncate text-sm font-medium text-primary hover:underline"
+                              className="focus-ring w-full truncate text-sm font-medium text-primary hover:underline"
                             >
                               {risk.name}
                             </Link>
-                            <p className="truncate text-[10px] text-muted-foreground">
+                            <p className="w-full truncate text-[10px] text-muted-foreground">
                               {risk.description?.slice(0, 120)}
                             </p>
                           </div>

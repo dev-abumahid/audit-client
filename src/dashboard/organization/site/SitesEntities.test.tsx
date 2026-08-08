@@ -1008,6 +1008,59 @@ describe("SitesEntities", () => {
     expect(manualBadge).not.toHaveClass("text-base")
   })
 
+  // Regression: the name link and description sit in a `flex-col
+  // items-start` wrapper, which sizes each child to its own content width
+  // instead of stretching it to the wrapper's available width. `truncate`'s
+  // overflow:hidden has nothing to clip against without `w-full`, so long
+  // text grew past the card's edge instead of being ellipsized (live-
+  // verified: a real description spilled off the right edge of a mobile
+  // card). `w-full` alongside `truncate` is required for the clip to work.
+  it("constrains the confirmed-risk name and description to the row's width so truncate can actually clip long text", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "risk-99",
+            ref: "RSK-2026-0142",
+            name: "A very long risk name that would otherwise force the row to grow past its own container",
+            description:
+              "A very long description that would otherwise force the row to grow past its own container instead of being clipped",
+            residual_score: 12,
+            ai_generated: false,
+          },
+        ],
+      },
+    })
+
+    renderPage()
+    const [expandButton] = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-chevron-down"))
+    await userEvent.click(expandButton)
+
+    const nameLink = screen.getByText(/A very long risk name/)
+    const description = screen.getByText(/A very long description/)
+    expect(nameLink).toHaveClass("truncate")
+    expect(nameLink).toHaveClass("w-full")
+    expect(description).toHaveClass("truncate")
+    expect(description).toHaveClass("w-full")
+    // Round-1 review of PR #611: `w-full` alone is inert here -- a
+    // percentage width resolves against the wrapper's own box, and without
+    // `flex-1` forcing that wrapper's flex-basis to 0, the wrapper still
+    // sizes to its long-text content (flex-basis: auto = max-content), so
+    // `w-full` would compute against an already-too-wide box. `flex-1` is
+    // the class actually doing the work; assert it directly so a future
+    // change that keeps `w-full`/`truncate` but drops `flex-1` fails here
+    // instead of silently reintroducing the spill.
+    expect(nameLink.parentElement).toHaveClass("flex-1")
+  })
+
   // aexa-frontend#551: a confirmed risk's name was plain text even though
   // risk.id was already the list key -- same gap #548/#549/#550 fixed
   // elsewhere in the cross-linking sweep.
