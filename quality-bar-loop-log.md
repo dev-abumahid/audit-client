@@ -510,3 +510,49 @@ PageRank contradiction, alerts read-only with no CTA), the out-of-scope
 risk-detail-page routing bug, and mobile's touch-target/ref-badge
 findings. Efficiency has no open findings left as of this round — worth
 confirming with a fresh score before assuming it's cleared.
+
+## Round 9 (re-score after PR #603)
+
+| Axis | Round 7 | Round 9 | Δ |
+|---|---|---|---|
+| Industry-standards | 5/10 | 5/10 | — |
+| UX | 7/10 | 7/10 | — |
+| Efficiency | 6/10 | **10/10** | ↑↑↑↑ |
+| Accessibility | 7/10 | 7/10 | — |
+| Visual/design polish | 7/10 | 7/10 | — |
+| Resilience & edge cases | 9/10 | 9/10 | — |
+| Code quality/maintainability | 7/10 | 7/10 | — |
+| Mobile/responsive | 6/10 | 6/10 | — |
+
+**Average: 7.25/10** (up from 6.75/10) — not converged (2/8 axes below
+floor of 7: industry-standards, mobile). No regression, no stagnation
+(six straight panels of average improvement: 5.4 → 5.75 → 6.375 → 6.625
+→ 6.75 → 7.25) — guardrails clear, loop continues.
+
+Efficiency is the first axis to reach a perfect score in this loop. The
+judge was deliberately asked to scrutinize rigorously rather than trust
+PR #603's own claims, given the skill's own warning that a memoization
+fix with a wrong/incomplete dependency array is worse than no memo at
+all (silent stale data). Verified: both dependency arrays are complete,
+a fresh pass over both files (including the untouched
+`CriticalAlertBanner.tsx`) found nothing else of comparable severity,
+and the resilience judge independently re-verified the same dependency
+correctness from scratch and found no stale-data risk either.
+
+### Chosen fix for round 10
+
+**Mobile's touch-target and ref-badge findings** (below floor, real and
+mechanical): the "Systemic Tipping Points" ref badge wraps to two lines
+in a fixed 36×36px box, and two interactive elements (the Tipping Points
+risk-name link, and the page-level error state's Retry button) measure
+under the WCAG 44×44px touch-target guideline. Chosen over
+industry-standards because:
+- Both remaining industry-standards items are either backend-blocked
+  (EBITDA chart has no real endpoint to point at) or larger UX/product
+  decisions (a time-range control, KPI drill-down navigation) that
+  deserve more design thought than a single autonomous round should
+  absorb without user input.
+- Mobile's items are concrete, low-risk, CSS/sizing-only fixes with no
+  design ambiguity — grow the ref badge or truncate its content, add
+  padding/min-height to the two undersized touch targets. Same
+  "mechanical fix first" preference that guided rounds 6 and 8.
