@@ -880,3 +880,87 @@ debt is in what wasn't asked of it during review.
 
 Per the skill's guardrail, stopping here to escalate with this
 diagnosis rather than picking a fix and continuing.
+
+### Round 15 outcome — user chose "Fix all 4 now", merged as PR #607
+
+User chose to fix all 4 regressions in one batch rather than partial or
+stopping. Shipped via `ship-with-review-loop`, three commits, converged
+clean on review round 3:
+
+- **Code quality fix**: extracted the 4 copy-pasted "filtered by X, clear
+  filter" blocks into a new shared `src/components/shared/FilteredByNotice.tsx`,
+  adopted by `RiskRegisterPage.tsx`, `KriDashboardPage.tsx`,
+  `AllFindingsPage.tsx`, and `InspectionTable.tsx`.
+- **Accessibility fix**: `FilteredByNotice` renders with `role="status"`
+  (implicit `aria-live="polite"`) — closes both the code-quality and
+  accessibility findings in one change. Confirmed correct urgency level
+  against this codebase's own precedent (`role="alert"` reserved for
+  genuine failures elsewhere, e.g. `Overview.tsx`/`CriticalAlertBanner.tsx`;
+  a filter-state notice is informational, not urgent).
+- **Resilience fix**: crash-risk fallback (`SEVERITY_STYLES[...] ??
+  SEVERITY_STYLES.neutral`) applied in `AlertsPage.tsx`, and proactively
+  extended to `RiskBadge.tsx` — a shared component with the identical bug
+  that no judge had named directly, found while fixing the flagged
+  instance. Added `isError` handling + distinct error/empty-state rows to
+  `RiskRegisterPage.tsx` (which had zero empty-state feedback before this
+  PR), `AllFindingsPage.tsx`, and `InspectionTable.tsx`.
+- **Visual polish fix**: `MetricCard.tsx`'s `hover:border-primary/30`
+  moved out of the shared `sharedClassName` into only the `Link` branch,
+  so the non-clickable Revenue card no longer visually reads as equally
+  clickable as the other 5.
+- **Review round 1**: real bug caught. The crash-risk fix on
+  `AlertsPage.tsx` only covered the alert icon's text-color fallback —
+  the icon's background-color ternary was a separate hand-rolled chain
+  that still silently fell through to "low" (green) styling for any
+  unrecognized severity, producing a neutral-gray icon inside a
+  green-tinted box. Also independently confirmed: the `RiskBadge`
+  fallback is genuinely reachable at runtime (every caller passes
+  `any`-typed API data, so TypeScript's 4-value union never actually
+  guards it), `neutral` styling is visually sane everywhere `RiskBadge`
+  is used (7 call sites checked), all 3 pages' new `isError` branches are
+  correctly prioritized over loading/empty states, `colSpan` on the 2 new
+  `RiskRegisterPage.tsx` rows matches its real 9-column table, and
+  `MetricCard`'s `focus-ring` class survived the hover-class move. Fixed
+  the icon-background gap same round by routing both `bg` and `text`
+  through the identical `SEVERITY_STYLES` lookup.
+- **Review round 2**: minor finding — the fix commit's own comment
+  overclaimed, saying it fixed "the border above and this icon-background"
+  when only the icon was touched; the card's outer border is a separate,
+  deliberately binary "only critical gets a colored border" emphasis, not
+  the same silent-fallthrough bug class. Fixed same round by clarifying
+  the comment (no behavior change).
+- **Review round 3**: clean, zero findings. Confirmed the round-2 fix was
+  genuinely comment-only and the corrected comment is now factually
+  accurate. Converged.
+- QA gate: typecheck clean, lint clean (0 errors, same 5 pre-existing
+  warnings), full suite 1575/1575 passing throughout all commits,
+  including new/updated tests for `FilteredByNotice` (role="status",
+  label/link rendering, id propagation), two new crash-risk regression
+  tests (`AlertsPage.test.tsx`, `RiskBadge.test.tsx` — both verified via
+  negative control: reverted the fix, confirmed the exact original crash
+  reproduced, restored the fix, confirmed it passes), new `isError` tests
+  on all 3 destination pages, and `RiskRegisterPage.test.tsx`'s pre-existing
+  empty-state test updated to assert the new empty-state row instead of
+  "no rows at all" (the correct, expected consequence of fixing a real
+  bug, not a regression in the fix).
+- Live-verified: a coincidental real 429 rate-limit event from
+  `aexa-server` during this round's testing doubled as direct, unplanned
+  confirmation of the new `isError`/`role="alert"` and `role="status"`
+  fixes working in the actual failure scenario they were designed for —
+  confirmed via DOM inspection showing both the error message and the
+  filter notice rendering correctly together. The `MetricCard` hover-class
+  fix specifically could not be live-verified (the dashboard was
+  rate-limited at that same moment) — relied on the passing unit-test
+  assertion instead.
+
+This closes all 4 of round 15's regressions. Still open going into round
+17: industry-standards' remaining 2 findings (fabricated EBITDA data —
+blocked on backend work; no time-range/freshness indicator — needs its
+own product decision), UX's remaining findings other than no-drill-down
+(all-or-nothing loading, PageRank contradiction, alerts read-only with no
+CTA), mobile's remaining finding (`MetricCard` still has zero responsive
+classes), and the out-of-scope risk-detail-page routing bug. A fresh
+8-judge panel is the next step, to confirm the 4 regressed axes have
+actually recovered (and ideally hold or improve further) without
+introducing any new regression, before picking round 17's fix or
+checking whether the loop should stop.
