@@ -926,6 +926,42 @@ describe("Overview", () => {
     expect(screen.queryByText("+3")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 8 (efficiency): the PageRank power iteration
+  // used to rerun on every render regardless of cause. Spies on the real
+  // computePageRank export to confirm a re-render with unchanged
+  // correlation-matrix data does NOT trigger a second computation --
+  // proving the useMemo wrapper actually memoizes, not just that the
+  // rendered numbers happen to look right.
+  it("does not recompute PageRank on a re-render caused by unrelated state", async () => {
+    const pageRankModule = await import("@/utils/pageRank")
+    const computeSpy = vi.spyOn(pageRankModule, "computePageRank")
+
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          risks: [makeRisk({ id: "r1", ref: "RSK-001" })],
+          riskLinks: [],
+        },
+      },
+      isLoading: false,
+    })
+    const { rerender } = renderPage()
+    expect(computeSpy).toHaveBeenCalledTimes(1)
+
+    // Same props, same underlying data -- a re-render here mirrors what
+    // happens today from CriticalAlertBanner's own unrelated dismissed
+    // state or the focus-management effects, none of which should
+    // re-trigger the PageRank computation.
+    rerender(
+      <MemoryRouter>
+        <Overview />
+      </MemoryRouter>
+    )
+
+    expect(computeSpy).toHaveBeenCalledTimes(1)
+    computeSpy.mockRestore()
+  })
+
   // aexa-frontend#471 -- organization.overview.description hardcoded a
   // fictional company name ("CEBI International S.A.") under every
   // organization's dashboard. It now interpolates the real org name from

@@ -30,7 +30,7 @@ import {
   Shield,
   Zap,
 } from "lucide-react"
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 import {
@@ -143,7 +143,10 @@ export default function Overview() {
     searchTerm: "",
   })
 
-  const risks: Risk[] = riskResponse?.data ?? []
+  // Memoized (rather than a plain `?? []`) so its reference stays stable
+  // across renders where riskResponse hasn't changed -- categoryData's own
+  // useMemo below depends on this.
+  const risks: Risk[] = useMemo(() => riskResponse?.data ?? [], [riskResponse])
   const kris = kriResponse?.data ?? []
   const alerts: Alert[] = alertResponse?.data ?? []
   const findings = findingResponse?.data ?? []
@@ -154,21 +157,29 @@ export default function Overview() {
   // consistency on this page.
   const totalRevenueLabel = `€${(totalRevenue / 1_000_000).toFixed(1)}M`
 
-  const categoryData = Object.entries(
-    risks.reduce(
-      (acc, r) => {
-        acc[r.category] = (acc[r.category] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>
-    )
-  ).map(([key, value]) => ({
-    name: RISK_CATEGORIES[key]
-      ? t(`organization.riskCategories.${RISK_CATEGORIES[key].labelKey}`)
-      : key,
-    value,
-    color: RISK_CATEGORIES[key]?.color || "#888",
-  }))
+  // quality-bar-loop round 8 (efficiency): this reduce+map used to run on
+  // every render regardless of cause (e.g. CriticalAlertBanner's own
+  // dismissed toggle, or the focus-management effects below) even though
+  // it only actually depends on `risks` and the active language.
+  const categoryData = useMemo(
+    () =>
+      Object.entries(
+        risks.reduce(
+          (acc, r) => {
+            acc[r.category] = (acc[r.category] || 0) + 1
+            return acc
+          },
+          {} as Record<string, number>
+        )
+      ).map(([key, value]) => ({
+        name: RISK_CATEGORIES[key]
+          ? t(`organization.riskCategories.${RISK_CATEGORIES[key].labelKey}`)
+          : key,
+        value,
+        color: RISK_CATEGORIES[key]?.color || "#888",
+      })),
+    [risks, t]
+  )
 
   const kriAlerts = kris.filter((k: any) => k.status === "ALERT").length
   const criticalAlerts = alerts.filter((a) => a.severity === "critical").length
@@ -197,23 +208,37 @@ export default function Overview() {
   // could be exactly the kind of highly-linked hub this section exists to
   // surface, and silently dropping its edges would both hide it and skew
   // every other risk's score (found during this PR's own review).
-  const allRisksForCorrelation = correlationMatrixResponse?.data?.risks ?? []
-  const riskLinks = correlationMatrixResponse?.data?.riskLinks ?? []
-  const riskRefs = allRisksForCorrelation.map((r) => r.ref)
-  const correlationEdges = buildRiskCorrelationEdges(riskLinks)
-  const pageRankScores = computePageRank(riskRefs, correlationEdges)
-  const maxPageRankScore = Math.max(0, ...Object.values(pageRankScores))
-  // quality-bar-loop round 6 (efficiency): topPercentileByPageRank(nodes,
-  // edges, pct) would recompute PageRank internally from the same
-  // riskRefs/correlationEdges -- topPercentileFromScores reuses
-  // pageRankScores (already computed above) instead of running the full
-  // power iteration a second time on every render.
-  const tippingPointRefs = new Set(
-    topPercentileFromScores(riskRefs, pageRankScores, 0.15)
-  )
-  const tippingPointRisks = allRisksForCorrelation
-    .filter((r) => tippingPointRefs.has(r.ref))
-    .sort((a, b) => pageRankScores[b.ref] - pageRankScores[a.ref])
+  // quality-bar-loop round 8 (efficiency): the PageRank power iteration
+  // (up to 100 passes over every risk/edge, see pageRank.ts) used to
+  // recompute on every render regardless of cause -- it only actually
+  // depends on the correlation-matrix response itself. `allRisksForCorrelation`
+  // is derived inside the callback (not hoisted to its own `const`, per
+  // eslint's exhaustive-deps) so the `?? []` fallback can't defeat the
+  // memo by producing a new array reference on every render.
+  const { pageRankScores, maxPageRankScore, tippingPointRisks } = useMemo(() => {
+    const allRisksForCorrelation = correlationMatrixResponse?.data?.risks ?? []
+    const riskLinks = correlationMatrixResponse?.data?.riskLinks ?? []
+    const riskRefs = allRisksForCorrelation.map((r) => r.ref)
+    const correlationEdges = buildRiskCorrelationEdges(riskLinks)
+    const scores = computePageRank(riskRefs, correlationEdges)
+    const maxScore = Math.max(0, ...Object.values(scores))
+    // quality-bar-loop round 6 (efficiency): topPercentileByPageRank(nodes,
+    // edges, pct) would recompute PageRank internally from the same
+    // riskRefs/correlationEdges -- topPercentileFromScores reuses `scores`
+    // (already computed above) instead of running the full power
+    // iteration a second time.
+    const tippingPointRefs = new Set(
+      topPercentileFromScores(riskRefs, scores, 0.15)
+    )
+    const tippingRisks = allRisksForCorrelation
+      .filter((r) => tippingPointRefs.has(r.ref))
+      .sort((a, b) => scores[b.ref] - scores[a.ref])
+    return {
+      pageRankScores: scores,
+      maxPageRankScore: maxScore,
+      tippingPointRisks: tippingRisks,
+    }
+  }, [correlationMatrixResponse])
 
   // quality-bar-loop round 2.5 (accessibility regression + resilience
   // dead-code fix, review of round 1's fix): alerts is deliberately excluded
