@@ -217,3 +217,71 @@ memoization), the remaining resilience gaps (loading skeleton,
 malformed-payload defense), the out-of-scope risk-detail-page routing bug
 spotted by the UX judge, and code quality's minor new duplication
 (CriticalAlertBanner's two near-identical banner blocks).
+
+## Round 3 (re-score after PR #600)
+
+| Axis | Round 2 | Round 3 | Δ |
+|---|---|---|---|
+| Industry-standards | 4/10 | 4/10 | — |
+| UX | 5/10 | 6/10 | ↑ |
+| Efficiency | 5/10 | 5/10 | — |
+| Accessibility | 5/10 | 7/10 | ↑↑ (recovered above round 1's 6/10) |
+| Visual/design polish | 7/10 | 7/10 | — |
+| Resilience & edge cases | 7/10 | 9/10 | ↑↑ |
+| Code quality/maintainability | 7/10 | 7/10 | — |
+| Mobile/responsive | 6/10 | 6/10 | — |
+
+**Average: 6.375/10** (up from 5.75/10) — not converged (4/8 axes below
+floor of 7: industry-standards, UX, efficiency, mobile). No regression
+(every axis held or improved) and no stagnation (three straight rounds of
+average improvement) — guardrails clear, loop continues.
+
+### Round 3 highlights
+
+- **Resilience 7→9**: the dead-code fix from PR #600 genuinely closed the
+  gap. Live-verified full-outage path still works; the alerts-only path
+  was confirmed correct by reading the actual test assertions (not just a
+  green run) since RTK Query's shared backend made it impractical to
+  isolate live. Remaining gap to 10/10: no loading skeleton, no
+  malformed-payload defense — both explicitly out of scope for this fix.
+- **Accessibility 5→7**: fully recovered from the round-2 regression and
+  landed above round 1's original 6/10. Live-verified `role="alert"` +
+  focus-on-mount actually fires (not just present in source) on both
+  targeted surfaces. One new, minor miss found: the *third* error surface
+  PR #600 itself added (the Recent Alerts panel's inline notice) has
+  `role="alert"` but no focus-on-mount like its two siblings — flagged as
+  low-severity since `role="alert"` is itself an implicit live region,
+  appropriate for a small inline sub-panel rather than a full-page
+  takeover.
+- **UX 5→6**: the judge credited the partial-degradation design (one bad
+  endpoint no longer takes down the whole page) as a real improvement,
+  while noting it's not fully resolved: the Critical Alerts KPI card's
+  bare "—" fallback doesn't self-explain "error" vs. "unknown" the way
+  the two new text-based error notices do.
+
+### Chosen fix for round 4
+
+**Fabricated trend badges** (industry-standards' and UX's shared,
+overlapping finding): `Overview.tsx` hardcodes `trend="up" trendValue="+2"`/`"+3"`
+on 3 of 6 KPI cards with no backing period-over-period data anywhere in
+the codebase. This is the single highest-leverage fix available:
+- It's flagged independently by two judges across two different rounds
+  each round.
+- It's a correctness/trust issue, not just polish — UX's live check found
+  the Critical Alerts card showing "0" alongside a red "+2 up" badge,
+  actively self-contradictory on a screen already carrying its own
+  distinct "—" error-fallback logic.
+- Unlike the EBITDA chart (same axis, but genuinely blocked on a
+  non-existent backend endpoint — real remediation is backend work out of
+  scope for a frontend-only fix), the trend badges have no such
+  dependency: removing fabricated data that overstates confidence is a
+  pure frontend change.
+- Fixes it for both industry-standards (removes the fabrication) and UX
+  (removes the self-contradictory badge) in one change.
+
+Deliberately not chosen this round: the EBITDA chart (blocked on backend
+work), no-drill-down/PageRank-contradiction (larger scope, no single
+judge-flagged fix as concrete/cheap as this one), and efficiency's
+findings (real, but resilience/accessibility have priority per the "pick
+from below-floor axes" rule, and industry-standards +UX's overlapping fix
+is more clearly scoped this round).
