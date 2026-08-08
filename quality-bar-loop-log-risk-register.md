@@ -864,3 +864,27 @@ still stand as the actual path to a meaningfully higher score:
 Recommend treating these as their own scoped, planned pieces of work
 (each easily its own multi-file PR) rather than continuing this
 quality-bar-loop's small-fix cadence into its last round.
+
+## Structural workstream 1 (efficiency) -- shipped, PR #628
+
+Per the user's go-ahead to proceed on the two recommended workstreams
+directly: shipped debounce (search input, 300ms, same convention as
+TemplatesPage/SitesEntities), row memoization (extracted a memoized
+`RiskRow` component, same convention as RiskGraphPage's
+`RiskGraphNode`/`RiskGraphLinkLine`), and a `watch()` dedup in the
+Add/Edit modal. Two review rounds: round 1 found one real issue
+(`setPage(1)` firing synchronously ahead of the debounce, causing a
+stale-searchTerm request flash on any page > 1 -- fixed by moving the
+reset into a `useEffect([debouncedSearch])`, matching SitesEntities);
+round 2 came back clean. Merged.
+
+This directly addresses the efficiency axis's concrete gaps from the
+round-8/round-9 diagnosis. Does not re-run the judge panel to re-score --
+that's deferred until the industry-standards workstream (sorting/bulk
+actions/export) also lands, so both structural fixes get scored together
+rather than burning a judge-panel dispatch per fix.
+
+**Next: structural workstream 2 (industry-standards)** -- sorting,
+bulk actions, CSV export. No sort/bulk convention exists elsewhere in the
+codebase yet (confirmed via research); export will reuse RiskGraphPage's
+existing CSV-export helpers (`triggerDownload`/`csvTextField`).
