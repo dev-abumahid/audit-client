@@ -15,7 +15,7 @@ import type { Alert, Risk } from "@/types/organization"
 import {
   buildRiskCorrelationEdges,
   computePageRank,
-  topPercentileByPageRank,
+  topPercentileFromScores,
 } from "@/utils/pageRank"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
@@ -203,8 +203,13 @@ export default function Overview() {
   const correlationEdges = buildRiskCorrelationEdges(riskLinks)
   const pageRankScores = computePageRank(riskRefs, correlationEdges)
   const maxPageRankScore = Math.max(0, ...Object.values(pageRankScores))
+  // quality-bar-loop round 6 (efficiency): topPercentileByPageRank(nodes,
+  // edges, pct) would recompute PageRank internally from the same
+  // riskRefs/correlationEdges -- topPercentileFromScores reuses
+  // pageRankScores (already computed above) instead of running the full
+  // power iteration a second time on every render.
   const tippingPointRefs = new Set(
-    topPercentileByPageRank(riskRefs, correlationEdges, 0.15)
+    topPercentileFromScores(riskRefs, pageRankScores, 0.15)
   )
   const tippingPointRisks = allRisksForCorrelation
     .filter((r) => tippingPointRefs.has(r.ref))
