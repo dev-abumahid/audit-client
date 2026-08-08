@@ -246,6 +246,16 @@ export default function KriDashboardPage() {
   const warningCount = kris.filter((k: any) => k.status === "WARNING").length
   const okCount = kris.filter((k: any) => k.status === "OK").length
 
+  // quality-bar-loop round 14 (industry-standards): the dashboard's
+  // "KRI Alerts" card used to be a static, non-clickable number -- it now
+  // links here with ?status=ALERT. The summary chips above stay computed
+  // from the full, unfiltered `kris` list (they're page-wide totals, not
+  // affected by an incoming filter); only the card grid below narrows.
+  const statusParam = searchParams.get("status")
+  const statusFilteredKris = statusParam
+    ? kris.filter((k: any) => k.status === statusParam)
+    : kris
+
   if (krisLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
@@ -319,9 +329,29 @@ export default function KriDashboardPage() {
         </div>
       </div>
 
+      {statusParam && (
+        <div className="animate-fade-in flex items-center gap-2 text-xs text-muted-foreground">
+          <span>
+            {t("organization.kri.filteredByStatus", {
+              status:
+                statusParam === "ALERT"
+                  ? t("organization.kri.status.alert")
+                  : statusParam === "WARNING"
+                    ? t("organization.kri.status.warning")
+                    : statusParam === "OK"
+                      ? t("organization.kri.status.ok")
+                      : statusParam,
+            })}
+          </span>
+          <Link to="/organization/kri" className="focus-ring rounded text-primary hover:underline">
+            {t("organization.kri.clearFilter")}
+          </Link>
+        </div>
+      )}
+
       {/* KRI Cards */}
       <div className="animate-slide-up stagger-2 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {kris.map((kri: any) => {
+        {statusFilteredKris.map((kri: any) => {
           const statusColor =
             kri.status === "ALERT"
               ? "border-risk-critical/40"
@@ -461,7 +491,7 @@ export default function KriDashboardPage() {
           )
         })}
 
-        {kris.length === 0 && (
+        {statusFilteredKris.length === 0 && (
           <div className="col-span-full rounded-xl border border-border bg-card p-12 text-center">
             <p className="text-sm text-muted-foreground">
               {t("organization.kri.noKris")}

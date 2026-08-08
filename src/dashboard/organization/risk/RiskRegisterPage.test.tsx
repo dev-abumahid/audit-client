@@ -7,10 +7,12 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 // aexa-frontend#529: the risk name is now a <Link> to the new per-risk
 // detail page, so this needs a Router context -- same convention as
-// InspectionTable.test.tsx's renderTable().
-function renderPage() {
+// InspectionTable.test.tsx's renderTable(). initialPath (round 14) lets
+// the ?status= filter tests below drive the initial URL, same convention
+// as KriDashboardPage.test.tsx's renderPage(initialPath).
+function renderPage(initialPath = "/") {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialPath]}>
       <RiskRegisterPage />
     </MemoryRouter>
   )
@@ -157,6 +159,55 @@ describe("RiskRegisterPage", () => {
     renderPage()
 
     expect(screen.getByText("2 risks found")).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 14 (industry-standards): the dashboard's
+  // "Active Risks" card now links here with ?status=open. This page had no
+  // status filter of any kind before this -- confirms the new client-side
+  // filter narrows the list and shows a clear-filter link.
+  describe("?status= filter from the dashboard's Active Risks card (round 14)", () => {
+    it("shows only open risks and a clear-filter link when ?status=open is present", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "r1", name: "Open risk", status: "open" }),
+            makeRisk({ id: "r2", name: "Closed risk", status: "closed" }),
+          ],
+        },
+      })
+
+      renderPage("/?status=open")
+
+      expect(screen.getByText("Open risk")).toBeInTheDocument()
+      expect(screen.queryByText("Closed risk")).not.toBeInTheDocument()
+      expect(
+        screen.getByText("organization.riskRegister.filteredByStatus")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("link", {
+          name: "organization.riskRegister.clearFilter",
+        })
+      ).toHaveAttribute("href", "/organization/risks")
+    })
+
+    it("does not narrow the list or show a clear-filter link with no ?status= param", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "r1", name: "Open risk", status: "open" }),
+            makeRisk({ id: "r2", name: "Closed risk", status: "closed" }),
+          ],
+        },
+      })
+
+      renderPage()
+
+      expect(screen.getByText("Open risk")).toBeInTheDocument()
+      expect(screen.getByText("Closed risk")).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.riskRegister.filteredByStatus")
+      ).not.toBeInTheDocument()
+    })
   })
 
   it("shows Add/Edit/Delete controls for an ADMIN", () => {

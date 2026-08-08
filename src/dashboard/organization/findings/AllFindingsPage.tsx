@@ -27,7 +27,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Link, useNavigate } from "react-router"
+import { Link, useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 import CreateNewFindingModal from "./CreateNewFindingModal"
 
@@ -93,6 +93,19 @@ export default function AllFindingsPage() {
   // it's inspection-scoped only, same reasoning as InspectionTable.tsx's
   // "Start New").
   const assignedInspectionIds = useMyAssignedInspectionIds()
+  const [searchParams] = useSearchParams()
+  // quality-bar-loop round 14 (industry-standards): the dashboard's
+  // "Open Actions" KPI card used to be a static, non-clickable number --
+  // it now links here with ?status=open, meaning TO_DO or IN_PROGRESS
+  // (the same two statuses Overview.tsx's own KPI count already uses).
+  // GetAllFindingsArgs has no status param and this list is server-
+  // paginated at limit:20, so a naive client-side filter would only ever
+  // filter whatever 20 rows happen to be on the current page. Instead,
+  // while this filter is active, fetch with the same limit:100 Overview.tsx
+  // itself already uses for this exact count, filter that whole window
+  // client-side, and hide pagination -- consistent with how the KPI number
+  // being linked to was computed in the first place, not a paginated view.
+  const openStatusFilter = searchParams.get("status") === "open"
   const [search, setSearch] = useState("")
   const [selectedSiteId, setSelectedSiteId] = useState<string>("")
   const [page, setPage] = useState(1)
@@ -112,8 +125,8 @@ export default function AllFindingsPage() {
 
   // Fetch findings with filters
   const { data, isLoading, refetch } = useGetAllFindingsQuery({
-    page,
-    limit: 20,
+    page: openStatusFilter ? 1 : page,
+    limit: openStatusFilter ? 100 : 20,
     searchTerm: search,
     siteId: selectedSiteId || "",
   })
@@ -122,9 +135,14 @@ export default function AllFindingsPage() {
     useDeleteFindingByIdMutation()
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
-  const actions: IAction[] = data?.data || []
+  const fetchedActions: IAction[] = data?.data || []
+  const actions: IAction[] = openStatusFilter
+    ? fetchedActions.filter(
+        (a) => a.status === "TO_DO" || a.status === "IN_PROGRESS"
+      )
+    : fetchedActions
   const meta = data?.meta
-  const totalPages = meta?.totalPage || 0
+  const totalPages = openStatusFilter ? 1 : meta?.totalPage || 0
 
   // aexa-frontend#265: deleting the last finding on the last page shrinks
   // totalPages without a filter change (handleSiteFilter/clearFilters below
@@ -198,6 +216,17 @@ export default function AllFindingsPage() {
             </button>
           )}
         </div>
+        {openStatusFilter && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <span>{t("organization.findings.filteredByOpenStatus")}</span>
+            <Link
+              to="/organization/findings"
+              className="focus-ring rounded text-primary hover:underline"
+            >
+              {t("organization.findings.clearStatusFilter")}
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="p-4 sm:p-6 lg:p-8">

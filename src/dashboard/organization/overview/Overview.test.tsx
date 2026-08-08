@@ -1002,6 +1002,35 @@ describe("Overview", () => {
     expect(screen.queryByText("+3")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 14 (industry-standards): 5 of the 6 KPI cards
+  // used to be non-interactive despite hover:border-primary/30 implying
+  // otherwise -- they now link to a real filtered view of the data they
+  // summarize. Revenue has no filtered view to land on (SitesEntities.tsx
+  // doesn't display revenue at all) and deliberately stays a plain,
+  // non-clickable card.
+  it("links 5 of the 6 KPI cards to their real filtered destinations, leaving Revenue non-clickable", () => {
+    renderPage()
+
+    expect(
+      screen.getByText("organization.overview.activeRisk").closest("a")
+    ).toHaveAttribute("href", "/organization/risks?status=open")
+    expect(
+      screen.getByText("organization.overview.kriAlert").closest("a")
+    ).toHaveAttribute("href", "/organization/kri?status=ALERT")
+    expect(
+      screen.getByText("organization.overview.criticalAlert").closest("a")
+    ).toHaveAttribute("href", "/organization/alerts?severity=critical")
+    expect(
+      screen.getByText("organization.overview.openActions").closest("a")
+    ).toHaveAttribute("href", "/organization/findings?status=open")
+    expect(
+      screen.getByText("organization.overview.activeInspections").closest("a")
+    ).toHaveAttribute("href", "/organization/audit/inspections?status=active")
+    expect(
+      screen.getByText("organization.overview.revenue").closest("a")
+    ).toBeNull()
+  })
+
   // quality-bar-loop round 8 (efficiency): the PageRank power iteration
   // used to rerun on every render regardless of cause. Spies on the real
   // computePageRank export to confirm a re-render with unchanged

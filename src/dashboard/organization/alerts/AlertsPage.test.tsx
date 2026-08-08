@@ -5,10 +5,12 @@ import AlertsPage from "./AlertsPage"
 
 // aexa-frontend#530: an alert with kri_id set now renders a <Link> to the
 // KRI dashboard, so this needs a Router context -- same convention as
-// InspectionTable.test.tsx's renderTable().
-function renderPage() {
+// InspectionTable.test.tsx's renderTable(). initialPath (round 14) lets
+// the ?severity= filter tests below drive the initial URL, same convention
+// as KriDashboardPage.test.tsx's renderPage(initialPath).
+function renderPage(initialPath = "/") {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialPath]}>
       <AlertsPage />
     </MemoryRouter>
   )
@@ -272,6 +274,43 @@ describe("AlertsPage", () => {
     expect(screen.queryByText("High one")).not.toBeInTheDocument()
 
     await userEvent.click(criticalChip!)
+    expect(screen.getByText("Critical one")).toBeInTheDocument()
+    expect(screen.getByText("High one")).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 14 (industry-standards): the dashboard's
+  // "Critical Alerts" card now links here with ?severity=critical, seeding
+  // the same quick-filter chip state this page already had.
+  it("pre-filters to critical severity when ?severity=critical is in the URL", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: {
+        data: [
+          makeAlert({ id: "a1", severity: "critical", title: "Critical one" }),
+          makeAlert({ id: "a2", severity: "high", title: "High one" }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    renderPage("/?severity=critical")
+
+    expect(screen.getByText("Critical one")).toBeInTheDocument()
+    expect(screen.queryByText("High one")).not.toBeInTheDocument()
+  })
+
+  it("ignores an invalid ?severity= value instead of crashing", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: {
+        data: [
+          makeAlert({ id: "a1", severity: "critical", title: "Critical one" }),
+          makeAlert({ id: "a2", severity: "high", title: "High one" }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    renderPage("/?severity=not-a-real-severity")
+
     expect(screen.getByText("Critical one")).toBeInTheDocument()
     expect(screen.getByText("High one")).toBeInTheDocument()
   })

@@ -35,7 +35,7 @@ import { severityBadgeClasses } from "@/utils/severityStyles"
 import { Edit2, Eye, Plus, Search, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Link, useNavigate } from "react-router"
+import { Link, useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 import StartInspectionModal from "./StartInspectionModal"
 
@@ -71,6 +71,20 @@ const InspectionTable = () => {
   // canWriteInspection back to the same role-only behavior as before #270.
   const canCreateInspection = role === "ADMIN"
   const assignedInspectionIds = useMyAssignedInspectionIds()
+  const [searchParams] = useSearchParams()
+  // quality-bar-loop round 14 (industry-standards): the dashboard's
+  // "Active Inspections" KPI card used to be a static, non-clickable
+  // number -- it now links here with ?status=active, meaning DRAFT or
+  // IN_PROGRESS (the same two statuses Overview.tsx's own KPI count
+  // already uses). The status dropdown/API below only support one exact
+  // status value at a time, with no combined option, so a naive
+  // `status=active` pass-through to the backend wouldn't work. Instead,
+  // while this filter is active, fetch every status (limit:100, matching
+  // the same convention AllFindingsPage.tsx uses for its own equivalent
+  // ?status=open link) and filter that whole window client-side, with
+  // pagination hidden -- consistent with how the KPI number being linked
+  // to was computed in the first place.
+  const activeStatusFilter = searchParams.get("status") === "active"
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
@@ -83,10 +97,14 @@ const InspectionTable = () => {
 
   // API Calls
   const { data, isLoading } = useGetAllInspectionQuery({
-    page: currentPage,
-    limit,
+    page: activeStatusFilter ? 1 : currentPage,
+    limit: activeStatusFilter ? 100 : limit,
     searchTerm: debouncedSearchTerm,
-    status: statusFilter === "ALL" ? "" : statusFilter,
+    status: activeStatusFilter
+      ? ""
+      : statusFilter === "ALL"
+        ? ""
+        : statusFilter,
     siteId: siteFilter === "ALL" ? "" : siteFilter,
   })
   const { data: sitesData } = useGetAllSitesQuery({
@@ -96,9 +114,15 @@ const InspectionTable = () => {
   })
   const [deleteInspection] = useDeleteInspectionMutation()
 
-  const inspections = data?.data || []
+  const fetchedInspections = data?.data || []
+  const inspections = activeStatusFilter
+    ? fetchedInspections.filter(
+        (i: InspectionSummary) =>
+          i.status === "DRAFT" || i.status === "IN_PROGRESS"
+      )
+    : fetchedInspections
   const meta = data?.meta
-  const totalPages = meta?.totalPage || 1
+  const totalPages = activeStatusFilter ? 1 : meta?.totalPage || 1
 
   // aexa-frontend#265: deleting the last inspection on the last page shrinks
   // totalPages without touching any filter, stranding currentPage out of
@@ -206,6 +230,20 @@ const InspectionTable = () => {
           )}
         </div>
 
+        {activeStatusFilter && (
+          <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
+            <span id="active-status-filter-notice">
+              {t("organization.inspection.filteredByActiveStatus")}
+            </span>
+            <Link
+              to="/organization/audit/inspections"
+              className="focus-ring rounded text-primary hover:underline"
+            >
+              {t("organization.inspection.clearStatusFilter")}
+            </Link>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="mb-6 flex flex-col justify-end gap-4 md:flex-row">
           <div className="relative max-w-md flex-1">
@@ -218,8 +256,29 @@ const InspectionTable = () => {
             />
           </div>
 
-          <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-            <SelectTrigger className="w-full md:w-48">
+          {/* Round-1 review of quality-bar-loop round 14: while
+              ?status=active is applied, the query's own status is
+              force-overridden below regardless of this dropdown's value --
+              leaving it enabled let a user pick e.g. "Completed" and see
+              the selection change with zero effect on the (still
+              DRAFT/IN_PROGRESS-only) results, a silent no-op. Disabled
+              while the URL filter is active; the clear-filter link above
+              is the way back to normal filtering. Round-2 review: a
+              disabled control with no stated reason is its own
+              discoverability gap for a keyboard/screen-reader user who
+              tabs to it without having already read the notice above --
+              aria-describedby ties the two together. */}
+          <Select
+            value={statusFilter}
+            onValueChange={handleStatusFilterChange}
+            disabled={activeStatusFilter}
+          >
+            <SelectTrigger
+              className="w-full md:w-48"
+              aria-describedby={
+                activeStatusFilter ? "active-status-filter-notice" : undefined
+              }
+            >
               <SelectValue placeholder={t("organization.inspection.statusAll")} />
             </SelectTrigger>
 

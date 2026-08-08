@@ -10,7 +10,7 @@ import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import { Bell, Clock, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Link } from "react-router"
+import { Link, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 type Severity = "critical" | "high" | "medium" | "low"
@@ -48,7 +48,22 @@ export default function AlertsPage() {
   } = useGetAllAlertsQuery(undefined)
   const [markAlertRead, { isLoading: isMarkingRead }] =
     useMarkAlertReadMutation()
-  const [severityFilter, setSeverityFilter] = useState<Severity | null>(null)
+  // quality-bar-loop round 14 (industry-standards): the dashboard's
+  // "Critical Alerts" KPI card used to be a static, non-clickable number --
+  // it now links here with ?severity=critical, seeding the same
+  // quick-filter chips this page already had rather than adding a second
+  // filter mechanism. Read once on mount, same as a normal initial value --
+  // a user changing chips afterward isn't expected to keep syncing back to
+  // the URL bar.
+  const [searchParams] = useSearchParams()
+  const [severityFilter, setSeverityFilter] = useState<Severity | null>(
+    () => {
+      const param = searchParams.get("severity")
+      return param && param in SEVERITY_ACTIVE_CLASSES
+        ? (param as Severity)
+        : null
+    }
+  )
 
   const allAlerts = alertResponse?.data ?? []
   const alerts = severityFilter

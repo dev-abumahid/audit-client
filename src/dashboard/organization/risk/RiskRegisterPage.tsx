@@ -21,7 +21,7 @@ import { useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { Link } from "react-router"
+import { Link, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 const EMPTY_RISK: Partial<Risk> = {
@@ -54,6 +54,7 @@ export default function RiskRegisterPage() {
   // ADMIN and only found out they couldn't act via a 403 toast.
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
+  const [searchParams] = useSearchParams()
   const [filterCat, setFilterCat] = useState("")
   const [search, setSearch] = useState("")
   const [siteFilter, setSiteFilter] = useState<string>("")
@@ -92,9 +93,23 @@ export default function RiskRegisterPage() {
   const [deleteRisk] = useDeleteRiskMutation()
   // Custom make variables
   const risks: Risk[] = riskData?.data || []
-  const visibleRisks: Risk[] = pendingApprovalOnly
-    ? risks.filter((risk) => risk.approvalStatus === "PENDING_APPROVAL")
+  // quality-bar-loop round 14 (industry-standards): the dashboard's
+  // "Active Risks" KPI card used to be a static, non-clickable number --
+  // it now links here with ?status=open. This page had no status filter of
+  // any kind before (only category/site/search reach the API, and
+  // pendingApprovalOnly is its own client-side toggle), so this is a new,
+  // client-side-only filter -- same convention as pendingApprovalOnly,
+  // since GET /risk already returns every status and there's no reason to
+  // add a new API param just for a same-page value the client already has.
+  const statusParam = searchParams.get("status")
+  const statusFilteredRisks: Risk[] = statusParam
+    ? risks.filter((risk) => risk.status === statusParam)
     : risks
+  const visibleRisks: Risk[] = pendingApprovalOnly
+    ? statusFilteredRisks.filter(
+        (risk) => risk.approvalStatus === "PENDING_APPROVAL"
+      )
+    : statusFilteredRisks
 
   // React Hook Form
   const {
@@ -295,6 +310,21 @@ export default function RiskRegisterPage() {
           )}
         </div>
       </div>
+      {statusParam && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>
+            {t("organization.riskRegister.filteredByStatus", {
+              status: statusParam,
+            })}
+          </span>
+          <Link
+            to="/organization/risks"
+            className="focus-ring rounded text-primary hover:underline"
+          >
+            {t("organization.riskRegister.clearFilter")}
+          </Link>
+        </div>
+      )}
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-40 flex-1">

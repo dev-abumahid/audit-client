@@ -116,12 +116,18 @@ vi.mock("@/components/ui/select", () => ({
     children,
     value,
     onValueChange,
+    disabled,
   }: {
     children: React.ReactNode
     value?: string
     onValueChange?: (v: string) => void
+    disabled?: boolean
   }) => (
-    <select value={value} onChange={(e) => onValueChange?.(e.target.value)}>
+    <select
+      value={value}
+      onChange={(e) => onValueChange?.(e.target.value)}
+      disabled={disabled}
+    >
       {children}
     </select>
   ),
@@ -188,6 +194,17 @@ function makeInspection(overrides = {}) {
 function renderTable() {
   return render(
     <MemoryRouter>
+      <InspectionTable />
+    </MemoryRouter>
+  )
+}
+
+// quality-bar-loop round 14: lets the ?status=active filter tests below
+// drive the initial URL, same convention as KriDashboardPage.test.tsx's
+// renderPage(initialPath).
+function renderTableWithPath(initialPath: string) {
+  return render(
+    <MemoryRouter initialEntries={[initialPath]}>
       <InspectionTable />
     </MemoryRouter>
   )
@@ -334,6 +351,107 @@ describe("InspectionTable", () => {
         expect.objectContaining({ page: 1, status: "DRAFT" })
       )
     )
+  })
+
+  // quality-bar-loop round 14 (industry-standards): the dashboard's
+  // "Active Inspections" card now links here with ?status=active, meaning
+  // DRAFT or IN_PROGRESS (the same two statuses Overview.tsx's own KPI
+  // count already uses). The status dropdown/API only support one exact
+  // value at a time with no combined option, so while this filter is
+  // active the page fetches every status at limit:100 instead of the
+  // normal paginated limit:10 and filters client-side.
+  describe("?status=active filter from the dashboard's Active Inspections card (round 14)", () => {
+    it("fetches all statuses at limit:100 and shows only DRAFT/IN_PROGRESS rows plus a clear-filter link", () => {
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [
+            makeInspection({
+              id: "i1",
+              status: "DRAFT",
+              template: { id: "t1", templateName: "Draft Audit" },
+            }),
+            makeInspection({
+              id: "i2",
+              status: "IN_PROGRESS",
+              template: { id: "t2", templateName: "In Progress Audit" },
+            }),
+            makeInspection({
+              id: "i3",
+              status: "COMPLETED",
+              template: { id: "t3", templateName: "Completed Audit" },
+            }),
+          ],
+          meta: { page: 1, limit: 100, total: 3, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTableWithPath("/?status=active")
+
+      expect(screen.getByText("Draft Audit")).toBeInTheDocument()
+      expect(screen.getByText("In Progress Audit")).toBeInTheDocument()
+      expect(screen.queryByText("Completed Audit")).not.toBeInTheDocument()
+      expect(mockUseGetAllInspectionQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 100, page: 1, status: "" })
+      )
+      expect(
+        screen.getByText("organization.inspection.filteredByActiveStatus")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("link", {
+          name: "organization.inspection.clearStatusFilter",
+        })
+      ).toHaveAttribute("href", "/organization/audit/inspections")
+    })
+
+    // Round-1 review of quality-bar-loop round 14: this dropdown's own
+    // value has zero effect on results while ?status=active is applied
+    // (the query's status is force-overridden regardless), so leaving it
+    // enabled let a user pick e.g. "Completed" and see the selection
+    // change with no effect on the still-DRAFT/IN_PROGRESS-only results --
+    // a silent no-op. It's disabled while the URL filter is active.
+    it("disables the status dropdown while ?status=active is applied, so it can't silently no-op", () => {
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection({ status: "DRAFT" })],
+          meta: { page: 1, limit: 100, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTableWithPath("/?status=active")
+
+      expect(screen.getAllByRole("combobox")[0]).toBeDisabled()
+    })
+
+    it("does not narrow the list or show a clear-filter link with no ?status= param", () => {
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [
+            makeInspection({
+              id: "i1",
+              status: "DRAFT",
+              template: { id: "t1", templateName: "Draft Audit" },
+            }),
+            makeInspection({
+              id: "i3",
+              status: "COMPLETED",
+              template: { id: "t3", templateName: "Completed Audit" },
+            }),
+          ],
+          meta: { page: 1, limit: 10, total: 2, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      expect(screen.getByText("Draft Audit")).toBeInTheDocument()
+      expect(screen.getByText("Completed Audit")).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.inspection.filteredByActiveStatus")
+      ).not.toBeInTheDocument()
+    })
   })
 
   it("aexa-frontend#234: resets to page 1 when the site filter changes", async () => {

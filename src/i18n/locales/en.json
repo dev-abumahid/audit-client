@@ -311,6 +311,8 @@
         "warning": "Warning",
         "ok": "OK"
       },
+      "filteredByStatus": "Showing {{status}} only",
+      "clearFilter": "Clear filter",
       "form": {
         "name": "Name",
         "namePlaceholder": "e.g. Incident rate",
@@ -550,6 +552,8 @@
     "inspection": {
       "title": "Inspections",
       "subtitle": "Manage all your inspections",
+      "filteredByActiveStatus": "Showing draft and in-progress inspections only",
+      "clearStatusFilter": "Clear filter",
       "startNew": "Start New",
       "searchPlaceholder": "Search inspections...",
       "statusAll": "All Status",
@@ -938,6 +942,8 @@
     "riskRegister": {
       "title": "Risk Register",
       "activeRisk": "Active Risks",
+      "filteredByStatus": "Showing {{status}} risks only",
+      "clearFilter": "Clear filter",
       "delete": "Deleted",
       "groupByType": "Group by type",
       "rootCause": "Root Cause AI",
@@ -1498,6 +1504,8 @@
     "findings": {
       "allTitle": "All Findings",
       "totalCount": "{{count}} total",
+      "filteredByOpenStatus": "Showing open actions only",
+      "clearStatusFilter": "Clear filter",
       "searchPlaceholder": "Search findings...",
       "filter": "Filter",
       "filterBySite": "Filter by Site",

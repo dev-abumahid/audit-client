@@ -258,6 +258,66 @@ describe("KriDashboardPage", () => {
     expect(screen.getByText("organization.kri.noKris")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 14 (industry-standards): the dashboard's
+  // "KRI Alerts" card now links here with ?status=ALERT -- this narrows
+  // the card grid to ALERT-status KRIs while the summary chips above stay
+  // computed from the full list.
+  describe("?status= filter from the dashboard's KRI Alerts card (round 14)", () => {
+    it("shows only ALERT-status KRIs and a clear-filter link when ?status=ALERT is present", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: {
+          data: [
+            makeKri({ id: "k1", name: "Alert KRI", status: "ALERT" }),
+            makeKri({ id: "k2", name: "OK KRI", status: "OK" }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderPage("/?status=ALERT")
+
+      expect(screen.getByText("Alert KRI")).toBeInTheDocument()
+      expect(screen.queryByText("OK KRI")).not.toBeInTheDocument()
+      expect(
+        screen.getByText("organization.kri.filteredByStatus")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("link", { name: "organization.kri.clearFilter" })
+      ).toHaveAttribute("href", "/organization/kri")
+    })
+
+    it("does not narrow the list or show a clear-filter link with no ?status= param", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: {
+          data: [
+            makeKri({ id: "k1", name: "Alert KRI", status: "ALERT" }),
+            makeKri({ id: "k2", name: "OK KRI", status: "OK" }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(screen.getByText("Alert KRI")).toBeInTheDocument()
+      expect(screen.getByText("OK KRI")).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.kri.filteredByStatus")
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows the empty state, not a crash, when the status filter matches nothing", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ id: "k1", name: "OK KRI", status: "OK" })] },
+        isLoading: false,
+      })
+
+      renderPage("/?status=ALERT")
+
+      expect(screen.getByText("organization.kri.noKris")).toBeInTheDocument()
+    })
+  })
+
   it("renders a KRI with its real risk name and status", () => {
     mockUseGetAllKriQuery.mockReturnValue({
       data: { data: [makeKri({ status: "ALERT" })] },

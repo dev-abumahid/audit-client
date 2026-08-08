@@ -359,16 +359,26 @@ export default function Overview() {
           removed rather than fabricated. If a real trend becomes available
           (e.g. a historical-snapshot endpoint), add trend/trendValue back
           driven by that data, not a hardcoded guess. */}
+      {/* quality-bar-loop round 14 (industry-standards): 5 of these 6 cards
+          now link to a real filtered view of the data they summarize, each
+          reusing that page's own existing filter mechanism (or a new
+          client-side one added this round where the page had none) rather
+          than duplicating filter logic here. Revenue has no filtered view
+          to land on -- SitesEntities.tsx doesn't display revenue at all
+          today -- so it stays a plain, honestly-inert card rather than
+          linking somewhere that wouldn't explain the number. */}
       <div className="animate-slide-up grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           title={t("organization.overview.activeRisk")}
           value={risks.filter((r) => r.status === "open").length}
           icon={Shield}
+          to="/organization/risks?status=open"
         />
         <MetricCard
           title={t("organization.overview.kriAlert")}
           value={kriAlerts}
           icon={Activity}
+          to="/organization/kri?status=ALERT"
         />
         <MetricCard
           title={t("organization.overview.criticalAlert")}
@@ -378,16 +388,19 @@ export default function Overview() {
           // show "0", the exact false-all-clear round 1 exists to prevent.
           value={alertsError ? "—" : criticalAlerts}
           icon={AlertTriangle}
+          to="/organization/alerts?severity=critical"
         />
         <MetricCard
           title={t("organization.overview.openActions")}
           value={openActions}
           icon={ListChecks}
+          to="/organization/findings?status=open"
         />
         <MetricCard
           title={t("organization.overview.activeInspections")}
           value={activeInspections}
           icon={ClipboardList}
+          to="/organization/audit/inspections?status=active"
         />
         <MetricCard
           title={t("organization.overview.revenue")}

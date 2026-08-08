@@ -311,6 +311,8 @@
         "warning": "Avertissement",
         "ok": "OK"
       },
+      "filteredByStatus": "Affichage de « {{status}} » uniquement",
+      "clearFilter": "Effacer le filtre",
       "form": {
         "name": "Nom",
         "namePlaceholder": "ex. Taux d'incidents",
@@ -550,6 +552,8 @@
     "inspection": {
       "title": "Inspections",
       "subtitle": "Gérez toutes vos inspections",
+      "filteredByActiveStatus": "Affichage des inspections en brouillon et en cours uniquement",
+      "clearStatusFilter": "Effacer le filtre",
       "startNew": "Démarrer",
       "searchPlaceholder": "Rechercher des inspections...",
       "statusAll": "Tous les statuts",
@@ -938,6 +942,8 @@
     "riskRegister": {
       "title": "Registre des risques",
       "activeRisk": "Risques actifs",
+      "filteredByStatus": "Affichage des risques « {{status}} » uniquement",
+      "clearFilter": "Effacer le filtre",
       "delete": "Supprimé",
       "groupByType": "Grouper par type",
       "rootCause": "Cause racine IA",
@@ -1498,6 +1504,8 @@
     "findings": {
       "allTitle": "Tous les constats",
       "totalCount": "{{count}} au total",
+      "filteredByOpenStatus": "Affichage des actions ouvertes uniquement",
+      "clearStatusFilter": "Effacer le filtre",
       "searchPlaceholder": "Rechercher des constats...",
       "filter": "Filtrer",
       "filterBySite": "Filtrer par site",

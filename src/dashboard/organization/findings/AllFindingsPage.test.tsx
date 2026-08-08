@@ -7,6 +7,18 @@ import AllFindingsPage from "./AllFindingsPage"
 // render() needs a Router context.
 const withRouter = { wrapper: MemoryRouter }
 
+// quality-bar-loop round 14: lets the ?status= filter tests below drive
+// the initial URL, same convention as KriDashboardPage.test.tsx's
+// renderPage(initialPath) -- `withRouter`'s plain MemoryRouter wrapper
+// has no way to pass initialEntries through RTL's `wrapper` option.
+function renderWithPath(initialPath: string) {
+  return render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <AllFindingsPage />
+    </MemoryRouter>
+  )
+}
+
 // Controllable `i18n.language` for the locale-formatting test below, while
 // every other test in this file keeps relying on the real (uninitialized)
 // react-i18next t(), which just echoes the raw key back -- same technique
@@ -422,5 +434,74 @@ describe("AllFindingsPage", () => {
     expect(mockNavigate).toHaveBeenCalledWith(
       "/organization/finding/finding-1"
     )
+  })
+
+  // quality-bar-loop round 14 (industry-standards): the dashboard's
+  // "Open Actions" card now links here with ?status=open, meaning TO_DO or
+  // IN_PROGRESS (the same two statuses Overview.tsx's own KPI count
+  // already uses). This page is normally server-paginated at limit:20;
+  // while this filter is active it fetches limit:100 instead (same
+  // convention as the KPI's own computation) and filters client-side.
+  describe("?status=open filter from the dashboard's Open Actions card (round 14)", () => {
+    it("fetches with limit:100 and shows only TO_DO/IN_PROGRESS findings plus a clear-filter link", () => {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAction({ id: "f1", actionTitle: "Open one", status: "TO_DO" }),
+            makeAction({
+              id: "f2",
+              actionTitle: "Also open",
+              status: "IN_PROGRESS",
+            }),
+            makeAction({ id: "f3", actionTitle: "Done one", status: "DONE" }),
+          ],
+          meta: { page: 1, limit: 100, total: 3, totalPage: 1 },
+        },
+        isLoading: false,
+        refetch: vi.fn(),
+      })
+
+      renderWithPath("/?status=open")
+
+      expect(screen.getByText("Open one")).toBeInTheDocument()
+      expect(screen.getByText("Also open")).toBeInTheDocument()
+      expect(screen.queryByText("Done one")).not.toBeInTheDocument()
+      expect(mockUseGetAllFindingsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 100, page: 1 })
+      )
+      expect(
+        screen.getByText("organization.findings.filteredByOpenStatus")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("link", {
+          name: "organization.findings.clearStatusFilter",
+        })
+      ).toHaveAttribute("href", "/organization/findings")
+    })
+
+    it("does not narrow the list, fetches the normal limit:20, and shows no clear-filter link with no ?status= param", () => {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAction({ id: "f1", actionTitle: "Open one", status: "TO_DO" }),
+            makeAction({ id: "f3", actionTitle: "Done one", status: "DONE" }),
+          ],
+          meta: { page: 1, limit: 20, total: 2, totalPage: 1 },
+        },
+        isLoading: false,
+        refetch: vi.fn(),
+      })
+
+      render(<AllFindingsPage />, withRouter)
+
+      expect(screen.getByText("Open one")).toBeInTheDocument()
+      expect(screen.getByText("Done one")).toBeInTheDocument()
+      expect(mockUseGetAllFindingsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 20 })
+      )
+      expect(
+        screen.queryByText("organization.findings.filteredByOpenStatus")
+      ).not.toBeInTheDocument()
+    })
   })
 })
