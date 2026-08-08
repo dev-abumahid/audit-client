@@ -433,3 +433,33 @@ prop so the Delete button disables while the request is in flight. Concrete,
 well-defined, single-file change. Strong runner-up: the search debounce
 (now empirically confirmed to cause real backend instability, not just
 theoretical over-fetching) -- likely round 8 if not folded into round 7.
+
+## Round 7 — fix shipped (PR #620)
+
+Shipped the delete double-submission guard: `useDeleteRiskMutation()` now
+destructures `isLoading`, wired through to `DeleteAlertModal`'s existing
+`loading` prop (which both disables the button and swaps its label to
+"Deleting..."), matching the convention already used by `SitesEntities.tsx`
+and other callers of this shared component. 1 new test, negative-control
+verified. QA gate clean (1602 tests). Live-verified: opened the delete
+modal on a real risk, confirmed the button renders normally (enabled) in
+the ordinary case -- cancelled without deleting to avoid touching real
+data.
+
+Adversarial review round 1 (2 parallel angles) found no bugs in the fix
+itself, but surfaced: (a) a minor, real defense-in-depth gap -- the
+disabled-button guard depends on a re-render landing before a second
+invocation, with no guard inside `confirmDeleteRisk` itself -- fixed with
+a one-line `|| isRiskDeleting` addition to the existing early-return; (b)
+confirmation that `createNewRisk`/`updateRisk` on this same page already
+correctly gate on their own `isLoading` (this was the one remaining gap on
+this page); (c) 4 out-of-scope findings -- the identical discarded-
+`isLoading` pattern in `UploadNotesModal.tsx`, `InspectionTable.tsx`,
+`TemplatesPage.tsx`, and (worse, no confirmation modal at all)
+`CorrelationMatrixPage.tsx`'s link-delete button -- flagged as a follow-up
+task, not fixed here since they're outside this page's scope.
+
+Round 2 of review came back clean. Merged under standing authorization.
+
+**Next: re-run the judge panel** to score the page's post-fix state before
+picking round 8's fix (or checking convergence).
