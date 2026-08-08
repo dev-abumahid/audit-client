@@ -343,6 +343,41 @@ describe("CompliancePage", () => {
     expect(screen.queryByText("0 obligations tracked")).not.toBeInTheDocument()
   })
 
+  // Same discarded-isError bug as the main obligations query above
+  // (aexa-frontend#625), for the separate scorecard query: a fetch failure
+  // previously fell through to `scorecard` being undefined, which the
+  // summary cards and site x domain matrix already treat identically to
+  // "no obligations exist yet" (a genuinely empty org), with zero visual
+  // distinction and, for the two count cards, a page-scoped fallback number
+  // silently displayed under a "whole-org" label.
+  it("shows a distinct error indicator on the scorecard section when it fails to load, instead of the empty/zero states", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [makeObligation({ status: "non_compliant" })] },
+      isLoading: false,
+    })
+    mockUseGetComplianceScorecardQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+    })
+
+    renderPage()
+
+    // The two summary-card counts show "--" rather than the page-scoped
+    // fallback (which would otherwise silently count the one loaded row
+    // under the "whole-org" label).
+    expect(screen.getAllByText("—")).not.toHaveLength(0)
+    expect(screen.queryByText("1")).not.toBeInTheDocument()
+    expect(screen.queryByText("0")).not.toBeInTheDocument()
+    // Both the summary-cards banner and the matrix's own error state render
+    // this same key's text.
+    expect(
+      screen.getAllByText("organization.compliance.scorecard.loadError")
+    ).toHaveLength(2)
+    expect(
+      screen.queryByText("organization.compliance.scorecard.noData")
+    ).not.toBeInTheDocument()
+  })
+
   it("renders obligation rows from the query with title and domain", () => {
     mockUseGetAllComplianceQuery.mockReturnValue({
       data: { data: [makeObligation()] },

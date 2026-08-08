@@ -141,7 +141,16 @@ export default function CompliancePage() {
     status: filterStatus || undefined,
     domain: filterDomain || undefined,
   })
-  const { data: scorecardData } = useGetComplianceScorecardQuery()
+  // Same discarded-isError bug fixed for this page's own useGetAllComplianceQuery
+  // (aexa-frontend#625) -- this is a separate query, out of that PR's scope,
+  // but the same false-all-clear pattern: a fetch failure previously fell
+  // through to `scorecardData?.data` being undefined, which the summary cards
+  // and site x domain matrix below already treat identically to "no data
+  // yet" (a genuinely empty org), with zero visual distinction.
+  const {
+    data: scorecardData,
+    isError: scorecardError,
+  } = useGetComplianceScorecardQuery()
   const { data: sitesData } = useGetAllSitesQuery({
     page: 1,
     limit: 100,
@@ -455,15 +464,21 @@ export default function CompliancePage() {
 
   // Whole-org counts come from the scorecard's statusCounts, so they stay
   // correct now that the list is server-side paginated (the current page is no
-  // longer the whole dataset). Fall back to counting the loaded page if an
-  // older response without statusCounts comes back.
+  // longer the whole dataset). Fall back to counting the loaded page only for
+  // the legitimate "older response without statusCounts" case -- NOT during a
+  // genuine scorecardError, where that fallback would silently display a
+  // page-scoped count under a "whole-org" label with no indication anything
+  // failed. `null` here means "don't know," rendered as "--" below, distinct
+  // from a real 0.
   const statusCounts = scorecard?.statusCounts
-  const compliantCount =
-    statusCounts?.compliant ??
-    obligations.filter((o) => o.status === "compliant").length
-  const nonCompliantCount =
-    statusCounts?.non_compliant ??
-    obligations.filter((o) => o.status === "non_compliant").length
+  const compliantCount = scorecardError
+    ? null
+    : (statusCounts?.compliant ??
+      obligations.filter((o) => o.status === "compliant").length)
+  const nonCompliantCount = scorecardError
+    ? null
+    : (statusCounts?.non_compliant ??
+      obligations.filter((o) => o.status === "non_compliant").length)
   const totalCount = meta?.total ?? obligations.length
 
   const overall = scorecard?.overall
@@ -568,12 +583,17 @@ export default function CompliancePage() {
       </div>
 
       {/* Summary Cards */}
+      {scorecardError && (
+        <p role="alert" className="text-sm text-destructive">
+          {t("organization.compliance.scorecard.loadError")}
+        </p>
+      )}
       <div className="animate-slide-up grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-risk-low/30 bg-risk-low/5 p-3 lg:p-4">
           <div className="flex items-center gap-2">
             <CheckCircle2 className={`h-5 w-5 ${SEVERITY_STYLES.low.text}`} />
             <span className={`font-mono-data text-xl font-bold lg:text-2xl ${SEVERITY_STYLES.low.text}`}>
-              {compliantCount}
+              {compliantCount ?? "—"}
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -584,7 +604,7 @@ export default function CompliancePage() {
           <div className="flex items-center gap-2">
             <Ban className={`h-5 w-5 ${SEVERITY_STYLES.critical.text}`} />
             <span className={`font-mono-data text-xl font-bold lg:text-2xl ${SEVERITY_STYLES.critical.text}`}>
-              {nonCompliantCount}
+              {nonCompliantCount ?? "—"}
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -678,6 +698,13 @@ export default function CompliancePage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        ) : scorecardError ? (
+          <div
+            role="alert"
+            className="p-6 text-center text-xs text-destructive"
+          >
+            {t("organization.compliance.scorecard.loadError")}
           </div>
         ) : (
           <div className="p-6 text-center text-xs text-muted-foreground">

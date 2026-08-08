@@ -1136,7 +1136,8 @@
         "subtitle": "Compliant obligations per site and domain",
         "site": "Site",
         "orgWide": "Org-wide",
-        "noData": "No obligations yet to score"
+        "noData": "No obligations yet to score",
+        "loadError": "Failed to load the scorecard. Please try again later."
       },
       "col": {
         "obligation": "OBLIGATION",
