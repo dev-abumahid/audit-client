@@ -117,7 +117,15 @@
     --accent: 38 92% 50%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    /* 49%, not the original 51%: measured (WCAG relative-luminance) at
+       4.47:1 against --background -- just under the 4.5:1 AA line for
+       normal-size text, the same gap --muted-foreground had above. Same
+       fix, same convention: nudge lightness only (hue/saturation
+       untouched, so this still reads as "red/error" and every
+       --destructive/NN alpha-tint usage scales proportionally), landing at
+       4.71:1 with a small safety margin rather than sitting right on the
+       threshold. */
+    --destructive: 0 72% 49%;
 
     --border: 220 13% 89%;
     --input: 220 13% 89%;
@@ -193,7 +201,16 @@
     --accent: 38 92% 50%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    /* See the light-theme comment above -- same AA-contrast fix, opposite
+       direction (lighter, not darker) since this is text on a dark
+       background: measured at 3.90:1 against --background, well under the
+       4.5:1 AA line. 61% (not 59%) is tuned against --card (222 22% 11%,
+       slightly lighter than --background and the more common surface this
+       token actually renders on -- table rows, cards, modals), which only
+       clears AA at 59% by a hair (4.44:1, still failing); 61% lands at
+       4.72:1 against --card and 5.04:1 against --background, both with a
+       real safety margin. */
+    --destructive: 0 72% 61%;
 
     --border: 220 18% 18%;
     --input: 220 18% 18%;
