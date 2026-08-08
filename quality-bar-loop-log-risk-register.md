@@ -194,3 +194,48 @@ the standing merge authorization.
 
 **Next: re-run the judge panel** to score the page's post-fix state before
 picking round 5's fix.
+
+## Round 4 (post-fix judge panel)
+
+| Axis | Score | vs. Round 3 |
+|---|---|---|
+| Industry-standards | 4/10 | -2 |
+| UX | 5/10 | same |
+| Efficiency | 6/10 | same |
+| Accessibility | 6/10 | -1 |
+| Visual polish | 6/10 | same |
+| Resilience & edge cases | 6/10 | +2 |
+| Code quality | 6/10 | -2 |
+| Mobile/responsive | 4/10 | -1 |
+| Security | 10/10 | same |
+
+**Average: 5.89/10** (down from 6.33). 6 axes below floor (7): industry-standards,
+UX, efficiency, accessibility, mobile/responsive, code quality.
+
+**Regression check — two categories this round:**
+- **Judge-severity drift (not real regressions):** industry-standards and code
+  quality both dropped on findings that are byte-for-byte unchanged from
+  round 3 (no sorting/bulk/export; eslint-disable scope, IIFE, RiskBadge
+  non-reuse, growing file size) — judges scored the *persistence* of
+  unaddressed debt more harshly, not a new bug. Consistent with this loop's
+  established pattern for stale-finding severity escalation.
+- **Real, live-verified regressions this round's own diff caused:**
+  - Accessibility: the new loading row has no `aria-live`/`role="status"`,
+    unlike its sibling error row (`role="alert"`) — silent to screen readers.
+  - Mobile: the new sites-error indicator wraps onto its own line paired
+    with the *next* filter control at 375px, visually misattributing the
+    error to the wrong dropdown.
+- **Resilience genuinely improved** (4→6, live-verified all 3 round-4 fixes
+  work correctly under a real forced failure), but surfaced 2 remaining
+  gaps: the header subtitle still shows "0 risks found" during a fetch
+  error/loading (the exact false-all-clear pattern already fixed once for
+  the table body, not yet fixed for the subtitle line beside it), and the
+  Add/Edit modal's own site dropdown has no error indicator of its own
+  (the one `sitesError` message lives on the list page, hidden behind the
+  modal overlay).
+
+**Next fix (Round 5):** three concrete, live-verified, cheap fixes — (1) add
+`role="status"`/`aria-live` to the loading row, (2) fix the sites-error
+indicator's mobile wrapping (force it onto its own line rather than pairing
+with the next filter), (3) fix the subtitle to not claim "0 risks found"
+during an error or loading state.
