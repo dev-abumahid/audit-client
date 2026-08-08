@@ -172,3 +172,25 @@ guard `(risk.financial_impact_max / 1000).toFixed(1)` against
 null/undefined (currently renders literal "NaNM"), (3) add a loading state
 for the initial risk fetch so it's visually distinct from a genuine
 zero-result empty state.
+
+## Round 4 — fix shipped (PR #617)
+
+Fixed all 3 resilience items together: an `isError` check + visible error
+indicator for `useGetAllSitesQuery`, a `== null` guard on
+`financial_impact_max` falling back to an em dash, and an `isLoading` check
+on `useGetAllRisksQuery` gating a distinct loading row ahead of the
+error/empty-state rows. All three negative-controlled (reverted each
+independently, confirmed its new test fails, restored).
+
+Adversarial review came back clean on round 1 — no real findings. The
+reviewer explicitly checked and ruled out the two most likely failure
+modes: (a) a stale "no risks match" flash on mutation-triggered refetches
+(ruled out: RTK Query retains previous cached data during a refetch of the
+same key, so `isLoading` staying `false` doesn't cause a false-empty flash),
+and (b) the `== null` guard swallowing a legitimate `financial_impact_max:
+0` (ruled out: loose equality `0 == null` is `false`, so `0` still renders
+`"0.0M"` correctly). Merged via `gh pr merge 617 --squash --admin` under
+the standing merge authorization.
+
+**Next: re-run the judge panel** to score the page's post-fix state before
+picking round 5's fix.
