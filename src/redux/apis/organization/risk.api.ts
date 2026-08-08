@@ -75,6 +75,7 @@ const risksApi = baseApi.injectEndpoints({
 
 export const {
   useGetAllRisksQuery,
+  useLazyGetAllRisksQuery,
   useGetSingleRiskQuery,
   useDeleteRiskMutation,
   useCreateNewRiskMutation,

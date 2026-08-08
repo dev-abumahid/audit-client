@@ -6,6 +6,7 @@ import {
   useCreateNewRiskMutation,
   useDeleteRiskMutation,
   useGetAllRisksQuery,
+  useLazyGetAllRisksQuery,
   useUpdateRiskMutation,
 } from "@/redux/apis/organization/risk.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
@@ -14,25 +15,89 @@ import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import type { Risk, SiteSummary } from "@/types/organization"
+import { csvTextField, triggerDownload } from "@/utils/csvExport"
 import { removeNulls } from "@/utils/removeNulls"
-import { RISK_CATEGORIES } from "@/utils/riskConfig"
+import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
 import { severityBadgeClasses } from "@/utils/severityStyles"
 import RiskApprovalControls from "./RiskApprovalControls"
 import RiskOverrideBadge from "./RiskOverrideBadge"
-import { Bot, Building2, Clock, Loader, Pencil, Plus, Search, Trash2 } from "lucide-react"
-import { memo, useCallback, useEffect, useState } from "react"
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Bot,
+  Building2,
+  Clock,
+  Download,
+  Loader,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react"
+import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
+type SortableColumn = "name" | "residual_score" | "pagerank_score" | "financial_impact_max"
+
+interface SortableHeaderProps {
+  column: SortableColumn
+  label: string
+  sortKey: SortableColumn | null
+  sortDir: "asc" | "desc"
+  onSort: (column: SortableColumn) => void
+  align?: "left" | "center"
+  className?: string
+}
+
+// aria-sort on the <th> itself (not the button inside it) is the standard
+// accessible pattern for a sortable column header -- screen readers
+// announce a column's current sort state without needing a separate
+// live region. The visible label plus icon inside the <button> use
+// lucide's directional ArrowUp/ArrowDown once a column is actively
+// sorted, and the neutral ArrowUpDown otherwise as a discoverability
+// affordance (same "controls exist, aren't self-evident" gap the round-9
+// accessibility fix addressed for the filter inputs).
+function SortableHeader({
+  column,
+  label,
+  sortKey,
+  sortDir,
+  onSort,
+  align = "left",
+  className = "",
+}: SortableHeaderProps) {
+  const isActive = sortKey === column
+  const Icon = isActive ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown
+  return (
+    <th
+      className={`px-3 py-2.5 font-semibold text-muted-foreground ${align === "center" ? "text-center" : ""} ${className}`}
+      aria-sort={isActive ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        className={`focus-ring flex items-center gap-1 rounded hover:text-foreground ${align === "center" ? "mx-auto" : ""}`}
+      >
+        {label}
+        <Icon className="h-3 w-3" />
+      </button>
+    </th>
+  )
+}
+
 interface RiskRowProps {
   risk: Risk
   canWrite: boolean
+  isSelected: boolean
   onEdit: (risk: Risk) => void
   onDelete: (id: string) => void
+  onToggleSelect: (id: string) => void
 }
 
 // quality-bar-loop round 9 (efficiency): the table body used to be an inline
@@ -49,8 +114,10 @@ interface RiskRowProps {
 const RiskRow = memo(function RiskRow({
   risk,
   canWrite,
+  isSelected,
   onEdit,
   onDelete,
+  onToggleSelect,
 }: RiskRowProps) {
   const { t } = useTranslation()
   const cat = RISK_CATEGORIES[risk.category as keyof typeof RISK_CATEGORIES]
@@ -58,6 +125,23 @@ const RiskRow = memo(function RiskRow({
 
   return (
     <tr className="border-b transition-colors hover:bg-muted/30">
+      {/* quality-bar-loop industry-standards workstream: row-selection
+          checkbox for bulk actions. Only rendered for writers -- a
+          read-only viewer has no bulk-delete affordance to select rows
+          for. */}
+      {canWrite && (
+        <td className="px-3 py-2.5">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(risk.id)}
+            aria-label={t("organization.riskRegister.selectRiskLabel", {
+              name: risk.name,
+            })}
+            className="h-3.5 w-3.5"
+          />
+        </td>
+      )}
       <td className="max-w-32 px-3 py-2.5 lg:max-w-48">
         {/* aexa-frontend#529: the register itself is now also
             an entry point into the per-risk detail page, not
@@ -243,6 +327,36 @@ export default function RiskRegisterPage() {
   // approvalStatus is already on each row from GET /risk, so no extra query.
   const [pendingApprovalOnly, setPendingApprovalOnly] = useState(false)
 
+  // quality-bar-loop industry-standards workstream: column sorting. No
+  // sortBy/sortOrder param exists on GET /risk (confirmed against
+  // risk.api.ts) and no sort convention exists anywhere else in this
+  // codebase, so this sorts the current page's already-fetched rows
+  // client-side rather than inventing a server contract this repo doesn't
+  // have -- same honest-scope-narrowing precedent as isClientFiltered
+  // below (documents the limitation instead of silently pretending full
+  // cross-page sorting).
+  const [sortKey, setSortKey] = useState<SortableColumn | null>(null)
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+  const handleSort = useCallback((key: SortableColumn) => {
+    setSortKey((prevKey) => {
+      if (prevKey === key) {
+        setSortDir((prevDir) => (prevDir === "asc" ? "desc" : "asc"))
+        return key
+      }
+      setSortDir("asc")
+      return key
+    })
+  }, [])
+
+  // Bulk actions: selection is scoped to the current page's rows only,
+  // same client-side-only scope as sorting above -- there's no
+  // cross-page "select all matching filters" affordance without a
+  // separate unpaginated fetch, which bulk-delete (a destructive,
+  // one-at-a-time-per-row API) doesn't need.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [deleteRiskId, setDeleteRiskId] = useState<string | null>(null)
@@ -361,6 +475,55 @@ export default function RiskRegisterPage() {
   const subtitleCount = isClientFiltered
     ? visibleRisks.length
     : (riskData?.meta?.total ?? visibleRisks.length)
+
+  // Sorts the current page's rows only -- see the sortKey/sortDir state
+  // comment above for why this can't reach across pages. `name` sorts
+  // case-insensitively; the three numeric columns sort as numbers (a
+  // string compare would put "10" before "2").
+  const sortedRisks = useMemo(() => {
+    if (!sortKey) return visibleRisks
+    const dirMultiplier = sortDir === "asc" ? 1 : -1
+    return [...visibleRisks].sort((a, b) => {
+      if (sortKey === "name") {
+        return a.name.localeCompare(b.name) * dirMultiplier
+      }
+      const aVal = a[sortKey] ?? 0
+      const bVal = b[sortKey] ?? 0
+      return (Number(aVal) - Number(bVal)) * dirMultiplier
+    })
+  }, [visibleRisks, sortKey, sortDir])
+
+  // Bulk-selection is scoped to whatever's currently on screen -- once the
+  // page, search, or any filter changes, the previously-selected IDs may
+  // no longer even be in `sortedRisks` (or worse, coincidentally still be
+  // valid IDs for entirely different rows on a new page). Clearing on any
+  // of these changes avoids a stale/confusing selection surviving a
+  // navigation the user didn't think of as "changing the selection."
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [page, debouncedSearch, siteFilter, filterCat, statusParam, pendingApprovalOnly])
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const allVisibleSelected =
+    sortedRisks.length > 0 && sortedRisks.every((r) => selectedIds.has(r.id))
+  const someVisibleSelected = sortedRisks.some((r) => selectedIds.has(r.id))
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      const allSelected =
+        sortedRisks.length > 0 && sortedRisks.every((r) => prev.has(r.id))
+      if (allSelected) return new Set()
+      return new Set(sortedRisks.map((r) => r.id))
+    })
+  }, [sortedRisks])
 
   // React Hook Form
   const {
@@ -546,6 +709,114 @@ export default function RiskRegisterPage() {
     }
   }
 
+  const confirmBulkDelete = async () => {
+    if (isBulkDeleting || selectedIds.size === 0) return
+    setIsBulkDeleting(true)
+    const ids = Array.from(selectedIds)
+    // deleteRisk has no bulk endpoint -- Promise.allSettled fires the
+    // existing single-delete mutation for each selected row concurrently
+    // and tolerates individual failures (e.g. a row deleted by someone
+    // else in the meantime) instead of one failure aborting the rest.
+    const results = await Promise.allSettled(
+      ids.map((id) => deleteRisk(id).unwrap())
+    )
+    const succeededIds = ids.filter(
+      (_, i) => results[i].status === "fulfilled"
+    )
+    const succeeded = succeededIds.length
+    const failed = results.length - succeeded
+    if (failed === 0) {
+      toast.success(
+        t("organization.riskRegister.bulkDeleteSuccessToast", {
+          count: succeeded,
+        })
+      )
+    } else if (succeeded === 0) {
+      toast.error(t("organization.riskRegister.bulkDeleteFailedToast"))
+    } else {
+      toast.error(
+        t("organization.riskRegister.bulkDeletePartialFailureToast", {
+          succeeded,
+          total: ids.length,
+        })
+      )
+    }
+    // Review round 1 finding: only drop the ids that actually succeeded --
+    // clearing the whole selection regardless of outcome silently threw
+    // away the retry opportunity the partial-failure toast implies exists.
+    // A failed row's checkbox stays checked so the user can immediately
+    // retry just that row without re-finding and re-selecting it.
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      for (const id of succeededIds) next.delete(id)
+      return next
+    })
+    setIsBulkDeleteModalOpen(false)
+    setIsBulkDeleting(false)
+  }
+
+  const [triggerRisksExport, { isFetching: isExporting }] =
+    useLazyGetAllRisksQuery()
+
+  // Exports every risk matching the current server-side filters
+  // (search/site/category), not just the current page -- a separate,
+  // unpaginated fetch (limit:1000, same bounded-scale assumption the
+  // isClientFiltered fallback above already makes for this org) rather
+  // than exporting only whatever 20 rows happen to be on screen, which
+  // would make "export" mean something different than what a user
+  // filtering first and exporting second would expect. Client-side-only
+  // filters (status param, pending-approval toggle) are NOT applied here,
+  // same documented limitation as isClientFiltered -- there's no
+  // server-side param for them to pass through to this fetch.
+  const handleExport = async () => {
+    try {
+      const result = await triggerRisksExport({
+        page: 1,
+        limit: 1000,
+        searchTerm: debouncedSearch,
+        siteId: siteFilter,
+        category: filterCat,
+      }).unwrap()
+      const header = [
+        "Ref",
+        "Name",
+        "Category",
+        "Site",
+        "Status",
+        "Inherent Score",
+        "Residual Score",
+        "PageRank",
+        "Financial Impact Min (k€)",
+        "Financial Impact Max (k€)",
+        "Probability (%)",
+        "Velocity",
+        "Trend",
+        "Source",
+      ]
+      const rows = result.data.map((risk) => [
+        csvTextField(risk.ref),
+        csvTextField(risk.name),
+        csvTextField(riskCategoryLabel(t, risk.category)),
+        csvTextField(risk.site?.name ?? ""),
+        csvTextField(risk.status),
+        String(risk.inherent_score),
+        String(risk.residual_score),
+        String(risk.pagerank_score),
+        String(risk.financial_impact_min),
+        String(risk.financial_impact_max),
+        String(risk.probability),
+        csvTextField(risk.velocity),
+        csvTextField(risk.trend),
+        csvTextField(risk.ai_generated ? "AI" : (risk.source_info ?? "Manual")),
+      ])
+      const csv = [header, ...rows].map((row) => row.join(",")).join("\r\n")
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+      triggerDownload(blob, "risk-register.csv")
+    } catch {
+      toast.error(t("organization.riskRegister.exportFailedToast"))
+    }
+  }
+
   return (
     <div className="space-y-5 p-4 lg:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -581,6 +852,19 @@ export default function RiskRegisterPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting}
+            className="flex items-center gap-2 rounded-lg border border-input bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+          >
+            {isExporting ? (
+              <Loader className="h-3.5 w-3.5" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            {t("organization.riskRegister.exportCsv")}
+          </button>
           {canWrite && (
             <button
               onClick={openCreate}
@@ -672,30 +956,93 @@ export default function RiskRegisterPage() {
           {t("organization.riskRegister.filterPendingApproval")}
         </button>
       </div>
+      {/* Bulk-action toolbar: only rendered once at least one row on the
+          current page is selected -- keeps the filters row uncluttered the
+          rest of the time. */}
+      {canWrite && someVisibleSelected && (
+        <div className="flex items-center gap-3 rounded-lg border border-input bg-muted/30 px-3 py-2 text-xs">
+          <span className="font-medium">
+            {t("organization.riskRegister.selectedCount", {
+              count: selectedIds.size,
+            })}
+          </span>
+          <button
+            type="button"
+            onClick={() => setIsBulkDeleteModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-2.5 py-1.5 font-medium text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {t("organization.riskRegister.bulkDeleteSelected")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            {t("organization.riskRegister.clearSelection")}
+          </button>
+        </div>
+      )}
       {/* Table */}
       <div className="overflow-hidden rounded-xl border bg-card">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b bg-muted/30 text-left">
-                <th className="px-3 py-2.5 font-semibold text-muted-foreground uppercase">
-                  {t("organization.riskRegister.colName")}
-                </th>
+                {canWrite && (
+                  <th className="px-3 py-2.5 font-semibold text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected
+                      }}
+                      onChange={toggleSelectAll}
+                      aria-label={t("organization.riskRegister.selectAllLabel")}
+                      className="h-3.5 w-3.5"
+                    />
+                  </th>
+                )}
+                <SortableHeader
+                  column="name"
+                  label={t("organization.riskRegister.colName")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  className="uppercase"
+                />
                 <th className="hidden px-3 py-2.5 font-semibold text-muted-foreground sm:table-cell">
                   {t("organization.riskRegister.colSite")}
                 </th>
                 <th className="hidden px-3 py-2.5 font-semibold text-muted-foreground md:table-cell">
                   {t("organization.riskRegister.colCat")}
                 </th>
-                <th className="px-3 py-2.5 text-center font-semibold text-muted-foreground">
-                  {t("organization.riskRegister.colScore")}
-                </th>
-                <th className="hidden px-3 py-2.5 text-center font-semibold text-muted-foreground lg:table-cell">
-                  {t("organization.riskRegister.colPr")}
-                </th>
-                <th className="hidden px-3 py-2.5 text-center font-semibold text-muted-foreground lg:table-cell">
-                  {t("organization.riskRegister.colImpact")}
-                </th>
+                <SortableHeader
+                  column="residual_score"
+                  label={t("organization.riskRegister.colScore")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  align="center"
+                />
+                <SortableHeader
+                  column="pagerank_score"
+                  label={t("organization.riskRegister.colPr")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  align="center"
+                  className="hidden lg:table-cell"
+                />
+                <SortableHeader
+                  column="financial_impact_max"
+                  label={t("organization.riskRegister.colImpact")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  align="center"
+                  className="hidden lg:table-cell"
+                />
                 <th className="px-3 py-2.5 font-semibold text-muted-foreground">
                   {t("organization.riskRegister.colSource")}
                 </th>
@@ -706,13 +1053,15 @@ export default function RiskRegisterPage() {
               </tr>
             </thead>
             <tbody>
-              {visibleRisks?.map((risk) => (
+              {sortedRisks?.map((risk) => (
                 <RiskRow
                   key={risk.id}
                   risk={risk}
                   canWrite={canWrite}
+                  isSelected={selectedIds.has(risk.id)}
                   onEdit={openEdit}
                   onDelete={openDeleteModal}
+                  onToggleSelect={toggleSelect}
                 />
               ))}
               {/* quality-bar-loop round 4 (resilience): before this, an
@@ -723,7 +1072,7 @@ export default function RiskRegisterPage() {
                   filters" for a moment before real data arrived. */}
               {risksLoading && (
                 <tr>
-                  <td colSpan={9} className="px-3 py-8 text-center">
+                  <td colSpan={canWrite ? 10 : 9} className="px-3 py-8 text-center">
                     <span
                       role="status"
                       aria-live="polite"
@@ -741,7 +1090,7 @@ export default function RiskRegisterPage() {
                   table. */}
               {!risksLoading && risksError && (
                 <tr>
-                  <td colSpan={9} className="px-3 py-8 text-center">
+                  <td colSpan={canWrite ? 10 : 9} className="px-3 py-8 text-center">
                     {/* quality-bar-loop round 6 (visual polish): this row was
                         still text-muted-foreground while the header subtitle
                         and sites-error indicator both use text-destructive
@@ -753,9 +1102,9 @@ export default function RiskRegisterPage() {
                   </td>
                 </tr>
               )}
-              {!risksLoading && !risksError && visibleRisks?.length === 0 && (
+              {!risksLoading && !risksError && sortedRisks?.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-3 py-8 text-center">
+                  <td colSpan={canWrite ? 10 : 9} className="px-3 py-8 text-center">
                     <span className="text-muted-foreground">
                       {t("organization.riskRegister.noResults")}
                     </span>
@@ -1318,6 +1667,17 @@ export default function RiskRegisterPage() {
         setOpen={setIsDeleteModalOpen}
         onConfirm={confirmDeleteRisk}
         loading={isRiskDeleting}
+      />
+
+      <DeleteAlertModal
+        title={t("organization.riskRegister.bulkDeleteTitle", {
+          count: selectedIds.size,
+        })}
+        description={t("organization.riskRegister.bulkDeleteDescription")}
+        open={isBulkDeleteModalOpen}
+        setOpen={setIsBulkDeleteModalOpen}
+        onConfirm={confirmBulkDelete}
+        loading={isBulkDeleting}
       />
     </div>
   )

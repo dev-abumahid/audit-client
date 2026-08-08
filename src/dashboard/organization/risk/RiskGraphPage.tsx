@@ -14,6 +14,7 @@ import {
   computePageRank,
   topPercentileFromScores,
 } from "@/utils/pageRank"
+import { csvTextField, triggerDownload } from "@/utils/csvExport"
 import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
 import { computeRiskGraphLayout } from "@/utils/riskGraphLayout"
 import { severityBadgeClasses } from "@/utils/severityStyles"
@@ -1299,16 +1300,9 @@ export default function RiskGraphPage() {
   // view as an image and the underlying data as a table -- this graph had
   // neither, so a risk manager wanting to drop the dependency graph into a
   // board deck or hand the risk list to someone in Excel had no way to.
-  function triggerDownload(blob: Blob, filename: string) {
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
+  // (triggerDownload/csvTextField now live in @/utils/csvExport -- extracted
+  // during the Risk Register's own CSV export work so both pages share the
+  // same CSV-injection-safe escaping instead of two copies drifting apart.)
 
   // Recursively copies each element's actually-rendered style (fill,
   // stroke, font, etc.) from the live DOM onto the matching node in a
@@ -1437,26 +1431,6 @@ export default function RiskGraphPage() {
       toast.error(t("organization.riskGraph.exportPngFailed"))
     }
     image.src = url
-  }
-
-  // risk.ref/name/category are free text from the Risk Register, not
-  // sanitized before this export -- a cell starting with =, +, -, or @
-  // executes as a formula when the CSV is opened in Excel/LibreOffice
-  // ("CSV injection"), e.g. a risk named =HYPERLINK("http://evil","x").
-  // Prefixing with a leading apostrophe is the standard mitigation: Excel
-  // treats a leading `'` as "force text" and doesn't display it, so a
-  // legitimate risk name is unaffected.
-  //
-  // Text fields only, not the numeric columns below: a leading `-` also
-  // matches this same regex, and financial_impact_min/max have no
-  // min="0" constraint in the risk form -- a legitimately negative value
-  // would otherwise get force-text-prefixed too, silently turning a real
-  // number column into text in the exported spreadsheet (breaks
-  // SUM/sorting-as-number) for a value that was never attacker-controlled
-  // input in the first place.
-  function csvTextField(value: string) {
-    const escaped = /^[=+\-@]/.test(value) ? `'${value}` : value
-    return /[",\n]/.test(escaped) ? `"${escaped.replace(/"/g, '""')}"` : escaped
   }
 
   // The graph's own data, not the full Risk Register export (a separate,

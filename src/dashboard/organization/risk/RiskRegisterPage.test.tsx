@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import RiskRegisterPage from "./RiskRegisterPage"
@@ -66,6 +66,13 @@ const mockUseGetAllSitesQuery = vi.fn()
 const mockCreateNewRisk = vi.fn()
 const mockUpdateRisk = vi.fn()
 const mockDeleteRisk = vi.fn()
+// quality-bar-loop industry-standards workstream (CSV export): a lazy
+// query trigger, mocked as a stable function returning a resolvable
+// unwrap() -- same shape RTK Query's real useLazyQuery tuple returns.
+const mockTriggerRisksExport = vi.fn(() => ({
+  unwrap: () => Promise.resolve({ data: [] }),
+}))
+let mockIsExporting = false
 // Mutable per-test, same convention as mockRole above -- lets the loader
 // regression test below flip isRiskCreating to true without a static mock.
 let mockIsRiskCreating = false
@@ -76,6 +83,10 @@ let mockIsRiskDeleting = false
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
+  useLazyGetAllRisksQuery: () => [
+    mockTriggerRisksExport,
+    { isFetching: mockIsExporting },
+  ],
   useCreateNewRiskMutation: () => [
     mockCreateNewRisk,
     { isLoading: mockIsRiskCreating },
@@ -155,8 +166,10 @@ describe("RiskRegisterPage", () => {
     mockUpdateRisk.mockReset()
     mockDeleteRisk.mockReset()
     mockToastError.mockReset()
+    mockTriggerRisksExport.mockClear()
     mockIsRiskCreating = false
     mockIsRiskDeleting = false
+    mockIsExporting = false
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [makeSite()] } })
   })
 
@@ -1640,5 +1653,255 @@ describe("RiskRegisterPage", () => {
 
     await userEvent.keyboard("{Escape}")
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop industry-standards workstream: no sortBy/sortOrder
+  // convention exists on GET /risk, so this sorts the current page's
+  // already-fetched rows client-side.
+  describe("sorting (industry-standards workstream)", () => {
+    it("sorts rows by residual score ascending then descending when the Score header is clicked", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "r1", name: "Alpha", residual_score: 5 }),
+            makeRisk({ id: "r2", name: "Beta", residual_score: 9 }),
+            makeRisk({ id: "r3", name: "Gamma", residual_score: 2 }),
+          ],
+        },
+      })
+      renderPage()
+
+      const getRowNames = () =>
+        screen
+          .getAllByRole("link", { name: /^(Alpha|Beta|Gamma)$/ })
+          .map((el) => el.textContent)
+
+      expect(getRowNames()).toEqual(["Alpha", "Beta", "Gamma"])
+
+      const scoreHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colScore",
+      })
+      await userEvent.click(within(scoreHeader).getByRole("button"))
+      expect(getRowNames()).toEqual(["Gamma", "Alpha", "Beta"])
+
+      await userEvent.click(within(scoreHeader).getByRole("button"))
+      expect(getRowNames()).toEqual(["Beta", "Alpha", "Gamma"])
+    })
+
+    it("marks the active sort column and direction via aria-sort", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+      renderPage()
+
+      const scoreHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colScore",
+      })
+      expect(scoreHeader).toHaveAttribute("aria-sort", "none")
+
+      await userEvent.click(within(scoreHeader).getByRole("button"))
+      expect(scoreHeader).toHaveAttribute("aria-sort", "ascending")
+
+      await userEvent.click(within(scoreHeader).getByRole("button"))
+      expect(scoreHeader).toHaveAttribute("aria-sort", "descending")
+    })
+  })
+
+  // quality-bar-loop industry-standards workstream: row-selection + bulk
+  // delete. Selection is scoped to the current page's rows (no
+  // cross-page "select all matching" affordance -- see the component's
+  // own comment for why).
+  describe("bulk actions (industry-standards workstream)", () => {
+    it("shows a bulk-action toolbar once a row is selected, and Clear selection dismisses it", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ id: "r1" })] },
+      })
+      renderPage()
+
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.riskRegister.bulkDeleteSelected",
+        })
+      ).not.toBeInTheDocument()
+
+      await userEvent.click(
+        screen.getByRole("checkbox", {
+          name: "organization.riskRegister.selectRiskLabel",
+        })
+      )
+
+      expect(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.bulkDeleteSelected",
+        })
+      ).toBeInTheDocument()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.clearSelection",
+        })
+      )
+
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.riskRegister.bulkDeleteSelected",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("the select-all header checkbox selects every visible row, and toggling again clears them", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ id: "r1" }), makeRisk({ id: "r2" })] },
+      })
+      renderPage()
+
+      const selectAll = screen.getByRole("checkbox", {
+        name: "organization.riskRegister.selectAllLabel",
+      })
+      await userEvent.click(selectAll)
+
+      const rowCheckboxes = screen.getAllByRole("checkbox", {
+        name: "organization.riskRegister.selectRiskLabel",
+      })
+      expect(
+        rowCheckboxes.every((cb) => (cb as HTMLInputElement).checked)
+      ).toBe(true)
+
+      await userEvent.click(selectAll)
+      expect(
+        rowCheckboxes.every((cb) => (cb as HTMLInputElement).checked)
+      ).toBe(false)
+    })
+
+    it("bulk-deletes every selected row via the shared deleteRisk mutation", async () => {
+      mockDeleteRisk.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ id: "r1" }), makeRisk({ id: "r2" })] },
+      })
+      renderPage()
+
+      const rowCheckboxes = screen.getAllByRole("checkbox", {
+        name: "organization.riskRegister.selectRiskLabel",
+      })
+      await userEvent.click(rowCheckboxes[0])
+      await userEvent.click(rowCheckboxes[1])
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.bulkDeleteSelected",
+        })
+      )
+      await userEvent.click(screen.getByRole("button", { name: "Confirm delete" }))
+
+      await waitFor(() => expect(mockDeleteRisk).toHaveBeenCalledTimes(2))
+      expect(mockDeleteRisk).toHaveBeenCalledWith("r1")
+      expect(mockDeleteRisk).toHaveBeenCalledWith("r2")
+    })
+
+    // Review round 1 finding on PR #629: the selection used to be cleared
+    // in full regardless of which ids actually succeeded, silently
+    // dropping the retry opportunity the partial-failure toast implies.
+    it("keeps a failed row selected after a partial bulk-delete failure, so it can be retried", async () => {
+      mockDeleteRisk.mockImplementation((id: string) =>
+        id === "r1"
+          ? { unwrap: () => Promise.resolve({ success: true }) }
+          : { unwrap: () => Promise.reject(new Error("boom")) }
+      )
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ id: "r1" }), makeRisk({ id: "r2" })] },
+      })
+      renderPage()
+
+      const rowCheckboxes = screen.getAllByRole("checkbox", {
+        name: "organization.riskRegister.selectRiskLabel",
+      })
+      await userEvent.click(rowCheckboxes[0])
+      await userEvent.click(rowCheckboxes[1])
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.bulkDeleteSelected",
+        })
+      )
+      await userEvent.click(screen.getByRole("button", { name: "Confirm delete" }))
+
+      await waitFor(() =>
+        expect((rowCheckboxes[0] as HTMLInputElement).checked).toBe(false)
+      )
+      expect((rowCheckboxes[1] as HTMLInputElement).checked).toBe(true)
+    })
+
+    it("clears the selection when the page changes", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [makeRisk({ id: "r1" })],
+          meta: { page: 1, limit: 20, total: 40, totalPage: 2 },
+        },
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("checkbox", {
+          name: "organization.riskRegister.selectRiskLabel",
+        })
+      )
+      expect(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.bulkDeleteSelected",
+        })
+      ).toBeInTheDocument()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.nextPage" })
+      )
+
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.riskRegister.bulkDeleteSelected",
+        })
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  // quality-bar-loop industry-standards workstream: exports every risk
+  // matching the current server-side filters (a separate, unpaginated
+  // fetch), not just the current page's 20 rows.
+  describe("CSV export (industry-standards workstream)", () => {
+    it("triggers the lazy risks query with the current filters and a bounded limit when Export CSV is clicked", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.exportCsv",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockTriggerRisksExport).toHaveBeenCalledWith(
+          expect.objectContaining({ page: 1, limit: 1000 })
+        )
+      )
+    })
+
+    it("shows an error toast when the export fetch fails", async () => {
+      mockTriggerRisksExport.mockReturnValueOnce({
+        unwrap: () => Promise.reject(new Error("boom")),
+      })
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.exportCsv",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith(
+          "organization.riskRegister.exportFailedToast"
+        )
+      )
+    })
   })
 })
