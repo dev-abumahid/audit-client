@@ -325,3 +325,62 @@ contradiction, alerts read-only with no CTA), efficiency (double PageRank
 computation, zero memoization, triple-iterated categoryData), the
 out-of-scope risk-detail-page routing bug, and mobile's touch-target
 sizes.
+
+## Round 5 (re-score after PR #601)
+
+| Axis | Round 3 | Round 5 | Δ |
+|---|---|---|---|
+| Industry-standards | 4/10 | 5/10 | ↑ |
+| UX | 6/10 | 7/10 | ↑ |
+| Efficiency | 5/10 | 5/10 | — |
+| Accessibility | 7/10 | 7/10 | — |
+| Visual/design polish | 7/10 | 7/10 | — |
+| Resilience & edge cases | 9/10 | 9/10 | — |
+| Code quality/maintainability | 7/10 | 7/10 | — |
+| Mobile/responsive | 6/10 | 6/10 | — |
+
+**Average: 6.625/10** (up from 6.375/10) — not converged (3/8 axes below
+floor of 7: industry-standards, efficiency, mobile). No regression (every
+axis held or improved), no stagnation (four straight panels of average
+improvement: 5.4 → 5.75 → 6.375 → 6.625) — guardrails clear, loop
+continues.
+
+### Round 5 highlights
+
+- Both industry-standards and UX ticked up exactly as predicted from the
+  trend-badge fix closing one of each axis's open findings — no surprises,
+  confirms the round-4 fix selection reasoning held.
+- **Bonus finding**: this session's own heavy dashboard-reload testing
+  tripped the local `aexa-server`'s real Redis-backed API rate limiter
+  (429s). The resilience judge treated this as a live opportunity rather
+  than noise: confirmed RTK Query's `isError` fires on a 429 exactly like
+  a 500 or network failure, and `Overview.tsx`'s error state handles it
+  correctly with no code changes needed — incidental extra confidence in
+  the round-1 resilience fix's generality.
+- Code quality judge noted PR #601 made the 6 KPI cards genuinely more
+  uniform (identical prop shape now, none carrying trend props) — a real,
+  if partial, step toward the still-open "data-driven `.map()`" finding,
+  without that being the fix's stated goal.
+
+### Chosen fix for round 6
+
+**Double PageRank computation** (efficiency's top finding, unaddressed
+across all 5 score-rounds so far): `Overview.tsx` calls `computePageRank`
+directly to get `pageRankScores`, then calls `topPercentileByPageRank`
+with the same inputs, which redundantly recomputes PageRank internally
+instead of reusing `pageRankScores` via the `topPercentileFromScores`
+helper that already exists in `src/utils/pageRank.ts` for exactly this
+case. Chosen over industry-standards' and mobile's remaining findings
+because:
+- It's the single most mechanical, lowest-risk fix among the three
+  below-floor axes — swap one function call for another with the same
+  contract, no design decisions involved.
+- It's been flagged identically, unaddressed, in every efficiency score
+  since round 1 (5 rounds running) — the longest-standing untouched
+  finding in the whole log.
+- Industry-standards' remaining items are either backend-blocked (EBITDA
+  chart) or larger UX/product decisions (time-range control, drill-down
+  navigation) needing more design thought than a single round should
+  absorb. Mobile's remaining items (touch-target sizing, ref-badge
+  wrapping) are real but lower urgency than a redundant O(V+E) graph
+  computation running on every render.
