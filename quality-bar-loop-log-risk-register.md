@@ -1000,3 +1000,38 @@ Status, Control Effectiveness) -- the single highest-leverage,
 lowest-risk code-quality fix available, and the only below-floor axis
 with a tractable next step (industry-standards and mobile's remaining
 gaps are each substantially larger scopes of work).
+
+## Round 12 (code quality fix, PR #631)
+
+Decomposed the Add/Edit modal into 6 section components
+(RiskBasicInfoFields, RiskScoresSection, RiskFinancialImpactSection,
+RiskAssessmentSection, RiskStatusSection, RiskControlEffectivenessSection)
+using react-hook-form's FormProvider/useFormContext pattern -- the single
+largest code-quality gap named every round since round 1. Pure refactor,
+all 71 existing tests passed unchanged. One review-round finding: the
+extraction dropped the round-4 isError check on the modal's own site
+query -- fixed and tested same round.
+
+| Axis | Score | vs. round 11 |
+|---|---|---|
+| Code quality | 7/10 | +1 |
+| (all other axes) | unchanged | carried forward, nothing else touched |
+
+**Average: 7.67/10** (up from 7.56). 2 axes still below floor (7):
+industry-standards (6), mobile (6).
+
+Code-quality judge's independent assessment of the refactor: real,
+verified progress on the largest named gap, executed idiomatically
+(FormProvider is the correct RHF pattern for this), and the review loop
+caught a genuine regression rather than shipping it -- but this is
+same-file reorganization (file grew to ~1820 lines), not true
+modularization into separate files, and two other standing gaps (14-state
+sprawl in the main component, the file-wide no-explicit-any disable)
+got no attention this round.
+
+**Next fix:** mobile's remaining structural gap -- the Add/Edit modal's
+section components (just extracted this round, making this a much
+smaller/safer change now) still use unconditional `grid-cols-2`/
+`grid-cols-3`, not stacking to a single column on mobile. This is now a
+mechanical, low-risk CSS-only fix directly enabled by round 12's
+decomposition.
