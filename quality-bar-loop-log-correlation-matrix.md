@@ -119,3 +119,29 @@ round 7 already solved the identical bug class (sticky row-label
 column, legend-outside-scroll-wrapper, 44px touch targets) on a
 structurally similar page in this same session. Porting that same
 fix shape here is the highest-leverage, lowest-risk next step.
+
+## Round 2 (mobile layout, PR #646)
+
+Ported RiskMatrixPage's already-proven round-7 mobile fix: sticky
+root-cause row-label column (self-stretch to cover the full row
+height, relative+z-20 on hover/selected cells so a leftmost-column
+cell's ring isn't clipped, isolate on the scroll wrapper), h-11 touch
+targets on all three toggle groups (matrix size, group mode, view
+mode -- one more group than the sibling page has), and the legend
+moved outside the grid's horizontal-scroll wrapper.
+
+One review round, both reviewers returned zero blocking findings --
+notably, angle B specifically re-verified live (not just trusted the
+port) that the z-20 fix genuinely works on THIS page's own selection
+model, since this page's `isSelected` logic is simpler than
+RiskMatrixPage's (no per-size invalidation): selected the leftmost
+cell at 375px and confirmed its ring painted over the sticky label,
+not clipped underneath it. One minor nit (only the matrix-size group
+got `min-w-11`, matching the identical pattern already established on
+RiskMatrixPage, not a new inconsistency) -- accepted as-is.
+
+**Status:** mobile should clear the floor now. Remaining below-floor
+axes: industry-standards (6/10), visual polish (5/10, the lowest
+remaining), resilience (6/10). Visual polish's legend-vocabulary bug
+is the same exact bug RiskMatrixPage fixed in its own round 9 --
+moving there next.
