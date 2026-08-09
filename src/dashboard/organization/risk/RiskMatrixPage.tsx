@@ -6,7 +6,14 @@ import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { Risk } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
-import { AlertCircle, AlertTriangle, Grid3X3, Loader2, MapPin } from "lucide-react"
+import {
+  AlertCircle,
+  AlertTriangle,
+  Grid3X3,
+  Info,
+  Loader2,
+  MapPin,
+} from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
@@ -366,6 +373,30 @@ export default function RiskMatrixPage() {
             <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               {t("organization.riskMatrix.impactAxis")}
             </span>
+            {/* quality-bar-loop round 6 (industry-standards): the bold
+                number in each cell is its likelihood x impact BAND
+                position (e.g. 4 for a 2x2 cell), not any individual
+                risk's real score -- live-confirmed reproducible confusion
+                since multiple risks with very different real scores can
+                land in the same band. This icon plus each RiskCard's own
+                score (added below) close the transparency gap without
+                removing the standard heat-map band convention itself.
+                Review round 1: a role="img" span (even with tabIndex) is
+                the wrong pattern -- RiskGraphPage's minimap comment
+                (aexa-frontend#577 round 10) already rejected exactly this
+                for the same reason: it announces as an inert graphic to
+                screen readers instead of a reachable, operable control.
+                A real button (native focus + aria-label, same as that
+                minimap) is the correct shape even though its only
+                "action" is surfacing the tooltip on hover/focus. */}
+            <button
+              type="button"
+              aria-label={t("organization.riskMatrix.bandScoreExplainer")}
+              title={t("organization.riskMatrix.bandScoreExplainer")}
+              className="focus-ring rounded text-muted-foreground/70 hover:text-foreground"
+            >
+              <Info className="h-3.5 w-3.5" />
+            </button>
           </div>
 
           {/* Additive, not a replacement: some existing tests deliberately
@@ -628,12 +659,22 @@ function RiskCard({
         </div>
         {/* A malformed residual_score would otherwise render a confident
             severity color here -- suppress it in favor of the "Unscored"
-            flag above rather than show a misleading "Low"/"Critical" pill. */}
+            flag above rather than show a misleading "Low"/"Critical" pill.
+            The numeric score itself (round 6, industry-standards) is shown
+            alongside it so the matrix's own band number is never the only
+            score visible for a risk. */}
         {isValidScoreValue(risk.residual_score) && (
-          <RiskBadge
-            level={getRiskSeverityLevel(risk.residual_score)}
-            size="sm"
-          />
+          <div className="flex flex-col items-end gap-1">
+            <RiskBadge
+              level={getRiskSeverityLevel(risk.residual_score)}
+              size="sm"
+            />
+            <span className="text-[10px] tabular-nums text-muted-foreground">
+              {t("organization.riskMatrix.riskScoreLabel", {
+                score: risk.residual_score,
+              })}
+            </span>
+          </div>
         )}
       </div>
 

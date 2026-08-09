@@ -67,8 +67,11 @@ vi.mock("react-i18next", async (importOriginal) => {
           const count = Number(opts?.count ?? 0)
           const score = opts?.score
           return count === 1
-            ? `${count} risk — score ${score}`
-            : `${count} risks — score ${score}`
+            ? `${count} risk — band ${score}`
+            : `${count} risks — band ${score}`
+        }
+        if (key === "organization.riskMatrix.riskScoreLabel") {
+          return `Score: ${opts?.score}`
         }
         if (key === "organization.riskMatrix.pagerankAbbrLabel") {
           return "PR:"
@@ -451,6 +454,28 @@ describe("RiskMatrixPage", () => {
     expect(link).toHaveAttribute("href", "/organization/risks/risk-1")
   })
 
+  // quality-bar-loop round 6 (industry-standards): the bold number shown
+  // on each matrix cell is a likelihood x impact BAND position, not any
+  // individual risk's real score -- live-confirmed as a genuine
+  // misreading risk since several risks with very different real scores
+  // can land in the same band. Each risk's own real score is now shown
+  // on its card so the band number is never the only score visible.
+  it("shows the risk's own real score on its card, not just the cell's band number", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [makeRisk({ probability: 0, inherent_score: 0, residual_score: 42 })],
+      },
+      isLoading: false,
+    })
+    renderPage()
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    expect(screen.getByText("Score: 42")).toBeInTheDocument()
+  })
+
   it("links the selected risk's site name into Sites, scoped to that site", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: {
@@ -581,7 +606,7 @@ describe("RiskMatrixPage", () => {
     )
 
     // row 0, col 0 -> score (0+1)*(0+1) = 1
-    expect(screen.getByText("1 risk — score 1")).toBeInTheDocument()
+    expect(screen.getByText("1 risk — band 1")).toBeInTheDocument()
     expect(screen.queryByText(/Risk\(s\)/)).not.toBeInTheDocument()
   })
 
@@ -620,7 +645,7 @@ describe("RiskMatrixPage", () => {
       screen.getByTitle(/Moderately Likely × Moderate : 1 risk/)
     )
     // (2+1)*(2+1) = 9
-    expect(screen.getByText("1 risk — score 9")).toBeInTheDocument()
+    expect(screen.getByText("1 risk — band 9")).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole("button", { name: "3×3" }))
 
@@ -665,7 +690,7 @@ describe("RiskMatrixPage", () => {
     await userEvent.click(
       screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
     )
-    expect(screen.getByText("1 risk — score 1")).toBeInTheDocument()
+    expect(screen.getByText("1 risk — band 1")).toBeInTheDocument()
 
     // Select the OTHER site (via the stubbed SiteFilter above), which
     // owns none of the currently-selected cell's risks.
@@ -695,7 +720,7 @@ describe("RiskMatrixPage", () => {
     await userEvent.click(
       screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
     )
-    expect(screen.getByText("1 risk — score 1")).toBeInTheDocument()
+    expect(screen.getByText("1 risk — band 1")).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole("button", { name: "3×3" }))
     expect(

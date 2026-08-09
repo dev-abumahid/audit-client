@@ -1282,8 +1282,8 @@
       "cellAriaLabel_one": "{{likelihood}} × {{impact}}: {{count}} risk",
       "cellAriaLabel_other": "{{likelihood}} × {{impact}}: {{count}} risks",
       "impactAxis": "Impact →",
-      "selectedCellHeading_one": "{{count}} risk — score {{score}}",
-      "selectedCellHeading_other": "{{count}} risks — score {{score}}",
+      "selectedCellHeading_one": "{{count}} risk — band {{score}}",
+      "selectedCellHeading_other": "{{count}} risks — band {{score}}",
       "likelihoodRare": "Rare",
       "likelihoodUnlikely": "Unlikely",
       "likelihoodPossible": "Possible",
@@ -1304,7 +1304,9 @@
       "emptyStateTitle": "No risks scored yet",
       "emptyStateHint": "Once risks have a likelihood and impact score, they'll appear here.",
       "unscoredRiskBadge": "Unscored",
-      "unscoredRiskWarning": "This risk is missing a valid probability, impact, or severity score -- its matrix position and severity badge are fallbacks, not real scoring data."
+      "unscoredRiskWarning": "This risk is missing a valid probability, impact, or severity score -- its matrix position and severity badge are fallbacks, not real scoring data.",
+      "bandScoreExplainer": "The number in each cell is its likelihood x impact band position, not any individual risk's real score -- each risk's own score is shown on its card.",
+      "riskScoreLabel": "Score: {{score}}"
     },
     "riskGraph": {
       "title": "Dependency Graph & Domino Effects",
