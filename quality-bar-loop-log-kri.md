@@ -115,3 +115,26 @@ concrete fix is proven and low-risk -- bump the undersized icon buttons
 (trend-view, update-value, modal close) and the "New KRI" button to a
 44px touch target using the same `h-11` pattern already shipped twice
 this session.
+
+## Round 2 (mobile -- touch targets, PR #652)
+
+Bumped the trend-view/update-value icon buttons, the "New KRI" button,
+and all 3 modal close buttons to 44px, using the same `h-11`/
+`h-11 w-11` pattern already shipped on RiskMatrixPage and
+CorrelationMatrixPage.
+
+Negative control confirmed both new tests fail without the fix. One
+review round, both reviewers returned zero blocking findings -- angle A
+raised one minor cosmetic note (the enlarged icon buttons sit in an
+`items-baseline` row with the current-value text, which could look
+slightly off-center) but confirmed no functional overlap/breakage;
+angle B live-measured all four fixed targets at 44px (44x44 for the
+icon buttons, 343x44 for New KRI) and confirmed the New KRI modal still
+renders cleanly with no clipping at 375px.
+
+**Status:** mobile should clear the floor now. Remaining below-floor
+axes: industry-standards (6/10), efficiency (5/10), code quality (6/10).
+Next: efficiency's missing memoization -- unmemoized derived data
+(`unreadAlertsByKriId`, alert-count summaries, `trendChartData`)
+recomputing on every render including every keystroke in the New KRI
+form, plus an O(n*m) risk lookup inside the KRI `.map()`.
