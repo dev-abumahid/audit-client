@@ -526,3 +526,42 @@ inconsistent with the design system, just with one other page.
 Continuing next with the color fix, then moving to industry-standards
 (export, hover-preview) and UX (URL-state sync), the two remaining
 below-floor axes with real open work.
+
+## Round 10 (medium-severity color, PR #642)
+
+Fixed the round-1 finding: "Moderate" cells/legend used a flat /45
+opacity in both themes, which HSL->sRGB composite math (same
+methodology this file already used to justify bg-risk-high's
+dark-mode tint) confirmed composites to a washed-out pale peach in
+light mode and a genuinely muddy brown in dark mode. Light mode had
+huge contrast headroom so moved to /75 (a real, vivid amber, zero
+accessibility cost). Dark mode's binding constraint -- the small 9px
+count-badge text, composited a SECOND time over the already-blended
+cell color -- capped the safe value at /50 (measured: /53 passes at
+4.58:1, /54 fails at 4.48:1). A real but modest dark-mode improvement,
+not a full fix -- documented as such rather than overclaiming.
+Deliberately scoped out: a full fix needs a --risk-medium base-token
+change affecting every consumer app-wide.
+
+One review round, both reviewers returned zero blocking findings.
+Reviewer A independently recomputed the math and found something
+NOT introduced by this PR but real: bg-risk-critical/90 and
+bg-risk-high/80 dark:bg-risk-high/70's small count-badge text ALSO
+fails the 4.5:1 floor in dark mode (4.40:1 and 4.05:1) -- the
+existing code comment for bg-risk-high only ever verified the large
+bold score number, never this smaller, doubly-composited badge text.
+Reviewer B live-confirmed dark mode still reads as "muddy" to the eye
+(self-disclosed limitation, not a regression) and flagged medium/high
+now look less clearly graduated in dark mode since both moved toward
+higher saturation.
+
+## Round 11 (critical/high dark-mode small-text contrast, in progress)
+
+Fixing the pre-existing small-text contrast gap round-10's reviewer
+surfaced: bg-risk-critical/90 (dark) and bg-risk-high/70 (dark) both
+fail 4.5:1 for the small count-badge text (4.40:1, 4.05:1). Computed
+safe replacements via the same methodology: critical dark ->
+/85 (4.73:1), high dark -> /63 (4.62:1) -- both keep meaningful margin
+above the floor while staying close to the original vividness. Light
+mode already passes comfortably at both tiers, no change needed
+there.
