@@ -592,3 +592,55 @@ lower priority per round 1's own note that it matches
 CorrelationMatrixPage's convention. Moving next to the two remaining
 below-floor axes with real open work: industry-standards (export,
 hover-preview) and UX (URL-state sync).
+
+## Round 12 (URL-state sync, PR #644)
+
+Fixed the last open UX finding: matrixSize/groupMode/siteFilter/
+selectedCell were all plain local state, resetting on navigating away
+(e.g. clicking a risk name to its detail page) and back. No existing
+page in this codebase had a full two-way URL-state-sync pattern to
+follow -- every existing `useSearchParams` use is read-only, for
+pre-filtering from an external link -- so this establishes the
+pattern fresh, scoped to what round 1 actually asked for. Lazy
+initializers read the URL on mount (falling back to sane defaults for
+missing/malformed values, same discipline as isValidScoreValue); one
+effect writes every change back via `replace` (not `push`), so
+repeated toggling doesn't spam browser history.
+
+Two review rounds: round 1 found two real, blocking issues neither
+reviewer would have caught without one static-analysis pass and one
+live-interaction pass working together -- (1) round 8's
+focus-management effect assumed a selection could only ever become
+non-null via a user click; arriving with a cell pre-selected from the
+URL made the very first render yank focus to the details panel before
+the user did anything, an unsolicited focus jump on page load; (2) the
+sync effect started from a fresh `URLSearchParams()` and silently
+dropped any query param it doesn't manage (a tracking param, or one a
+future feature adds), even on mount. Fixed both same round -- a
+first-render guard for the focus effect, and switching to the
+functional-updater form of `setSearchParams` (cloning existing params
+instead of starting fresh, which also resolved a latent fragility in
+the round-1 eslint-disable comment flagged during round 8's own
+review). Round 2 came back completely clean, both reviewers
+confirming the fixes with independent re-derivation of the
+correctness argument, not just re-running the same checks.
+
+Live-verified end to end multiple times: 3x3 + selected cell + site
+filter -> risk detail page -> browser back -> exact state restored,
+with `history.length` never incrementing across repeated toggles
+(confirming `replace` behavior) but incrementing normally on the real
+navigation away.
+
+**Status:** every round-1 finding across ALL nine axes has now been
+addressed at least once (resilience fully closed rounds 3-5;
+industry-standards' most consequential finding fixed round 6; mobile
+fully closed round 7; visual polish's vocabulary and color findings
+closed rounds 9-11; UX's focus/keyboard and URL-sync findings closed
+rounds 8 and 12). Two industry-standards items remain unshipped
+(matrix export, hover-preview of in-cell risk names) and one
+visual-polish item is deliberately deprioritized (toggle-button style,
+arguably not actually inconsistent with the design system). A fresh
+full 9-judge panel re-score is the right next step to get current
+numbers before picking further work, rather than continuing to guess
+which round-1 finding is still the highest-leverage one seven rounds
+later.
