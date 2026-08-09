@@ -277,11 +277,68 @@ on any of them; the badge/malformed-data paths themselves rely on
 negative-controlled unit tests since no real risk in the seeded
 dataset currently has malformed scoring data.
 
-**Status:** paused here. Next step is a fresh full 9-judge panel to
-get current numbers on every axis -- resilience should be re-checked
-one more time now that all four round-1 findings are closed, and the
-other axes (industry-standards, UX, visual polish, mobile) haven't
-been re-scored since the 6.0/10 round-1 baseline despite two rounds of
-fixes that likely touched some of them incidentally (e.g. the
-error/empty states round 3 shipped are also industry-standards/UX
-concerns, not just resilience ones).
+## Round 5 baseline (fresh full 9-judge panel)
+
+| Axis | Round 1 | Now | Delta |
+|---|---|---|---|
+| Industry-standards | 6/10 | 6/10 | -- |
+| UX | 5/10 | 6/10 | +1 (stale-selection fix, round 2) |
+| Efficiency | 7/10 | 7/10 | -- |
+| Accessibility | 7/10 | 7/10 | -- |
+| Visual polish | 6/10 | 6/10 | -- |
+| Resilience & edge cases | 3/10 | 8/10 | +5 (rounds 2-4) |
+| Code quality | 7/10 | 7/10 | -- |
+| Mobile/responsive | 4/10 | 4/10 | -- |
+| Security | 9/10 | 9/10 | -- |
+
+**Average: 6.67/10** (up from 6.0/10). Still below target (9); 4 axes
+below floor (7): industry-standards, UX, visual polish, mobile.
+
+Rounds 2-4 concentrated entirely on resilience (the round-1 floor) and
+moved it from the worst axis (3/10) to the best-but-one (8/10, tied
+with code quality/efficiency, just under accessibility). Every other
+axis is byte-for-byte unchanged from round 1 except UX, which picked
+up the stale-selection fix as a side effect of round 2's resilience
+work. None of the 4 still-below-floor axes have had a single round
+targeted at them yet.
+
+New findings this round (not in round 1, found independently by 2
+judges): (a) resilience -- `RiskCard`'s `RiskBadge` colors severity via
+`getRiskSeverityLevel(risk.residual_score)`, which has the identical
+`Number(x) || 0` silent-fallback bug `hasValidRiskScore` was built to
+catch, but `hasValidRiskScore` only checks `probability`/
+`inherent_score`, never `residual_score` -- a malformed `residual_score`
+still renders a confident "Low" badge with no unscored flag, on the
+same card, right next to a correctly-flagged badge. (b) code quality --
+after 4 rounds, comment density (many 5-10 line "quality-bar-loop
+round N" blocks) is now the dominant visual mass of a 667-line file
+and increasingly duplicates near-verbatim explanation already present
+in the test file.
+
+**Status:** the 4 below-floor axes each need real feature/structural
+work, not another small patch, mirroring the Risk Register loop's
+round-8 stopping point:
+- **Mobile (4/10):** sticky/frozen row-label column during horizontal
+  scroll, responsive header stacking, 44px touch targets on the
+  toggles, legend scroll affordance -- a real layout pass.
+- **Industry-standards (6/10):** matrix export, real risk-scoring
+  display (the on-cell number is a coordinate product, not any risk's
+  actual score -- live-confirmed as the most consequential open item,
+  a compliance officer could misread it as a real weighted score),
+  hover-preview of in-cell risk names -- new features, not bug fixes.
+- **UX (6/10):** URL/state sync (matrixSize/groupMode/siteFilter/
+  selectedCell all reset on navigate-away-and-back, live-reproduced),
+  keyboard deselect (Escape does nothing), focus management into the
+  details panel on cell select.
+- **Visual polish (6/10):** legend/RiskBadge vocabulary unification
+  (Critical/Major/Moderate/Weak vs. Critical/High/Medium/Low, same
+  screen), the muddy "Moderate" swatch color, toggle-button style
+  convergence with RiskRegisterPage.
+
+The one genuinely small, in-scope leftover is the new resilience
+finding (residual_score) -- directly analogous to round 4's already-
+shipped work on the same file/component. Picking that up next as
+round 5, then escalating the 4 below-floor axes to the user as a
+scope decision rather than continuing to whittle at them with
+one-off patches that structurally can't move a 4/10 or a missing-
+feature 6/10.
