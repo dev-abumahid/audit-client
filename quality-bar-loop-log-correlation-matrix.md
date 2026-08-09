@@ -178,3 +178,36 @@ the two remaining below-floor axes (visual polish should clear once
 re-scored, pending confirmation of the hardcoded-chip finding above).
 Next: resilience's `isError`-handling gap -- a direct, low-risk port
 of RiskMatrixPage's own round-3 fix.
+
+## Round 4 (resilience -- isError handling, PR #648)
+
+Ported RiskMatrixPage's round-3 fix: `isError` was never destructured
+from `useGetCorrelationMatrixDataQuery` or `useGetAllSitesQuery`, so a
+genuine fetch failure fell through to `risks: []`/`riskLinks: []`
+defaults and rendered a fully-formed, normal-looking empty matrix --
+indistinguishable from "this org genuinely has zero risks." Matrix
+query failure now replaces the whole page with a distinct error state
+(AlertCircle + role="alert" text); sites query failure is non-fatal
+and shows an inline notice while the matrix still renders. Added
+`loadError`/`siteLoadError` i18n keys (en/fr).
+
+Negative control confirmed both new tests fail independently without
+their respective halves of the fix. One review round, both reviewers
+returned zero blocking findings -- angle A specifically checked
+rules-of-hooks (both early returns sit after all hook calls) and
+null-safety of the `?? []`-defaulted memos; angle B confirmed the fix
+matches RiskMatrixPage's pattern with no unjustified divergence, and
+live-verified it against a genuinely unreachable backend in this
+environment -- an unplanned but real demonstration of the fix firing,
+not a simulation.
+
+**Status:** resilience should clear the floor now. Remaining
+below-floor axis: industry-standards (6/10) -- no export/print, cell
+color not a real interconnection metric, no hover-preview. Also still
+open from round 1: the second visual-polish finding (raw hardcoded
+`bg-amber-500/10`/`bg-blue-500/10` chips, dark-mode legibility issue)
+and the milder resilience findings (numeric `|| 0` fallback on a
+non-optional field, no NaN/undefined guard on AI-bucket numeric
+fields feeding `t()` interpolation). A fresh full-panel re-score is
+due once these are addressed or explicitly scoped out, to check
+overall convergence.
