@@ -22,6 +22,7 @@ import type {
   RootCauseRiskBucket,
 } from "@/types/organization"
 import {
+  AlertCircle,
   Check,
   ChevronDown,
   ChevronUp,
@@ -155,10 +156,17 @@ export default function CorrelationMatrixPage() {
   const role = useMyOrgRole()
   const canManageLinks = role === "ADMIN" || role === "LEAD_AUDITOR"
 
+  // quality-bar-loop round 4 (resilience, the round-1 finding carried
+  // forward): isError was never checked on either query -- a genuine
+  // fetch failure fell through to `risks: []`/`links: []`/etc. below and
+  // rendered a fully-formed, normal-looking empty matrix, byte-for-byte
+  // indistinguishable from "this org genuinely has zero risks." Same
+  // resilience gap RiskMatrixPage fixed in its own round 3.
   const {
     data: matrixResponse,
     isLoading: isMatrixLoading,
     isFetching: isMatrixFetching,
+    isError: isMatrixError,
   } = useGetCorrelationMatrixDataQuery()
   const risks = useMemo(
     () => matrixResponse?.data.risks ?? [],
@@ -180,7 +188,7 @@ export default function CorrelationMatrixPage() {
     [matrixResponse]
   )
 
-  const { data: sitesResponse } = useGetAllSitesQuery({
+  const { data: sitesResponse, isError: isSitesError } = useGetAllSitesQuery({
     page: 1,
     limit: 100,
     searchTerm: "",
@@ -488,8 +496,34 @@ export default function CorrelationMatrixPage() {
     )
   }
 
+  // Replaces the whole matrix (controls included -- none of them are
+  // meaningful without data to filter/size/group) rather than letting a
+  // fetch failure fall through to a normal-looking, fully-rendered but
+  // completely empty matrix. Same full-page-replacement precedent
+  // RiskMatrixPage's own round 3 established.
+  if (isMatrixError) {
+    return (
+      <div className="flex min-h-[400px] flex-col items-center justify-center gap-2 text-center">
+        <AlertCircle className="h-10 w-10 text-destructive/60" />
+        <p role="alert" className="text-sm text-destructive">
+          {t(`${NS}.loadError`)}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 p-6">
+      {/* This page's own useGetAllSitesQuery call (used for site-name
+          lookups) failing doesn't block the matrix itself -- risks still
+          render, just without a site name. Same resilience gap round-1
+          flagged: previously zero indication anything failed. */}
+      {isSitesError && (
+        <p role="alert" className="text-xs text-destructive">
+          {t(`${NS}.siteLoadError`)}
+        </p>
+      )}
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">

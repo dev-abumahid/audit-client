@@ -310,6 +310,44 @@ describe("CorrelationMatrixPage", () => {
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 4 (resilience, the round-1 finding carried
+  // forward): isError was never checked on either query -- a genuine
+  // fetch failure fell through to risks: []/riskLinks: [] and rendered a
+  // fully-formed, normal-looking empty matrix, byte-for-byte
+  // indistinguishable from "this org genuinely has zero risks." Mirrors
+  // RiskMatrixPage's own round-3 fix.
+  it("shows a distinct error state, not an empty matrix, when the correlation matrix query fails", () => {
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isFetching: false,
+      isError: true,
+    })
+    render(<CorrelationMatrixPage />, withRouter)
+
+    expect(
+      screen.getByText("organization.correlationMatrix.loadError")
+    ).toBeInTheDocument()
+    // The matrix (and every control that's meaningless without data)
+    // must not render at all in the error state.
+    expect(
+      screen.queryByRole("button", { name: "5×5" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows a site-load-error indicator, not a silent missing site name, when the sites query fails", () => {
+    setMatrixData({ risks: [makeRisk()] })
+    mockUseGetAllSitesQuery.mockReturnValue({ data: undefined, isError: true })
+    render(<CorrelationMatrixPage />, withRouter)
+
+    expect(
+      screen.getByText("organization.correlationMatrix.siteLoadError")
+    ).toBeInTheDocument()
+    // The matrix itself still renders -- a sites-fetch failure only
+    // affects site-name lookups, not the whole page.
+    expect(screen.getByRole("button", { name: "5×5" })).toBeInTheDocument()
+  })
+
   // quality-bar-loop round 2 (mobile, round-1 finding): the matrix-size,
   // group-mode, and view-mode toggle buttons were 28px tall, under the
   // 44px minimum touch-target guideline -- same fix RiskMatrixPage

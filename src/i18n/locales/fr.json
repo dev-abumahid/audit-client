@@ -1886,6 +1886,8 @@
       "axisConsequence4plus": "4+ conséquences",
       "riskWord_one": "risque",
       "riskWord_other": "risques",
+      "loadError": "Échec du chargement de la matrice de corrélation. Veuillez réessayer plus tard.",
+      "siteLoadError": "Échec du chargement des sites -- les noms de sites peuvent être manquants ci-dessous.",
       "selectCellHeading": "Sélectionnez une cellule",
       "cellRisksHeading_one": "{{count}} risque — {{rootCause}} / {{consequence}}",
       "cellRisksHeading_other": "{{count}} risques — {{rootCause}} / {{consequence}}",

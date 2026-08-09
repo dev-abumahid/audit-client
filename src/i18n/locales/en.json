@@ -1886,6 +1886,8 @@
       "axisConsequence4plus": "4+ consequences",
       "riskWord_one": "risk",
       "riskWord_other": "risks",
+      "loadError": "Failed to load the correlation matrix. Please try again later.",
+      "siteLoadError": "Failed to load sites -- site names may be missing below.",
       "selectCellHeading": "Select a cell",
       "cellRisksHeading_one": "{{count}} risk — {{rootCause}} / {{consequence}}",
       "cellRisksHeading_other": "{{count}} risks — {{rootCause}} / {{consequence}}",
