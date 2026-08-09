@@ -14,6 +14,24 @@ function renderPage() {
   )
 }
 
+// quality-bar-loop round 4 (UX, round-1 finding): the per-line "move to"
+// buttons were replaced by a single dropdown trigger (aria-label doesn't
+// vary by row since the i18n mock below doesn't interpolate {{title}}),
+// so tests locate a specific row's trigger via its known title text, then
+// open the menu and click the destination by its own (still per-line,
+// still meaningfully distinct) label.
+function rowFor(title: string): HTMLElement {
+  return screen.getByText(title).closest(".rounded-md") as HTMLElement
+}
+
+async function moveViaDropdown(trigger: HTMLElement, destinationKey: string) {
+  await userEvent.click(trigger)
+  const menuItem = await screen.findByRole("menuitem", {
+    name: destinationKey,
+  })
+  await userEvent.click(menuItem)
+}
+
 // This file never triggers src/i18n/i18n.ts's side-effect init, so
 // react-i18next's real t() falls back to returning the raw key with no
 // interpolation for every other assertion here. That fallback can't
@@ -259,16 +277,49 @@ describe("ThreeLinesOfDefensePage", () => {
 
     expect(
       screen.getAllByRole("button", {
-        name: "organization.threeLinesOfDefense.moveToSecond",
+        name: "organization.threeLinesOfDefense.moveItem",
       }).length
     ).toBeGreaterThan(0)
   })
 
-  // quality-bar-loop round 2 (mobile, round-1 finding): these buttons
-  // measured 22x22px live -- half the 44px touch-target guideline, and
-  // up to 3 of them sit only 4px apart in one row. Same h-11 w-11 fix
-  // already shipped on 6 sibling pages this session.
-  it("gives each reassignment button a 44px touch target", () => {
+  // quality-bar-loop round 4 (UX, round-1 finding): previously up to 3
+  // "move to" buttons per row rendered the SAME ArrowRight icon with no
+  // visible way to tell them apart -- a live-confirmed real friction
+  // point ("which one do I click"). The unclassified action has the most
+  // destinations (4, since it has no current line to exclude), so it's
+  // the strongest case: every menu item must have its own distinct,
+  // real text label, not a repeated icon-derived name.
+  it("labels every reassignment destination with distinct text, not an identical icon", async () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData(),
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const unclassifiedRow = rowFor("Legacy remediation item")
+    await userEvent.click(
+      within(unclassifiedRow).getByRole("button", {
+        name: "organization.threeLinesOfDefense.moveItem",
+      })
+    )
+
+    const menuItems = await screen.findAllByRole("menuitem")
+    const labels = menuItems.map((item) => item.textContent)
+    expect(labels).toEqual([
+      "organization.threeLinesOfDefense.moveToFirst",
+      "organization.threeLinesOfDefense.moveToSecond",
+      "organization.threeLinesOfDefense.moveToThird",
+      "organization.threeLinesOfDefense.moveToGoverningBody",
+    ])
+    // Distinct labels, not 4 copies of the same string.
+    expect(new Set(labels).size).toBe(labels.length)
+  })
+
+  // quality-bar-loop round 2 (mobile, round-1 finding): the old per-line
+  // buttons measured 22x22px live. Round 4 replaced the row of buttons
+  // with a single dropdown trigger, which keeps this same 44px target.
+  it("gives the reassignment trigger a 44px touch target", () => {
     mockRole = "ADMIN"
     mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
       data: makeData(),
@@ -278,7 +329,7 @@ describe("ThreeLinesOfDefensePage", () => {
     renderPage()
 
     const button = screen.getAllByRole("button", {
-      name: "organization.threeLinesOfDefense.moveToSecond",
+      name: "organization.threeLinesOfDefense.moveItem",
     })[0]
     expect(button.className).toContain("h-11")
     expect(button.className).toContain("w-11")
@@ -295,7 +346,7 @@ describe("ThreeLinesOfDefensePage", () => {
 
     expect(
       screen.getAllByRole("button", {
-        name: "organization.threeLinesOfDefense.moveToThird",
+        name: "organization.threeLinesOfDefense.moveItem",
       }).length
     ).toBeGreaterThan(0)
   })
@@ -311,12 +362,7 @@ describe("ThreeLinesOfDefensePage", () => {
 
     expect(
       screen.queryByRole("button", {
-        name: "organization.threeLinesOfDefense.moveToSecond",
-      })
-    ).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole("button", {
-        name: "organization.threeLinesOfDefense.moveToFirst",
+        name: "organization.threeLinesOfDefense.moveItem",
       })
     ).not.toBeInTheDocument()
   })
@@ -332,7 +378,7 @@ describe("ThreeLinesOfDefensePage", () => {
 
     expect(
       screen.queryByRole("button", {
-        name: "organization.threeLinesOfDefense.moveToThird",
+        name: "organization.threeLinesOfDefense.moveItem",
       })
     ).not.toBeInTheDocument()
   })
@@ -348,12 +394,15 @@ describe("ThreeLinesOfDefensePage", () => {
 
     renderPage()
 
-    // Supply chain disruption risk is in FIRST -- the other-line buttons are
-    // "Move to 2nd Line" and "Move to 3rd Line".
-    const moveButtons = screen.getAllByRole("button", {
-      name: "organization.threeLinesOfDefense.moveToSecond",
-    })
-    await userEvent.click(moveButtons[0])
+    // Supply chain disruption risk is in FIRST -- open its move menu and
+    // pick "Move to 2nd Line".
+    const riskRow = rowFor("Supply chain disruption")
+    await moveViaDropdown(
+      within(riskRow).getByRole("button", {
+        name: "organization.threeLinesOfDefense.moveItem",
+      }),
+      "organization.threeLinesOfDefense.moveToSecond"
+    )
 
     await waitFor(() =>
       expect(mockUpdateRisk).toHaveBeenCalledWith({
@@ -362,6 +411,45 @@ describe("ThreeLinesOfDefensePage", () => {
       })
     )
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled())
+  })
+
+  // Review round 1 (angle B) on PR #664: flagged as untested (a
+  // pre-existing gap, not introduced by this PR, but cheap to close) --
+  // the trigger is a native `disabled` button while a mutation is in
+  // flight, so a disabled element can't receive focus/click/pointerdown,
+  // which is what Radix's DropdownMenuTrigger listens on to open the
+  // menu (browser-guaranteed native semantics, not custom logic here --
+  // this test verifies the `isPending` -> `disabled` wiring itself).
+  it("disables the reassignment trigger while a mutation is pending", async () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData(),
+      isLoading: false,
+    })
+    let resolveUpdate: (value: { success: true }) => void = () => {}
+    mockUpdateRisk.mockReturnValue({
+      unwrap: () =>
+        new Promise((resolve) => {
+          resolveUpdate = resolve
+        }),
+    })
+
+    renderPage()
+
+    const riskRow = rowFor("Supply chain disruption")
+    const trigger = within(riskRow).getByRole("button", {
+      name: "organization.threeLinesOfDefense.moveItem",
+    })
+    await moveViaDropdown(
+      trigger,
+      "organization.threeLinesOfDefense.moveToSecond"
+    )
+
+    // The mutation is now in flight -- pendingId is set, the unwrap()
+    // promise hasn't resolved yet.
+    await waitFor(() => expect(trigger).toBeDisabled())
+
+    resolveUpdate({ success: true })
+    await waitFor(() => expect(trigger).not.toBeDisabled())
   })
 
   it("calls updateFindingById with line_of_defense when reassigning an unclassified action", async () => {
@@ -375,12 +463,15 @@ describe("ThreeLinesOfDefensePage", () => {
 
     renderPage()
 
-    // The unclassified action row has all 3 "move to" buttons since it has
-    // no current line to exclude.
-    const firstLineButtons = screen.getAllByRole("button", {
-      name: "organization.threeLinesOfDefense.moveToFirst",
-    })
-    await userEvent.click(firstLineButtons[firstLineButtons.length - 1])
+    // The unclassified action row offers all 4 lines since it has no
+    // current line to exclude.
+    const unclassifiedRow = rowFor("Legacy remediation item")
+    await moveViaDropdown(
+      within(unclassifiedRow).getByRole("button", {
+        name: "organization.threeLinesOfDefense.moveItem",
+      }),
+      "organization.threeLinesOfDefense.moveToFirst"
+    )
 
     await waitFor(() =>
       expect(mockUpdateFindingById).toHaveBeenCalledWith({
@@ -402,10 +493,13 @@ describe("ThreeLinesOfDefensePage", () => {
 
     renderPage()
 
-    const moveButtons = screen.getAllByRole("button", {
-      name: "organization.threeLinesOfDefense.moveToSecond",
-    })
-    await userEvent.click(moveButtons[0])
+    const riskRow = rowFor("Supply chain disruption")
+    await moveViaDropdown(
+      within(riskRow).getByRole("button", {
+        name: "organization.threeLinesOfDefense.moveItem",
+      }),
+      "organization.threeLinesOfDefense.moveToSecond"
+    )
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith(
@@ -445,7 +539,7 @@ describe("ThreeLinesOfDefensePage", () => {
       ).toBeInTheDocument()
     })
 
-    it("offers Move to Governing Body as a reassignment option for an ADMIN", () => {
+    it("offers Move to Governing Body as a reassignment option for an ADMIN", async () => {
       mockRole = "ADMIN"
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
         data: makeData(),
@@ -454,11 +548,18 @@ describe("ThreeLinesOfDefensePage", () => {
 
       renderPage()
 
+      const riskRow = rowFor("Supply chain disruption")
+      await userEvent.click(
+        within(riskRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+
       expect(
-        screen.getAllByRole("button", {
+        await screen.findByRole("menuitem", {
           name: "organization.threeLinesOfDefense.moveToGoverningBody",
-        }).length
-      ).toBeGreaterThan(0)
+        })
+      ).toBeInTheDocument()
     })
 
     it("reassigns a risk to GOVERNING_BODY", async () => {
@@ -472,10 +573,13 @@ describe("ThreeLinesOfDefensePage", () => {
 
       renderPage()
 
-      const moveButtons = screen.getAllByRole("button", {
-        name: "organization.threeLinesOfDefense.moveToGoverningBody",
-      })
-      await userEvent.click(moveButtons[0])
+      const riskRow = rowFor("Supply chain disruption")
+      await moveViaDropdown(
+        within(riskRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        }),
+        "organization.threeLinesOfDefense.moveToGoverningBody"
+      )
 
       await waitFor(() =>
         expect(mockUpdateRisk).toHaveBeenCalledWith({
@@ -816,10 +920,11 @@ describe("ThreeLinesOfDefensePage", () => {
       // unrelated risk to disappear from or duplicate across columns.
       const kriRow = screen.getByText("Supplier Lead Time").closest(".rounded-md")
       if (!kriRow) throw new Error("KRI row not found")
-      await userEvent.click(
+      await moveViaDropdown(
         within(kriRow as HTMLElement).getByRole("button", {
-          name: "organization.threeLinesOfDefense.moveToFirst",
-        })
+          name: "organization.threeLinesOfDefense.moveItem",
+        }),
+        "organization.threeLinesOfDefense.moveToFirst"
       )
       await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled())
 

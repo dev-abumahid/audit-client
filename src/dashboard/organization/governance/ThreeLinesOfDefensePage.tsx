@@ -4,6 +4,12 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useUpdateAuditEngagementMutation } from "@/redux/apis/organization/audit.api"
 import { useUpdateComplianceMutation } from "@/redux/apis/organization/compliance.api"
@@ -23,7 +29,7 @@ import { SEVERITY_STYLES, type SeverityLevel } from "@/utils/severityStyles"
 import {
   Activity,
   AlertTriangle,
-  ArrowRight,
+  ArrowRightLeft,
   ClipboardCheck,
   Loader2,
   Scale,
@@ -248,42 +254,51 @@ const ItemRow = memo(function ItemRow({
         </div>
       </div>
       {canReassign && (
-        // aexa-frontend round-3 audit bug #2: with GOVERNING_BODY added as a
-        // 4th line, an item can now have up to 3 "move to" destinations. A
-        // non-wrapping row of full-text buttons ("Move to 1st Line", "Move
-        // to 2nd Line", "Move to 3rd Line") overflowed the card by ~234px.
-        // Fixed by shrinking each button to icon-only (the destination
-        // label moves to `title`/`aria-label`, shown as a native tooltip on
-        // hover and still exposed to assistive tech and tests via the
-        // accessible name) plus `flex-wrap` as a second line of defense so
-        // the row never overflows regardless of how many destination lines
-        // exist.
-        <div className="flex shrink-0 flex-wrap justify-end gap-1">
-          {otherLines.map((line) => (
+        // quality-bar-loop round 4 (UX, round-1 finding): with
+        // GOVERNING_BODY added as a 4th line, an item can have up to 3
+        // "move to" destinations, each previously rendered as its own
+        // icon-only button using the SAME ArrowRight icon -- the only
+        // way to tell them apart was hovering for a tooltip, a
+        // live-confirmed real friction point ("which one do I click").
+        // Reference tools solve this class of problem (moving a card/
+        // ticket between a small set of named buckets) with a single
+        // trigger that opens a menu of clearly-labeled destinations --
+        // Jira's status-transition dropdown, Trello's "Move" card
+        // action, Asana's "Move to section" menu -- rather than N
+        // identical icon buttons. One `DropdownMenu` (this codebase's
+        // existing pattern, e.g. CompliancePage's row-actions menu)
+        // replaces the ambiguous button row: the trigger is a single
+        // 44px touch target (also fixing the up-to-3-buttons mobile
+        // crowding this row used to have), and each destination is a
+        // real text label in the menu, not a guess from an icon.
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <button
-              key={line}
               type="button"
               disabled={isPending}
-              onClick={() => onReassign(entityType, id, line)}
-              title={t(MOVE_TO_KEY[line])}
-              aria-label={t(MOVE_TO_KEY[line])}
-              // quality-bar-loop round 2 (mobile, round-1 finding):
-              // measured 22x22px live -- half the 44px touch-target
-              // guideline, and up to 3 of these sit only 4px apart in
-              // one row (real mis-tap risk). h-11 w-11 gives the full
-              // touch target while the icon inside stays visually
-              // small, same fix already shipped on 6 sibling pages this
-              // session.
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+              aria-label={t("organization.threeLinesOfDefense.moveItem", {
+                title,
+              })}
+              className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
             >
               {isPending ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <ArrowRight className="h-3 w-3" />
+                <ArrowRightLeft className="h-3 w-3" />
               )}
             </button>
-          ))}
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {otherLines.map((line) => (
+              <DropdownMenuItem
+                key={line}
+                onClick={() => onReassign(entityType, id, line)}
+              >
+                {t(MOVE_TO_KEY[line])}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   )

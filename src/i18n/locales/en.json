@@ -1237,6 +1237,7 @@
       "itemCount_one": "{{count}} item",
       "itemCount_other": "{{count}} items",
       "noLeadAuditor": "No lead auditor assigned",
+      "moveItem": "Move {{title}} to another line",
       "moveToFirst": "Move to 1st Line",
       "moveToSecond": "Move to 2nd Line",
       "moveToThird": "Move to 3rd Line",

@@ -1237,6 +1237,7 @@
       "itemCount_one": "{{count}} élément",
       "itemCount_other": "{{count}} éléments",
       "noLeadAuditor": "Aucun auditeur principal assigné",
+      "moveItem": "Déplacer {{title}} vers une autre ligne",
       "moveToFirst": "Déplacer vers la 1re ligne",
       "moveToSecond": "Déplacer vers la 2e ligne",
       "moveToThird": "Déplacer vers la 3e ligne",
