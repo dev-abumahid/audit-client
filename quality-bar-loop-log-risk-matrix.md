@@ -644,3 +644,90 @@ full 9-judge panel re-score is the right next step to get current
 numbers before picking further work, rather than continuing to guess
 which round-1 finding is still the highest-leverage one seven rounds
 later.
+
+## Fresh full-panel re-score (after round 12)
+
+| Axis | Round 1 | Round 5 check | Now | Delta (R1 -> now) |
+|---|---|---|---|---|
+| Industry-standards | 6/10 | 6/10 | 7/10 | +1 |
+| UX | 5/10 | 6/10 | 8/10 | +3 |
+| Efficiency | 7/10 | 7/10 | 7/10 | -- |
+| Accessibility | 7/10 | 7/10 | 8/10 | +1 |
+| Visual polish | 6/10 | 6/10 | 8/10 | +2 |
+| Resilience & edge cases | 3/10 | 8/10 | 9/10 | +6 |
+| Code quality | 7/10 | 7/10 | 7/10 | -- |
+| Mobile/responsive | 4/10 | 4/10 | 8/10 | +4 |
+| Security | 9/10 | 9/10 | 9/10 | -- |
+
+**Average: 7.89/10** (up from 6.0/10 at round 1, 6.67/10 at the round-5
+check). Still below the 9/10 target, but for the first time in this
+loop **every single axis clears the 7/10 floor** -- the round-1
+baseline had 5 axes below floor; now zero.
+
+Each judge re-verified live, not just from the log's narrative:
+- **Resilience (9/10):** all round 1-5 findings hold up under
+  re-inspection; round 12's URL-parsing code was live-tested against
+  a battery of adversarial inputs (`size=999`, `row=abc`, negative
+  numbers, an `<img onerror>` payload in `site`, duplicate params) --
+  every one degraded gracefully with no crash. Docked from a perfect
+  10 only for a minor test-coverage gap (no unit test explicitly
+  exercises non-numeric row/col).
+- **UX (8/10):** all three fixes (stale-selection, focus/Escape,
+  URL-sync) verified working together with no regressions, including
+  a full navigate-away-and-back cycle with `document.activeElement`
+  confirming no focus was stolen. New, not-yet-fixed finding: no
+  click-to-toggle-off for a populated cell (re-clicking an already-
+  selected cell doesn't deselect it, only Escape does) -- and no
+  arrow-key roving-tabindex grid navigation (a 25-cell Tab sequence).
+- **Accessibility (8/10):** focus management confirmed working for
+  BOTH a real pointer click and real keyboard activation, not just
+  DOM focus in the abstract -- a visible ring renders on click despite
+  `:focus-visible` reporting false, confirming round 12's exception
+  works as designed. New finding (fixed same-day, see round 13 below):
+  the "Unscored" badge's explanation was hover-only.
+- **Visual polish (8/10):** vocabulary and color fixes confirmed
+  genuinely resolved live in both themes and in French; toggle-button
+  divergence independently re-assessed as correctly NOT a defect
+  (byte-for-byte identical to CorrelationMatrixPage's own convention;
+  RiskRegisterPage's control serves a different job entirely).
+- **Mobile (8/10):** all four round-7 fixes measured and confirmed
+  live (sticky column position unchanged after scroll, 44px toggle
+  buttons, no page-level horizontal overflow, unclipped selection
+  ring). New finding (fixed same-day, see round 13 below): the round-6
+  info button was only 14x14px, predating round 7's mobile sweep.
+- **Industry-standards (7/10):** round 6's transparency fix confirmed
+  to actively teach the band-vs-real-score distinction live (a band
+  of 6 risks showing visibly different real scores side by side).
+  Export/print and hover-preview remain completely unshipped.
+- **Efficiency, code quality, security: unchanged (7, 7, 9).** Round
+  1's original efficiency/code-quality debts (unmemoized `labels`,
+  referential-stability gap, file-level `any` eslint-disable, magic
+  color thresholds, duplicated category-label IIFE) have now survived
+  13 rounds of unrelated fixes landing around them untouched --
+  itself now a mild maintainability smell worth naming explicitly.
+  Round 12's URL-sync effect adds one harmless extra render per
+  toggle (acceptable at this page's realistic scale) and introduces
+  no new security surface (validated inputs, no raw HTML, encoded
+  URLs).
+
+## Round 13 (two small a11y/mobile fixes, PR #645)
+
+Fixed the two new findings the full-panel re-score surfaced (not
+round-1 findings): the band-score info button was 14x14px (only the
+icon was clickable, found by the mobile judge), and the "Unscored"
+badge's explanation was hover-only with no keyboard path to it (found
+by the accessibility judge). Both fixed same-day rather than deferred,
+using the same fix shape already established on this page (h-11 w-11
+touch targets per round 7; a real button instead of a bare span/icon
+per round 6's role="img" rejection). One clean review round.
+
+**Status:** this is a natural, strong stopping point. Every axis
+clears the floor, the average moved from 6.0 to 7.89 over 13 rounds,
+and every fix shipped through the full ship-with-review-loop discipline
+with negative-controlled tests and live verification. What remains to
+reach 9/10 -- matrix export, hover-preview, arrow-key grid navigation,
+a real fix for the efficiency/code-quality debts, and the dark-mode
+color-token rework already filed as a separate follow-up -- is real
+feature/architecture work, not more small bug-shaped fixes, and is
+better scoped as deliberate next efforts than squeezed into "one more
+round" of this loop.
