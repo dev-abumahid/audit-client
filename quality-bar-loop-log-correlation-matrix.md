@@ -279,3 +279,42 @@ cross-linking to RiskGraphPage's already-built real PageRank
 scoring, the least invasive of the five open findings and a genuine,
 judge-flagged gap (a working alternative sits one click away in the
 same nav section and isn't referenced).
+
+## Round 6 (industry-standards -- link to real PageRank graph, PR #650)
+
+Added a "View full network analysis" link from the AI Buckets tab
+(this page's own closest concept to real interconnection scoring) to
+`/organization/risk-graph`, the app's genuine PageRank-based network
+view (real scores, domino-chain cascades, working export) that was
+previously unreferenced from this page.
+
+Negative control confirmed the new test fails without the link. One
+review round: angle A found no blocking issues; angle B live-verified
+the full flow (AI Buckets tab -> link -> real graph renders with
+nodes/edges/domino chains, no console errors) and raised one
+legitimate but explicitly non-blocking discoverability concern -- a
+user who never opens "AI Buckets" never sees the link, so this
+addresses the code-smell (a real metric is now referenced from
+*somewhere*) more than the full UX goal (steering users away from the
+fake heuristic before they draw conclusions from cell colors).
+Accepted as a deliberate, scoped round-6 decision rather than
+expanded in-round -- a more prominent placement (near the page
+header, or a persistent note under the legend) is a legitimate
+candidate for a future round if industry-standards needs more work,
+not a defect in this one.
+
+**Status:** export/print, a genuine interconnection metric (vs. the
+grid-position heuristic), and in-cell hover-preview remain open on
+industry-standards -- all three need real feature/design work, not
+mechanical fixes. This is a natural pause point for the loop: average
+7.56/10, 8 of 9 axes at or above 7 (three at 9/10), one axis
+(industry-standards) needing feature-shaped work similar to the wall
+the Risk Register loop hit at its own round 8. Per the standing
+"scope ambiguous things, keep going down the list of tabs"
+instruction, treating CorrelationMatrixPage as done for this pass and
+moving to the next sidebar tab: Page Rank Graph (RiskGraphPage.tsx) --
+which already has extensive prior quality-bar-loop history in this
+same session (rounds through at least 12, per
+`/Users/omartakadoum/.claude/plans/let-s-make-a-plan-swirling-shannon.md`),
+so checking its existing state before assuming a fresh round-1
+baseline is needed there.
