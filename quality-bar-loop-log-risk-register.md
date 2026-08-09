@@ -956,3 +956,47 @@ trivial test-robustness tweak); merged.
 
 **Next: re-run the panel** to confirm the sort-bug fix and the two
 regressions are actually resolved, not just addressed in isolation.
+
+## Round 11 (fresh panel, post PR #630 fix-up)
+
+Re-judged the 5 axes PR #630 touched (mobile, accessibility, UX, visual
+polish, resilience); carried forward industry-standards/efficiency/code
+quality/security unchanged since nothing in #630 touched their concerns.
+
+| Axis | Score | vs. round 10 |
+|---|---|---|
+| Industry-standards | 6/10 | carried forward |
+| UX | 7/10 | same (sort-toggle bug confirmed fixed, live-verified 4x toggle) |
+| Efficiency | 9/10 | carried forward |
+| Accessibility | 8/10 | +1 (regression resolved) |
+| Visual polish | 8/10 | +1 (accent-primary confirmed matching brand teal) |
+| Resilience & edge cases | 8/10 | +1 (both findings fixed and tested) |
+| Code quality | 6/10 | carried forward |
+| Mobile/responsive | 6/10 | +3 (regression resolved -- back to pre-#629 baseline, not beyond it) |
+| Security | 10/10 | carried forward |
+
+**Average: 7.56/10** (up from 6.89). Real, continuing improvement, no
+stagnation, no regressions this round. 3 axes still below floor (7):
+industry-standards, code quality, mobile.
+
+Judge notes worth carrying forward:
+- Mobile judge: "the regression is resolved, not just partially -- both
+  flagged elements now measure and behave as claimed... score reflects a
+  return to baseline, not new progress beyond it, since only regressions
+  were fixed and no new mobile ground was gained." Structural mobile debt
+  (Name-column truncation, no card layout at 375px, Add/Edit modal's
+  fixed grid-cols-2/3 not stacking) remains untouched.
+- Code quality judge (round 10): the Add/Edit modal (~535 lines, 20+
+  fields) is still completely undecomposed -- the single largest
+  remaining gap on that axis, unchanged since round 1.
+- Industry-standards judge (round 10): remaining gaps (multi-column sort,
+  column resize/reorder, bulk field-edit beyond delete, export format
+  choice, saved views) are all substantially larger engineering efforts
+  than what's shipped so far.
+
+**Next fix (round 12):** decompose the Add/Edit Risk modal into
+sub-components (per-section: Scores, Financial Impact, Risk Assessment,
+Status, Control Effectiveness) -- the single highest-leverage,
+lowest-risk code-quality fix available, and the only below-floor axis
+with a tractable next step (industry-standards and mobile's remaining
+gaps are each substantially larger scopes of work).
