@@ -246,6 +246,58 @@ describe("CompliancePage", () => {
     ).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 2 (mobile, round-1 finding): every
+  // interactive control on this page measured under the 44px
+  // touch-target guideline -- "New Obligation" 32px, row "more
+  // actions" trigger 32x32px, modal Cancel/Save buttons 38px. Same
+  // h-11/h-11-w-11 fix already shipped on 5 sibling pages this
+  // session.
+  it("gives the New Obligation button, row actions trigger, and form modal's Cancel/Create buttons a 44px touch target", async () => {
+    const user = userEvent.setup()
+    mockRole = "ADMIN"
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [makeObligation()] },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByRole("button", {
+        name: /organization\.compliance\.newObligation/i,
+      }).className
+    ).toContain("h-11")
+    expect(
+      screen.getByRole("button", {
+        name: "organization.compliance.moreActionsLabel",
+      }).className
+    ).toContain("h-11")
+    // Review finding (round 2): this button sat in a tight
+    // `flex items-center justify-end gap-1` row -- h-11/w-11 alone let
+    // the flex layout squeeze its WIDTH below 44px at narrow table
+    // widths even though the height stayed correct. shrink-0 stops the
+    // row from compressing it.
+    expect(
+      screen.getByRole("button", {
+        name: "organization.compliance.moreActionsLabel",
+      }).className
+    ).toContain("shrink-0")
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /organization\.compliance\.newObligation/i,
+      })
+    )
+    expect(
+      screen.getByRole("button", { name: "organization.compliance.form.cancel" })
+        .className
+    ).toContain("h-11")
+    expect(
+      screen.getByRole("button", { name: "organization.compliance.form.create" })
+        .className
+    ).toContain("h-11")
+  })
+
   it("hides New Obligation, Edit, Attest and Delete for a VIEWER but keeps History", () => {
     mockRole = "VIEWER"
     mockUseGetAllComplianceQuery.mockReturnValue({

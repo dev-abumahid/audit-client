@@ -147,10 +147,8 @@ export default function CompliancePage() {
   // through to `scorecardData?.data` being undefined, which the summary cards
   // and site x domain matrix below already treat identically to "no data
   // yet" (a genuinely empty org), with zero visual distinction.
-  const {
-    data: scorecardData,
-    isError: scorecardError,
-  } = useGetComplianceScorecardQuery()
+  const { data: scorecardData, isError: scorecardError } =
+    useGetComplianceScorecardQuery()
   const { data: sitesData } = useGetAllSitesQuery({
     page: 1,
     limit: 100,
@@ -535,7 +533,7 @@ export default function CompliancePage() {
         {canWrite && (
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
+            className="flex h-11 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground"
           >
             <Plus className="h-3.5 w-3.5" />{" "}
             {t("organization.compliance.newObligation")}
@@ -551,14 +549,14 @@ export default function CompliancePage() {
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder={t("organization.compliance.searchPlaceholder")}
             aria-label={t("organization.compliance.searchLabel")}
-            className="h-9 w-full rounded-lg border border-input bg-card pr-3 pl-3 text-xs"
+            className="h-11 w-full rounded-lg border border-input bg-card pr-3 pl-3 text-xs"
           />
         </div>
         <select
           value={filterDomain}
           onChange={(e) => handleDomainChange(e.target.value)}
           aria-label={t("organization.compliance.domainFilterLabel")}
-          className="h-9 rounded-lg border border-input bg-card px-3 text-xs"
+          className="h-11 rounded-lg border border-input bg-card px-3 text-xs"
         >
           <option value="">{t("organization.compliance.allDomains")}</option>
           {Object.keys(COMPLIANCE_DOMAINS).map((key) => (
@@ -571,7 +569,7 @@ export default function CompliancePage() {
           value={filterStatus}
           onChange={(e) => handleStatusChange(e.target.value)}
           aria-label={t("organization.compliance.statusFilterLabel")}
-          className="h-9 rounded-lg border border-input bg-card px-3 text-xs"
+          className="h-11 rounded-lg border border-input bg-card px-3 text-xs"
         >
           <option value="">{t("organization.compliance.allStatuses")}</option>
           {STATUS_KEYS.map((key) => (
@@ -592,7 +590,9 @@ export default function CompliancePage() {
         <div className="rounded-xl border border-risk-low/30 bg-risk-low/5 p-3 lg:p-4">
           <div className="flex items-center gap-2">
             <CheckCircle2 className={`h-5 w-5 ${SEVERITY_STYLES.low.text}`} />
-            <span className={`font-mono-data text-xl font-bold lg:text-2xl ${SEVERITY_STYLES.low.text}`}>
+            <span
+              className={`font-mono-data text-xl font-bold lg:text-2xl ${SEVERITY_STYLES.low.text}`}
+            >
               {compliantCount ?? "—"}
             </span>
           </div>
@@ -603,7 +603,9 @@ export default function CompliancePage() {
         <div className="rounded-xl border border-risk-critical/30 bg-risk-critical/5 p-3 lg:p-4">
           <div className="flex items-center gap-2">
             <Ban className={`h-5 w-5 ${SEVERITY_STYLES.critical.text}`} />
-            <span className={`font-mono-data text-xl font-bold lg:text-2xl ${SEVERITY_STYLES.critical.text}`}>
+            <span
+              className={`font-mono-data text-xl font-bold lg:text-2xl ${SEVERITY_STYLES.critical.text}`}
+            >
               {nonCompliantCount ?? "—"}
             </span>
           </div>
@@ -787,7 +789,9 @@ export default function CompliancePage() {
                         : "—"}
                     </span>
                     {isOverdue && (
-                      <span className={`mt-0.5 flex items-center justify-center gap-1 text-[10px] font-medium ${SEVERITY_STYLES.critical.text}`}>
+                      <span
+                        className={`mt-0.5 flex items-center justify-center gap-1 text-[10px] font-medium ${SEVERITY_STYLES.critical.text}`}
+                      >
                         <AlertTriangle className="h-2.5 w-2.5" />
                         {t("organization.compliance.overdueLabel")}
                       </span>
@@ -849,7 +853,7 @@ export default function CompliancePage() {
                         (obl.actions?.length ? (
                           <Link
                             to={`/organization/finding/${obl.actions[0].id}`}
-                            className="focus-ring flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/20"
+                            className="focus-ring flex h-11 shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 text-[10px] font-medium text-primary hover:bg-primary/20"
                           >
                             <ArrowUpRight className="h-3 w-3" />
                             {t("organization.compliance.viewAction.button")}
@@ -857,7 +861,7 @@ export default function CompliancePage() {
                         ) : (
                           <button
                             onClick={() => openCreateAction(obl)}
-                            className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/20"
+                            className="flex h-11 shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 text-[10px] font-medium text-primary hover:bg-primary/20"
                           >
                             <Plus className="h-3 w-3" />
                             {t("organization.compliance.createAction.button")}
@@ -870,7 +874,7 @@ export default function CompliancePage() {
                               "organization.compliance.moreActionsLabel",
                               { title: obl.title }
                             )}
-                            className="focus-ring rounded-lg p-2 text-muted-foreground hover:bg-muted"
+                            className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
                           >
                             <MoreVertical className="h-4 w-4" />
                           </button>
@@ -998,7 +1002,7 @@ export default function CompliancePage() {
               <button
                 onClick={() => setShowForm(false)}
                 aria-label={t("organization.compliance.form.close")}
-                className="rounded p-1 text-muted-foreground hover:text-foreground"
+                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1014,7 +1018,7 @@ export default function CompliancePage() {
                   onChange={(e) =>
                     setForm((p) => ({ ...p, title: e.target.value }))
                   }
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
               </div>
 
@@ -1028,7 +1032,7 @@ export default function CompliancePage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, domain: e.target.value }))
                     }
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
                     {Object.keys(COMPLIANCE_DOMAINS).map((key) => (
                       <option key={key} value={key}>
@@ -1046,7 +1050,7 @@ export default function CompliancePage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, site_id: e.target.value }))
                     }
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
                     <option value="">
                       {t("organization.compliance.form.orgWide")}
@@ -1089,11 +1093,17 @@ export default function CompliancePage() {
                   placeholder={t(
                     "organization.compliance.form.regulationReferencePlaceholder"
                   )}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              {/* quality-bar-loop round 2 (mobile, round-1 finding):
+                  this was an unconditional 3-column grid -- each cell
+                  measured only 92px wide at 375px, truncating the
+                  Status select ("In Progres") and overlapping the date
+                  input's calendar icon with its placeholder. Stacks to
+                  a single column below sm. */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">
                     {t("organization.compliance.form.status")}
@@ -1103,7 +1113,7 @@ export default function CompliancePage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, status: e.target.value }))
                     }
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
                     {STATUS_KEYS.map((key) => (
                       <option key={key} value={key}>
@@ -1122,7 +1132,7 @@ export default function CompliancePage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, due_date: e.target.value }))
                     }
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
                   />
                 </div>
                 <div>
@@ -1134,7 +1144,7 @@ export default function CompliancePage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, owner: e.target.value }))
                     }
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
                   />
                 </div>
               </div>
@@ -1148,7 +1158,7 @@ export default function CompliancePage() {
                   onChange={(e) =>
                     setForm((p) => ({ ...p, recurrence: e.target.value }))
                   }
-                  className="h-9 w-full max-w-50 rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-11 w-full max-w-50 rounded-md border border-input bg-background px-3 text-sm"
                 >
                   {RECURRENCE_KEYS.map((key) => (
                     <option key={key} value={key}>
@@ -1180,7 +1190,9 @@ export default function CompliancePage() {
                   would actually be rejected) is assertCompliantHasEvidence on
                   the backend. */}
               {form.status === "compliant" && form.attachments.length === 0 && (
-                <div className={`flex items-start gap-2 rounded-md px-3 py-2 text-xs ${severityBadgeClasses("medium", { border: true })}`}>
+                <div
+                  className={`flex items-start gap-2 rounded-md px-3 py-2 text-xs ${severityBadgeClasses("medium", { border: true })}`}
+                >
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   {t("organization.compliance.form.evidenceRequiredWarning")}
                 </div>
@@ -1241,14 +1253,14 @@ export default function CompliancePage() {
             <div className="mt-5 flex justify-end gap-2">
               <button
                 onClick={() => setShowForm(false)}
-                className="rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+                className="flex h-11 items-center rounded-lg border border-input px-4 text-sm text-muted-foreground hover:bg-muted"
               >
                 {t("organization.compliance.form.cancel")}
               </button>
               <button
                 onClick={handleSave}
                 disabled={isCreating || isUpdating || !form.title.trim()}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                className="flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {isCreating || isUpdating ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1324,14 +1336,14 @@ export default function CompliancePage() {
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={() => setAttestObligation(null)}
-                className="rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+                className="flex h-11 items-center rounded-lg border border-input px-4 text-sm text-muted-foreground hover:bg-muted"
               >
                 {t("organization.compliance.form.cancel")}
               </button>
               <button
                 onClick={confirmAttest}
                 disabled={isAttesting}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                className="flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {isAttesting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1378,7 +1390,7 @@ export default function CompliancePage() {
                 aria-label={t(
                   "organization.compliance.attest.historyModalClose"
                 )}
-                className="rounded p-1 text-muted-foreground hover:text-foreground"
+                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
