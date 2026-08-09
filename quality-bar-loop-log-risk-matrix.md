@@ -147,3 +147,26 @@ the natural next re-judge targets, but this session has already run a
 very long, high-volume sequence of rounds across two pages. Logging the
 fix now; next step is a fresh judge panel to confirm the resilience
 score genuinely moved off its 3/10 floor before picking the next fix.
+
+## Round 2 re-check (resilience axis)
+
+| Axis | Score | vs. round 1 |
+|---|---|---|
+| Resilience & edge cases | 4/10 | +1 |
+| (all other axes) | not yet re-judged | -- |
+
+Judge confirmed finding (4) -- the stale-selection bug -- is fully fixed
+and verified live in both directions (5x5->3x3->5x5, no resurrection).
+The other three round-1 findings remain untouched:
+1. No isError handling on either query (arguably the most consequential
+   for a compliance tool -- a fetch failure is indistinguishable from
+   "zero risks").
+2. No dedicated empty state / misleading subtitle text.
+3. Malformed probability/inherent_score silently resolves to 0 with no
+   visual flag.
+
+**Status:** this loop is paused here, not stopped -- round 2 fixed the
+single most-corroborated, highest-severity bug from round 1 (found
+independently by 3 judges), but the isError gap (finding 1) is the
+clear next highest-leverage fix and hasn't been picked up yet. Resuming
+this loop should start there.
