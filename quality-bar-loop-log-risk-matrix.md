@@ -378,3 +378,67 @@ the Risk Register loop at round 8. Continuing this loop further needs
 either a scope decision (which of the 4 axes to invest in first) or
 explicit authorization to take on one as a multi-round feature effort,
 not just "pick the next finding."
+
+User authorized taking on this real feature/structural work
+autonomously across the remaining below-floor axes. Resumed with
+rounds 6 and 7 below.
+
+## Round 6 (score transparency, PR #638)
+
+Fixed the most consequential open industry-standards finding: the
+bold number on each cell is a likelihood x impact BAND position, not
+any individual risk's real score -- live-confirmed as a genuine
+misreading risk since several risks with very different real scores
+land in the same band. Renamed the details-panel heading from "score"
+to "band", added a keyboard-focusable info button explaining the
+distinction, and each RiskCard now shows its own real numeric score
+next to its severity badge. Kept the band number itself (it's the
+standard ISO 31000 heat-map convention, not wrong data).
+
+Two review rounds: round 1 found a blocking a11y issue (the info
+affordance used `role="img"` + `tabIndex`, the exact anti-pattern
+RiskGraphPage's own minimap comment already rejected for the same
+reason) -- fixed with a native button. Also fixed two minor findings
+same round (redundant `Number()` wrap, a French "indice"/"bande"
+terminology inconsistency). Round 2 came back clean.
+
+## Round 7 (mobile layout pass, PR #639)
+
+Fixed all four round-1 mobile findings together as one pass (the
+axis's own score hadn't moved off 4/10 since round 1): sticky
+row-label column (the most severe -- it used to scroll away with the
+grid, breaking the matrix's core reading task on a phone), responsive
+header stacking, 44px touch targets on the toggle buttons, and the
+legend moved outside the grid's forced-min-width scroll wrapper so it
+wraps at the real viewport width.
+
+Three review rounds -- the most iteration any single round in this
+loop has needed:
+- Round 1 found the sticky label's own background only covered its
+  text's line height (since the parent row uses `items-center`), not
+  the full 64px cell row height, letting cell colors bleed through
+  above/below the label -- caught and fixed live (`self-stretch`)
+  during initial verification, before review even started.
+- Review round 1 found a minor cosmetic issue: hovering/selecting a
+  leftmost-column cell scaled it under the sticky label, clipping a
+  thin strip. Fixed with `relative` + `z-20` on hover/selected.
+- Review round 2 found that fix's z-index wasn't actually scoped as
+  its own comment claimed (no stacking-context boundary existed, so
+  it could in principle paint over the legend/details panel if
+  layout ever changed) -- harmless today, fixed properly with
+  `isolate` on the scroll wrapper rather than left as a known gap.
+- Review round 3 came back clean.
+
+All four round-1 mobile findings are now closed. Live-verified at
+375px throughout, including a genuine visual bug (round 1) and a
+real-if-currently-inert stacking-context gap (review round 2) that
+static review alone wouldn't have caught without the live
+`elementFromPoint` checks.
+
+**Status:** industry-standards and mobile both had their most
+consequential/severe findings addressed (rounds 6 and 7). Remaining
+open: industry-standards' export and hover-preview items, UX's
+URL-state sync and keyboard/focus handling, and visual polish's
+legend/badge vocabulary unification and color-ramp fix. Continuing
+next with a UX or visual-polish round, then a fresh full-panel
+re-score once several of these land.
