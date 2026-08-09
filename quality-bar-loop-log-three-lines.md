@@ -147,3 +147,65 @@ height imbalance, title truncation). Given 4 axes remain below floor
 efficiency fix (memoization) is the most mechanical and lowest-risk of
 the four -- same proven pattern as 4 sibling pages, worth one more
 round before treating this as a pause point.
+
+## Round 3 (efficiency -- memoized line grouping, PR #662)
+
+Replaced the 20 unmemoized `.filter()` calls per render (5 entity types x
+4 lines) with a single `groupByLine()` pass per entity type, memoized on
+the entity list. Also memoized the `?? []` fallback arrays themselves
+(same gap class fixed on KriDashboardPage round 3 earlier this session --
+a fresh `[]` reference every render defeats a `useMemo` keyed on it),
+wrapped `reassign` in `useCallback`, and wrapped `ItemRow` in `React.memo`
+-- which required changing `ItemRow`'s `onReassign` prop from a fresh
+per-item closure to the single stable `reassign` callback (plus new
+`entityType`/`id` props), since a stable prop reference is what actually
+lets `React.memo` skip re-rendering unaffected rows when one reassignment
+click updates `pendingId`.
+
+Negative control: broke `risksByLine`'s dependency array to `[]` and
+confirmed the new "moves an item to its new column when data changes"
+test fails; restored and confirmed 29/29 pass again.
+
+Live browser verification was blocked by an environment issue this
+session has hit before on other pages (documented in the fetch-monkey-
+patch-pitfall pattern): `isLoading` never resolved even though the
+network panel showed the request completing with a valid 200. Verified
+this wasn't a regression from this PR by stashing the diff back to
+main's committed version and reproducing the identical hang -- a
+pre-existing environment limitation, not something this fix caused.
+Fell back to code-reading verification (traced every `ItemRow` call site
+and every `useMemo`/`useCallback` dependency array) plus the full QA
+gate (typecheck, lint, full vitest suite, and `npm run build` -- all
+matching the exact steps CI runs) as the documented fallback for this
+specific limitation.
+
+Review round 1: angle A found one real (non-blocking-severity but
+cheap-to-fix) issue -- `Section` was also wrapped in `React.memo`, but
+every call site passes `children` as an inline `{list.map(...)}` JSX
+expression, a fresh array reference every render, so the memo's shallow
+comparison on `children` could never match -- the wrapper was pure
+overhead with zero render-skipping benefit (not a correctness bug,
+since a no-op memo can't cause staleness, but the comment claiming a
+benefit was wrong). Fixed same-round: dropped `React.memo` from
+`Section`, left `ItemRow`'s memo in place (it does the real work via
+stable primitive/callback props). Angle B found nothing. A scoped
+review round 2 on just the fix commit came back clean.
+
+CI's "Lint, typecheck & build" check failed to run at all on this PR --
+its own annotation stated a GitHub Actions billing/spending-limit issue,
+not a code failure (3s duration, job never started). Ran all 4 of CI's
+exact steps locally (`npm run lint`, `npm run typecheck`, `npx vitest
+run`, `npm run build`) and confirmed all pass; merged via admin override
+citing this specific reason.
+
+**Status:** efficiency should clear the floor now. Remaining below-floor
+axes: industry-standards (5/10), UX (6/10), visual polish (6/10) -- all
+three need real design/product scoping (coverage/gap visualization,
+classification-rationale capture, distinguishable move-to buttons,
+scroll-position preservation, column-height imbalance, title
+truncation) rather than mechanical fixes, the same wall every other
+page's industry-standards/UX/visual-polish axis hit this session. This
+is a natural pause point for the Three Lines Model loop: 3 rounds
+shipped (mobile touch targets, efficiency/memoization, and a same-round
+review fix), the three remaining gaps need product input this loop
+shouldn't make unilaterally.
