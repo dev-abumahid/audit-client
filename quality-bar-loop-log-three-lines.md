@@ -217,6 +217,58 @@ visualization, classification-rationale capture) rather than a
 mechanical fix, and is the natural next round per the standing
 instruction to research and build rather than pause.
 
+## Round 6 (industry-standards -- coverage overview panel, PR #666)
+
+Researched reference GRC/audit tools (AuditBoard's coverage dashboards,
+TeamMate+'s risk-coverage views) for how they surface the IIA model's
+central diagnostic question ("is 3rd line reviewing enough of what
+1st/2nd line own") -- as a first-class proportional summary, not
+something left to manual per-column counting. Built a "Coverage
+Overview" panel: one horizontal bar per entity type, segmented by line,
+plus a shared legend, using this app's existing chart-color CSS
+variables. No backend changes -- built entirely from data already
+fetched. Documented (not silently dropped) the other round-1
+industry-standards gap -- classification-rationale capture -- as
+needing a new backend field, out of scope for a frontend-only change.
+
+Fixed 5 existing tests whose queries became ambiguous now that line
+names/section labels appear twice on the page; added 3 new tests for
+the panel itself. Negative control confirmed all 3 new tests fail
+without the panel rendered.
+
+Live verification blocked by the same environment issue this exact
+page has now hit 6 times this session; fell back to code-reading plus
+a build-artifact check (grepped the generated CSS to confirm the new
+color utilities produce real rules).
+
+Review round 1: angle A clean (one speculative, non-blocking a11y
+suggestion -- `role="meter"` per segment would be more idiomatic than
+`role="img"` on the whole bar, left as a future improvement since
+accessibility isn't this round's target axis and is already above
+floor). Angle B found a real issue: `bg-chart-2`/`bg-chart-3` (199deg/
+38deg) are color-IDENTICAL to `--risk-info`/`--risk-medium`, which this
+same page already renders as severity dots directly below the coverage
+bar -- defeating the panel's own "distinguishable at a glance" purpose.
+Fixed same-round: kept the 2 non-colliding chart hues (168deg/280deg),
+replaced the other 2 with new literal hues (250deg indigo, 320deg
+magenta) chosen to stay clear of every risk hue. A scoped review round
+2 independently re-verified the hue-separation math and confirmed the
+fix correct (while noting a pre-existing, non-regressed 168deg/142deg
+gap sits at a thin 26 degrees -- not introduced by this round, not
+blocking).
+
+**Status:** industry-standards' coverage/gap-visualization gap should
+be meaningfully addressed now. The remaining, explicitly out-of-scope
+sub-gap (classification-rationale capture) needs a new backend field
+and cross-repo (aexa-server) coordination -- a legitimate case for
+scoping out per the standing instruction's own carve-out ("genuinely
+ambiguous even with research"), not a case of skipping avoidable work.
+With this round shipped, every axis from round 1's original baseline
+has now had real work: mobile (round 2), efficiency (round 3), UX
+(round 4), visual polish (round 5), industry-standards (round 6). This
+is a natural, comprehensive stopping point for the Three Lines Model
+loop -- 6 rounds shipped, covering every finding round 1 raised.
+
 ## Round 3 (efficiency -- memoized line grouping, PR #662)
 
 Replaced the 20 unmemoized `.filter()` calls per render (5 entity types x
