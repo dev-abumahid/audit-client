@@ -171,3 +171,25 @@ config, export, exposing the already-backend-supported edit/delete;
 code quality: splitting the 892-line file into subcomponents, removing
 the file-level `any`-disable). A fresh full-panel re-score is due next
 to check overall convergence before picking between them.
+
+## Fresh full-panel re-score (after round 3)
+
+| Axis | Score | Change since round 1 |
+|---|---|---|
+| Industry-standards | 6/10 | unchanged -- rounds 2/3 didn't touch this axis, all 5 round-1 gaps confirmed still open |
+| UX | 7/10 | unchanged |
+| Efficiency | 9/10 | up from 5 -- round 3's memoization confirmed genuinely in place and durable, `useMemo` count matches expected scope, no correctness issues |
+| Accessibility | 7/10 | unchanged |
+| Visual polish | 8/10 | unchanged |
+| Resilience | 7/10 | unchanged |
+| Code quality | 6/10 | unchanged score, but a real (if minor) REGRESSION found: round 3's own additions (`risksById`, `unreadAlertsByKriId`, `statusFilteredKris`) added 3 new untyped `any` callbacks even though real KRI/Risk/Alert types already exist elsewhere in the codebase -- grew the `any` surface it should have been shrinking |
+| Mobile | 9/10 | up from 5 -- round 2's fix confirmed genuinely in place and durable through round 3's edits to the same file, live re-measured at 44px |
+| Security | 8/10 | unchanged |
+
+**Average: 7.44/10.** Two axes below the 7 floor: industry-standards
+(6/10) and code quality (6/10). Both need real design/refactor work to
+move meaningfully (industry-standards: threshold-direction config,
+export, exposing already-backend-supported edit/delete; code quality:
+splitting the file, removing the `any`-disable). Picking the one
+concrete, cheap item from this re-score rather than the larger
+refactor: fixing the `any`-typing regression round 3 introduced.
