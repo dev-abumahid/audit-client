@@ -1304,7 +1304,7 @@
       "emptyStateTitle": "Aucun risque évalué pour le moment",
       "emptyStateHint": "Une fois qu'un risque a une probabilité et un impact, il apparaîtra ici.",
       "unscoredRiskBadge": "Non évalué",
-      "unscoredRiskWarning": "Ce risque n'a pas de score de probabilité ou d'impact valide -- il est affiché dans la cellule la plus basse par défaut, et non parce qu'il a réellement été évalué aussi bas."
+      "unscoredRiskWarning": "Ce risque n'a pas de score de probabilité, d'impact ou de gravité valide -- sa position dans la matrice et son badge de gravité sont des valeurs par défaut, pas des données d'évaluation réelles."
     },
     "riskGraph": {
       "title": "Graphe de Dépendances & Effets Domino",

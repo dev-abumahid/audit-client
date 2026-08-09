@@ -314,6 +314,36 @@ describe("RiskMatrixPage", () => {
     expect(
       screen.queryByText("organization.riskMatrix.unscoredRiskBadge")
     ).not.toBeInTheDocument()
+    // A genuinely valid residual_score still gets a real severity badge.
+    expect(screen.getByText("riskLevel.low")).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 5 (resilience, found during a full-panel
+  // re-check): RiskBadge's severity color comes from
+  // getRiskSeverityLevel(residual_score), which has the identical silent-
+  // fallback bug hasValidRiskScore was built to catch -- but the original
+  // version never checked residual_score, so a malformed value still
+  // rendered a confident "Low" badge with no unscored indication.
+  it("flags a risk with a malformed residual_score as unscored and suppresses the misleading severity badge", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ probability: 0, inherent_score: 0, residual_score: "" }),
+        ],
+      },
+      isLoading: false,
+    })
+    renderPage()
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    expect(
+      screen.getByText("organization.riskMatrix.unscoredRiskBadge")
+    ).toBeInTheDocument()
+    // No severity badge at all -- better than a misleadingly confident one.
+    expect(screen.queryByText(/riskLevel\./)).not.toBeInTheDocument()
   })
 
   // Regression (issue #359): the legend swatch for the lowest severity used

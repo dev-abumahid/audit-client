@@ -96,10 +96,18 @@ function isValidScoreValue(value: unknown): boolean {
   return Number.isFinite(Number(value))
 }
 
+// quality-bar-loop round 5 (resilience, found during a full-panel re-check):
+// RiskBadge's severity color comes from getRiskSeverityLevel(residual_score),
+// which has the identical Number(x) || 0 silent-fallback bug this function
+// was built to catch -- but the original version only checked probability/
+// inherent_score, so a malformed residual_score still rendered a confident
+// "Low" badge with no unscored indication, right next to a correctly-flagged
+// badge on the same card. residual_score is included here too.
 function hasValidRiskScore(risk: Risk): boolean {
   return (
     isValidScoreValue(risk.probability) &&
-    isValidScoreValue(risk.inherent_score)
+    isValidScoreValue(risk.inherent_score) &&
+    isValidScoreValue(risk.residual_score)
   )
 }
 
@@ -618,10 +626,15 @@ function RiskCard({
             {risk.name}
           </Link>
         </div>
-        <RiskBadge
-          level={getRiskSeverityLevel(risk.residual_score)}
-          size="sm"
-        />
+        {/* A malformed residual_score would otherwise render a confident
+            severity color here -- suppress it in favor of the "Unscored"
+            flag above rather than show a misleading "Low"/"Critical" pill. */}
+        {isValidScoreValue(risk.residual_score) && (
+          <RiskBadge
+            level={getRiskSeverityLevel(risk.residual_score)}
+            size="sm"
+          />
+        )}
       </div>
 
       {siteName && (

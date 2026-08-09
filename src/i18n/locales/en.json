@@ -1304,7 +1304,7 @@
       "emptyStateTitle": "No risks scored yet",
       "emptyStateHint": "Once risks have a likelihood and impact score, they'll appear here.",
       "unscoredRiskBadge": "Unscored",
-      "unscoredRiskWarning": "This risk is missing a valid probability or impact score -- it's shown in the lowest cell as a fallback, not because it was actually scored that low."
+      "unscoredRiskWarning": "This risk is missing a valid probability, impact, or severity score -- its matrix position and severity badge are fallbacks, not real scoring data."
     },
     "riskGraph": {
       "title": "Dependency Graph & Domino Effects",
