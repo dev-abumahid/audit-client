@@ -170,3 +170,46 @@ single most-corroborated, highest-severity bug from round 1 (found
 independently by 3 judges), but the isError gap (finding 1) is the
 clear next highest-leverage fix and hasn't been picked up yet. Resuming
 this loop should start there.
+
+## Round 3 (isError + empty-state, PR #635)
+
+Fixed round-1 finding (1) and (2): neither `useGetAllRisksQuery` nor
+`useGetAllSitesQuery` destructured `isError`, so a genuine fetch failure
+fell through to `risks: []`/`sites: []` and rendered a fully-formed,
+normal-looking empty matrix -- byte-for-byte indistinguishable from "this
+org genuinely has zero risks." Also added a dedicated empty state for
+genuinely-zero-risks.
+
+- Risks query failure now replaces the whole matrix with a dedicated
+  error state (every control is meaningless without data).
+- Sites query failure gets a small inline warning banner instead --
+  only affects per-card site-name lookups, doesn't block the matrix.
+- Empty-state notice is additive (renders alongside the still-rendered
+  grid/labels/legend), not a replacement -- several existing tests rely
+  on the grid rendering even with zero risks for unrelated reasons
+  (axis labels, legend colors, a cell's aria-pressed state). Mirrors
+  RiskRegisterPage's established additive-notice convention.
+
+Two review rounds: round 1 (two parallel reviewers) found one minor
+issue -- the "N risks positioned" subtitle contradicted the new
+empty-state notice when risks were empty ("0 risks positioned -- Click
+on a cell..." right above "No risks scored yet"). Fixed same round
+(suppress the subtitle when empty) per this session's fix-don't-defer-
+small-findings convention. Round 2 came back clean.
+
+Live-verified: the error state was hit organically (backend wasn't up
+yet when the page first loaded, producing a real ERR_CONNECTION_REFUSED
+that rendered the new error UI correctly); the golden path (26 seeded
+risks, cell selection, detail panel) was confirmed regression-free once
+the backend started. The empty-state and sites-error UI were not
+independently live-triggered (no real zero-risk site existed in the
+seeded dataset during this session) -- covered instead by negative-
+controlled unit tests.
+
+Finding (3) from round 1 (malformed probability/inherent_score silently
+resolving to 0 with no visual flag) remains open, along with the
+broader UX/industry-standards items (export, risk-scoring transparency,
+mobile row-label scroll, legend vocabulary mismatch). Next step:
+re-dispatch the resilience judge (and industry-standards/UX, since they
+also referenced the isError/empty-state gaps) to confirm this round's
+fix actually moved the score before picking the next fix.
