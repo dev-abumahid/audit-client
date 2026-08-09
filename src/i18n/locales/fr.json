@@ -1473,7 +1473,12 @@
         "itemsCount_one": "{{count}} élément de renseignement",
         "itemsCount_other": "{{count}} éléments de renseignement",
         "itemsEmpty": "Aucun élément de renseignement pour le moment",
-        "itemsEmptyHint": "Lancez une collecte pour alimenter le renseignement sur les menaces"
+        "itemsEmptyHint": "Lancez une collecte pour alimenter le renseignement sur les menaces",
+        "itemsLoadError": "Échec du chargement des éléments de renseignement. Veuillez réessayer plus tard.",
+        "predictLoadError": "Échec du chargement du rapport de prédictions.",
+        "mitigationsLoadError": "Échec du chargement du rapport de mesures d'atténuation.",
+        "rcsaLoadError": "Échec du chargement du rapport RCSA.",
+        "resilienceLoadError": "Échec du chargement du rapport d'analyse de résilience."
       },
       "predictions": {
         "score7d": "Score de risque à 7 jours",

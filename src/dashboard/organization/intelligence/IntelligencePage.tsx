@@ -16,6 +16,7 @@ import type { IntelligenceItem } from "@/types/organization"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import {
+  AlertCircle,
   AlertTriangle,
   Brain,
   CheckCircle2,
@@ -85,10 +86,17 @@ export default function IntelligencePage() {
   // first (server default order). Search/severity filtering now happens
   // server-side (aexa-server#293/PR #295) -- the query results ARE the
   // filtered results, so no client-side filtering here.
+  // quality-bar-loop round 2 (resilience, round-1 finding): isError was
+  // never checked on any of the 5 queries below -- a genuine fetch
+  // failure fell through to the default/empty states and rendered a
+  // normal-looking "no items yet"/no-panel UI, byte-for-byte
+  // indistinguishable from a real empty state. Same resilience gap
+  // already fixed on 3 sibling pages this session.
   const {
     data: itemsData,
     isLoading: itemsLoading,
     isFetching: itemsFetching,
+    isError: itemsError,
   } = useGetIntelligenceItemsQuery({
     page,
     limit: 20,
@@ -107,30 +115,32 @@ export default function IntelligencePage() {
   })
   const unanalyzedCount = unanalyzedData?.meta.total ?? 0
 
-  const { data: predictRuns } = useGetIntelligenceRunsQuery({
-    run_type: "PREDICT",
-    page: 1,
-    limit: 1,
-  })
-  const { data: mitigationsRuns } = useGetIntelligenceRunsQuery({
-    run_type: "MITIGATIONS",
-    page: 1,
-    limit: 1,
-  })
-  const { data: rcsaRuns } = useGetIntelligenceRunsQuery({
+  const { data: predictRuns, isError: predictError } =
+    useGetIntelligenceRunsQuery({
+      run_type: "PREDICT",
+      page: 1,
+      limit: 1,
+    })
+  const { data: mitigationsRuns, isError: mitigationsError } =
+    useGetIntelligenceRunsQuery({
+      run_type: "MITIGATIONS",
+      page: 1,
+      limit: 1,
+    })
+  const { data: rcsaRuns, isError: rcsaError } = useGetIntelligenceRunsQuery({
     run_type: "RCSA",
     page: 1,
     limit: 1,
   })
-  const { data: resilienceRuns } = useGetIntelligenceRunsQuery({
-    run_type: "RESILIENCE_SCAN",
-    page: 1,
-    limit: 1,
-  })
+  const { data: resilienceRuns, isError: resilienceError } =
+    useGetIntelligenceRunsQuery({
+      run_type: "RESILIENCE_SCAN",
+      page: 1,
+      limit: 1,
+    })
 
   const [scrape, { isLoading: isScraping }] = useScrapeIntelligenceMutation()
-  const [analyze, { isLoading: isAnalyzing }] =
-    useAnalyzeIntelligenceMutation()
+  const [analyze, { isLoading: isAnalyzing }] = useAnalyzeIntelligenceMutation()
   const [predict, { isLoading: isPredicting }] = usePredictTrendsMutation()
   const [generateMitigations, { isLoading: isGeneratingMitigations }] =
     useGenerateMitigationsMutation()
@@ -208,8 +218,7 @@ export default function IntelligencePage() {
         toast.success(t("organization.intelligence.toasts.mitigationsSuccess"))
       } else {
         toast.error(
-          res.message ||
-            t("organization.intelligence.toasts.mitigationsFailed")
+          res.message || t("organization.intelligence.toasts.mitigationsFailed")
         )
       }
     } catch (err) {
@@ -270,8 +279,7 @@ export default function IntelligencePage() {
         toast.success(t("organization.intelligence.toasts.createRiskSuccess"))
       } else {
         toast.error(
-          res.message ||
-            t("organization.intelligence.toasts.createRiskFailed")
+          res.message || t("organization.intelligence.toasts.createRiskFailed")
         )
       }
     } catch (err) {
@@ -417,6 +425,16 @@ export default function IntelligencePage() {
         </div>
       </div>
 
+      {/* quality-bar-loop round 2 (resilience, round-1 finding): a
+          failed run-history fetch used to leave this panel simply
+          absent -- indistinguishable from "no report has ever been
+          run." Only shown when there's no (possibly stale) result
+          already on screen to replace. */}
+      {predictError && !predictResult && (
+        <p role="alert" className="text-xs text-destructive">
+          {t("organization.intelligence.sections.predictLoadError")}
+        </p>
+      )}
       {/* Predictions Panel */}
       {predictResult && isPredictResult(predictResult.result) && (
         <div className="animate-fade-in rounded-xl border border-primary/20 bg-primary/5 p-5">
@@ -476,7 +494,9 @@ export default function IntelligencePage() {
                     key={i}
                     className="flex items-center gap-2 text-xs text-muted-foreground"
                   >
-                    <AlertTriangle className={`h-3 w-3 shrink-0 ${SEVERITY_STYLES.high.text}`} />
+                    <AlertTriangle
+                      className={`h-3 w-3 shrink-0 ${SEVERITY_STYLES.high.text}`}
+                    />
                     <span>{er.title}</span>
                     <span className="font-mono">
                       ({(er.probability * 100).toFixed(0)}%)
@@ -489,6 +509,11 @@ export default function IntelligencePage() {
         </div>
       )}
 
+      {mitigationsError && !mitigationsResult && (
+        <p role="alert" className="text-xs text-destructive">
+          {t("organization.intelligence.sections.mitigationsLoadError")}
+        </p>
+      )}
       {/* Mitigations Panel */}
       {mitigationsResult && isMitigationsResult(mitigationsResult.result) && (
         <div className="animate-fade-in rounded-xl border border-border bg-card p-5">
@@ -552,6 +577,11 @@ export default function IntelligencePage() {
         </div>
       )}
 
+      {rcsaError && !rcsaResult && (
+        <p role="alert" className="text-xs text-destructive">
+          {t("organization.intelligence.sections.rcsaLoadError")}
+        </p>
+      )}
       {/* RCSA Panel */}
       {rcsaResult && isRcsaResult(rcsaResult.result) && (
         <div className="animate-fade-in rounded-xl border border-border bg-card p-5">
@@ -611,6 +641,11 @@ export default function IntelligencePage() {
         </div>
       )}
 
+      {resilienceError && !resilienceResult && (
+        <p role="alert" className="text-xs text-destructive">
+          {t("organization.intelligence.sections.resilienceLoadError")}
+        </p>
+      )}
       {/* Resilience Scan Panel */}
       {resilienceResult && isResilienceScanResult(resilienceResult.result) && (
         <div className="animate-fade-in rounded-xl border border-border bg-card p-5">
@@ -681,8 +716,8 @@ export default function IntelligencePage() {
             </div>
           )}
 
-          {resilienceResult.result.resilience_score.top_vulnerabilities
-            .length > 0 && (
+          {resilienceResult.result.resilience_score.top_vulnerabilities.length >
+            0 && (
             <div>
               <p className="mb-1 text-xs font-semibold text-foreground">
                 {t("organization.intelligence.resilience.topVulnerabilities")}
@@ -751,6 +786,23 @@ export default function IntelligencePage() {
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : itemsError && items.length === 0 ? (
+          // Replaces the item list (search/pagination included -- none of
+          // it is meaningful without data) rather than letting a fetch
+          // failure fall through to the empty state below, which would be
+          // byte-for-byte indistinguishable from a genuinely empty org.
+          // `items.length === 0` (not just `itemsError` alone) so a failed
+          // REFETCH after an already-successful page (e.g. paginating,
+          // changing the search/filter) keeps showing the still-valid
+          // stale list RTK Query retains, instead of discarding real data
+          // in favor of an error message -- same guard shape as the 4
+          // report panels' `xError && !xResult` below.
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <AlertCircle className="mb-3 h-10 w-10 text-destructive/60" />
+            <p role="alert" className="text-sm text-destructive">
+              {t("organization.intelligence.sections.itemsLoadError")}
+            </p>
+          </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <Shield className="mb-3 h-12 w-12 opacity-20" />
@@ -804,9 +856,7 @@ export default function IntelligencePage() {
                         <>
                           <span>·</span>
                           <span>
-                            {t(
-                              "organization.intelligence.item.notAnalyzedYet"
-                            )}
+                            {t("organization.intelligence.item.notAnalyzedYet")}
                           </span>
                         </>
                       )}

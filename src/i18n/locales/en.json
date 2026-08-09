@@ -1473,7 +1473,12 @@
         "itemsCount_one": "{{count}} Intelligence Item",
         "itemsCount_other": "{{count}} Intelligence Items",
         "itemsEmpty": "No intelligence items yet",
-        "itemsEmptyHint": "Start a collection to populate threat intelligence"
+        "itemsEmptyHint": "Start a collection to populate threat intelligence",
+        "itemsLoadError": "Failed to load intelligence items. Please try again later.",
+        "predictLoadError": "Failed to load the predictions report.",
+        "mitigationsLoadError": "Failed to load the mitigations report.",
+        "rcsaLoadError": "Failed to load the RCSA report.",
+        "resilienceLoadError": "Failed to load the resilience scan report."
       },
       "predictions": {
         "score7d": "7-day Risk Score",

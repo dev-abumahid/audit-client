@@ -178,6 +178,79 @@ describe("IntelligencePage", () => {
     expect(screen.getByText("Cyber Threat Intel")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 2 (resilience, round-1 finding): isError was
+  // never checked on any of the 5 queries on this page -- a genuine
+  // fetch failure fell through to the default/empty states and rendered
+  // a normal-looking "no items yet" UI, indistinguishable from a real
+  // empty state.
+  it("shows a distinct error state, not an empty list, when the items query fails", () => {
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : { data: undefined, isError: true }
+    )
+
+    renderPage()
+
+    expect(
+      screen.getByText("organization.intelligence.sections.itemsLoadError")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.intelligence.sections.itemsEmpty")
+    ).not.toBeInTheDocument()
+  })
+
+  // Review finding (round 2): a failed REFETCH after an already-successful
+  // page must keep showing the still-valid stale list RTK Query retains,
+  // not discard it in favor of the error state -- same guard shape as the
+  // 4 report panels' xError && !xResult.
+  it("keeps showing the stale item list, not the error state, when isError is true but real data is still present", () => {
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem()],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+              isError: true,
+            }
+    )
+
+    renderPage()
+
+    expect(
+      screen.getByText("Ransomware campaign targets manufacturers")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.intelligence.sections.itemsLoadError")
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows a distinct error notice, not a silently missing panel, when a report run query fails", () => {
+    mockUseGetIntelligenceRunsQuery.mockImplementation(
+      (args: { run_type: string }) =>
+        args.run_type === "PREDICT"
+          ? { data: undefined, isError: true }
+          : emptyRunsResult
+    )
+
+    renderPage()
+
+    expect(
+      screen.getByText("organization.intelligence.sections.predictLoadError")
+    ).toBeInTheDocument()
+    // Only the failed report's notice shows -- the other 3 report types
+    // (still an empty-but-successful fetch) don't also show an error.
+    expect(
+      screen.queryByText(
+        "organization.intelligence.sections.mitigationsLoadError"
+      )
+    ).not.toBeInTheDocument()
+  })
+
   // aexa-frontend round-3 audit bug #3: item.scraped_at was hardcoded to
   // "en-US" regardless of the active UI language.
   it("formats the scraped_at date in French when the UI language is French", () => {
