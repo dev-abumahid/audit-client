@@ -191,6 +191,58 @@ describe("RiskMatrixPage", () => {
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 7 (mobile, live-measured at 375px): the
+  // matrix-size and group-mode toggle buttons were 28px tall, under the
+  // 44px minimum touch-target guideline.
+  it("gives the matrix-size and group-mode toggle buttons a 44px touch target", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk()] },
+      isLoading: false,
+    })
+    renderPage()
+
+    expect(screen.getByRole("button", { name: "5×5" }).className).toContain(
+      "h-11"
+    )
+    expect(
+      screen.getByRole("button", { name: "organization.correlationMatrix.groupAll" }).className
+    ).toContain("h-11")
+  })
+
+  // quality-bar-loop round 7 (mobile, the axis's most severe finding):
+  // the likelihood row-label column used to scroll away together with
+  // the grid cells inside the same horizontal-scroll wrapper, so a phone
+  // user couldn't see a cell's row label and a rightmost-column cell at
+  // the same time.
+  it("pins the likelihood row-label column so it doesn't scroll away with the grid", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk()] },
+      isLoading: false,
+    })
+    renderPage()
+
+    const rowLabel = screen.getByText("Very Unlikely")
+    expect(rowLabel.className).toContain("sticky")
+    expect(rowLabel.className).toContain("left-0")
+  })
+
+  // quality-bar-loop round 7 (mobile, live-confirmed at 375px): the
+  // legend used to sit inside the grid's horizontally-scrolling,
+  // forced-min-width wrapper, so it had to be scrolled into view even
+  // though it could otherwise wrap and fit within the real viewport.
+  it("renders the legend outside the matrix's horizontal-scroll wrapper", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk()] },
+      isLoading: false,
+    })
+    renderPage()
+
+    const legendLabel = screen.getByText("organization.riskMatrix.critical")
+    const scrollWrapper = document.querySelector(".overflow-auto")
+    expect(scrollWrapper).not.toBeNull()
+    expect(scrollWrapper?.contains(legendLabel)).toBe(false)
+  })
+
   // quality-bar-loop round 3 (resilience, the loop's original lowest
   // score): isError was never checked on either query -- a genuine
   // fetch failure fell through to risks: [] and rendered a

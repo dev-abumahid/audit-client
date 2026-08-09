@@ -271,7 +271,12 @@ export default function RiskMatrixPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-start justify-between">
+      {/* quality-bar-loop round 7 (mobile, live-confirmed at 375px): no
+          responsive stacking meant the title column and the controls
+          column both stayed in one row, crushing the h1 into an ugly
+          multi-line wrap at phone widths. Stacks vertically below `sm`,
+          returns to a row above it. */}
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-start">
         <div>
           <div className="flex items-center gap-2">
             <Grid3X3 className="h-5 w-5 text-primary" />
@@ -294,6 +299,10 @@ export default function RiskMatrixPage() {
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Matrix Size */}
+          {/* quality-bar-loop round 7 (mobile, live-measured at 375px):
+              these toggle buttons were 28px tall, under the 44px minimum
+              touch-target guideline -- h-11 (44px) applies to both this
+              group and Group Mode below. */}
           <div className="flex overflow-hidden rounded-lg border border-border">
             {[3, 4, 5].map((s) => (
               <button
@@ -311,7 +320,7 @@ export default function RiskMatrixPage() {
                   setSelectedCell(null)
                 }}
                 aria-pressed={matrixSize === s}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`flex h-11 min-w-11 items-center justify-center px-3 text-xs font-medium transition-colors ${
                   matrixSize === s
                     ? "bg-primary text-primary-foreground"
                     : "bg-card text-muted-foreground hover:bg-muted"
@@ -332,7 +341,7 @@ export default function RiskMatrixPage() {
                 key={mode}
                 onClick={() => setGroupMode(mode as GroupMode)}
                 aria-pressed={groupMode === mode}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`flex h-11 items-center justify-center px-3 text-xs font-medium transition-colors ${
                   groupMode === mode
                     ? "bg-primary text-primary-foreground"
                     : "bg-card text-muted-foreground hover:bg-muted"
@@ -416,7 +425,18 @@ export default function RiskMatrixPage() {
             </div>
           )}
 
-          <div className="overflow-auto">
+          {/* Round-7 review round 2 finding: without a stacking context
+              boundary here, the cell buttons' relative+z-20 (added just
+              above, for hover/selected cells escaping the sticky
+              column) wasn't actually scoped to "above the sticky label
+              within this scroll region" as intended -- with no
+              intervening stacking context, it would paint above ANY
+              sibling content sharing the page's root stacking context,
+              including the legend/details panel below, if their layout
+              ever changed to overlap. `isolate` makes this scroll
+              region its own stacking context so z-20 here can never
+              escape it. */}
+          <div className="isolate overflow-auto">
             <div className="min-w-105">
               {/* Impact Labels (Top) */}
               <div className="flex">
@@ -441,7 +461,16 @@ export default function RiskMatrixPage() {
                 const row = matrixSize - 1 - reversedRow
                 return (
                   <div key={row} className="mb-2 flex items-center">
-                    <div className="w-28 pr-3 text-right text-[10px] font-medium text-muted-foreground">
+                    {/* quality-bar-loop round 7 (mobile, the axis's most
+                        severe finding): this column used to scroll away
+                        together with the grid cells inside the same
+                        horizontal-scroll wrapper, so a phone user
+                        couldn't see a cell's row label and a rightmost
+                        column cell at the same time -- broke the
+                        matrix's core reading task, not just "squeezed."
+                        sticky+bg-card pins it to the scroll container's
+                        left edge while cells slide underneath. */}
+                    <div className="sticky left-0 z-10 flex w-28 shrink-0 items-center justify-end self-stretch bg-card pr-3 text-right text-[10px] font-medium text-muted-foreground">
                       {label}
                     </div>
                     <div
@@ -468,6 +497,14 @@ export default function RiskMatrixPage() {
                           cellRisks.length > 0
 
                         return (
+                          // Round-7 mobile review finding: the sticky
+                          // row-label column (z-10) painted over the
+                          // ~5% growth from hover:scale-105/the selected
+                          // ring on a leftmost-column cell, clipping a
+                          // thin strip of it. `relative` + z-20 on
+                          // hover/selected lifts the cell above the
+                          // label for exactly that moment, without
+                          // outranking it the rest of the time.
                           <button
                             key={col}
                             onClick={() =>
@@ -483,7 +520,7 @@ export default function RiskMatrixPage() {
                               likelihood: label,
                               impact: labels.impact[col],
                             })}
-                            className={`${getMatrixColor(row, col, matrixSize)} flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-black dark:text-white transition-all hover:scale-105 ${isSelected ? "scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-75"}`}
+                            className={`${getMatrixColor(row, col, matrixSize)} relative flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-black hover:z-20 hover:scale-105 dark:text-white transition-all ${isSelected ? "z-20 scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-75"}`}
                             title={`${label} × ${labels.impact[col]} : ${t("organization.riskMatrix.cellCount", { count: cellRisks.length })}`}
                           >
                             <span className="text-lg font-bold">
@@ -503,36 +540,42 @@ export default function RiskMatrixPage() {
                   </div>
                 )
               })}
-
-              {/* Legend */}
-              <div className="mt-6 flex flex-wrap gap-4">
-                {[
-                  {
-                    color: "bg-risk-critical/90",
-                    label: t("organization.riskMatrix.critical"),
-                  },
-                  {
-                    color: "bg-risk-high/80 dark:bg-risk-high/70",
-                    label: t("organization.riskMatrix.major"),
-                  },
-                  {
-                    color: "bg-risk-medium/45",
-                    label: t("organization.riskMatrix.moderate"),
-                  },
-                  {
-                    color: "bg-risk-low/55",
-                    label: t("organization.riskMatrix.weak"),
-                  },
-                ].map(({ color, label }) => (
-                  <div key={label} className="flex items-center gap-1.5">
-                    <div className={`h-3 w-3 rounded ${color}`} />
-                    <span className="text-xs text-muted-foreground">
-                      {label}
-                    </span>
-                  </div>
-                ))}
-              </div>
             </div>
+          </div>
+
+          {/* quality-bar-loop round 7 (mobile, live-confirmed at 375px):
+              this used to sit INSIDE the overflow-auto/min-w-105 wrapper
+              above, so it inherited the grid's forced 420px min-width and
+              had to be scrolled into view horizontally even though its
+              own content could wrap and fit within an actual 375px
+              viewport on its own. Moved outside the scroll wrapper so
+              flex-wrap can do its job at the real container width. */}
+          <div className="mt-6 flex flex-wrap gap-4">
+            {[
+              {
+                color: "bg-risk-critical/90",
+                label: t("organization.riskMatrix.critical"),
+              },
+              {
+                color: "bg-risk-high/80 dark:bg-risk-high/70",
+                label: t("organization.riskMatrix.major"),
+              },
+              {
+                color: "bg-risk-medium/45",
+                label: t("organization.riskMatrix.moderate"),
+              },
+              {
+                color: "bg-risk-low/55",
+                label: t("organization.riskMatrix.weak"),
+              },
+            ].map(({ color, label }) => (
+              <div key={label} className="flex items-center gap-1.5">
+                <div className={`h-3 w-3 rounded ${color}`} />
+                <span className="text-xs text-muted-foreground">
+                  {label}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 
