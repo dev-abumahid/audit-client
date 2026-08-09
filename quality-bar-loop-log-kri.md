@@ -138,3 +138,36 @@ Next: efficiency's missing memoization -- unmemoized derived data
 (`unreadAlertsByKriId`, alert-count summaries, `trendChartData`)
 recomputing on every render including every keystroke in the New KRI
 form, plus an O(n*m) risk lookup inside the KRI `.map()`.
+
+## Round 3 (efficiency -- memoization, PR #653)
+
+Wrapped every unmemoized derived value (`unreadAlertsByKriId`, the
+alert/warning/ok summary counts combined into one pass, `trendChartData`,
+`statusFilteredKris`) in `useMemo`; replaced the O(n*m) `risks.find(...)`
+inside the KRI `.map()` with a pre-built `risksById` Map; hoisted the
+static `SEVERITY_RANK`/`highestSeverity` to module scope. Also had to
+memoize `kris`/`risks`/`alerts` themselves -- their `?? []` fallback
+created a fresh array reference every render, which would have defeated
+every useMemo keyed on them (caught by `react-hooks/exhaustive-deps`
+during implementation, not by a human).
+
+Negative control confirmed the new test fails when a dependency array is
+wrong (frozen/stale value) -- the harder-to-catch counterpart risk of a
+memoization refactor, not just "does it still show correct data once."
+One review round, both reviewers returned zero blocking findings --
+angle A specifically verified the `highestSeverity` type-tightening
+didn't change runtime behavior (every real call site still passes `any`,
+so TypeScript's stricter signature is compile-time only) and that the
+combined count loop is logically equivalent to the three original
+`.filter().length` passes; angle B traced the full dependency chain and
+confirmed React genuinely skips recomputing all five derived values on
+an unrelated re-render (typing in the New KRI form), then live-verified
+it with no flicker/wrong-numbers while typing.
+
+**Status:** efficiency should clear the floor now. Remaining below-floor
+axes: industry-standards (6/10), code quality (6/10). Both need
+larger-than-mechanical work (industry-standards: threshold-direction
+config, export, exposing the already-backend-supported edit/delete;
+code quality: splitting the 892-line file into subcomponents, removing
+the file-level `any`-disable). A fresh full-panel re-score is due next
+to check overall convergence before picking between them.
