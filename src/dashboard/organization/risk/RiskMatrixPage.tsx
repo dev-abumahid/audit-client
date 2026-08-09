@@ -73,32 +73,43 @@ const LABEL_KEYS: Record<
 // Same --risk-* ramp as the landing page's HeroProductVisual heat grid
 // (src/pages/home/components/HeroProductVisual.tsx CELL_CLASS) instead of
 // this page's own independently-invented red/orange/yellow/green scale.
-// bg-risk-high needs a lighter dark-mode tint (/70 vs /80) than the other
-// three levels purely so its overlaid white cell text clears AA -- verified
-// via HSL->sRGB composite math against --card in dark mode: /80 gives white
-// text only 3.81:1 (fails small text), /70 gives 4.61:1 (passes).
 //
 // quality-bar-loop round 10 (visual polish, round-1 finding): bg-risk-medium
 // at a flat /45 in both themes rendered as a washed-out pale peach in light
-// mode and a genuinely muddy brown/olive in dark mode -- confirmed via the
-// same HSL->sRGB composite math as bg-risk-high above (light: /45 composites
-// to rgb(250,212,145), a pastel tan; dark: /45 composites to rgb(123,90,34),
-// a desaturated brown, not the clean amber --risk-medium actually is at full
+// mode and a genuinely muddy brown/olive in dark mode -- confirmed via
+// HSL->sRGB composite math against --card (light: /45 composites to
+// rgb(250,212,145), a pastel tan; dark: /45 composites to rgb(123,90,34), a
+// desaturated brown, not the clean amber --risk-medium actually is at full
 // opacity). Light mode has huge contrast headroom against black text (14.9:1
 // even at /45), so /75 there gives a genuinely vivid amber (rgb(248,178,59),
 // 11.4:1) with no accessibility cost. Dark mode is the binding constraint:
-// the small 9px count text (white at 90% opacity, composited a second time
-// over the cell color) drops below the 4.5:1 small-text floor above /53
-// (measured: /53 gives 4.58:1, /54 gives 4.48:1) -- so dark mode only moves
-// to /50 (4.90:1), a real but modest improvement, not a full fix. Fully
-// fixing the dark-mode muddiness needs a base-token change to --risk-medium
-// itself (src/index.css), which affects every consumer of that token across
-// the app (RiskBadge, HeroProductVisual, etc.) -- out of scope for this
-// page-local fix; flagged as a follow-up instead of attempted here.
+// the small 9px count text (white at 90% opacity, composited a SECOND time
+// over the already-alpha-blended cell color) drops below the 4.5:1
+// small-text floor above /53 (measured: /53 gives 4.58:1, /54 gives 4.48:1)
+// -- so dark mode only moves to /50 (4.90:1), a real but modest improvement,
+// not a full fix. Fully fixing the dark-mode muddiness needs a base-token
+// change to --risk-medium itself (src/index.css), which affects every
+// consumer of that token across the app (RiskBadge, HeroProductVisual,
+// etc.) -- out of scope for this page-local fix; flagged as a follow-up
+// instead of attempted here.
+//
+// quality-bar-loop round 11 (accessibility, surfaced during round 10's own
+// review): bg-risk-high's dark-mode tint (previously /70) was verified back
+// when this ramp was first built, but only against the LARGE bold score
+// number, never against this same small 9px count badge that round 10 above
+// had to account for -- re-checking with the same doubly-composited
+// methodology found BOTH bg-risk-critical/90 and bg-risk-high/70 actually
+// fail the small-text 4.5:1 floor in dark mode (4.40:1 and 4.05:1
+// respectively), a real, pre-existing gap this file's own comments never
+// caught because they only checked the large number. Dark mode moves to
+// critical/85 (4.73:1) and high/63 (4.62:1) -- both keep real margin above
+// the floor while staying close to the original vividness. Light mode
+// already clears 4.5:1 comfortably at both tiers' existing values (4.61:1,
+// 8.24:1) -- no change needed there.
 function getMatrixColor(row: number, col: number, size: MatrixSize): string {
   const score = ((row + 1) / size) * ((col + 1) / size)
-  if (score >= 0.64) return "bg-risk-critical/90"
-  if (score >= 0.36) return "bg-risk-high/80 dark:bg-risk-high/70"
+  if (score >= 0.64) return "bg-risk-critical/90 dark:bg-risk-critical/85"
+  if (score >= 0.36) return "bg-risk-high/80 dark:bg-risk-high/63"
   if (score >= 0.16) return "bg-risk-medium/75 dark:bg-risk-medium/50"
   return "bg-risk-low/55"
 }
@@ -630,11 +641,11 @@ export default function RiskMatrixPage() {
           <div className="mt-6 flex flex-wrap gap-4">
             {[
               {
-                color: "bg-risk-critical/90",
+                color: "bg-risk-critical/90 dark:bg-risk-critical/85",
                 label: t("riskLevel.critical"),
               },
               {
-                color: "bg-risk-high/80 dark:bg-risk-high/70",
+                color: "bg-risk-high/80 dark:bg-risk-high/63",
                 label: t("riskLevel.high"),
               },
               {

@@ -445,6 +445,31 @@ describe("RiskMatrixPage", () => {
     expect(swatch).toHaveClass("dark:bg-risk-medium/50")
   })
 
+  // quality-bar-loop round 11 (accessibility, surfaced during round 10's
+  // review): re-checking bg-risk-critical/bg-risk-high's dark-mode tints
+  // against the small 9px count-badge text (not just the large bold score
+  // number this ramp's original comment verified) found both actually
+  // failed the WCAG AA 4.5:1 small-text floor in dark mode.
+  it("colors the critical-severity legend swatch with an accessible dark-mode tint", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    renderPage()
+
+    const label = screen.getByText("riskLevel.critical")
+    const swatch = label.previousElementSibling
+    expect(swatch).toHaveClass("bg-risk-critical/90")
+    expect(swatch).toHaveClass("dark:bg-risk-critical/85")
+  })
+
+  it("colors the high-severity legend swatch with an accessible dark-mode tint", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    renderPage()
+
+    const label = screen.getByText("riskLevel.high")
+    const swatch = label.previousElementSibling
+    expect(swatch).toHaveClass("bg-risk-high/80")
+    expect(swatch).toHaveClass("dark:bg-risk-high/63")
+  })
+
   // quality-bar-loop round 9 (visual polish, round-1 finding): the legend
   // used to say "Critical/Major/Moderate/Weak" -- a one-off vocabulary
   // invented just for this page -- while this same page's own RiskCard
