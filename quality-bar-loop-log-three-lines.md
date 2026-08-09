@@ -186,6 +186,37 @@ industry-standards (5/10) and visual polish (6/10) -- efficiency was
 already fixed in round 3. Per the standing instruction, these are the
 next work, not a pause point.
 
+## Round 5 (visual polish -- column height imbalance + title clamping, PR #665)
+
+Bounded each line's CardContent to `max-h-[560px] overflow-y-auto` (same
+pattern already used for other long lists this session, e.g.
+CorrelationMatrixPage's panels), fixing the live-observed dead-
+whitespace/imbalance from up to 23 items in one column vs. 2-3 in
+others. Switched item titles from single-line `truncate` to
+`line-clamp-2`, showing more text before the tooltip fallback.
+
+Negative control confirmed both new tests fail without the fix. Live
+verification blocked by the same environment issue this exact page has
+now hit 5 times this session; fell back to code-reading. Review round
+1: both angles clean. Angle B went further than code-reading -- built
+and grepped the actual production CSS output to confirm `line-clamp-2`
+and `max-h-[560px]` generate real rules (not silently no-op class
+names), then injected isolated test elements into the already-loaded
+app to measure real computed heights (32px clamped vs. 128px unclamped
+text; a 1004px-content container capped to exactly 560px with
+scrolling enabled), sidestepping this page's own load-hang entirely.
+Angle A raised one non-blocking note (a fixed 560px height plus the
+page's own outer scroll region could create nested scroll regions on
+short viewports) but confirmed the same pattern already exists
+elsewhere in the codebase at similar heights, not a new risk.
+
+**Status:** visual polish should clear the floor now. Remaining
+below-floor axis: industry-standards (5/10) -- the one axis left from
+round 1's original 5. This is real feature work (a coverage/gap
+visualization, classification-rationale capture) rather than a
+mechanical fix, and is the natural next round per the standing
+instruction to research and build rather than pause.
+
 ## Round 3 (efficiency -- memoized line grouping, PR #662)
 
 Replaced the 20 unmemoized `.filter()` calls per render (5 entity types x
