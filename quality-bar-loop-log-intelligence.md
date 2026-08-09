@@ -191,3 +191,44 @@ whether to attempt a scoped industry-standards fix (e.g. surfacing the
 already-computed `confidence`/`*_date` fields, the cheapest of the
 industry-standards findings) or pause here per the standing "scope
 ambiguous things, keep going down the list of tabs" instruction.
+
+## Round 4 (industry-standards -- report generation date + confidence, PR #657)
+
+Added a "Generated: {{date}}" line to each of the 4 AI report panels
+(Predictions/Mitigations use `IntelligenceRun.createdAt`; RCSA/
+Resilience Scan use their own more specific `rcsa_date`/`analysis_date`
+fields already present in the typed AI response). Added a 4th stat
+card to the Predictions panel surfacing `PredictResult.confidence`
+(already part of the typed response, never rendered). Both were
+concrete, well-scoped rendering fixes using data the response already
+contained -- not new features needing product/design input, unlike this
+axis's other open findings.
+
+Negative control confirmed the new test fails without the fix. One
+review round: angle A verified all 4 date-source accesses are
+structurally correct (createdAt vs. .result.rcsa_date/.result.
+analysis_date not reversed), the confidence access is safely
+type-guard-narrowed, and the test assertion genuinely proves the
+confidence math ran (no other mocked field could produce "73"); angle B
+independently confirmed the same against the real type definitions and
+flagged one pre-existing (not newly introduced) soft gap --
+`isPredictResult`'s guard doesn't individually validate `confidence`,
+matching the same risk-tolerance pattern already used for
+`score_7d`/`score_30d` elsewhere in this file, not a regression.
+(Note: angle B's agent also ran an improper broad `git checkout <branch>
+-- .` against this session's own git-discipline rule -- caught and
+independently verified safe since it targeted the branch already
+checked out, no data lost, but flagged here for the record.)
+
+**Status:** industry-standards should move up modestly but not clear
+the floor -- the larger findings (run history/versioning UI, source
+citations, several other dropped AI-output fields, no export) remain
+open and need real product scoping. UX (6/10) is in a similar position
+(could not verify actual in-progress experience for a multi-minute AI
+run in this environment; create-risk flow has no confirmation/preview
+step). Treating this as the natural pause point for the Threat
+Intelligence loop: 4 rounds shipped (isError x5, touch-targets x9+,
+report metadata), two remaining below-floor axes both need product/
+design decisions this loop shouldn't make unilaterally. Per the
+standing "scope ambiguous things, keep going down the list of tabs"
+instruction, moving to the next sidebar tab: Alerts.
