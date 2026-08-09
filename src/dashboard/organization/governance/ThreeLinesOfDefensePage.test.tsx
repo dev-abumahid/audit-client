@@ -264,6 +264,26 @@ describe("ThreeLinesOfDefensePage", () => {
     ).toBeGreaterThan(0)
   })
 
+  // quality-bar-loop round 2 (mobile, round-1 finding): these buttons
+  // measured 22x22px live -- half the 44px touch-target guideline, and
+  // up to 3 of them sit only 4px apart in one row. Same h-11 w-11 fix
+  // already shipped on 6 sibling pages this session.
+  it("gives each reassignment button a 44px touch target", () => {
+    mockRole = "ADMIN"
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData(),
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const button = screen.getAllByRole("button", {
+      name: "organization.threeLinesOfDefense.moveToSecond",
+    })[0]
+    expect(button.className).toContain("h-11")
+    expect(button.className).toContain("w-11")
+  })
+
   it("shows reassignment controls for a LEAD_AUDITOR", () => {
     mockRole = "LEAD_AUDITOR"
     mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
@@ -685,11 +705,14 @@ describe("ThreeLinesOfDefensePage", () => {
     ).not.toBeInTheDocument()
     await waitFor(() => expect(mockToastError).toHaveBeenCalled())
 
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: "organization.threeLinesOfDefense.retry",
-      })
-    )
+    const retryButton = screen.getByRole("button", {
+      name: "organization.threeLinesOfDefense.retry",
+    })
+    // quality-bar-loop round 2 (mobile, round-1 finding): measured
+    // under the 44px touch-target guideline.
+    expect(retryButton.className).toContain("h-11")
+
+    await userEvent.click(retryButton)
     expect(mockRefetch).toHaveBeenCalled()
   })
 

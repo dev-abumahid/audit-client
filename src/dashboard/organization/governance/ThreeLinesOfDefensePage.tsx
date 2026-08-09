@@ -1,4 +1,9 @@
-import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from "@/components/ui/card"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useUpdateAuditEngagementMutation } from "@/redux/apis/organization/audit.api"
 import { useUpdateComplianceMutation } from "@/redux/apis/organization/compliance.api"
@@ -62,7 +67,10 @@ const COMPLIANCE_STATUS_LABEL_KEYS: Record<string, string> = {
   not_applicable: "organization.compliance.status.not_applicable",
 }
 
-function complianceDomainLabel(t: (key: string) => string, domain: string): string {
+function complianceDomainLabel(
+  t: (key: string) => string,
+  domain: string
+): string {
   return COMPLIANCE_DOMAINS[domain]
     ? t(`organization.compliance.domains.${domain}`)
     : domain
@@ -136,7 +144,10 @@ const MOVE_TO_KEY: Record<LineOfDefense, string> = {
 // items by design. Gating the button on the caller's real permission (rather
 // than showing it and letting a 403 happen) is the "graceful handling" this
 // ticket asked for.
-function canReassignEntity(entityType: EntityKind, role: string | undefined): boolean {
+function canReassignEntity(
+  entityType: EntityKind,
+  role: string | undefined
+): boolean {
   switch (entityType) {
     case "risk":
     case "kri":
@@ -227,7 +238,14 @@ function ItemRow({
               onClick={() => onReassign(line)}
               title={t(MOVE_TO_KEY[line])}
               aria-label={t(MOVE_TO_KEY[line])}
-              className="flex items-center justify-center rounded border border-border p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+              // quality-bar-loop round 2 (mobile, round-1 finding):
+              // measured 22x22px live -- half the 44px touch-target
+              // guideline, and up to 3 of these sit only 4px apart in
+              // one row (real mis-tap risk). h-11 w-11 gives the full
+              // touch target while the icon inside stays visually
+              // small, same fix already shipped on 6 sibling pages this
+              // session.
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
             >
               {isPending ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -258,7 +276,7 @@ function Section({
   return (
     <div className="mb-4 last:mb-0">
       <div className="mb-1.5 flex items-center justify-between">
-        <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
           <Icon className="h-3.5 w-3.5" />
           {label}
         </h3>
@@ -284,12 +302,7 @@ export default function ThreeLinesOfDefensePage() {
   const canReassignAudit = canReassignEntity("audit", role)
   const canReassignAction = canReassignEntity("action", role)
 
-  const {
-    data,
-    isLoading,
-    isError,
-    refetch,
-  } = useGetThreeLinesOfDefenseQuery()
+  const { data, isLoading, isError, refetch } = useGetThreeLinesOfDefenseQuery()
   const [updateRisk] = useUpdateRiskMutation()
   const [updateFindingById] = useUpdateFindingByIdMutation()
   const [updateKri] = useUpdateKriMutation()
@@ -313,7 +326,11 @@ export default function ThreeLinesOfDefensePage() {
   const classifiedActions = actions.filter((a) => a.line_of_defense !== null)
   const unclassifiedActions = actions.filter((a) => a.line_of_defense === null)
 
-  const reassign = async (entityType: EntityKind, id: string, line: LineOfDefense) => {
+  const reassign = async (
+    entityType: EntityKind,
+    id: string,
+    line: LineOfDefense
+  ) => {
     setPendingId(id)
     try {
       switch (entityType) {
@@ -321,22 +338,34 @@ export default function ThreeLinesOfDefensePage() {
           await updateRisk({ id, data: { line_of_defense: line } }).unwrap()
           break
         case "action":
-          await updateFindingById({ id, body: { line_of_defense: line } }).unwrap()
+          await updateFindingById({
+            id,
+            body: { line_of_defense: line },
+          }).unwrap()
           break
         case "kri":
           await updateKri({ id, data: { line_of_defense: line } }).unwrap()
           break
         case "compliance":
-          await updateCompliance({ id, data: { line_of_defense: line } }).unwrap()
+          await updateCompliance({
+            id,
+            data: { line_of_defense: line },
+          }).unwrap()
           break
         case "audit":
-          await updateAuditEngagement({ id, data: { line_of_defense: line } }).unwrap()
+          await updateAuditEngagement({
+            id,
+            data: { line_of_defense: line },
+          }).unwrap()
           break
       }
       toast.success(t("organization.threeLinesOfDefense.toast.reassignSuccess"))
     } catch (err) {
       toast.error(
-        getErrorMessage(err, t("organization.threeLinesOfDefense.toast.reassignFailed"))
+        getErrorMessage(
+          err,
+          t("organization.threeLinesOfDefense.toast.reassignFailed")
+        )
       )
     } finally {
       setPendingId(null)
@@ -367,7 +396,7 @@ export default function ThreeLinesOfDefensePage() {
           <button
             type="button"
             onClick={() => refetch()}
-            className="rounded-md border border-destructive/30 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10"
+            className="flex h-11 items-center rounded-md border border-destructive/30 px-3 text-xs font-medium text-destructive hover:bg-destructive/10"
           >
             {t("organization.threeLinesOfDefense.retry")}
           </button>
@@ -409,7 +438,9 @@ export default function ThreeLinesOfDefensePage() {
                   <CardContent>
                     <Section
                       icon={Shield}
-                      label={t("organization.threeLinesOfDefense.sections.risks")}
+                      label={t(
+                        "organization.threeLinesOfDefense.sections.risks"
+                      )}
                       count={lineRisks.length}
                       emptyLabel={t("organization.threeLinesOfDefense.empty")}
                     >
@@ -418,7 +449,9 @@ export default function ThreeLinesOfDefensePage() {
                           key={risk.id}
                           title={risk.title}
                           meta={`${riskCategoryLabel(t, risk.category)} · ${getEnumLabel(t, RISK_STATUS_LABEL_KEYS, risk.status)}`}
-                          severity={RISK_STATUS_SEVERITY[risk.status] ?? "neutral"}
+                          severity={
+                            RISK_STATUS_SEVERITY[risk.status] ?? "neutral"
+                          }
                           currentLine={risk.line_of_defense}
                           canReassign={canReassignRisk}
                           isPending={pendingId === risk.id}
@@ -432,7 +465,9 @@ export default function ThreeLinesOfDefensePage() {
 
                     <Section
                       icon={AlertTriangle}
-                      label={t("organization.threeLinesOfDefense.sections.actions")}
+                      label={t(
+                        "organization.threeLinesOfDefense.sections.actions"
+                      )}
                       count={lineActions.length}
                       emptyLabel={t("organization.threeLinesOfDefense.empty")}
                     >
@@ -441,7 +476,9 @@ export default function ThreeLinesOfDefensePage() {
                           key={action.id}
                           title={action.title}
                           meta={`${getEnumLabel(t, FINDING_PRIORITY_LABEL_KEYS, action.priority)} · ${getEnumLabel(t, FINDING_STATUS_LABEL_KEYS, action.status)}`}
-                          severity={ACTION_STATUS_SEVERITY[action.status] ?? "neutral"}
+                          severity={
+                            ACTION_STATUS_SEVERITY[action.status] ?? "neutral"
+                          }
                           currentLine={action.line_of_defense}
                           canReassign={canReassignAction}
                           isPending={pendingId === action.id}
@@ -455,7 +492,9 @@ export default function ThreeLinesOfDefensePage() {
 
                     <Section
                       icon={Activity}
-                      label={t("organization.threeLinesOfDefense.sections.kris")}
+                      label={t(
+                        "organization.threeLinesOfDefense.sections.kris"
+                      )}
                       count={lineKris.length}
                       emptyLabel={t("organization.threeLinesOfDefense.empty")}
                     >
@@ -464,7 +503,9 @@ export default function ThreeLinesOfDefensePage() {
                           key={kri.id}
                           title={kri.title}
                           meta={`${kri.unit} · ${getEnumLabel(t, KRI_STATUS_LABEL_KEYS, kri.status)}`}
-                          severity={KRI_STATUS_SEVERITY[kri.status] ?? "neutral"}
+                          severity={
+                            KRI_STATUS_SEVERITY[kri.status] ?? "neutral"
+                          }
                           currentLine={kri.line_of_defense}
                           canReassign={canReassignKri}
                           isPending={pendingId === kri.id}
@@ -478,7 +519,9 @@ export default function ThreeLinesOfDefensePage() {
 
                     <Section
                       icon={Scale}
-                      label={t("organization.threeLinesOfDefense.sections.compliance")}
+                      label={t(
+                        "organization.threeLinesOfDefense.sections.compliance"
+                      )}
                       count={lineCompliance.length}
                       emptyLabel={t("organization.threeLinesOfDefense.empty")}
                     >
@@ -487,7 +530,10 @@ export default function ThreeLinesOfDefensePage() {
                           key={obligation.id}
                           title={obligation.title}
                           meta={`${complianceDomainLabel(t, obligation.domain)} · ${getEnumLabel(t, COMPLIANCE_STATUS_LABEL_KEYS, obligation.status)}`}
-                          severity={COMPLIANCE_STATUS_SEVERITY[obligation.status] ?? "neutral"}
+                          severity={
+                            COMPLIANCE_STATUS_SEVERITY[obligation.status] ??
+                            "neutral"
+                          }
                           currentLine={obligation.line_of_defense}
                           canReassign={canReassignCompliance}
                           isPending={pendingId === obligation.id}
@@ -507,7 +553,9 @@ export default function ThreeLinesOfDefensePage() {
 
                     <Section
                       icon={ClipboardCheck}
-                      label={t("organization.threeLinesOfDefense.sections.audits")}
+                      label={t(
+                        "organization.threeLinesOfDefense.sections.audits"
+                      )}
                       count={lineAudits.length}
                       emptyLabel={t("organization.threeLinesOfDefense.empty")}
                     >
@@ -516,7 +564,10 @@ export default function ThreeLinesOfDefensePage() {
                           key={engagement.id}
                           title={engagement.title}
                           meta={`${engagement.lead_auditor ?? t("organization.threeLinesOfDefense.noLeadAuditor")} · ${getEnumLabel(t, AUDIT_ENGAGEMENT_STATUS_LABEL_KEYS, engagement.status)}`}
-                          severity={AUDIT_STATUS_SEVERITY[engagement.status] ?? "neutral"}
+                          severity={
+                            AUDIT_STATUS_SEVERITY[engagement.status] ??
+                            "neutral"
+                          }
                           currentLine={engagement.line_of_defense}
                           canReassign={canReassignAudit}
                           isPending={pendingId === engagement.id}
@@ -554,14 +605,18 @@ export default function ThreeLinesOfDefensePage() {
                 icon={AlertTriangle}
                 label={t("organization.threeLinesOfDefense.sections.actions")}
                 count={unclassifiedActions.length}
-                emptyLabel={t("organization.threeLinesOfDefense.unclassified.empty")}
+                emptyLabel={t(
+                  "organization.threeLinesOfDefense.unclassified.empty"
+                )}
               >
                 {unclassifiedActions.map((action) => (
                   <ItemRow
                     key={action.id}
                     title={action.title}
                     meta={`${getEnumLabel(t, FINDING_PRIORITY_LABEL_KEYS, action.priority)} · ${getEnumLabel(t, FINDING_STATUS_LABEL_KEYS, action.status)}`}
-                    severity={ACTION_STATUS_SEVERITY[action.status] ?? "neutral"}
+                    severity={
+                      ACTION_STATUS_SEVERITY[action.status] ?? "neutral"
+                    }
                     currentLine={null}
                     canReassign={canReassignAction}
                     isPending={pendingId === action.id}
