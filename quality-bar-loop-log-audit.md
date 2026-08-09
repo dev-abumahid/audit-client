@@ -176,3 +176,30 @@ queries). Given 5 axes remain below floor, this is a natural pause
 point for the Audit Missions loop -- the remaining gaps need product
 input this loop shouldn't make unilaterally, more so than any other
 page reached this session.
+
+## Round 3 (resilience -- isError handling, PR #667)
+
+Per the user's explicit correction mid-session ("keep going... for
+design decisions do research and choose the best option") -- resumed
+this loop rather than leaving it paused. Added `isError`/`refetch` to
+the main engagements query (full-section error state + Retry button,
+matching ThreeLinesOfDefensePage's established pattern) and `isError`
+to the risk-picker query (small non-fatal inline notice, since the
+rest of the create/edit form stays usable without linked risks). Same
+isError-omission bug class fixed on 2 sibling pages this session.
+
+Negative control confirmed both new failure-path tests fail without
+the fix. Live verification: confirmed the page renders its genuine
+empty state (not a false error) when the backend legitimately returns
+zero engagements, and confirmed the create modal's Linked Risks field
+shows no notice in the normal (non-error) case. Review round 1: both
+angles clean -- angle A flagged one test-naming nitpick (not a
+functional bug), angle B additionally confirmed live that the retry
+mechanism re-fires the toast correctly on repeat failures with no
+stale-closure risk.
+
+**Status:** resilience should clear the floor now. Remaining
+below-floor axes from round 1: industry-standards (3/10, lowest),
+UX (6/10), accessibility (6/10), visual polish (5/10) -- all real
+feature/design work per the standing instruction to research and
+build rather than pause. Continuing to the next round.
