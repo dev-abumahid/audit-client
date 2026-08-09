@@ -211,3 +211,45 @@ non-optional field, no NaN/undefined guard on AI-bucket numeric
 fields feeding `t()` interpolation). A fresh full-panel re-score is
 due once these are addressed or explicitly scoped out, to check
 overall convergence.
+
+## Round 5 (visual polish -- dark-mode info chips, PR #649)
+
+Fixed the second round-1 visual-polish finding: 5 root-cause/action
+info chips (inside AI and manual finding-bucket cards) used
+`bg-*-500/10 p-2 text-*-700` with no `dark:` variant, producing a
+muddy, low-contrast pairing in dark mode. Extracted
+`INFO_CHIP_AMBER`/`INFO_CHIP_BLUE` constants adding
+`dark:bg-*-400/15 dark:text-*-400`, matching the pattern already
+established in `SourceBadge.tsx`/`HeroProductVisual.tsx`.
+
+Negative control confirmed the new test fails without the dark:
+classes. First review round: angle A found no blocking issues; angle
+B found a real, legitimate secondary issue -- the light-mode amber
+classes carried forward `text-amber-700`, the same shade
+`HeroProductVisual.tsx` had already measured at ~4.48:1 (just under
+the 4.5:1 AA floor for small text) and deliberately moved away from
+to `amber-800`. Fixed same-round (not deferred) per the "fix
+cheaply-fixable findings, don't just document them" convention:
+switched `INFO_CHIP_AMBER` to `bg-amber-500/15 text-amber-800` to
+match the proven precedent; left blue untouched since blue-700
+computes comfortably above AA (~6:1, verified via the same contrast
+formula). Second review round (scoped to the fix-round commit) came
+back clean.
+
+Live-verified dark mode against a real backend (started `aexa-server`
+locally after finding it down) -- expanded a real "High priority"
+finding bucket and confirmed the "Grouped action" chip renders
+legible light-blue-on-dark-blue-tint. Light-mode re-verification
+proved awkward in-session (theme-toggle interaction didn't stick
+reliably) -- relied on the contrast-math verification plus the
+established precedent match instead of a light-mode screenshot; this
+is a low-risk, mechanical value swap so the gap is acceptable but
+noted for transparency.
+
+**Status:** both round-1 visual-polish findings are now fixed.
+Remaining below-floor axis: industry-standards (6/10) only. Milder
+resilience findings (numeric `|| 0` fallback, no NaN/undefined guard
+on AI-bucket fields) are still open but minor. A fresh full-panel
+re-score is due next to check overall convergence before picking
+between industry-standards (the bigger, feature-shaped lever) and the
+minor resilience cleanup.
