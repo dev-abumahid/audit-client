@@ -6,7 +6,7 @@ import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { Risk } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
-import { Grid3X3, Loader2, MapPin } from "lucide-react"
+import { AlertCircle, Grid3X3, Loader2, MapPin } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
@@ -100,14 +100,24 @@ function mapRiskToCell(
 
 export default function RiskMatrixPage() {
   const { t } = useTranslation()
-  const { data: riskResponse, isLoading } = useGetAllRisksQuery({
+  // quality-bar-loop round 3 (resilience, the round-1 finding carried
+  // forward): isError was never checked on either query -- a genuine fetch
+  // failure fell through to `risks: [] `/`sites: []` below and rendered a
+  // fully-formed, normal-looking empty matrix (every cell present, all
+  // reading 0), byte-for-byte indistinguishable from "this org genuinely
+  // has zero risks."
+  const {
+    data: riskResponse,
+    isLoading,
+    isError: risksError,
+  } = useGetAllRisksQuery({
     page: 1,
     limit: 100,
     searchTerm: "",
     siteId: "",
     category: "",
   })
-  const { data: siteResponse } = useGetAllSitesQuery({
+  const { data: siteResponse, isError: sitesError } = useGetAllSitesQuery({
     page: 1,
     limit: 100,
     searchTerm: "",
@@ -189,8 +199,29 @@ export default function RiskMatrixPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
+      <div
+        className="flex min-h-[400px] items-center justify-center"
+        role="status"
+        aria-live="polite"
+      >
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="sr-only">{t("organization.riskMatrix.title")}</span>
+      </div>
+    )
+  }
+
+  // Replaces the whole matrix (controls included -- none of them are
+  // meaningful without data to filter/size/group) rather than letting a
+  // fetch failure fall through to a normal-looking, fully-rendered but
+  // completely empty matrix. Same full-page-replacement precedent this
+  // file already established for the loading state above.
+  if (risksError) {
+    return (
+      <div className="flex min-h-[400px] flex-col items-center justify-center gap-2 text-center">
+        <AlertCircle className="h-10 w-10 text-destructive/60" />
+        <p role="alert" className="text-sm text-destructive">
+          {t("organization.riskMatrix.loadError")}
+        </p>
       </div>
     )
   }
@@ -205,11 +236,17 @@ export default function RiskMatrixPage() {
               {t("organization.riskMatrix.title")}
             </h1>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {t("organization.riskMatrix.des", {
-              count: filteredRisks.length,
-            })}
-          </p>
+          {/* Suppressed when empty: "0 risks positioned -- Click on a
+              cell to see details" would sit directly above the dedicated
+              empty-state notice below and contradict it (nothing to
+              click). */}
+          {filteredRisks.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {t("organization.riskMatrix.des", {
+                count: filteredRisks.length,
+              })}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -271,6 +308,21 @@ export default function RiskMatrixPage() {
         </div>
       </div>
 
+      {/* This page's own useGetAllSitesQuery call (used for site-name
+          lookups on RiskCard) failing doesn't block the matrix itself --
+          risks still render, just without a site link/name on their
+          card (see RiskCard's `{siteName && (...)}` guard below). Same
+          resilience gap round-1 flagged: previously zero indication
+          anything failed. SiteFilter's OWN internal query failing
+          separately (a shared component used across the app) is a
+          pre-existing, out-of-scope limitation of that component, not
+          fixed here. */}
+      {sitesError && (
+        <p role="alert" className="text-xs text-destructive">
+          {t("organization.riskMatrix.siteLoadError")}
+        </p>
+      )}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Risk Matrix */}
         <div className="rounded-xl border border-border bg-card p-6 lg:col-span-2">
@@ -279,6 +331,23 @@ export default function RiskMatrixPage() {
               {t("organization.riskMatrix.impactAxis")}
             </span>
           </div>
+
+          {/* Additive, not a replacement: some existing tests deliberately
+              mock a zero-risk dataset to exercise axis labels/legend/cell
+              aria-pressed state independent of the empty-state UX, so the
+              grid keeps rendering unconditionally and this notice sits
+              alongside it rather than hiding it. */}
+          {filteredRisks.length === 0 && (
+            <div className="mb-4 flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border py-6 text-center text-muted-foreground">
+              <Grid3X3 className="h-6 w-6 opacity-30" />
+              <p className="text-sm font-medium text-foreground">
+                {t("organization.riskMatrix.emptyStateTitle")}
+              </p>
+              <p className="text-xs">
+                {t("organization.riskMatrix.emptyStateHint")}
+              </p>
+            </div>
+          )}
 
           <div className="overflow-auto">
             <div className="min-w-105">

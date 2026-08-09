@@ -188,6 +188,70 @@ describe("RiskMatrixPage", () => {
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 3 (resilience, the loop's original lowest
+  // score): isError was never checked on either query -- a genuine
+  // fetch failure fell through to risks: [] and rendered a
+  // fully-formed, normal-looking empty matrix (every cell present, all
+  // reading 0), byte-for-byte indistinguishable from "this org
+  // genuinely has zero risks."
+  it("shows a distinct error state, not an empty matrix, when the risks query fails", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    })
+    renderPage()
+
+    expect(
+      screen.getByText("organization.riskMatrix.loadError")
+    ).toBeInTheDocument()
+    // The matrix (and every control that's meaningless without data)
+    // must not render at all in the error state.
+    expect(screen.queryByRole("button", { name: "5×5" })).not.toBeInTheDocument()
+    expect(screen.queryByTitle(/risk/)).not.toBeInTheDocument()
+  })
+
+  it("shows a site-load-error indicator, not a silent missing site name, when the sites query fails", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+      isLoading: false,
+    })
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+    })
+    renderPage()
+
+    expect(
+      screen.getByText("organization.riskMatrix.siteLoadError")
+    ).toBeInTheDocument()
+    // The matrix itself still renders -- a sites-fetch failure only
+    // affects site-name lookups on individual RiskCards, not the whole
+    // page.
+    expect(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    ).toBeInTheDocument()
+  })
+
+  it("shows a dedicated empty state, not a matrix full of zeroes, when there are genuinely no risks", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    renderPage()
+
+    expect(
+      screen.getByText("organization.riskMatrix.emptyStateTitle")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("organization.riskMatrix.emptyStateHint")
+    ).toBeInTheDocument()
+    // Additive, not a replacement: the grid itself keeps rendering (other
+    // tests rely on it being present even with zero risks), the empty-state
+    // notice just sits alongside it.
+    expect(screen.getByRole("button", { name: "5×5" })).toBeInTheDocument()
+  })
+
   // Regression (issue #359): the legend swatch for the lowest severity used
   // to have a different opacity than getMatrixColor (the function that
   // colors the actual matrix cells) returned for that same severity -- the
@@ -360,11 +424,15 @@ describe("RiskMatrixPage", () => {
     })
     renderPage()
 
+    // The "N risks positioned" subtitle is suppressed when empty (it would
+    // contradict the dedicated empty-state notice just below it), so the
+    // signal that nothing is selected/positioned is the empty-state title.
     expect(
-      screen.getByText(
-        "0 risks positioned — Click on a cell to see details"
-      )
+      screen.getByText("organization.riskMatrix.emptyStateTitle")
     ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/risks positioned/)
+    ).not.toBeInTheDocument()
   })
 
   // Regression (audit round 3): "{count} {t('...des')}" concatenated a raw

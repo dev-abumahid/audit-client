@@ -1298,7 +1298,11 @@
       "impactModerate": "Modéré",
       "impactMajor": "Majeur",
       "impactCatastrophic": "Catastrophique",
-      "pagerankAbbrLabel": "PR :"
+      "pagerankAbbrLabel": "PR :",
+      "loadError": "Échec du chargement des risques. Veuillez réessayer plus tard.",
+      "siteLoadError": "Échec du chargement des sites -- les noms de sites peuvent être manquants ci-dessous.",
+      "emptyStateTitle": "Aucun risque évalué pour le moment",
+      "emptyStateHint": "Une fois qu'un risque a une probabilité et un impact, il apparaîtra ici."
     },
     "riskGraph": {
       "title": "Graphe de Dépendances & Effets Domino",
