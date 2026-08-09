@@ -310,6 +310,59 @@ describe("CorrelationMatrixPage", () => {
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 2 (mobile, round-1 finding): the matrix-size,
+  // group-mode, and view-mode toggle buttons were 28px tall, under the
+  // 44px minimum touch-target guideline -- same fix RiskMatrixPage
+  // round 7 already shipped for its own identical toggle groups.
+  it("gives the matrix-size, group-mode, and view-mode toggle buttons a 44px touch target", () => {
+    render(<CorrelationMatrixPage />, withRouter)
+
+    expect(screen.getByRole("button", { name: "5×5" }).className).toContain(
+      "h-11"
+    )
+    expect(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.groupAll",
+      }).className
+    ).toContain("h-11")
+    expect(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewRisks",
+      }).className
+    ).toContain("h-11")
+  })
+
+  // quality-bar-loop round 2 (mobile, the axis's most severe round-1
+  // finding): the root-cause row-label column used to scroll away
+  // together with the grid cells inside the same horizontal-scroll
+  // wrapper, so a phone user couldn't see a cell's row label and a
+  // rightmost-column cell at the same time.
+  it("pins the root-cause row-label column so it doesn't scroll away with the grid", () => {
+    setMatrixData({ risks: [makeRisk()] })
+    render(<CorrelationMatrixPage />, withRouter)
+
+    const rowLabel = screen.getByText(
+      "organization.correlationMatrix.axisCauseNone"
+    )
+    expect(rowLabel.className).toContain("sticky")
+    expect(rowLabel.className).toContain("left-0")
+  })
+
+  // quality-bar-loop round 2 (mobile, round-1 finding): the legend used
+  // to sit inside the grid's horizontally-scrolling, forced-min-width
+  // wrapper, so two full swatches rendered entirely outside the visible
+  // viewport at 375px with no scroll affordance.
+  it("renders the legend outside the matrix's horizontal-scroll wrapper", () => {
+    render(<CorrelationMatrixPage />, withRouter)
+
+    const legendLabel = screen.getByText(
+      "organization.correlationMatrix.legendSystemic"
+    )
+    const scrollWrapper = document.querySelector(".overflow-auto")
+    expect(scrollWrapper).not.toBeNull()
+    expect(scrollWrapper?.contains(legendLabel)).toBe(false)
+  })
+
   it("renders the page header and real risk data from the live query", async () => {
     setMatrixData({
       risks: [makeRisk({ ref: "CYB-001", name: "Cyberattaque ransomware" })],

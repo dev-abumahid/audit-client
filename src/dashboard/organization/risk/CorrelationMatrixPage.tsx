@@ -505,6 +505,11 @@ export default function CorrelationMatrixPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* quality-bar-loop round 2 (mobile, round-1 finding): these
+              toggle buttons were 28px tall with zero gap between adjacent
+              buttons (mis-tap risk), under the 44px touch-target
+              guideline -- same fix RiskMatrixPage round 7 already
+              shipped for its own identical toggle groups. */}
           {/* Matrix Size */}
           <div className="flex overflow-hidden rounded-lg border border-border">
             {[3, 4, 5].map((s) => (
@@ -512,7 +517,7 @@ export default function CorrelationMatrixPage() {
                 key={s}
                 onClick={() => setMatrixSize(s as MatrixSize)}
                 aria-pressed={matrixSize === s}
-                className={`px-3 py-1.5 text-xs font-medium ${matrixSize === s ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
+                className={`flex h-11 min-w-11 items-center justify-center px-3 text-xs font-medium ${matrixSize === s ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
               >
                 {s}×{s}
               </button>
@@ -529,7 +534,7 @@ export default function CorrelationMatrixPage() {
                 key={mode}
                 onClick={() => setGroupMode(mode as GroupMode)}
                 aria-pressed={groupMode === mode}
-                className={`px-3 py-1.5 text-xs font-medium ${groupMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
+                className={`flex h-11 items-center justify-center px-3 text-xs font-medium ${groupMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
               >
                 {t(`${NS}.${labelKey}`)}
               </button>
@@ -548,7 +553,7 @@ export default function CorrelationMatrixPage() {
                 key={mode}
                 onClick={() => setViewMode(mode as ViewMode)}
                 aria-pressed={viewMode === mode}
-                className={`px-3 py-1.5 text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
+                className={`flex h-11 items-center justify-center px-3 text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
               >
                 {t(`${NS}.${labelKey}`)}
               </button>
@@ -579,7 +584,13 @@ export default function CorrelationMatrixPage() {
             </span>
           </div>
 
-          <div className="overflow-auto">
+          {/* quality-bar-loop round 2 (mobile, round-1 finding): `isolate`
+              gives this scroll region its own stacking context so the
+              cell buttons' hover/selected z-20 (added below, to escape
+              the sticky row-label column) can never paint above the
+              legend/link-form content that used to sit inside this same
+              wrapper -- same fix already verified on RiskMatrixPage. */}
+          <div className="isolate overflow-auto">
             <div className="min-w-105">
               {/* Consequence Labels */}
               <div className="flex">
@@ -604,7 +615,18 @@ export default function CorrelationMatrixPage() {
                 const row = matrixSize - 1 - reversedRow
                 return (
                   <div key={row} className="mb-2 flex items-center">
-                    <div className="w-32 pr-3 text-right text-[10px] font-medium text-muted-foreground">
+                    {/* quality-bar-loop round 2 (mobile, the axis's most
+                        severe round-1 finding): this column used to
+                        scroll away together with the grid cells inside
+                        the same horizontal-scroll wrapper, so a phone
+                        user couldn't see a cell's row label and a
+                        rightmost-column cell at the same time --
+                        measured live scrolling this off-screen (x:-151).
+                        sticky+self-stretch+bg-card pins it to the scroll
+                        container's left edge with an opaque background
+                        covering the full row height, not just the
+                        text's own line height. */}
+                    <div className="sticky left-0 z-10 flex w-32 shrink-0 items-center justify-end self-stretch bg-card pr-3 text-right text-[10px] font-medium text-muted-foreground">
                       {label}
                     </div>
                     <div
@@ -620,6 +642,14 @@ export default function CorrelationMatrixPage() {
                           selectedCell?.row === row && selectedCell?.col === col
 
                         return (
+                          // quality-bar-loop round 2 (mobile review):
+                          // the sticky row-label column (z-10) would
+                          // otherwise paint over the ~5% growth from
+                          // hover:scale-105/the selected ring on a
+                          // leftmost-column cell -- relative + z-20 on
+                          // hover/selected lifts the cell above the
+                          // label for exactly that moment. Same fix as
+                          // RiskMatrixPage.
                           <button
                             key={col}
                             onClick={() =>
@@ -633,7 +663,7 @@ export default function CorrelationMatrixPage() {
                               rootCause: label,
                               consequence: axisLabels.consequence[col],
                             })}
-                            className={`${getCellColor(row, col, matrixSize)} flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-black transition-all hover:scale-105 ${isSelected ? "scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-70"}`}
+                            className={`${getCellColor(row, col, matrixSize)} relative flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-black transition-all hover:z-20 hover:scale-105 ${isSelected ? "z-20 scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-70"}`}
                           >
                             {cellRisks.length > 0 && (
                               <>
@@ -658,27 +688,33 @@ export default function CorrelationMatrixPage() {
               <div className="mt-4 text-[10px] text-muted-foreground italic">
                 {t(`${NS}.rootCausesAxis`)}
               </div>
-
-              {/* Legend */}
-              <div className="mt-6 flex flex-wrap gap-4">
-                {[
-                  { color: "bg-risk-critical", labelKey: "legendSystemic" },
-                  {
-                    color: "bg-risk-high",
-                    labelKey: "legendHighInterconnection",
-                  },
-                  { color: "bg-risk-medium", labelKey: "legendModerate" },
-                  { color: "bg-risk-low", labelKey: "legendIsolated" },
-                ].map(({ color, labelKey }) => (
-                  <div key={labelKey} className="flex items-center gap-1.5">
-                    <div className={`h-3 w-3 rounded ${color}`} />
-                    <span className="text-xs text-muted-foreground">
-                      {t(`${NS}.${labelKey}`)}
-                    </span>
-                  </div>
-                ))}
-              </div>
             </div>
+          </div>
+
+          {/* quality-bar-loop round 2 (mobile, round-1 finding): this used
+              to sit INSIDE the overflow-auto/min-w-105 wrapper above, so
+              it inherited the grid's forced min-width and two full
+              swatches rendered entirely outside the visible viewport at
+              375px with no scroll affordance -- measured live. Moved
+              outside the scroll wrapper so flex-wrap can do its job at
+              the real container width. Same fix as RiskMatrixPage. */}
+          <div className="mt-6 flex flex-wrap gap-4">
+            {[
+              { color: "bg-risk-critical", labelKey: "legendSystemic" },
+              {
+                color: "bg-risk-high",
+                labelKey: "legendHighInterconnection",
+              },
+              { color: "bg-risk-medium", labelKey: "legendModerate" },
+              { color: "bg-risk-low", labelKey: "legendIsolated" },
+            ].map(({ color, labelKey }) => (
+              <div key={labelKey} className="flex items-center gap-1.5">
+                <div className={`h-3 w-3 rounded ${color}`} />
+                <span className="text-xs text-muted-foreground">
+                  {t(`${NS}.${labelKey}`)}
+                </span>
+              </div>
+            ))}
           </div>
 
           {/* Risk Links (create/delete) */}
