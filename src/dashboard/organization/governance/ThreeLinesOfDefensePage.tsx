@@ -349,6 +349,118 @@ function Section({
   )
 }
 
+// quality-bar-loop round 6 (industry-standards, round-1 finding).
+// Review round 1 (angle B) found --chart-2 (199°) and --chart-3 (38°)
+// are color-IDENTICAL to --risk-info and --risk-medium (src/index.css)
+// -- this page renders SEVERITY_STYLES dots using those exact risk
+// colors on every item row directly below this bar, so reusing the
+// full chart-1..4 set would make a line-color segment indistinguishable
+// from an unrelated severity indicator on the same screen. Keeps
+// --chart-1 (168°, teal) and --chart-4 (280°, purple), which don't
+// collide with any --risk-* hue (0°/38°/142°/199°), and replaces the
+// two colliding slots with new literal hues (250° indigo, 320°
+// magenta) chosen to stay >=25 degrees clear of every --risk-* hue and
+// of the two chart-N hues kept above.
+const LINE_CHART_COLOR: Record<LineOfDefense, string> = {
+  FIRST: "bg-chart-1",
+  SECOND: "bg-[hsl(250_70%_60%)]",
+  THIRD: "bg-[hsl(320_65%_55%)]",
+  GOVERNING_BODY: "bg-chart-4",
+}
+
+// quality-bar-loop round 6 (industry-standards, round-1 finding): the
+// IIA Three Lines Model's central diagnostic question -- "is 3rd line
+// (independent assurance) reviewing enough of what 1st/2nd line
+// (operations/risk-management) own" -- was previously only answerable
+// by manually counting raw per-column totals across 4 separate cards.
+// A proportional coverage bar per entity type makes the actual
+// distribution visible at a glance, the same way real GRC/audit tools
+// (e.g. AuditBoard's coverage dashboards, TeamMate+'s risk-coverage
+// views) surface this as a first-class summary rather than leaving it
+// to the reader to tally.
+function CoverageOverview({
+  rows,
+}: {
+  rows: { labelKey: string; unclassifiedCount?: number; byLine: Record<LineOfDefense, unknown[]> }[]
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="font-heading text-sm font-medium">
+          {t("organization.threeLinesOfDefense.coverage.title")}
+        </h2>
+        <CardDescription>
+          {t("organization.threeLinesOfDefense.coverage.subtitle")}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2.5">
+        {rows.map((row) => {
+          const total = LINES.reduce(
+            (sum, line) => sum + row.byLine[line].length,
+            0
+          )
+          return (
+            <div key={row.labelKey} className="flex items-center gap-3">
+              <span className="w-28 shrink-0 truncate text-[11px] text-muted-foreground">
+                {t(row.labelKey)}
+              </span>
+              {total === 0 ? (
+                <span className="flex-1 text-[11px] text-muted-foreground">
+                  {t("organization.threeLinesOfDefense.coverage.none")}
+                </span>
+              ) : (
+                <div
+                  role="img"
+                  aria-label={LINES.filter((line) => row.byLine[line].length > 0)
+                    .map(
+                      (line) =>
+                        `${t(LINE_TITLE_KEY[line])}: ${row.byLine[line].length}`
+                    )
+                    .join(", ")}
+                  className="flex h-3.5 flex-1 overflow-hidden rounded-full bg-muted"
+                >
+                  {LINES.map((line) => {
+                    const count = row.byLine[line].length
+                    if (count === 0) return null
+                    return (
+                      <div
+                        key={line}
+                        title={`${t(LINE_TITLE_KEY[line])}: ${count}`}
+                        className={`h-full ${LINE_CHART_COLOR[line]}`}
+                        style={{ width: `${(count / total) * 100}%` }}
+                      />
+                    )
+                  })}
+                </div>
+              )}
+              <span className="w-16 shrink-0 text-right font-mono text-[11px] text-muted-foreground">
+                {total}
+                {!!row.unclassifiedCount &&
+                  ` (+${row.unclassifiedCount})`}
+              </span>
+            </div>
+          )
+        })}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
+          {LINES.map((line) => (
+            <span
+              key={line}
+              className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${LINE_CHART_COLOR[line]}`}
+              />
+              {t(LINE_TITLE_KEY[line])}
+            </span>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function ThreeLinesOfDefensePage() {
   const { t } = useTranslation()
   const role = useMyOrgRole()
@@ -415,6 +527,46 @@ export default function ThreeLinesOfDefensePage() {
   const auditsByLine = useMemo(
     () => groupByLine(auditEngagements),
     [auditEngagements]
+  )
+
+  // quality-bar-loop round 6 (industry-standards, round-1 finding): one
+  // row per entity type for the coverage overview below. Actions use
+  // `classifiedActions` (the same source `actionsByLine` is grouped
+  // from) so the coverage bar's percentages reflect distribution across
+  // lines, not diluted by not-yet-classified items -- the unclassified
+  // count is surfaced separately via `unclassifiedCount` instead.
+  const coverageRows = useMemo(
+    () => [
+      {
+        labelKey: "organization.threeLinesOfDefense.sections.risks",
+        byLine: risksByLine,
+      },
+      {
+        labelKey: "organization.threeLinesOfDefense.sections.actions",
+        byLine: actionsByLine,
+        unclassifiedCount: unclassifiedActions.length,
+      },
+      {
+        labelKey: "organization.threeLinesOfDefense.sections.kris",
+        byLine: krisByLine,
+      },
+      {
+        labelKey: "organization.threeLinesOfDefense.sections.compliance",
+        byLine: complianceByLine,
+      },
+      {
+        labelKey: "organization.threeLinesOfDefense.sections.audits",
+        byLine: auditsByLine,
+      },
+    ],
+    [
+      risksByLine,
+      actionsByLine,
+      unclassifiedActions.length,
+      krisByLine,
+      complianceByLine,
+      auditsByLine,
+    ]
   )
 
   // quality-bar-loop round 3 (efficiency, round-1 finding): wrapped in
@@ -508,6 +660,8 @@ export default function ThreeLinesOfDefensePage() {
         </div>
       ) : (
         <>
+          <CoverageOverview rows={coverageRows} />
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {LINES.map((line) => {
               const lineRisks = risksByLine[line]

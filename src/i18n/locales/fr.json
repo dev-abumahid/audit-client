@@ -1260,6 +1260,11 @@
         "subtitle": "Actions créées avant que la classification par ligne ne soit requise",
         "empty": "Aucune action non classée"
       },
+      "coverage": {
+        "title": "Aperçu de la couverture",
+        "subtitle": "Répartition des risques, contrôles et travaux d'assurance entre les trois lignes",
+        "none": "Aucun élément pour l'instant"
+      },
       "toast": {
         "reassignSuccess": "Élément réassigné",
         "reassignFailed": "Échec de la réassignation de l'élément"

@@ -1260,6 +1260,11 @@
         "subtitle": "Actions created before line classification was required",
         "empty": "No unclassified actions"
       },
+      "coverage": {
+        "title": "Coverage Overview",
+        "subtitle": "How risks, controls and assurance work are distributed across the three lines",
+        "none": "No items yet"
+      },
       "toast": {
         "reassignSuccess": "Item reassigned",
         "reassignFailed": "Failed to reassign item"

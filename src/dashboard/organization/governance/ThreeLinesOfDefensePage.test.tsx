@@ -191,14 +191,25 @@ describe("ThreeLinesOfDefensePage", () => {
 
     renderPage()
 
+    // Line names also appear in the round-6 coverage overview's legend
+    // (plain text, not a heading), so scope to the h2 column headings.
     expect(
-      screen.getByText("organization.threeLinesOfDefense.lines.first")
+      screen.getByRole("heading", {
+        level: 2,
+        name: "organization.threeLinesOfDefense.lines.first",
+      })
     ).toBeInTheDocument()
     expect(
-      screen.getByText("organization.threeLinesOfDefense.lines.second")
+      screen.getByRole("heading", {
+        level: 2,
+        name: "organization.threeLinesOfDefense.lines.second",
+      })
     ).toBeInTheDocument()
     expect(
-      screen.getByText("organization.threeLinesOfDefense.lines.third")
+      screen.getByRole("heading", {
+        level: 2,
+        name: "organization.threeLinesOfDefense.lines.third",
+      })
     ).toBeInTheDocument()
 
     // Items land in their respective line: risk in 1st, kri+compliance+action
@@ -208,6 +219,106 @@ describe("ThreeLinesOfDefensePage", () => {
     expect(screen.getByText("Supplier Lead Time")).toBeInTheDocument()
     expect(screen.getByText("GDPR data mapping")).toBeInTheDocument()
     expect(screen.getByText("Q3 internal audit")).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 6 (industry-standards, round-1 finding): the
+  // IIA Three Lines Model's central diagnostic question -- "is 3rd line
+  // reviewing enough of what 1st/2nd line own" -- was previously only
+  // answerable by manually counting raw per-column totals. A coverage
+  // overview panel now surfaces the actual per-line distribution per
+  // entity type at a glance.
+  describe("coverage overview (round 6)", () => {
+    // The "Risks"/"Actions"/etc. section labels and the line names both
+    // also appear inside the per-line column cards, so every assertion
+    // here is scoped to the coverage panel's own Card via its unique
+    // "Coverage Overview" heading.
+    function coverageCard(): HTMLElement {
+      return screen
+        .getByText("organization.threeLinesOfDefense.coverage.title")
+        .closest('[data-slot="card"]') as HTMLElement
+    }
+
+    it("renders one coverage bar segment per line with a real count, plus a legend for all 4 lines", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const card = coverageCard()
+
+      // The Risks row has exactly 1 risk, in FIRST -- a single 100%-width
+      // segment labeled with the real count via its title attribute.
+      const risksLabel = within(card).getByText(
+        "organization.threeLinesOfDefense.sections.risks"
+      )
+      const risksRow = risksLabel.parentElement as HTMLElement
+      const risksBar = risksRow.querySelector('[role="img"]') as HTMLElement
+      expect(risksBar).not.toBeNull()
+      const segments = risksBar.querySelectorAll(":scope > div")
+      expect(segments).toHaveLength(1)
+      expect(segments[0]).toHaveAttribute(
+        "title",
+        "organization.threeLinesOfDefense.lines.first: 1"
+      )
+      expect((segments[0] as HTMLElement).style.width).toBe("100%")
+
+      // The legend lists all 4 lines, not just the ones with data.
+      expect(
+        within(card).getByText("organization.threeLinesOfDefense.lines.first")
+      ).toBeInTheDocument()
+      expect(
+        within(card).getByText(
+          "organization.threeLinesOfDefense.lines.second"
+        )
+      ).toBeInTheDocument()
+      expect(
+        within(card).getByText("organization.threeLinesOfDefense.lines.third")
+      ).toBeInTheDocument()
+      expect(
+        within(card).getByText(
+          "organization.threeLinesOfDefense.lines.governingBody"
+        )
+      ).toBeInTheDocument()
+    })
+
+    it("surfaces the unclassified-actions count separately from the classified total", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // 1 classified action (action-1, SECOND) + 1 unclassified
+      // (action-unclassified, null) -- the coverage bar's percentages
+      // should reflect only the classified item, with the unclassified
+      // one called out separately rather than silently diluting the bar.
+      const actionsLabel = within(coverageCard()).getByText(
+        "organization.threeLinesOfDefense.sections.actions"
+      )
+      const actionsRow = actionsLabel.parentElement as HTMLElement
+      expect(actionsRow).toHaveTextContent("1 (+1)")
+    })
+
+    it("shows a 'no items' message instead of an empty bar for a line with no data at all", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({ auditEngagements: [] }),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const auditsLabel = within(coverageCard()).getByText(
+        "organization.threeLinesOfDefense.sections.audits"
+      )
+      const auditsRow = auditsLabel.parentElement as HTMLElement
+      expect(auditsRow).toHaveTextContent(
+        "organization.threeLinesOfDefense.coverage.none"
+      )
+      expect(auditsRow.querySelector('[role="img"]')).toBeNull()
+    })
   })
 
   // aexa-frontend#465 -- the page previously had only one <h1> then jumped
@@ -281,7 +392,10 @@ describe("ThreeLinesOfDefensePage", () => {
     renderPage()
 
     const cardContent = screen
-      .getByText("organization.threeLinesOfDefense.lines.first")
+      .getByRole("heading", {
+        level: 2,
+        name: "organization.threeLinesOfDefense.lines.first",
+      })
       .closest('[data-slot="card"]')!
       .querySelector('[data-slot="card-content"]')!
     expect(cardContent.className).toContain("max-h-")
@@ -574,7 +688,10 @@ describe("ThreeLinesOfDefensePage", () => {
       renderPage()
 
       expect(
-        screen.getByText("organization.threeLinesOfDefense.lines.governingBody")
+        screen.getByRole("heading", {
+          level: 2,
+          name: "organization.threeLinesOfDefense.lines.governingBody",
+        })
       ).toBeInTheDocument()
     })
 
@@ -934,7 +1051,13 @@ describe("ThreeLinesOfDefensePage", () => {
     // line's Section shares the same "Risks"/"Actions"/etc. labels, so the
     // line heading is the only unique anchor per column).
     function cardForLine(lineHeadingText: string): HTMLElement {
-      const heading = screen.getByText(lineHeadingText)
+      // Line names also appear as plain text in the round-6 coverage
+      // overview's legend, so this must match only the column's own
+      // <h2> heading, not any occurrence of the text.
+      const heading = screen.getByRole("heading", {
+        level: 2,
+        name: lineHeadingText,
+      })
       const card = heading.closest('[data-slot="card"]')
       if (!card) {
         throw new Error(`No card found for heading "${lineHeadingText}"`)
