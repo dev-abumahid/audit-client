@@ -132,6 +132,66 @@ describe("AuditPage", () => {
     expect(screen.getAllByRole("heading", { level: 3 }).length).toBeGreaterThan(0)
   })
 
+  // quality-bar-loop round 2 (mobile, round-1 finding): at 375px the
+  // actions cluster (Report/Edit/Delete) overflowed the card's right edge
+  // entirely -- the Delete button was clipped off-screen, not just
+  // undersized. flex-wrap on the row plus min-w-0 on the left block lets
+  // the actions cluster wrap to its own line instead of overflowing, and
+  // every interactive control gets a 44px touch target.
+  it("gives the row action buttons and search input a 44px touch target, and lets the actions cluster wrap instead of overflowing", () => {
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [makeEngagement()] },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    const card = screen
+      .getByText("Supply Chain Risk Audit")
+      .closest("[class*='rounded-xl']")! as HTMLElement
+    const [editButton, deleteButton] = within(card).getAllByRole("button")
+    expect(editButton.className).toContain("h-11")
+    expect(editButton.className).toContain("w-11")
+    expect(deleteButton.className).toContain("h-11")
+    expect(deleteButton.className).toContain("w-11")
+
+    const actionsCluster = editButton.parentElement!
+    expect(actionsCluster.className).toContain("shrink-0")
+    // Deliberately not `justify-between`: per the flexbox spec,
+    // `space-between` degrades to `flex-start` once a line holds only one
+    // item, which would left-align this cluster the moment it wraps to
+    // its own row. `ml-auto` keeps it right-aligned in both cases.
+    expect(actionsCluster.className).toContain("ml-auto")
+
+    const cardHeaderRow = card.querySelector(
+      ":scope > .flex.flex-wrap.items-start"
+    )
+    expect(cardHeaderRow).not.toBeNull()
+    expect(cardHeaderRow!.className).not.toContain("justify-between")
+
+    const searchInput = screen.getByPlaceholderText(
+      "organization.audit.searchPlaceholder"
+    )
+    expect(searchInput.className).toContain("h-11")
+  })
+
+  // quality-bar-loop round 2 (mobile, round-1 finding): the 4-card stats
+  // row had no wrap and overflowed the 375px viewport with the 4th card
+  // clipped off-screen.
+  it("lets the summary stats row wrap instead of overflowing", () => {
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [makeEngagement()] },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    const statsRow = screen.getByText(
+      "organization.audit.statTotal"
+    ).parentElement!.parentElement!
+    expect(statsRow.className).toContain("flex-wrap")
+  })
+
   it("shows New Mission, Edit and Delete for an ADMIN", () => {
     mockUseGetAllAuditEngagementsQuery.mockReturnValue({
       data: { data: [makeEngagement()] },

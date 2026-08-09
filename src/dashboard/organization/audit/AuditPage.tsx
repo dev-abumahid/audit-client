@@ -354,7 +354,10 @@ export default function AuditPage() {
         {canWrite && (
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            // quality-bar-loop round 2 (mobile, round-1 finding): 44px
+            // touch target, same fix pattern shipped on 7 sibling pages
+            // this session.
+            className="flex h-11 shrink-0 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             <Plus className="h-4 w-4" /> {t("organization.audit.newMission")}
           </button>
@@ -362,7 +365,11 @@ export default function AuditPage() {
       </div>
 
       {/* Summary Stats */}
-      <div className="animate-slide-up flex gap-4 text-xs">
+      {/* quality-bar-loop round 2 (mobile, round-1 finding): the 4-card
+          stats row had no wrap and overflowed the 375px viewport with the
+          4th card clipped off-screen. flex-wrap lets cards drop to a new
+          line instead. */}
+      <div className="animate-slide-up flex flex-wrap gap-4 text-xs">
         <div className="rounded-lg border border-border bg-card px-4 py-2.5">
           <span className="font-mono text-lg font-bold text-foreground">
             {totalCount}
@@ -400,7 +407,7 @@ export default function AuditPage() {
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder={t("organization.audit.searchPlaceholder")}
-          className="h-9 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-xs"
+          className="h-11 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-xs"
         />
       </div>
 
@@ -417,15 +424,29 @@ export default function AuditPage() {
               key={eng.id}
               className="rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-sm"
             >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
+              {/* quality-bar-loop round 2 (mobile, round-1 finding): at
+                  375px the actions cluster (Report/Edit/Delete) measured
+                  386.85px against a 375px viewport with no wrap -- the
+                  Delete button was clipped off-screen entirely, not just
+                  undersized. flex-wrap plus min-w-0 on the left block (so
+                  the ref/title/badges can shrink) lets the actions
+                  cluster drop to its own line instead of overflowing.
+                  Deliberately NOT using `justify-between` here: per the
+                  flexbox spec, `space-between` degrades to `flex-start`
+                  once a line holds only one item, which would left-align
+                  the actions cluster the moment it wraps to its own row.
+                  `ml-auto` on the actions cluster (below) keeps it
+                  right-aligned whether it shares the row with the left
+                  block or wraps onto its own -- review round 1 finding. */}
+              <div className="flex flex-wrap items-start gap-2">
+                <div className="flex min-w-0 items-center gap-3">
                   <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${statusCfg.bg}`}
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${statusCfg.bg}`}
                   >
                     <Icon className={`h-4 w-4 ${statusCfg.text}`} />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono-data text-xs font-bold text-muted-foreground">
                         {eng.ref}
                       </span>
@@ -439,7 +460,7 @@ export default function AuditPage() {
                         isEdited={eng.is_edited}
                       />
                     </div>
-                    <h3 className="mt-0.5 text-sm font-semibold text-foreground">
+                    <h3 className="mt-0.5 truncate text-sm font-semibold text-foreground">
                       {eng.title}
                     </h3>
                     {eng.scope && (
@@ -450,18 +471,23 @@ export default function AuditPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                  {/* quality-bar-loop round 2 (mobile, round-1 finding):
+                      44px touch targets -- text/icon+text buttons get
+                      `h-11 items-center` (width stays content-driven),
+                      icon-only buttons get `h-11 w-11 shrink-0`, same
+                      pattern shipped on 7 sibling pages this session. */}
                   {hasReport ? (
                     <button
                       onClick={() => handleDownloadReport(eng.report_url!)}
-                      className="flex items-center gap-1 rounded-md bg-green-500/10 px-2 py-1 text-[10px] font-medium text-green-600 hover:bg-green-500/20"
+                      className="flex h-11 items-center gap-1 rounded-md bg-green-500/10 px-2 text-[10px] font-medium text-green-600 hover:bg-green-500/20"
                     >
                       <FileText className="h-3 w-3" />{" "}
                       {t("organization.audit.report")}{" "}
                       <ExternalLink className="h-2.5 w-2.5" />
                     </button>
                   ) : (
-                    <label className="flex cursor-pointer items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted/80">
+                    <label className="flex h-11 cursor-pointer items-center gap-1 rounded-md bg-muted px-2 text-[10px] font-medium text-muted-foreground hover:bg-muted/80">
                       {uploading === eng.id ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
@@ -487,7 +513,7 @@ export default function AuditPage() {
                         aria-label={t("organization.audit.editMission", {
                           title: eng.title,
                         })}
-                        className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
@@ -496,7 +522,7 @@ export default function AuditPage() {
                         aria-label={t("organization.audit.deleteMission", {
                           title: eng.title,
                         })}
-                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -613,7 +639,7 @@ export default function AuditPage() {
                 : t("organization.audit.newModalTitle")}
             </h2>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
                   {t("organization.audit.refLabel")}
@@ -623,7 +649,7 @@ export default function AuditPage() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, ref: e.target.value }))
                   }
-                  className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                  className="mt-1 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
                   placeholder={t("organization.audit.refPlaceholder")}
                 />
               </div>
@@ -642,7 +668,7 @@ export default function AuditPage() {
                         | "completed",
                     }))
                   }
-                  className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                  className="mt-1 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 >
                   <option value="planned">
                     {t("organization.audit.statusPlanned")}
@@ -666,7 +692,7 @@ export default function AuditPage() {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, title: e.target.value }))
                 }
-                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                className="mt-1 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
               />
             </div>
 
@@ -684,7 +710,7 @@ export default function AuditPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
                   {t("organization.audit.leadAuditorLabel")}
@@ -695,7 +721,7 @@ export default function AuditPage() {
                     setForm((f) => ({ ...f, lead_auditor: e.target.value }))
                   }
                   autoComplete="name"
-                  className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                  className="mt-1 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 />
               </div>
               <div>
@@ -711,12 +737,12 @@ export default function AuditPage() {
                       findings_count: Number(e.target.value),
                     }))
                   }
-                  className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                  className="mt-1 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
                   {t("organization.audit.priorityScoreLabel")}
@@ -741,12 +767,12 @@ export default function AuditPage() {
                       priority_score: clamped,
                     }))
                   }}
-                  className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                  className="mt-1 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">
                   {t("organization.audit.startDateLabel")}
@@ -757,7 +783,7 @@ export default function AuditPage() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, started_at: e.target.value }))
                   }
-                  className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                  className="mt-1 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 />
               </div>
               <div>
@@ -770,7 +796,7 @@ export default function AuditPage() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, closed_at: e.target.value }))
                   }
-                  className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                  className="mt-1 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 />
               </div>
             </div>
@@ -792,14 +818,14 @@ export default function AuditPage() {
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={closeAuditModal}
-                className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+                className="flex h-11 items-center rounded-lg px-4 text-sm text-muted-foreground hover:bg-muted"
               >
                 {t("organization.audit.cancel")}
               </button>
               <button
                 onClick={handleSave}
                 disabled={!form.title || isCreating || isUpdating}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
+                className="flex h-11 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
               >
                 {editId
                   ? t("organization.audit.update")
