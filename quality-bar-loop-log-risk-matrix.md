@@ -442,3 +442,53 @@ URL-state sync and keyboard/focus handling, and visual polish's
 legend/badge vocabulary unification and color-ramp fix. Continuing
 next with a UX or visual-polish round, then a fresh full-panel
 re-score once several of these land.
+
+User gave standing authorization to take on the remaining below-floor
+axes as real feature work autonomously overnight, using best judgment
+on any product/design decisions rather than pausing to ask, and to
+scope-and-skip (not block on) anything genuinely ambiguous even after
+research.
+
+## Round 8 (focus management + Escape-to-deselect, PR #640)
+
+Fixed the two remaining round-1 UX/accessibility findings: no focus
+management into the details panel after selecting a cell (no
+announcement, no aria-live), and no keyboard way to close/deselect a
+populated cell. Selecting a cell now moves focus to the details panel
+heading; a window-level Escape listener clears the selection; a small
+"Press Esc to close" hint makes the shortcut discoverable.
+
+Three review rounds -- tied with round 7 for the most iteration:
+- Round 1 found a real blocking interop bug: SiteFilter renders a
+  Radix Select, whose own Escape-to-close handling runs in the
+  capture phase and calls preventDefault() (not stopPropagation())
+  when it dismisses. The page's plain bubble-phase Escape listener
+  still fired afterward, silently wiping the matrix selection whenever
+  a user pressed Escape to close the unrelated site-filter dropdown.
+  Fixed by checking `!e.defaultPrevented` -- the standard interop
+  pattern for "did another layer already claim this keypress."
+  Live-verified both directions (dropdown-close-only, then a second
+  Escape clearing the selection).
+- The same round's second reviewer found the focus-move itself was
+  half-broken: `.focus-ring` gates on `:focus-visible`, which Chrome
+  suppresses for a programmatic `.focus()` following a pointer
+  interaction -- so the majority real-world path (mouse-click
+  selection) moved real DOM focus (screen readers still announced it
+  correctly) but showed no visible ring at all, silently missing the
+  sighted-mouse-user half of the fix's own goal. Fixed with a
+  deliberate, documented exception: plain `:focus` instead of
+  `:focus-visible` for this one element, since the focus move exists
+  to confirm a state change for all users regardless of input
+  modality, unlike this codebase's other focus-ring uses. Live-
+  verified with a real pointer click (not a synthetic `.click()`).
+- Round 3 came back clean.
+
+**Status:** all round-1 UX/accessibility findings now closed. Moving
+next to visual polish (legend/badge vocabulary unification -- the
+matrix legend says Critical/Major/Moderate/Weak while the shared
+`riskLevel`/`SEVERITY_STYLES` vocabulary used everywhere else in the
+app, including this same page's own RiskBadge, says Critical/High/
+Medium/Low; researched and confirmed `riskLevel.*` is the deliberate,
+documented shared source of truth per src/utils/severityStyles.ts's
+own header comment -- using it directly, not inventing a third
+vocabulary, is the correct fix) and the muddy "Moderate" swatch color.
