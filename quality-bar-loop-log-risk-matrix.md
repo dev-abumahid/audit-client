@@ -555,13 +555,40 @@ Reviewer B live-confirmed dark mode still reads as "muddy" to the eye
 now look less clearly graduated in dark mode since both moved toward
 higher saturation.
 
-## Round 11 (critical/high dark-mode small-text contrast, in progress)
+## Round 11 (critical/high dark-mode small-text contrast, PR #643)
 
-Fixing the pre-existing small-text contrast gap round-10's reviewer
+Fixed the pre-existing small-text contrast gap round-10's reviewer
 surfaced: bg-risk-critical/90 (dark) and bg-risk-high/70 (dark) both
-fail 4.5:1 for the small count-badge text (4.40:1, 4.05:1). Computed
-safe replacements via the same methodology: critical dark ->
-/85 (4.73:1), high dark -> /63 (4.62:1) -- both keep meaningful margin
-above the floor while staying close to the original vividness. Light
-mode already passes comfortably at both tiers, no change needed
-there.
+failed 4.5:1 for the small count-badge text (4.40:1, 4.05:1) -- this
+file's own original comment for bg-risk-high only ever verified the
+large bold score number, never this smaller, doubly-composited badge
+text. Moved to critical/85 (4.73:1) and high/63 (4.62:1), both with
+real margin above the floor. Light mode unaffected (already
+comfortable at both tiers). Two new regression tests tie the legend
+to the matrix-cell classes for both tiers.
+
+One review round, both reviewers independently recomputed the
+contrast math and confirmed every cited number exactly. Reviewer B
+surfaced a new, quantified concern: reducing High's opacity to fix
+its small-text contrast narrowed its visual separation from Medium by
+~31% (measured via composited RGB distance) -- still discernible, not
+a hard failure, but a real step toward confusability on a heat map
+whose whole job is letting users tell severity apart at a glance.
+Consolidated this with round 10's own already-flagged follow-up (the
+muddy medium color) into one task, since both trace to the same root
+cause: alpha-compositing a single saturated token over a dark
+background is a fragile way to get 4+ accessible, separable severity
+colors. A real fix needs revised --risk-medium/--risk-high dark-mode
+base tokens (or a different compositing strategy entirely), which is
+a cross-component change affecting every consumer app-wide -- correctly
+out of scope for a page-local fix, filed as its own task rather than
+attempted here.
+
+**Status:** all four color-ramp accessibility/polish findings from
+rounds 10-11 are now closed at the page level (further improvement
+needs the base-token follow-up). The toggle-button style divergence
+from RiskRegisterPage remains the one open visual-polish item, still
+lower priority per round 1's own note that it matches
+CorrelationMatrixPage's convention. Moving next to the two remaining
+below-floor axes with real open work: industry-standards (export,
+hover-preview) and UX (URL-state sync).
