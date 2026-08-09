@@ -126,3 +126,40 @@ in the same finding category (the 3-column form grid needs responsive
 stacking) -- bundling both since they're the same "mobile layout"
 finding, following the established one-fix-per-round convention for
 tightly-coupled sub-issues.
+
+## Round 2 (mobile -- touch targets + form grid stacking, PR #660)
+
+Bumped every interactive control to a 44px touch target (h-11/
+h-11-w-11): "New Obligation", the row "more actions" trigger, Create/
+View Action, both modal close buttons, Cancel/Save/Confirm buttons, and
+all filter/form inputs (h-9 -> h-11). Fixed the create/edit form's
+cramped 3-column Status/Due Date/Owner grid to stack to 1 column below
+`sm`.
+
+Negative control confirmed the new test fails without the fix. Review
+round 1: angle A found no blocking issues; angle B found a real bug --
+the "more actions" trigger and Create/View Action button both sat in a
+tight `flex items-center justify-end gap-1` table-row container, and
+h-11/w-11 alone fixed their HEIGHT but the flex row could still
+compress their WIDTH below 44px (live-measured 32.46px) without
+`shrink-0`. Fixed same-round with a new test assertion and its own
+verification; review round 2 (scoped to the fix commit) confirmed the
+diff correct and reproduced the exact CSS mechanism in the live DOM
+(the real backend was rate-limited at that moment, blocking a live
+render, but I had already independently measured the fixed 44x44px
+live myself minutes earlier).
+
+**Status:** mobile should clear the floor now. Remaining below-floor
+axes: industry-standards (6/10) and code quality (6/10). Both need
+real design/refactor scoping (industry-standards: resolved attester
+names instead of raw account IDs, edit-history/versioning, surfacing
+`line_of_defense`, structured framework taxonomy, approval routing;
+code quality: splitting the 1449-line monolith into subcomponents,
+consolidating 3 duplicated request/toast patterns, adding isError to
+the attestation-history and sites queries) rather than mechanical
+fixes -- the same wall every other page's industry-standards/
+code-quality axis hit this session. This is a natural pause point for
+the Regulatory Compliance loop: 2 rounds shipped (a genuinely thorough
+touch-target sweep across the largest page looped this session, plus a
+real width-squeeze bug caught mid-review), the two remaining gaps need
+product input this loop shouldn't make unilaterally.
