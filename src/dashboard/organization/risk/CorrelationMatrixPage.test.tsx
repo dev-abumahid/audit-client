@@ -355,12 +355,51 @@ describe("CorrelationMatrixPage", () => {
   it("renders the legend outside the matrix's horizontal-scroll wrapper", () => {
     render(<CorrelationMatrixPage />, withRouter)
 
-    const legendLabel = screen.getByText(
-      "organization.correlationMatrix.legendSystemic"
-    )
+    const legendLabel = screen.getByText("riskLevel.critical")
     const scrollWrapper = document.querySelector(".overflow-auto")
     expect(scrollWrapper).not.toBeNull()
     expect(scrollWrapper?.contains(legendLabel)).toBe(false)
+  })
+
+  // quality-bar-loop round 3 (visual polish, round-1 finding): the legend
+  // used to say "Systemic node/High interconnection/Moderate/Isolated" --
+  // a one-off vocabulary invented just for this page -- while this same
+  // page's own RiskDetailCard shows a RiskBadge reading
+  // "Critical/High/Medium/Low", the canonical shared severity vocabulary
+  // used everywhere else in the app. Same 4-bucket concept, two
+  // vocabularies on one screen. Mirrors RiskMatrixPage's own round 9 fix.
+  it("uses the same severity vocabulary in the legend as RiskBadge uses on the detail card", () => {
+    render(<CorrelationMatrixPage />, withRouter)
+
+    const legend = document.querySelector(
+      ".mt-6.flex.flex-wrap.gap-4"
+    ) as HTMLElement
+    expect(legend).not.toBeNull()
+    expect(within(legend).getByText("riskLevel.critical")).toBeInTheDocument()
+    expect(within(legend).getByText("riskLevel.high")).toBeInTheDocument()
+    expect(within(legend).getByText("riskLevel.medium")).toBeInTheDocument()
+    expect(within(legend).getByText("riskLevel.low")).toBeInTheDocument()
+    // The old page-local vocabulary must be gone from the legend.
+    expect(
+      within(legend).queryByText(
+        "organization.correlationMatrix.legendSystemic"
+      )
+    ).not.toBeInTheDocument()
+    expect(
+      within(legend).queryByText(
+        "organization.correlationMatrix.legendHighInterconnection"
+      )
+    ).not.toBeInTheDocument()
+    expect(
+      within(legend).queryByText(
+        "organization.correlationMatrix.legendModerate"
+      )
+    ).not.toBeInTheDocument()
+    expect(
+      within(legend).queryByText(
+        "organization.correlationMatrix.legendIsolated"
+      )
+    ).not.toBeInTheDocument()
   })
 
   it("renders the page header and real risk data from the live query", async () => {

@@ -698,20 +698,28 @@ export default function CorrelationMatrixPage() {
               375px with no scroll affordance -- measured live. Moved
               outside the scroll wrapper so flex-wrap can do its job at
               the real container width. Same fix as RiskMatrixPage. */}
+          {/* quality-bar-loop round 3 (visual polish, round-1 finding):
+              this legend used to say "Systemic node/High interconnection/
+              Moderate/Isolated" -- a one-off vocabulary invented just for
+              this page -- while this SAME page's own RiskDetailCard (a
+              few hundred pixels away) shows a RiskBadge reading
+              "Critical/High/Medium/Low", the canonical shared severity
+              vocabulary (src/utils/severityStyles.ts). Two labels for the
+              same 4-bucket concept on one screen. Now pulling the label
+              text from the same `riskLevel.*` i18n keys RiskBadge itself
+              uses, exactly mirroring RiskMatrixPage's own round 9 fix.
+              Swatch colors are unchanged. */}
           <div className="mt-6 flex flex-wrap gap-4">
             {[
-              { color: "bg-risk-critical", labelKey: "legendSystemic" },
-              {
-                color: "bg-risk-high",
-                labelKey: "legendHighInterconnection",
-              },
-              { color: "bg-risk-medium", labelKey: "legendModerate" },
-              { color: "bg-risk-low", labelKey: "legendIsolated" },
-            ].map(({ color, labelKey }) => (
-              <div key={labelKey} className="flex items-center gap-1.5">
+              { color: "bg-risk-critical", label: t("riskLevel.critical") },
+              { color: "bg-risk-high", label: t("riskLevel.high") },
+              { color: "bg-risk-medium", label: t("riskLevel.medium") },
+              { color: "bg-risk-low", label: t("riskLevel.low") },
+            ].map(({ color, label }) => (
+              <div key={label} className="flex items-center gap-1.5">
                 <div className={`h-3 w-3 rounded ${color}`} />
                 <span className="text-xs text-muted-foreground">
-                  {t(`${NS}.${labelKey}`)}
+                  {label}
                 </span>
               </div>
             ))}
