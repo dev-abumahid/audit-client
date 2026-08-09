@@ -1975,6 +1975,69 @@ describe("RiskRegisterPage", () => {
         })
       ).not.toBeInTheDocument()
     })
+
+    // quality-bar-loop round 14 (industry-standards): bulk delete was the
+    // only bulk action -- this adds bulk field-edit (status change),
+    // reusing the same Promise.allSettled-over-single-row-mutation
+    // pattern as bulk delete, against updateRisk instead.
+    it("changes the status of every selected row via the shared updateRisk mutation", async () => {
+      mockUpdateRisk.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ id: "r1" }), makeRisk({ id: "r2" })] },
+      })
+      renderPage()
+
+      const rowCheckboxes = screen.getAllByRole("checkbox", {
+        name: "organization.riskRegister.selectRiskLabel",
+      })
+      await userEvent.click(rowCheckboxes[0])
+      await userEvent.click(rowCheckboxes[1])
+
+      const statusSelect = screen.getByRole("combobox", {
+        name: "organization.riskRegister.bulkChangeStatusLabel",
+      })
+      await userEvent.selectOptions(statusSelect, "closed")
+
+      await waitFor(() => expect(mockUpdateRisk).toHaveBeenCalledTimes(2))
+      expect(mockUpdateRisk).toHaveBeenCalledWith({
+        id: "r1",
+        data: { status: "closed" },
+      })
+      expect(mockUpdateRisk).toHaveBeenCalledWith({
+        id: "r2",
+        data: { status: "closed" },
+      })
+    })
+
+    it("keeps a failed row selected after a partial bulk status-change failure, so it can be retried", async () => {
+      mockUpdateRisk.mockImplementation(({ id }: { id: string }) =>
+        id === "r1"
+          ? { unwrap: () => Promise.resolve({ success: true }) }
+          : { unwrap: () => Promise.reject(new Error("boom")) }
+      )
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ id: "r1" }), makeRisk({ id: "r2" })] },
+      })
+      renderPage()
+
+      const rowCheckboxes = screen.getAllByRole("checkbox", {
+        name: "organization.riskRegister.selectRiskLabel",
+      })
+      await userEvent.click(rowCheckboxes[0])
+      await userEvent.click(rowCheckboxes[1])
+
+      const statusSelect = screen.getByRole("combobox", {
+        name: "organization.riskRegister.bulkChangeStatusLabel",
+      })
+      await userEvent.selectOptions(statusSelect, "closed")
+
+      await waitFor(() =>
+        expect((rowCheckboxes[0] as HTMLInputElement).checked).toBe(false)
+      )
+      expect((rowCheckboxes[1] as HTMLInputElement).checked).toBe(true)
+    })
   })
 
   // quality-bar-loop industry-standards workstream: exports every risk

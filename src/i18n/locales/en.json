@@ -1054,6 +1054,12 @@
       "bulkDeleteSuccessToast_other": "{{count}} risks deleted successfully",
       "bulkDeletePartialFailureToast": "Deleted {{succeeded}} of {{total}} risks",
       "bulkDeleteFailedToast": "Failed to delete the selected risks",
+      "bulkChangeStatus": "Change status...",
+      "bulkChangeStatusLabel": "Change status of selected risks",
+      "bulkStatusChangeSuccessToast_one": "Updated {{count}} risk's status",
+      "bulkStatusChangeSuccessToast_other": "Updated {{count}} risks' status",
+      "bulkStatusChangePartialFailureToast": "Updated {{succeeded}} of {{total}} risks' status",
+      "bulkStatusChangeFailedToast": "Failed to update the selected risks' status",
       "colApproval": "APPROVAL",
       "approval": {
         "badgeNotSubmitted": "Not submitted",

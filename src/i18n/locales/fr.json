@@ -1054,6 +1054,12 @@
       "bulkDeleteSuccessToast_other": "{{count}} risques supprimés avec succès",
       "bulkDeletePartialFailureToast": "{{succeeded}} risques supprimés sur {{total}}",
       "bulkDeleteFailedToast": "Échec de la suppression des risques sélectionnés",
+      "bulkChangeStatus": "Changer le statut...",
+      "bulkChangeStatusLabel": "Changer le statut des risques sélectionnés",
+      "bulkStatusChangeSuccessToast_one": "Statut mis à jour pour {{count}} risque",
+      "bulkStatusChangeSuccessToast_other": "Statut mis à jour pour {{count}} risques",
+      "bulkStatusChangePartialFailureToast": "Statut mis à jour pour {{succeeded}} risques sur {{total}}",
+      "bulkStatusChangeFailedToast": "Échec de la mise à jour du statut des risques sélectionnés",
       "colApproval": "APPROBATION",
       "approval": {
         "badgeNotSubmitted": "Non soumis",

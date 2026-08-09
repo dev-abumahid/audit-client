@@ -941,6 +941,7 @@ export default function RiskRegisterPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false)
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [isBulkStatusChanging, setIsBulkStatusChanging] = useState(false)
 
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -1369,6 +1370,53 @@ export default function RiskRegisterPage() {
     setIsBulkDeleting(false)
   }
 
+  // quality-bar-loop round 14 (industry-standards): bulk delete was the
+  // only bulk action available -- reference GRC/data-grid tools also let
+  // you bulk-edit a shared field across a selection. updateRisk has no
+  // bulk endpoint either, so this follows the exact same
+  // Promise.allSettled-over-the-single-row-mutation pattern
+  // confirmBulkDelete already established, just against `status` instead
+  // of a delete. Non-destructive, so no confirmation modal -- same
+  // no-modal-needed judgment call as every other filter/toggle on this
+  // page.
+  const confirmBulkStatusChange = async (newStatus: string) => {
+    if (isBulkStatusChanging || selectedIds.size === 0 || !newStatus) return
+    setIsBulkStatusChanging(true)
+    const ids = Array.from(selectedIds)
+    const results = await Promise.allSettled(
+      ids.map((id) => updateRisk({ id, data: { status: newStatus } }).unwrap())
+    )
+    const succeededIds = ids.filter(
+      (_, i) => results[i].status === "fulfilled"
+    )
+    const succeeded = succeededIds.length
+    const failed = results.length - succeeded
+    if (failed === 0) {
+      toast.success(
+        t("organization.riskRegister.bulkStatusChangeSuccessToast", {
+          count: succeeded,
+        })
+      )
+    } else if (succeeded === 0) {
+      toast.error(t("organization.riskRegister.bulkStatusChangeFailedToast"))
+    } else {
+      toast.error(
+        t("organization.riskRegister.bulkStatusChangePartialFailureToast", {
+          succeeded,
+          total: ids.length,
+        })
+      )
+    }
+    // Same retry-friendly partial-failure handling as confirmBulkDelete:
+    // only drop the ids that actually succeeded.
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      for (const id of succeededIds) next.delete(id)
+      return next
+    })
+    setIsBulkStatusChanging(false)
+  }
+
   const [triggerRisksExport, { isFetching: isExporting }] =
     useLazyGetAllRisksQuery()
 
@@ -1597,10 +1645,43 @@ export default function RiskRegisterPage() {
               count: selectedIds.size,
             })}
           </span>
+          {/* quality-bar-loop round 14 (industry-standards): bulk delete
+              was the only bulk action -- reference data-grid/GRC tools
+              also support bulk field edits. Non-destructive, so a plain
+              select (immediate effect on choosing a value, then resets
+              to the placeholder) rather than a confirmation modal --
+              same judgment call as every other filter control on this
+              page. */}
+          <select
+            value=""
+            disabled={isBulkStatusChanging}
+            // Round-14 review finding: e.target.value is read into
+            // newStatus before this handler ever reassigns it, so the
+            // reset here doesn't need to duplicate what the controlled
+            // value="" prop already forces back on the next render --
+            // removed as dead code.
+            onChange={(e) => confirmBulkStatusChange(e.target.value)}
+            aria-label={t("organization.riskRegister.bulkChangeStatusLabel")}
+            className="focus-ring h-8 rounded-lg border border-input bg-card px-2 text-xs disabled:opacity-50"
+          >
+            <option value="">
+              {t("organization.riskRegister.bulkChangeStatus")}
+            </option>
+            <option value="open">{t("organization.riskRegister.statusOpen")}</option>
+            <option value="in_progress">
+              {t("organization.riskRegister.statusInProgress")}
+            </option>
+            <option value="completed">
+              {t("organization.riskRegister.statusCompleted")}
+            </option>
+            <option value="closed">
+              {t("organization.riskRegister.statusClosed")}
+            </option>
+          </select>
           <button
             type="button"
             onClick={() => setIsBulkDeleteModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-2.5 py-1.5 font-medium text-destructive hover:bg-destructive/10"
+            className="focus-ring flex h-8 items-center gap-1.5 rounded-lg border border-destructive/30 px-2.5 font-medium text-destructive hover:bg-destructive/10"
           >
             <Trash2 className="h-3.5 w-3.5" />
             {t("organization.riskRegister.bulkDeleteSelected")}
