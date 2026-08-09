@@ -249,6 +249,45 @@ describe("ThreeLinesOfDefensePage", () => {
     expect(title).toHaveAttribute("title", "Supply chain disruption")
   })
 
+  // quality-bar-loop round 5 (visual polish, round-1 finding):
+  // single-line `truncate` cut titles off aggressively even at wide
+  // viewports. line-clamp-2 shows more of the title before falling
+  // back to the tooltip (still kept, for the rare longer case).
+  it("clamps item titles to 2 lines instead of a single truncated line", () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData(),
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const title = screen.getByText("Supply chain disruption")
+    expect(title.className).toContain("line-clamp-2")
+    expect(title.className).not.toContain("truncate")
+  })
+
+  // quality-bar-loop round 5 (visual polish, round-1 finding):
+  // live-observed severe column imbalance -- up to 23 items in one
+  // line vs. 2-3 in others, with no independent scroll the whole grid
+  // row stretched to the tallest column, leaving large dead whitespace
+  // under short ones. Each column now bounds its own height and
+  // scrolls internally.
+  it("bounds each line's card content to a fixed height with independent scroll", () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData(),
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const cardContent = screen
+      .getByText("organization.threeLinesOfDefense.lines.first")
+      .closest('[data-slot="card"]')!
+      .querySelector('[data-slot="card-content"]')!
+    expect(cardContent.className).toContain("max-h-")
+    expect(cardContent.className).toContain("overflow-y-auto")
+  })
+
   it("shows the Unclassified Actions bucket for an Action with a null line_of_defense", () => {
     mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
       data: makeData(),

@@ -237,16 +237,21 @@ const ItemRow = memo(function ItemRow({
           className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_STYLES[severity].dot}`}
         />
         <div className="min-w-0">
+          {/* quality-bar-loop round 5 (visual polish, round-1 finding):
+              single-line truncation cut titles off aggressively even at
+              1460px width, relying entirely on a hover-only tooltip.
+              line-clamp-2 shows meaningfully more of the title before
+              falling back to the tooltip for the rare longer case. */}
           {linkTo ? (
             <Link
               to={linkTo}
-              className="focus-ring block truncate text-xs font-medium text-foreground hover:underline"
+              className="focus-ring line-clamp-2 text-xs font-medium text-foreground hover:underline"
               title={title}
             >
               {title}
             </Link>
           ) : (
-            <p className="truncate text-xs font-medium" title={title}>
+            <p className="line-clamp-2 text-xs font-medium" title={title}>
               {title}
             </p>
           )}
@@ -529,7 +534,18 @@ export default function ThreeLinesOfDefensePage() {
                       })}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  {/* quality-bar-loop round 5 (visual polish, round-1
+                      finding): live-observed severe column imbalance --
+                      up to 23 items in one line vs. 2-3 in others, equal-
+                      width columns with no independent scroll meant the
+                      whole grid row stretched to the tallest column,
+                      leaving large dead whitespace under short ones.
+                      Bounding each column's own height and scrolling
+                      internally (same pattern already used for other
+                      long lists on this session's pages, e.g.
+                      CorrelationMatrixPage's panels) keeps every column
+                      a consistent height regardless of item count. */}
+                  <CardContent className="max-h-[560px] overflow-y-auto">
                     <Section
                       icon={Shield}
                       label={t(
