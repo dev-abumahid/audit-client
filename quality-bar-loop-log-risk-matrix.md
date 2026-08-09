@@ -123,3 +123,27 @@ correctness bug (the panel displays contradictory/wrong information, not
 just a rough edge), it's the most-corroborated finding of the round, and
 fixing it (clear or remap `selectedCell` whenever the set of risks in that
 cell changes) is a contained, well-scoped change.
+
+## Round 2 (stale-selection fix, PR #634)
+
+Fixed the round-1 headline bug: selectedCell stored raw {row, col}
+indices with no record of matrix size, so switching size (or narrowing
+the site filter) could show a DIFFERENT risk's data or a
+self-contradictory "0 risks -- score N" panel. Fixed by storing size
+alongside the selection and deriving an effectiveSelectedCell that
+invalidates on mismatch (pure render-time derivation, no effect).
+
+Two review rounds: round 1 found two related follow-on issues --
+(1) effectiveSelectedCell only masked the stale selection for display,
+never actually clearing selectedCell, so switching size away and back
+resurrected the old selection; (2) a cell's own ring/highlight stayed
+showing after a filter emptied it, inconsistent with the panel already
+showing "nothing selected". Both fixed same round with negative-control
+tests. Round 2 came back clean.
+
+Re-scoring not yet done -- resilience, industry-standards, UX, and
+mobile were the round-1 axes most implicated by this bug family and are
+the natural next re-judge targets, but this session has already run a
+very long, high-volume sequence of rounds across two pages. Logging the
+fix now; next step is a fresh judge panel to confirm the resilience
+score genuinely moved off its 3/10 floor before picking the next fix.
