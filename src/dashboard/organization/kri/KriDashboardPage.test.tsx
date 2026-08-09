@@ -223,6 +223,51 @@ describe("KriDashboardPage", () => {
     ).toBe(true)
   })
 
+  // quality-bar-loop round 2 (mobile, round-1 finding): the trend-view,
+  // update-value, and New KRI buttons measured well under the 44px
+  // touch-target guideline (22x22px and 343x32px respectively) -- same
+  // h-11/h-11-w-11 fix already shipped on RiskMatrixPage/
+  // CorrelationMatrixPage for their own identical icon-button controls.
+  it("gives the trend-view, update-value, and New KRI buttons a 44px touch target", () => {
+    mockRole = "ADMIN"
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: { data: [makeKri()] },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByTitle("organization.kri.trend.viewTooltip").className
+    ).toContain("h-11")
+    expect(
+      screen.getByTitle("organization.kri.updateValueTooltip").className
+    ).toContain("h-11")
+    expect(
+      screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+        .className
+    ).toContain("h-11")
+  })
+
+  it("gives the New KRI modal's close button a 44px touch target", async () => {
+    mockRole = "ADMIN"
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: { data: [makeKri()] },
+      isLoading: false,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+    )
+
+    const closeButton = screen
+      .getAllByRole("button", { name: "organization.kri.cancel" })
+      .find((b) => b.querySelector("svg.lucide-x"))
+    expect(closeButton).toBeDefined()
+    expect(closeButton!.className).toContain("h-11")
+  })
+
   it("hides write controls for a LIGHT_USER", () => {
     mockRole = "LIGHT_USER"
     mockUseGetAllKriQuery.mockReturnValue({

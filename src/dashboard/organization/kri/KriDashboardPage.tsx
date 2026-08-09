@@ -186,7 +186,9 @@ export default function KriDashboardPage() {
       setShowForm(false)
       setForm(EMPTY_KRI)
     } catch (err: any) {
-      toast.error(err?.data?.message || t("organization.kri.toast.createFailed"))
+      toast.error(
+        err?.data?.message || t("organization.kri.toast.createFailed")
+      )
     } finally {
       setIsSaving(false)
     }
@@ -229,7 +231,9 @@ export default function KriDashboardPage() {
     }
   }
 
-  const trendKri = trendKriId ? kris.find((k: any) => k.id === trendKriId) : null
+  const trendKri = trendKriId
+    ? kris.find((k: any) => k.id === trendKriId)
+    : null
   // Backend returns newest-first (see kri.api.ts's own comment); a
   // left-to-right chronological chart needs the reverse.
   const trendChartData = (readingsResponse?.data ?? [])
@@ -292,7 +296,10 @@ export default function KriDashboardPage() {
               setForm(EMPTY_KRI)
               setShowForm(true)
             }}
-            className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
+            // quality-bar-loop round 2 (mobile, round-1 finding): measured
+            // 343x32px at 375px width -- full-width but only 32px tall,
+            // under the 44px touch-target guideline.
+            className="flex h-11 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground"
           >
             <Plus className="h-3.5 w-3.5" /> {t("organization.kri.newKri")}
           </button>
@@ -302,8 +309,12 @@ export default function KriDashboardPage() {
       {/* Status Summary Cards */}
       <div className="animate-slide-up flex flex-wrap gap-3">
         <div className="flex items-center gap-2 rounded-lg border border-risk-critical/30 bg-risk-critical/5 px-3 py-2">
-          <AlertTriangle className={`h-4 w-4 ${SEVERITY_STYLES.critical.text}`} />
-          <span className={`font-mono-data text-lg font-bold ${SEVERITY_STYLES.critical.text}`}>
+          <AlertTriangle
+            className={`h-4 w-4 ${SEVERITY_STYLES.critical.text}`}
+          />
+          <span
+            className={`font-mono-data text-lg font-bold ${SEVERITY_STYLES.critical.text}`}
+          >
             {alertCount}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -312,7 +323,9 @@ export default function KriDashboardPage() {
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-risk-medium/30 bg-risk-medium/5 px-3 py-2">
           <TrendingUp className={`h-4 w-4 ${SEVERITY_STYLES.medium.text}`} />
-          <span className={`font-mono-data text-lg font-bold ${SEVERITY_STYLES.medium.text}`}>
+          <span
+            className={`font-mono-data text-lg font-bold ${SEVERITY_STYLES.medium.text}`}
+          >
             {warningCount}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -321,7 +334,9 @@ export default function KriDashboardPage() {
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-risk-low/30 bg-risk-low/5 px-3 py-2">
           <CheckCircle2 className={`h-4 w-4 ${SEVERITY_STYLES.low.text}`} />
-          <span className={`font-mono-data text-lg font-bold ${SEVERITY_STYLES.low.text}`}>
+          <span
+            className={`font-mono-data text-lg font-bold ${SEVERITY_STYLES.low.text}`}
+          >
             {okCount}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -443,9 +458,16 @@ export default function KriDashboardPage() {
                 <span className="text-sm text-muted-foreground">
                   {kri.unit}
                 </span>
+                {/* quality-bar-loop round 2 (mobile, round-1 finding):
+                    these buttons measured 22x22px -- under the 44px
+                    touch-target guideline, and 2 of the 3 interactive
+                    controls on every card. Same h-11 w-11 fix already
+                    established on RiskMatrixPage/CorrelationMatrixPage:
+                    the wrapper gets the full touch target while the icon
+                    inside stays visually small. */}
                 <button
                   onClick={() => setTrendKriId(kri.id)}
-                  className="ml-auto rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="ml-auto flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title={t("organization.kri.trend.viewTooltip")}
                   aria-label={t("organization.kri.trend.viewTooltip")}
                 >
@@ -454,7 +476,7 @@ export default function KriDashboardPage() {
                 {canWrite && (
                   <button
                     onClick={() => openUpdateValue(kri)}
-                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     title={t("organization.kri.updateValueTooltip")}
                     aria-label={t("organization.kri.updateValueTooltip")}
                   >
@@ -466,13 +488,17 @@ export default function KriDashboardPage() {
               <div className="mt-1 flex items-center gap-4 text-[11px] text-muted-foreground">
                 <span>
                   {t("organization.kri.thresholdLabel")}{" "}
-                  <span className={`font-mono-data font-medium ${SEVERITY_STYLES.critical.text}`}>
+                  <span
+                    className={`font-mono-data font-medium ${SEVERITY_STYLES.critical.text}`}
+                  >
                     {Number(kri.alert_threshold)}
                   </span>
                 </span>
                 <span>
                   {t("organization.kri.targetLabel")}{" "}
-                  <span className={`font-mono-data font-medium ${SEVERITY_STYLES.low.text}`}>
+                  <span
+                    className={`font-mono-data font-medium ${SEVERITY_STYLES.low.text}`}
+                  >
                     {Number(kri.target_value)}
                   </span>
                 </span>
@@ -480,7 +506,9 @@ export default function KriDashboardPage() {
                     frequency + last_measured_at; always false with no
                     frequency, so this never shows on a KRI with no cadence. */}
                 {kri.overdue && (
-                  <span className={`ml-auto flex items-center gap-1 font-medium ${SEVERITY_STYLES.critical.text}`}>
+                  <span
+                    className={`ml-auto flex items-center gap-1 font-medium ${SEVERITY_STYLES.critical.text}`}
+                  >
                     <Clock className="h-3 w-3" />
                     {t("organization.kri.overdueLabel")}
                   </span>
@@ -523,7 +551,9 @@ export default function KriDashboardPage() {
               <button
                 onClick={() => setUpdatingKriId(null)}
                 aria-label={t("organization.kri.cancel")}
-                className="rounded p-1 text-muted-foreground hover:text-foreground"
+                // quality-bar-loop round 2 (mobile, round-1 finding):
+                // measured ~28px -- under the 44px touch-target guideline.
+                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -575,13 +605,18 @@ export default function KriDashboardPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 id="kri-new-title" className="text-lg font-bold text-foreground">
+              <h2
+                id="kri-new-title"
+                className="text-lg font-bold text-foreground"
+              >
                 {t("organization.kri.newKri")}
               </h2>
               <button
                 onClick={() => setShowForm(false)}
                 aria-label={t("organization.kri.cancel")}
-                className="rounded p-1 text-muted-foreground hover:text-foreground"
+                // quality-bar-loop round 2 (mobile, round-1 finding):
+                // measured ~28px -- under the 44px touch-target guideline.
+                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -801,7 +836,10 @@ export default function KriDashboardPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">
-              <h2 id="kri-trend-title" className="text-lg font-bold text-foreground">
+              <h2
+                id="kri-trend-title"
+                className="text-lg font-bold text-foreground"
+              >
                 {t("organization.kri.trend.modalTitle", {
                   name: trendKri?.name ?? "",
                 })}
@@ -809,7 +847,9 @@ export default function KriDashboardPage() {
               <button
                 onClick={() => setTrendKriId(null)}
                 aria-label={t("organization.kri.cancel")}
-                className="rounded p-1 text-muted-foreground hover:text-foreground"
+                // quality-bar-loop round 2 (mobile, round-1 finding):
+                // measured ~28px -- under the 44px touch-target guideline.
+                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
