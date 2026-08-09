@@ -213,3 +213,30 @@ mobile row-label scroll, legend vocabulary mismatch). Next step:
 re-dispatch the resilience judge (and industry-standards/UX, since they
 also referenced the isError/empty-state gaps) to confirm this round's
 fix actually moved the score before picking the next fix.
+
+## Round 3 re-check (resilience axis)
+
+| Axis | Score | vs. round 2 |
+|---|---|---|
+| Resilience & edge cases | 8/10 | +4 |
+| (all other axes) | not yet re-judged | -- |
+
+Judge independently killed the backend and reloaded the page live --
+confirmed the dedicated error state renders (not a blank matrix), then
+restarted the backend and confirmed the golden path (26 risks, cell
+selection) is fully intact with no regression. Findings (1) and (2) are
+confirmed fixed; the round-2 stale-selection fix is confirmed untouched
+and still working. Docked to 8/10 (not higher) because finding (3) --
+malformed probability/inherent_score silently resolving to 0 with zero
+visual distinction from a genuinely-low-scored risk -- is a real
+data-integrity blind spot on a compliance tool's own risk matrix, known
+since round 1, and still open.
+
+**Status:** this loop is paused here, not stopped. Finding (3) is the
+clear next highest-leverage fix within resilience. The broader
+UX/industry-standards items from round 1 (export, risk-scoring
+transparency, mobile row-label scroll, legend vocabulary mismatch)
+remain open too, but haven't been re-scored since round 1 -- a fresh
+full panel is the right move once finding (3) ships, both to confirm
+resilience's remaining ceiling and to get current numbers on the
+axes that haven't moved since round 1.
