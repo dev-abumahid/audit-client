@@ -155,3 +155,39 @@ UX (6/10), mobile (5/10 -- the proven touch-target fix pattern, not yet
 applied here). Picking mobile next: same well-established h-11/h-11-w-11
 pattern already shipped on 3 sibling pages this session, lowest risk of
 the remaining below-floor axes.
+
+## Round 3 (mobile -- touch targets, PR #656)
+
+Bumped every button on the page to a 44px touch target (`h-11`): the 2
+primary actions (40px), the 4 AI-report buttons (28px), severity filter
+chips (28px), the search input (36px), the per-item Create Risk button
+(~24px), and pagination Previous/Next (26px) -- the widest single
+application of this session's proven fix pattern (9+ buttons on one
+page, vs. 3-5 on each sibling page).
+
+Negative control confirmed the new test fails without the fix. One
+review round, both reviewers returned zero blocking findings -- angle A
+verified the severity-chip template literal's conditional background
+class survived the edit correctly, and flagged one pre-existing,
+unrelated i18n pluralization question (not introduced or worsened by
+this PR); angle B live-verified all button groups (primary actions, AI
+reports cluster, severity chips, pagination) at 44px with correct
+vertical centering and no visual cramping, matching the class-ordering
+convention already established on 3 sibling pages.
+
+**Status:** mobile should clear the floor now. Remaining below-floor
+axes: industry-standards (4/10, still the lowest) and UX (6/10). Both
+need real product/design scoping this loop shouldn't make unilaterally
+-- run history/versioning, timestamps on AI reports, surfacing the
+confidence score already in the data, source citations back to
+specific intelligence items, and a preview/confirmation step before
+create-risk. This is a natural pause point for the Threat Intelligence
+loop: 3 rounds shipped (isError x5, touch-targets x9+), the two
+remaining gaps are feature-shaped work, not mechanical fixes -- the
+same wall CorrelationMatrixPage's industry-standards axis and the KRI
+Dashboard's industry-standards/code-quality axes hit. A fresh
+full-panel re-score would be the natural next step before deciding
+whether to attempt a scoped industry-standards fix (e.g. surfacing the
+already-computed `confidence`/`*_date` fields, the cheapest of the
+industry-standards findings) or pause here per the standing "scope
+ambiguous things, keep going down the list of tabs" instruction.
