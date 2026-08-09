@@ -8,7 +8,7 @@ import { getEnumLabel } from "@/utils/enumLabel"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import { Bell, Clock, Loader2 } from "lucide-react"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
 import { toast } from "sonner"
@@ -63,19 +63,43 @@ export default function AlertsPage() {
       : null
   })
 
-  const allAlerts = alertResponse?.data ?? []
-  const alerts = severityFilter
-    ? allAlerts.filter((a: any) => a.severity === severityFilter)
-    : allAlerts
+  // quality-bar-loop round 3 (efficiency, round-1 finding): `?? []`
+  // creates a fresh array reference every render when data is still
+  // undefined, which would defeat the useMemo calls below keyed on
+  // this -- memoized so the empty-array fallback is referentially
+  // stable too.
+  const allAlerts = useMemo(() => alertResponse?.data ?? [], [alertResponse])
+  const alerts = useMemo(
+    () =>
+      severityFilter
+        ? allAlerts.filter((a: any) => a.severity === severityFilter)
+        : allAlerts,
+    [allAlerts, severityFilter]
+  )
 
-  const criticalCount = allAlerts.filter(
-    (a: any) => a.severity === "critical"
-  ).length
-  const highCount = allAlerts.filter((a: any) => a.severity === "high").length
-  const mediumCount = allAlerts.filter(
-    (a: any) => a.severity === "medium"
-  ).length
-  const lowCount = allAlerts.filter((a: any) => a.severity === "low").length
+  // quality-bar-loop round 3 (efficiency, round-1 finding): 4 separate
+  // `.filter().length` passes over `allAlerts` recomputed on every
+  // render before this, including on every severityFilter toggle and
+  // any unrelated re-render (e.g. isMarkingRead flipping) -- combined
+  // into a single pass.
+  const { criticalCount, highCount, mediumCount, lowCount } = useMemo(() => {
+    let critical = 0
+    let high = 0
+    let medium = 0
+    let low = 0
+    for (const a of allAlerts as any[]) {
+      if (a.severity === "critical") critical++
+      else if (a.severity === "high") high++
+      else if (a.severity === "medium") medium++
+      else if (a.severity === "low") low++
+    }
+    return {
+      criticalCount: critical,
+      highCount: high,
+      mediumCount: medium,
+      lowCount: low,
+    }
+  }, [allAlerts])
 
   const handleMarkRead = async (id: string) => {
     try {

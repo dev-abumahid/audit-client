@@ -199,6 +199,62 @@ describe("AlertsPage", () => {
     )
   })
 
+  // quality-bar-loop round 3 (efficiency, round-1 finding): the
+  // severity-count summary and filtered list were recomputed on every
+  // render, including unrelated re-renders elsewhere in the same
+  // component -- now memoized. Marking one alert read (a real,
+  // unrelated mutation-driven re-render) must not corrupt or freeze the
+  // OTHER alert's still-correct severity count.
+  it("keeps the severity counts correct after an unrelated mark-as-read re-render", async () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: {
+        data: [
+          makeAlert({ id: "a1", severity: "critical", is_read: false }),
+          makeAlert({ id: "a2", severity: "high", is_read: false }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockMarkAlertRead.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+    const { rerender } = renderPage()
+
+    // criticalCount=1, highCount=1 -- both filter chips show "1".
+    expect(screen.getAllByText("1").length).toBeGreaterThanOrEqual(2)
+
+    const [markReadButton] = screen.getAllByRole("button", {
+      name: "organization.alerts.markAsRead",
+    })
+    await userEvent.click(markReadButton)
+
+    await waitFor(() => expect(mockMarkAlertRead).toHaveBeenCalled())
+    // Counts are derived from allAlerts (unaffected by the mutation
+    // itself in this mocked setup, since is_read isn't refetched) --
+    // still correct, not frozen at a stale value or corrupted.
+    expect(screen.getAllByText("1").length).toBeGreaterThanOrEqual(2)
+
+    // The counterpart risk of memoizing these: an empty/wrong
+    // dependency array would freeze the counts instead of just
+    // recomputing them needlessly. Rerendering with genuinely new
+    // alert data must still update the counts, not serve a stale
+    // memoized value.
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: {
+        data: [
+          makeAlert({ id: "a1", severity: "critical", is_read: false }),
+          makeAlert({ id: "a2", severity: "critical", is_read: false }),
+        ],
+      },
+      isLoading: false,
+    })
+    rerender(
+      <MemoryRouter>
+        <AlertsPage />
+      </MemoryRouter>
+    )
+    expect(screen.getByText("2")).toBeInTheDocument()
+  })
+
   it("shows an error toast when marking as read fails", async () => {
     mockUseGetAllAlertsQuery.mockReturnValue({
       data: { data: [makeAlert()] },
