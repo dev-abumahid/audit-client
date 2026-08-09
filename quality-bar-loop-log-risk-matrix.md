@@ -342,3 +342,39 @@ round 5, then escalating the 4 below-floor axes to the user as a
 scope decision rather than continuing to whittle at them with
 one-off patches that structurally can't move a 4/10 or a missing-
 feature 6/10.
+
+## Round 5 (residual_score flag, PR #637)
+
+Fixed the resilience finding surfaced during the round-5 baseline
+panel: `RiskCard`'s `RiskBadge` colors severity via
+`getRiskSeverityLevel(risk.residual_score)`, the identical
+`Number(x) || 0` silent-fallback bug `hasValidRiskScore` was built to
+catch in round 4 -- but that check only covered `probability`/
+`inherent_score`. `hasValidRiskScore` now also validates
+`residual_score`; when invalid, `RiskBadge` is suppressed entirely
+(no misleading color) rather than shown, since the existing "Unscored"
+flag already communicates the issue.
+
+One review round, both parallel reviewers returned zero blocking
+findings -- only two informational notes, explicitly accepted as
+out of scope rather than fixed: (a) the "Unscored" tooltip doesn't
+say WHICH of the three fields is invalid, just that one is (a
+follow-up nicety, not a defect); (b) `makeRisk`'s test helper has no
+type checking against the real `Risk` type, a pre-existing looseness
+from round 4, not introduced here. Merged after round 1.
+
+This closes the resilience gap found during the round-5 baseline
+panel. Resilience should sit at 9-10/10 now (all round-1 findings plus
+this one closed); not independently re-judged yet.
+
+**Status:** pausing the loop here to report back to the user. The
+remaining 4 below-floor axes (industry-standards 6/10, UX 6/10, visual
+polish 6/10, mobile 4/10) each need real feature/structural work
+(export, risk-scoring display, URL-state sync, keyboard/focus
+handling, sticky mobile row-labels, responsive header, larger touch
+targets, legend/badge vocabulary unification) rather than another
+small bug-style patch -- the same kind of judgment call that stopped
+the Risk Register loop at round 8. Continuing this loop further needs
+either a scope decision (which of the 4 axes to invest in first) or
+explicit authorization to take on one as a multi-round feature effort,
+not just "pick the next finding."
