@@ -336,6 +336,23 @@ describe("RiskMatrixPage", () => {
     ).toContain("h-11")
   })
 
+  // quality-bar-loop round 13 (mobile, found during a full-panel
+  // re-check): this button measured only 14x14px, well under the 44px
+  // touch-target guideline, since only the icon itself was clickable.
+  it("gives the band-score info button a 44px touch target", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk()] },
+      isLoading: false,
+    })
+    renderPage()
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.riskMatrix.bandScoreExplainer",
+      }).className
+    ).toContain("h-11")
+  })
+
   // quality-bar-loop round 7 (mobile, the axis's most severe finding):
   // the likelihood row-label column used to scroll away together with
   // the grid cells inside the same horizontal-scroll wrapper, so a phone
@@ -451,6 +468,28 @@ describe("RiskMatrixPage", () => {
 
     expect(
       screen.getByText("organization.riskMatrix.unscoredRiskBadge")
+    ).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 13 (accessibility, found during a full-panel
+  // re-check): the "Unscored" flag's fuller explanation used to only ever
+  // surface via a mouse-hover title on a plain span, with no way for a
+  // keyboard/screen-reader user to reach it.
+  it("makes the unscored-risk explanation keyboard-reachable, not hover-only", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: undefined, inherent_score: 0 })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.riskMatrix.unscoredRiskWarning",
+      })
     ).toBeInTheDocument()
   })
 

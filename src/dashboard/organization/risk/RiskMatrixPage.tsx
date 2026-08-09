@@ -563,12 +563,18 @@ export default function RiskMatrixPage() {
                 screen readers instead of a reachable, operable control.
                 A real button (native focus + aria-label, same as that
                 minimap) is the correct shape even though its only
-                "action" is surfacing the tooltip on hover/focus. */}
+                "action" is surfacing the tooltip on hover/focus.
+                quality-bar-loop round 13 (mobile, found during a
+                full-panel re-check): this button measured only 14x14px,
+                well under the 44px touch-target guideline, since only
+                the icon itself was clickable -- h-11 w-11 gives it the
+                same touch target as this file's other controls (round 7)
+                while the icon inside stays visually small. */}
             <button
               type="button"
               aria-label={t("organization.riskMatrix.bandScoreExplainer")}
               title={t("organization.riskMatrix.bandScoreExplainer")}
-              className="focus-ring rounded text-muted-foreground/70 hover:text-foreground"
+              className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground/70 hover:text-foreground"
             >
               <Info className="h-3.5 w-3.5" />
             </button>
@@ -891,15 +897,24 @@ function RiskCard({
             {/* quality-bar-loop round 4 (resilience, round-1 finding 3):
                 mapRiskToCell silently falls back to 0 for a missing/
                 malformed probability or inherent_score, which otherwise
-                looks identical to a genuinely-confirmed negligible risk. */}
+                looks identical to a genuinely-confirmed negligible risk.
+                quality-bar-loop round 13 (accessibility, found during a
+                full-panel re-check): this was a plain span -- the "Unscored"
+                label itself was always visible, but the fuller explanation
+                of WHY only ever surfaced via a mouse-hover title, with no
+                way for a keyboard/screen-reader user to reach it. Same
+                fix shape as round 6's band-score button: a real, focusable
+                button whose only "action" is surfacing that explanation. */}
             {!hasValidRiskScore(risk) && (
-              <span
+              <button
+                type="button"
                 title={t("organization.riskMatrix.unscoredRiskWarning")}
-                className="flex items-center gap-0.5 rounded bg-amber-100 px-1.5 text-[9px] text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                aria-label={t("organization.riskMatrix.unscoredRiskWarning")}
+                className="focus-ring flex items-center gap-0.5 rounded bg-amber-100 px-1.5 text-[9px] text-amber-800 dark:bg-amber-950 dark:text-amber-300"
               >
                 <AlertTriangle className="h-2.5 w-2.5" />
                 {t("organization.riskMatrix.unscoredRiskBadge")}
-              </span>
+              </button>
             )}
           </div>
           {/* aexa-frontend#548: risk.id/site_id were already on this card's
