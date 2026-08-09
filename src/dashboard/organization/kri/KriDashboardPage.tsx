@@ -11,6 +11,7 @@ import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { formatLocaleDate } from "@/utils/formatDate"
+import type { Alert, KRI, Risk } from "@/types/organization"
 import {
   SEVERITY_STYLES,
   severityBadgeClasses,
@@ -108,7 +109,7 @@ export default function KriDashboardPage() {
   // instead of a pre-built index -- at "low hundreds of KRIs x low
   // hundreds of risks" that's a few thousand redundant scans per render.
   const risksById = useMemo(
-    () => new Map(risks.map((r: any) => [r.id, r])),
+    () => new Map(risks.map((r: Risk) => [r.id, r])),
     [risks]
   )
   // Unread only: a read alert no longer represents an outstanding issue on
@@ -118,7 +119,7 @@ export default function KriDashboardPage() {
   // KRI form (unrelated state in the same component).
   const unreadAlertsByKriId = useMemo(
     () =>
-      alerts.reduce<Record<string, any[]>>((acc, alert: any) => {
+      alerts.reduce<Record<string, Alert[]>>((acc, alert: Alert) => {
         if (alert.kri_id && !alert.is_read) {
           acc[alert.kri_id] = [...(acc[alert.kri_id] ?? []), alert]
         }
@@ -288,7 +289,7 @@ export default function KriDashboardPage() {
     let alert = 0
     let warning = 0
     let ok = 0
-    for (const k of kris as any[]) {
+    for (const k of kris) {
       if (k.status === "ALERT") alert++
       else if (k.status === "WARNING") warning++
       else if (k.status === "OK") ok++
@@ -306,7 +307,7 @@ export default function KriDashboardPage() {
   // unrelated-state-triggers-rescan issue as the summary counts above.
   const statusFilteredKris = useMemo(
     () =>
-      statusParam ? kris.filter((k: any) => k.status === statusParam) : kris,
+      statusParam ? kris.filter((k: KRI) => k.status === statusParam) : kris,
     [kris, statusParam]
   )
 
