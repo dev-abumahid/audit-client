@@ -14,7 +14,7 @@ import {
   Loader2,
   MapPin,
 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 
@@ -231,6 +231,50 @@ export default function RiskMatrixPage() {
     })
     return Object.entries(groups).sort((a, b) => b[1].length - a[1].length)
   }, [selectedRisks, groupMode])
+
+  // quality-bar-loop round 8 (UX/accessibility, round-1 findings: "no
+  // focus management into the details panel after selecting a cell (no
+  // announcement, no aria-live)" and "no keyboard way to close/deselect
+  // the panel"). Moving focus to the panel heading on selection gives
+  // screen readers a natural announcement (no separate aria-live region
+  // needed) and gives keyboard/AT users a landmark to land on. Keyed on
+  // the primitive row/col/size, not the object reference, so this only
+  // fires when the ACTUAL selection changes, not on incidental re-renders
+  // that recompute an equal-but-new selectedCell-derived value.
+  const panelHeadingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (effectiveSelectedCell) {
+      panelHeadingRef.current?.focus()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveSelectedCell?.row, effectiveSelectedCell?.col, effectiveSelectedCell?.size])
+
+  // Escape had no effect at all before this -- the only ways to clear a
+  // selection were re-clicking the same cell, changing matrix size, or
+  // changing the site filter. A plain window listener (not a JSX
+  // onKeyDown) reaches Escape regardless of which element currently has
+  // focus, matching how Escape-to-close conventionally behaves for
+  // non-modal panels like this one.
+  //
+  // Review round 1 finding: SiteFilter renders a Radix Select, and
+  // Radix's own Escape-to-close handling (DismissableLayer) runs in the
+  // capture phase and calls event.preventDefault() -- but never
+  // stopPropagation() -- when it dismisses a layer. A plain bubble-phase
+  // listener like this one still fires afterward, so pressing Escape to
+  // close the open site-filter dropdown was ALSO silently wiping the
+  // matrix selection, discarding a selection the user had no intention
+  // of touching. Checking defaultPrevented is the standard interop
+  // pattern for "did some other Escape-handling layer already claim
+  // this keypress" -- skip ours when one has.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && !e.defaultPrevented) {
+        setSelectedCell(null)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
 
   const labelKeys = LABEL_KEYS[matrixSize]
   const labels = {
@@ -586,22 +630,52 @@ export default function RiskMatrixPage() {
             page, so promoting it to h2 (rather than inserting a separate
             empty h2) is the smallest correct fix. */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="mb-4 text-sm font-semibold">
-            {/* Round 2 fix: was gated on selectedCell alone, so a site
-                filter narrowing the selection to zero risks still showed
-                "0 risks -- score N" here while the body below fell through
-                to the generic "click a cell" hint -- a self-contradictory
-                panel. Gating on selectedRisks.length too collapses that
-                case to the same clean "nothing selected" state instead. */}
-            {effectiveSelectedCell && selectedRisks.length > 0
-              ? t("organization.riskMatrix.selectedCellHeading", {
-                  count: selectedRisks.length,
-                  score:
-                    (effectiveSelectedCell.row + 1) *
-                    (effectiveSelectedCell.col + 1),
-                })
-              : t("organization.riskMatrix.noRiskSelected")}
-          </h2>
+          <div className="mb-4 flex items-start justify-between gap-2">
+            {/* Round 8 review round 1 finding: `.focus-ring` gates on
+                `:focus-visible`, which Chrome suppresses for a
+                programmatic .focus() call that follows a pointer
+                interaction -- so the mouse-click path (the majority of
+                real usage) got no visible ring at all, even though real
+                DOM focus DID move (screen readers still announced it
+                correctly; only the sighted-mouse-user confirmation was
+                silently missing). Plain `:focus` (not `:focus-visible`)
+                is the deliberate exception here: this focus move is a
+                confirmation of a state change for ALL users, not a
+                keyboard-navigation landing spot, so it should render
+                regardless of input modality -- unlike this codebase's
+                other focus-ring uses (links, buttons), which correctly
+                stay keyboard-only per the .focus-ring convention. */}
+            <h2
+              ref={panelHeadingRef}
+              tabIndex={-1}
+              className="rounded text-sm font-semibold outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+            >
+              {/* Round 2 fix: was gated on selectedCell alone, so a site
+                  filter narrowing the selection to zero risks still showed
+                  "0 risks -- score N" here while the body below fell through
+                  to the generic "click a cell" hint -- a self-contradictory
+                  panel. Gating on selectedRisks.length too collapses that
+                  case to the same clean "nothing selected" state instead. */}
+              {effectiveSelectedCell && selectedRisks.length > 0
+                ? t("organization.riskMatrix.selectedCellHeading", {
+                    count: selectedRisks.length,
+                    score:
+                      (effectiveSelectedCell.row + 1) *
+                      (effectiveSelectedCell.col + 1),
+                  })
+                : t("organization.riskMatrix.noRiskSelected")}
+            </h2>
+            {/* Round 8 (UX): Escape now clears the selection (see the
+                window keydown effect above) -- this is the visible
+                affordance so a mouse-first user discovers the shortcut,
+                same discoverability gap this session's convention treats
+                as worth a small hint rather than leaving invisible. */}
+            {effectiveSelectedCell && selectedRisks.length > 0 && (
+              <span className="shrink-0 text-[10px] text-muted-foreground">
+                {t("organization.riskMatrix.escToDeselectHint")}
+              </span>
+            )}
+          </div>
 
           {selectedRisks.length > 0 ? (
             <div className="max-h-130 space-y-3 overflow-y-auto pr-1">

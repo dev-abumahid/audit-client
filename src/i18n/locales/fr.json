@@ -1276,6 +1276,7 @@
       "moderate": "Modéré",
       "weak": "Faible",
       "noRiskSelected": "Sélectionnez une cellule de la matrice",
+      "escToDeselectHint": "Appuyez sur Échap pour fermer",
       "selectRiskHint": "Cliquez sur une cellule pour voir les risques",
       "cellCount_one": "{{count}} risque",
       "cellCount_other": "{{count}} risques",

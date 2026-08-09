@@ -528,6 +528,74 @@ describe("RiskMatrixPage", () => {
     expect(screen.getByText("Score: 42")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 8 (UX/accessibility, round-1 findings): no
+  // focus management into the details panel after selecting a cell, and
+  // no keyboard way to close/deselect it -- clicking a cell was
+  // previously a one-way action with no easy undo path.
+  it("moves focus to the details panel heading when a cell is selected", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    expect(screen.getByRole("heading", { level: 2 })).toHaveFocus()
+  })
+
+  it("clears the selection when Escape is pressed", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    const cell = screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    await userEvent.click(cell)
+    expect(cell).toHaveAttribute("aria-pressed", "true")
+    expect(
+      screen.getByText("organization.riskMatrix.escToDeselectHint")
+    ).toBeInTheDocument()
+
+    await userEvent.keyboard("{Escape}")
+
+    expect(cell).toHaveAttribute("aria-pressed", "false")
+    expect(
+      screen.getByText("organization.riskMatrix.noRiskSelected")
+    ).toBeInTheDocument()
+  })
+
+  // Review round 1 finding: SiteFilter renders a Radix Select, whose own
+  // Escape-to-close handling runs in the capture phase and calls
+  // preventDefault() (but not stopPropagation()) when it dismisses --
+  // without checking defaultPrevented, this page's own Escape handler
+  // would ALSO fire and silently wipe the matrix selection whenever a
+  // user pressed Escape to close an unrelated dropdown.
+  it("does not clear the selection when Escape was already claimed by another layer (e.g. a dropdown closing)", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    const cell = screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    await userEvent.click(cell)
+    expect(cell).toHaveAttribute("aria-pressed", "true")
+
+    // Simulates a capture-phase handler (like Radix's DismissableLayer)
+    // claiming the Escape keypress before this page's own bubble-phase
+    // listener runs.
+    const claimEscape = (e: KeyboardEvent) => e.preventDefault()
+    document.addEventListener("keydown", claimEscape, { capture: true })
+    await userEvent.keyboard("{Escape}")
+    document.removeEventListener("keydown", claimEscape, { capture: true })
+
+    expect(cell).toHaveAttribute("aria-pressed", "true")
+  })
+
   it("links the selected risk's site name into Sites, scoped to that site", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: {
