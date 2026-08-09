@@ -240,3 +240,48 @@ remain open too, but haven't been re-scored since round 1 -- a fresh
 full panel is the right move once finding (3) ships, both to confirm
 resilience's remaining ceiling and to get current numbers on the
 axes that haven't moved since round 1.
+
+## Round 4 (unscored-risk flag, PR #636)
+
+Fixed round-1 finding (3), the last open resilience item from that
+round: `mapRiskToCell` silently resolved a missing/malformed
+`probability`/`inherent_score` to 0 via `Number(x) || 0`, landing the
+risk in the lowest cell with zero visual distinction from a
+genuinely-confirmed negligible risk.
+
+Added `hasValidRiskScore`/`isValidScoreValue` and a small amber
+"Unscored" badge (with an explanatory tooltip) on `RiskCard` for any
+risk that fails the check. Cell position is deliberately unchanged --
+there's no better fallback absent real data -- only the visual
+indistinguishability is fixed.
+
+Two review rounds: round 1 (two parallel reviewers) found the initial
+`Number.isFinite(Number(x))` check had false negatives for `""`,
+`null`, and arrays (all coerce to a finite 0/NaN and were incorrectly
+called "valid"). Fixed same round with explicit pre-checks before the
+numeric fallback, plus new parameterized tests for both cases. Round 2
+came back clean.
+
+Also surfaced (not fixed, explicitly out of scope): the same
+silent-fallback pattern exists in the shared `getRiskSeverityLevel`
+helper (src/utils/riskScoring.ts), consumed by 5 other pages --
+notably SitesEntities.tsx, which uses it to *filter* which risks count
+as "critical," so a malformed score there could silently drop a real
+risk from that list. Flagged as a standalone follow-up task rather
+than expanding this page-local fix into a cross-cutting one.
+
+All four round-1 resilience findings are now closed (isError, empty
+state, stale-selection, unscored-data flag). Live-verified: golden
+path (26 real risks, all genuinely scored) confirmed to show no badge
+on any of them; the badge/malformed-data paths themselves rely on
+negative-controlled unit tests since no real risk in the seeded
+dataset currently has malformed scoring data.
+
+**Status:** paused here. Next step is a fresh full 9-judge panel to
+get current numbers on every axis -- resilience should be re-checked
+one more time now that all four round-1 findings are closed, and the
+other axes (industry-standards, UX, visual polish, mobile) haven't
+been re-scored since the 6.0/10 round-1 baseline despite two rounds of
+fixes that likely touched some of them incidentally (e.g. the
+error/empty states round 3 shipped are also industry-standards/UX
+concerns, not just resilience ones).
