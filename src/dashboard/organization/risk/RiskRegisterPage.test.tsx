@@ -563,6 +563,29 @@ describe("RiskRegisterPage", () => {
     ).toBeInTheDocument()
   })
 
+  // Round-12 review finding: the modal decomposition gave
+  // RiskBasicInfoFields its own useGetAllSitesQuery call, which initially
+  // dropped the isError check the round-4 fix established for both the
+  // filter dropdown AND this modal's own Site select.
+  it("shows an error indicator next to the Site field inside the Add/Edit modal when the sites query fails", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    )
+
+    expect(
+      screen.getAllByText("organization.riskRegister.siteLoadError")
+    ).toHaveLength(2)
+  })
+
   // quality-bar-loop round 5 (mobile): the sites-error indicator was a
   // flex-wrap sibling with no block-level sizing, so at narrow widths it
   // wrapped onto its own line paired with the *next* filter control
