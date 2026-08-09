@@ -133,3 +133,38 @@ lowest), UX (6/10), efficiency (5/10), code quality (6/10). Efficiency
 next: the same unmemoized-derived-data pattern already fixed on 2
 sibling pages this session (5 separate `.filter()` passes over
 `allAlerts` recomputing on every render).
+
+## Round 3 (efficiency -- memoization, PR #659)
+
+Memoized `allAlerts` (previously a fresh `?? []` array every render),
+the severity-filtered `alerts` list, and combined the 4 separate
+`.filter().length` passes into one `useMemo` loop -- same pattern
+already fixed on 2 sibling pages this session.
+
+Negative control confirmed the new test fails when the count memo's
+deps are wrong (frozen at a stale value). One review round, both
+reviewers returned zero blocking findings -- angle A verified all 3
+dependency arrays are complete and correct, and that the combined count
+loop is logically equivalent to the original 4 independent calls;
+angle B traced the full dependency chain and confirmed `isMarkingRead`
+(the mutation hook's own local state) isn't a transitive dependency of
+any of the 3 memos, so a mark-read mutation resolving genuinely skips
+recomputing everything -- the core efficiency claim holds. Live
+verification confirmed the counts render correctly, though no unread
+alert existed in the environment at review time to exercise the
+click-through path live (covered by the unit test instead).
+
+**Status:** efficiency should clear the floor now. Remaining
+below-floor axes: industry-standards (4/10, still the lowest), UX
+(6/10), code quality (6/10). All three need real design/refactor
+scoping (bulk actions, snooze/archive, sorting/read-unread filtering,
+retry-on-error, per-item mark-read loading state, proper `Alert` typing
+instead of file-wide `any`) rather than mechanical fixes -- the same
+wall CorrelationMatrixPage, KRI Dashboard, and Threat Intelligence all
+hit on their own industry-standards/code-quality axes. This is a
+natural pause point for the Alerts loop: 3 rounds shipped (a genuine
+functional mobile bug fixed and confirmed live, plus memoization), the
+three remaining gaps are feature-shaped work needing product input this
+loop shouldn't make unilaterally. Per the standing "scope ambiguous
+things, keep going down the list of tabs" instruction, moving to the
+next sidebar tab: Regulatory Compliance.
