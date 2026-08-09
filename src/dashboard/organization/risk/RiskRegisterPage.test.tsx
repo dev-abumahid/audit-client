@@ -1593,6 +1593,31 @@ describe("RiskRegisterPage", () => {
     }
   })
 
+  // Round-13 mobile fix: every field grid in the Add/Edit modal used to be
+  // a fixed grid-cols-2/grid-cols-3 with no mobile fallback, squeezing
+  // 2-3 fields per row even at 375px. Now grid-cols-1 by default, only
+  // expanding at the sm: breakpoint.
+  it("stacks every create-modal field grid to a single column below the sm: breakpoint", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+
+    const { container } = renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    )
+
+    const fieldGrids = container.querySelectorAll("form .grid")
+    expect(fieldGrids.length).toBeGreaterThan(0)
+    for (const grid of fieldGrids) {
+      expect(grid).toHaveClass("grid-cols-1")
+      expect(
+        grid.className.includes("sm:grid-cols-2") ||
+          grid.className.includes("sm:grid-cols-3")
+      ).toBe(true)
+    }
+  })
+
   // aexa-frontend#483 -- the per-row Edit/Delete icon buttons had no
   // aria-label, unlike the equivalent KRI-card buttons and
   // CorrelationMatrixPage's link-delete button.

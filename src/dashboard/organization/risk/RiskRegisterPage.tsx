@@ -337,6 +337,17 @@ const EMPTY_RISK: Partial<Risk> = {
 // register/watch/formState off react-hook-form's context (FormProvider,
 // see the modal's render below) instead of receiving them as a long prop
 // list -- the idiomatic RHF pattern for exactly this kind of extraction.
+//
+// quality-bar-loop round 13 (mobile): every section's grid below was a
+// fixed grid-cols-2/grid-cols-3 with no mobile fallback -- at 375px this
+// squeezed 2-3 fields per row, causing visible label-wrap and truncated
+// <select> text (flagged since round 9's stop report, untouched until
+// this round's decomposition made each section small enough to safely
+// edit). Now grid-cols-1 by default, only expanding to 2/3 columns at
+// the sm: breakpoint (640px) and up -- Tailwind's sm: variant compares
+// against the actual viewport width, not the modal's own max-w-2xl
+// container, so this correctly stays single-column on a real phone
+// regardless of how wide the modal itself renders.
 
 function RiskBasicInfoFields() {
   const { t } = useTranslation()
@@ -368,7 +379,7 @@ function RiskBasicInfoFields() {
           next render, only the already-rendered error text doesn't
           retroactively update. Same characteristic the rest of this
           form's error handling already has; not fixed here. */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label
             htmlFor="risk-site_id"
@@ -483,7 +494,7 @@ function RiskScoresSection({ editId }: { editId: string | null }) {
       <h3 className="text-sm font-semibold">
         {t("organization.riskRegister.scoresTitle")}
       </h3>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
           <label
             htmlFor="risk-inherent_score"
@@ -546,7 +557,7 @@ function RiskScoresSection({ editId }: { editId: string | null }) {
           validation pass (via `watch`), so toggling the checkbox
           off after typing a reason clears the requirement without
           needing a manual re-validate call. */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5 rounded-lg border border-dashed p-2.5">
           <label className="flex items-center gap-2 text-xs font-medium">
             <input
@@ -650,7 +661,7 @@ function RiskFinancialImpactSection() {
       <h3 className="text-sm font-semibold">
         {t("organization.riskRegister.financialImpactTitle")}
       </h3>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label
             htmlFor="risk-financial_impact_min"
@@ -693,7 +704,7 @@ function RiskAssessmentSection() {
       <h3 className="text-sm font-semibold">
         {t("organization.riskRegister.riskAssessmentTitle")}
       </h3>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
           <label
             htmlFor="risk-probability"
@@ -772,7 +783,7 @@ function RiskStatusSection() {
   } = useFormContext<Risk>()
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div>
         <label
           htmlFor="risk-status"
@@ -833,7 +844,7 @@ function RiskControlEffectivenessSection() {
       <h3 className="text-sm font-semibold">
         {t("organization.riskRegister.controlEffectivenessTitle")}
       </h3>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label
             htmlFor="risk-control_design_eff"
