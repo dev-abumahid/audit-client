@@ -15,6 +15,7 @@ import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import {
+  AlertTriangle,
   CheckCircle2,
   ExternalLink,
   FileText,
@@ -27,7 +28,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
@@ -100,16 +101,39 @@ export default function AuditPage() {
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
 
-  const { data: auditData, isLoading } = useGetAllAuditEngagementsQuery({
+  // quality-bar-loop round 3 (resilience, round-1 finding): isError was
+  // previously omitted, so a failed fetch fell back to `[]` and rendered
+  // the "no audit engagements found" empty state -- silently
+  // misrepresenting a fetch failure as "this org has zero engagements",
+  // same bug class fixed on 2 sibling pages this session.
+  const {
+    data: auditData,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetAllAuditEngagementsQuery({
     page,
     limit: PAGE_SIZE,
     searchTerm: search,
   })
 
+  useEffect(() => {
+    if (isError) {
+      toast.error(t("organization.audit.loadFailed"))
+    }
+  }, [isError, t])
+
   // All org risks, for the linked-risks picker. Fetched once here (not per-row)
   // so the create/edit modal can offer a real multi-select of actual Risk
   // records instead of the old free-text tag input (aexa-frontend#165).
-  const { data: risksData, isLoading: isRisksLoading } = useGetAllRisksQuery({
+  // isError surfaced as a small inline notice below the picker (round 3,
+  // resilience) -- non-fatal, since the rest of the create/edit form is
+  // still usable without linked risks.
+  const {
+    data: risksData,
+    isLoading: isRisksLoading,
+    isError: isRisksError,
+  } = useGetAllRisksQuery({
     page: 1,
     limit: RISK_PICKER_LIMIT,
     searchTerm: "",
@@ -605,7 +629,23 @@ export default function AuditPage() {
           </div>
         )}
 
-        {!isLoading && engagements.length === 0 && (
+        {!isLoading && isError && (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-12 text-center">
+            <AlertTriangle className="h-6 w-6 text-destructive" />
+            <p role="alert" className="text-sm text-destructive">
+              {t("organization.audit.loadFailed")}
+            </p>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="flex h-11 items-center rounded-md border border-destructive/30 px-3 text-xs font-medium text-destructive hover:bg-destructive/10"
+            >
+              {t("organization.audit.retry")}
+            </button>
+          </div>
+        )}
+
+        {!isLoading && !isError && engagements.length === 0 && (
           <div className="rounded-xl border border-border bg-card p-12 text-center">
             <p className="text-muted-foreground">
               {t("organization.audit.empty")}
@@ -812,6 +852,16 @@ export default function AuditPage() {
                   onChange={(ids) => setForm((f) => ({ ...f, riskIds: ids }))}
                   isLoading={isRisksLoading}
                 />
+                {/* quality-bar-loop round 3 (resilience, round-1 finding):
+                    non-fatal -- the rest of the form is still usable, but
+                    a failed fetch previously rendered identically to "this
+                    org genuinely has no risks yet" with no indication the
+                    list is actually incomplete. */}
+                {isRisksError && (
+                  <p role="alert" className="mt-1 text-[11px] text-destructive">
+                    {t("organization.audit.riskOptionsLoadFailed")}
+                  </p>
+                )}
               </div>
             </div>
 

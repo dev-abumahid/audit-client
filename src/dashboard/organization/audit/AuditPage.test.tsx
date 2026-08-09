@@ -290,6 +290,76 @@ describe("AuditPage", () => {
     expect(screen.getByText("organization.audit.empty")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 3 (resilience, round-1 finding): isError was
+  // previously omitted, so a failed fetch fell back to `[]` and rendered
+  // the "no engagements" empty state -- indistinguishable from a fetch
+  // failure. Same bug class fixed on 2 sibling pages this session.
+  it("shows an error state with a retry button when the query fails, and refetches on click", async () => {
+    const mockRefetch = vi.fn()
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: mockRefetch,
+    })
+
+    render(<AuditPage />)
+
+    expect(
+      screen.getByText("organization.audit.loadFailed")
+    ).toBeInTheDocument()
+    // The error state replaces the empty state, not both at once.
+    expect(
+      screen.queryByText("organization.audit.empty")
+    ).not.toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.audit.retry" })
+    )
+    expect(mockRefetch).toHaveBeenCalled()
+  })
+
+  it("does not show the error state once a failed query succeeds again", () => {
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [makeEngagement()] },
+      isLoading: false,
+      isError: false,
+    })
+
+    render(<AuditPage />)
+
+    expect(
+      screen.queryByText("organization.audit.loadFailed")
+    ).not.toBeInTheDocument()
+    expect(screen.getByText("Supply Chain Risk Audit")).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 3 (resilience, round-1 finding): the
+  // linked-risks picker's own query previously had no isError handling
+  // either -- a failed fetch rendered identically to "this org has no
+  // risks yet" with no indication the list is actually incomplete.
+  it("shows a non-fatal notice when the risk-picker query fails, without blocking the rest of the form", async () => {
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    })
+
+    render(<AuditPage />)
+
+    await userEvent.click(screen.getByText("organization.audit.newMission"))
+
+    expect(
+      screen.getByText("organization.audit.riskOptionsLoadFailed")
+    ).toBeInTheDocument()
+    // The rest of the form is still usable.
+    expect(titleInput()).not.toBeDisabled()
+  })
+
   // Regression (round 14 audit, aexa-frontend#514): the mission create/edit
   // modal was a hand-rolled overlay with no role="dialog", no aria-modal,
   // no aria-labelledby and no Escape handling, unlike CompliancePage.tsx and
