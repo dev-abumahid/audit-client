@@ -61,6 +61,26 @@ const PRIORITY_BADGES: Record<string, string> = {
   High: severityBadgeClasses("high"),
 }
 
+// quality-bar-loop round 5 (visual polish, round-1 finding): these
+// root-cause/action info chips used bg-*-500/10 + text-*-700 with no
+// dark: variant at all -- a dark-mode-only background computed
+// against the card's own near-black surface, but the text color
+// stayed the same medium-dark shade meant for a light background,
+// producing a muddy, low-contrast pairing. Same
+// bg-*-500/15 + dark:bg-*-400/15 + dark:text-*-400 pattern already
+// established in SourceBadge.tsx/HeroProductVisual.tsx. Used at 3+
+// call sites below, so extracted here rather than repeated inline.
+// Light-mode amber uses -800/15 (not -700/10) to match
+// HeroProductVisual.tsx's own measured finding: amber-700 computes to
+// ~4.48:1 against this tint, just under the 4.5:1 AA floor for small
+// text -- amber-800 was chosen there specifically for a real margin,
+// so reusing the same weaker shade here would just reintroduce that
+// same near-miss under a different className.
+const INFO_CHIP_AMBER =
+  "rounded bg-amber-500/15 p-2 text-amber-800 dark:bg-amber-400/15 dark:text-amber-400"
+const INFO_CHIP_BLUE =
+  "rounded bg-blue-500/10 p-2 text-blue-700 dark:bg-blue-400/15 dark:text-blue-400"
+
 type MatrixSize = 3 | 4 | 5
 type ViewMode = "risks" | "findings" | "buckets" | "ai-buckets"
 // "rootcause" grouping was removed (aexa-frontend#393) -- it was a
@@ -1025,7 +1045,7 @@ export default function CorrelationMatrixPage() {
                       </button>
                       {expandedBucket === bucket.name && (
                         <div className="space-y-2 px-3 pb-3 text-xs">
-                          <div className="rounded bg-blue-500/10 p-2 text-blue-700">
+                          <div className={INFO_CHIP_BLUE}>
                             {t(`${NS}.groupedAction`, {
                               action: bucket.commonAction,
                             })}
@@ -1341,10 +1361,10 @@ function AIRiskBucketCard({
 
       {expanded && (
         <div className="space-y-2 border-t p-3 text-xs">
-          <div className="rounded bg-amber-500/10 p-2 text-amber-700">
+          <div className={INFO_CHIP_AMBER}>
             {t(`${NS}.aiRootCauseLabel`, { cause: bucket.rootCause })}
           </div>
-          <div className="rounded bg-blue-500/10 p-2 text-blue-700">
+          <div className={INFO_CHIP_BLUE}>
             {t(`${NS}.aiActionLabel`, {
               action: bucket.groupedAction.description,
             })}
@@ -1434,10 +1454,10 @@ function AIFindingBucketCard({
 
       {expanded && (
         <div className="space-y-2 border-t p-3 text-xs">
-          <div className="rounded bg-amber-500/10 p-2 text-amber-700">
+          <div className={INFO_CHIP_AMBER}>
             {t(`${NS}.aiRootCauseLabel`, { cause: bucket.rootCause })}
           </div>
-          <div className="rounded bg-blue-500/10 p-2 text-blue-700">
+          <div className={INFO_CHIP_BLUE}>
             {t(`${NS}.aiActionLabel`, {
               action: bucket.commonAction.description,
             })}

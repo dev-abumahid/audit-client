@@ -1152,6 +1152,27 @@ describe("CorrelationMatrixPage", () => {
     )
   })
 
+  // quality-bar-loop round 5 (visual polish, round-1 finding): the
+  // root-cause/action info chips used bg-*-500/10 + text-*-700 with no
+  // dark: variant, producing a muddy, low-contrast pairing in dark
+  // mode. Now use the shared INFO_CHIP_AMBER/INFO_CHIP_BLUE constants
+  // which add dark:bg-*-400/15 + dark:text-*-400.
+  it("gives the root-cause and action info chips dark-mode-aware contrast classes", async () => {
+    await renderWithExpandedAiBucket()
+
+    const rootCauseChip = screen.getByText(
+      "organization.correlationMatrix.aiRootCauseLabel"
+    )
+    expect(rootCauseChip.className).toContain("dark:bg-amber-400/15")
+    expect(rootCauseChip.className).toContain("dark:text-amber-400")
+
+    const actionChip = screen.getByText(
+      "organization.correlationMatrix.aiActionLabel"
+    )
+    expect(actionChip.className).toContain("dark:bg-blue-400/15")
+    expect(actionChip.className).toContain("dark:text-blue-400")
+  })
+
   it("shows the Send to Finding button for LEAD_AUDITOR", async () => {
     mockRole = "LEAD_AUDITOR"
     await renderWithExpandedAiBucket()
