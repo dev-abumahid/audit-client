@@ -11,7 +11,11 @@ import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { formatLocaleDate } from "@/utils/formatDate"
-import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
+import {
+  SEVERITY_STYLES,
+  severityBadgeClasses,
+  type SeverityLevel,
+} from "@/utils/severityStyles"
 import {
   AlertTriangle,
   ChartLine,
@@ -24,7 +28,7 @@ import {
   TrendingUp,
   X,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useLocation, useSearchParams } from "react-router"
 import {
@@ -47,6 +51,26 @@ const EMPTY_KRI = {
   alert_threshold: 0,
   frequency: "monthly",
 }
+
+// quality-bar-loop round 3 (efficiency, round-1 finding): both are static
+// -- hoisted to module scope instead of being redeclared inside the
+// component on every render.
+const SEVERITY_RANK: Record<string, number> = {
+  critical: 3,
+  high: 2,
+  medium: 1,
+  low: 0,
+}
+const highestSeverity = (
+  kriAlerts: { severity: SeverityLevel }[]
+): SeverityLevel =>
+  kriAlerts.reduce(
+    (worst, alert) =>
+      (SEVERITY_RANK[alert.severity] ?? 0) > (SEVERITY_RANK[worst] ?? -1)
+        ? alert.severity
+        : worst,
+    "low" as SeverityLevel
+  )
 
 export default function KriDashboardPage() {
   const { t, i18n } = useTranslation()
@@ -72,34 +96,36 @@ export default function KriDashboardPage() {
   const [createKri] = useCreateNewKriMutation()
   const [submitKriValue] = useSubmitKriValueMutation()
 
-  const kris = kriResponse?.data ?? []
-  const risks = riskResponse?.data ?? []
-  const alerts = alertsResponse?.data ?? []
+  // quality-bar-loop round 3 (efficiency, review finding): `?? []` creates
+  // a fresh array reference every render when data is still undefined,
+  // which would defeat every useMemo below keyed on these -- memoized so
+  // the empty-array fallback is referentially stable too.
+  const kris = useMemo(() => kriResponse?.data ?? [], [kriResponse])
+  const risks = useMemo(() => riskResponse?.data ?? [], [riskResponse])
+  const alerts = useMemo(() => alertsResponse?.data ?? [], [alertsResponse])
+  // quality-bar-loop round 3 (efficiency, round-1 finding): a plain
+  // `risks.find(...)` inside the KRI `.map()` below was an O(n*m) lookup
+  // instead of a pre-built index -- at "low hundreds of KRIs x low
+  // hundreds of risks" that's a few thousand redundant scans per render.
+  const risksById = useMemo(
+    () => new Map(risks.map((r: any) => [r.id, r])),
+    [risks]
+  )
   // Unread only: a read alert no longer represents an outstanding issue on
   // the KRI, so it shouldn't keep inflating this badge indefinitely.
-  const unreadAlertsByKriId = alerts.reduce<Record<string, any[]>>(
-    (acc, alert: any) => {
-      if (alert.kri_id && !alert.is_read) {
-        acc[alert.kri_id] = [...(acc[alert.kri_id] ?? []), alert]
-      }
-      return acc
-    },
-    {}
+  // quality-bar-loop round 3 (efficiency, round-1 finding): recomputed
+  // every render before this, including on every keystroke in the New
+  // KRI form (unrelated state in the same component).
+  const unreadAlertsByKriId = useMemo(
+    () =>
+      alerts.reduce<Record<string, any[]>>((acc, alert: any) => {
+        if (alert.kri_id && !alert.is_read) {
+          acc[alert.kri_id] = [...(acc[alert.kri_id] ?? []), alert]
+        }
+        return acc
+      }, {}),
+    [alerts]
   )
-  const SEVERITY_RANK: Record<string, number> = {
-    critical: 3,
-    high: 2,
-    medium: 1,
-    low: 0,
-  }
-  const highestSeverity = (kriAlerts: any[]) =>
-    kriAlerts.reduce(
-      (worst, alert) =>
-        (SEVERITY_RANK[alert.severity] ?? 0) > (SEVERITY_RANK[worst] ?? -1)
-          ? alert.severity
-          : worst,
-      "low"
-    )
 
   // aexa-frontend#530: scrolls to and briefly highlights the KRI card an
   // AlertsPage "View KRI" link was clicked for. Only fires once the KRI
@@ -236,20 +262,39 @@ export default function KriDashboardPage() {
     : null
   // Backend returns newest-first (see kri.api.ts's own comment); a
   // left-to-right chronological chart needs the reverse.
-  const trendChartData = (readingsResponse?.data ?? [])
-    .slice()
-    .reverse()
-    .map((r: { value: number; recorded_at: string }) => ({
-      value: r.value,
-      recorded_at: formatLocaleDate(r.recorded_at, i18n.language, {
-        month: "short",
-        day: "numeric",
-      }),
-    }))
+  // quality-bar-loop round 3 (efficiency, round-1 finding): recomputed
+  // every render before this, including on every keystroke in the New
+  // KRI form (unrelated state in the same component).
+  const trendChartData = useMemo(
+    () =>
+      (readingsResponse?.data ?? [])
+        .slice()
+        .reverse()
+        .map((r: { value: number; recorded_at: string }) => ({
+          value: r.value,
+          recorded_at: formatLocaleDate(r.recorded_at, i18n.language, {
+            month: "short",
+            day: "numeric",
+          }),
+        })),
+    [readingsResponse, i18n.language]
+  )
 
-  const alertCount = kris.filter((k: any) => k.status === "ALERT").length
-  const warningCount = kris.filter((k: any) => k.status === "WARNING").length
-  const okCount = kris.filter((k: any) => k.status === "OK").length
+  // quality-bar-loop round 3 (efficiency, round-1 finding): three
+  // separate `.filter().length` passes over `kris` recomputed every
+  // render (same unrelated-state-triggers-rescan issue as above) --
+  // combined into a single pass.
+  const { alertCount, warningCount, okCount } = useMemo(() => {
+    let alert = 0
+    let warning = 0
+    let ok = 0
+    for (const k of kris as any[]) {
+      if (k.status === "ALERT") alert++
+      else if (k.status === "WARNING") warning++
+      else if (k.status === "OK") ok++
+    }
+    return { alertCount: alert, warningCount: warning, okCount: ok }
+  }, [kris])
 
   // quality-bar-loop round 14 (industry-standards): the dashboard's
   // "KRI Alerts" card used to be a static, non-clickable number -- it now
@@ -257,9 +302,13 @@ export default function KriDashboardPage() {
   // from the full, unfiltered `kris` list (they're page-wide totals, not
   // affected by an incoming filter); only the card grid below narrows.
   const statusParam = searchParams.get("status")
-  const statusFilteredKris = statusParam
-    ? kris.filter((k: any) => k.status === statusParam)
-    : kris
+  // quality-bar-loop round 3 (efficiency, round-1 finding): same
+  // unrelated-state-triggers-rescan issue as the summary counts above.
+  const statusFilteredKris = useMemo(
+    () =>
+      statusParam ? kris.filter((k: any) => k.status === statusParam) : kris,
+    [kris, statusParam]
+  )
 
   if (krisLoading) {
     return (
@@ -373,7 +422,7 @@ export default function KriDashboardPage() {
                 ? "border-risk-medium/40"
                 : "border-risk-low/40"
 
-          const risk = risks.find((r: any) => r.id === kri.risk_id)
+          const risk = risksById.get(kri.risk_id)
 
           const kriAlerts = unreadAlertsByKriId[kri.id] ?? []
           const alertCount = kriAlerts.length

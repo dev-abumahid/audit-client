@@ -385,6 +385,68 @@ describe("KriDashboardPage", () => {
     expect(screen.queryByText("ALERT")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 3 (efficiency, round-1 finding): the risk
+  // lookup, alert-count summaries, and status filter were all recomputed
+  // on every render including unrelated state changes elsewhere in the
+  // same component (e.g. every keystroke in the New KRI form) -- now
+  // memoized. Typing in that form is exactly the unrelated re-render this
+  // used to redo everything on; this guards against a wrong dependency
+  // array quietly making the memoized values go stale instead.
+  it("keeps showing the correct risk name and summary counts while typing in the New KRI form", async () => {
+    mockRole = "ADMIN"
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: {
+        data: [
+          makeKri({ id: "kri-1", status: "ALERT" }),
+          makeKri({ id: "kri-2", status: "OK", name: "Second KRI" }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    function alertSummaryChipCount(container: HTMLElement) {
+      return container
+        .querySelector(".border-risk-critical\\/30")
+        ?.textContent?.match(/\d+/)?.[0]
+    }
+
+    const { container, rerender } = renderPage()
+    expect(screen.getAllByText(/Fire safety risk/).length).toBeGreaterThan(0)
+    expect(alertSummaryChipCount(container)).toBe("1")
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.kri.form.namePlaceholder"),
+      "Unrelated typing"
+    )
+
+    expect(screen.getAllByText(/Fire safety risk/).length).toBeGreaterThan(0)
+    expect(screen.getByText("Second KRI")).toBeInTheDocument()
+    expect(alertSummaryChipCount(container)).toBe("1")
+
+    // The counterpart risk of memoizing these: an empty/wrong dependency
+    // array would freeze the count instead of just recomputing it
+    // needlessly. Rerendering with genuinely new kri data must still
+    // update the chip, not serve a stale memoized value.
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: {
+        data: [
+          makeKri({ id: "kri-1", status: "ALERT" }),
+          makeKri({ id: "kri-2", status: "ALERT", name: "Second KRI" }),
+        ],
+      },
+      isLoading: false,
+    })
+    rerender(
+      <MemoryRouter>
+        <KriDashboardPage />
+      </MemoryRouter>
+    )
+    expect(alertSummaryChipCount(container)).toBe("2")
+  })
+
   // Regression (issue #360): kri.frequency (raw enum: daily/weekly/monthly/
   // quarterly) rendered unmodified next to the risk name, unlike the
   // create-form's dropdown which already goes through
