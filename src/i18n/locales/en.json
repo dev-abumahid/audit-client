@@ -1909,6 +1909,7 @@
       "aiRootCauseLabel": "Root cause: {{cause}}",
       "aiActionLabel": "Action: {{action}}",
       "aiEmptyHint": "Click \"Run AI analysis\" to generate buckets",
+      "viewFullNetworkAnalysis": "View full network analysis",
       "notEnoughRisks": "Not enough similar risks to form buckets",
       "bucketMeta_one": "{{count}} risk • {{impact}}M€",
       "bucketMeta_other": "{{count}} risks • {{impact}}M€",

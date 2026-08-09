@@ -1053,6 +1053,26 @@ describe("CorrelationMatrixPage", () => {
     )
   })
 
+  // quality-bar-loop round 6 (industry-standards, round-1 finding): a
+  // matrix cell's color is a pure function of grid position, not a real
+  // interconnection metric -- while a genuine PageRank-based network
+  // view already exists at /organization/risk-graph, unreferenced from
+  // this page. This link surfaces it from the AI Buckets tab.
+  it("links to the full network analysis (PageRank graph) from the AI Buckets tab", async () => {
+    render(<CorrelationMatrixPage />, withRouter)
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewAiBuckets",
+      })
+    )
+
+    const link = screen.getByRole("link", {
+      name: "organization.correlationMatrix.viewFullNetworkAnalysis",
+    })
+    expect(link).toHaveAttribute("href", "/organization/risk-graph")
+  })
+
   it("triggers the AI root-cause bucketing mutation and renders real buckets", async () => {
     mockRunRootCauseBucketing.mockReturnValue({
       unwrap: () =>

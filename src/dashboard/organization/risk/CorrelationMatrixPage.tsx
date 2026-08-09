@@ -23,6 +23,7 @@ import type {
 } from "@/types/organization"
 import {
   AlertCircle,
+  ArrowRight,
   Check,
   ChevronDown,
   ChevronUp,
@@ -1077,7 +1078,7 @@ export default function CorrelationMatrixPage() {
 
           {viewMode === "ai-buckets" && (
             <div>
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   <h3 className="text-sm font-semibold">
@@ -1099,6 +1100,24 @@ export default function CorrelationMatrixPage() {
                     : t(`${NS}.aiRunAnalysis`)}
                 </button>
               </div>
+
+              {/* quality-bar-loop round 6 (industry-standards, round-1
+                  finding): a cell's color here is a pure function of grid
+                  position, not a real interconnection metric -- while a
+                  genuine PageRank-based network view already exists at
+                  /organization/risk-graph, unreferenced from this page.
+                  Surfaced here (the AI Buckets tab, this page's own
+                  closest concept to "real" interconnection scoring)
+                  rather than buried lower, since a user reaching for AI
+                  bucketing is already looking for the same thing the
+                  graph page answers more directly. */}
+              <Link
+                to="/organization/risk-graph"
+                className="mb-4 flex w-fit items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+              >
+                {t(`${NS}.viewFullNetworkAnalysis`)}
+                <ArrowRight className="h-3 w-3" />
+              </Link>
 
               {aiResult ? (
                 <div className="space-y-4">
