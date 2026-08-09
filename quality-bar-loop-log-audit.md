@@ -120,3 +120,59 @@ touch-target undersizing. Same proven fix pattern as 7 sibling pages
 this session, with the added layout fix (wrap the row-actions cluster
 and stats row) this round's judge specifically identified as the
 highest-severity finding.
+
+## Round 2 (mobile -- off-screen row actions + touch targets, PR #663)
+
+Fixed the card header row's actions-cluster overflow (`flex-wrap` +
+`min-w-0` on the left block so it can shrink instead of pushing the
+actions off-screen), the stats row overflow (`flex-wrap`), touch
+targets on ~13 controls (search input, New Mission button, Edit/Delete
+icon buttons, Report/Upload chips, all 8 modal form fields, Cancel/
+Create), and stacked the modal's 4 two-column grids to one column below
+`sm`.
+
+Negative control confirmed both new tests fail without the fix; live
+verification at 375px confirmed the fix (Edit/Delete at exactly 44x44px,
+well inside the viewport; stats row wrapping to 2 rows; modal fields
+stacked and all 44px tall).
+
+Review round 1: angle A found a real bug -- `flex-wrap` +
+`justify-between` on the header row left-aligns the actions cluster the
+moment it wraps to its own line (per the flexbox spec, `space-between`
+degrades to `flex-start` on a single-item line), a regression at
+intermediate widths (confirmed live at 550px) that round 1's judge
+never exercised. Angle B (live verification + full QA gate + cross-file
+check) independently corroborated the same finding and confirmed the
+rest of the PR clean. Fixed same-round: dropped `justify-between`,
+added `ml-auto` to the actions cluster instead (the standard flexbox
+technique for pinning an item to a line's end regardless of wrap
+state), with a new negative-controlled test assertion and a live
+screenshot at 550px confirming right-alignment. A scoped review round 2
+on just the fix commit came back clean.
+
+An out-of-scope finding from round 1 (a live-reproduced focus-restore
+regression in the shared `useModalA11y` hook, potentially affecting
+multiple pages beyond this one) was flagged as a separate task rather
+than fixed here.
+
+CI's "Lint, typecheck & build" check failed to run at all on this PR --
+a GitHub Actions billing/spending-limit issue (job never started, 3s
+duration), not a code failure, same as PR #662. Ran all 4 of CI's exact
+steps locally and confirmed all pass; merged via admin override citing
+this reason.
+
+**Status:** mobile should clear the floor now. Remaining below-floor
+axes: industry-standards (3/10, lowest), UX (6/10), accessibility
+(6/10), visual polish (5/10), resilience (5/10) -- five axes still
+open, more than any other page's post-mobile-fix state this session.
+All five need real design/product/refactor work (industry-standards:
+findings/lead-auditor linkage, follow-up workflow stage, audit trail;
+UX: lead-auditor picker, status-transition shortcut, status/date
+filters, org-wide stats; accessibility: form label association, the
+separately-flagged useModalA11y focus-restore regression; visual
+polish: unify 3 competing color systems, adopt the shared Radix modal;
+resilience: isError handling on the primary list and risk-picker
+queries). Given 5 axes remain below floor, this is a natural pause
+point for the Audit Missions loop -- the remaining gaps need product
+input this loop shouldn't make unilaterally, more so than any other
+page reached this session.
