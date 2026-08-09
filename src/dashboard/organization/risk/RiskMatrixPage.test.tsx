@@ -252,6 +252,70 @@ describe("RiskMatrixPage", () => {
     expect(screen.getByRole("button", { name: "5×5" })).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 4 (resilience, round-1 finding 3): a missing or
+  // malformed probability/inherent_score used to silently resolve to 0 via
+  // `Number(x) || 0`, landing the risk in the lowest cell with no visual
+  // indication it wasn't actually scored that low.
+  it("flags a risk with a malformed probability as unscored, not a genuine negligible risk", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: undefined, inherent_score: 0 })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    expect(
+      screen.getByText("organization.riskMatrix.unscoredRiskBadge")
+    ).toBeInTheDocument()
+  })
+
+  // Review round 1 finding: Number("") and Number(null) both coerce to a
+  // *finite* 0, so a naive `Number.isFinite(Number(x))` check would call
+  // these "valid" -- exactly the malformed values this feature exists to
+  // catch.
+  it.each([
+    { malformedValue: "", label: "an empty string" },
+    { malformedValue: null, label: "null" },
+  ] as const)(
+    "flags a risk with $label inherent_score as unscored",
+    async ({ malformedValue }) => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [makeRisk({ probability: 0, inherent_score: malformedValue })],
+        },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+      )
+
+      expect(
+        screen.getByText("organization.riskMatrix.unscoredRiskBadge")
+      ).toBeInTheDocument()
+    }
+  )
+
+  it("does not flag a risk that has a genuinely low, but valid, probability and impact", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+
+    expect(
+      screen.queryByText("organization.riskMatrix.unscoredRiskBadge")
+    ).not.toBeInTheDocument()
+  })
+
   // Regression (issue #359): the legend swatch for the lowest severity used
   // to have a different opacity than getMatrixColor (the function that
   // colors the actual matrix cells) returned for that same severity -- the

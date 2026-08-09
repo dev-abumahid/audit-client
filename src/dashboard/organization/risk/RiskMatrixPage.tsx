@@ -6,7 +6,7 @@ import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { Risk } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
-import { AlertCircle, Grid3X3, Loader2, MapPin } from "lucide-react"
+import { AlertCircle, AlertTriangle, Grid3X3, Loader2, MapPin } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
@@ -78,6 +78,31 @@ function getMatrixColor(row: number, col: number, size: MatrixSize): string {
   return "bg-risk-low/55"
 }
 
+// quality-bar-loop round 4 (resilience, round-1 finding 3): a missing or
+// malformed probability/inherent_score used to silently resolve to 0 via
+// `Number(x) || 0` inside mapRiskToCell below, landing the risk in the
+// lowest-likelihood/lowest-impact cell with no visual indication it wasn't
+// actually scored that low -- indistinguishable from a genuinely-confirmed
+// negligible risk. Callers use this to flag such risks instead of trusting
+// their computed cell position.
+// `Number(x)` alone isn't enough here: `Number("")`, `Number(null)`, and
+// `Number([])` all coerce to 0 (a *finite* number), so a naive
+// `Number.isFinite(Number(x))` check would call an empty string or null
+// "valid" -- exactly the malformed values this function exists to catch.
+function isValidScoreValue(value: unknown): boolean {
+  if (value === null || value === undefined) return false
+  if (typeof value === "string" && value.trim() === "") return false
+  if (Array.isArray(value)) return false
+  return Number.isFinite(Number(value))
+}
+
+function hasValidRiskScore(risk: Risk): boolean {
+  return (
+    isValidScoreValue(risk.probability) &&
+    isValidScoreValue(risk.inherent_score)
+  )
+}
+
 function mapRiskToCell(
   risk: Risk,
   size: MatrixSize
@@ -90,6 +115,9 @@ function mapRiskToCell(
   // divide inherent_score by 25 then multiply by max again (double-scaled,
   // clamping to the max impact column for any inherent_score >= 32) --
   // between the two, nearly every real risk piled into one corner cell.
+  // A missing/malformed value still needs *some* cell to land in absent
+  // better information -- 0 (lowest row/col) is that fallback -- but see
+  // hasValidRiskScore above for how callers flag this to the user.
   const prob = (Number(risk.probability) || 0) / 100
   const impact = (Number(risk.inherent_score) || 0) / 100
   const max = size - 1
@@ -565,6 +593,19 @@ function RiskCard({
             {risk.ai_generated && (
               <span className="rounded bg-blue-100 px-1.5 text-[9px] text-blue-700">
                 {t("organization.riskRegister.aiGenerated")}
+              </span>
+            )}
+            {/* quality-bar-loop round 4 (resilience, round-1 finding 3):
+                mapRiskToCell silently falls back to 0 for a missing/
+                malformed probability or inherent_score, which otherwise
+                looks identical to a genuinely-confirmed negligible risk. */}
+            {!hasValidRiskScore(risk) && (
+              <span
+                title={t("organization.riskMatrix.unscoredRiskWarning")}
+                className="flex items-center gap-0.5 rounded bg-amber-100 px-1.5 text-[9px] text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+              >
+                <AlertTriangle className="h-2.5 w-2.5" />
+                {t("organization.riskMatrix.unscoredRiskBadge")}
               </span>
             )}
           </div>

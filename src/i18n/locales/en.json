@@ -1302,7 +1302,9 @@
       "loadError": "Failed to load risks. Please try again later.",
       "siteLoadError": "Failed to load sites -- site names may be missing below.",
       "emptyStateTitle": "No risks scored yet",
-      "emptyStateHint": "Once risks have a likelihood and impact score, they'll appear here."
+      "emptyStateHint": "Once risks have a likelihood and impact score, they'll appear here.",
+      "unscoredRiskBadge": "Unscored",
+      "unscoredRiskWarning": "This risk is missing a valid probability or impact score -- it's shown in the lowest cell as a fallback, not because it was actually scored that low."
     },
     "riskGraph": {
       "title": "Dependency Graph & Domino Effects",

@@ -1302,7 +1302,9 @@
       "loadError": "Échec du chargement des risques. Veuillez réessayer plus tard.",
       "siteLoadError": "Échec du chargement des sites -- les noms de sites peuvent être manquants ci-dessous.",
       "emptyStateTitle": "Aucun risque évalué pour le moment",
-      "emptyStateHint": "Une fois qu'un risque a une probabilité et un impact, il apparaîtra ici."
+      "emptyStateHint": "Une fois qu'un risque a une probabilité et un impact, il apparaîtra ici.",
+      "unscoredRiskBadge": "Non évalué",
+      "unscoredRiskWarning": "Ce risque n'a pas de score de probabilité ou d'impact valide -- il est affiché dans la cellule la plus basse par défaut, et non parce qu'il a réellement été évalué aussi bas."
     },
     "riskGraph": {
       "title": "Graphe de Dépendances & Effets Domino",
