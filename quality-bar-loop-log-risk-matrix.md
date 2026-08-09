@@ -492,3 +492,37 @@ Medium/Low; researched and confirmed `riskLevel.*` is the deliberate,
 documented shared source of truth per src/utils/severityStyles.ts's
 own header comment -- using it directly, not inventing a third
 vocabulary, is the correct fix) and the muddy "Moderate" swatch color.
+
+## Round 9 (legend vocabulary unification, PR #641)
+
+Fixed the round-1 visual-polish finding: the legend said "Critical/
+Major/Moderate/Weak" -- a one-off vocabulary invented just for this
+page -- while this same page's own RiskCard shows a RiskBadge reading
+"Critical/High/Medium/Low", the canonical shared severity vocabulary
+(`src/utils/severityStyles.ts`, whose own header comment documents it
+was built specifically to replace 5+ independently-invented severity
+vocabularies across the app). Legend labels now pull from the same
+`riskLevel.*` keys RiskBadge itself uses, instead of page-local
+translations, so they can't drift apart again. Swatch colors
+untouched -- only the label text was wrong. Removed the now-orphaned
+i18n keys.
+
+One review round, both parallel reviewers returned zero blocking
+findings. Live-verified in both light/dark theme and in French: legend
+and a selected risk's own badge now show byte-identical wording.
+Reviewers also surfaced (correctly out of scope, not touched): two
+other pages have their own page-local legends
+(CorrelationMatrixPage's interconnection-density legend, RiskGraphPage's
+edge-type legend) -- neither is the same severity concept as this
+fix, so left alone.
+
+**Status:** the muddy "Moderate" swatch color (bg-risk-medium/45
+rendering as washed-out olive/khaki rather than a clean amber) and the
+toggle-button style divergence from RiskRegisterPage are the two
+remaining visual-polish items. The toggle-button one is lower
+priority -- round 1 itself noted it already matches
+CorrelationMatrixPage's own convention, so it's arguably not
+inconsistent with the design system, just with one other page.
+Continuing next with the color fix, then moving to industry-standards
+(export, hover-preview) and UX (URL-state sync), the two remaining
+below-floor axes with real open work.
