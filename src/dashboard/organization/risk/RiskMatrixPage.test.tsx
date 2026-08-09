@@ -101,6 +101,49 @@ vi.mock("@/redux/apis/organization/sites.api", () => ({
     mockUseGetAllSitesQuery(...args),
 }))
 
+// SiteFilter itself renders a real Radix Select, which needs pointer-event
+// APIs jsdom doesn't support to open its listbox. Rather than mock the
+// shared @/components/ui/select module (which would double-render every
+// site's name as a plain-DOM <option>, colliding with getByText queries
+// several OTHER tests in this file already rely on for the exact same
+// site name appearing once, in the selected RiskCard), stub SiteFilter
+// itself with plain buttons -- only this file's own filter-triggering
+// behavior is under test here, not SiteFilter's internal dropdown
+// implementation (that's SiteFilter.test.tsx's job).
+vi.mock("@/components/dashboard/organization/SiteFilter", () => ({
+  default: ({
+    value,
+    onChange,
+  }: {
+    value: string | null
+    onChange: (v: string | null) => void
+  }) => (
+    <div>
+      <button
+        type="button"
+        aria-pressed={value === null}
+        onClick={() => onChange(null)}
+      >
+        Site filter: all
+      </button>
+      <button
+        type="button"
+        aria-pressed={value === "site-1"}
+        onClick={() => onChange("site-1")}
+      >
+        Site filter: site-1
+      </button>
+      <button
+        type="button"
+        aria-pressed={value === "site-2"}
+        onClick={() => onChange("site-2")}
+      >
+        Site filter: site-2
+      </button>
+    </div>
+  ),
+}))
+
 function makeRisk(overrides = {}) {
   return {
     id: "risk-1",
@@ -378,6 +421,161 @@ describe("RiskMatrixPage", () => {
     // row 0, col 0 -> score (0+1)*(0+1) = 1
     expect(screen.getByText("1 risk — score 1")).toBeInTheDocument()
     expect(screen.queryByText(/Risk\(s\)/)).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 2 -- three independent judges (industry-standards,
+  // UX, resilience) live-reproduced this: row/col indices are only
+  // meaningful relative to the grid size they were selected under.
+  // Switching matrix size while a cell was selected used to leave the old
+  // indices in place, which could coincide with a real, populated cell in
+  // the new grid -- showing a DIFFERENT risk's data under a heading
+  // computed from the stale indices, or a "0 risks -- score N" heading
+  // paired with the generic "click a cell" body underneath it.
+  it("clears a stale selection instead of showing a DIFFERENT risk's data when the matrix size changes", async () => {
+    // Risk A lands at (row 2, col 2) in 5x5 -- select it there. Risk B is
+    // deliberately chosen to land at that SAME (row 2, col 2) once the
+    // grid is recomputed at 3x3 (each risk's cell is recomputed per-size,
+    // not cached) -- the exact "old indices coincide with a real, but
+    // different, populated cell" scenario three judges independently
+    // live-reproduced. A weaker version of this test (indices that simply
+    // fall out of bounds in the smaller grid) wouldn't actually exercise
+    // this path, since an empty result already falls back correctly for
+    // an unrelated reason (the heading's selectedRisks.length guard).
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({ id: "risk-a", probability: 44, inherent_score: 44 }),
+          makeRisk({ id: "risk-b", probability: 90, inherent_score: 90 }),
+        ],
+      },
+      isLoading: false,
+    })
+    renderPage()
+
+    // 44/100=0.44 -> row round(0.44*4)=2 ("Moderately Likely" in 5x5);
+    // col round(0.44*4)=2 ("Moderate" in 5x5)
+    await userEvent.click(
+      screen.getByTitle(/Moderately Likely × Moderate : 1 risk/)
+    )
+    // (2+1)*(2+1) = 9
+    expect(screen.getByText("1 risk — score 9")).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole("button", { name: "3×3" }))
+
+    // Must fall back to the clean "nothing selected" state -- NOT keep
+    // showing risk-a's stale heading, and NOT silently swap in risk-b
+    // (which now occupies (row 2, col 2) under the 3x3 grid) as if the
+    // user had selected it.
+    expect(
+      screen.getByText("organization.riskMatrix.noRiskSelected")
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/score 9/)).not.toBeInTheDocument()
+  })
+
+  // Same class of bug, different trigger: a site filter narrowing the
+  // selected cell to zero risks used to leave selectedCell set, so the
+  // heading kept showing "0 risks -- score N" while the body fell through
+  // to the generic "click a cell" hint -- a self-contradictory panel.
+  it("clears a stale selection instead of a self-contradictory panel when a filter empties the selected cell", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            id: "risk-1",
+            site_id: "site-1",
+            probability: 0,
+            inherent_score: 0,
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: {
+        data: [
+          { id: "site-1", name: "Casablanca HQ" },
+          { id: "site-2", name: "Rabat Branch" },
+        ],
+      },
+    })
+    renderPage()
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+    expect(screen.getByText("1 risk — score 1")).toBeInTheDocument()
+
+    // Select the OTHER site (via the stubbed SiteFilter above), which
+    // owns none of the currently-selected cell's risks.
+    await userEvent.click(
+      screen.getByRole("button", { name: "Site filter: site-2" })
+    )
+
+    expect(
+      screen.getByText("organization.riskMatrix.noRiskSelected")
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/score 1\b/)).not.toBeInTheDocument()
+  })
+
+  // Round-1 review finding on PR #634: effectiveSelectedCell only masked
+  // a size-mismatched selection for DISPLAY -- the underlying
+  // selectedCell state was never actually cleared, so switching away and
+  // then back to the original matrix size silently resurrected the old
+  // selection, even though the panel had shown "nothing selected" for
+  // the size in between.
+  it("does not resurrect a selection after switching matrix size away and back", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    await userEvent.click(
+      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    )
+    expect(screen.getByText("1 risk — score 1")).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole("button", { name: "3×3" }))
+    expect(
+      screen.getByText("organization.riskMatrix.noRiskSelected")
+    ).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole("button", { name: "5×5" }))
+    expect(
+      screen.getByText("organization.riskMatrix.noRiskSelected")
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/score 1\b/)).not.toBeInTheDocument()
+  })
+
+  // Round-1 review finding on PR #634: the cell's own ring/highlight
+  // stayed showing after a site filter narrowed it to zero risks, even
+  // though the details panel had already fallen back to "nothing
+  // selected" -- the same stale-selection-display bug this PR exists to
+  // fix, just for the cell's own aria-pressed/visual state.
+  it("un-highlights the selected cell once a filter narrows it to zero risks", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            id: "risk-1",
+            site_id: "site-1",
+            probability: 0,
+            inherent_score: 0,
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+    renderPage()
+
+    const cell = screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    await userEvent.click(cell)
+    expect(cell).toHaveAttribute("aria-pressed", "true")
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Site filter: site-2" })
+    )
+    expect(cell).toHaveAttribute("aria-pressed", "false")
   })
 
   // Regression (aexa-frontend#412): the PageRank badge on a risk card was a

@@ -120,9 +120,21 @@ export default function RiskMatrixPage() {
   const [matrixSize, setMatrixSize] = useState<MatrixSize>(5)
   const [siteFilter, setSiteFilter] = useState<string | null>(null)
   const [groupMode, setGroupMode] = useState<GroupMode>("none")
+  // quality-bar-loop round 2 (resilience/UX/industry-standards -- found
+  // independently by three judges): row/col indices are only meaningful
+  // relative to the grid size they were selected under. Switching matrix
+  // size used to leave the OLD {row, col} in place, which could coincide
+  // with a real, populated cell in the NEW grid (same indices, different
+  // likelihood/impact) -- the details panel then showed a different
+  // risk's data under a heading computed from the stale indices, with no
+  // indication anything was wrong. Storing the size alongside the
+  // selection lets `effectiveSelectedCell` below invalidate it the
+  // instant the size changes, in the same render (no effect, no
+  // one-frame flash of the wrong cell's data).
   const [selectedCell, setSelectedCell] = useState<{
     row: number
     col: number
+    size: MatrixSize
   } | null>(null)
 
   const filteredRisks = useMemo(() => {
@@ -141,9 +153,19 @@ export default function RiskMatrixPage() {
     return grid
   }, [filteredRisks, matrixSize])
 
+  // Invalidates a selection made under a different matrix size (see the
+  // selectedCell state comment above) rather than reinterpreting its
+  // indices against the current grid. A filter change (site filter)
+  // narrowing the selected cell to zero risks is handled separately below
+  // by checking selectedRisks.length, not here -- that case doesn't need
+  // full invalidation, just falling back to the "nothing selected" state.
+  const effectiveSelectedCell =
+    selectedCell && selectedCell.size === matrixSize ? selectedCell : null
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const selectedRisks = selectedCell
-    ? riskGrid[`${selectedCell.row}-${selectedCell.col}`] || []
+  const selectedRisks = effectiveSelectedCell
+    ? riskGrid[`${effectiveSelectedCell.row}-${effectiveSelectedCell.col}`] ||
+      []
     : []
 
   const groupedSelectedRisks = useMemo(() => {
@@ -196,7 +218,18 @@ export default function RiskMatrixPage() {
             {[3, 4, 5].map((s) => (
               <button
                 key={s}
-                onClick={() => setMatrixSize(s as MatrixSize)}
+                onClick={() => {
+                  setMatrixSize(s as MatrixSize)
+                  // Round-1 review finding: effectiveSelectedCell only
+                  // masked a size-mismatched selection for display -- the
+                  // underlying selectedCell state was never actually
+                  // cleared, so switching away and back to the ORIGINAL
+                  // size silently resurrected the old selection, even
+                  // though the panel had shown "nothing selected" in
+                  // between. Clearing it here makes deselection real,
+                  // not just a display illusion for one size.
+                  setSelectedCell(null)
+                }}
                 aria-pressed={matrixSize === s}
                 className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                   matrixSize === s
@@ -284,15 +317,28 @@ export default function RiskMatrixPage() {
                       {labels.impact.map((_, col) => {
                         const cellKey = `${row}-${col}`
                         const cellRisks = riskGrid[cellKey] || []
+                        // Round-1 review finding: without the
+                        // cellRisks.length check, a site filter that
+                        // narrows this specific cell to zero risks left
+                        // its ring/highlight showing even though the
+                        // details panel had already fallen back to
+                        // "nothing selected" -- the same
+                        // stale-selection-display class of bug this PR
+                        // exists to fix, just for the cell's own visual
+                        // state rather than the panel's.
                         const isSelected =
-                          selectedCell?.row === row && selectedCell?.col === col
+                          effectiveSelectedCell?.row === row &&
+                          effectiveSelectedCell?.col === col &&
+                          cellRisks.length > 0
 
                         return (
                           <button
                             key={col}
                             onClick={() =>
                               setSelectedCell(
-                                cellRisks.length ? { row, col } : null
+                                cellRisks.length
+                                  ? { row, col, size: matrixSize }
+                                  : null
                               )
                             }
                             aria-pressed={isSelected}
@@ -362,10 +408,18 @@ export default function RiskMatrixPage() {
             empty h2) is the smallest correct fix. */}
         <div className="rounded-xl border border-border bg-card p-5">
           <h2 className="mb-4 text-sm font-semibold">
-            {selectedCell
+            {/* Round 2 fix: was gated on selectedCell alone, so a site
+                filter narrowing the selection to zero risks still showed
+                "0 risks -- score N" here while the body below fell through
+                to the generic "click a cell" hint -- a self-contradictory
+                panel. Gating on selectedRisks.length too collapses that
+                case to the same clean "nothing selected" state instead. */}
+            {effectiveSelectedCell && selectedRisks.length > 0
               ? t("organization.riskMatrix.selectedCellHeading", {
                   count: selectedRisks.length,
-                  score: (selectedCell.row + 1) * (selectedCell.col + 1),
+                  score:
+                    (effectiveSelectedCell.row + 1) *
+                    (effectiveSelectedCell.col + 1),
                 })
               : t("organization.riskMatrix.noRiskSelected")}
           </h2>
