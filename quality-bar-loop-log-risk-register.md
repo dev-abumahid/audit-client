@@ -1035,3 +1035,31 @@ smaller/safer change now) still use unconditional `grid-cols-2`/
 `grid-cols-3`, not stacking to a single column on mobile. This is now a
 mechanical, low-risk CSS-only fix directly enabled by round 12's
 decomposition.
+
+## Round 13 (mobile fix, PR #632)
+
+Stacked all 7 Add/Edit modal field grids to a single column below the
+sm: breakpoint -- the last remaining structural mobile gap, made
+tractable by round 12's decomposition into separate section components.
+
+| Axis | Score | vs. round 12 |
+|---|---|---|
+| Mobile/responsive | 8/10 | +2 |
+| (all other axes) | unchanged | carried forward |
+
+**Average: 7.89/10** (up from 7.67). Only 1 axis still below floor (7):
+industry-standards (6).
+
+Mobile judge: "This was the single named structural gap keeping this
+axis at 6/10 for two rounds, and it's now fully and correctly fixed with
+no regressions and no side effects." Remaining open (not this round's
+scope, less severe than the fixed gap): main table's Name-column
+truncation, no card-based mobile layout for the list view.
+
+**Next fix:** industry-standards' remaining gaps (multi-column sort,
+column resize/reorder, bulk field-edit beyond delete, export format
+choice, saved views) are each substantially larger scopes than anything
+shipped so far. Of these, bulk status change is the most tractable next
+step -- it reuses the existing selection UI and the Promise.allSettled
+bulk-mutation pattern already established for bulk delete, just against
+updateRisk instead of deleteRisk.
