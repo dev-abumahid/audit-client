@@ -117,3 +117,33 @@ Key findings by axis:
 the same proven, low-risk pattern fixed 6 times already this session --
 bump every reassignment button (and the error-state Retry button) to a
 44px touch target.
+
+## Round 2 (mobile -- touch targets, PR #661)
+
+Bumped every "Move to Line" reassignment button (22x22px, up to 3 per
+row, only 4px apart) and the error-state Retry button to 44px
+(h-11/h-11-w-11 + shrink-0 so the flex-wrap row can't compress them
+below the intended size).
+
+Negative control confirmed both new test assertions fail without the
+fix. One review round, both reviewers returned zero blocking findings
+-- angle A specifically checked that `shrink-0` doesn't fight the
+parent's `flex-wrap` behavior (it doesn't -- shrink-0 only guarantees
+each button's own size, wrapping still handles overflow); angle B
+live-verified all 3 buttons in a row at exactly 44x44px with correct
+4px gaps and no overlap, then functionally tested a real reassignment
+click end-to-end (toast fired, item moved columns, counts updated).
+
+**Status:** mobile should clear the floor now. Remaining below-floor
+axes: industry-standards (5/10), UX (6/10), efficiency (5/10), visual
+polish (6/10) -- four axes still open, more than any other page's
+post-mobile-fix state this session. All four need real design/refactor
+work (industry-standards: coverage/gap visualization, classification
+rationale capture; UX: distinguishable move-to buttons, scroll-position
+preservation; efficiency: memoizing 20 filter passes across 5 entity
+types x 4 lines, React.memo on ItemRow/Section; visual polish: column
+height imbalance, title truncation). Given 4 axes remain below floor
+(more than typical for a post-round-2 checkpoint this session), the
+efficiency fix (memoization) is the most mechanical and lowest-risk of
+the four -- same proven pattern as 4 sibling pages, worth one more
+round before treating this as a pause point.
