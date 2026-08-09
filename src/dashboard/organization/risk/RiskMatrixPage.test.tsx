@@ -1,15 +1,26 @@
 import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { MemoryRouter } from "react-router"
+import { MemoryRouter, useSearchParams } from "react-router"
 import RiskMatrixPage from "./RiskMatrixPage"
+
+// Renders alongside RiskMatrixPage inside the same MemoryRouter and
+// exposes the live query string as text, since MemoryRouter doesn't touch
+// window.location -- this is the only way to assert what the page's own
+// URL-sync effect (round 12) actually wrote.
+function SearchParamsProbe() {
+  const [params] = useSearchParams()
+  return <div data-testid="search-params-probe">{params.toString()}</div>
+}
 
 // aexa-frontend#548: the selected-cell RiskCard's risk name and site name
 // are now <Link>s, so this needs a Router context -- same convention as
-// Overview.test.tsx's renderPage().
-function renderPage() {
+// Overview.test.tsx's renderPage(). `initialEntries` lets round-12 tests
+// mount the page with a pre-existing query string, to test URL restoration.
+function renderPage(initialEntries: string[] = ["/"]) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <RiskMatrixPage />
+      <SearchParamsProbe />
     </MemoryRouter>
   )
 }
@@ -189,6 +200,122 @@ describe("RiskMatrixPage", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: undefined, isLoading: true })
     renderPage()
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 12 (UX, round-1 finding): matrixSize/groupMode/
+  // siteFilter/selectedCell all used to reset on navigating away and back
+  // (e.g. clicking a risk name to its detail page, then hitting browser
+  // back), since none of it was reflected in the URL.
+  describe("URL state sync (round 12)", () => {
+    it("restores matrix size, group mode, and site filter from the URL on mount", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk()] },
+        isLoading: false,
+      })
+      renderPage(["/?size=3&group=category&site=site-1"])
+
+      expect(screen.getByRole("button", { name: "3×3" })).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      )
+      expect(
+        screen.getByRole("button", {
+          name: "organization.correlationMatrix.groupByType",
+        })
+      ).toHaveAttribute("aria-pressed", "true")
+      expect(
+        screen.getByRole("button", { name: "Site filter: site-1" })
+      ).toHaveAttribute("aria-pressed", "true")
+    })
+
+    it("restores a valid selected cell from the URL on mount", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+        isLoading: false,
+      })
+      renderPage(["/?size=5&row=0&col=0"])
+
+      expect(
+        screen.getByText("1 risk — band 1")
+      ).toBeInTheDocument()
+    })
+
+    // Review round 1 finding: the round-8 focus-management effect assumed
+    // selectedCell could only become non-null via a user click, since it
+    // always started null. Arriving with a cell already selected from the
+    // URL made the very first render yank focus to the details panel
+    // before the user had done anything -- an unsolicited focus jump on
+    // page load.
+    it("does not steal focus on mount when a cell is pre-selected via the URL", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+        isLoading: false,
+      })
+      renderPage(["/?size=5&row=0&col=0"])
+
+      expect(screen.getByRole("heading", { level: 2 })).not.toHaveFocus()
+    })
+
+    // Review round 1 finding: starting from a fresh `new URLSearchParams()`
+    // silently dropped any OTHER query param this page doesn't manage,
+    // even on mount before the user touched anything.
+    it("preserves unrelated query params it doesn't manage", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk()] },
+        isLoading: false,
+      })
+      renderPage(["/?utm_source=newsletter&size=3"])
+
+      expect(screen.getByTestId("search-params-probe").textContent).toContain(
+        "utm_source=newsletter"
+      )
+    })
+
+    // Same discipline as isValidScoreValue elsewhere in this file: a
+    // hand-edited or stale URL (from before the matrix supported this
+    // many rows/columns) must fall back to "nothing selected" rather
+    // than store a nonsense row/col pair as real state.
+    it("ignores an out-of-range selected cell in the URL instead of crashing", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk()] },
+        isLoading: false,
+      })
+      renderPage(["/?size=3&row=9&col=9"])
+
+      expect(
+        screen.getByText("organization.riskMatrix.noRiskSelected")
+      ).toBeInTheDocument()
+    })
+
+    it("writes matrix size changes back to the URL", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk()] },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.click(screen.getByRole("button", { name: "3×3" }))
+
+      expect(screen.getByTestId("search-params-probe").textContent).toBe(
+        "size=3"
+      )
+    })
+
+    it("writes the selected cell back to the URL", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+      )
+
+      const probe = screen.getByTestId("search-params-probe").textContent
+      expect(probe).toContain("row=0")
+      expect(probe).toContain("col=0")
+    })
   })
 
   // quality-bar-loop round 7 (mobile, live-measured at 375px): the

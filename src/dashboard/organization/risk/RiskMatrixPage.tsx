@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Link } from "react-router"
+import { Link, useSearchParams } from "react-router"
 
 type MatrixSize = 3 | 4 | 5
 type GroupMode = "none" | "category"
@@ -170,6 +170,18 @@ function mapRiskToCell(
   return { row, col }
 }
 
+// quality-bar-loop round 12 (UX, round-1 finding): matrixSize/groupMode/
+// siteFilter/selectedCell all used to reset on navigating away and back
+// (e.g. clicking a risk name to its detail page, then hitting browser
+// back) since none of it was reflected in the URL. A malformed/missing
+// URL value (a stale bookmark, a hand-edited link) must fall back to "no
+// selection" rather than crash or coerce to a false 0 -- same discipline
+// as isValidScoreValue elsewhere in this file.
+function parseMatrixSize(value: string | null): MatrixSize | null {
+  const n = Number(value)
+  return n === 3 || n === 4 || n === 5 ? (n as MatrixSize) : null
+}
+
 export default function RiskMatrixPage() {
   const { t } = useTranslation()
   // quality-bar-loop round 3 (resilience, the round-1 finding carried
@@ -199,9 +211,24 @@ export default function RiskMatrixPage() {
   // so the empty-array fallback is referentially stable too.
   const risks: Risk[] = useMemo(() => riskResponse?.data ?? [], [riskResponse])
   const sites: { id: string; name: string }[] = siteResponse?.data ?? []
-  const [matrixSize, setMatrixSize] = useState<MatrixSize>(5)
-  const [siteFilter, setSiteFilter] = useState<string | null>(null)
-  const [groupMode, setGroupMode] = useState<GroupMode>("none")
+  // quality-bar-loop round 12 (UX, round-1 finding): matrixSize/groupMode/
+  // siteFilter/selectedCell all used to be plain local state, so any of it
+  // reset the instant a user navigated away (e.g. to a risk's detail page)
+  // and back. Lazy initializers read the URL ONCE on mount; the sync
+  // effect below (after selectedCell is declared) writes every change back
+  // to the URL via replace (not push), so the browser's own back button
+  // restores the exact matrix state without spamming history with one
+  // entry per toggle click.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [matrixSize, setMatrixSize] = useState<MatrixSize>(
+    () => parseMatrixSize(searchParams.get("size")) ?? 5
+  )
+  const [siteFilter, setSiteFilter] = useState<string | null>(() =>
+    searchParams.get("site")
+  )
+  const [groupMode, setGroupMode] = useState<GroupMode>(() =>
+    searchParams.get("group") === "category" ? "category" : "none"
+  )
   // quality-bar-loop round 2 (resilience/UX/industry-standards -- found
   // independently by three judges): row/col indices are only meaningful
   // relative to the grid size they were selected under. Switching matrix
@@ -217,7 +244,60 @@ export default function RiskMatrixPage() {
     row: number
     col: number
     size: MatrixSize
-  } | null>(null)
+  } | null>(() => {
+    // A malformed/stale URL (hand-edited, or a bookmark from a larger
+    // matrix size) should represent an intentionally out-of-bounds
+    // selection as "no selection" rather than store nonsense row/col
+    // values -- riskGrid's own keys are always in-bounds (mapRiskToCell
+    // clamps), so an out-of-range pair can never coincide with a real
+    // populated cell, but a garbage {row, col} is still meaningless
+    // state to carry around and dead code waiting to bite the next
+    // consumer of selectedCell, not just a cosmetic nicety.
+    const rowRaw = searchParams.get("row")
+    const colRaw = searchParams.get("col")
+    const size = parseMatrixSize(searchParams.get("size"))
+    if (rowRaw === null || colRaw === null || size === null) return null
+    const row = Number(rowRaw)
+    const col = Number(colRaw)
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return null
+    if (row < 0 || row >= size || col < 0 || col >= size) return null
+    return { row, col, size }
+  })
+
+  // Writes the current matrix state back to the URL on every change
+  // (mount included, which also canonicalizes a partial/legacy URL).
+  // `replace` so toggling size/group/site/cell repeatedly doesn't spam
+  // browser history with an entry per click -- only the LATEST state
+  // needs to survive a navigate-away-and-back, not an undo stack.
+  //
+  // Review round 1 finding: starting from a fresh `new URLSearchParams()`
+  // silently dropped any OTHER query param this page doesn't manage (a
+  // tracking param, or one a future feature adds) the instant this effect
+  // ran -- even on mount, before the user touched anything. Cloning the
+  // current searchParams first, then only ever touching the 5 keys this
+  // effect owns, leaves everything else untouched.
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev)
+        params.set("size", String(matrixSize))
+        if (groupMode !== "none") params.set("group", groupMode)
+        else params.delete("group")
+        if (siteFilter) params.set("site", siteFilter)
+        else params.delete("site")
+        if (selectedCell) {
+          params.set("row", String(selectedCell.row))
+          params.set("col", String(selectedCell.col))
+        } else {
+          params.delete("row")
+          params.delete("col")
+        }
+        return params
+      },
+      { replace: true }
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matrixSize, groupMode, siteFilter, selectedCell])
 
   const filteredRisks = useMemo(() => {
     if (!siteFilter) return risks
@@ -271,7 +351,20 @@ export default function RiskMatrixPage() {
   // fires when the ACTUAL selection changes, not on incidental re-renders
   // that recompute an equal-but-new selectedCell-derived value.
   const panelHeadingRef = useRef<HTMLHeadingElement>(null)
+  // Review round 1 finding (round 12): round 8 assumed selectedCell could
+  // only become non-null via a user click, since it always started null.
+  // Round 12 made it possible to arrive with a cell already selected from
+  // the URL -- without this guard, that made the very first render yank
+  // focus to the details panel before the user had done anything, an
+  // unsolicited focus jump on page load. isFirstRenderRef skips exactly
+  // one run (the mount) and lets every subsequent, genuinely
+  // user-triggered selection change focus the panel as before.
+  const isFirstRenderRef = useRef(true)
   useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false
+      return
+    }
     if (effectiveSelectedCell) {
       panelHeadingRef.current?.focus()
     }
