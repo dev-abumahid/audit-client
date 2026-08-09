@@ -253,3 +253,29 @@ on AI-bucket fields) are still open but minor. A fresh full-panel
 re-score is due next to check overall convergence before picking
 between industry-standards (the bigger, feature-shaped lever) and the
 minor resilience cleanup.
+
+## Fresh full-panel re-score (after round 5)
+
+| Axis | Score | Change since round 1 |
+|---|---|---|
+| Industry-standards | 5/10 | down from 6 -- not touched by any round, and a sibling page (RiskGraphPage) has since grown real PageRank scoring + working PNG/SVG/CSV export, unreferenced from here, sharpening the "fake metric" and "no export" gaps |
+| UX | 7/10 | unchanged -- URL-state sync still not ported from RiskMatrixPage's round 12 |
+| Efficiency | 7/10 | unchanged -- riskMetrics still O(risks x links) unindexed, axisLabels still unmemoized, no React.memo |
+| Accessibility | 7/10 | unchanged -- light-mode critical-cell contrast still ~4.4:1 (under AA), no focus management/keyboard deselect on cell selection |
+| Visual polish | 9/10 | up from 5 -- both round-1 findings (legend vocabulary, dark-mode chip contrast) confirmed genuinely fixed and durable across later rounds |
+| Resilience | 7/10 | up from 6 -- isError handling confirmed genuinely wired for both queries; milder `\|\| 0` fallback and AI-bucket NaN/undefined guards still open but minor |
+| Code quality | 8/10 | unchanged -- still strong; round-1 minor gaps (magic thresholds, duplicated site-lookup, unencoded risk.id) still open, 5 rounds of fixes introduced no new cruft |
+| Mobile | 9/10 | unchanged -- round 2's fix confirmed live-tested and durable through 3 more rounds of unrelated changes |
+| Security | 9/10 | unchanged -- new round 4/5 code confirmed safe (static i18n error strings, no raw-HTML injection path for AI-bucket content) |
+
+**Average: 7.56/10.** Only industry-standards is below the 7 floor.
+Not yet at the 9 target, but every other axis is comfortably clear
+(three axes now at 9/10). Industry-standards needs real feature work
+(export, a genuine interconnection metric, hover-preview) to move
+meaningfully -- similar in shape to the structural-work wall the
+Risk Register loop hit. Picking the most concrete, well-scoped item
+from the judge's candidate list rather than inventing new scope:
+cross-linking to RiskGraphPage's already-built real PageRank
+scoring, the least invasive of the five open findings and a genuine,
+judge-flagged gap (a working alternative sits one click away in the
+same nav section and isn't referenced).
