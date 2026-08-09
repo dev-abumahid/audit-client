@@ -1478,7 +1478,8 @@
         "predictLoadError": "Failed to load the predictions report.",
         "mitigationsLoadError": "Failed to load the mitigations report.",
         "rcsaLoadError": "Failed to load the RCSA report.",
-        "resilienceLoadError": "Failed to load the resilience scan report."
+        "resilienceLoadError": "Failed to load the resilience scan report.",
+        "generatedOn": "Generated: {{date}}"
       },
       "predictions": {
         "score7d": "7-day Risk Score",
@@ -1487,7 +1488,8 @@
         "trend_worsening": "Worsening",
         "trend_stable": "Stable",
         "trend_improving": "Improving",
-        "emergingRisks": "Emerging Risks Detected:"
+        "emergingRisks": "Emerging Risks Detected:",
+        "confidence": "Confidence"
       },
       "mitigations": {
         "empty": "No mitigations generated yet",

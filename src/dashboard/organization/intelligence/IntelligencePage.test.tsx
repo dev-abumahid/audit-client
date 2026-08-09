@@ -852,6 +852,33 @@ describe("IntelligencePage", () => {
       expect(screen.queryByText("Summary text")).not.toBeInTheDocument()
     })
 
+    // quality-bar-loop round 4 (industry-standards, round-1 finding): the
+    // Predictions panel never showed a "generated on" date or the
+    // confidence score, even though both were already part of the typed
+    // AI response (createdAt on every run row, confidence in the result
+    // payload) -- just never rendered.
+    it("shows the predict run's generated-on date and confidence score", () => {
+      mockRunsFor("PREDICT", {
+        score_7d: 42,
+        score_30d: 55,
+        trend: "worsening",
+        confidence: 0.73,
+        emerging_risks: [],
+        key_drivers: [],
+        board_summary: "Summary text",
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("organization.intelligence.sections.generatedOn")
+      ).toBeInTheDocument()
+      expect(screen.getByText("73")).toBeInTheDocument()
+      expect(
+        screen.getByText("organization.intelligence.predictions.confidence")
+      ).toBeInTheDocument()
+    })
+
     it("renders the mitigations panel for a well-formed result and rejects a malformed one", () => {
       mockRunsFor("MITIGATIONS", {
         mitigations: [

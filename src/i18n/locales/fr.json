@@ -1478,7 +1478,8 @@
         "predictLoadError": "Échec du chargement du rapport de prédictions.",
         "mitigationsLoadError": "Échec du chargement du rapport de mesures d'atténuation.",
         "rcsaLoadError": "Échec du chargement du rapport RCSA.",
-        "resilienceLoadError": "Échec du chargement du rapport d'analyse de résilience."
+        "resilienceLoadError": "Échec du chargement du rapport d'analyse de résilience.",
+        "generatedOn": "Généré le : {{date}}"
       },
       "predictions": {
         "score7d": "Score de risque à 7 jours",
@@ -1487,7 +1488,8 @@
         "trend_worsening": "En aggravation",
         "trend_stable": "Stable",
         "trend_improving": "En amélioration",
-        "emergingRisks": "Risques émergents détectés :"
+        "emergingRisks": "Risques émergents détectés :",
+        "confidence": "Confiance"
       },
       "mitigations": {
         "empty": "Aucune mesure d'atténuation générée pour le moment",

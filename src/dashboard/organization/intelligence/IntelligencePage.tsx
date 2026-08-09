@@ -443,13 +443,24 @@ export default function IntelligencePage() {
       {/* Predictions Panel */}
       {predictResult && isPredictResult(predictResult.result) && (
         <div className="animate-fade-in rounded-xl border border-primary/20 bg-primary/5 p-5">
+          {/* quality-bar-loop round 4 (industry-standards, round-1
+              finding): this panel used to give no indication of when it
+              was generated -- IntelligenceRun.createdAt already exists
+              on every run row (uniformly across all 4 report types,
+              unlike rcsa_date/analysis_date which only exist on 2 of
+              them), it just wasn't rendered. */}
           <div className="mb-3 flex items-center gap-2">
             <Brain className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold text-foreground">
               {t("organization.intelligence.sections.predictions")}
             </h2>
+            <span className="ml-auto text-[10px] text-muted-foreground">
+              {t("organization.intelligence.sections.generatedOn", {
+                date: formatLocaleDate(predictResult.createdAt, i18n.language),
+              })}
+            </span>
           </div>
-          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-4">
             <div className="rounded-lg border border-border bg-card p-3">
               <p className="text-xs text-muted-foreground">
                 {t("organization.intelligence.predictions.score7d")}
@@ -466,6 +477,20 @@ export default function IntelligencePage() {
               <p className="text-xl font-bold text-foreground">
                 {predictResult.result.score_30d.toFixed(1)}
                 <span className="text-xs text-muted-foreground">/10</span>
+              </p>
+            </div>
+            {/* quality-bar-loop round 4 (industry-standards, round-1
+                finding): PredictResult.confidence was already part of
+                the typed AI response but was never rendered -- exactly
+                the kind of AI-confidence signal a reference tool would
+                surface alongside the scores it qualifies. */}
+            <div className="rounded-lg border border-border bg-card p-3">
+              <p className="text-xs text-muted-foreground">
+                {t("organization.intelligence.predictions.confidence")}
+              </p>
+              <p className="text-xl font-bold text-foreground">
+                {(predictResult.result.confidence * 100).toFixed(0)}
+                <span className="text-xs text-muted-foreground">%</span>
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-3">
@@ -527,6 +552,14 @@ export default function IntelligencePage() {
             <h2 className="text-sm font-semibold text-foreground">
               {t("organization.intelligence.sections.mitigations")}
             </h2>
+            <span className="ml-auto text-[10px] text-muted-foreground">
+              {t("organization.intelligence.sections.generatedOn", {
+                date: formatLocaleDate(
+                  mitigationsResult.createdAt,
+                  i18n.language
+                ),
+              })}
+            </span>
           </div>
           {mitigationsResult.result.mitigations.length === 0 ? (
             <p className="text-xs text-muted-foreground">
@@ -595,6 +628,17 @@ export default function IntelligencePage() {
             <h2 className="text-sm font-semibold text-foreground">
               {t("organization.intelligence.sections.rcsa")}
             </h2>
+            {/* rcsa_date (the assessment's own as-of date, already part
+                of the typed AI response) rather than the run row's
+                createdAt -- more meaningful for an RCSA specifically. */}
+            <span className="ml-auto text-[10px] text-muted-foreground">
+              {t("organization.intelligence.sections.generatedOn", {
+                date: formatLocaleDate(
+                  rcsaResult.result.rcsa_date,
+                  i18n.language
+                ),
+              })}
+            </span>
           </div>
           <div className="mb-3 grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-lg border border-border p-3">
@@ -659,6 +703,17 @@ export default function IntelligencePage() {
             <h2 className="text-sm font-semibold text-foreground">
               {t("organization.intelligence.sections.resilienceScan")}
             </h2>
+            {/* analysis_date (the scan's own as-of date, already part of
+                the typed AI response) rather than the run row's
+                createdAt. */}
+            <span className="ml-auto text-[10px] text-muted-foreground">
+              {t("organization.intelligence.sections.generatedOn", {
+                date: formatLocaleDate(
+                  resilienceResult.result.analysis_date,
+                  i18n.language
+                ),
+              })}
+            </span>
           </div>
           <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-lg border border-border p-3">
