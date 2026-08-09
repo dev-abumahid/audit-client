@@ -148,6 +148,44 @@ efficiency fix (memoization) is the most mechanical and lowest-risk of
 the four -- same proven pattern as 4 sibling pages, worth one more
 round before treating this as a pause point.
 
+## Round 4 (UX -- ambiguous identical-arrow buttons, PR #664)
+
+Per the user's explicit correction mid-session ("for design decisions
+do research and choose the best option, instead of skipping, feature
+work can be done") -- this axis's finding was previously the kind this
+loop would have paused on. Researched reference tools for the same
+problem class (moving an item between a small set of named buckets):
+Jira's status-transition dropdown, Trello's "Move" card action, Asana's
+"Move to section" menu all use one trigger opening a menu of clearly-
+labeled destinations, not N identical icon buttons. Replaced the row of
+up to 3 identical ArrowRight buttons with this codebase's existing
+DropdownMenu component (already used on CompliancePage's row actions):
+one 44px trigger, one real text-labeled menu item per destination.
+
+Rewrote all 11 reassignment-related tests to open the dropdown and
+click the labeled menu item; added a new test asserting all 4 possible
+destinations (on the unclassified-action row, the strongest case) have
+distinct text labels, not 4 copies of the same string. Negative control
+confirmed the new test fails against the pre-fix committed version.
+
+Live verification was blocked by the same environment issue this exact
+page has now hit 4 times this session (documented in rounds 2/3's
+logs) -- isLoading never resolves despite a valid 200, reproduced again
+even after a full dev-server restart. Verified instead via the real
+Radix DropdownMenu render/click/portal interaction in the unit tests,
+plus indirect live confirmation that the identical shared component
+works correctly on CompliancePage (which does load live).
+
+Review round 1: both angles came back with no real bugs. Angle B
+flagged one cheap, pre-existing test-coverage gap (the disabled-trigger-
+while-pending behavior had no test, before or after this PR) -- fixed
+same-round with a negative-controlled test rather than just noted.
+
+**Status:** UX should clear the floor now. Remaining below-floor axes:
+industry-standards (5/10) and visual polish (6/10) -- efficiency was
+already fixed in round 3. Per the standing instruction, these are the
+next work, not a pause point.
+
 ## Round 3 (efficiency -- memoized line grouping, PR #662)
 
 Replaced the 20 unmemoized `.filter()` calls per render (5 entity types x
