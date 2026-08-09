@@ -145,3 +145,36 @@ axes: industry-standards (6/10), visual polish (5/10, the lowest
 remaining), resilience (6/10). Visual polish's legend-vocabulary bug
 is the same exact bug RiskMatrixPage fixed in its own round 9 --
 moving there next.
+
+## Round 3 (visual polish -- legend vocabulary, PR #647)
+
+Ported RiskMatrixPage's round-9 fix: the legend used a page-local
+vocabulary ("Systemic node/High interconnection/Moderate/Isolated")
+while this same page's own RiskDetailCard shows a RiskBadge reading
+"Critical/High/Medium/Low" via the shared `riskLevel.*` i18n keys.
+Switched the legend to pull its label text from the same shared keys,
+and removed the four now-orphaned `legendSystemic`/
+`legendHighInterconnection`/`legendModerate`/`legendIsolated` keys
+from `en.json`/`fr.json` after confirming (repo-wide grep) they were
+unused anywhere else.
+
+Negative control confirmed the new regression test fails without the
+fix. One review round, both reviewers returned zero blocking findings
+-- angle B specifically re-verified (not just trusted the port) that
+`riskLevel.*` keys really exist and that RiskBadge really uses the
+same namespace, then live-confirmed the legend now reads "Critical /
+High / Medium / Low" against the running dev server, with no React
+key warnings.
+
+**Not addressed yet:** the second visual-polish finding from round 1
+(4 spots using raw hardcoded `bg-amber-500/10`/`bg-blue-500/10` chips
+bypassing `severityBadgeClasses`, with a dark-mode legibility issue)
+is a separate, distinct problem from the legend-vocabulary bug --
+treating it as its own round rather than bundling, consistent with
+one-fix-per-round discipline.
+
+**Status:** industry-standards (6/10) and resilience (6/10) are now
+the two remaining below-floor axes (visual polish should clear once
+re-scored, pending confirmation of the hardcoded-chip finding above).
+Next: resilience's `isError`-handling gap -- a direct, low-risk port
+of RiskMatrixPage's own round-3 fix.
