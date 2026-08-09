@@ -912,3 +912,47 @@ shipped (efficiency: PR #628; industry-standards: PR #629). Re-running
 the full 9-judge panel is the natural next step to check whether this
 closes enough of the gap to justify continuing the loop, or whether it
 should stop here given the earlier round-9 stagnation diagnosis.
+
+## Round 10 (fresh 9-judge panel, post PR #628/#629)
+
+| Axis | Score | vs. round 9 |
+|---|---|---|
+| Industry-standards | 6/10 | +2 |
+| UX | 7/10 | +1 |
+| Efficiency | 9/10 | +6 |
+| Accessibility | 7/10 | **-1 (regression)** |
+| Visual polish | 7/10 | same |
+| Resilience & edge cases | 7/10 | same |
+| Code quality | 6/10 | +1 |
+| Mobile/responsive | 3/10 | **-1 (regression)** |
+| Security | 10/10 | same |
+
+**Average: 6.89/10** (up from 6.0). Real, substantial improvement from both
+structural workstreams, but two regressions and one live-reproduced
+correctness bug surfaced by the panel:
+
+- **UX judge live-reproduced a real bug**: clicking the same sort column
+  twice never reversed direction. Root cause: `handleSort` called
+  `setSortDir` as a side effect from inside `setSortKey`'s functional
+  updater -- React's StrictMode double-invokes updaters in dev
+  specifically to catch this, so the toggle fired twice and cancelled
+  itself out.
+- **Mobile regressed (4->3)**: the new checkboxes (14px, zero hit-slop)
+  and sort-header buttons (16px tall, zero hit-slop) were worse touch
+  targets than the Edit/Delete buttons already flagged at round 3.
+- **Accessibility regressed (8->7)**: the bulk-action toolbar had no
+  aria-live/role="status" announcement -- the same SC 4.1.3 gap the
+  loading row already solves elsewhere on this exact page.
+- Visual polish (checkboxes missing accent-primary) and resilience
+  (stale selectedIds on single-row delete, no re-entrancy guard on
+  export) findings, both real and cheap.
+
+**Fix shipped (PR #630)**: fixed the sort-toggle bug, added hit-slop to
+checkboxes/sort buttons, added the toolbar's live-region announcement,
+added accent-primary/focus-ring to checkboxes, cleaned up selectedIds on
+single-row delete, added the export re-entrancy guard, and extracted a
+named EXPORT_ROW_LIMIT constant. Two review rounds (round 2 was a
+trivial test-robustness tweak); merged.
+
+**Next: re-run the panel** to confirm the sort-bug fix and the two
+regressions are actually resolved, not just addressed in isolation.
