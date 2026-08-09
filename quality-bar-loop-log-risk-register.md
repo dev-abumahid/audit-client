@@ -1063,3 +1063,49 @@ shipped so far. Of these, bulk status change is the most tractable next
 step -- it reuses the existing selection UI and the Promise.allSettled
 bulk-mutation pattern already established for bulk delete, just against
 updateRisk instead of deleteRisk.
+
+## Round 14 (bulk status change, PR #633)
+
+Added a "Change status..." bulk action alongside bulk delete, reusing
+the same Promise.allSettled/partial-failure-retry pattern. Two review
+rounds: round 1 found two small, real UI-polish findings (missing
+focus-ring, 2px height mismatch vs. the adjacent button) plus one dead
+code line -- all fixed same round; round 2 came back clean.
+
+| Axis | Score | vs. round 13 |
+|---|---|---|
+| Industry-standards | 6/10 | same |
+| (all other axes) | unchanged | carried forward |
+
+**Average: 7.89/10** (unchanged -- industry-standards didn't move).
+
+Judge's explicit verdict: "a real, well-executed increment, not a token
+gesture, but it's one item off a five-item list -- not enough to move
+the needle." Bulk delete + bulk status change now covers the single
+highest-frequency GRC bulk workflow (mass status transitions), but
+4 of 5 originally-named gaps remain completely untouched:
+- No multi-column sort (single sortKey, mutually exclusive columns)
+- No column resize/reorder/show-hide (fully fixed <th> set)
+- Export is still CSV-only with the same silent 1000-row cap
+- No saved views / persisted filter-sort state across navigation
+- (also noted: selection itself is still page-scoped only, capping how
+  useful any bulk action is at real scale)
+
+## Loop status after 14 rounds
+
+**Average 7.89/10, 8 of 9 axes at or above the 7 floor.** Only
+industry-standards remains below floor, and its remaining gaps are now
+qualitatively different in scope from every fix shipped in this loop so
+far: each of multi-column sort, column resize/reorder, export-format
+choice, and saved views would be its own multi-round feature build (drag-
+and-drop column management and a saved-view persistence layer in
+particular are new subsystems, not incremental fixes to existing code).
+
+Given 14 rounds of genuine, real, review-verified improvement with no
+remaining stagnation on 8/9 axes, and the remaining industry-standards
+gap requiring substantially larger-scope work than anything done so far,
+this is a natural, defensible stopping point for this page's loop.
+Recommend treating the four remaining industry-standards items as their
+own separately-scoped feature proposals rather than continuing this
+loop's cadence -- each deserves its own design/plan step before
+implementation, not a quick same-round fix.
