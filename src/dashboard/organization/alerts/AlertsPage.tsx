@@ -56,14 +56,12 @@ export default function AlertsPage() {
   // a user changing chips afterward isn't expected to keep syncing back to
   // the URL bar.
   const [searchParams] = useSearchParams()
-  const [severityFilter, setSeverityFilter] = useState<Severity | null>(
-    () => {
-      const param = searchParams.get("severity")
-      return param && param in SEVERITY_ACTIVE_CLASSES
-        ? (param as Severity)
-        : null
-    }
-  )
+  const [severityFilter, setSeverityFilter] = useState<Severity | null>(() => {
+    const param = searchParams.get("severity")
+    return param && param in SEVERITY_ACTIVE_CLASSES
+      ? (param as Severity)
+      : null
+  })
 
   const allAlerts = alertResponse?.data ?? []
   const alerts = severityFilter
@@ -83,9 +81,7 @@ export default function AlertsPage() {
     try {
       await markAlertRead(id).unwrap()
     } catch (err: any) {
-      toast.error(
-        err?.data?.message || t("organization.alerts.markReadFailed")
-      )
+      toast.error(err?.data?.message || t("organization.alerts.markReadFailed"))
     }
   }
 
@@ -123,8 +119,13 @@ export default function AlertsPage() {
         </div>
       </div>
 
-      {/* Severity Quick Filters */}
-      <div className="animate-slide-up flex gap-2">
+      {/* Severity Quick Filters
+          quality-bar-loop round 2 (mobile, round-1 finding): this row
+          had no wrap, so the "Low" chip's right edge sat at x:439.6px
+          in a 375px viewport with no horizontal scroll available --
+          completely unreachable on mobile, not just visually cramped.
+          flex-wrap lets chips wrap onto a second line instead. */}
+      <div className="animate-slide-up flex flex-wrap gap-2">
         {(["critical", "high", "medium", "low"] as const).map((sev) => {
           const count =
             sev === "critical"
@@ -145,7 +146,7 @@ export default function AlertsPage() {
               onClick={() =>
                 setSeverityFilter((prev) => (prev === sev ? null : sev))
               }
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex h-11 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${
                 isActive
                   ? SEVERITY_ACTIVE_CLASSES[sev]
                   : "border-border bg-card text-muted-foreground hover:bg-muted"
@@ -253,10 +254,15 @@ export default function AlertsPage() {
                         this is the one-way-blind half of the cross-link,
                         the other half (alert counts on the KRI card) lives
                         in KriDashboardPage.tsx. */}
+                    {/* quality-bar-loop round 2 (mobile, round-1
+                        finding): these measured 25px tall with only 8px
+                        between them -- under the 44px touch-target
+                        guideline and a real mis-tap risk given how
+                        close together they sit. */}
                     {alert.kri_id && (
                       <Link
                         to={`/organization/kri?highlight=${encodeURIComponent(alert.kri_id)}`}
-                        className="focus-ring rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10"
+                        className="focus-ring flex h-11 items-center rounded-md px-2 text-[11px] font-medium text-primary hover:bg-primary/10"
                       >
                         {t("organization.alerts.viewKri")}
                       </Link>
@@ -265,7 +271,7 @@ export default function AlertsPage() {
                       <button
                         onClick={() => handleMarkRead(alert.id)}
                         disabled={isMarkingRead}
-                        className="focus-ring rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+                        className="focus-ring flex h-11 items-center rounded-md px-2 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
                       >
                         {t("organization.alerts.markAsRead")}
                       </button>

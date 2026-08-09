@@ -154,6 +154,36 @@ describe("AlertsPage", () => {
     ).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 2 (mobile, round-1 finding): the severity
+  // filter chips, "View KRI" link, and "Mark as read" button measured
+  // 25-33px tall -- under the 44px touch-target guideline, and the
+  // filter row had no wrap so the "Low" chip was completely unreachable
+  // on mobile (right edge past the 375px viewport, no horizontal
+  // scroll). Same h-11 fix already shipped on 4 sibling pages this
+  // session, plus flex-wrap on the filter row.
+  it("gives the severity filter chips and per-alert action links a 44px touch target, and lets the filter row wrap", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert({ is_read: false, kri_id: "kri-1" })] },
+      isLoading: false,
+    })
+    const { container } = renderPage()
+
+    expect(
+      screen.getByRole("button", { name: /riskLevel\.low/i }).className
+    ).toContain("h-11")
+    expect(
+      screen.getByRole("link", { name: "organization.alerts.viewKri" })
+        .className
+    ).toContain("h-11")
+    expect(
+      screen.getByRole("button", { name: "organization.alerts.markAsRead" })
+        .className
+    ).toContain("h-11")
+
+    const filterRow = container.querySelector(".animate-slide-up")
+    expect(filterRow?.className).toContain("flex-wrap")
+  })
+
   it("marks an alert as read when the button is clicked", async () => {
     mockUseGetAllAlertsQuery.mockReturnValue({
       data: { data: [makeAlert()] },
