@@ -105,3 +105,31 @@ is completely unreachable on mobile. Fixing the filter row's
 wrap/scroll behavior plus the undersized touch targets (same proven
 h-11 pattern shipped on 4 sibling pages this session) in one round,
 since both are the same "mobile layout" finding.
+
+## Round 2 (mobile -- unreachable filter chip + touch targets, PR #658)
+
+Added `flex-wrap` to the severity filter row (previously `flex gap-2`
+with no wrap, causing the "Low" chip to render entirely past the 375px
+viewport with zero scroll access). Bumped the severity chips, "View
+KRI" link, and "Mark as read" button to 44px (h-11).
+
+Negative control confirmed the new test fails without the fix. One
+review round, both reviewers returned zero blocking findings -- angle A
+verified the flex-wrap/gap interaction and vertical-centering were
+correct, and that the test's role-based query unambiguously targets
+only the filter chip (RiskBadge itself renders a `&lt;span&gt;`, not a
+button, so no collision with the in-card severity badge); angle B did a
+genuine end-to-end live functional test -- not just visibility --
+clicking the now-reachable "Low" chip and confirming the filter
+actually applies (list narrows to the empty-filtered state, toggles
+back correctly), plus confirmed flex-wrap only activates when needed
+(single row at desktop width).
+
+**Status:** mobile should clear the floor now, and this was a genuine
+functional-bug fix (not just polish) confirmed working end-to-end live
+-- likely the most impactful single fix of this pattern shipped this
+session. Remaining below-floor axes: industry-standards (4/10, the
+lowest), UX (6/10), efficiency (5/10), code quality (6/10). Efficiency
+next: the same unmemoized-derived-data pattern already fixed on 2
+sibling pages this session (5 separate `.filter()` passes over
+`allAlerts` recomputing on every render).
