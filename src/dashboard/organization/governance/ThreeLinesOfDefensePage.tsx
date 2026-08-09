@@ -29,7 +29,7 @@ import {
   Scale,
   Shield,
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 import { toast } from "sonner"
@@ -165,14 +165,35 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return message || fallback
 }
 
+// quality-bar-loop round 3 (efficiency, round-1 finding): grouping each
+// entity list by line_of_defense once (O(n)) replaces the previous 4 calls
+// to `.filter()` per entity type per render (20 total across all 4 lines x
+// 5 entity types) with an O(1) lookup per line inside the LINES.map below.
+function groupByLine<T extends { line_of_defense: LineOfDefense | null }>(
+  items: T[]
+): Record<LineOfDefense, T[]> {
+  const grouped: Record<LineOfDefense, T[]> = {
+    FIRST: [],
+    SECOND: [],
+    THIRD: [],
+    GOVERNING_BODY: [],
+  }
+  for (const item of items) {
+    if (item.line_of_defense) grouped[item.line_of_defense].push(item)
+  }
+  return grouped
+}
+
 interface ItemRowProps {
+  entityType: EntityKind
+  id: string
   title: string
   meta: string
   severity: SeverityLevel
   currentLine: LineOfDefense | null
   canReassign: boolean
   isPending: boolean
-  onReassign: (line: LineOfDefense) => void
+  onReassign: (entityType: EntityKind, id: string, line: LineOfDefense) => void
   // aexa-frontend#532: the only way to act on an item here was reassigning
   // its line -- there was no way to drill into the record itself. Optional
   // since Compliance and Audit have no per-record detail page (aexa-frontend
@@ -182,7 +203,15 @@ interface ItemRowProps {
   linkTo?: string
 }
 
-function ItemRow({
+// quality-bar-loop round 3 (efficiency, round-1 finding): wrapped in
+// React.memo -- combined with `onReassign` now being the single stable
+// top-level `reassign` callback (see useCallback below) instead of a fresh
+// per-item closure, clicking one row's reassign button (which only changes
+// `pendingId`) now re-renders just that row and the row leaving pending
+// state, not all 20-30+ rows on the board.
+const ItemRow = memo(function ItemRow({
+  entityType,
+  id,
   title,
   meta,
   severity,
@@ -235,7 +264,7 @@ function ItemRow({
               key={line}
               type="button"
               disabled={isPending}
-              onClick={() => onReassign(line)}
+              onClick={() => onReassign(entityType, id, line)}
               title={t(MOVE_TO_KEY[line])}
               aria-label={t(MOVE_TO_KEY[line])}
               // quality-bar-loop round 2 (mobile, round-1 finding):
@@ -258,8 +287,15 @@ function ItemRow({
       )}
     </div>
   )
-}
+})
 
+// Deliberately NOT wrapped in React.memo: every call site passes
+// `children` as an inline `{list.map(...)}` JSX expression, which is a
+// fresh array reference on every parent render regardless of whether the
+// underlying list changed -- memo's shallow prop comparison would never
+// see `children` as equal, so the wrapper would only add a comparison
+// cost with no skipped re-renders. ItemRow's own React.memo (above) is
+// what actually skips reconciliation for unaffected rows.
 function Section({
   icon: Icon,
   label,
@@ -317,60 +353,109 @@ export default function ThreeLinesOfDefensePage() {
     }
   }, [isError, t])
 
-  const risks = data?.data?.risks ?? []
-  const actions = data?.data?.actions ?? []
-  const kris = data?.data?.kris ?? []
-  const complianceObligations = data?.data?.complianceObligations ?? []
-  const auditEngagements = data?.data?.auditEngagements ?? []
+  // quality-bar-loop round 3 (efficiency, round-1 finding): the `?? []`
+  // fallback creates a fresh array reference every render (matching the
+  // same gap found on KriDashboardPage round 3) -- memoized here so
+  // `groupByLine` below only recomputes when `data` itself changes, not on
+  // every unrelated re-render (e.g. a pendingId update from an unrelated
+  // row's reassign click).
+  const risks = useMemo(() => data?.data?.risks ?? [], [data])
+  const actions = useMemo(() => data?.data?.actions ?? [], [data])
+  const kris = useMemo(() => data?.data?.kris ?? [], [data])
+  const complianceObligations = useMemo(
+    () => data?.data?.complianceObligations ?? [],
+    [data]
+  )
+  const auditEngagements = useMemo(
+    () => data?.data?.auditEngagements ?? [],
+    [data]
+  )
 
-  const classifiedActions = actions.filter((a) => a.line_of_defense !== null)
-  const unclassifiedActions = actions.filter((a) => a.line_of_defense === null)
-
-  const reassign = async (
-    entityType: EntityKind,
-    id: string,
-    line: LineOfDefense
-  ) => {
-    setPendingId(id)
-    try {
-      switch (entityType) {
-        case "risk":
-          await updateRisk({ id, data: { line_of_defense: line } }).unwrap()
-          break
-        case "action":
-          await updateFindingById({
-            id,
-            body: { line_of_defense: line },
-          }).unwrap()
-          break
-        case "kri":
-          await updateKri({ id, data: { line_of_defense: line } }).unwrap()
-          break
-        case "compliance":
-          await updateCompliance({
-            id,
-            data: { line_of_defense: line },
-          }).unwrap()
-          break
-        case "audit":
-          await updateAuditEngagement({
-            id,
-            data: { line_of_defense: line },
-          }).unwrap()
-          break
-      }
-      toast.success(t("organization.threeLinesOfDefense.toast.reassignSuccess"))
-    } catch (err) {
-      toast.error(
-        getErrorMessage(
-          err,
-          t("organization.threeLinesOfDefense.toast.reassignFailed")
-        )
+  const { classifiedActions, unclassifiedActions } = useMemo(() => {
+    const classified: typeof actions = []
+    const unclassified: typeof actions = []
+    for (const action of actions) {
+      ;(action.line_of_defense !== null ? classified : unclassified).push(
+        action
       )
-    } finally {
-      setPendingId(null)
     }
-  }
+    return { classifiedActions: classified, unclassifiedActions: unclassified }
+  }, [actions])
+
+  const risksByLine = useMemo(() => groupByLine(risks), [risks])
+  const actionsByLine = useMemo(
+    () => groupByLine(classifiedActions),
+    [classifiedActions]
+  )
+  const krisByLine = useMemo(() => groupByLine(kris), [kris])
+  const complianceByLine = useMemo(
+    () => groupByLine(complianceObligations),
+    [complianceObligations]
+  )
+  const auditsByLine = useMemo(
+    () => groupByLine(auditEngagements),
+    [auditEngagements]
+  )
+
+  // quality-bar-loop round 3 (efficiency, round-1 finding): wrapped in
+  // useCallback so ItemRow receives a stable `onReassign` reference across
+  // renders -- required for ItemRow's new React.memo (above) to actually
+  // skip re-rendering unaffected rows. The RTK Query mutation triggers
+  // (updateRisk etc.) are themselves stable references, so this callback's
+  // identity only changes if `t` changes (i18n language switch).
+  const reassign = useCallback(
+    async (entityType: EntityKind, id: string, line: LineOfDefense) => {
+      setPendingId(id)
+      try {
+        switch (entityType) {
+          case "risk":
+            await updateRisk({ id, data: { line_of_defense: line } }).unwrap()
+            break
+          case "action":
+            await updateFindingById({
+              id,
+              body: { line_of_defense: line },
+            }).unwrap()
+            break
+          case "kri":
+            await updateKri({ id, data: { line_of_defense: line } }).unwrap()
+            break
+          case "compliance":
+            await updateCompliance({
+              id,
+              data: { line_of_defense: line },
+            }).unwrap()
+            break
+          case "audit":
+            await updateAuditEngagement({
+              id,
+              data: { line_of_defense: line },
+            }).unwrap()
+            break
+        }
+        toast.success(
+          t("organization.threeLinesOfDefense.toast.reassignSuccess")
+        )
+      } catch (err) {
+        toast.error(
+          getErrorMessage(
+            err,
+            t("organization.threeLinesOfDefense.toast.reassignFailed")
+          )
+        )
+      } finally {
+        setPendingId(null)
+      }
+    },
+    [
+      updateRisk,
+      updateFindingById,
+      updateKri,
+      updateCompliance,
+      updateAuditEngagement,
+      t,
+    ]
+  )
 
   return (
     <div className="flex flex-col gap-4 p-4 lg:p-6">
@@ -405,17 +490,11 @@ export default function ThreeLinesOfDefensePage() {
         <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {LINES.map((line) => {
-              const lineRisks = risks.filter((r) => r.line_of_defense === line)
-              const lineActions = classifiedActions.filter(
-                (a) => a.line_of_defense === line
-              )
-              const lineKris = kris.filter((k) => k.line_of_defense === line)
-              const lineCompliance = complianceObligations.filter(
-                (c) => c.line_of_defense === line
-              )
-              const lineAudits = auditEngagements.filter(
-                (a) => a.line_of_defense === line
-              )
+              const lineRisks = risksByLine[line]
+              const lineActions = actionsByLine[line]
+              const lineKris = krisByLine[line]
+              const lineCompliance = complianceByLine[line]
+              const lineAudits = auditsByLine[line]
               const totalCount =
                 lineRisks.length +
                 lineActions.length +
@@ -447,6 +526,8 @@ export default function ThreeLinesOfDefensePage() {
                       {lineRisks.map((risk) => (
                         <ItemRow
                           key={risk.id}
+                          entityType="risk"
+                          id={risk.id}
                           title={risk.title}
                           meta={`${riskCategoryLabel(t, risk.category)} · ${getEnumLabel(t, RISK_STATUS_LABEL_KEYS, risk.status)}`}
                           severity={
@@ -455,9 +536,7 @@ export default function ThreeLinesOfDefensePage() {
                           currentLine={risk.line_of_defense}
                           canReassign={canReassignRisk}
                           isPending={pendingId === risk.id}
-                          onReassign={(nextLine) =>
-                            reassign("risk", risk.id, nextLine)
-                          }
+                          onReassign={reassign}
                           linkTo={`/organization/risks/${risk.id}`}
                         />
                       ))}
@@ -474,6 +553,8 @@ export default function ThreeLinesOfDefensePage() {
                       {lineActions.map((action) => (
                         <ItemRow
                           key={action.id}
+                          entityType="action"
+                          id={action.id}
                           title={action.title}
                           meta={`${getEnumLabel(t, FINDING_PRIORITY_LABEL_KEYS, action.priority)} · ${getEnumLabel(t, FINDING_STATUS_LABEL_KEYS, action.status)}`}
                           severity={
@@ -482,9 +563,7 @@ export default function ThreeLinesOfDefensePage() {
                           currentLine={action.line_of_defense}
                           canReassign={canReassignAction}
                           isPending={pendingId === action.id}
-                          onReassign={(nextLine) =>
-                            reassign("action", action.id, nextLine)
-                          }
+                          onReassign={reassign}
                           linkTo={`/organization/finding/${action.id}`}
                         />
                       ))}
@@ -501,6 +580,8 @@ export default function ThreeLinesOfDefensePage() {
                       {lineKris.map((kri) => (
                         <ItemRow
                           key={kri.id}
+                          entityType="kri"
+                          id={kri.id}
                           title={kri.title}
                           meta={`${kri.unit} · ${getEnumLabel(t, KRI_STATUS_LABEL_KEYS, kri.status)}`}
                           severity={
@@ -509,9 +590,7 @@ export default function ThreeLinesOfDefensePage() {
                           currentLine={kri.line_of_defense}
                           canReassign={canReassignKri}
                           isPending={pendingId === kri.id}
-                          onReassign={(nextLine) =>
-                            reassign("kri", kri.id, nextLine)
-                          }
+                          onReassign={reassign}
                           linkTo={`/organization/kri?highlight=${encodeURIComponent(kri.id)}`}
                         />
                       ))}
@@ -528,6 +607,8 @@ export default function ThreeLinesOfDefensePage() {
                       {lineCompliance.map((obligation) => (
                         <ItemRow
                           key={obligation.id}
+                          entityType="compliance"
+                          id={obligation.id}
                           title={obligation.title}
                           meta={`${complianceDomainLabel(t, obligation.domain)} · ${getEnumLabel(t, COMPLIANCE_STATUS_LABEL_KEYS, obligation.status)}`}
                           severity={
@@ -537,9 +618,7 @@ export default function ThreeLinesOfDefensePage() {
                           currentLine={obligation.line_of_defense}
                           canReassign={canReassignCompliance}
                           isPending={pendingId === obligation.id}
-                          onReassign={(nextLine) =>
-                            reassign("compliance", obligation.id, nextLine)
-                          }
+                          onReassign={reassign}
                           // aexa-frontend#561: this was the only one of the
                           // 5 entity sections on this board with no linkTo
                           // at all. CompliancePage has no per-obligation
@@ -562,6 +641,8 @@ export default function ThreeLinesOfDefensePage() {
                       {lineAudits.map((engagement) => (
                         <ItemRow
                           key={engagement.id}
+                          entityType="audit"
+                          id={engagement.id}
                           title={engagement.title}
                           meta={`${engagement.lead_auditor ?? t("organization.threeLinesOfDefense.noLeadAuditor")} · ${getEnumLabel(t, AUDIT_ENGAGEMENT_STATUS_LABEL_KEYS, engagement.status)}`}
                           severity={
@@ -571,9 +652,7 @@ export default function ThreeLinesOfDefensePage() {
                           currentLine={engagement.line_of_defense}
                           canReassign={canReassignAudit}
                           isPending={pendingId === engagement.id}
-                          onReassign={(nextLine) =>
-                            reassign("audit", engagement.id, nextLine)
-                          }
+                          onReassign={reassign}
                           // AuditPage has no per-engagement URL/route -- it
                           // opens engagements in an edit modal driven by
                           // local state, not a navigable id. Links to the
@@ -612,6 +691,8 @@ export default function ThreeLinesOfDefensePage() {
                 {unclassifiedActions.map((action) => (
                   <ItemRow
                     key={action.id}
+                    entityType="action"
+                    id={action.id}
                     title={action.title}
                     meta={`${getEnumLabel(t, FINDING_PRIORITY_LABEL_KEYS, action.priority)} · ${getEnumLabel(t, FINDING_STATUS_LABEL_KEYS, action.status)}`}
                     severity={
@@ -620,9 +701,7 @@ export default function ThreeLinesOfDefensePage() {
                     currentLine={null}
                     canReassign={canReassignAction}
                     isPending={pendingId === action.id}
-                    onReassign={(nextLine) =>
-                      reassign("action", action.id, nextLine)
-                    }
+                    onReassign={reassign}
                     linkTo={`/organization/finding/${action.id}`}
                   />
                 ))}

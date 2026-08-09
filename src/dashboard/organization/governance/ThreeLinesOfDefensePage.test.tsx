@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import ThreeLinesOfDefensePage from "./ThreeLinesOfDefensePage"
@@ -773,6 +773,124 @@ describe("ThreeLinesOfDefensePage", () => {
       expect(
         screen.getByRole("link", { name: "Legacy remediation item" })
       ).toHaveAttribute("href", "/organization/finding/action-unclassified")
+    })
+  })
+
+  // quality-bar-loop round 3 (efficiency, round-1 finding): grouping by line
+  // is now computed once via useMemo/groupByLine instead of 20 inline
+  // .filter() calls per render. Negative-control convention for
+  // memoization fixes (established earlier this session on
+  // KriDashboardPage round 3): (a) an unrelated re-render must not
+  // corrupt/change correct values, and (b) a genuinely new data set via
+  // rerender() must still update the values -- catching a frozen/wrong
+  // dependency array, the more dangerous failure mode of a memoization
+  // refactor.
+  describe("memoized line grouping (round 3)", () => {
+    // Finds the outer Card for a given line's own heading text, so a test
+    // can assert which line-column an item currently renders under (every
+    // line's Section shares the same "Risks"/"Actions"/etc. labels, so the
+    // line heading is the only unique anchor per column).
+    function cardForLine(lineHeadingText: string): HTMLElement {
+      const heading = screen.getByText(lineHeadingText)
+      const card = heading.closest('[data-slot="card"]')
+      if (!card) {
+        throw new Error(`No card found for heading "${lineHeadingText}"`)
+      }
+      return card as HTMLElement
+    }
+
+    it("keeps an unrelated item in its correct line column across a re-render triggered by reassigning a different item", async () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+      mockUpdateKri.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      const { rerender } = renderPage()
+
+      // Reassigning the KRI (a different entity) triggers a pendingId state
+      // change and a page re-render, but the underlying `data` reference is
+      // unchanged -- a stale/wrong useMemo dependency could cause the
+      // unrelated risk to disappear from or duplicate across columns.
+      const kriRow = screen.getByText("Supplier Lead Time").closest(".rounded-md")
+      if (!kriRow) throw new Error("KRI row not found")
+      await userEvent.click(
+        within(kriRow as HTMLElement).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveToFirst",
+        })
+      )
+      await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled())
+
+      expect(
+        within(
+          cardForLine("organization.threeLinesOfDefense.lines.first")
+        ).getByText("Supply chain disruption")
+      ).toBeInTheDocument()
+      expect(
+        within(
+          cardForLine("organization.threeLinesOfDefense.lines.second")
+        ).queryByText("Supply chain disruption")
+      ).not.toBeInTheDocument()
+
+      rerender(
+        <MemoryRouter>
+          <ThreeLinesOfDefensePage />
+        </MemoryRouter>
+      )
+
+      expect(
+        within(
+          cardForLine("organization.threeLinesOfDefense.lines.first")
+        ).getByText("Supply chain disruption")
+      ).toBeInTheDocument()
+    })
+
+    it("moves an item to its new column when the underlying data actually changes", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      const { rerender } = renderPage()
+
+      expect(
+        within(
+          cardForLine("organization.threeLinesOfDefense.lines.first")
+        ).getByText("Supply chain disruption")
+      ).toBeInTheDocument()
+
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({
+          risks: [
+            {
+              id: "risk-1",
+              title: "Supply chain disruption",
+              category: "supply_chain",
+              status: "open",
+              line_of_defense: "THIRD",
+            },
+          ],
+        }),
+        isLoading: false,
+      })
+      rerender(
+        <MemoryRouter>
+          <ThreeLinesOfDefensePage />
+        </MemoryRouter>
+      )
+
+      expect(
+        within(
+          cardForLine("organization.threeLinesOfDefense.lines.first")
+        ).queryByText("Supply chain disruption")
+      ).not.toBeInTheDocument()
+      expect(
+        within(
+          cardForLine("organization.threeLinesOfDefense.lines.third")
+        ).getByText("Supply chain disruption")
+      ).toBeInTheDocument()
     })
   })
 })
