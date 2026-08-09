@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import RiskMatrixPage from "./RiskMatrixPage"
@@ -237,7 +237,7 @@ describe("RiskMatrixPage", () => {
     })
     renderPage()
 
-    const legendLabel = screen.getByText("organization.riskMatrix.critical")
+    const legendLabel = screen.getByText("riskLevel.critical")
     const scrollWrapper = document.querySelector(".overflow-auto")
     expect(scrollWrapper).not.toBeNull()
     expect(scrollWrapper?.contains(legendLabel)).toBe(false)
@@ -370,7 +370,12 @@ describe("RiskMatrixPage", () => {
       screen.queryByText("organization.riskMatrix.unscoredRiskBadge")
     ).not.toBeInTheDocument()
     // A genuinely valid residual_score still gets a real severity badge.
-    expect(screen.getByText("riskLevel.low")).toBeInTheDocument()
+    // Scoped to the card, not the whole document: the legend (round 9)
+    // also renders riskLevel.* text unconditionally.
+    const card = screen
+      .getByText("Supply Chain Disruption")
+      .closest(".rounded-lg.border.bg-background") as HTMLElement
+    expect(within(card).getByText("riskLevel.low")).toBeInTheDocument()
   })
 
   // quality-bar-loop round 5 (resilience, found during a full-panel
@@ -394,11 +399,16 @@ describe("RiskMatrixPage", () => {
       screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
     )
 
-    expect(
-      screen.getByText("organization.riskMatrix.unscoredRiskBadge")
-    ).toBeInTheDocument()
-    // No severity badge at all -- better than a misleadingly confident one.
-    expect(screen.queryByText(/riskLevel\./)).not.toBeInTheDocument()
+    const unscoredBadge = screen.getByText(
+      "organization.riskMatrix.unscoredRiskBadge"
+    )
+    expect(unscoredBadge).toBeInTheDocument()
+    // No severity badge on the card itself -- better than a misleadingly
+    // confident one. Scoped to the card, not the whole document: the
+    // legend (round 9) also renders riskLevel.* text unconditionally.
+    const card = unscoredBadge.closest(".rounded-lg.border.bg-background")
+    expect(card).not.toBeNull()
+    expect(within(card as HTMLElement).queryByText(/riskLevel\./)).not.toBeInTheDocument()
   })
 
   // Regression (issue #359): the legend swatch for the lowest severity used
@@ -411,9 +421,33 @@ describe("RiskMatrixPage", () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     renderPage()
 
-    const label = screen.getByText("organization.riskMatrix.weak")
+    const label = screen.getByText("riskLevel.low")
     const swatch = label.previousElementSibling
     expect(swatch).toHaveClass("bg-risk-low/55")
+  })
+
+  // quality-bar-loop round 9 (visual polish, round-1 finding): the legend
+  // used to say "Critical/Major/Moderate/Weak" -- a one-off vocabulary
+  // invented just for this page -- while this same page's own RiskCard
+  // shows a RiskBadge reading "Critical/High/Medium/Low", the canonical
+  // shared severity vocabulary used everywhere else in the app. Same
+  // 4-bucket concept, two vocabularies on one screen.
+  it("uses the same severity vocabulary in the legend as RiskBadge uses on the cards", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    renderPage()
+
+    const legend = document.querySelector(".mt-6.flex.flex-wrap.gap-4") as HTMLElement
+    expect(legend).not.toBeNull()
+    expect(within(legend).getByText("riskLevel.critical")).toBeInTheDocument()
+    expect(within(legend).getByText("riskLevel.high")).toBeInTheDocument()
+    expect(within(legend).getByText("riskLevel.medium")).toBeInTheDocument()
+    expect(within(legend).getByText("riskLevel.low")).toBeInTheDocument()
+    // The old page-local vocabulary must be gone from the legend, not
+    // just supplemented (note: "Moderate" legitimately still appears
+    // elsewhere on the page, as an impact-axis tick label).
+    expect(within(legend).queryByText("Major")).not.toBeInTheDocument()
+    expect(within(legend).queryByText("Moderate")).not.toBeInTheDocument()
+    expect(within(legend).queryByText("Weak")).not.toBeInTheDocument()
   })
 
   it("renders a real risk, not any hardcoded fixture", () => {

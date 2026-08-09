@@ -594,23 +594,38 @@ export default function RiskMatrixPage() {
               own content could wrap and fit within an actual 375px
               viewport on its own. Moved outside the scroll wrapper so
               flex-wrap can do its job at the real container width. */}
+          {/* quality-bar-loop round 9 (visual polish, round-1 finding):
+              this legend used to say "Critical/Major/Moderate/Weak" --
+              a one-off vocabulary invented just for this page -- while
+              this SAME page's own RiskCard (a few hundred pixels away)
+              shows a RiskBadge reading "Critical/High/Medium/Low", the
+              canonical shared severity vocabulary
+              (src/utils/severityStyles.ts, deliberately built to
+              replace 5+ independently-invented severity vocabularies
+              across the app). Two labels for the same 4-bucket concept
+              on one screen. Now pulling the label text from the same
+              `riskLevel.*` i18n keys RiskBadge itself uses, instead of
+              a page-local translation, so they can never drift apart
+              again. Swatch colors are unchanged -- the underlying
+              bg-risk-critical/high/medium/low classes already matched
+              this vocabulary; only the label text was wrong. */}
           <div className="mt-6 flex flex-wrap gap-4">
             {[
               {
                 color: "bg-risk-critical/90",
-                label: t("organization.riskMatrix.critical"),
+                label: t("riskLevel.critical"),
               },
               {
                 color: "bg-risk-high/80 dark:bg-risk-high/70",
-                label: t("organization.riskMatrix.major"),
+                label: t("riskLevel.high"),
               },
               {
                 color: "bg-risk-medium/45",
-                label: t("organization.riskMatrix.moderate"),
+                label: t("riskLevel.medium"),
               },
               {
                 color: "bg-risk-low/55",
-                label: t("organization.riskMatrix.weak"),
+                label: t("riskLevel.low"),
               },
             ].map(({ color, label }) => (
               <div key={label} className="flex items-center gap-1.5">
