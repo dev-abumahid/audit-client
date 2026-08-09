@@ -251,6 +251,60 @@ describe("IntelligencePage", () => {
     ).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 3 (mobile, round-1 finding): every button on
+  // this page measured under the 44px touch-target guideline (40px for
+  // the two primary actions, 28px for the AI-report cluster, severity
+  // filter chips, and per-item Create Risk button, 26px for pagination)
+  // -- same h-11 fix already shipped on 3 sibling pages this session.
+  it("gives every action/filter/pagination button a 44px touch target", () => {
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: Array.from({ length: 25 }, (_, i) =>
+                  makeItem({ id: `item-${i}` })
+                ),
+                meta: { page: 1, limit: 20, total: 25, totalPage: 2 },
+              },
+            }
+    )
+
+    renderPage()
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.intelligence.actions.scrape",
+      }).className
+    ).toContain("h-11")
+    expect(
+      screen.getByRole("button", {
+        name: /organization\.intelligence\.actions\.analyzeCount/,
+      }).className
+    ).toContain("h-11")
+    expect(
+      screen.getByRole("button", {
+        name: "organization.intelligence.actions.predict",
+      }).className
+    ).toContain("h-11")
+    expect(
+      screen.getByRole("button", {
+        name: "organization.intelligence.filters.severity_critical",
+      }).className
+    ).toContain("h-11")
+    expect(
+      screen.getByRole("button", {
+        name: "organization.intelligence.pagination.previous",
+      }).className
+    ).toContain("h-11")
+    expect(
+      screen.getByRole("button", {
+        name: "organization.intelligence.pagination.next",
+      }).className
+    ).toContain("h-11")
+  })
+
   // aexa-frontend round-3 audit bug #3: item.scraped_at was hardcoded to
   // "en-US" regardless of the active UI language.
   it("formats the scraped_at date in French when the UI language is French", () => {

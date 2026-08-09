@@ -322,12 +322,17 @@ export default function IntelligencePage() {
           prominent filled buttons; the four downstream AI-report actions
           (Predict/Mitigations/RCSA/Resilience Scan) are visually grouped
           into a single labeled cluster (#68) so the bar reads as "get data
-          in" then "run a report", not six equal-weight buttons in a row. */}
+          in" then "run a report", not six equal-weight buttons in a row.
+          quality-bar-loop round 3 (mobile, round-1 finding): every
+          button in this bar measured under the 44px touch-target
+          guideline (40px for these two, 28px for the AI-report cluster
+          below) -- same h-11 fix already shipped on 3 sibling pages this
+          session. */}
       <div className="animate-slide-up flex flex-wrap items-center gap-3">
         <button
           onClick={handleScrape}
           disabled={isScraping}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-40"
+          className="flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-40"
         >
           {isScraping ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -342,7 +347,7 @@ export default function IntelligencePage() {
         <button
           onClick={handleAnalyze}
           disabled={isAnalyzing || unanalyzedCount === 0}
-          className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-40"
+          className="flex h-11 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-40"
         >
           {isAnalyzing ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -366,7 +371,7 @@ export default function IntelligencePage() {
           <button
             onClick={handlePredict}
             disabled={isPredicting}
-            className="flex items-center gap-1.5 rounded-md bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
+            className="flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
           >
             {isPredicting ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -381,7 +386,7 @@ export default function IntelligencePage() {
           <button
             onClick={handleMitigations}
             disabled={isGeneratingMitigations}
-            className="flex items-center gap-1.5 rounded-md bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
+            className="flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
           >
             {isGeneratingMitigations ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -396,7 +401,7 @@ export default function IntelligencePage() {
           <button
             onClick={handleRcsa}
             disabled={isGeneratingRcsa}
-            className="flex items-center gap-1.5 rounded-md bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
+            className="flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
           >
             {isGeneratingRcsa ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -411,7 +416,7 @@ export default function IntelligencePage() {
           <button
             onClick={handleResilienceScan}
             disabled={isScanningResilience}
-            className="flex items-center gap-1.5 rounded-md bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
+            className="flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
           >
             {isScanningResilience ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -745,7 +750,7 @@ export default function IntelligencePage() {
               "organization.intelligence.filters.searchPlaceholder"
             )}
             aria-label={t("organization.intelligence.filters.searchLabel")}
-            className="h-9 w-full rounded-md border border-input bg-background pr-4 pl-9 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
+            className="h-11 w-full rounded-md border border-input bg-background pr-4 pl-9 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
           />
         </div>
 
@@ -759,7 +764,7 @@ export default function IntelligencePage() {
                 setFilterSeverity(sev)
                 setPage(1)
               }}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex h-11 items-center rounded-md px-3 text-xs font-medium transition-colors ${
                 filterSeverity === sev
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -879,7 +884,7 @@ export default function IntelligencePage() {
                           <button
                             onClick={() => handleCreateRisk(item)}
                             disabled={creatingRiskId === item.id}
-                            className="inline-flex items-center gap-1 rounded-md border border-primary/40 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+                            className="flex h-11 items-center gap-1 rounded-md border border-primary/40 px-2 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
                           >
                             {creatingRiskId === item.id ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
@@ -903,7 +908,7 @@ export default function IntelligencePage() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="rounded-md border border-border px-3 py-1 text-xs disabled:opacity-40"
+              className="flex h-11 items-center rounded-md border border-border px-3 text-xs disabled:opacity-40"
             >
               {t("organization.intelligence.pagination.previous")}
             </button>
@@ -916,7 +921,7 @@ export default function IntelligencePage() {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="rounded-md border border-border px-3 py-1 text-xs disabled:opacity-40"
+              className="flex h-11 items-center rounded-md border border-border px-3 text-xs disabled:opacity-40"
             >
               {t("organization.intelligence.pagination.next")}
             </button>
