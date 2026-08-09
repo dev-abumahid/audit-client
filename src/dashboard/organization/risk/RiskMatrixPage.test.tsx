@@ -426,6 +426,25 @@ describe("RiskMatrixPage", () => {
     expect(swatch).toHaveClass("bg-risk-low/55")
   })
 
+  // quality-bar-loop round 10 (visual polish, round-1 finding): the
+  // "Medium" swatch/cells used a flat /45 opacity in both themes, which
+  // HSL->sRGB composite math confirmed renders as a washed-out pale peach
+  // in light mode and a genuinely muddy brown/olive in dark mode, not the
+  // clean amber --risk-medium actually is. Light mode had huge contrast
+  // headroom to go more vivid (/75); dark mode could only move to /50
+  // before the small count-text's contrast dropped below the WCAG AA
+  // 4.5:1 floor -- ties the legend swatch to the same two-tier class the
+  // matrix cells use, so they can't drift out of sync with each other.
+  it("colors the medium-severity legend swatch the same two-tier opacity as the matrix cells", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    renderPage()
+
+    const label = screen.getByText("riskLevel.medium")
+    const swatch = label.previousElementSibling
+    expect(swatch).toHaveClass("bg-risk-medium/75")
+    expect(swatch).toHaveClass("dark:bg-risk-medium/50")
+  })
+
   // quality-bar-loop round 9 (visual polish, round-1 finding): the legend
   // used to say "Critical/Major/Moderate/Weak" -- a one-off vocabulary
   // invented just for this page -- while this same page's own RiskCard

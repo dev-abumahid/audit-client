@@ -77,11 +77,29 @@ const LABEL_KEYS: Record<
 // three levels purely so its overlaid white cell text clears AA -- verified
 // via HSL->sRGB composite math against --card in dark mode: /80 gives white
 // text only 3.81:1 (fails small text), /70 gives 4.61:1 (passes).
+//
+// quality-bar-loop round 10 (visual polish, round-1 finding): bg-risk-medium
+// at a flat /45 in both themes rendered as a washed-out pale peach in light
+// mode and a genuinely muddy brown/olive in dark mode -- confirmed via the
+// same HSL->sRGB composite math as bg-risk-high above (light: /45 composites
+// to rgb(250,212,145), a pastel tan; dark: /45 composites to rgb(123,90,34),
+// a desaturated brown, not the clean amber --risk-medium actually is at full
+// opacity). Light mode has huge contrast headroom against black text (14.9:1
+// even at /45), so /75 there gives a genuinely vivid amber (rgb(248,178,59),
+// 11.4:1) with no accessibility cost. Dark mode is the binding constraint:
+// the small 9px count text (white at 90% opacity, composited a second time
+// over the cell color) drops below the 4.5:1 small-text floor above /53
+// (measured: /53 gives 4.58:1, /54 gives 4.48:1) -- so dark mode only moves
+// to /50 (4.90:1), a real but modest improvement, not a full fix. Fully
+// fixing the dark-mode muddiness needs a base-token change to --risk-medium
+// itself (src/index.css), which affects every consumer of that token across
+// the app (RiskBadge, HeroProductVisual, etc.) -- out of scope for this
+// page-local fix; flagged as a follow-up instead of attempted here.
 function getMatrixColor(row: number, col: number, size: MatrixSize): string {
   const score = ((row + 1) / size) * ((col + 1) / size)
   if (score >= 0.64) return "bg-risk-critical/90"
   if (score >= 0.36) return "bg-risk-high/80 dark:bg-risk-high/70"
-  if (score >= 0.16) return "bg-risk-medium/45"
+  if (score >= 0.16) return "bg-risk-medium/75 dark:bg-risk-medium/50"
   return "bg-risk-low/55"
 }
 
@@ -620,7 +638,7 @@ export default function RiskMatrixPage() {
                 label: t("riskLevel.high"),
               },
               {
-                color: "bg-risk-medium/45",
+                color: "bg-risk-medium/75 dark:bg-risk-medium/50",
                 label: t("riskLevel.medium"),
               },
               {
