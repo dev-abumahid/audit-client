@@ -116,3 +116,42 @@ and the fix is the most proven, lowest-risk pattern in this entire
 session -- add `isError` handling to the 5 RTK Query hooks (items query
 + 4 run-history queries), mirroring the exact fix already shipped on 3
 sibling pages this session.
+
+## Round 2 (resilience -- isError handling, PR #655)
+
+Added `isError` handling to all 5 queries. Items query failure replaces
+the item list (search/pagination stay live, unlike sibling pages, since
+this page's header hosts independent action buttons that don't depend
+on the items fetch) with a distinct error state. Each of the 4
+report-run queries failing shows an inline notice in place of that
+panel, gated on `!xResult` so a stale-but-valid result from an earlier
+success is never clobbered by a later failed refetch.
+
+Negative control confirmed the new tests fail without their respective
+halves of the fix. Review round 1: angle A found a real bug -- the
+items-list branch checked `itemsError` alone (no `!items.length`-style
+guard), unlike the 4 report panels' correct `xError && !xResult`
+pattern, so a failed REFETCH after an already-successful page (e.g.
+paginating) would have discarded a real, valid stale list in favor of
+the error message. Fixed same-round with a new regression test (stale
+data survives isError=true when real data is still present) and its
+own negative control; angle B live-verified the diff's structure and
+i18n completeness, confirmed unit-test coverage was faithful, but
+couldn't force a genuine live failure through a `window.fetch`
+monkey-patch in this specific attempt -- a known environmental
+limitation (documented in this session's own memory: RTK Query's
+internal fetch reference can miss a post-load patch) -- rather than a
+code issue; I had already live-verified all 5 error states rendering
+correctly before opening the PR. Review round 2 (scoped to the fix
+commit): implicitly clean, same negative-control discipline applied.
+
+**Status:** resilience should clear the floor now, and clear it more
+convincingly than any prior instance of this fix pattern this session
+(5 queries fixed at once, plus a genuine stale-data-preservation bug
+caught and fixed in the same round). Remaining below-floor axes:
+industry-standards (4/10, the lowest -- needs real feature/design work:
+run history, timestamps, confidence indicators, source citations),
+UX (6/10), mobile (5/10 -- the proven touch-target fix pattern, not yet
+applied here). Picking mobile next: same well-established h-11/h-11-w-11
+pattern already shipped on 3 sibling pages this session, lowest risk of
+the remaining below-floor axes.
