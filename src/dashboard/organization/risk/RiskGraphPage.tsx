@@ -5,7 +5,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { useGetCorrelationMatrixDataQuery } from "@/redux/apis/organization/riskLink.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import type { Risk, RiskLink, RiskLinkType } from "@/types/organization"
@@ -183,46 +187,16 @@ const RiskGraphNode = memo(function RiskGraphNode({
   onUnpin,
 }: RiskGraphNodeProps) {
   return (
-    <g
-      // aexa-frontend#577 round 21: cursor-grab/active:cursor-grabbing
-      // (matching the background pan surface's own convention) rather than
-      // cursor-pointer -- dragging is now this node's primary supported
-      // gesture, a plain click (no movement) still selects it either way.
-      className="focus-ring-svg cursor-grab active:cursor-grabbing"
-      onClick={() => onSelect(riskRef)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          onSelect(riskRef)
-        }
-      }}
-      onMouseDown={(e) => {
-        e.preventDefault()
-        onDragStart(riskRef, e.clientX, e.clientY)
-      }}
-      onDoubleClick={() => onUnpin(riskRef)}
-      onMouseEnter={() => onHoverChange(riskRef)}
-      onMouseLeave={() => onHoverChange(null)}
-      tabIndex={0}
-      role="button"
-      aria-pressed={isSelected}
-      aria-label={ariaLabel}
-      // aexa-frontend#577 round 21 review: lets handleGraphKeyDown's
-      // Shift+Arrow nudge confirm the actual DOM focus target is this
-      // specific node before nudging it, not just that `selectedRisk`
-      // state happens to match -- see that handler's own comment for why.
-      data-risk-ref={riskRef}
-      opacity={isDimmed ? 0.15 : 1}
-    >
-      {/* aexa-frontend#577 round 16: a solid, non-animated ring in the
-          theme's dedicated --ring token -- distinct from the dashed,
-          animated selected (primary) / cascaded (destructive) ring below,
-          so a risk hovered from the domino-chain/correlations lists reads
-          as its own state rather than being confused with selection or
-          cascade-highlighting. Drawn at a smaller offset (+3 vs +6) so it
-          doesn't visually collide with that ring on the rare case both are
-          true at once (e.g. hovering the currently-selected risk's own
-          list entry). */}
+    <>
+      {/* quality-bar-loop round 17 (UX, live-verified regression): this
+          ring used to be a child of the dimmed <g> below, so hovering a
+          domino-chain/correlations-list entry for a risk OUTSIDE the
+          current cascade rendered the hover indicator at the same
+          opacity={0.15} as the rest of that dimmed node -- nearly
+          invisible in exactly the workflow most likely to trigger it
+          (select a risk, then scan its Correlations list). Drawn as a
+          sibling here instead, always at full opacity, regardless of
+          this node's own dimmed state. */}
       {isHovered && (
         <circle
           cx={x}
@@ -233,82 +207,114 @@ const RiskGraphNode = memo(function RiskGraphNode({
           strokeWidth={2}
         />
       )}
-      {/* Cascade highlight */}
-      {(isSelected || isCascaded) && (
+      <g
+        // aexa-frontend#577 round 21: cursor-grab/active:cursor-grabbing
+        // (matching the background pan surface's own convention) rather than
+        // cursor-pointer -- dragging is now this node's primary supported
+        // gesture, a plain click (no movement) still selects it either way.
+        className="focus-ring-svg cursor-grab active:cursor-grabbing"
+        onClick={() => onSelect(riskRef)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            onSelect(riskRef)
+          }
+        }}
+        onMouseDown={(e) => {
+          e.preventDefault()
+          onDragStart(riskRef, e.clientX, e.clientY)
+        }}
+        onDoubleClick={() => onUnpin(riskRef)}
+        onMouseEnter={() => onHoverChange(riskRef)}
+        onMouseLeave={() => onHoverChange(null)}
+        tabIndex={0}
+        role="button"
+        aria-pressed={isSelected}
+        aria-label={ariaLabel}
+        // aexa-frontend#577 round 21 review: lets handleGraphKeyDown's
+        // Shift+Arrow nudge confirm the actual DOM focus target is this
+        // specific node before nudging it, not just that `selectedRisk`
+        // state happens to match -- see that handler's own comment for why.
+        data-risk-ref={riskRef}
+        opacity={isDimmed ? 0.15 : 1}
+      >
+        {/* Cascade highlight */}
+        {(isSelected || isCascaded) && (
+          <circle
+            cx={x}
+            cy={y}
+            r={nodeRadius + 6}
+            fill="none"
+            stroke={
+              isSelected ? "hsl(var(--primary))" : "hsl(var(--destructive))"
+            }
+            strokeWidth={2}
+            strokeDasharray="4 2"
+          >
+            <animate
+              attributeName="stroke-dashoffset"
+              values="0;12"
+              dur="1s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        )}
         <circle
           cx={x}
           cy={y}
-          r={nodeRadius + 6}
-          fill="none"
-          stroke={
-            isSelected ? "hsl(var(--primary))" : "hsl(var(--destructive))"
-          }
+          r={nodeRadius}
+          fill={catColor}
+          fillOpacity={isSelected ? 0.35 : 0.15}
+          stroke={catColor}
           strokeWidth={2}
-          strokeDasharray="4 2"
-        >
-          <animate
-            attributeName="stroke-dashoffset"
-            values="0;12"
-            dur="1s"
-            repeatCount="indefinite"
-          />
-        </circle>
-      )}
-      <circle
-        cx={x}
-        cy={y}
-        r={nodeRadius}
-        fill={catColor}
-        fillOpacity={isSelected ? 0.35 : 0.15}
-        stroke={catColor}
-        strokeWidth={2}
-        strokeOpacity={0.7}
-      />
-      <title>{titleText}</title>
-      {isTippingPoint && (
-        <Zap
-          x={x + nodeRadius * 0.5}
-          y={y - nodeRadius - 10}
-          width={12}
-          height={12}
-          className="fill-accent text-accent"
-        >
-          <title>{tippingPointLabel}</title>
-        </Zap>
-      )}
-      {/* aexa-frontend#577 round 21: mirrors the tipping-point Zap icon's
+          strokeOpacity={0.7}
+        />
+        <title>{titleText}</title>
+        {isTippingPoint && (
+          <Zap
+            x={x + nodeRadius * 0.5}
+            y={y - nodeRadius - 10}
+            width={12}
+            height={12}
+            className="fill-accent text-accent"
+          >
+            <title>{tippingPointLabel}</title>
+          </Zap>
+        )}
+        {/* aexa-frontend#577 round 21: mirrors the tipping-point Zap icon's
           own convention (opposite corner, so the two never collide) --
           otherwise a manually-repositioned node looks indistinguishable
           from one the layout placed there itself, and a user has no visual
           cue that double-clicking it does anything. */}
-      {isPinned && (
-        <Pin
-          x={x - nodeRadius * 0.5 - 12}
-          y={y - nodeRadius - 10}
-          width={12}
-          height={12}
-          className="fill-muted-foreground text-muted-foreground"
+        {isPinned && (
+          <Pin
+            x={x - nodeRadius * 0.5 - 12}
+            y={y - nodeRadius - 10}
+            width={12}
+            height={12}
+            className="fill-muted-foreground text-muted-foreground"
+          >
+            <title>{pinnedLabel}</title>
+          </Pin>
+        )}
+        <text
+          x={x}
+          y={y - 4}
+          textAnchor="middle"
+          className="fill-foreground text-[11px] font-bold select-none"
         >
-          <title>{pinnedLabel}</title>
-        </Pin>
-      )}
-      <text
-        x={x}
-        y={y - 4}
-        textAnchor="middle"
-        className="fill-foreground text-[11px] font-bold select-none"
-      >
-        {labelText}
-      </text>
-      <text
-        x={x}
-        y={y + 9}
-        textAnchor="middle"
-        className="font-mono-data fill-muted-foreground text-[8px] select-none"
-      >
-        {pagerankText}
-      </text>
-    </g>
+          {labelText}
+        </text>
+        <text
+          x={x}
+          y={y + 9}
+          textAnchor="middle"
+          className="font-mono-data fill-muted-foreground text-[8px] select-none"
+        >
+          {pagerankText}
+        </text>
+      </g>
+    </>
   )
 })
 
@@ -410,7 +416,12 @@ interface MinimapDotProps {
   fill: string
 }
 
-const MinimapDot = memo(function MinimapDot({ x, y, r, fill }: MinimapDotProps) {
+const MinimapDot = memo(function MinimapDot({
+  x,
+  y,
+  r,
+  fill,
+}: MinimapDotProps) {
   return <circle cx={x} cy={y} r={r} fill={fill} />
 })
 

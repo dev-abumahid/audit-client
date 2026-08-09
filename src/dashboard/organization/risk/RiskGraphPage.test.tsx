@@ -2454,11 +2454,20 @@ describe("RiskGraphPage", () => {
   // distinct from the selected/cascaded ring, without disturbing
   // selectedRisk.
   describe("hover-to-highlight linking (#577 round 16)", () => {
+    // quality-bar-loop round 17 (UX, live-verified regression): the ring
+    // now renders as a sibling immediately BEFORE the node's <g> (not a
+    // child of it) so it stays at full opacity even when the node itself
+    // is dimmed -- see RiskGraphNode's own comment for why. Look at the
+    // previous sibling rather than querying inside the node.
     function hoverRing(container: HTMLElement, ref: string) {
       const node = within(container).getByRole("button", {
         name: `Risk ${ref}`,
       })
-      return node.querySelector('circle[stroke="hsl(var(--ring))"]')
+      const ring = node.previousElementSibling
+      return ring?.tagName === "circle" &&
+        ring.getAttribute("stroke") === "hsl(var(--ring))"
+        ? ring
+        : null
     }
 
     it("highlights the matching graph node when hovering its ref in the domino-chain list, and clears on mouse-leave", () => {
@@ -2553,6 +2562,65 @@ describe("RiskGraphPage", () => {
 
       fireEvent.mouseLeave(targetRefEl)
       expect(hoverRing(container, "RISK-B")).toBeNull()
+    })
+
+    // quality-bar-loop round 17 (UX, live-verified regression): the
+    // Correlations list renders EVERY link in the graph, not just ones
+    // touching the selected risk (see the `filteredLinks.map` above this
+    // describe block's own source) -- so hovering a row for two risks
+    // unrelated to the current selection previously rendered the hover
+    // ring INSIDE the dimmed node's own opacity={0.15} group, making it
+    // nearly invisible. The ring is now a sibling drawn at full opacity
+    // regardless of the node's dimmed state.
+    it("keeps the hover ring fully visible even when the hovered node is dimmed by an unrelated selection", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "a", ref: "RISK-A" }),
+            makeRisk({ id: "c", ref: "RISK-C" }),
+            makeRisk({ id: "d", ref: "RISK-D" }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+        data: {
+          data: {
+            riskLinks: [
+              {
+                source_ref: "RISK-C",
+                target_ref: "RISK-D",
+                link_type: "CORRELATES",
+              },
+            ],
+          },
+        },
+        isLoading: false,
+      })
+      const { container } = render(<RiskGraphPage />, withRouter)
+
+      // Select RISK-A -- RISK-C/RISK-D are neither selected nor cascaded
+      // from it (no link touches RISK-A at all), so both get dimmed.
+      fireEvent.click(screen.getByRole("button", { name: "Risk RISK-A" }))
+      const dimmedNode = screen.getByRole("button", { name: "Risk RISK-C" })
+      expect(dimmedNode).toHaveAttribute("opacity", "0.15")
+
+      const correlationsHeading = screen.getByText(
+        /organization\.riskGraph\.correlations/
+      )
+      const correlationsPanel = correlationsHeading.closest(
+        ".rounded-xl"
+      ) as HTMLElement
+      const targetRefEl = within(correlationsPanel).getByTitle("RISK-C")
+
+      fireEvent.mouseEnter(targetRefEl)
+      const ring = hoverRing(container, "RISK-C")
+      expect(ring).not.toBeNull()
+      // The ring is a sibling of the dimmed <g>, not a descendant -- it
+      // must not carry (or inherit via a wrapping element) the same
+      // opacity attribute that dims the rest of the node.
+      expect(ring).not.toHaveAttribute("opacity")
+      expect(dimmedNode).toHaveAttribute("opacity", "0.15")
     })
 
     it("keeps the hover ring visually distinct from selection -- selecting a risk doesn't add the hover ring by itself", () => {
