@@ -454,8 +454,12 @@ export default function InspectionActions() {
           {t("pages.inspection.actions.breadcrumbInspections")}
         </Link>
         <span>/</span>
+        {/* quality-bar-loop (Inspections, round 26 follow-up): this
+            breadcrumb pointed at the bare `:id` route -- RunInspection.tsx's
+            route, deleted in round 25 as superseded dead code. The real,
+            currently-linked edit flow is UpdateInspection.tsx. */}
         <Link
-          to={`/organization/audit/inspections/${inspectionId}`}
+          to={`/organization/audit/inspection/update/${inspectionId}`}
           className="hover:text-foreground"
         >
           {t("pages.inspection.actions.breadcrumbInspection")}

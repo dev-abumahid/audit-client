@@ -110,6 +110,26 @@ describe("InspectionActions", () => {
     expect(document.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 26, industry-standards
+  // follow-up): this breadcrumb used to point at the bare `:id` route --
+  // RunInspection.tsx's route, deleted in round 25 as superseded dead
+  // code -- leaving a dead link to the actual edit flow.
+  it("links the breadcrumb to the real edit route, not the deleted RunInspection route", () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    })
+    renderPage()
+    const link = screen.getByRole("link", {
+      name: "pages.inspection.actions.breadcrumbInspection",
+    })
+    expect(link).toHaveAttribute(
+      "href",
+      "/organization/audit/inspection/update/insp-1"
+    )
+  })
+
   it("shows empty state when no actions for this inspection", async () => {
     mockUseGetAllFindingsQuery.mockReturnValue({
       data: emptyResponse,
