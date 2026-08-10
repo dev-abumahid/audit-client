@@ -264,8 +264,49 @@
 
     /* risk colors */
     --risk-critical: 0 72% 55%;
-    --risk-high: 25 95% 55%;
-    --risk-medium: 38 92% 55%;
+    /* 20% (was 25%), not 55%->something-lighter: RiskMatrixPage's
+       quality-bar-loop rounds 10-11 (see that file's comments) fixed two
+       small-text-contrast failures on this token by tuning PAGE-LOCAL
+       opacity classes (bg-risk-medium/50, bg-risk-high/63 in dark mode),
+       but that left two root-cause problems neither page-local fix could
+       reach: medium still composited to a muddy brown at low opacity, and
+       reducing high's opacity to fix its own contrast bug pulled it
+       visually closer to medium (~31% less RGB separation), a step toward
+       confusability on a heat-map whose whole job is letting users tell
+       severity apart at a glance. Both trace to the same root cause: alpha-
+       blending one saturated token over a dark card is a fragile way to
+       get 4 distinguishable, accessible colors once WCAG AA small-text
+       contrast (not just large bold numbers) is factored in.
+       Fix: nudge high's HUE down (25->20, more red-orange) and medium's
+       HUE up + lightness down (38->44, 55%->52%) so the two move apart in
+       color space instead of just opacity -- verified via the same
+       HSL->sRGB composite-math methodology as rounds 10-11, against every
+       real consumer of these tokens app-wide (RiskMatrixPage's cells at
+       their existing dark opacities, CorrelationMatrixPage's solid fill +
+       black text, HeroProductVisual's alpha-blended heat-map chip, and
+       every decorative dot/bar/badge use, e.g. RiskBadge/severityStyles.ts):
+         composited-cell small-text contrast (white/90 text on
+         RiskMatrixPage's bg-risk-medium/50): 4.90:1 -> 4.54:1 (still clears
+         4.5:1, real margin preserved)
+         HeroProductVisual's selected-cell text (foreground/100 on
+         bg-risk-medium/45): 4.98:1 -> 4.63:1 (still clears 4.5:1)
+         RiskMatrixPage's bg-risk-high/63 small-text: 4.62:1 -> 5.02:1
+         (improves -- the new hue has MORE contrast headroom, not less)
+         CorrelationMatrixPage's solid-fill + black/90 text: medium
+         9.43:1->10.48:1, high 7.16:1->6.47:1 (both still comfortably clear)
+       medium-vs-high composited RGB distance (RiskMatrixPage's actual
+       dark opacities): 33.1 -> 44.2, a +34% recovery -- fully undoing
+       round 11's ~31% separation loss while KEEPING round 11's contrast
+       fix intact, without touching --risk-critical or --risk-low (both
+       remain the fixed anchors the other two are tuned against). The new
+       medium's solid (alpha=1) RGB is rgb(245,185,20) vs the old muddy
+       rgb(246,168,35) -- a visibly cleaner amber/gold (higher G/R ratio),
+       not the muddy-brown-when-blended color rounds 10-11 flagged. Light
+       mode is untouched: this file's dark-mode values are the ones that
+       compose over a near-black --card, which is where alpha-blending
+       loses the most luminance and where both bugs actually lived. */
+    --risk-high: 20 95% 55%;
+    --risk-medium: 44 92% 52%;
     --risk-low: 142 71% 50%;
     --risk-info: 199 89% 52%;
 

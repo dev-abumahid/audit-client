@@ -106,6 +106,18 @@ const LABEL_KEYS: Record<
 // the floor while staying close to the original vividness. Light mode
 // already clears 4.5:1 comfortably at both tiers' existing values (4.61:1,
 // 8.24:1) -- no change needed there.
+//
+// quality-bar-loop round 12 (the round-10 follow-up, now done): the base
+// --risk-medium/--risk-high dark-mode HSL values (src/index.css) were
+// retuned -- medium's hue shifted 38->44 and lightness 55%->52%, high's
+// hue shifted 25->20 -- fixing dark-mode medium's muddiness at the token
+// level (not just this page's opacity) and, as a side effect, recovering
+// the medium/high visual separation round 11's opacity cut had narrowed.
+// The opacity classes below are unchanged; only the underlying token
+// moved, and it was re-verified against every real consumer app-wide
+// (see the src/index.css comment for the full composite-math table) --
+// this page's own small-text contrast: medium/50 4.90:1->4.54:1 (still
+// real margin above the 4.5:1 floor), high/63 4.62:1->5.02:1 (improved).
 function getMatrixColor(row: number, col: number, size: MatrixSize): string {
   const score = ((row + 1) / size) * ((col + 1) / size)
   if (score >= 0.64) return "bg-risk-critical/90 dark:bg-risk-critical/85"
