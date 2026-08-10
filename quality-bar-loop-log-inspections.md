@@ -1199,3 +1199,46 @@ files, with a clear existing precedent to follow (the checkbox
 type's own `<label>` wrapping already gives it a name for free). Going
 there next, before the larger, more architecturally involved
 industry-standards/orphaned-flow items.
+
+## Round 21 (accessibility)
+
+Shipped as aexa-frontend PR [#695](https://github.com/Qiyrix/aexa-frontend/pull/695), merged.
+
+Fixed the round-20 accessibility finding: `slider`/`date`/
+`multipleSelect` answer inputs in both `CreateNewInspection.tsx`/
+`UpdateInspection.tsx` had no accessible name (WCAG 4.1.2) -- a screen
+reader announced only "slider"/"date picker"/"combobox" with zero
+context on the feature's most-used screen. Gave the question `<p>` a
+stable `id` (`question-label-${question.id}`) and pointed each input's
+`aria-labelledby` at it, rather than duplicating the question text into
+a new `aria-label` string.
+
+Review came back clean -- two low-severity nits, neither worth a fix
+this round: the required-marker `*` gets included in the announced
+name via `aria-labelledby`'s text concatenation (standard, low-severity
+behavior, not worth a `aria-hidden` special-case), and `question.id`
+uniqueness has no runtime fallback, but it's already load-bearing
+elsewhere in both files (React `key`, `answers[question.id]`,
+`dropzone-file-${question.id}`) -- not a new risk this PR introduced.
+
+QA gate: typecheck/lint clean, full suite 356 files / 5279 tests
+passing. Live-verified against the real running dev server: inspected a
+real inspection's slider question's `aria-labelledby` attribute and
+confirmed it resolves via `document.getElementById` to the exact
+question text.
+
+**Next fix (Round 22):** with accessibility, resilience, mobile, and
+security all now at or above the 7/10 floor, four axes remain open:
+industry-standards (3, unchanged, needs real feature work --
+scoring/bulk-actions/recurring-inspections/offline/camera-capture, all
+larger than a single round), UX (6, the widened orphaned-flow cluster
+plus drifted dual validators), visual polish (6, the fully-inventoried
+remove-button fragmentation), and code quality (5, the QuestionCard
+duplication, pervasive `any`, InspectionTable.tsx's monolith size).
+Visual polish's remove-button fragmentation is the most concrete and
+contained of the four -- round 20's judge inventoried all 6 distinct
+treatments with exact class strings, giving a clear, bounded scope
+(unify the "remove this attached thing" visual language across
+Create/UpdateInspection.tsx/InspectionReport.tsx/UploadNotesModal.tsx)
+without the larger architectural risk industry-standards/code-quality's
+open items carry. Going there next.
