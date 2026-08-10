@@ -112,6 +112,15 @@ const QuestionCard = memo(
 
         case "slider":
           return (
+            // quality-bar-loop (Inspections, round 21, accessibility
+            // finding): this range input had no id/label/aria-label
+            // tying it to the question text rendered in the sibling <p>
+            // below -- a screen-reader user tabbing here heard only
+            // "slider" with no name at all. aria-labelledby points at
+            // that <p>'s id (already unique per question) rather than
+            // duplicating the question text into a new aria-label
+            // string, so a copy edit in one place stays in sync with the
+            // other -- same fix as the date/multipleSelect cases below.
             <div className="space-y-3">
               <input
                 type="range"
@@ -122,6 +131,7 @@ const QuestionCard = memo(
                 onChange={(e) =>
                   onAnswerChange(question.id, parseFloat(e.target.value))
                 }
+                aria-labelledby={`question-label-${question.id}`}
                 className="w-full accent-primary"
               />
               <div className="text-center text-xl font-semibold text-primary">
@@ -136,6 +146,7 @@ const QuestionCard = memo(
               type="date"
               value={answer ?? ""}
               onChange={(e) => onAnswerChange(question.id, e.target.value)}
+              aria-labelledby={`question-label-${question.id}`}
               className="w-full rounded-lg border border-input px-4 py-3 focus:ring-2 focus:ring-primary"
             />
           )
@@ -148,6 +159,7 @@ const QuestionCard = memo(
             <select
               value={answer ?? ""}
               onChange={(e) => onAnswerChange(question.id, e.target.value)}
+              aria-labelledby={`question-label-${question.id}`}
               className="w-full rounded-lg border border-input px-4 py-3"
             >
               <option value="">
@@ -266,7 +278,10 @@ const QuestionCard = memo(
     return (
       <Card className="p-6">
         <div className="mb-4 flex justify-between">
-          <p className="leading-tight font-medium">
+          <p
+            id={`question-label-${question.id}`}
+            className="leading-tight font-medium"
+          >
             {question.question}
             {question.isRequired && (
               <span className="ml-1 text-destructive">*</span>

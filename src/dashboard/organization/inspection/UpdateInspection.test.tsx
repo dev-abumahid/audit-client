@@ -339,6 +339,67 @@ describe("UpdateInspection", () => {
     expect(screen.queryByText("text")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 21, accessibility finding):
+  // slider/date/multipleSelect answer inputs had no id/label/aria-label
+  // tying them to their question text -- a screen-reader user tabbing to
+  // any of these three question types heard only "slider"/"date picker"/
+  // "combobox" with zero name (WCAG 4.1.2).
+  it("gives the slider, date, and multipleSelect answer inputs an accessible name from their question text", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-slider",
+                    question: "Rate overall safety (1-10)",
+                    answerType: "slider",
+                    isRequired: false,
+                  },
+                  {
+                    id: "q-date",
+                    question: "Inspection date",
+                    answerType: "date",
+                    isRequired: false,
+                  },
+                  {
+                    id: "q-select",
+                    question: "Pick a hazard category",
+                    answerType: "multipleSelect",
+                    value: "'Fire','Electrical'",
+                    isRequired: false,
+                  },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [],
+        }),
+      },
+      isLoading: false,
+    })
+
+    const { container } = render(<UpdateInspection />, withRouter)
+
+    expect(
+      screen.getByRole("slider", { name: "Rate overall safety (1-10)" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("combobox", { name: "Pick a hazard category" })
+    ).toBeInTheDocument()
+    const dateInput = container.querySelector('input[type="date"]')!
+    expect(dateInput.getAttribute("aria-labelledby")).toBe(
+      "question-label-q-date"
+    )
+    expect(document.getElementById("question-label-q-date")).toHaveTextContent(
+      "Inspection date"
+    )
+  })
+
   // quality-bar-loop (Inspections, round 9, efficiency finding): the
   // effect that seeds visibleNotes used to be keyed on `[answers]` and
   // unconditionally overwrote the whole visibleNotes object on every
