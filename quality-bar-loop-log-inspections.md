@@ -970,3 +970,49 @@ report body with no message) -- the single smallest, most contained
 industry-standards fix available before tackling the larger scoring/
 bulk-actions/recurring-inspections gaps that same axis's round-3
 findings raised.
+
+## Round 17 (industry-standards)
+
+Shipped as aexa-frontend PR [#691](https://github.com/Qiyrix/aexa-frontend/pull/691), merged.
+
+Fixed `InspectionReport.tsx`'s blank-body gap: a template with zero
+pages/questions (reachable for system templates like "AI-Generated
+Findings" or any template a user hasn't added questions to yet) rendered
+a completely empty main content area below the header/stats, no
+message, no icon. `UpdateInspection.tsx`'s edit flow already had this
+exact empty state (`FileQuestion` icon, same title copy) for the
+identical condition -- reused it verbatim, plus a new
+`noPagesReportDescription` i18n key with report-appropriate copy.
+
+Review found one real, cheap gap beyond the stated scope: the sidebar's
+"Sections" `<nav>` also silently rendered empty for the same zero-page
+condition (no fallback, unlike `UpdateInspection.tsx`'s own sidebar,
+which already has one) -- fixed same round rather than deferred, per
+this session's standing preference for fixing small findings inline.
+Second review round confirmed the fix is structurally sound (ternary
+correctly wraps the pre-existing nav block, "Sections" label still
+shown in both branches for a11y) and flagged only a cosmetic
+indentation nit -- not worth a broader `prettier --write` pass, which
+would have reformatted ~40 lines of unrelated pre-existing code just to
+fix a few JSX indent levels.
+
+QA gate: typecheck/lint clean, full suite 356 files / 5273 tests
+passing. Live-verified against the real running dev server: temporarily
+monkey-patched `window.fetch` to rewrite a live inspection's
+`template.pages` to `[]` in the response (confirmed via a marker flag
+that the patch genuinely intercepted a fresh request rather than
+serving a cached response -- the fetch-monkeypatch pitfall this session
+already hit once before), navigated to its report page client-side, and
+confirmed the new empty state renders exactly as designed.
+
+**Next fix (Round 18):** UX is the loop's other lowest/most-stale axis
+(5/10, untouched since round 3). Its most concrete, contained finding:
+marking an inspection COMPLETED has zero required-field validation --
+a user can flip status to Completed with required questions still
+unanswered, with no warning. `UpdateInspection.tsx` already tracks
+`question.isRequired` (rendered as a `*` next to the question text) and
+has a `handleStatusChange`-style handler for the status dropdown --
+wiring a check there (block or warn-and-confirm before allowing
+COMPLETED with unanswered required questions) is a real UX fix within
+one round's scope, unlike the orphaned `RunInspection.tsx` flow or a
+full inspection-scoring feature, both larger product decisions.
