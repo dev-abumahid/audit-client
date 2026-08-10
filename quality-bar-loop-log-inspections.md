@@ -623,3 +623,116 @@ moved meaningfully since the round-3 baseline (4.56/10 average). Per
 the user's standing instruction to keep working autonomously without
 pausing, re-running the panel now and continuing directly into
 whichever axis is lowest.
+
+## Round 11 (fresh 9-judge re-score after 10 fix rounds)
+
+| Axis | Round 3 | Round 11 |
+|---|---|---|
+| Industry-standards | 4/10 | 3/10 |
+| UX | 3/10 | 5/10 |
+| Efficiency | 4/10 | 9/10 |
+| Accessibility | 4/10 | 7/10 |
+| Visual polish | 6/10 | 6/10 |
+| Resilience & edge cases | 3/10 | 5/10 |
+| Code quality | 5/10 | 4/10 |
+| Mobile/responsive | 6/10 | 6/10 |
+| Security | 6/10 | 9/10 |
+
+**Average: 6.0/10** (up from round 3's 4.56). **Efficiency, accessibility,
+and security now clear the 7/10 floor.** Six axes remain below it:
+industry-standards, UX, visual polish, resilience, code quality, mobile.
+
+Key findings by axis:
+
+- **Efficiency (9/10, up from 4):** all three round-3 findings
+  (undebounced search, the visibleNotes effect, unmemoized question
+  re-renders) independently re-verified as genuinely fixed, not just
+  cosmetically wrapped -- the judge specifically checked every
+  `useCallback` dependency array for the "still includes a value that
+  changes every render" footgun and found none. One pre-existing,
+  out-of-scope minor inefficiency noted (StartInspectionModal and
+  InspectionTable each independently fetch all sites with different
+  cache keys, so opening the modal can't reuse the table's cached
+  fetch) -- cheap future fix, not blocking.
+- **Security (9/10, up from 6):** both round-4 fixes (siteId
+  org-ownership, httpUrl scheme validation) confirmed intact and
+  confirmed to have survived round 10's large refactor undamaged. The
+  judge caught that local `main` hadn't pulled PR #325's merge at
+  first and re-fetched before scoring -- a reminder that "current
+  source" claims need an explicit fetch, not just a stale local
+  clone.
+- **Accessibility (7/10, up from 4, clears floor):** round-7 fixes
+  (keyboard-reachable uploads, focus-visible hover controls) hold up
+  live, no regression from round 10's refactor. Still open: no
+  live-region announcement on full-page async loads (flagged 3
+  rounds running now, still untouched). New: `UploadNotesModal.tsx`'s
+  two mode-selector buttons convey the active mode only via
+  border/background color, no `aria-pressed`/`aria-selected` --
+  missed by every prior pass on this feature.
+- **Resilience (5/10):** the round-4/5 fixes (backend siteId,
+  InspectionReport.tsx/StartInspectionModal.tsx isLoading/isError)
+  confirmed still correct. New/missed: `CreateNewInspection.tsx`'s
+  `useGetSingleTemplateQuery` never checks `isError` at all (only
+  `isLoading`), so a failed template fetch renders a fully-styled
+  empty inspection form indistinguishable from a legitimately
+  zero-section template; `UpdateInspection.tsx`'s own
+  `useGetSingleInspectionQuery` has the identical gap, showing the
+  same "not found" message for a real fetch error as for a genuine
+  404 -- the exact bug class round 5 fixed in two sibling files,
+  missed in these two.
+- **UX (5/10, up from 3):** the slider bug is confirmed fixed
+  live. Still open: the second, more mature `RunInspection.tsx` flow
+  remains a completely orphaned dead end (only reachable by typing
+  the URL, a closed loop of internal links with nothing pointing in);
+  zero required-field validation when marking an inspection
+  COMPLETED from either `UpdateInspection.tsx`'s status dropdown or
+  the orphaned `RunInspection.tsx` -- inconsistent with
+  `CreateNewInspection.tsx`'s initial submit, which does enforce this.
+  A single accidental status-dropdown click can complete an
+  inspection with mandatory questions still blank.
+- **Mobile (6/10, unchanged):** only 1 of 6 round-3 findings closed
+  (the "Upload file" button, fixed incidentally by round 7's
+  accessibility change, not a deliberate mobile pass). The most
+  severe finding -- the hover-only, full-image delete overlay that
+  silently deletes an uploaded photo on any tap since touch has no
+  hover state -- is completely untouched and is a genuine data-loss
+  trap, not just an ergonomics nit. Also still open: sub-44px Download
+  PDF button (159x40), hand-rolled media lightbox close button
+  (28x28, bypasses the shared Dialog fix since it's not built on that
+  component), a 14x14 attachment remove icon with no padding, and
+  24x24 per-question media-thumbnail remove buttons.
+- **Visual polish (6/10, unchanged):** confirmed via live screenshots
+  in both themes that InspectionReport.tsx's status pill still
+  hardcodes teal regardless of actual status, while
+  InspectionTable.tsx/UpdateInspection.tsx correctly show amber vs.
+  green via `severityBadgeClasses`. The "three remove-button
+  treatments" finding is worse than first described: at least five
+  distinct treatments exist, several within the single
+  UpdateInspection.tsx file, none routed through the shared
+  severity-style system.
+- **Code quality (4/10, down from 5):** round 10's memoization
+  refactor fixed a real performance bug but created a new ~300-line
+  duplication debt -- two nearly-identical `QuestionCard` components
+  across the two files with no shared component/hook factored out,
+  directly contradicting this session's own "extract genuinely
+  repeated logic" convention. The file-validation duplication/drift
+  finding is confirmed still true and, worse, the drift widened:
+  `UpdateInspection.tsx` now correctly derives real media type from
+  MIME (fixing issue #515) while `CreateNewInspection.tsx` still
+  hardcodes `type: "image"`, reintroducing that exact bug in its
+  untouched twin. `any` remains pervasive, including in the two
+  brand-new round-10 `QuestionCard` components themselves -- a missed
+  opportunity to type them correctly during the same edit.
+  `InspectionTable.tsx` remains a single 539-line monolith,
+  materially unchanged in shape.
+- **Industry-standards (3/10, down from 4):** all five round-3 gaps
+  (no scoring, no bulk actions, no recurring inspections, no offline
+  capture, no camera-native input) confirmed still fully open across
+  7 subsequent fix rounds that never touched this axis, plus the
+  zero-page-template empty-state gap on InspectionReport.tsx.
+
+**Next fix (round 12):** the resilience isError gap in
+`CreateNewInspection.tsx`/`UpdateInspection.tsx` -- cheap, well
+precedented by the identical pattern round 5 already applied to
+`InspectionReport.tsx`/`StartInspectionModal.tsx`, and closes a real
+"silently broken looks like empty" bug in both files.
