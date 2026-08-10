@@ -689,6 +689,51 @@ describe("InspectionReport", () => {
     openSpy.mockRestore()
   })
 
+  // quality-bar-loop (Inspections, round 7, accessibility finding): this
+  // hover-only reveal control had no focus-visible counterpart -- a
+  // keyboard user tabbing to it saw no affordance since it stayed
+  // invisible until :hover.
+  it("reveals the view-full-size control on keyboard focus, not just hover", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-5",
+                    question: "Uploaded photo",
+                    answerType: "media",
+                  },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [
+            {
+              questionId: "q-5",
+              answer: "https://cdn.example.com/uploaded-photo.jpg",
+              note: "",
+              mediaFiles: [],
+            },
+          ],
+        }),
+      },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    const viewButton = screen.getByText(
+      "organization.inspection.viewFullSize"
+    )
+    expect(viewButton.closest("button")?.className).toMatch(
+      /\bgroup-focus-within:opacity-100\b/
+    )
+  })
+
   // Round 13 (#507): the "media" answer renderer unconditionally rendered
   // an <img>, even though UpdateInspection.tsx's upload input for this same
   // answer type accepts "image/*,video/*,application/pdf" -- a video or

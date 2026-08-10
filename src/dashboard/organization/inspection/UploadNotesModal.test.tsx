@@ -233,6 +233,25 @@ describe("UploadNotesModal", () => {
     ).not.toBeDisabled()
   })
 
+  // quality-bar-loop (Inspections, round 7, accessibility finding): this
+  // file input used `className="hidden"` (display:none), removing it from
+  // the tab order entirely -- a keyboard-only user couldn't upload a note
+  // file at all (WCAG 2.1.1). `sr-only` keeps it visually hidden but
+  // focusable.
+  it("keeps the file upload input focusable (not display:none-hidden)", async () => {
+    renderModal()
+
+    await userEvent.click(
+      screen.getByText("organization.inspection.extractNoteFromFile")
+    )
+    const input = document.querySelector<HTMLInputElement>(
+      'input[type="file"]'
+    )!
+
+    expect(input.className).toMatch(/\bsr-only\b/)
+    expect(input.className).not.toMatch(/\bhidden\b/)
+  })
+
   it("shows the update form when a note already exists", () => {
     mockUseGetNoteByInspectionIdQuery.mockReturnValue({
       data: { data: { id: "note-1", extracted_text: "Existing note content" } },

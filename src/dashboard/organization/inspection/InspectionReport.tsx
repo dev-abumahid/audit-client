@@ -235,7 +235,7 @@ const renderAnswerValue = (
           />
           <button
             onClick={() => window.open(answer, "_blank", "noopener,noreferrer")}
-            className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
+            className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
           >
             <span className="rounded bg-white px-2 py-1 text-xs font-medium text-black">
               {t("organization.inspection.viewFullSize")}

@@ -480,7 +480,7 @@ export default function CreateNewInspection() {
                 />
                 <button
                   onClick={() => handleAnswerChange(question.id, "")}
-                  className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
+                  className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
                 >
                   <span className="rounded bg-red-500 px-2 py-1 text-xs font-medium text-white">
                     {t("organization.inspection.deleteMedia")}
@@ -511,7 +511,14 @@ export default function CreateNewInspection() {
                   id={`dropzone-file-${question.id}`}
                   type="file"
                   accept="image/*,video/*,application/pdf"
-                  className="hidden"
+                  // quality-bar-loop (Inspections, round 7, accessibility
+                  // finding): `hidden`/`display:none` removes the input
+                  // from the tab order entirely -- this whole upload
+                  // control was keyboard-unreachable (WCAG 2.1.1). `sr-only`
+                  // keeps it visually hidden but focusable, so Tab reaches
+                  // it and Enter/Space opens the native file picker (a real
+                  // `<input type="file">`'s own built-in keyboard behavior).
+                  className="sr-only"
                 />
               </label>
             )}
@@ -760,7 +767,10 @@ export default function CreateNewInspection() {
                               type="file"
                               multiple
                               accept="image/*,video/*,application/pdf"
-                              className="hidden"
+                              // quality-bar-loop round 7 (accessibility) --
+                              // see the comment on the other file input in
+                              // this file.
+                              className="sr-only"
                             />
                           </label>
                         )}

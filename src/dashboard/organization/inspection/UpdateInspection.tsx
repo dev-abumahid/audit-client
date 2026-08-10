@@ -719,7 +719,7 @@ export default function UpdateInspection() {
                   type="button"
                   onClick={() => handleAnswerChangeWithSave(question.id, "")}
                   aria-label={t("organization.inspection.deleteMedia")}
-                  className="absolute top-2 right-2 rounded-full bg-black/10 p-1.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/20"
+                  className="absolute top-2 right-2 rounded-full bg-black/10 p-1.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-black/20"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -736,7 +736,7 @@ export default function UpdateInspection() {
                 />
                 <button
                   onClick={() => handleAnswerChangeWithSave(question.id, "")}
-                  className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
+                  className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
                 >
                   <span className="rounded bg-red-500 px-2 py-1 text-xs font-medium text-white">
                     {t("organization.inspection.deleteMedia")}
@@ -767,7 +767,14 @@ export default function UpdateInspection() {
                   id={`dropzone-file-${question.id}`}
                   type="file"
                   accept="image/*,video/*,application/pdf"
-                  className="hidden"
+                  // quality-bar-loop (Inspections, round 7, accessibility
+                  // finding): `hidden`/`display:none` removes the input
+                  // from the tab order entirely -- this whole upload
+                  // control was keyboard-unreachable (WCAG 2.1.1). `sr-only`
+                  // keeps it visually hidden but focusable, so Tab reaches
+                  // it and Enter/Space opens the native file picker (a real
+                  // `<input type="file">`'s own built-in keyboard behavior).
+                  className="sr-only"
                 />
               </label>
             )}
@@ -958,7 +965,13 @@ export default function UpdateInspection() {
               <Paperclip className="h-4 w-4" />{" "}
               {t("organization.inspection.attachments")}
             </h2>
-            <label className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+            {/* quality-bar-loop round 7 (mobile, round-3 finding): this raw
+                label measured 114x32px live -- unlike the other upload
+                triggers in this file, it never went through the shared
+                Button, so it was missed by the earlier touch-target sweep.
+                `min-h-11` fixes it the same way a wrapping label's hit area
+                was fixed elsewhere this loop. */}
+            <label className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
               {isUploadingAttachment ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -967,7 +980,10 @@ export default function UpdateInspection() {
               {t("organization.inspection.uploadFile")}
               <input
                 type="file"
-                className="hidden"
+                // quality-bar-loop round 7 (accessibility) -- see the
+                // comment on the other file inputs in this file/
+                // CreateNewInspection.tsx.
+                className="sr-only"
                 disabled={isMutatingAttachments}
                 onChange={(e) => {
                   const file = e.target.files?.[0]
@@ -1282,7 +1298,10 @@ export default function UpdateInspection() {
                               type="file"
                               multiple
                               accept="image/*,video/*,application/pdf"
-                              className="hidden"
+                              // quality-bar-loop round 7 (accessibility) --
+                              // see the comment on the other file inputs
+                              // in this file.
+                              className="sr-only"
                             />
                           </label>
                         )}

@@ -431,7 +431,13 @@ export default function UploadNotesModal({
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
                   id="dropzone-file-pdf"
                   type="file"
-                  className="hidden"
+                  // quality-bar-loop (Inspections, round 7, accessibility
+                  // finding): `hidden`/`display:none` removes the input
+                  // from the tab order entirely -- this upload control was
+                  // keyboard-unreachable (WCAG 2.1.1). `sr-only` keeps it
+                  // visually hidden but focusable, so Tab reaches it and
+                  // Enter/Space opens the native file picker.
+                  className="sr-only"
                 />
               </label>
               {file && (

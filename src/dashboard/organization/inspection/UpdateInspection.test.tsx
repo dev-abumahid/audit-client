@@ -212,6 +212,50 @@ describe("UpdateInspection", () => {
     ).toMatch(/\bh-11\b/)
   })
 
+  // quality-bar-loop (Inspections, round 7, accessibility finding): all
+  // three file inputs on this page used `className="hidden"`
+  // (display:none), removing them from the tab order entirely -- a
+  // keyboard-only user couldn't attach a photo, add supporting media, or
+  // upload an inspection attachment (WCAG 2.1.1). `sr-only` keeps them
+  // visually hidden but focusable.
+  it("keeps every media/attachment upload input focusable (not display:none-hidden)", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-media",
+                    question: "Site photo",
+                    answerType: "media",
+                    isRequired: false,
+                  },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [],
+        }),
+      },
+      isLoading: false,
+    })
+
+    const { container } = render(<UpdateInspection />, withRouter)
+
+    const inputs = container.querySelectorAll<HTMLInputElement>(
+      'input[type="file"]'
+    )
+    expect(inputs.length).toBeGreaterThanOrEqual(3)
+    for (const input of inputs) {
+      expect(input.className).toMatch(/\bsr-only\b/)
+      expect(input.className).not.toMatch(/\bhidden\b/)
+    }
+  })
+
   // quality-bar-loop (Inspections, round 6, UX finding): a slider
   // question with a non-numeric configured default (`value`) previously
   // flowed straight through as the initial answer for a question with no
@@ -1027,6 +1071,28 @@ describe("UpdateInspection", () => {
       expect(
         screen.getByAltText("organization.inspection.uploadedMediaAlt")
       ).toBeInTheDocument()
+    })
+
+    // quality-bar-loop (Inspections, round 7, accessibility finding): this
+    // hover-only reveal control had no focus-visible counterpart -- a
+    // keyboard user tabbing to it saw no affordance since it stayed
+    // invisible until :hover.
+    it("reveals the media delete control on keyboard focus, not just hover", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeMediaInspection("https://cdn.example.com/photo.jpg"),
+        },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />, withRouter)
+
+      const deleteButton = screen.getByText(
+        "organization.inspection.deleteMedia"
+      )
+      expect(deleteButton.closest("button")?.className).toMatch(
+        /\bgroup-focus-within:opacity-100\b/
+      )
     })
   })
 

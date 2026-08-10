@@ -478,6 +478,92 @@ describe("CreateNewInspection", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 7, accessibility finding): both
+  // file inputs used `className="hidden"` (display:none), removing them
+  // from the tab order entirely -- a keyboard-only user couldn't attach a
+  // photo at all (WCAG 2.1.1). `sr-only` keeps them visually hidden but
+  // focusable.
+  // quality-bar-loop (Inspections, round 7, accessibility finding): this
+  // hover-only reveal control (`opacity-0 group-hover:opacity-100`) had no
+  // focus-visible counterpart -- a keyboard user tabbing to it saw no
+  // affordance at all since it stayed invisible until :hover.
+  it("reveals the media delete control on keyboard focus, not just hover", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: {
+        data: makeTemplate({
+          pages: [
+            {
+              title: "General",
+              questions: [
+                {
+                  id: "q-3",
+                  question: "Site photo",
+                  answerType: "media",
+                  isRequired: false,
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+    mockUploadFileAws.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: "https://cdn.example.com/photo.jpg",
+        }),
+    })
+
+    const { container } = render(<CreateNewInspection />)
+    const file = new File(["img"], "site.png", { type: "image/png" })
+    const input =
+      container.querySelector<HTMLInputElement>('input[type="file"]')!
+    await userEvent.upload(input, file)
+
+    const deleteButton = await screen.findByText(
+      "organization.inspection.deleteMedia"
+    )
+    expect(deleteButton.closest("button")?.className).toMatch(
+      /\bgroup-focus-within:opacity-100\b/
+    )
+  })
+
+  it("keeps both media upload inputs focusable (not display:none-hidden)", () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: {
+        data: makeTemplate({
+          pages: [
+            {
+              title: "General",
+              questions: [
+                {
+                  id: "q-3",
+                  question: "Site photo",
+                  answerType: "media",
+                  isRequired: false,
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+
+    const { container } = render(<CreateNewInspection />)
+
+    const inputs = container.querySelectorAll<HTMLInputElement>(
+      'input[type="file"]'
+    )
+    expect(inputs.length).toBeGreaterThan(0)
+    for (const input of inputs) {
+      expect(input.className).toMatch(/\bsr-only\b/)
+      expect(input.className).not.toMatch(/\bhidden\b/)
+    }
+  })
+
   // quality-bar-loop (Inspections, round 3, security finding): `value` is
   // rendered straight into <img src> below -- a javascript:/data: value
   // (e.g. if the upload response were ever compromised, or an existing
