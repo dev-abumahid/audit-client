@@ -775,3 +775,49 @@ redesign: replace the hover-reveal overlay with an always-visible
 small delete button (matching the pattern already used for
 per-question media-thumbnail removal in the same files), removing the
 full-image tap-to-delete surface entirely.
+
+## Round 13 (mobile)
+
+Shipped as aexa-frontend PR [#687](https://github.com/Qiyrix/aexa-frontend/pull/687), merged.
+
+**The touch hazard (main fix):** replaced the hover-only, full-image
+delete overlay on media answers (`CreateNewInspection.tsx`/
+`UpdateInspection.tsx`) with an always-visible 44px corner button,
+same pattern as the per-question media-thumbnail remove control
+already used elsewhere in both files. No hover state means the old
+overlay never appeared to reveal itself on touch, but the click
+handler still covered the entire image -- any tap anywhere on the
+photo silently deleted it. Review flagged two low-risk edge cases
+(a genuinely tiny image could get its corner button clipped by the
+container's `overflow-hidden`; the sibling fix's padded hit area
+could very slightly overlap an adjacent chip at wrap boundaries) --
+both judged not worth blocking on, neither is a confirmed live bug.
+
+**Three smaller sub-44px fixes, same round:** `InspectionReport.tsx`'s
+"Download PDF" button (159x40 -> 44px tall, the primary action of the
+whole report page), its hand-rolled media lightbox close button
+(28x28 -> 44x44, never got the shared Dialog fix since it isn't built
+on that component), and `UpdateInspection.tsx`'s attachment-remove
+icon (14x14 zero-padding -> a 34x34 tappable area via `p-2.5 -m-2.5`,
+short of the full 44px since this sits in a row of several small
+wrapped chips where a full-size box would break the compact layout).
+
+QA gate: typecheck/lint clean, full suite 355 files / 5253 tests
+passing. Live-verified the edit page still renders normally with
+prior test data intact.
+
+**Mobile findings now closed**, except the table's lack of a
+responsive fallback (a bigger redesign, out of scope for a
+CSS-level round) and the 24x24 per-question media-thumbnail remove
+buttons (judged proportionate to their role as a secondary action on
+a small thumbnail, not the same severity as the full-image touch
+hazard just fixed). Both are candidates the next mobile-focused round
+should weigh, but neither is a data-loss trap like the one just
+closed.
+
+**Next fix (round 14):** visual polish -- the status-pill
+inconsistency (`InspectionReport.tsx` hardcodes teal regardless of
+actual status, unlike `InspectionTable.tsx`/`UpdateInspection.tsx`,
+which correctly use `severityBadgeClasses`) is the cheapest, most
+concrete open finding on this axis: swap the hardcoded classes for the
+same helper the other two files already use.
