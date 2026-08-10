@@ -652,6 +652,7 @@
       "updateQuestionFailedToast": "Failed to update question {{questionId}}: {{message}}",
       "statusUpdatedToast": "Status updated to {{status}}",
       "statusUpdateFailedToast": "Failed to update status",
+      "cannotCompleteRequiredUnanswered": "Cannot mark as Completed: {{count}} required question(s) still unanswered",
       "attachmentUploadFailedToast": "Failed to upload attachment",
       "attachmentAttachFailedToast": "File uploaded, but failed to attach it to the inspection. Please try uploading it again.",
       "attachmentUploadedToast": "Attachment uploaded",

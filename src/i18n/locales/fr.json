@@ -652,6 +652,7 @@
       "updateQuestionFailedToast": "Échec de la mise à jour de la question {{questionId}} : {{message}}",
       "statusUpdatedToast": "Statut mis à jour vers {{status}}",
       "statusUpdateFailedToast": "Échec de la mise à jour du statut",
+      "cannotCompleteRequiredUnanswered": "Impossible de marquer comme terminé : {{count}} question(s) obligatoire(s) sans réponse",
       "attachmentUploadFailedToast": "Échec du téléversement de la pièce jointe",
       "attachmentAttachFailedToast": "Fichier téléversé, mais impossible de l'attacher à l'inspection. Veuillez réessayer de le téléverser.",
       "attachmentUploadedToast": "Pièce jointe téléversée",

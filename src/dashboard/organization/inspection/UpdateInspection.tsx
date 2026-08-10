@@ -843,6 +843,61 @@ export default function UpdateInspection() {
   const handleStatusChange = async (newStatus: InspectionStatus) => {
     if (!inspectionId || newStatus === selectedStatus) return
 
+    // quality-bar-loop (Inspections, round 18, UX finding): marking an
+    // inspection COMPLETED had zero required-field validation -- a user
+    // could flip status to Completed with required questions still
+    // unanswered, with no warning at all.
+    //
+    // Two false starts before this, both worth recording so a future round
+    // doesn't re-try them:
+    // 1. `answer === "" || answer == null` (InspectionReport.tsx's own
+    //    totalAnswered convention) doesn't work here -- the init effect
+    //    above seeds every checkbox question with a local default of
+    //    `false` and every slider with a non-empty default
+    //    (parseSliderDefault), so a never-touched required checkbox/slider
+    //    already reads as "answered."
+    // 2. `!questionAnswerId` (only set once a real QuestionAnswer record
+    //    exists) looked like the fix, but aexa-server's
+    //    create_inspection_into_db creates a QuestionAnswer row for EVERY
+    //    question in the template at inspection-creation time (the
+    //    frontend's create payload always includes one entry per question,
+    //    seeded with its default value, not just touched ones) --
+    //    `questionAnswerId` is therefore present for every question from
+    //    the moment an inspection is created, checkbox/slider included,
+    //    making this check never block anything in practice.
+    //
+    // Landed on the value check after all, but scoped honestly: it's a
+    // real, meaningful "unanswered" signal for text/date/multipleSelect/
+    // media questions (their blank default genuinely is `""`), and a
+    // no-op for checkbox/slider, whose local defaults are legitimate,
+    // real answers with no distinguishable "unset" state anywhere in this
+    // data model. Giving checkbox/slider a real tri-state "unanswered"
+    // representation is a data-model change (e.g. `null` as a genuine
+    // third state, with UI to match) well beyond this round's scope --
+    // documented here rather than silently left unstated.
+    if (newStatus === "COMPLETED") {
+      const unansweredRequiredCount = pages.reduce((count: number, page: any) => {
+        const pageQuestions = page.questions ?? []
+        return (
+          count +
+          pageQuestions.filter((q: any) => {
+            if (!q.isRequired) return false
+            const answer = answersRef.current[q.id]?.answer
+            return answer === "" || answer == null
+          }).length
+        )
+      }, 0)
+
+      if (unansweredRequiredCount > 0) {
+        toast.error(
+          t("organization.inspection.cannotCompleteRequiredUnanswered", {
+            count: unansweredRequiredCount,
+          })
+        )
+        return
+      }
+    }
+
     setIsUpdatingStatus(true)
     setSelectedStatus(newStatus) // Optimistic update
 

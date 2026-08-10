@@ -552,6 +552,113 @@ describe("UpdateInspection", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 18, UX finding): marking an
+  // inspection COMPLETED used to have zero required-field validation --
+  // this blocks it and surfaces exactly how many required questions are
+  // still unanswered, rather than silently completing an inspection with
+  // gaps.
+  it("blocks marking COMPLETED when a required text question is unanswered", async () => {
+    const toast = (await import("sonner")).toast
+    // A required "input"-type question genuinely has no answer here (no
+    // questionAnswers entry, and its local default is `""`) -- unlike
+    // checkbox/slider, this type's blank default IS a real, meaningful
+    // "unanswered" signal (see the code comment on handleStatusChange for
+    // why checkbox/slider can't be validated the same way).
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-1",
+                    question: "Extinguisher present?",
+                    answerType: "checkbox",
+                    isRequired: true,
+                  },
+                  {
+                    id: "q-2",
+                    question: "Notes on condition",
+                    answerType: "input",
+                    isRequired: true,
+                  },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [
+            { id: "qa-1", questionId: "q-1", answer: true, note: "", mediaFiles: [] },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+    mockUpdateInspection.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+    render(<UpdateInspection />, withRouter)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.inspection\.statusInProgress/i,
+      })
+    )
+    await userEvent.click(
+      await screen.findByText("organization.inspection.statusCompleted")
+    )
+
+    expect(mockUpdateInspection).not.toHaveBeenCalled()
+    expect(toast.error).toHaveBeenCalledWith(
+      "organization.inspection.cannotCompleteRequiredUnanswered"
+    )
+  })
+
+  // Documents a known, deliberate scope limitation (see the code comment
+  // on handleStatusChange): a required checkbox question's local default
+  // of `false` is indistinguishable from an explicit "No" answer anywhere
+  // in this data model (the backend creates every question's
+  // QuestionAnswer row, default value included, at inspection-creation
+  // time) -- so an untouched required checkbox must NOT block COMPLETED,
+  // unlike a genuinely-blank required text/date/multipleSelect/media
+  // question.
+  it("allows marking COMPLETED with an untouched required checkbox question", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          questionAnswers: [
+            {
+              id: "qa-2",
+              questionId: "q-2",
+              answer: "Fine",
+              note: "",
+              mediaFiles: [],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+    mockUpdateInspection.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+    render(<UpdateInspection />, withRouter)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.inspection\.statusInProgress/i,
+      })
+    )
+    await userEvent.click(
+      await screen.findByText("organization.inspection.statusCompleted")
+    )
+
+    await waitFor(() =>
+      expect(mockUpdateInspection).toHaveBeenCalledWith({
+        id: "insp-1",
+        data: { status: "COMPLETED" },
+      })
+    )
+  })
+
   // Regression (aexa-frontend round-9 audit #463): the status dropdown's
   // "In Progress" menu item used a separate, never-translated
   // "statusMenuInProgress" key that always rendered raw English "IN
