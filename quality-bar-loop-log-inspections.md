@@ -1349,3 +1349,60 @@ implementation -- research the best-supported option and build it as
 real feature work per this session's standing "ship, don't pause on
 product decisions" directive, rather than treating the open question as
 a stop condition.
+
+## Round 24 (industry-standards)
+
+Shipped as aexa-frontend PR [#698](https://github.com/Qiyrix/aexa-frontend/pull/698), merged.
+
+Added a compliance-percentage stat to `InspectionReport.tsx` --
+inspection scoring was absent from the data model entirely, the gap
+round 20's judge named as most consistent with every reference tool's
+baseline capability. Design decision made and documented rather than
+deferred: scored from checkbox-type questions only (the app's own
+"Yes"/"No" pass/fail type), mirroring how SafetyCulture scores --
+pass/fail items only, no cross-answer-type weighting scheme invented
+without precedent. A table-level score column was explicitly
+out-of-scoped: `InspectionSummary` (the list endpoint's shape) has no
+per-question data, so that would need a backend change, not a
+frontend-only fix -- flagged as a real follow-up, not silently dropped.
+
+Review raised what looked like a serious blocking issue -- reusing
+round 18's own finding that checkbox questions have no true "unanswered"
+state (every checkbox is seeded `false` and persisted from creation),
+arguing the score would silently count untouched checkboxes as
+failures. Investigated rather than reflexively applied: re-verified
+against both `CreateNewInspection.tsx`'s submit flow and
+`aexa-server`'s `create_inspection_into_db` that this is true, but
+concluded it's not actually a bug for *this* feature specifically
+(unlike round 18's validation feature, where the distinction genuinely
+mattered) -- the UI itself never presents a third "unanswered" state
+for checkboxes, so a left-at-default checkbox represents a real
+recorded "No," the same interpretation most real-world audit
+checklists already use for an unchecked item. Documented this reasoning
+explicitly in code rather than silently accepting or dismissing the
+finding, corrected one test whose name implied the wrong real-world
+scenario, and dispatched an independent second-opinion review
+specifically to check whether the pushback itself was sound --
+confirmed the reasoning holds on all points, including checking for
+edge cases (a synthetic-inspection code path in the risk-correlation
+service) the first pass hadn't looked at.
+
+Also fixed a smaller, uncontested nit from the same review round:
+extracted `severityTextClasses()` in `severityStyles.ts` to replace a
+fragile string-parsing approach for extracting text-only color classes
+out of `severityBadgeClasses`' combined output.
+
+QA gate: typecheck/lint clean, full suite 358 files / 5300 tests
+passing. Live-verified against the real running dev server: a real
+inspection with one answered checkbox ("Are fire extinguishers
+accessible? Yes") showed "Compliance 100%" in green; a zero-question
+system template correctly showed no Compliance card at all.
+
+**Next fix (Round 25):** industry-standards has now had 3 consecutive
+rounds of real feature work (bulk actions, compliance scoring) --
+worth a fresh, focused industry-standards-only judge re-score before
+picking the next slice, since round 20's original list (recurring
+inspections, offline capture, camera-native input, the orphaned
+RunInspection.tsx cluster) is now partially stale and the remaining
+items are each large enough that picking correctly matters more than
+guessing from an aging list.
