@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card"
 import { useUploadAnyFileAwsMutation } from "@/redux/apis/common.api"
 import { useCreateNewInspectionMutation } from "@/redux/apis/organization/inspection.api"
 import { useGetSingleTemplateQuery } from "@/redux/apis/organization/template.api"
+import { validateInspectionFile } from "@/utils/inspectionFileValidation"
 import { isHttpUrl } from "@/utils/isHttpUrl"
 import { parseSliderDefault } from "@/utils/parseSliderDefault"
 import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
@@ -588,23 +589,15 @@ export default function CreateNewInspection() {
       // validation
       if (!file || !questionId) return
 
-      // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(t("organization.inspection.fileSizeError"))
-        return
-      }
-
-      // Check file type
-      const allowedTypes = [
-        "image/jpeg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-        "video/mp4",
-        "application/pdf",
-      ]
-      if (!allowedTypes.includes(file.type)) {
-        toast.error(t("organization.inspection.fileTypeError"))
+      const validation = validateInspectionFile(file)
+      if (!validation.valid) {
+        toast.error(
+          t(
+            validation.reason === "size"
+              ? "organization.inspection.fileSizeError"
+              : "organization.inspection.fileTypeError"
+          )
+        )
         return
       }
 
@@ -647,30 +640,15 @@ export default function CreateNewInspection() {
       try {
         // Upload all files in parallel
         const uploadPromises = fileArray.map(async (file) => {
-          // Validate file size (max 5MB)
-          if (file.size > 5 * 1024 * 1024) {
+          const validation = validateInspectionFile(file)
+          if (!validation.valid) {
             toast.error(
-              t("organization.inspection.fileTooLargeNamed", {
-                name: file.name,
-              })
-            )
-            return null
-          }
-
-          // Validate file type
-          const allowedTypes = [
-            "image/jpeg",
-            "image/png",
-            "image/gif",
-            "image/webp",
-            "video/mp4",
-            "application/pdf",
-          ]
-          if (!allowedTypes.includes(file.type)) {
-            toast.error(
-              t("organization.inspection.fileTypeNamedError", {
-                name: file.name,
-              })
+              t(
+                validation.reason === "size"
+                  ? "organization.inspection.fileTooLargeNamed"
+                  : "organization.inspection.fileTypeNamedError",
+                { name: file.name }
+              )
             )
             return null
           }
