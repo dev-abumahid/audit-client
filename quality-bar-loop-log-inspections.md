@@ -422,3 +422,46 @@ already mid-loop, then sweeping the rest of the sidebar
 already-"complete" page like Templates/Risk Register for a fresh
 9-axis re-score against this stricter floor) once Inspections itself
 clears 7/10 on all 9 axes.
+
+## Round 7 (accessibility)
+
+Shipped as aexa-frontend PR [#682](https://github.com/Qiyrix/aexa-frontend/pull/682), merged.
+
+- **The serious finding**: every file/media upload control across the
+  feature (6 call sites across `CreateNewInspection.tsx`,
+  `UpdateInspection.tsx`, `UploadNotesModal.tsx`) used
+  `className="hidden"` (`display:none`) on the real `<input
+  type="file">`, removing it from the tab order entirely -- a WCAG
+  2.1.1 Level A failure on a core action. Switched to `sr-only`
+  (visually hidden via clip/absolute positioning, not `display:none`),
+  keeping the input focusable so Tab reaches it and Enter/Space opens
+  the native file picker. Review confirmed this repo's `sr-only` is the
+  stock Tailwind definition (not locally overridden to
+  `display:none`/`visibility:hidden`, which would have defeated the
+  fix), confirmed it doesn't disrupt layout or mouse-click behavior
+  (still `position: absolute`, nested inside the same `<label>`), and
+  confirmed the fix is genuinely complete for these 6 call sites.
+- Four hover-only reveal controls (`opacity-0
+  group-hover:opacity-100`) had no focus-visible counterpart -- added
+  `group-focus-within:opacity-100` alongside. Review confirmed each
+  button is a real descendant of its `group` ancestor, so
+  `:focus-within` correctly fires.
+- Bonus fix found in the same file: `UpdateInspection.tsx`'s "Upload
+  file" attachment label was a raw label (not routed through the
+  shared `Button`), measuring 114x32px live -- missed by the round-2
+  mobile sweep since it never went through the shared component.
+  `min-h-11` closes this leftover gap. Live-confirmed at 44px.
+
+Review also flagged (out of scope for this PR, noted for later):
+the identical `<input type="file" className="hidden">` keyboard bug
+still exists, untouched, in 7 other files outside Inspections --
+`KnowledgeBaseUploadingForm.tsx`, `PersonalInfoForm.tsx`,
+`CreateNewFindingModal.tsx`, `GeneralInformation.tsx`,
+`CompliancePage.tsx`, `AuditPage.tsx`, and
+`CreateTemplateWithAIDialog.tsx`. Worth applying the same `sr-only`
+fix when those pages/features are reached in the broader sweep.
+
+QA gate: typecheck/lint clean, full suite 355 files / 5242 tests
+passing. Live-verified on the edit page: file inputs measure
+`display: block` (not `none`) with the `sr-only` class, and the
+"Upload file" label now measures 44px tall.
