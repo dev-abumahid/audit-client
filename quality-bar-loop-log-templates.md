@@ -194,3 +194,47 @@ correction. Continuing immediately.
 **Next fix (Round 5):** remaining industry-standards gaps are versioning/
 changelog and draft/publish state. Continuing immediately per the "ship
 don't pause" correction.
+
+## Round 5 (industry-standards: draft/publish status) -- all PRs merged
+
+- **aexa-server PR #324**: new `TemplateStatus` enum (DRAFT | PUBLISHED)
+  on Template, `@default(PUBLISHED)` so every existing row keeps
+  today's behavior. `GET /template` accepts an optional exact-match
+  `status` filter (same shape as category/searchTerm). Clean review,
+  merged with CI green (no billing-block workaround needed).
+- **aexa-frontend PR #677**: new templates start as DRAFT;
+  EditTemplatePage gets a status badge + Publish/Unpublish button that
+  toggles immediately (not gated behind auto-save); TemplatesPage shows
+  a Draft badge on draft rows only; StartInspectionModal's template
+  picker now queries `status=PUBLISHED`, so a real inspection can no
+  longer be started against an unfinished draft checklist -- the one
+  place a draft's incompleteness would actually cause harm. Review
+  flagged one plausible-sounding finding (toggling status might trigger
+  a redundant full-form auto-save via useAutoSave's form.watch); built
+  a fix candidate, negative-controlled it, and found the finding didn't
+  actually reproduce (react-hook-form's setValue doesn't populate
+  watch's `type` as "change" the way a real DOM event does) -- reverted
+  the unnecessary fix, kept a regression-guard test documenting the
+  investigation so it isn't re-flagged. Live-verified the full flow
+  myself in the browser against a local backend on aexa-server#324's
+  branch: create->draft badge->publish->badge flips->inspection picker
+  excludes an unpublished draft (confirmed via the actual network
+  response) ->cleanup. Merged, CI green.
+- **Housekeeping**: this round also finally got aexa-server#322
+  (round 3's template-duplication endpoint, open since round 3, twice
+  reset to "review required" by rebases after #323 and #324 each
+  merged) across the line -- rebased once more, added a small follow-up
+  (a duplicate now always starts DRAFT regardless of the source's
+  status, matching the already-established "don't copy access grants"
+  reasoning for the same "fresh, unreviewed copy" logic), and merged
+  under standing authorization once CI came back green. The contractor
+  had already approved essentially this diff once before the rebases
+  reset it.
+
+Every core Templates industry-standards round-1 finding is now
+addressed except full version history/changelog (a materially larger
+feature -- snapshotting every edit, diffing, rollback -- than the other
+four rounds combined). This is a natural, comprehensive stopping point
+for the Templates page's own loop; the "keep going down the list of
+tabs" instruction now points to Inspections, Findings, Board Reports,
+and Settings.
