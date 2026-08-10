@@ -171,6 +171,23 @@ describe("InspectionReport", () => {
     expect(screen.getByText("3/3")).toBeInTheDocument() // totalAnswered/totalQuestions
   })
 
+  // quality-bar-loop (Inspections, round 13, mobile finding): this
+  // button measured 159x40px live, under the 44px touch-target guideline
+  // -- the primary action of the whole report page.
+  it("gives the Download PDF button a 44px touch target", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.downloadPdf",
+      }).className
+    ).toMatch(/\bh-11\b/)
+  })
+
   // aexa-frontend#552: the site label was plain text even though
   // inspection.site.id was already available -- reuses the established
   // ?siteId=&search= pattern (#533/#541) since SitesEntities has no
@@ -492,6 +509,58 @@ describe("InspectionReport", () => {
     expect(
       screen.queryByText("organization.inspection.mediaPreview")
     ).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop (Inspections, round 13, mobile finding): this
+  // hand-rolled lightbox close button measured 28x28px live -- it's not
+  // built on the shared Dialog component, so it never got the app-wide
+  // 44px close-button fix applied there.
+  it("gives the media lightbox close button a 44px touch target", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-4",
+                    question: "Photo",
+                    answerType: "input",
+                    isRequired: false,
+                  },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [
+            {
+              questionId: "q-4",
+              answer: "Looks fine",
+              note: "",
+              mediaFiles: [
+                { url: "https://cdn.example.com/photo.jpg", type: "image" },
+              ],
+            },
+          ],
+        }),
+      },
+    })
+
+    render(<InspectionReport />, withRouter)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.mediaThumbnailAlt",
+      })
+    )
+
+    const closeButton = screen.getByRole("button", {
+      name: "organization.inspection.closeMediaPreview",
+    })
+    expect(closeButton.className).toMatch(/\bh-11\b/)
+    expect(closeButton.className).toMatch(/\bw-11\b/)
   })
 
   // aexa-frontend#499 -- the lightbox <img> had hardcoded English alt="preview"

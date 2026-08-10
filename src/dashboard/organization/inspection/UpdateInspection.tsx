@@ -272,23 +272,34 @@ const QuestionCard = memo(
                   </button>
                 </div>
               ) : answer ? (
-                <div className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border">
+                <div className="relative inline-block overflow-hidden rounded-lg border">
                   <img
                     src={answer}
                     alt={t("organization.inspection.uploadedMediaAlt")}
-                    className="max-h-96 max-w-full object-contain transition-transform group-hover:scale-105"
+                    className="max-h-96 max-w-full object-contain"
                     onError={(e) => {
                       ;(e.target as HTMLImageElement).src =
                         PLACEHOLDER_IMAGE_SRC
                     }}
                   />
+                  {/* quality-bar-loop (Inspections, round 13, mobile
+                      finding): the previous full-image, hover-only overlay
+                      was a genuine data-loss trap on touch devices -- no
+                      hover state means a single tap anywhere on the photo
+                      silently deleted it, no confirmation, no visible
+                      warning first. Replaced with an always-visible small
+                      corner button (same pattern as the per-question
+                      media-thumbnail remove control elsewhere in this
+                      file), at a full 44px touch target since deleting the
+                      only answer photo is a more consequential action than
+                      removing one of several thumbnails. */}
                   <button
+                    type="button"
                     onClick={() => onAnswerChange(question.id, "")}
-                    className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                    aria-label={t("organization.inspection.deleteMedia")}
+                    className="absolute top-1 right-1 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
                   >
-                    <span className="rounded bg-red-500 px-2 py-1 text-xs font-medium text-white">
-                      {t("organization.inspection.deleteMedia")}
-                    </span>
+                    <Trash className="size-5" />
                   </button>
                 </div>
               ) : (
@@ -1308,11 +1319,19 @@ export default function UpdateInspection() {
                       {t("organization.inspection.unsafeAttachment")}
                     </span>
                   )}
+                  {/* quality-bar-loop (Inspections, round 13, mobile
+                      finding): the visible icon is 14x14 with zero padding
+                      -- `p-2.5 -m-2.5` extends the real tappable area to
+                      34x34 without growing the chip's own visual size
+                      (this row wraps several small chips side by side, so
+                      a full 44px box here would break that compact
+                      layout). Not the full 44px guideline, but a real,
+                      proportionate improvement over a bare icon. */}
                   <button
                     onClick={() => handleRemoveAttachment(url)}
                     disabled={isMutatingAttachments}
                     title={t("organization.inspection.remove")}
-                    className="text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
+                    className="-m-2.5 p-2.5 text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
                   >
                     {removingAttachmentUrl === url ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />

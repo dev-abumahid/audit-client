@@ -792,10 +792,13 @@ const InspectionReport = () => {
               ))}
             </div>
 
+            {/* quality-bar-loop (Inspections, round 13, mobile finding):
+                measured 159x40px live, under the 44px touch-target
+                guideline -- the primary action of this whole page. */}
             <button
               onClick={downloadPdf}
               disabled={isDownloading}
-              className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isDownloading ? (
                 <>
@@ -964,10 +967,14 @@ const InspectionReport = () => {
               >
                 {t("organization.inspection.mediaPreview")}
               </h3>
+              {/* quality-bar-loop (Inspections, round 13, mobile finding):
+                  measured 28x28px live -- this lightbox is hand-rolled
+                  (not built on the shared Dialog component), so it never
+                  got the app-wide 44px close-button fix applied there. */}
               <button
                 onClick={() => setSelectedMedia(null)}
                 aria-label={t("organization.inspection.closeMediaPreview")}
-                className="flex h-7 w-7 items-center justify-center rounded-full font-bold text-muted-foreground transition-colors hover:bg-muted"
+                className="flex h-11 w-11 items-center justify-center rounded-full font-bold text-muted-foreground transition-colors hover:bg-muted"
               >
                 ×
               </button>

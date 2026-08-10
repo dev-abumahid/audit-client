@@ -611,6 +611,29 @@ describe("UpdateInspection", () => {
       expect(screen.getByText("report.pdf")).toBeInTheDocument()
     })
 
+    // quality-bar-loop (Inspections, round 13, mobile finding): the
+    // remove-attachment icon was 14x14 with zero padding. `p-2.5 -m-2.5`
+    // extends the real tappable area to 34x34 (not the full 44px, since
+    // this row wraps several small chips side by side and a full 44px box
+    // here would break that compact layout) without growing the chip's
+    // own visual size.
+    it("extends the attachment remove icon's tappable area beyond its visual size", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            attachments: ["https://cdn.example.com/report.pdf"],
+          }),
+        },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />, withRouter)
+
+      const removeButton = screen.getByTitle("organization.inspection.remove")
+      expect(removeButton.className).toMatch(/\bp-2\.5\b/)
+      expect(removeButton.className).toMatch(/-m-2\.5\b/)
+    })
+
     // quality-bar-loop (Inspections, round 3, security finding, review
     // follow-up): the backend already validates attachments' scheme on
     // write, but a pre-existing record from before that check landed
@@ -1141,11 +1164,12 @@ describe("UpdateInspection", () => {
       ).toBeInTheDocument()
     })
 
-    // quality-bar-loop (Inspections, round 7, accessibility finding): this
-    // hover-only reveal control had no focus-visible counterpart -- a
-    // keyboard user tabbing to it saw no affordance since it stayed
-    // invisible until :hover.
-    it("reveals the media delete control on keyboard focus, not just hover", () => {
+    // quality-bar-loop (Inspections, round 13, mobile finding): the media
+    // delete control used to be a hover-only, full-image overlay -- a
+    // genuine data-loss trap on touch devices, since no hover state means
+    // tapping anywhere on the photo silently deleted it. Replaced with an
+    // always-visible, 44px corner button with a real accessible name.
+    it("gives the media delete control an always-visible 44px touch target and an accessible name", () => {
       mockUseGetSingleInspectionQuery.mockReturnValue({
         data: {
           data: makeMediaInspection("https://cdn.example.com/photo.jpg"),
@@ -1155,12 +1179,12 @@ describe("UpdateInspection", () => {
 
       render(<UpdateInspection />, withRouter)
 
-      const deleteButton = screen.getByText(
-        "organization.inspection.deleteMedia"
-      )
-      expect(deleteButton.closest("button")?.className).toMatch(
-        /\bgroup-focus-within:opacity-100\b/
-      )
+      const deleteButton = screen.getByRole("button", {
+        name: "organization.inspection.deleteMedia",
+      })
+      expect(deleteButton.className).toMatch(/\bh-11\b/)
+      expect(deleteButton.className).toMatch(/\bw-11\b/)
+      expect(deleteButton.className).not.toMatch(/opacity-0/)
     })
   })
 

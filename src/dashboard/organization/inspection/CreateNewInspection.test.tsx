@@ -510,11 +510,12 @@ describe("CreateNewInspection", () => {
   // from the tab order entirely -- a keyboard-only user couldn't attach a
   // photo at all (WCAG 2.1.1). `sr-only` keeps them visually hidden but
   // focusable.
-  // quality-bar-loop (Inspections, round 7, accessibility finding): this
-  // hover-only reveal control (`opacity-0 group-hover:opacity-100`) had no
-  // focus-visible counterpart -- a keyboard user tabbing to it saw no
-  // affordance at all since it stayed invisible until :hover.
-  it("reveals the media delete control on keyboard focus, not just hover", async () => {
+  // quality-bar-loop (Inspections, round 13, mobile finding): the media
+  // delete control used to be a hover-only, full-image overlay -- a
+  // genuine data-loss trap on touch devices, since no hover state means
+  // tapping anywhere on the photo silently deleted it. Replaced with an
+  // always-visible, 44px corner button with a real accessible name.
+  it("gives the media delete control an always-visible 44px touch target and an accessible name", async () => {
     mockUseGetSingleTemplateQuery.mockReturnValue({
       data: {
         data: makeTemplate({
@@ -549,12 +550,14 @@ describe("CreateNewInspection", () => {
       container.querySelector<HTMLInputElement>('input[type="file"]')!
     await userEvent.upload(input, file)
 
-    const deleteButton = await screen.findByText(
-      "organization.inspection.deleteMedia"
-    )
-    expect(deleteButton.closest("button")?.className).toMatch(
-      /\bgroup-focus-within:opacity-100\b/
-    )
+    const deleteButton = await screen.findByRole("button", {
+      name: "organization.inspection.deleteMedia",
+    })
+    expect(deleteButton.className).toMatch(/\bh-11\b/)
+    expect(deleteButton.className).toMatch(/\bw-11\b/)
+    // The button is unconditionally rendered (no opacity-0/group-hover
+    // classes) -- always visible, not revealed only on hover/focus.
+    expect(deleteButton.className).not.toMatch(/opacity-0/)
   })
 
   it("keeps both media upload inputs focusable (not display:none-hidden)", () => {
