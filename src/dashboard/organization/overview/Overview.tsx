@@ -2,6 +2,7 @@
 import CriticalAlertBanner from "@/components/dashboard/organization/CriticalAlertBanner"
 import MetricCard from "@/components/dashboard/organization/MetricCard"
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
+import UnscoredBadge from "@/components/dashboard/organization/UnscoredBadge"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { useGetMeQuery } from "@/redux/apis/auth.api"
 import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
@@ -18,7 +19,7 @@ import {
   topPercentileFromScores,
 } from "@/utils/pageRank"
 import { formatLocaleDate } from "@/utils/formatDate"
-import { getRiskSeverityLevel } from "@/utils/riskScoring"
+import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import {
   Activity,
@@ -625,7 +626,13 @@ export default function Overview() {
                   </p>
                   <p className="text-[10px] text-muted-foreground">PageRank</p>
                 </div>
-                <RiskBadge level={getRiskSeverityLevel(risk.residual_score)} />
+                {isValidScoreValue(risk.residual_score) ? (
+                  <RiskBadge
+                    level={getRiskSeverityLevel(risk.residual_score)}
+                  />
+                ) : (
+                  <UnscoredBadge />
+                )}
               </div>
             ))}
             {tippingPointRisks.length === 0 && (

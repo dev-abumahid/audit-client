@@ -213,6 +213,53 @@ describe("RiskDetails", () => {
     expect(controls).toHaveTextContent("appr-1")
   })
 
+  // getRiskSeverityLevel silently maps a missing/malformed score to 0
+  // ("low"), which would otherwise render a confident low-severity badge
+  // for a risk that was never actually scored -- same treatment
+  // RiskMatrixPage got for this bug class (aexa-frontend#636).
+  it("flags a malformed inherent_score as unscored instead of a confident low-severity badge", () => {
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: { data: makeRisk({ inherent_score: "" }) },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByText("organization.riskMatrix.unscoredRiskBadge")
+    ).toBeInTheDocument()
+    // The genuinely-valid residual_score (38) still renders normally.
+    expect(screen.getByText("38")).toBeInTheDocument()
+  })
+
+  it("flags a malformed residual_score as unscored instead of a confident low-severity badge", () => {
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: { data: makeRisk({ residual_score: null }) },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByText("organization.riskMatrix.unscoredRiskBadge")
+    ).toBeInTheDocument()
+    // The genuinely-valid inherent_score (62) still renders normally.
+    expect(screen.getByText("62")).toBeInTheDocument()
+  })
+
+  it("does not flag a genuinely low but valid score (0) as unscored", () => {
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: { data: makeRisk({ inherent_score: 0, residual_score: 0 }) },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.queryByText("organization.riskMatrix.unscoredRiskBadge")
+    ).not.toBeInTheDocument()
+  })
+
   it("navigates to the register when Manage in Register is clicked", async () => {
     mockUseGetSingleRiskQuery.mockReturnValue({
       data: { data: makeRisk() },

@@ -1,8 +1,9 @@
+import UnscoredBadge from "@/components/dashboard/organization/UnscoredBadge"
 import { useGetRiskApprovalStateQuery } from "@/redux/apis/organization/riskApproval.api"
 import { useGetSingleRiskQuery } from "@/redux/apis/organization/risk.api"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
-import { getRiskSeverityLevel } from "@/utils/riskScoring"
+import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { severityBadgeClasses } from "@/utils/severityStyles"
 import type { LineOfDefense } from "@/types/organization"
 import {
@@ -201,13 +202,17 @@ export default function RiskDetails() {
             {t("organization.riskRegister.inherentScoreLabel")}
           </p>
           <div className="mt-1 flex items-center gap-2">
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${severityBadgeClasses(
-                getRiskSeverityLevel(risk.inherent_score)
-              )}`}
-            >
-              {risk.inherent_score}
-            </span>
+            {isValidScoreValue(risk.inherent_score) ? (
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${severityBadgeClasses(
+                  getRiskSeverityLevel(risk.inherent_score)
+                )}`}
+              >
+                {risk.inherent_score}
+              </span>
+            ) : (
+              <UnscoredBadge />
+            )}
             <RiskOverrideBadge
               isOverride={!!risk.inherent_is_override}
               isStale={!!risk.inherent_override_stale}
@@ -222,13 +227,17 @@ export default function RiskDetails() {
             {t("organization.riskRegister.residualScoreLabel")}
           </p>
           <div className="mt-1 flex items-center gap-2">
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${severityBadgeClasses(
-                getRiskSeverityLevel(risk.residual_score)
-              )}`}
-            >
-              {risk.residual_score}
-            </span>
+            {isValidScoreValue(risk.residual_score) ? (
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${severityBadgeClasses(
+                  getRiskSeverityLevel(risk.residual_score)
+                )}`}
+              >
+                {risk.residual_score}
+              </span>
+            ) : (
+              <UnscoredBadge />
+            )}
             <RiskOverrideBadge
               isOverride={!!risk.residual_is_override}
               isStale={!!risk.residual_override_stale}

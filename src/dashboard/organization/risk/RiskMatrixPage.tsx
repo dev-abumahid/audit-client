@@ -1,19 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SiteFilter from "@/components/dashboard/organization/SiteFilter"
+import UnscoredBadge from "@/components/dashboard/organization/UnscoredBadge"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { Risk } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
-import { getRiskSeverityLevel } from "@/utils/riskScoring"
-import {
-  AlertCircle,
-  AlertTriangle,
-  Grid3X3,
-  Info,
-  Loader2,
-  MapPin,
-} from "lucide-react"
+import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
+import { AlertCircle, Grid3X3, Info, Loader2, MapPin } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
@@ -124,24 +118,6 @@ function getMatrixColor(row: number, col: number, size: MatrixSize): string {
   if (score >= 0.36) return "bg-risk-high/80 dark:bg-risk-high/63"
   if (score >= 0.16) return "bg-risk-medium/75 dark:bg-risk-medium/50"
   return "bg-risk-low/55"
-}
-
-// quality-bar-loop round 4 (resilience, round-1 finding 3): a missing or
-// malformed probability/inherent_score used to silently resolve to 0 via
-// `Number(x) || 0` inside mapRiskToCell below, landing the risk in the
-// lowest-likelihood/lowest-impact cell with no visual indication it wasn't
-// actually scored that low -- indistinguishable from a genuinely-confirmed
-// negligible risk. Callers use this to flag such risks instead of trusting
-// their computed cell position.
-// `Number(x)` alone isn't enough here: `Number("")`, `Number(null)`, and
-// `Number([])` all coerce to 0 (a *finite* number), so a naive
-// `Number.isFinite(Number(x))` check would call an empty string or null
-// "valid" -- exactly the malformed values this function exists to catch.
-function isValidScoreValue(value: unknown): boolean {
-  if (value === null || value === undefined) return false
-  if (typeof value === "string" && value.trim() === "") return false
-  if (Array.isArray(value)) return false
-  return Number.isFinite(Number(value))
 }
 
 // quality-bar-loop round 5 (resilience, found during a full-panel re-check):
@@ -917,17 +893,7 @@ function RiskCard({
                 way for a keyboard/screen-reader user to reach it. Same
                 fix shape as round 6's band-score button: a real, focusable
                 button whose only "action" is surfacing that explanation. */}
-            {!hasValidRiskScore(risk) && (
-              <button
-                type="button"
-                title={t("organization.riskMatrix.unscoredRiskWarning")}
-                aria-label={t("organization.riskMatrix.unscoredRiskWarning")}
-                className="focus-ring flex items-center gap-0.5 rounded bg-amber-100 px-1.5 text-[9px] text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-              >
-                <AlertTriangle className="h-2.5 w-2.5" />
-                {t("organization.riskMatrix.unscoredRiskBadge")}
-              </button>
-            )}
+            {!hasValidRiskScore(risk) && <UnscoredBadge />}
           </div>
           {/* aexa-frontend#548: risk.id/site_id were already on this card's
               data but rendered as plain text, dead-ending the matrix here. */}

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import UnscoredBadge from "@/components/dashboard/organization/UnscoredBadge"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import FilteredByNotice from "@/components/shared/FilteredByNotice"
 import Pagination from "@/components/shared/Pagination"
@@ -18,7 +19,7 @@ import type { Risk, SiteSummary } from "@/types/organization"
 import { csvTextField, triggerDownload } from "@/utils/csvExport"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
-import { getRiskSeverityLevel } from "@/utils/riskScoring"
+import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { severityBadgeClasses } from "@/utils/severityStyles"
 import RiskApprovalControls from "./RiskApprovalControls"
 import RiskOverrideBadge from "./RiskOverrideBadge"
@@ -207,13 +208,17 @@ const RiskRow = memo(function RiskRow({
       </td>
       <td className="px-3 py-2.5 text-center">
         <div className="flex flex-col items-center gap-1">
-          <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${severityBadgeClasses(
-              getRiskSeverityLevel(risk.residual_score)
-            )}`}
-          >
-            {risk.residual_score}
-          </span>
+          {isValidScoreValue(risk.residual_score) ? (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${severityBadgeClasses(
+                getRiskSeverityLevel(risk.residual_score)
+              )}`}
+            >
+              {risk.residual_score}
+            </span>
+          ) : (
+            <UnscoredBadge />
+          )}
           {/* aexa-frontend#269 -- the list-view half of "not
               buried": the score column is the one place every
               row's residual score already renders, so the

@@ -537,6 +537,66 @@ describe("CorrelationMatrixPage", () => {
     )
   })
 
+  // getRiskSeverityLevel silently maps a missing/malformed residual_score
+  // to 0 ("low"), which would otherwise render a confident low-severity
+  // badge on RiskDetailCard for a risk that was never actually scored --
+  // same treatment RiskMatrixPage got for this bug class (#636).
+  it("flags a risk with a malformed residual_score as unscored on the detail card", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: { data: [{ id: "site1", name: "Casablanca HQ" }] },
+      isLoading: false,
+    })
+    setMatrixData({
+      risks: [
+        makeRisk({
+          id: "risk-uuid-1",
+          ref: "CYB-001",
+          site_id: "site1",
+          residual_score: "",
+        }),
+      ],
+    })
+
+    render(<CorrelationMatrixPage />, withRouter)
+
+    const populatedCells = screen.getAllByRole("button", {
+      name: /^1 risk\(s\)/,
+    })
+    fireEvent.click(populatedCells[0])
+
+    expect(
+      screen.getByText("organization.riskMatrix.unscoredRiskBadge")
+    ).toBeInTheDocument()
+  })
+
+  it("does not flag a risk with a genuinely valid residual_score as unscored", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: { data: [{ id: "site1", name: "Casablanca HQ" }] },
+      isLoading: false,
+    })
+    setMatrixData({
+      risks: [
+        makeRisk({
+          id: "risk-uuid-1",
+          ref: "CYB-001",
+          site_id: "site1",
+          residual_score: 14,
+        }),
+      ],
+    })
+
+    render(<CorrelationMatrixPage />, withRouter)
+
+    const populatedCells = screen.getAllByRole("button", {
+      name: /^1 risk\(s\)/,
+    })
+    fireEvent.click(populatedCells[0])
+
+    expect(
+      screen.queryByText("organization.riskMatrix.unscoredRiskBadge")
+    ).not.toBeInTheDocument()
+  })
+
   // aexa-frontend#549 (review round 1): BucketList's risk rows (Systemic
   // Buckets view) got the same Link treatment as RiskDetailCard above but
   // had no dedicated test -- a bucket only forms from >=2 risks sharing the

@@ -857,7 +857,8 @@
         "totalRisks": "Org-wide risks",
         "criticalRisks": "Critical risks",
         "aiGeneratedRisks": "AI-flagged risks",
-        "cappedHint": "Counted from the first 100 org-wide risks — the real total may be higher"
+        "cappedHint": "Counted from the first 100 org-wide risks — the real total may be higher",
+        "unscoredHint": "One or more risks are missing a valid severity score and are excluded from this count — the real total may be higher"
       },
       "expandSiteLabel": "Expand {{name}} details",
       "collapseSiteLabel": "Collapse {{name}} details",

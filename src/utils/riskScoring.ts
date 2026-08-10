@@ -10,6 +10,27 @@
 // quartered evenly, so every consumer classifies severity consistently.
 export type RiskSeverityLevel = "critical" | "high" | "medium" | "low"
 
+// `getRiskSeverityLevel`'s `Number(x) || 0` silently maps a missing or
+// malformed score to 0 -- "low" severity, indistinguishable from a
+// genuinely-confirmed low-risk score. First caught on RiskMatrixPage
+// (aexa-frontend#636), then found unfixed at every other consumer of this
+// function during a full-codebase audit -- most notably SitesEntities.tsx,
+// where the same silent-0 fallback doesn't just mis-color a badge but can
+// exclude a risk from the "critical risks" count entirely. Exported here
+// (rather than reimplemented per-page, as RiskMatrixPage originally did)
+// so every consumer flags an invalid score instead of trusting a computed
+// severity that was never really computed.
+// `Number(x)` alone isn't enough: `Number("")`, `Number(null)`, and
+// `Number([])` all coerce to 0 (a *finite* number), so a naive
+// `Number.isFinite(Number(x))` check would call an empty string or null
+// "valid" -- exactly the malformed values this function exists to catch.
+export function isValidScoreValue(value: unknown): boolean {
+  if (value === null || value === undefined) return false
+  if (typeof value === "string" && value.trim() === "") return false
+  if (Array.isArray(value)) return false
+  return Number.isFinite(Number(value))
+}
+
 export function getRiskSeverityLevel(
   score: number | null | undefined
 ): RiskSeverityLevel {

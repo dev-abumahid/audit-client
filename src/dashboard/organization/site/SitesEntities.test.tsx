@@ -419,6 +419,75 @@ describe("SitesEntities", () => {
     ).not.toBeInTheDocument()
   })
 
+  // getRiskSeverityLevel silently maps a missing/malformed residual_score
+  // to 0 ("low"), so filtering the critical-risks tile straight off its
+  // result would silently exclude a risk whose real severity is unknown
+  // from the count -- worse than the other consumers of
+  // getRiskSeverityLevel, since this doesn't just mis-color a badge, it
+  // hides a risk that might genuinely be critical from a headline stat.
+  it("excludes a risk with a malformed residual_score from the critical-risks count and flags it with a '+' lower-bound hint", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockImplementation((args: { siteId?: string }) =>
+      args?.siteId
+        ? { data: { data: [] }, isError: false }
+        : {
+            data: {
+              data: [
+                { id: "r1", residual_score: 90, ai_generated: false },
+                { id: "r2", residual_score: "", ai_generated: false },
+              ],
+              meta: { total: 2 },
+            },
+            isError: false,
+          }
+    )
+
+    renderPage()
+
+    const criticalTile = screen
+      .getByText("organization.site&entities.summary.criticalRisks")
+      .previousElementSibling as HTMLElement
+    expect(criticalTile).toHaveTextContent("1+")
+    expect(criticalTile).toHaveAttribute(
+      "title",
+      "organization.site&entities.summary.unscoredHint"
+    )
+  })
+
+  it("does not show the unscored '+' hint when every risk has a valid residual_score", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockImplementation((args: { siteId?: string }) =>
+      args?.siteId
+        ? { data: { data: [] }, isError: false }
+        : {
+            data: {
+              data: [{ id: "r1", residual_score: 90, ai_generated: false }],
+              meta: { total: 1 },
+            },
+            isError: false,
+          }
+    )
+
+    renderPage()
+
+    const criticalTile = screen
+      .getByText("organization.site&entities.summary.criticalRisks")
+      .previousElementSibling as HTMLElement
+    expect(criticalTile).toHaveTextContent("1")
+    expect(criticalTile).not.toHaveTextContent("1+")
+    expect(criticalTile).not.toHaveAttribute("title")
+  })
+
   it("renders site rows with name, location and country", () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,
@@ -1055,6 +1124,45 @@ describe("SitesEntities", () => {
     expect(riskDeleteButton).toHaveClass("before:inset-x-0")
     expect(riskDeleteButton).toHaveClass("before:-inset-y-[12px]")
     expect(riskDeleteButton).not.toHaveClass("before:-inset-2.5")
+  })
+
+  // getRiskSeverityLevel silently maps a missing/malformed residual_score
+  // to 0 ("low"), which would otherwise render a confident low-severity
+  // badge (and a "NaN" label) on a confirmed-risk row for a risk that was
+  // never actually scored -- same treatment RiskMatrixPage got for this
+  // bug class (#636).
+  it("flags a confirmed risk with a malformed residual_score as unscored instead of a confident severity badge", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "risk-99",
+            ref: "RSK-2026-0142",
+            name: "Flooding",
+            description: "Seasonal flood risk",
+            residual_score: null,
+            ai_generated: false,
+          },
+        ],
+      },
+    })
+
+    renderPage()
+    const [expandButton] = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-chevron-down"))
+    await userEvent.click(expandButton)
+
+    expect(
+      screen.getByText("organization.riskMatrix.unscoredRiskBadge")
+    ).toBeInTheDocument()
+    expect(screen.queryByText("NaN")).not.toBeInTheDocument()
   })
 
   // Regression: the name link and description sit in a `flex-col

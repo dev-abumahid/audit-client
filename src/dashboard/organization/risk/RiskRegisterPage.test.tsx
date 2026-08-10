@@ -394,6 +394,35 @@ describe("RiskRegisterPage", () => {
     expect(criticalScoreBadge.className).not.toContain("bg-emerald-500/15")
   })
 
+  // getRiskSeverityLevel silently maps a missing/malformed residual_score
+  // to 0 ("low"), which would otherwise render a confident low-severity
+  // badge for a risk that was never actually scored -- same treatment
+  // RiskMatrixPage got for this bug class (aexa-frontend#636).
+  it("flags a risk with a malformed residual_score as unscored instead of a confident severity badge", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ residual_score: "" })] },
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByText("organization.riskMatrix.unscoredRiskBadge")
+    ).toBeInTheDocument()
+  })
+
+  it("does not flag a genuinely low but valid residual_score (0) as unscored", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ residual_score: 0 })] },
+    })
+
+    renderPage()
+
+    expect(
+      screen.queryByText("organization.riskMatrix.unscoredRiskBadge")
+    ).not.toBeInTheDocument()
+    expect(screen.getByText("0")).toBeInTheDocument()
+  })
+
   // Bug-fix batch: the category badge used to render the raw enum key
   // ("cyber") with no color styling instead of RISK_CATEGORIES' human label
   // and color.

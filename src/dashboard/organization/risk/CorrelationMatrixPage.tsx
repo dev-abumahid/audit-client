@@ -1,5 +1,6 @@
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SiteFilter from "@/components/dashboard/organization/SiteFilter"
+import UnscoredBadge from "@/components/dashboard/organization/UnscoredBadge"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
@@ -12,7 +13,7 @@ import {
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { IAction } from "@/types/finding"
 import { riskCategoryLabel } from "@/utils/riskConfig"
-import { getRiskSeverityLevel } from "@/utils/riskScoring"
+import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import type {
   Risk,
   RiskLink,
@@ -1222,10 +1223,14 @@ function RiskDetailCard({
             {risk.name}
           </Link>
         </div>
-        <RiskBadge
-          level={getRiskSeverityLevel(risk.residual_score)}
-          size="sm"
-        />
+        {isValidScoreValue(risk.residual_score) ? (
+          <RiskBadge
+            level={getRiskSeverityLevel(risk.residual_score)}
+            size="sm"
+          />
+        ) : (
+          <UnscoredBadge />
+        )}
       </div>
 
       {siteName && (

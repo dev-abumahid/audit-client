@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
+import UnscoredBadge from "@/components/dashboard/organization/UnscoredBadge"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import Pagination from "@/components/shared/Pagination"
 import { Button } from "@/components/ui/button"
@@ -32,7 +33,7 @@ import {
 import type { RiskSuggestion } from "@/types/ai"
 import type { Risk, SiteSummary } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
-import { getRiskSeverityLevel } from "@/utils/riskScoring"
+import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import {
   AlertTriangle,
@@ -217,8 +218,21 @@ export default function SitesEntities() {
   // "Org-wide risks" tile, which uses the server's real meta.total). Flag
   // it with a "+" rather than silently under-reporting a headline stat.
   const isRiskSummaryCapped = (allRisksData?.meta?.total ?? 0) > allRisks.length
+  // getRiskSeverityLevel silently maps a missing/malformed residual_score to
+  // 0 ("low"), so filtering straight on its result would silently exclude
+  // an unscored risk from this count -- not just mis-color a badge like the
+  // other consumers of getRiskSeverityLevel, but actually hide a risk that
+  // might really be critical from this headline stat. Unscored risks are
+  // excluded from the count (their true severity is unknown) but flagged
+  // via hasUnscoredRisks below so the tile reads as a lower bound, the same
+  // "+" treatment isRiskSummaryCapped already uses for the 100-row cap.
+  const hasUnscoredRisks = allRisks.some(
+    (r) => !isValidScoreValue(r.residual_score)
+  )
   const criticalRiskCount = allRisks.filter(
-    (r) => getRiskSeverityLevel(r.residual_score) === "critical"
+    (r) =>
+      isValidScoreValue(r.residual_score) &&
+      getRiskSeverityLevel(r.residual_score) === "critical"
   ).length
   const aiGeneratedRiskCount = allRisks.filter((r) => r.ai_generated).length
   const [deleteRisk, { isLoading: isRiskDeleting }] = useDeleteRiskMutation()
@@ -731,7 +745,9 @@ export default function SitesEntities() {
               title={
                 isRiskSummaryCapped
                   ? t("organization.site&entities.summary.cappedHint")
-                  : undefined
+                  : hasUnscoredRisks
+                    ? t("organization.site&entities.summary.unscoredHint")
+                    : undefined
               }
             >
               {allRisksError ? (
@@ -739,7 +755,7 @@ export default function SitesEntities() {
               ) : (
                 <>
                   {criticalRiskCount}
-                  {isRiskSummaryCapped && "+"}
+                  {(isRiskSummaryCapped || hasUnscoredRisks) && "+"}
                 </>
               )}
             </p>
@@ -1218,11 +1234,18 @@ export default function SitesEntities() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <RiskBadge
-                            level={getRiskSeverityLevel(risk.residual_score)}
-                            label={Number(risk.residual_score).toFixed(1)}
-                            size="sm"
-                          />
+                          {/* A malformed residual_score would otherwise render
+                              a confident severity color and a "NaN" label --
+                              same treatment as RiskMatrixPage's RiskCard. */}
+                          {isValidScoreValue(risk.residual_score) ? (
+                            <RiskBadge
+                              level={getRiskSeverityLevel(risk.residual_score)}
+                              label={Number(risk.residual_score).toFixed(1)}
+                              size="sm"
+                            />
+                          ) : (
+                            <UnscoredBadge />
+                          )}
                           <span
                             className={`flex items-center gap-1 rounded p-1.5 text-[9px] font-medium ${risk.ai_generated ? "bg-accent/20 text-accent" : "bg-primary/10 text-primary"}`}
                           >

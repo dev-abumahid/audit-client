@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { getRiskSeverityLevel } from "./riskScoring"
+import { getRiskSeverityLevel, isValidScoreValue } from "./riskScoring"
 
 describe("getRiskSeverityLevel", () => {
   it("classifies a score in the top quartile (0-100 scale) as critical", () => {
@@ -34,5 +34,38 @@ describe("getRiskSeverityLevel", () => {
   // of its true severity.
   it("does not classify a genuinely low residual score (e.g. 20/100) as critical", () => {
     expect(getRiskSeverityLevel(20)).toBe("low")
+  })
+})
+
+describe("isValidScoreValue", () => {
+  it("accepts a genuine, finite number, including 0", () => {
+    expect(isValidScoreValue(90)).toBe(true)
+    expect(isValidScoreValue(0)).toBe(true)
+  })
+
+  it("accepts a numeric string", () => {
+    expect(isValidScoreValue("42")).toBe(true)
+  })
+
+  it("rejects null and undefined", () => {
+    expect(isValidScoreValue(null)).toBe(false)
+    expect(isValidScoreValue(undefined)).toBe(false)
+  })
+
+  // Regression: Number("") and Number(null) both coerce to a *finite* 0, so
+  // a naive `Number.isFinite(Number(x))` check would call these "valid" --
+  // exactly the malformed values this function exists to catch.
+  it("rejects an empty or whitespace-only string despite coercing to a finite 0", () => {
+    expect(isValidScoreValue("")).toBe(false)
+    expect(isValidScoreValue("   ")).toBe(false)
+  })
+
+  it("rejects NaN and an array (which also coerces via Number())", () => {
+    expect(isValidScoreValue(Number.NaN)).toBe(false)
+    expect(isValidScoreValue([])).toBe(false)
+  })
+
+  it("rejects a non-numeric string", () => {
+    expect(isValidScoreValue("not-a-number")).toBe(false)
   })
 })

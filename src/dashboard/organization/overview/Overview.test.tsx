@@ -784,6 +784,54 @@ describe("Overview", () => {
     expect(link.className).toContain("py-3")
   })
 
+  // getRiskSeverityLevel silently maps a missing/malformed residual_score
+  // to 0 ("low"), which would otherwise render a confident low-severity
+  // badge in Tipping Points for a risk that was never actually scored --
+  // same treatment RiskMatrixPage got for this bug class (#636).
+  it("flags a Tipping Points risk with a malformed residual_score as unscored", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ id: "r1", ref: "CYB-001", residual_score: "" })] },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          risks: [makeRisk({ id: "r1", ref: "CYB-001", residual_score: "" })],
+          riskLinks: [],
+        },
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByText("organization.riskMatrix.unscoredRiskBadge")
+    ).toBeInTheDocument()
+  })
+
+  it("does not flag a Tipping Points risk with a genuinely valid residual_score as unscored", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ id: "r1", ref: "CYB-001", residual_score: 5 })] },
+      isLoading: false,
+    })
+    mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+      data: {
+        data: {
+          risks: [makeRisk({ id: "r1", ref: "CYB-001", residual_score: 5 })],
+          riskLinks: [],
+        },
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.queryByText("organization.riskMatrix.unscoredRiskBadge")
+    ).not.toBeInTheDocument()
+  })
+
   it("groups real risks by category for the category breakdown chart", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: {
