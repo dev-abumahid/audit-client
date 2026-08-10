@@ -204,6 +204,23 @@ describe("UpdateInspection", () => {
     expect(screen.queryByText("IN_PROGRESS")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 14, visual polish): guards the
+  // status->severity refactor (getInspectionStatusSeverity, replacing this
+  // file's own nested ternary) against a color regression.
+  it("colors the status dropdown trigger amber for IN_PROGRESS", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    const trigger = screen.getByText(
+      "organization.inspection.statusInProgress"
+    ).closest("button")
+    expect(trigger?.className).toMatch(/text-amber-800/)
+  })
+
   // quality-bar-loop round 2 (mobile, round-1 finding): the checkbox
   // answer's visual box is well under the 44px touch-target guideline;
   // WCAG's target-size rule is about the clickable AREA, so the wrapping

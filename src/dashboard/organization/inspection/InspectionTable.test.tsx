@@ -278,6 +278,30 @@ describe("InspectionTable", () => {
     expect(screen.queryByText("IN_PROGRESS")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 14, visual polish): guards the
+  // status->severity refactor (getInspectionStatusSeverity, replacing this
+  // file's own STATUS_BADGE Record) against a color regression.
+  it("colors the status badge amber for IN_PROGRESS", async () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: {
+        data: [makeInspection()],
+        meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+      },
+      isLoading: false,
+    })
+
+    renderTable()
+
+    const badge = await waitFor(() => {
+      const el = screen
+        .getAllByText("organization.inspection.statusInProgress")
+        .find((e) => e.tagName === "SPAN")
+      if (!el) throw new Error("status badge span not found")
+      return el
+    })
+    expect(badge.className).toMatch(/text-amber-800/)
+  })
+
   // quality-bar-loop round 2 (mobile + accessibility, round-1 findings):
   // row Eye/Edit/Delete buttons were 30x24px with zero accessible name
   // (confirmed live: ariaLabel null, empty text) -- the single

@@ -1,4 +1,5 @@
 import type { InspectionStatus } from "@/types/inspection"
+import type { SeverityLevel } from "@/utils/severityStyles"
 
 // Maps each InspectionStatus enum value to its i18n key under
 // organization.inspection.* in en.json/fr.json. Shared by the status filter
@@ -23,4 +24,21 @@ export function getInspectionStatusLabel(
 ): string {
   const key = INSPECTION_STATUS_LABEL_KEYS[status as InspectionStatus]
   return key ? t(key) : status
+}
+
+// quality-bar-loop (Inspections, round 14, visual polish): InspectionTable.tsx
+// and UpdateInspection.tsx each independently re-derived this same
+// status->severity mapping (a Record lookup in one, a nested ternary in the
+// other), and InspectionReport.tsx skipped it entirely, hardcoding a single
+// teal pill regardless of actual status. Centralizing here so all three (and
+// any future caller) render the same color for the same status.
+export const INSPECTION_STATUS_SEVERITY: Record<InspectionStatus, SeverityLevel> = {
+  COMPLETED: "low",
+  IN_PROGRESS: "medium",
+  CANCELLED: "critical",
+  DRAFT: "neutral",
+}
+
+export function getInspectionStatusSeverity(status: string): SeverityLevel {
+  return INSPECTION_STATUS_SEVERITY[status as InspectionStatus] ?? "info"
 }

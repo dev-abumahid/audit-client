@@ -31,7 +31,10 @@ import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { canWriteInspection } from "@/utils/assignmentScope"
 import { formatLocaleDate } from "@/utils/formatDate"
-import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
+import {
+  getInspectionStatusLabel,
+  getInspectionStatusSeverity,
+} from "@/utils/inspectionStatus"
 import { severityBadgeClasses } from "@/utils/severityStyles"
 import { Edit2, Eye, Plus, Search, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -39,16 +42,6 @@ import { useTranslation } from "react-i18next"
 import { Link, useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 import StartInspectionModal from "./StartInspectionModal"
-
-// Round-4 final-review finding: this table hand-rolled its own green/amber/
-// red/gray/blue status ladder even though severityStyles.ts's header
-// comment explicitly lists InspectionTable as one of the maps it replaces.
-const STATUS_BADGE: Record<string, string> = {
-  COMPLETED: severityBadgeClasses("low"),
-  IN_PROGRESS: severityBadgeClasses("medium"),
-  CANCELLED: severityBadgeClasses("critical"),
-  DRAFT: severityBadgeClasses("neutral"),
-}
 
 const InspectionTable = () => {
   const { t, i18n } = useTranslation()
@@ -433,10 +426,9 @@ const InspectionTable = () => {
                     </TableCell>
                     <TableCell>
                       <span
-                        className={`inline-block rounded-full px-3 py-1 text-xs ${
-                          STATUS_BADGE[item.status] ||
-                          severityBadgeClasses("info")
-                        }`}
+                        className={`inline-block rounded-full px-3 py-1 text-xs ${severityBadgeClasses(
+                          getInspectionStatusSeverity(item.status)
+                        )}`}
                       >
                         {getInspectionStatusLabel(t, item.status)}
                       </span>

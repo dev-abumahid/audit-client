@@ -13,7 +13,10 @@ import { fileType } from "@/utils/fileType"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { isHttpUrl } from "@/utils/isHttpUrl"
 import { useModalA11y } from "@/hooks/useModalA11y"
-import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
+import {
+  getInspectionStatusLabel,
+  getInspectionStatusSeverity,
+} from "@/utils/inspectionStatus"
 import { A4_WIDTH_MM, computePdfPagePlacements } from "@/utils/pdfPageMath"
 import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
 import { severityBadgeClasses } from "@/utils/severityStyles"
@@ -732,7 +735,11 @@ const InspectionReport = () => {
       <div className="bg-card px-6 py-7">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <span className="mb-3 inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+            <span
+              className={`mb-3 inline-block rounded-full px-3 py-1 text-xs font-bold ${severityBadgeClasses(
+                getInspectionStatusSeverity(inspection.status)
+              )}`}
+            >
               {getInspectionStatusLabel(t, inspection.status)}
             </span>
 

@@ -171,6 +171,24 @@ describe("InspectionReport", () => {
     expect(screen.getByText("3/3")).toBeInTheDocument() // totalAnswered/totalQuestions
   })
 
+  // quality-bar-loop (Inspections, round 14, visual polish finding): this
+  // pill used to hardcode bg-primary/10 text-primary regardless of actual
+  // status, unlike InspectionTable.tsx/UpdateInspection.tsx which both
+  // color-code by status via severityBadgeClasses. A CANCELLED inspection
+  // rendered with the exact same (teal-ish primary) color as a COMPLETED
+  // one, giving no at-a-glance signal.
+  it("colors the status pill by actual status instead of a fixed color", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection({ status: "CANCELLED" }) },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    const pill = screen.getByText("organization.inspection.statusCancelled")
+    expect(pill.className).toMatch(/text-red-700/)
+    expect(pill.className).not.toMatch(/text-primary\b/)
+  })
+
   // quality-bar-loop (Inspections, round 13, mobile finding): this
   // button measured 159x40px live, under the 44px touch-target guideline
   // -- the primary action of the whole report page.

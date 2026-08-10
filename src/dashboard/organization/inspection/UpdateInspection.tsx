@@ -18,7 +18,10 @@ import {
 import type { InspectionStatus } from "@/types/inspection"
 import { attachmentFileName } from "@/utils/attachmentFileName"
 import { fileType } from "@/utils/fileType"
-import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
+import {
+  getInspectionStatusLabel,
+  getInspectionStatusSeverity,
+} from "@/utils/inspectionStatus"
 import { isHttpUrl } from "@/utils/isHttpUrl"
 import { parseSliderDefault } from "@/utils/parseSliderDefault"
 import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
@@ -1170,13 +1173,18 @@ export default function UpdateInspection() {
                       variant="outline"
                       size="sm"
                       className={`h-11 px-2 text-xs font-medium ${severityBadgeClasses(
-                        selectedStatus === "COMPLETED"
-                          ? "low"
-                          : selectedStatus === "CANCELLED"
-                            ? "critical"
-                            : selectedStatus === "DRAFT"
-                              ? "neutral"
-                              : "medium",
+                        // quality-bar-loop round 14 review finding:
+                        // selectedStatus's lazy useState initializer only
+                        // sees inspection.status if it's already loaded on
+                        // mount -- on the render where `inspection` first
+                        // becomes truthy, selectedStatus can still be one
+                        // effect-tick behind. Falling back to inspection's
+                        // own status (guaranteed real here, since this JSX
+                        // only renders once inspection is truthy) avoids a
+                        // one-frame wrong-color flash.
+                        getInspectionStatusSeverity(
+                          selectedStatus ?? inspection.status
+                        ),
                         { border: true }
                       )}`}
                       disabled={isUpdatingStatus}
