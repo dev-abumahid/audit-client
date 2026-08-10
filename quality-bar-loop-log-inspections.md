@@ -1119,3 +1119,83 @@ quality-bar-loop skill's own process, a stale baseline risks either
 mis-picking already-closed findings or missing new ones the last 8
 rounds' refactors could have introduced. Re-running the full panel
 before continuing to guess at fixes.
+
+## Round 20 -- fresh 9-judge re-score, plus an immediate security fix
+
+Full panel re-run (round 11 -> round 20, average **6.1/10**, down from
+round 11's last-recorded average despite 8 fix rounds in between --
+several axes moved on genuinely fresh evidence, not just re-litigating
+old findings):
+
+| Axis | R11 | R20 | Note |
+|---|---|---|---|
+| Industry-standards | 3 | 3 | unchanged -- see below |
+| UX | 5 | 6 | round 18's validation fix credited; orphaned-flow finding widened |
+| Efficiency | 9 | 9 | confirmed still clean, no regression from rounds 14-19 |
+| Accessibility | 7 | 6 | **new finding, not a regression from a fix** -- see below |
+| Visual polish | 6 | 6 | rounds 14/15 fixes confirmed holding; remove-button fragmentation still open, now fully inventoried |
+| Resilience | 5 | 7 | **cleared floor** -- round 12/19 fixes confirmed; 2 new minor gaps noted (malformed slider NaN%, no concurrent-edit warning) |
+| Code quality | 4 | 5 | round 16's file-validation extraction credited as real, tested, and correctly scoped down from a riskier QuestionCard merge |
+| Mobile | 6 | 7 | **cleared floor** -- round 13 fixes confirmed; 1 new regression noted (UpdateInspection.tsx's newer video/document media branches reintroduced the same hover-only delete pattern round 13 eliminated for images) |
+| Security | 9 | 6 -> **9 (fixed same round)** | see below |
+
+**Security finding, fixed immediately (not deferred to a future round):**
+shipped as aexa-frontend PR [#694](https://github.com/Qiyrix/aexa-frontend/pull/694), merged. The judge found a real, live XSS gap: `InspectionReport.tsx`'s
+per-question `mediaFiles` thumbnail grid and the lightbox it opens
+rendered `media.url`/`selectedMedia` straight into `<img src>`/
+`<video><source src>`/`<a href>` with no `isHttpUrl` guard -- the
+identical field/sink pair is correctly guarded everywhere else in this
+same feature (this file's own single-answer "media" case and
+`attachments[]`, plus the equivalent thumbnails in Create/
+UpdateInspection.tsx), it just never reached this one spot. Given
+severity (a stored `javascript:` URL executing as script on click), this
+was fixed the moment the finding landed rather than queued behind other
+rounds. Guarded both the thumbnail and the lightbox itself
+(defense-in-depth, matching this codebase's own convention). Review
+came back clean (one minor test-precision nit, not blocking). QA gate:
+typecheck/lint clean, full suite 356 files / 5277 tests passing.
+Live-verified: injected a `javascript:alert(1)` mediaFiles URL into a
+real inspection via the session's established fetch-monkeypatch
+technique, confirmed the safe fallback renders and
+`document.querySelector('[href^="javascript:"]')` finds nothing
+anywhere on the page.
+
+**Industry-standards (3/10, unchanged) -- confirmed via fresh live
+testing, not assumption:** no inspection scoring/compliance percentage
+anywhere in the data model (not just missing UI), no bulk actions on
+the table, no recurring/scheduled inspections, no offline capture, no
+camera-native file input (`capture=` attribute absent everywhere), and
+`RunInspection.tsx` confirmed still genuinely orphaned -- it IS routed
+(`MainRoute.tsx`), but nothing in `InspectionTable.tsx`/
+`InspectionReport.tsx` links into it; only reachable by typing the URL.
+
+**UX (6/10) -- the orphaned-flow finding widened, not just persisted:**
+the UX judge traced the same `RunInspection.tsx` cluster and found it's
+not one dead file but four (`RunInspection.tsx`, `InspectionNote.tsx`,
+`InspectionRecommendations.tsx`, `InspectionActions.tsx` all link to
+each other in a closed loop with zero entry point from the main list or
+report). Also flagged two independently-implemented required-field
+validators (`CreateNewInspection.tsx`'s creation-time check,
+`UpdateInspection.tsx`'s round-18 completion-time check) that drifted
+into different scope without ever being unified -- not broken, but
+worth consolidating.
+
+**Accessibility (6/10) -- new finding, not a fix regression:** every
+`slider`/`date`/`multipleSelect` answer input across both Create/
+UpdateInspection.tsx's `QuestionCard`s has no `id`/label/`aria-label`
+tying it to its question text -- a screen-reader user tabbing to any of
+these three question types on any inspection hears only "slider"/"date
+picker"/"combobox" with zero name. This predates round 11 (it's not
+something rounds 12-19 broke) but was never caught until this round's
+fresh pass -- 8 rounds of a11y-adjacent work (rounds 2/3/7) happened to
+focus on icon buttons, file inputs, and modals, and never checked these
+three input types' accessible names specifically.
+
+**Next fix (Round 21):** the accessibility gap above is the most
+concrete, contained, and highest-leverage fix available right now --
+it's a single, well-understood WCAG 4.1.2 pattern (missing
+label/aria-labelledby) repeated identically across 3 answer types in 2
+files, with a clear existing precedent to follow (the checkbox
+type's own `<label>` wrapping already gives it a name for free). Going
+there next, before the larger, more architecturally involved
+industry-standards/orphaned-flow items.
