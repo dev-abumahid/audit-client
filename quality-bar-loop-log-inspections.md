@@ -465,3 +465,48 @@ QA gate: typecheck/lint clean, full suite 355 files / 5242 tests
 passing. Live-verified on the edit page: file inputs measure
 `display: block` (not `none`) with the `sr-only` class, and the
 "Upload file" label now measures 44px tall.
+
+## Round 8 (efficiency)
+
+Shipped as aexa-frontend PR [#683](https://github.com/Qiyrix/aexa-frontend/pull/683), merged.
+
+`StartInspectionModal.tsx`'s site/template search inputs fed straight
+into their query's `searchTerm` on every keystroke, firing one network
+request per character -- inconsistent with `InspectionTable.tsx`'s own
+search box, which already debounces 500ms (issue #243). Applied the
+same shared `useDebouncedValue` hook; the input's own displayed value
+stays instant, only the query args are debounced.
+
+Review caught two real gaps this debounce widened/interacted with,
+fixed in the same round:
+- The site branch never cleared its search term on select (the
+  template branch already did) -- a leftover search term plus the new
+  debounce meant the debounced refetch could land after selection with
+  a list that no longer contains the selected site, silently clearing
+  the derived `selectedSite` while `selectedSiteId` stayed set.
+  Mirrors the template branch's existing `setTemplateSearch("")`.
+- cmdk's default client-side fuzzy filter was re-filtering an
+  already-server-filtered list against the RAW (non-debounced) search
+  text -- could transiently hide a result that already matched the
+  server's response, or show `CommandEmpty` prematurely during the
+  debounce window. `shouldFilter={false}` on both `Command` components
+  removes the redundant, conflicting filter.
+
+Caught my own test-authoring bug mid-round: the first version of the
+site-search-clear test never actually typed a search term before
+selecting, so it passed identically with or without the fix (a
+tautological test) -- caught by the negative-control step itself
+(reverting the fix should have failed the test and didn't), fixed by
+typing "HQ" before selecting.
+
+QA gate: typecheck/lint clean, full suite 355 files / 5247 tests
+passing. Live-verified the site/template pickers still filter
+correctly end-to-end (precise debounce timing isn't observable live
+through browser-tool round-trip latency, so that part relies on the
+negative-controlled fake-timer unit tests, which are the reliable
+source of truth here).
+
+Efficiency's two remaining findings (unmemoized question-tree
+re-renders on every keystroke in Create/UpdateInspection, and
+UpdateInspection's O(totalQuestions) visibleNotes effect per keystroke)
+are larger, riskier changes -- next round.
