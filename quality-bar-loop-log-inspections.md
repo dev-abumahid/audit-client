@@ -1292,3 +1292,60 @@ picking further individual fixes, both to confirm rounds 20-22's
 credited improvements actually hold and to get accurate current numbers
 for the 3 axes still below floor before committing to which one to
 tackle with the larger effort those really need.
+
+## Round 23 (industry-standards)
+
+Shipped as aexa-frontend PR [#697](https://github.com/Qiyrix/aexa-frontend/pull/697), merged.
+
+Since industry-standards/UX/code-quality were all freshly scored just 2
+rounds ago (round 20) and hadn't been touched since, skipped a full
+re-score and went straight to the most tractable slice of
+industry-standards' 3/10: `InspectionTable.tsx` had zero bulk actions,
+unlike every reference tool in this category (GoCanvas, Device Magic).
+Added:
+
+- A per-row checkbox, only rendered for rows the caller can actually
+  write (mirroring the existing `canWriteInspection` gate already on
+  the Edit/Delete buttons), plus a header select-all checkbox.
+- A bulk-actions bar (shown once >=1 row selected): running count,
+  "Clear selection", "Delete selected".
+- Bulk delete reuses the existing single-delete mutation via
+  `Promise.allSettled` across every selected id, reporting success/
+  failure counts separately.
+- Selection scoped to the current page, cleared on page/filter/search
+  change -- matching the table's existing per-page pagination model.
+
+Review found one real, valid gap (the failure-count code path was
+completely untested -- the only test always resolved every delete
+call) and one real inconsistency (bulk-delete treated any *resolved*
+promise as success, unlike the sibling single-delete's own `res?.success`
+check). Verified directly against aexa-server's
+`delete_inspection_from_db` that failures always throw (not a 200 with
+`success:false`), so this wasn't an active bug today -- but aligned the
+two paths anyway, and added a test using a deliberately-resolved-but-
+unsuccessful response (not a rejection) specifically because a
+rejection-based test would have passed under the old, buggy logic too
+and not actually caught the gap. A second review round on that fix
+came back clean (one already-satisfied minor item: confirming the
+pre-existing all-success test's mock resolves with `success: true`,
+verified via the full suite already passing).
+
+QA gate: typecheck/lint clean, full suite 356 files / 5289 tests
+passing (82 pre-existing tests in this file untouched). Live-verified
+against the real running dev server: selected a row (bar showed "1
+selected"), toggled select-all (all 3 rows checked, "3 selected"), and
+cleared the selection (bar disappeared, no data touched) -- screenshots
+at each step.
+
+**Next fix (Round 24):** with a real bulk-action feature now shipped,
+the next most tractable industry-standards slice is inspection
+scoring/compliance percentage -- currently absent from the data model
+entirely (not just the UI), the single gap the round-20 judge called
+out as most consistent with what every named reference tool treats as
+a baseline capability. This needs a product-level design decision
+(what counts toward the score? per-question weighting? does it reuse
+Risk Register's existing severity/scoring conventions?) before
+implementation -- research the best-supported option and build it as
+real feature work per this session's standing "ship, don't pause on
+product decisions" directive, rather than treating the open question as
+a stop condition.
