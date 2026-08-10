@@ -1114,4 +1114,231 @@ describe("InspectionTable", () => {
       screen.getByRole("button", { name: /confirm delete/i })
     ).toBeDisabled()
   })
+
+  // quality-bar-loop (Inspections, round 23, industry-standards finding):
+  // this table had no bulk actions at all -- every reference tool in this
+  // category (GoCanvas, Device Magic) supports multi-record bulk delete.
+  describe("bulk selection and delete (#23)", () => {
+    it("shows the bulk-actions bar with a running count once a row is selected", async () => {
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [
+            makeInspection({ id: "insp-1" }),
+            makeInspection({ id: "insp-2", template: { id: "t-2", templateName: "Electrical Safety" } }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+
+      expect(
+        screen.queryByText("organization.inspection.selectedCount")
+      ).not.toBeInTheDocument()
+
+      const rowCheckboxes = screen.getAllByRole("checkbox", {
+        name: /organization\.inspection\.selectRowLabel/,
+      })
+      await userEvent.click(rowCheckboxes[0])
+
+      expect(
+        screen.getByText("organization.inspection.selectedCount")
+      ).toBeInTheDocument()
+    })
+
+    it("selects every writable row when the select-all checkbox is checked", async () => {
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [
+            makeInspection({ id: "insp-1" }),
+            makeInspection({ id: "insp-2", template: { id: "t-2", templateName: "Electrical Safety" } }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+
+      const selectAll = screen.getByRole("checkbox", {
+        name: "organization.inspection.selectAll",
+      })
+      await userEvent.click(selectAll)
+
+      const rowCheckboxes = screen.getAllByRole("checkbox", {
+        name: /organization\.inspection\.selectRowLabel/,
+      })
+      expect(rowCheckboxes.every((cb) => (cb as HTMLInputElement).checked)).toBe(
+        true
+      )
+      expect(selectAll).toBeChecked()
+
+      // Toggling again clears all selections.
+      await userEvent.click(selectAll)
+      expect(rowCheckboxes.every((cb) => (cb as HTMLInputElement).checked)).toBe(
+        false
+      )
+    })
+
+    it("does not render a select checkbox for a row the caller cannot write", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockAssignedInspectionIds = new Set() // not assigned to this inspection
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: { data: [makeInspection()] },
+        isLoading: false,
+      })
+
+      renderTable()
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+
+      expect(
+        screen.queryByRole("checkbox", {
+          name: /organization\.inspection\.selectRowLabel/,
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("deletes every selected inspection and reports the success count on confirm", async () => {
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [
+            makeInspection({ id: "insp-1" }),
+            makeInspection({ id: "insp-2", template: { id: "t-2", templateName: "Electrical Safety" } }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockDeleteInspectionTrigger.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+      const toast = (await import("sonner")).toast
+
+      renderTable()
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+
+      const selectAll = screen.getByRole("checkbox", {
+        name: "organization.inspection.selectAll",
+      })
+      await userEvent.click(selectAll)
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.inspection.deleteSelected",
+        })
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: /confirm delete/i })
+      )
+
+      await waitFor(() =>
+        expect(mockDeleteInspectionTrigger).toHaveBeenCalledTimes(2)
+      )
+      expect(mockDeleteInspectionTrigger).toHaveBeenCalledWith("insp-1")
+      expect(mockDeleteInspectionTrigger).toHaveBeenCalledWith("insp-2")
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith(
+          "organization.inspection.bulkDeleteSuccessToast"
+        )
+      )
+      // Selection clears once the bulk delete completes.
+      expect(
+        screen.queryByText("organization.inspection.selectedCount")
+      ).not.toBeInTheDocument()
+    })
+
+    // Review finding on PR #697: the failed-deletion branch (a partial
+    // bulk-delete failure) was completely unexercised -- only the
+    // all-succeed path had a test. insp-2's mutation deliberately
+    // RESOLVES with `success: false` (not a rejection) -- this is the
+    // exact case that distinguishes "any resolved promise counts as
+    // success" (the original, review-flagged logic) from the fixed
+    // behavior, which aligns with handleConfirmDelete's own
+    // `res?.success` check.
+    it("reports both success and failure counts when a bulk delete partially fails", async () => {
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [
+            makeInspection({ id: "insp-1" }),
+            makeInspection({ id: "insp-2", template: { id: "t-2", templateName: "Electrical Safety" } }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockDeleteInspectionTrigger.mockImplementation((id: string) => ({
+        unwrap: () =>
+          id === "insp-1"
+            ? Promise.resolve({ success: true })
+            : Promise.resolve({ success: false }),
+      }))
+      const toast = (await import("sonner")).toast
+
+      renderTable()
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+
+      const selectAll = screen.getByRole("checkbox", {
+        name: "organization.inspection.selectAll",
+      })
+      await userEvent.click(selectAll)
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.inspection.deleteSelected",
+        })
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: /confirm delete/i })
+      )
+
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith(
+          "organization.inspection.bulkDeleteSuccessToast"
+        )
+      )
+      expect(toast.error).toHaveBeenCalledWith(
+        "organization.inspection.bulkDeleteFailedToast"
+      )
+    })
+
+    it("clears the current selection when the page changes", async () => {
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection()],
+          meta: { page: 1, limit: 10, total: 25, totalPage: 3 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+
+      const rowCheckbox = screen.getByRole("checkbox", {
+        name: /organization\.inspection\.selectRowLabel/,
+      })
+      await userEvent.click(rowCheckbox)
+      expect(
+        screen.getByText("organization.inspection.selectedCount")
+      ).toBeInTheDocument()
+
+      const nextButton = screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-chevron-right"))!
+      await userEvent.click(nextButton)
+
+      expect(
+        screen.queryByText("organization.inspection.selectedCount")
+      ).not.toBeInTheDocument()
+    })
+  })
 })

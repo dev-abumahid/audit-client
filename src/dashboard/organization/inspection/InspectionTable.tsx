@@ -87,6 +87,15 @@ const InspectionTable = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deletedInspectionId, setDeletedInspectionId] = useState<string>("")
+  // quality-bar-loop (Inspections, round 23, industry-standards finding):
+  // this table had no bulk actions at all -- every reference tool in this
+  // category (GoCanvas, Device Magic) supports multi-record bulk delete
+  // from the list view. Selection is scoped to the current page's rows
+  // (cleared on page/filter change below) rather than persisted across
+  // pages, matching this table's own existing per-page pagination model.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   const limit = 10
 
   // API Calls
@@ -156,6 +165,7 @@ const InspectionTable = () => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm)
       setCurrentPage(1)
+      setSelectedIds(new Set())
     }, 500)
     return () => clearTimeout(timer)
   }, [searchTerm])
@@ -175,11 +185,78 @@ const InspectionTable = () => {
   const handleStatusFilterChange = (value: string) => {
     setStatusFilter(value)
     setCurrentPage(1)
+    setSelectedIds(new Set())
   }
 
   const handleSiteFilterChange = (value: string) => {
     setSiteFilter(value)
     setCurrentPage(1)
+    setSelectedIds(new Set())
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    setSelectedIds(new Set())
+  }
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const toggleSelectAll = (selectableIds: string[]) => {
+    setSelectedIds((prev) => {
+      const allSelected =
+        selectableIds.length > 0 &&
+        selectableIds.every((id) => prev.has(id))
+      return allSelected ? new Set() : new Set(selectableIds)
+    })
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0 || isBulkDeleting) return
+
+    setIsBulkDeleting(true)
+    const ids = [...selectedIds]
+    try {
+      const results = await Promise.allSettled(
+        ids.map((id) => deleteInspection(id).unwrap())
+      )
+      // Review finding on PR #697: aligns with handleConfirmDelete's own
+      // success check (`res?.success`) above rather than treating any
+      // resolved promise as a success -- both paths now agree on what
+      // "succeeded" means.
+      const succeededCount = results.filter(
+        (r) => r.status === "fulfilled" && (r.value as any)?.success
+      ).length
+      const failedCount = ids.length - succeededCount
+
+      if (succeededCount > 0) {
+        toast.success(
+          t("organization.inspection.bulkDeleteSuccessToast", {
+            count: succeededCount,
+          })
+        )
+      }
+      if (failedCount > 0) {
+        toast.error(
+          t("organization.inspection.bulkDeleteFailedToast", {
+            count: failedCount,
+          })
+        )
+      }
+      setSelectedIds(new Set())
+      setBulkDeleteModalOpen(false)
+    } finally {
+      setIsBulkDeleting(false)
+    }
   }
 
   const handleViewReport = (inspectionId: string) => {
@@ -216,6 +293,15 @@ const InspectionTable = () => {
       )
     }
   }
+
+  // Only rows the caller can actually delete are selectable -- mirrors the
+  // per-row canWriteInspection gate already applied to the Edit/Delete
+  // buttons below.
+  const selectableIds = inspections
+    .filter((item: InspectionSummary) =>
+      canWriteInspection(role, item.id, assignedInspectionIds)
+    )
+    .map((item: InspectionSummary) => item.id)
 
   return (
     <div className="bg-background p-4 md:p-6">
@@ -340,11 +426,66 @@ const InspectionTable = () => {
           </Select>
         </div>
 
+        {/* quality-bar-loop (Inspections, round 23, industry-standards
+            finding): this table had no bulk actions at all, unlike every
+            reference tool in this category. Only shown once at least one
+            row is selected, matching the established convention of
+            keeping a list view's default toolbar uncluttered. */}
+        {selectedIds.size > 0 && (
+          <div className="mb-3 flex items-center justify-between rounded-xl border border-border bg-muted/50 px-4 py-2.5">
+            <span className="text-sm font-medium">
+              {t("organization.inspection.selectedCount", {
+                count: selectedIds.size,
+              })}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-11"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                {t("organization.inspection.clearSelection")}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-11"
+                onClick={() => setBulkDeleteModalOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {t("organization.inspection.deleteSelected")}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Table */}
         <div className="overflow-hidden rounded-2xl border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-11">
+                  {/* quality-bar-loop round 2 (mobile, round-1 finding)
+                      pattern reused here: the native checkbox's visual
+                      box is well under 44px, so a wrapping element with
+                      min-h-11/min-w-11 (not a className on the input
+                      itself) gives the real clickable area, same fix as
+                      every answer-form checkbox elsewhere in this
+                      feature. */}
+                  <span className="flex min-h-11 min-w-11 items-center justify-center">
+                    <input
+                      type="checkbox"
+                      aria-label={t("organization.inspection.selectAll")}
+                      checked={
+                        selectableIds.length > 0 &&
+                        selectableIds.every((id) => selectedIds.has(id))
+                      }
+                      onChange={() => toggleSelectAll(selectableIds)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                  </span>
+                </TableHead>
                 <TableHead>
                   {t("organization.inspection.colInspection")}
                 </TableHead>
@@ -360,13 +501,13 @@ const InspectionTable = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     {t("organization.inspection.loading")}
                   </TableCell>
                 </TableRow>
               ) : inspectionsError ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     <span role="alert" className="text-muted-foreground">
                       {t("organization.inspection.listLoadError")}
                     </span>
@@ -375,7 +516,7 @@ const InspectionTable = () => {
               ) : inspections.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="h-24 text-center text-muted-foreground"
                   >
                     {t("organization.inspection.empty")}
@@ -390,6 +531,23 @@ const InspectionTable = () => {
                   )
                   return (
                   <TableRow key={item.id} className="animate-fade-in hover:bg-muted/50">
+                    <TableCell>
+                      {canWriteThisInspection && (
+                        <span className="flex min-h-11 min-w-11 items-center justify-center">
+                          <input
+                            type="checkbox"
+                            aria-label={t("organization.inspection.selectRowLabel", {
+                              name:
+                                item.template?.templateName ||
+                                t("organization.inspection.orgFallback"),
+                            })}
+                            checked={selectedIds.has(item.id)}
+                            onChange={() => toggleSelected(item.id)}
+                            className="h-4 w-4 accent-primary"
+                          />
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {/* aexa-frontend#564: item.template.id was already
                           available but rendered as plain text -- same
@@ -504,7 +662,7 @@ const InspectionTable = () => {
         <Pagination
           page={currentPage}
           totalPages={totalPages}
-          onPageChange={setCurrentPage}
+          onPageChange={handlePageChange}
           label={t("organization.inspection.pageOf", {
             current: currentPage,
             total: totalPages,
@@ -523,6 +681,17 @@ const InspectionTable = () => {
         description={t("organization.inspection.deleteDescription")}
         onConfirm={handleConfirmDelete}
         loading={isInspectionDeleting}
+      />
+      {/* -------- Bulk Delete Modal -------- */}
+      <DeleteAlertModal
+        open={bulkDeleteModalOpen}
+        setOpen={setBulkDeleteModalOpen}
+        title={t("organization.inspection.bulkDeleteTitle")}
+        description={t("organization.inspection.bulkDeleteDescription", {
+          count: selectedIds.size,
+        })}
+        onConfirm={handleBulkDelete}
+        loading={isBulkDeleting}
       />
     </div>
   )
