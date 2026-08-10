@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card"
 import { useUploadAnyFileAwsMutation } from "@/redux/apis/common.api"
 import { useCreateNewInspectionMutation } from "@/redux/apis/organization/inspection.api"
 import { useGetSingleTemplateQuery } from "@/redux/apis/organization/template.api"
+import { isHttpUrl } from "@/utils/isHttpUrl"
 import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
 import {
   ArrowLeft,
@@ -457,6 +458,14 @@ export default function CreateNewInspection() {
                   {t("organization.inspection.uploadingMedia")}
                 </p>
               </div>
+            ) : value && !isHttpUrl(value) ? (
+              // quality-bar-loop (Inspections, round 3, security finding):
+              // `value` is client-supplied and rendered straight into
+              // <img src> below -- guard the same way InspectionReport.tsx/
+              // UpdateInspection.tsx do before it reaches that sink.
+              <p className="text-sm text-muted-foreground italic">
+                {t("organization.inspection.unsafeAttachment")}
+              </p>
             ) : value ? (
               <div className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border">
                 <img
@@ -664,11 +673,20 @@ export default function CreateNewInspection() {
                               >
                                 <Trash className="size-4" />
                               </button>
-                              <img
-                                className="h-12 w-12"
-                                src={mediaFile.url}
-                                alt=""
-                              />
+                              {isHttpUrl(mediaFile.url) ? (
+                                <img
+                                  className="h-12 w-12"
+                                  src={mediaFile.url}
+                                  alt=""
+                                />
+                              ) : (
+                                // quality-bar-loop (Inspections, round 3,
+                                // security finding): same render-sink guard
+                                // as the single-answer media case above.
+                                <div className="flex h-12 w-12 items-center justify-center rounded border bg-muted text-[10px] text-muted-foreground">
+                                  {t("organization.inspection.unsafeAttachment")}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

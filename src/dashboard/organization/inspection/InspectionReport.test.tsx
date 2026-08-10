@@ -329,6 +329,29 @@ describe("InspectionReport", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 3, security finding, review
+  // follow-up): the backend already validates attachments' scheme on
+  // write, but a pre-existing record from before that check landed could
+  // still carry an unsafe value.
+  it("refuses to render an inspection-level attachment with a non-http(s) scheme as a link", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          attachments: ["javascript:alert(1)"],
+        }),
+      },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    expect(
+      screen.getByText("organization.inspection.unsafeAttachment")
+    ).toBeInTheDocument()
+    expect(
+      document.querySelector('[href^="javascript:"]')
+    ).not.toBeInTheDocument()
+  })
+
   it("does not crash on an attachment URL with a malformed percent-escape", () => {
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: {
@@ -680,6 +703,32 @@ describe("InspectionReport", () => {
     expect(link).toHaveAttribute("href", "https://cdn.example.com/report.pdf")
     expect(link).toHaveAttribute("target", "_blank")
     expect(document.querySelector("img")).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop (Inspections, round 3, security finding): `answer` is
+  // client-supplied and gets rendered straight into <img src>/<a href>/
+  // window.open for "media" questions -- a javascript:/data: value must
+  // never reach one of those sinks, regardless of how it got stored.
+  it("refuses to render a media answer with a non-http(s) scheme into an img/href/window.open sink", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeMediaReportInspection("javascript:alert(1)"),
+      },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    expect(
+      screen.getByText("organization.inspection.unsafeAttachment")
+    ).toBeInTheDocument()
+    expect(document.querySelector("img")).not.toBeInTheDocument()
+    expect(document.querySelector("video")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("link", { name: /alert/i })
+    ).not.toBeInTheDocument()
+    expect(
+      document.querySelector('[href^="javascript:"]')
+    ).not.toBeInTheDocument()
   })
 
   // Round 14 (#515): the sections sidebar had no <nav aria-label> and its

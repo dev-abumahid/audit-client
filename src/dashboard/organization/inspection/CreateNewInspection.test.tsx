@@ -444,6 +444,56 @@ describe("CreateNewInspection", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 3, security finding): `value` is
+  // rendered straight into <img src> below -- a javascript:/data: value
+  // (e.g. if the upload response were ever compromised, or an existing
+  // record predates the backend's URL-scheme validation) must not reach
+  // that sink.
+  it("refuses to render a media answer with a non-http(s) scheme as an <img>", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: {
+        data: makeTemplate({
+          pages: [
+            {
+              title: "General",
+              questions: [
+                {
+                  id: "q-3",
+                  question: "Site photo",
+                  answerType: "media",
+                  isRequired: false,
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+    mockUploadFileAws.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: "javascript:alert(1)",
+        }),
+    })
+
+    const { container } = render(<CreateNewInspection />)
+    const file = new File(["img"], "site.png", { type: "image/png" })
+    const input =
+      container.querySelector<HTMLInputElement>('input[type="file"]')!
+
+    await userEvent.upload(input, file)
+
+    await waitFor(() => expect(mockUploadFileAws).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.inspection.unsafeAttachment")
+      ).toBeInTheDocument()
+    )
+    expect(document.querySelector("img")).not.toBeInTheDocument()
+  })
+
   // Found by review (quality-bar-loop round 2): the "remove media" control
   // on an uploaded external-media file was a `<span onClick>` -- no
   // role/tabIndex/keyboard handler, a genuine keyboard trap (couldn't be
@@ -477,6 +527,38 @@ describe("CreateNewInspection", () => {
     // all, so this assertion alone distinguishes the two.
     removeButton.focus()
     expect(removeButton).toHaveFocus()
+  })
+
+  // quality-bar-loop (Inspections, round 3, security finding): mediaFile.url
+  // is rendered straight into <img src> for the thumbnail -- same guard as
+  // the single-answer media case above.
+  it("refuses to render an external media file with a non-http(s) scheme as an <img> thumbnail", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+    mockUploadFileAws.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: "javascript:alert(1)",
+        }),
+    })
+
+    const { container } = render(<CreateNewInspection />)
+    const file = new File(["img"], "site.png", { type: "image/png" })
+    const input = container.querySelector<HTMLInputElement>(
+      'input[id^="external-media-"]'
+    )!
+
+    await userEvent.upload(input, file)
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.inspection.unsafeAttachment")
+      ).toBeInTheDocument()
+    )
+    expect(document.querySelector("img")).not.toBeInTheDocument()
   })
 
   it("rejects an oversized media file without uploading", async () => {

@@ -614,6 +614,7 @@
       "mediaThumbnailAlt": "Media {{index}}",
       "videoUnsupported": "Your browser does not support video preview.",
       "openDocument": "Open document",
+      "unsafeAttachment": "This attachment can't be displayed.",
       "selectOption": "Select option...",
       "answerPlaceholder": "Type your answer here...",
       "yes": "Yes",

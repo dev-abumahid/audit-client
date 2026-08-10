@@ -460,6 +460,30 @@ describe("UpdateInspection", () => {
       expect(screen.getByText("report.pdf")).toBeInTheDocument()
     })
 
+    // quality-bar-loop (Inspections, round 3, security finding, review
+    // follow-up): the backend already validates attachments' scheme on
+    // write, but a pre-existing record from before that check landed
+    // could still carry an unsafe value.
+    it("refuses to render an attachment with a non-http(s) scheme as a link", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            attachments: ["javascript:alert(1)"],
+          }),
+        },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />, withRouter)
+
+      expect(
+        screen.getByText("organization.inspection.unsafeAttachment")
+      ).toBeInTheDocument()
+      expect(
+        document.querySelector('[href^="javascript:"]')
+      ).not.toBeInTheDocument()
+    })
+
     it("uploads a file, persists the URL onto the inspection, and shows a success toast", async () => {
       mockUseGetSingleInspectionQuery.mockReturnValue({
         data: { data: makeInspection() },
@@ -820,6 +844,46 @@ describe("UpdateInspection", () => {
       expect(link).toBeDefined()
       expect(link).toHaveAttribute("target", "_blank")
     })
+
+    // quality-bar-loop (Inspections, round 3, security finding):
+    // mediaFile.url is rendered straight into <source src>/<a href>/
+    // <img src> above -- same guard as the single-answer media case.
+    it("refuses to render an existing media file with a non-http(s) scheme into any sink", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            questionAnswers: [
+              {
+                id: "qa-1",
+                questionId: "q-1",
+                answer: true,
+                note: "",
+                mediaFiles: [{ url: "javascript:alert(1)", type: "image" }],
+              },
+              {
+                id: "qa-2",
+                questionId: "q-2",
+                answer: "Fine",
+                note: "",
+                mediaFiles: [],
+              },
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />, withRouter)
+
+      expect(
+        screen.getByText("organization.inspection.unsafeAttachment")
+      ).toBeInTheDocument()
+      expect(document.querySelector("img")).not.toBeInTheDocument()
+      expect(document.querySelector("video")).not.toBeInTheDocument()
+      expect(
+        document.querySelector('[href^="javascript:"]')
+      ).not.toBeInTheDocument()
+    })
   })
 
   // Round 13 (#507): the "media" answer-type renderer unconditionally
@@ -887,6 +951,28 @@ describe("UpdateInspection", () => {
       expect(link).toHaveAttribute("href", "https://cdn.example.com/report.pdf")
       expect(link).toHaveAttribute("target", "_blank")
       expect(document.querySelector("img")).not.toBeInTheDocument()
+    })
+
+    // quality-bar-loop (Inspections, round 3, security finding): `answer`
+    // is stored data and gets rendered straight into <source src>/<a href>/
+    // <img src> above -- an existing record saved before the backend's
+    // URL-scheme validation could still carry a javascript:/data: value.
+    it("refuses to render a media answer with a non-http(s) scheme into any sink", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: { data: makeMediaInspection("javascript:alert(1)") },
+        isLoading: false,
+      })
+
+      render(<UpdateInspection />, withRouter)
+
+      expect(
+        screen.getByText("organization.inspection.unsafeAttachment")
+      ).toBeInTheDocument()
+      expect(document.querySelector("img")).not.toBeInTheDocument()
+      expect(document.querySelector("video")).not.toBeInTheDocument()
+      expect(
+        document.querySelector('[href^="javascript:"]')
+      ).not.toBeInTheDocument()
     })
 
     it("still renders an image answer as an <img>", () => {

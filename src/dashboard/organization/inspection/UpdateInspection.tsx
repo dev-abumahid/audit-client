@@ -19,6 +19,7 @@ import type { InspectionStatus } from "@/types/inspection"
 import { attachmentFileName } from "@/utils/attachmentFileName"
 import { fileType } from "@/utils/fileType"
 import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
+import { isHttpUrl } from "@/utils/isHttpUrl"
 import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
 import {
   ArrowLeft,
@@ -670,6 +671,16 @@ export default function UpdateInspection() {
                   {t("organization.inspection.uploadingMedia")}
                 </p>
               </div>
+            ) : value && !isHttpUrl(value) ? (
+              // quality-bar-loop (Inspections, round 3, security finding):
+              // `value` is a stored answer, so an existing inspection saved
+              // before the backend's URL-scheme validation could still
+              // carry a javascript:/data: value -- guard this render sink
+              // the same way InspectionReport.tsx does, before it ever
+              // reaches <source src>/<a href>/<img src>.
+              <p className="text-sm text-muted-foreground italic">
+                {t("organization.inspection.unsafeAttachment")}
+              </p>
             ) : value && mediaType === "video" ? (
               <div className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border p-2">
                 <video controls className="max-h-96 max-w-full rounded">
@@ -971,14 +982,27 @@ export default function UpdateInspection() {
                   key={url}
                   className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-xs"
                 >
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="max-w-50 truncate text-foreground hover:underline"
-                  >
-                    {attachmentFileName(url)}
-                  </a>
+                  {isHttpUrl(url) ? (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="max-w-50 truncate text-foreground hover:underline"
+                    >
+                      {attachmentFileName(url)}
+                    </a>
+                  ) : (
+                    // quality-bar-loop (Inspections, round 3, security
+                    // finding, review follow-up): the backend already
+                    // validates Inspection.attachments' scheme on write
+                    // (aexa-server's httpUrl check), but a pre-existing
+                    // record from before that check landed could still
+                    // carry an unsafe value -- same defense-in-depth guard
+                    // as the answer/mediaFiles sinks above.
+                    <span className="max-w-50 truncate text-muted-foreground italic">
+                      {t("organization.inspection.unsafeAttachment")}
+                    </span>
+                  )}
                   <button
                     onClick={() => handleRemoveAttachment(url)}
                     disabled={isMutatingAttachments}
@@ -1138,7 +1162,18 @@ export default function UpdateInspection() {
                                 >
                                   <Trash className="size-4" />
                                 </button>
-                                {mediaKind === "video" ? (
+                                {!isHttpUrl(mediaFile.url) ? (
+                                  // quality-bar-loop (Inspections, round 3,
+                                  // security finding): same render-sink
+                                  // guard as the single-answer media case
+                                  // above -- an existing mediaFiles entry
+                                  // saved before the backend's URL-scheme
+                                  // validation could still carry a
+                                  // javascript:/data: value.
+                                  <div className="flex h-12 w-12 items-center justify-center rounded border bg-muted text-[10px] text-muted-foreground">
+                                    {t("organization.inspection.unsafeAttachment")}
+                                  </div>
+                                ) : mediaKind === "video" ? (
                                   <video
                                     controls
                                     className="h-12 w-12 rounded object-cover"

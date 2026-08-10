@@ -10,6 +10,7 @@ import {
 } from "@/utils/buildInspectionPdfHtml"
 import { fileType } from "@/utils/fileType"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { isHttpUrl } from "@/utils/isHttpUrl"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
 import { A4_WIDTH_MM, computePdfPagePlacements } from "@/utils/pdfPageMath"
@@ -165,6 +166,24 @@ const renderAnswerValue = (
     }
 
     case "media": {
+      // quality-bar-loop (Inspections, round 3, security finding): `answer`
+      // is client-supplied and, for this question type, gets rendered
+      // straight into <img src>/<video><source src>/<a href>/window.open
+      // below. It can't get the backend's httpUrl schema check the way
+      // Inspection.attachments/mediaFiles now do (QuestionAnswer.answer is
+      // polymorphic across question types, so the backend schema can't
+      // reject non-URL values without knowing the question type) -- guard
+      // at this render sink instead, same scheme check, so a
+      // javascript:/data: value never reaches a dangerous sink regardless
+      // of how it got stored.
+      if (answer && !isHttpUrl(answer)) {
+        return (
+          <p className="text-sm text-muted-foreground italic">
+            {t("organization.inspection.unsafeAttachment")}
+          </p>
+        )
+      }
+
       // Round 13 (#507) -- UpdateInspection.tsx's upload input for this
       // same "media" answer type accepts "image/*,video/*,application/pdf",
       // but this renderer used to unconditionally render an <img>, so a
@@ -841,17 +860,33 @@ const InspectionReport = () => {
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {inspection.attachments.map((url: string) => (
-                  <a
-                    key={url}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="max-w-64 truncate rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground shadow-sm hover:underline"
-                  >
-                    {attachmentFileName(url)}
-                  </a>
-                ))}
+                {inspection.attachments.map((url: string) =>
+                  isHttpUrl(url) ? (
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="max-w-64 truncate rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground shadow-sm hover:underline"
+                    >
+                      {attachmentFileName(url)}
+                    </a>
+                  ) : (
+                    // quality-bar-loop (Inspections, round 3, security
+                    // finding, review follow-up): the backend already
+                    // validates Inspection.attachments' scheme on write,
+                    // but a pre-existing record from before that check
+                    // landed could still carry an unsafe value -- same
+                    // defense-in-depth guard as the answer/mediaFiles
+                    // sinks above.
+                    <span
+                      key={url}
+                      className="max-w-64 truncate rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground italic shadow-sm"
+                    >
+                      {t("organization.inspection.unsafeAttachment")}
+                    </span>
+                  )
+                )}
               </div>
             </div>
           )}

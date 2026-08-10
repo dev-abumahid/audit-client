@@ -614,6 +614,7 @@
       "mediaThumbnailAlt": "Média {{index}}",
       "videoUnsupported": "Votre navigateur ne prend pas en charge l'aperçu vidéo.",
       "openDocument": "Ouvrir le document",
+      "unsafeAttachment": "Cette pièce jointe ne peut pas être affichée.",
       "selectOption": "Sélectionnez une option...",
       "answerPlaceholder": "Saisissez votre réponse ici...",
       "yes": "Oui",
