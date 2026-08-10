@@ -35,6 +35,15 @@ vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
 }))
 
+// quality-bar-loop round 6 (industry-standards, round-1 finding): the
+// lead-auditor field's <datalist> suggestions come from the org's real
+// members.
+const mockUseGetAllOrgUsersQuery = vi.fn()
+vi.mock("@/redux/apis/organization/org.user.api", () => ({
+  useGetAllOrgUsersQuery: (...args: unknown[]) =>
+    mockUseGetAllOrgUsersQuery(...args),
+}))
+
 vi.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
 }))
@@ -96,11 +105,45 @@ describe("AuditPage", () => {
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
     mockUseGetAllRisksQuery.mockReset()
+    mockUseGetAllOrgUsersQuery.mockReset()
     mockNavigate.mockReset()
     // Default: the org's risks are available to the picker unless a test
     // overrides this.
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: RISK_OPTIONS },
+      isLoading: false,
+    })
+    // Default: a small pool of org members for the lead-auditor
+    // suggestions, unless a test overrides this.
+    mockUseGetAllOrgUsersQuery.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "member-1",
+            role: "LEAD_AUDITOR",
+            status: "ACTIVE",
+            expiresAt: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            isExpired: false,
+            account: {
+              email: "jane.kimura@example.com",
+              profile: { fullName: "Jane Kimura" },
+            },
+          },
+          {
+            id: "member-2",
+            role: "ADMIN",
+            status: "ACTIVE",
+            expiresAt: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            isExpired: false,
+            account: {
+              email: "no-name@example.com",
+              profile: null,
+            },
+          },
+        ],
+      },
       isLoading: false,
     })
   })
@@ -1170,6 +1213,44 @@ describe("AuditPage", () => {
       const leadAuditorInput =
         leadAuditorLabel.parentElement!.querySelector("input")!
       expect(leadAuditorInput).toHaveAttribute("autoComplete", "name")
+    })
+
+    // quality-bar-loop round 6 (industry-standards, round-1 finding): a
+    // free-text-only lead-auditor field let "Jane Kimura" and "J. Kimura"
+    // silently fragment the same person across engagements. The field's
+    // <datalist> now surfaces real org member names as suggestions
+    // (falling back to email when a member has no profile name) while
+    // still accepting free text, so the input isn't disabled/restricted.
+    it("suggests real org member names via a datalist, falling back to email when a member has no profile name", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      render(<AuditPage />)
+      await user.click(
+        screen.getByRole("button", { name: "organization.audit.newMission" })
+      )
+
+      const leadAuditorLabel = screen.getByText(
+        "organization.audit.leadAuditorLabel"
+      )
+      const leadAuditorInput =
+        leadAuditorLabel.parentElement!.querySelector("input")!
+      const listId = leadAuditorInput.getAttribute("list")
+      expect(listId).toBeTruthy()
+
+      const datalist = document.getElementById(listId!) as HTMLDataListElement
+      expect(datalist).not.toBeNull()
+      const optionValues = Array.from(datalist.options).map((o) => o.value)
+      expect(optionValues).toContain("Jane Kimura")
+      // member-2 has no profile.fullName -- falls back to email.
+      expect(optionValues).toContain("no-name@example.com")
+
+      // Free text is still accepted, not restricted to the suggestions.
+      await user.type(leadAuditorInput, "An External Auditor")
+      expect(leadAuditorInput).toHaveValue("An External Auditor")
     })
 
     it("shows the started_at date on the mission card when set", () => {

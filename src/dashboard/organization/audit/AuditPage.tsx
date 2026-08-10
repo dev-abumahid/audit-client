@@ -13,6 +13,7 @@ import {
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { useGetAllOrgUsersQuery } from "@/redux/apis/organization/org.user.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import {
   AlertTriangle,
@@ -145,6 +146,27 @@ export default function AuditPage() {
     name: r.name,
     category: r.category,
   }))
+
+  // quality-bar-loop round 6 (industry-standards, round-1 finding):
+  // lead_auditor is a plain `string | null` on the backend (no Account
+  // relation to migrate to without a schema change, out of scope for a
+  // frontend-only fix), so a full picker isn't possible -- but a free-
+  // text input alone silently let "Jane Kimura" and "J. Kimura" fragment
+  // the same person across engagements, with no way to filter/report by
+  // a canonical identity. A <datalist>-backed autocomplete keeps free
+  // text entry working (still needed for external auditors, or an
+  // already-recorded name that predates this change) while surfacing
+  // real org member names as suggestions, nudging toward the same
+  // spelling every time without breaking existing data.
+  const { data: orgUsersData } = useGetAllOrgUsersQuery(undefined)
+  const leadAuditorSuggestions = Array.from(
+    new Set(
+      (orgUsersData?.data ?? [])
+        .map((m) => m.account?.profile?.fullName || m.account?.email)
+        .filter((name): name is string => !!name)
+    )
+  )
+
   const [createAuditEngagement, { isLoading: isCreating }] =
     useCreateAuditEngagementMutation()
   const [updateAuditEngagement, { isLoading: isUpdating }] =
@@ -813,8 +835,14 @@ export default function AuditPage() {
                     setForm((f) => ({ ...f, lead_auditor: e.target.value }))
                   }
                   autoComplete="name"
+                  list="audit-modal-lead-auditor-suggestions"
                   className="mt-1 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 />
+                <datalist id="audit-modal-lead-auditor-suggestions">
+                  {leadAuditorSuggestions.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label
