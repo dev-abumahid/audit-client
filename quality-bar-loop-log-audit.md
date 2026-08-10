@@ -261,3 +261,38 @@ Dialog, unthemed native date inputs -- are larger refactors, noted as
 follow-ups rather than bundled here). Remaining below-floor axes:
 industry-standards (3/10, lowest) and UX (6/10) -- both real feature
 work, continuing per the standing instruction.
+
+## Round 6 (industry-standards -- lead-auditor autocomplete, PR #670)
+
+Round 1's lowest score anywhere this session (3/10): `lead_auditor` was
+free text only, silently letting "Jane Kimura"/"J. Kimura" fragment
+the same person across engagements. `lead_auditor` is a plain
+`string | null` on the backend (no Account relation) -- a hard picker
+needs a schema change, cross-repo (aexa-server) work out of scope for
+a frontend-only fix, documented rather than silently dropped. Shipped
+the achievable slice instead: a `<datalist>` autocomplete sourced from
+the org's real members (via the existing `useGetAllOrgUsersQuery` hook,
+already used elsewhere for team management -- no new dependency),
+keeping free text entry fully working while nudging toward consistent
+spelling.
+
+Negative control confirmed the new test fails without the `list`/
+`<datalist>` wiring. Live verification was blocked once by the same
+pre-existing role-hydration quirk noted in PRs #667/#668, but review
+round 1's angle B got the modal open on a retry and confirmed live via
+DOM inspection: the datalist populates with a real org member name,
+and typing an arbitrary value still commits to the input unrestricted
+(free text isn't hard-restricted to suggestions). Angle A found no
+bugs; angle B noted one pre-existing, non-blocking pattern (no status/
+expiry filtering on suggested members) already present identically on
+a sibling page's assignee picker -- not a regression this PR
+introduced, left as a possible future cross-cutting pass.
+
+**Status:** industry-standards' most acute gap (lead-auditor identity
+fragmentation) is addressed within what a frontend-only change can do.
+Remaining below-floor axis: UX (6/10) -- lead-auditor picker itself is
+now improved, but status-transition shortcuts, filters, and org-wide
+stats are still open, real feature work. This is a natural checkpoint
+for the Audit Missions loop: 6 rounds shipped this session (mobile,
+resilience, accessibility, visual polish, and now industry-standards),
+covering 5 of round 1's original 6 below-floor findings.
