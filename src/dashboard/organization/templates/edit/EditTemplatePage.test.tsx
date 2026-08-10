@@ -329,6 +329,28 @@ describe("EditTemplatePage", () => {
     })
   }, 6000)
 
+  // Found by PR #675's review while auditing isSystemTemplate.ts's other
+  // consumer -- this catch block read `error?.message`, but RTK Query's
+  // fetchBaseQuery rejection nests the server message under `data`, not
+  // `message` directly (same bug class fixed on TemplatesPage.tsx).
+  it("shows the server's error message when auto-save fails", async () => {
+    mockUpdateTemplateBasics.mockReturnValue({
+      unwrap: () => Promise.reject({ data: { message: "Name already taken" } }),
+    })
+    renderPage()
+
+    const nameInput = screen.getByDisplayValue("Existing Template")
+    fireEvent.change(nameInput, {
+      target: { value: "Existing Template (edited)" },
+    })
+
+    const { toast } = await import("sonner")
+    await waitFor(
+      () => expect(toast.error).toHaveBeenCalledWith("Name already taken"),
+      { timeout: 3000 }
+    )
+  }, 6000)
+
   // Round 14 (#516) -- the templateName Controller had no validation rules
   // at all, unlike SitesEntities.tsx's site-name field (validates
   // non-empty-after-trim with a visible error). A user could clear Template

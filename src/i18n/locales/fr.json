@@ -360,7 +360,9 @@
         "deleteTitle": "Supprimer le modèle",
         "deleteDescription": "Voulez-vous vraiment supprimer ce modèle ? Cette action est irréversible.",
         "deleteFailed": "Échec de la suppression du modèle",
+        "duplicateFailed": "Échec de la duplication du modèle",
         "systemTemplateTooltip": "Modèle système - ne peut pas être modifié ou supprimé",
+        "duplicateButtonLabel": "Dupliquer {{name}}",
         "editButtonLabel": "Modifier {{name}}",
         "deleteButtonLabel": "Supprimer {{name}}"
       },

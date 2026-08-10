@@ -7,12 +7,24 @@ describe("isSystemTemplateName", () => {
     ).toBe(true)
   })
 
-  it("matches on substring even without the decoration", () => {
-    expect(isSystemTemplateName("AI-Generated Findings")).toBe(true)
-  })
-
   it("returns false for an unrelated template name", () => {
     expect(isSystemTemplateName("ISO 27001 Audit Template")).toBe(false)
+  })
+
+  // Found by live verification (PR #675): a substring check incorrectly
+  // matched the Duplicate feature's own "{name} (copy)" suffix, since
+  // appending it to the system template's name still contains the marker
+  // substring -- locking Edit/Delete on what should be an independent,
+  // fully-editable copy. Exact match fixes this; a name that merely
+  // CONTAINS the marker (undecorated, decorated, or suffixed) must not
+  // match unless it's the precise synthetic name.
+  it("does not match a name that only contains the marker as a substring", () => {
+    expect(isSystemTemplateName("AI-Generated Findings")).toBe(false)
+    expect(
+      isSystemTemplateName(
+        "⚙ AI-Generated Findings (system, do not edit) (copy)"
+      )
+    ).toBe(false)
   })
 
   // aexa-frontend#377 review follow-up: templateName is typed as a required

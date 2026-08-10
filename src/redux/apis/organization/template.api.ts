@@ -110,6 +110,17 @@ const templateApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["TEMPLATE"],
     }),
+    // aexa-server PR #322 (quality-bar-loop industry-standards fix) --
+    // server does a single atomic nested-create copy of the whole
+    // template (pages + questions); the duplicate never carries over
+    // the source's access grants, starting as a private draft.
+    duplicateTemplate: builder.mutation<ApiResponse<ITemplate>, string>({
+      query: (id) => ({
+        url: `/template/${id}/duplicate`,
+        method: "POST",
+      }),
+      invalidatesTags: ["TEMPLATE"],
+    }),
   }),
 })
 
@@ -123,4 +134,5 @@ export const {
   useDeleteQuestionMutation,
   useUpdateOrCreatePageMutation,
   useDeletePageMutation,
+  useDuplicateTemplateMutation,
 } = templateApi

@@ -32,10 +32,12 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
 
 const mockUseGetAllTemplatesQuery = vi.fn()
 const mockDeleteTemplate = vi.fn()
+const mockDuplicateTemplate = vi.fn()
 // Mutable per-test, same convention as RiskRegisterPage.test.tsx's
 // mockIsRiskDeleting -- lets the double-submission-guard test below flip
 // this to true without a static mock.
 let mockIsTemplateDeleting = false
+let mockIsTemplateDuplicating = false
 
 vi.mock("@/redux/apis/organization/template.api", () => ({
   useGetAllTemplatesQuery: (...args: unknown[]) =>
@@ -43,6 +45,10 @@ vi.mock("@/redux/apis/organization/template.api", () => ({
   useDeleteTemplateMutation: () => [
     mockDeleteTemplate,
     { isLoading: mockIsTemplateDeleting },
+  ],
+  useDuplicateTemplateMutation: () => [
+    mockDuplicateTemplate,
+    { isLoading: mockIsTemplateDuplicating },
   ],
 }))
 
@@ -86,7 +92,9 @@ describe("TemplatesPage", () => {
     mockRole = "ADMIN"
     mockUseGetAllTemplatesQuery.mockReset()
     mockDeleteTemplate.mockReset()
+    mockDuplicateTemplate.mockReset()
     mockIsTemplateDeleting = false
+    mockIsTemplateDuplicating = false
     mockUseGetAllTemplatesQuery.mockReturnValue({
       data: { data: [makeTemplate()], meta: { total: 1 } },
       isLoading: false,
@@ -239,6 +247,143 @@ describe("TemplatesPage", () => {
     expect(deleteButton.className).toMatch(/\bw-11\b/)
   })
 
+  // aexa-server PR #322 / quality-bar-loop round 3 (industry-standards):
+  // template cloning, the single most universal expectation across
+  // SafetyCulture/iAuditor/Typeform/Google Forms, which this page had none
+  // of before.
+  describe("template duplication", () => {
+    it("shows a Duplicate button for every writable row, including the system template", () => {
+      mockUseGetAllTemplatesQuery.mockReturnValue({
+        data: {
+          data: [
+            makeTemplate(),
+            makeTemplate({
+              id: "system-template",
+              templateName: "⚙ AI-Generated Findings (system, do not edit)",
+              templateDisc: null,
+            }),
+          ],
+          meta: { total: 2 },
+        },
+        isLoading: false,
+      })
+
+      render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+      expect(
+        screen.queryAllByRole("button").filter((b) => b.querySelector("svg.lucide-copy"))
+      ).toHaveLength(2)
+    })
+
+    it("hides the Duplicate button for a VIEWER", () => {
+      mockRole = "VIEWER"
+      render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+      expect(
+        screen.queryAllByRole("button").some((b) => b.querySelector("svg.lucide-copy"))
+      ).toBe(false)
+    })
+
+    it("calls duplicateTemplate with the row's id and shows a success toast", async () => {
+      mockDuplicateTemplate.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true, message: "Duplicated" }),
+      })
+
+      render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+      const duplicateButton = screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-copy"))!
+      await userEvent.click(duplicateButton)
+
+      expect(mockDuplicateTemplate).toHaveBeenCalledWith("template-1")
+      const { toast } = await import("sonner")
+      expect(toast.success).toHaveBeenCalledWith("Duplicated")
+    })
+
+    it("shows an error toast when duplicateTemplate fails", async () => {
+      mockDuplicateTemplate.mockReturnValue({
+        // RTK Query's fetchBaseQuery rejection shape -- the server message
+        // lives under `data`, not `message` directly (found by review, PR
+        // #675: the handler originally read `err?.message`, which a real
+        // rejection like this never populates).
+        unwrap: () => Promise.reject({ data: { message: "Server error" } }),
+      })
+
+      render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+      const duplicateButton = screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-copy"))!
+      await userEvent.click(duplicateButton)
+
+      const { toast } = await import("sonner")
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("Server error")
+      )
+    })
+
+    // Found by review (PR #675): the handler originally guarded on the
+    // mutation hook's shared `isLoading` flag, which is true while ANY row
+    // is duplicating -- so clicking a second row while a first row's
+    // duplicate was still in flight silently no-op'd (no call, no toast),
+    // even though that second row's button wasn't visually disabled.
+    it("lets a second row's Duplicate click go through while a different row's duplicate is still pending", async () => {
+      mockUseGetAllTemplatesQuery.mockReturnValue({
+        data: {
+          data: [
+            makeTemplate({ id: "template-1", templateName: "Template One" }),
+            makeTemplate({ id: "template-2", templateName: "Template Two" }),
+          ],
+          meta: { total: 2 },
+        },
+        isLoading: false,
+      })
+      let resolveFirst: (v: unknown) => void
+      mockDuplicateTemplate.mockReturnValueOnce({
+        unwrap: () => new Promise((resolve) => { resolveFirst = resolve }),
+      })
+      mockDuplicateTemplate.mockReturnValueOnce({
+        unwrap: () => Promise.resolve({ success: true, message: "Duplicated" }),
+      })
+
+      const { rerender } = render(
+        <MemoryRouter><TemplatesPage /></MemoryRouter>
+      )
+
+      const duplicateButtons = () =>
+        screen
+          .getAllByRole("button")
+          .filter((b) => b.querySelector("svg.lucide-copy"))
+      await userEvent.click(duplicateButtons()[0])
+      // Simulates the real RTK Query hook reporting isLoading: true while
+      // row 1's mutation is genuinely in flight (this test's mock, unlike
+      // the real hook, doesn't derive isLoading from pending promises on
+      // its own -- setting it explicitly and forcing a re-render
+      // reproduces the exact runtime condition the original bug depended
+      // on: the hook call on row 2's click sees isLoading: true).
+      mockIsTemplateDuplicating = true
+      rerender(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+      await userEvent.click(duplicateButtons()[1])
+
+      expect(mockDuplicateTemplate).toHaveBeenCalledWith("template-2")
+      resolveFirst!({ success: true, message: "Duplicated" })
+    })
+
+    it("gives the Duplicate button a 44px touch target and a per-template accessible name", () => {
+      render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+      const duplicateButton = screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-copy"))!
+
+      expect(duplicateButton.className).toMatch(/\bh-11\b/)
+      expect(duplicateButton.className).toMatch(/\bw-11\b/)
+      expect(duplicateButton).toHaveAccessibleName()
+    })
+  })
+
   it("hides Generate Template, Create Template, Edit and Delete for a VIEWER", () => {
     mockRole = "VIEWER"
     render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
@@ -337,6 +482,36 @@ describe("TemplatesPage", () => {
     expect(
       screen.getByRole("button", { name: /confirm delete/i })
     ).toBeDisabled()
+  })
+
+  // Found by review (PR #675, while adding the sibling duplicate handler):
+  // this handler read `err?.message`, but RTK Query's fetchBaseQuery
+  // rejection nests the server message under `data` -- a real rejection
+  // never populated `message`, so delete failures always fell through to
+  // the generic fallback text instead of the server's actual message.
+  it("shows the server's error message (not just the generic fallback) when delete fails", async () => {
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: { data: [makeTemplate()], meta: { total: 1 } },
+      isLoading: false,
+    })
+    mockDeleteTemplate.mockReturnValue({
+      unwrap: () => Promise.reject({ data: { message: "In use, cannot delete" } }),
+    })
+
+    render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+    const deleteButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-trash2"))!
+    await userEvent.click(deleteButton)
+    await userEvent.click(
+      screen.getByRole("button", { name: /confirm delete/i })
+    )
+
+    const { toast } = await import("sonner")
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("In use, cannot delete")
+    )
   })
 
   // Bug-fix batch: templateDisc?.slice(0, 50) + " ..." rendered the literal

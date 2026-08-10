@@ -16,12 +16,13 @@ import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   useDeleteTemplateMutation,
+  useDuplicateTemplateMutation,
   useGetAllTemplatesQuery,
 } from "@/redux/apis/organization/template.api"
 import type { TemplateSummary } from "@/types/template"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { Brain, Edit, Plus, Search, Trash2 } from "lucide-react"
+import { Brain, Copy, Edit, Plus, Search, Trash2 } from "lucide-react"
 import { isSystemTemplateName } from "@/utils/isSystemTemplate"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -80,6 +81,12 @@ export default function TemplatesPage() {
   const canWrite = canWriteOrgResource(role)
   const [deleteTemplate, { isLoading: isTemplateDeleting }] =
     useDeleteTemplateMutation()
+  const [duplicateTemplate] = useDuplicateTemplateMutation()
+  // Tracks which specific row is duplicating, so each row's button disables
+  // independently -- the mutation hook's own isLoading is shared across ALL
+  // rows and would either over-disable every row or (compared against
+  // per-id, see handleDuplicateClick) silently no-op a second row's click.
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
 
   const [searchInput, setSearchInput] = useState("")
   const [page, setPage] = useState(1)
@@ -135,7 +142,39 @@ export default function TemplatesPage() {
         setSelectedTemplateId(null)
       }
     } catch (err: any) {
-      toast.error(err?.message || t("organization.templates.list.deleteFailed"))
+      // RTK Query's fetchBaseQuery rejection shape nests the server message
+      // under `data`, not `message` directly -- the established convention
+      // on AlertsPage/FindingDetails/KriDashboardPage/RiskRegisterPage/
+      // InspectionTable. `err?.message` here never matched a real rejection,
+      // so every delete failure silently fell through to the generic
+      // fallback. Found by review (PR #675) while adding the sibling
+      // duplicate handler below.
+      toast.error(
+        err?.data?.message || t("organization.templates.list.deleteFailed")
+      )
+    }
+  }
+
+  const handleDuplicateClick = async (id: string) => {
+    // Compare against THIS row's id, not the shared mutation hook's
+    // isLoading -- that flag is true while ANY row is duplicating, so using
+    // it as a guard here would silently no-op a click on a second row while
+    // a first row's duplicate is still in flight (no toast, no call), even
+    // though that row's own button isn't visually disabled. Found by review
+    // (PR #675).
+    if (duplicatingId === id) return
+    setDuplicatingId(id)
+    try {
+      const res = await duplicateTemplate(id).unwrap()
+      if (res?.success) {
+        toast.success(res?.message)
+      }
+    } catch (err: any) {
+      toast.error(
+        err?.data?.message || t("organization.templates.list.duplicateFailed")
+      )
+    } finally {
+      setDuplicatingId(null)
     }
   }
 
@@ -283,6 +322,21 @@ export default function TemplatesPage() {
                           tailwind-merge, matching every other page's
                           icon-only-button fix pattern. */}
                       <div className="flex justify-end gap-1">
+                        {canWrite && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDuplicateClick(template.id)}
+                            disabled={duplicatingId === template.id}
+                            aria-label={t(
+                              "organization.templates.list.duplicateButtonLabel",
+                              { name: template.templateName }
+                            )}
+                            className="h-11 w-11"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        )}
                         {canWrite &&
                           (isSystem ? (
                             <span

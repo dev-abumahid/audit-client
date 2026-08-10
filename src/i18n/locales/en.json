@@ -360,9 +360,11 @@
         "deleteTitle": "Delete template",
         "deleteDescription": "Are you sure you want to delete this template? This action cannot be undone.",
         "deleteFailed": "Failed to delete template",
+        "duplicateFailed": "Failed to duplicate template",
         "systemTemplateTooltip": "System template - cannot be edited or deleted",
         "editButtonLabel": "Edit {{name}}",
-        "deleteButtonLabel": "Delete {{name}}"
+        "deleteButtonLabel": "Delete {{name}}",
+        "duplicateButtonLabel": "Duplicate {{name}}"
       },
       "report": {
         "untitled": "Untitled Template",

@@ -120,8 +120,16 @@ const EditTemplatePage = () => {
           setLogoFile(null)
         }
       } catch (error: any) {
+        // error?.data?.message checked first for a raw RTK Query rejection
+        // (fetchBaseQuery nests the server message under `data`, not
+        // `message` directly); error?.message covers the manually-thrown
+        // Error above (res?.message not success). Same bug class fixed on
+        // TemplatesPage.tsx, PR #675 -- found by that PR's review while
+        // auditing this util's other consumer.
         toast.error(
-          error?.message || t("organization.templates.edit.saveError")
+          error?.data?.message ||
+            error?.message ||
+            t("organization.templates.edit.saveError")
         )
         throw error
       }
@@ -269,7 +277,9 @@ const EditTemplatePage = () => {
       toast.success(t("organization.templates.edit.updateSuccess"))
     } catch (error: any) {
       toast.error(
-        error?.message || t("organization.templates.edit.updateFailed")
+        error?.data?.message ||
+          error?.message ||
+          t("organization.templates.edit.updateFailed")
       )
     }
   }
