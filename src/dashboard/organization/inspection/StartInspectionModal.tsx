@@ -21,6 +21,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { useGetAllTemplatesQuery } from "@/redux/apis/organization/template.api"
 import type { SiteSummary } from "@/types/organization"
@@ -59,6 +60,14 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
   const templateStateTextId = useId()
   const navigate = useNavigate()
 
+  // quality-bar-loop (Inspections, round 8, efficiency finding): both
+  // search inputs fed straight into their query's searchTerm on every
+  // keystroke, firing one network request per character -- inconsistent
+  // with InspectionTable.tsx's own search box, which already debounces
+  // 500ms (issue #243) using this same shared hook.
+  const debouncedSiteSearch = useDebouncedValue(siteSearch)
+  const debouncedTemplateSearch = useDebouncedValue(templateSearch)
+
   // quality-bar-loop (Inspections, round 5, resilience finding): neither
   // query checked isError -- a genuine fetch failure rendered the same
   // "no site/template found" empty state as a legitimately empty org,
@@ -68,7 +77,7 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
   const { data: sitesData, isError: isSitesError } = useGetAllSitesQuery({
     page: 1,
     limit: 1000,
-    searchTerm: siteSearch,
+    searchTerm: debouncedSiteSearch,
   })
   const {
     data: templatesData,
@@ -77,7 +86,7 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
   } = useGetAllTemplatesQuery({
     page: 1,
     limit: 100,
-    searchTerm: templateSearch,
+    searchTerm: debouncedTemplateSearch,
     // quality-bar-loop round 5 (industry-standards): exclude drafts --
     // starting a real inspection against an unfinished checklist would
     // silently produce an incomplete report with no warning.
@@ -177,7 +186,15 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
                 align="start"
                 sideOffset={4}
               >
-                <Command>
+                {/* review follow-up (round 8): the site/template list is
+                    already filtered server-side via the debounced
+                    searchTerm above -- cmdk's own default client-side
+                    fuzzy filter would otherwise re-filter that list
+                    against the RAW (non-debounced) search text, which can
+                    transiently hide a result that already matches the
+                    server's response, or show CommandEmpty prematurely
+                    during the debounce window. */}
+                <Command shouldFilter={false}>
                   <CommandInput
                     placeholder={t(
                       "organization.inspection.searchSitePlaceholder"
@@ -203,6 +220,16 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
                           onSelect={() => {
                             setValue("siteId", site.id)
                             setSiteOpen(false)
+                            // review follow-up (round 8): the template
+                            // branch already clears its search on select;
+                            // this one didn't, so a leftover search term
+                            // plus this round's debounce widened a
+                            // pre-existing gap -- the debounced refetch
+                            // could land after selection with a list that
+                            // no longer contains the selected site,
+                            // silently clearing `selectedSite` (derived by
+                            // find()) while `selectedSiteId` stays set.
+                            setSiteSearch("")
                           }}
                         >
                           <Check
@@ -249,7 +276,15 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-full p-0" align="start">
-                <Command>
+                {/* review follow-up (round 8): the site/template list is
+                    already filtered server-side via the debounced
+                    searchTerm above -- cmdk's own default client-side
+                    fuzzy filter would otherwise re-filter that list
+                    against the RAW (non-debounced) search text, which can
+                    transiently hide a result that already matches the
+                    server's response, or show CommandEmpty prematurely
+                    during the debounce window. */}
+                <Command shouldFilter={false}>
                   <CommandInput
                     placeholder={t(
                       "organization.inspection.searchTemplatesPlaceholder"

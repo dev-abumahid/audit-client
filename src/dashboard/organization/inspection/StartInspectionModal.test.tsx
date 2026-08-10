@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import StartInspectionModal from "./StartInspectionModal"
 
@@ -115,6 +115,48 @@ describe("StartInspectionModal", () => {
     ).toBeInTheDocument()
   })
 
+  // review follow-up (round 8, efficiency PR): the template branch already
+  // cleared its search on select; the site branch didn't -- a leftover
+  // search term plus round 8's debounce widened this into a real gap
+  // where the debounced refetch could land with a list that no longer
+  // contains the selected site, silently clearing the derived
+  // `selectedSite` while `selectedSiteId` stayed set.
+  it("clears the site search term after selecting a site", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: { data: [{ id: "s1", name: "HQ Casablanca" }] },
+    })
+
+    render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
+
+    fireEvent.click(
+      screen.getByRole("combobox", {
+        name: "organization.inspection.selectSite organization.inspection.chooseSite",
+      })
+    )
+    // Type a search term before selecting -- without the fix, this term
+    // is what's left behind in siteSearch after selection.
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "organization.inspection.searchSitePlaceholder"
+      ),
+      "HQ"
+    )
+    await userEvent.click(await screen.findByText("HQ Casablanca"))
+
+    // Reopen the popover -- its search box should be empty, not still
+    // holding the "HQ" typed before selecting.
+    fireEvent.click(
+      screen.getByRole("combobox", {
+        name: "organization.inspection.selectSite HQ Casablanca",
+      })
+    )
+    expect(
+      screen.getByPlaceholderText(
+        "organization.inspection.searchSitePlaceholder"
+      )
+    ).toHaveValue("")
+  })
+
   // quality-bar-loop round 2 (UX, round-1 finding): live-confirmed the
   // protected "AI-Generated Findings (system, do not edit)" template was
   // selectable here, with nothing preventing a real inspection from
@@ -199,6 +241,118 @@ describe("StartInspectionModal", () => {
     expect(
       screen.queryByText("organization.inspection.noTemplateFound")
     ).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop (Inspections, round 8, efficiency finding): both
+  // search inputs fed straight into their query's searchTerm on every
+  // keystroke, firing one network request per character -- inconsistent
+  // with InspectionTable.tsx's own search box, which already debounces
+  // 500ms (issue #243).
+  describe("round 8: debounced site/template search", () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it("does not fire the templates query with the new search term immediately on keystroke", () => {
+      render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
+
+      fireEvent.click(
+        screen.getByRole("combobox", {
+          name: "organization.inspection.selectTemplate organization.inspection.chooseTemplate",
+        })
+      )
+      const input = screen.getByPlaceholderText(
+        "organization.inspection.searchTemplatesPlaceholder"
+      )
+
+      act(() => {
+        fireEvent.change(input, { target: { value: "fire" } })
+      })
+
+      expect(mockUseGetAllTemplatesQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ searchTerm: "" })
+      )
+
+      act(() => {
+        vi.advanceTimersByTime(300)
+      })
+      expect(mockUseGetAllTemplatesQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ searchTerm: "" })
+      )
+    })
+
+    it("commits the debounced template search term after the delay elapses", () => {
+      render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
+
+      fireEvent.click(
+        screen.getByRole("combobox", {
+          name: "organization.inspection.selectTemplate organization.inspection.chooseTemplate",
+        })
+      )
+      const input = screen.getByPlaceholderText(
+        "organization.inspection.searchTemplatesPlaceholder"
+      )
+
+      act(() => {
+        fireEvent.change(input, { target: { value: "fire" } })
+      })
+      act(() => {
+        vi.advanceTimersByTime(500)
+      })
+
+      expect(mockUseGetAllTemplatesQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ searchTerm: "fire" })
+      )
+    })
+
+    it("does not fire the sites query with the new search term immediately on keystroke", () => {
+      render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
+
+      fireEvent.click(
+        screen.getByRole("combobox", {
+          name: "organization.inspection.selectSite organization.inspection.chooseSite",
+        })
+      )
+      const input = screen.getByPlaceholderText(
+        "organization.inspection.searchSitePlaceholder"
+      )
+
+      act(() => {
+        fireEvent.change(input, { target: { value: "hq" } })
+      })
+
+      expect(mockUseGetAllSitesQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ searchTerm: "" })
+      )
+    })
+
+    it("commits the debounced site search term after the delay elapses", () => {
+      render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
+
+      fireEvent.click(
+        screen.getByRole("combobox", {
+          name: "organization.inspection.selectSite organization.inspection.chooseSite",
+        })
+      )
+      const input = screen.getByPlaceholderText(
+        "organization.inspection.searchSitePlaceholder"
+      )
+
+      act(() => {
+        fireEvent.change(input, { target: { value: "hq" } })
+      })
+      act(() => {
+        vi.advanceTimersByTime(500)
+      })
+
+      expect(mockUseGetAllSitesQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ searchTerm: "hq" })
+      )
+    })
   })
 
   it("renders the localized footer buttons", () => {
