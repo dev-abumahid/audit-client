@@ -279,6 +279,40 @@ describe("AuditPage", () => {
     ).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 5 (visual polish, round-1 finding): the
+  // In Progress/Completed stat cards and the Report download chip
+  // previously hand-rolled their own orange-500/green-500 colors at a
+  // different opacity tier than the shared SEVERITY_STYLES vocabulary
+  // already used by the status badges on this same page -- three
+  // different color systems for what's conceptually the same 5-bucket
+  // severity concept.
+  it("colors the In Progress/Completed stat cards and the Report chip from the shared severity vocabulary, not hand-rolled colors", () => {
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [makeEngagement({ report_url: "https://example.com/r.pdf" })] },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    const inProgressStat = screen
+      .getByText(/organization\.audit\.statInProgress/)
+      .closest("div")!
+    expect(inProgressStat.className).not.toContain("orange-500")
+    expect(inProgressStat.className).toContain("amber-500")
+
+    const completedStat = screen
+      .getByText(/organization\.audit\.statCompleted/)
+      .closest("div")!
+    expect(completedStat.className).not.toContain("green-500")
+    expect(completedStat.className).toContain("emerald-500")
+
+    const reportButton = screen.getByRole("button", {
+      name: /organization\.audit\.report/,
+    })
+    expect(reportButton.className).not.toContain("green-500")
+    expect(reportButton.className).toContain("emerald-500")
+  })
+
   it("shows the empty state when there are no engagements", () => {
     mockUseGetAllAuditEngagementsQuery.mockReturnValue({
       data: { data: [] },

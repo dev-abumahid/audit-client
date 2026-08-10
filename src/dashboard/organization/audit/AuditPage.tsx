@@ -402,18 +402,44 @@ export default function AuditPage() {
             {t("organization.audit.statTotal")}
           </span>
         </div>
-        <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 px-4 py-2.5">
-          <span className="font-mono text-lg font-bold text-orange-600">
+        {/* quality-bar-loop round 5 (visual polish, round-1 finding):
+            these stat cards previously hand-rolled their own
+            orange-500/green-500 colors at a different opacity tier than
+            the status badges below (which already route through
+            SEVERITY_STYLES) -- same underlying concept (in_progress ->
+            medium, completed -> low), rendered in two different color
+            systems on one page. Now shares the same source as
+            STATUS_CONFIG. */}
+        <div
+          className={`rounded-lg border px-4 py-2.5 ${SEVERITY_STYLES.medium.border} ${SEVERITY_STYLES.medium.bg}`}
+        >
+          <span
+            className={`font-mono text-lg font-bold ${SEVERITY_STYLES.medium.text}`}
+          >
             {inProgressCount}
           </span>
           <PageScopedStatLabel label={t("organization.audit.statInProgress")} />
         </div>
-        <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-2.5">
-          <span className="font-mono text-lg font-bold text-green-600">
+        <div
+          className={`rounded-lg border px-4 py-2.5 ${SEVERITY_STYLES.low.border} ${SEVERITY_STYLES.low.bg}`}
+        >
+          <span
+            className={`font-mono text-lg font-bold ${SEVERITY_STYLES.low.text}`}
+          >
             {completedCount}
           </span>
           <PageScopedStatLabel label={t("organization.audit.statCompleted")} />
         </div>
+        {/* Review round 1 (angle A) on PR #669: left on the plain
+            --destructive token rather than SEVERITY_STYLES.critical --
+            unlike In Progress/Completed, this stat has no STATUS_CONFIG
+            anchor (it's a raw count, not a status), and painting a
+            findings count "critical" red regardless of whether it's 0
+            or 50 would misrepresent a genuinely good "0 findings" state
+            as the most alarming color in the palette. --destructive was
+            already a real shared design token, not a hand-rolled color
+            -- round 1's finding was about the OTHER 3 elements' colors,
+            not this one. */}
         <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-2.5">
           <span className="font-mono text-lg font-bold text-destructive">
             {totalFindings}
@@ -502,9 +528,15 @@ export default function AuditPage() {
                       icon-only buttons get `h-11 w-11 shrink-0`, same
                       pattern shipped on 7 sibling pages this session. */}
                   {hasReport ? (
+                    // quality-bar-loop round 5 (visual polish, round-1
+                    // finding): was a third distinct hand-rolled green
+                    // token (bg-green-500/10 + text-green-600), different
+                    // from both the stat cards above and the shared
+                    // SEVERITY_STYLES.low used everywhere else on this
+                    // page now.
                     <button
                       onClick={() => handleDownloadReport(eng.report_url!)}
-                      className="flex h-11 items-center gap-1 rounded-md bg-green-500/10 px-2 text-[10px] font-medium text-green-600 hover:bg-green-500/20"
+                      className={`flex h-11 items-center gap-1 rounded-md px-2 text-[10px] font-medium hover:opacity-80 ${SEVERITY_STYLES.low.bg} ${SEVERITY_STYLES.low.text}`}
                     >
                       <FileText className="h-3 w-3" />{" "}
                       {t("organization.audit.report")}{" "}
