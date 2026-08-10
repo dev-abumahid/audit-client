@@ -510,3 +510,51 @@ Efficiency's two remaining findings (unmemoized question-tree
 re-renders on every keystroke in Create/UpdateInspection, and
 UpdateInspection's O(totalQuestions) visibleNotes effect per keystroke)
 are larger, riskier changes -- next round.
+
+## Round 9 (efficiency + a real correctness bug)
+
+Shipped as aexa-frontend PR [#684](https://github.com/Qiyrix/aexa-frontend/pull/684), merged.
+
+`UpdateInspection.tsx`'s visibleNotes-seeding effect was keyed on
+`[answers]`, re-running a full `Object.entries().forEach()` over every
+question on every keystroke (any answer edit creates a new `answers`
+reference) and unconditionally overwriting the whole `visibleNotes`
+state. Beyond the per-keystroke cost, this was a genuine correctness
+bug: opening an empty "Add Note" field for one question, then editing
+a *different* question's answer, silently closed the just-opened note
+field again -- the recompute only looks at saved note text, so an
+empty-but-just-opened note gets dropped on every unrelated edit.
+
+Fixed by merging the seeding into the existing one-time
+answers-initialization effect (same `initialized.current` gate,
+same `initial` object both states are seeded from). Review confirmed
+this loses no genuine behavior: `useGetSingleInspectionQuery` refetches
+after `updateInspection`/`updateInspectionQuestionAnswer`/
+`splitInspectionNote` don't actually re-populate `answers` either
+(that effect was already gated to run once), so there was no working
+"re-seed on refetch" behavior to preserve -- the AI note-splitting flow
+already needed a manual reload to surface new notes, unrelated to this
+fix.
+
+Caught my own test-authoring bug again this round: the first version
+of the new test typed into the just-opened note's own `<textarea>`
+instead of a different question's field, because `role="textbox"`
+matches both and an index-based query grabbed the wrong one -- the
+negative control (revert, expect failure) instead passed, which is
+what caught it. Fixed by targeting the other question's field by
+placeholder text specifically.
+
+QA gate: typecheck/lint clean, full suite 355 files / 5248 tests
+passing (one unrelated Radix focus-scope timer flake in
+`CreateNewFindingModal.test.tsx` under full-suite parallelism,
+confirmed clean in isolation). Live-verified the edit page still
+renders normally.
+
+Efficiency's one remaining finding -- unmemoized question-tree
+re-renders on every keystroke in both `CreateNewInspection.tsx` and
+`UpdateInspection.tsx` (the whole page's question list re-renders on
+every single answer change, unlike `InspectionReport.tsx`'s own
+memoized `QuestionCard`/`PageSection` pattern) -- is next: a larger,
+riskier refactor (extracting per-question sub-components across two
+700-1300 line files) that needs more careful design than a
+single-effect fix, so it gets its own round.
