@@ -310,3 +310,51 @@ concretely serious (cross-tenant data reassignment + a stored-XSS-shaped
 hole), so they take priority over the larger architectural findings
 (the orphaned RunInspection flow, the Create/Update duplication) which
 need more product-level thought before touching.
+
+## Round 4 (security)
+
+Shipped as aexa-server PR [#325](https://github.com/Qiyrix/aexa-server/pull/325)
+and aexa-frontend PR [#679](https://github.com/Qiyrix/aexa-frontend/pull/679),
+both merged.
+
+- **Backend (aexa-server #325):** `update_inspection_into_db` now
+  validates a client-supplied `siteId` belongs to the caller's org before
+  writing it, mirroring `create_inspection_into_db`'s existing check --
+  closes the cross-org site-reassignment gap. `QuestionAnswer.mediaFiles`
+  now goes through a `{ url: httpUrl, type: string }` schema instead of
+  `z.any()`, in both the create path (`QuestionAnswerSchema`) and
+  `update_question_answer`, matching the scheme check
+  `Inspection.attachments` already had. `QuestionAnswer.answer` is
+  deliberately left unrestricted -- it's polymorphic across question
+  types, not just URLs, so a schema-level scheme check would reject
+  legitimate non-URL answers for every other question type.
+- **Frontend (aexa-frontend #679):** since `answer` can't get a backend
+  schema check, added a render-time guard (`isHttpUrl`, mirroring the
+  backend's `httpUrl` refinement) at every sink that renders a
+  client-supplied URL-shaped value into `<img src>`/`<video><source
+  src>`/`<a href>`/`window.open`. Review caught that the first pass only
+  guarded the read-only `InspectionReport.tsx`; the same class of sink
+  exists unguarded in the live-editing screens
+  (`CreateNewInspection.tsx`, `UpdateInspection.tsx`) for both the
+  single-answer media renderer and the `mediaFiles[].url` thumbnails --
+  extended to all of them in a follow-up commit. A second review pass
+  then caught that inspection-level `attachments[]` had the identical
+  unguarded `<a href>` sink in both `InspectionReport.tsx` and
+  `UpdateInspection.tsx`; fixed as a defense-in-depth measure (the
+  backend already validates `attachments`' scheme on write, so this only
+  protects pre-existing records from before that check existed).
+
+Every fix in both PRs was negative-controlled (reverted, confirmed the
+new test fails, restored) before merging.
+
+QA gates: aexa-server -- typecheck/lint clean, full suite 75 files /
+1431 tests passing. aexa-frontend -- typecheck/lint clean, full suite
+354 files / 5224 tests passing. Live-verified the report page renders
+normally post-fix (no regression on legitimate content).
+
+Security is expected to move meaningfully off 6/10 next round, though a
+fresh judge pass is needed to confirm by how much -- this round didn't
+touch the industry-standards, UX, efficiency, accessibility, resilience,
+code-quality, or the non-siteId resilience findings (the report page's
+missing `isError` handling, `RunInspection.tsx` being unreachable, the
+slider data-integrity bug), all still open for a future round.
