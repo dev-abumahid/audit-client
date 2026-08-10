@@ -295,6 +295,47 @@ describe("UpdateInspection", () => {
     expect(screen.queryByText("text")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 9, efficiency finding): the
+  // effect that seeds visibleNotes used to be keyed on `[answers]` and
+  // unconditionally overwrote the whole visibleNotes object on every
+  // answer change -- not just an O(totalQuestions) tax per keystroke, but
+  // a real correctness bug: opening an empty "Add Note" textarea for one
+  // question, then editing a DIFFERENT question's answer, silently closed
+  // the just-opened, still-empty note textarea (the recompute only looks
+  // at saved note text, so an empty-but-just-opened note gets dropped).
+  it("keeps a just-opened, still-empty note field open after editing a different question's answer", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    await userEvent.click(
+      screen.getAllByRole("button", {
+        name: "organization.inspection.addNote",
+      })[0]
+    )
+    expect(
+      screen.getByPlaceholderText("organization.inspection.notePlaceholder")
+    ).toBeInTheDocument()
+
+    // Edit a different question's answer (q-2, a plain text input) --
+    // this changes `answers`, which used to re-trigger the buggy effect.
+    // Targeted by placeholder, not role/index: role="textbox" also
+    // matches the just-opened note's own <textarea>, which sits earlier
+    // in the DOM and would make an index-based query silently type into
+    // the note field itself instead of a different question.
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.inspection.answerPlaceholder"),
+      "x"
+    )
+
+    expect(
+      screen.getByPlaceholderText("organization.inspection.notePlaceholder")
+    ).toBeInTheDocument()
+  })
+
   // aexa-frontend#552: same site cross-link as InspectionReport.tsx --
   // reuses the established ?siteId=&search= pattern (#533/#541).
   it("links the site label into Sites, scoped to that site", () => {

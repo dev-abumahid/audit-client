@@ -153,21 +153,33 @@ export default function UpdateInspection() {
     })
 
     setAnswers(initial)
-    initialized.current = true
-  }, [pages, inspection])
 
-  // Initialize visible notes based on existing notes
-  useEffect(() => {
-    if (!Object.keys(answers).length) return
-
+    // quality-bar-loop (Inspections, round 9, efficiency finding): this
+    // used to be a separate effect keyed on `[answers]`, so it re-ran a
+    // full Object.entries().forEach() over every question on every single
+    // keystroke (setAnswers always produces a new object reference), and
+    // then unconditionally overwrote the ENTIRE visibleNotes state -- an
+    // O(totalQuestions) tax on every keystroke, and a real correctness
+    // bug: if a user manually hid a note via toggleNote while its text
+    // remained non-empty, editing any OTHER question's answer would
+    // silently reopen it, since this recompute never looked at the
+    // current visibleNotes state at all. Seeding this once here, from the
+    // same data the answers themselves are seeded from, is both correct
+    // (matches this effect's own "initialize" comment/intent) and doesn't
+    // re-run on every edit -- no code path in this file adds a note
+    // programmatically after initial load, every note change goes through
+    // handleNoteChangeWithSave, which only fires while that note's field
+    // is already visible.
     const initialNotes: Record<string, boolean> = {}
-    Object.entries(answers).forEach(([questionId, data]) => {
+    Object.entries(initial).forEach(([questionId, data]) => {
       if (data.note && data.note.trim() !== "") {
         initialNotes[questionId] = true
       }
     })
     setVisibleNotes(initialNotes)
-  }, [answers])
+
+    initialized.current = true
+  }, [pages, inspection])
 
   useEffect(() => {
     if (!pages.length) return
