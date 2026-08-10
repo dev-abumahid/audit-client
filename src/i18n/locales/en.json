@@ -1384,6 +1384,8 @@
       "statPageQualifier": "(this page)",
       "statPageScopedTooltip": "Counted from the engagements currently loaded on this page, not the whole organization",
       "searchPlaceholder": "Search by reference, title or lead auditor",
+      "statusFilterLabel": "Filter by status",
+      "allStatuses": "All statuses",
       "statusPlanned": "Planned",
       "statusInProgress": "In Progress",
       "statusCompleted": "Completed",

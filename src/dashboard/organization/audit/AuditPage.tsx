@@ -98,6 +98,19 @@ export default function AuditPage() {
   // capped at 100 rows with no way to reach the rest and no way to filter.
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
+  // quality-bar-loop round 7 (UX, round-1 finding): search was the only
+  // filter -- finding "all in-progress missions" meant manually scanning
+  // every page past PAGE_SIZE=20. A real server-side status filter needs
+  // a backend change (GET /audit's get_all_audit_from_db doesn't read a
+  // status query param at all, aexa-server -- cross-repo, out of scope
+  // for a frontend-only fix). Follows this codebase's own already-shipped
+  // precedent for exactly this situation (RiskRegisterPage's statusParam/
+  // pendingApprovalOnly client-side filters): while a status filter is
+  // active, fetch a larger unpaginated-feeling page and hide the pager,
+  // so this narrow case is no worse than before -- not "fixed" in the
+  // sense of full server-side pagination over a filtered set.
+  const [filterStatus, setFilterStatus] = useState("")
+  const isClientFiltered = !!filterStatus
   const navigate = useNavigate()
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
@@ -113,8 +126,8 @@ export default function AuditPage() {
     isError,
     refetch,
   } = useGetAllAuditEngagementsQuery({
-    page,
-    limit: PAGE_SIZE,
+    page: isClientFiltered ? 1 : page,
+    limit: isClientFiltered ? 100 : PAGE_SIZE,
     searchTerm: search,
   })
 
@@ -174,8 +187,14 @@ export default function AuditPage() {
   const [deleteAuditEngagement] = useDeleteAuditEngagementMutation()
 
   const engagements: AuditEngagement[] = auditData?.data || []
+  // quality-bar-loop round 7 (UX, round-1 finding): client-side status
+  // filter applied on top of whatever page the (larger, when active)
+  // fetch returned -- see the isClientFiltered comment above for why.
+  const visibleEngagements: AuditEngagement[] = filterStatus
+    ? engagements.filter((e) => e.status === filterStatus)
+    : engagements
   const meta = auditData?.meta
-  const totalPages = meta?.totalPage || 0
+  const totalPages = isClientFiltered ? 0 : meta?.totalPage || 0
 
   // aexa-frontend#265: deleting the last engagement on the last page shrinks
   // totalPages without a search change (handleSearchChange below only resets
@@ -192,6 +211,11 @@ export default function AuditPage() {
   // never starts on an out-of-range page (same pattern AllFindingsPage uses).
   const handleSearchChange = (value: string) => {
     setSearch(value)
+    setPage(1)
+  }
+
+  const handleStatusFilterChange = (value: string) => {
+    setFilterStatus(value)
     setPage(1)
   }
 
@@ -374,14 +398,16 @@ export default function AuditPage() {
   // engagements. Rather than silently undercount, the labels below are
   // qualified with "(this page)" so it's clear these three are scoped to the
   // current PAGE_SIZE page, not the whole org (issue #337).
-  const totalCount = meta?.total ?? engagements.length
-  const inProgressCount = engagements.filter(
+  const totalCount = isClientFiltered
+    ? visibleEngagements.length
+    : (meta?.total ?? visibleEngagements.length)
+  const inProgressCount = visibleEngagements.filter(
     (e) => e.status === "in_progress"
   ).length
-  const completedCount = engagements.filter(
+  const completedCount = visibleEngagements.filter(
     (e) => e.status === "completed"
   ).length
-  const totalFindings = engagements.reduce(
+  const totalFindings = visibleEngagements.reduce(
     (sum, e) => sum + e.findings_count,
     0
   )
@@ -472,21 +498,43 @@ export default function AuditPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="animate-slide-up relative max-w-md">
-        <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder={t("organization.audit.searchPlaceholder")}
-          className="h-11 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-xs"
-        />
+      {/* Search + status filter */}
+      <div className="animate-slide-up flex flex-wrap items-center gap-2">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder={t("organization.audit.searchPlaceholder")}
+            className="h-11 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-xs"
+          />
+        </div>
+        {/* quality-bar-loop round 7 (UX, round-1 finding): search was the
+            only filter -- finding "all in-progress missions" meant
+            manually scanning every page. Same select+client-filter
+            pattern as CompliancePage's status filter, adapted to this
+            page's client-side-only constraint (see isClientFiltered). */}
+        <select
+          value={filterStatus}
+          onChange={(e) => handleStatusFilterChange(e.target.value)}
+          aria-label={t("organization.audit.statusFilterLabel")}
+          className="h-11 rounded-lg border border-input bg-card px-3 text-xs"
+        >
+          <option value="">{t("organization.audit.allStatuses")}</option>
+          <option value="planned">{t("organization.audit.statusPlanned")}</option>
+          <option value="in_progress">
+            {t("organization.audit.statusInProgress")}
+          </option>
+          <option value="completed">
+            {t("organization.audit.statusCompleted")}
+          </option>
+        </select>
       </div>
 
       {/* Audit List */}
       <div className="animate-slide-up stagger-2 space-y-3">
         <h2 className="sr-only">{t("organization.audit.missionListHeading")}</h2>
-        {engagements.map((eng) => {
+        {visibleEngagements.map((eng) => {
           const statusCfg = STATUS_CONFIG[eng.status] || STATUS_CONFIG.planned
           const Icon = STATUS_ICONS[eng.status] || Play
           const hasReport = !!eng.report_url
@@ -699,7 +747,7 @@ export default function AuditPage() {
           </div>
         )}
 
-        {!isLoading && !isError && engagements.length === 0 && (
+        {!isLoading && !isError && visibleEngagements.length === 0 && (
           <div className="rounded-xl border border-border bg-card p-12 text-center">
             <p className="text-muted-foreground">
               {t("organization.audit.empty")}

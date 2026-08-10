@@ -958,6 +958,86 @@ describe("AuditPage", () => {
       expect(lastCall).toMatchObject({ searchTerm: "cyber", page: 1 })
     })
 
+    // quality-bar-loop round 7 (UX, round-1 finding): search was the
+    // only filter -- finding "all in-progress missions" meant manually
+    // scanning every page past PAGE_SIZE=20. GET /audit's own
+    // get_all_audit_from_db doesn't read a status query param at all
+    // (aexa-server, cross-repo, out of scope here), so this follows
+    // RiskRegisterPage's already-shipped precedent: fetch a larger page
+    // and filter client-side while a status filter is active, hiding
+    // the pager rather than showing one whose totalPages doesn't match
+    // the filtered set.
+    describe("status filter (round 7)", () => {
+      it("shows only engagements matching the selected status and fetches a larger unpaginated page", async () => {
+        const user = userEvent.setup()
+        mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+          data: {
+            data: [
+              makeEngagement({
+                id: "audit-planned",
+                title: "Planned Mission",
+                status: "planned",
+              }),
+              makeEngagement({
+                id: "audit-in-progress",
+                title: "In Progress Mission",
+                status: "in_progress",
+              }),
+            ],
+            meta: { total: 2, totalPage: 1 },
+          },
+          isLoading: false,
+        })
+
+        render(<AuditPage />)
+
+        expect(screen.getByText("Planned Mission")).toBeInTheDocument()
+        expect(screen.getByText("In Progress Mission")).toBeInTheDocument()
+
+        await user.selectOptions(
+          screen.getByLabelText("organization.audit.statusFilterLabel"),
+          "in_progress"
+        )
+
+        expect(screen.getByText("In Progress Mission")).toBeInTheDocument()
+        expect(screen.queryByText("Planned Mission")).not.toBeInTheDocument()
+
+        const lastCall =
+          mockUseGetAllAuditEngagementsQuery.mock.calls[
+            mockUseGetAllAuditEngagementsQuery.mock.calls.length - 1
+          ][0]
+        expect(lastCall).toMatchObject({ page: 1, limit: 100 })
+      })
+
+      it("hides pagination while a status filter is active", async () => {
+        const user = userEvent.setup()
+        mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+          data: {
+            data: [makeEngagement({ status: "planned" })],
+            meta: { total: 45, totalPage: 3 },
+          },
+          isLoading: false,
+        })
+
+        render(<AuditPage />)
+
+        expect(
+          screen.getByRole("button", { name: "organization.audit.nextPage" })
+        ).toBeInTheDocument()
+
+        await user.selectOptions(
+          screen.getByLabelText("organization.audit.statusFilterLabel"),
+          "planned"
+        )
+
+        expect(
+          screen.queryByRole("button", {
+            name: "organization.audit.nextPage",
+          })
+        ).not.toBeInTheDocument()
+      })
+    })
+
     it("renders pagination controls and advances the page when Next is clicked", async () => {
       const user = userEvent.setup()
       mockUseGetAllAuditEngagementsQuery.mockReturnValue({

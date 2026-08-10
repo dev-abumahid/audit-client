@@ -1384,6 +1384,8 @@
       "statPageQualifier": "(cette page)",
       "statPageScopedTooltip": "Calculé à partir des missions actuellement chargées sur cette page, pas de l'ensemble de l'organisation",
       "searchPlaceholder": "Rechercher par référence, titre ou auditeur principal",
+      "statusFilterLabel": "Filtrer par statut",
+      "allStatuses": "Tous les statuts",
       "statusPlanned": "Planifié",
       "statusInProgress": "En cours",
       "statusCompleted": "Terminé",
