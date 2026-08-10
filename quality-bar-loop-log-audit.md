@@ -203,3 +203,34 @@ below-floor axes from round 1: industry-standards (3/10, lowest),
 UX (6/10), accessibility (6/10), visual polish (5/10) -- all real
 feature/design work per the standing instruction to research and
 build rather than pause. Continuing to the next round.
+
+## Round 4 (accessibility -- modal form label association, PR #668)
+
+Added a unique `id` to each of the 9 native form fields in the create/
+edit modal (ref, status, title, scope, lead auditor, findings count,
+priority score, start/end date) and wired each label's `htmlFor` to
+match, fixing round 1's "bare labels, no programmatic association"
+finding. Caught and fixed a self-inflicted id collision (the Title
+field's input briefly shared an id with the modal's own heading, used
+for `aria-labelledby`) via a failing negative-control test before it
+ever reached review.
+
+Review round 1: angle A clean. Angle B found a real completeness gap --
+the Linked Risks field (a custom `RiskMultiSelect` dropdown, not a
+native input) was left unwired. A first fix attempt (plain `id` +
+`<label htmlFor>`) broke 2 existing tests: `<button>` is a labelable
+HTML element, so that association REPLACES the button's own accessible
+name with the label's static text, silently discarding its meaningful
+dynamic content ("N risks linked" / "Select linked risks"). Redesigned
+the fix same-round: `RiskMultiSelect` now accepts a `labelId` prop and
+combines it with its own `useId()`-generated text-node id via
+`aria-labelledby`, preserving both the field's static identity and its
+live selection state. A scoped review round 2 confirmed the redesign
+correct and flagged one minor test-coverage gap (only the empty-state
+name was tested, not the "N risks linked" state), closed in the same
+round.
+
+**Status:** accessibility should clear the floor now. Remaining
+below-floor axes: industry-standards (3/10, lowest), UX (6/10), visual
+polish (5/10) -- all real feature/design work, continuing per the
+standing instruction.
