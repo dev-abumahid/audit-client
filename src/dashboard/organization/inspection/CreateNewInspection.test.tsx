@@ -149,6 +149,33 @@ describe("CreateNewInspection", () => {
     ).toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 12, resilience finding): this
+  // query never checked isError, only isLoading -- a genuine fetch
+  // failure rendered a fully-styled, zero-section inspection form,
+  // indistinguishable from a legitimately empty template. Same bug class
+  // round 5 already fixed for InspectionReport.tsx/StartInspectionModal.tsx.
+  it("shows a real error state, not the loading/empty template form, on a genuine fetch failure", () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    })
+
+    render(<CreateNewInspection />)
+
+    expect(
+      screen.queryByText("organization.inspection.loadingTemplate")
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "organization.inspection.templateLoadError"
+    )
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.backToInspections",
+      })
+    ).toBeInTheDocument()
+  })
+
   it("renders the template name, site and questions", () => {
     mockUseGetSingleTemplateQuery.mockReturnValue({
       data: { data: makeTemplate() },

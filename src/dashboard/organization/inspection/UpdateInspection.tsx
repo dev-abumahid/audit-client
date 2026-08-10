@@ -532,9 +532,16 @@ export default function UpdateInspection() {
     },
     [inspectionId]
   )
-  // Fetch inspection data
-  const { data: inspectionData, isLoading: isLoadingInspection } =
-    useGetSingleInspectionQuery(inspectionId ?? "", { skip: !inspectionId })
+  // quality-bar-loop (Inspections, round 12, resilience finding): never
+  // checked isError, only isLoading -- a real fetch failure showed the
+  // same "not found" message as a genuine 404, unlike
+  // InspectionReport.tsx's identical query, which round 5 already fixed
+  // to distinguish the two.
+  const {
+    data: inspectionData,
+    isLoading: isLoadingInspection,
+    isError: isInspectionError,
+  } = useGetSingleInspectionQuery(inspectionId ?? "", { skip: !inspectionId })
 
   const [updateInspection] = useUpdateInspectionMutation()
   const [updateQuestionAnswer] = useUpdateInspectionQuestionAnswerMutation()
@@ -1084,11 +1091,13 @@ export default function UpdateInspection() {
     )
   }
 
-  if (!inspection) {
+  if (isInspectionError || !inspection) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-        <p className="text-lg text-muted-foreground">
-          {t("organization.inspection.notFound")}
+        <p role="alert" className="text-lg text-muted-foreground">
+          {isInspectionError
+            ? t("organization.inspection.inspectionLoadError")
+            : t("organization.inspection.notFound")}
         </p>
         <Button onClick={() => navigate("/organization/audit/inspections")}>
           {t("organization.inspection.backToInspections")}

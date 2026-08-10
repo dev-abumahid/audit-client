@@ -152,6 +152,33 @@ describe("UpdateInspection", () => {
     ).toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 12, resilience finding): this
+  // query never checked isError, only isLoading -- a real fetch failure
+  // showed the same "not found" message as a genuine 404, unlike
+  // InspectionReport.tsx's identical query, which round 5 already fixed
+  // to distinguish the two.
+  it("shows a real error state, not the generic not-found message, on a genuine fetch failure", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    expect(
+      screen.queryByText("organization.inspection.notFound")
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "organization.inspection.inspectionLoadError"
+    )
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.backToInspections",
+      })
+    ).toBeInTheDocument()
+  })
+
   it("renders template name, site, existing answers and status", () => {
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: { data: makeInspection() },

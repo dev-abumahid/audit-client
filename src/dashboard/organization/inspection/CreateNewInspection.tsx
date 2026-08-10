@@ -384,10 +384,16 @@ export default function CreateNewInspection() {
   const siteId = state?.siteId
   const siteName = state?.siteName
 
-  const { data: templateData, isLoading } = useGetSingleTemplateQuery(
-    templateId,
-    { skip: !templateId }
-  )
+  // quality-bar-loop (Inspections, round 12, resilience finding): never
+  // checked isError, only isLoading -- a failed template fetch rendered a
+  // fully-styled, zero-section inspection form, indistinguishable from a
+  // legitimately empty template. Same bug class round 5 already fixed for
+  // InspectionReport.tsx/StartInspectionModal.tsx, missed here.
+  const {
+    data: templateData,
+    isLoading,
+    isError: isTemplateError,
+  } = useGetSingleTemplateQuery(templateId, { skip: !templateId })
 
   const [createInspection, { isLoading: isSubmitting }] =
     useCreateNewInspectionMutation()
@@ -739,6 +745,19 @@ export default function CreateNewInspection() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         {t("organization.inspection.loadingTemplate")}
+      </div>
+    )
+  }
+
+  if (isTemplateError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+        <p role="alert" className="text-lg text-muted-foreground">
+          {t("organization.inspection.templateLoadError")}
+        </p>
+        <Button onClick={() => navigate("/organization/audit/inspections")}>
+          {t("organization.inspection.backToInspections")}
+        </Button>
       </div>
     )
   }
