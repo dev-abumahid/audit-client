@@ -118,3 +118,76 @@ Key findings by axis:
 proven, lowest-risk touch-target pattern fixed on 9+ sibling pages this
 session -- and it's the primary on-site field-inspector workflow, so
 it matters most here specifically. Going first.
+
+## Round 2 (mobile)
+
+Shipped as aexa-frontend PR [#678](https://github.com/Qiyrix/aexa-frontend/pull/678), merged.
+
+Fixed every round-1 mobile finding plus several cheap adjacent
+accessibility/UX/visual-polish issues found in the same files:
+
+- **InspectionTable.tsx**: Start New button, search input, and row
+  Eye/Edit/Delete buttons to 44px, plus accessible names on the
+  previously-unlabeled row action buttons (each interpolates the
+  inspection's template name). The two filter `SelectTrigger`s needed
+  `!h-11` (important modifier), not a plain `h-11` -- `SelectTrigger`
+  sizes itself via a data-attribute-scoped Tailwind variant
+  (`data-[size=default]:h-7`) that tailwind-merge doesn't reliably
+  override with an unscoped className the way it does for plain cva
+  Button/Input size variants used everywhere else this session.
+  Confirmed live (28px measured before, 44px after) and now covered by
+  a dedicated unit test -- the `SelectTrigger` test mock previously
+  returned `null`, hiding the bug from the whole suite; the mock itself
+  was fixed to render className/children so this class of regression
+  can't hide again.
+- **StartInspectionModal.tsx**: site/template popover triggers, list
+  items, and footer buttons to 44px; excludes the protected system
+  template from the picker (`isSystemTemplateName` filter); each
+  trigger's accessible name now combines the static field label with
+  the live selected-site/template text via `aria-labelledby` (pointing
+  only at the static label would have replaced the button's own
+  text-derived name entirely).
+- **CreateNewInspection.tsx / UpdateInspection.tsx**: checkbox answer
+  touch target via the wrapping label's `min-h-11`; sticky bottom
+  action nav on Create (previously required scrolling past every
+  question on a page to reach Next/Submit); header `flex-wrap` for long
+  template names; fixed the "every question badged Q1" bug (was
+  indexing by page, not by the question's own position within the
+  page); converted a keyboard-trap `<span onClick>` media-remove control
+  to a real `<button>`.
+- **UploadNotesModal.tsx**: footer button touch targets, an
+  `overflow-y-aut` typo, a missing dark-mode color variant.
+- **Shared `Dialog` component** (`src/components/ui/dialog.tsx`): both
+  the built-in close (X) button and `DialogFooter`'s optional close
+  button get the 44px fix -- applies app-wide, largest blast radius of
+  this round. Verified via the full suite (5213 tests, zero
+  regressions) plus live checks on two unrelated dialog consumers (Team
+  Members "Invite Member," Findings "Create Finding"). Review caught
+  that the close button's `icon-sm` size resolves to the single
+  `size-6` utility, which tailwind-merge does not reliably dedupe
+  against a separate `h-11 w-11` -- the same class of gotcha as the
+  SelectTrigger fix above, just missed initially. Fixed to `!h-11
+  !w-11` in the same PR, negative-controlled, reconfirmed live at
+  44x44px.
+
+Investigated one review-shaped finding (a status-toggle pattern
+possibly triggering a redundant auto-save) and found it didn't
+reproduce with this React Hook Form version -- kept the test as a
+documented regression guard rather than shipping an unnecessary fix.
+
+Live verification (375x812): Inspections list, Start Inspection modal
+(including live confirmation the system template is excluded from the
+picker), a full inspection run through a 3-section template (numbering
+correctly resets to Q1 per section, not a running count), the edit
+page's status trigger, and the shared Dialog fix on two other
+consumers. All passed.
+
+QA gate: typecheck clean, eslint clean (one pre-existing unrelated
+warning), full vitest suite 353 files / 5213 tests passing.
+
+Round 2 is done. Per the standing instruction to keep going down the
+list of tabs without pausing between rounds, round 3 would normally
+start now (next-lowest tied axes: accessibility/efficiency/resilience/
+code-quality/industry-standards, all at 5/10) -- paused here only
+because the user asked to pause specifically after this PR merged, to
+ask a few questions.
