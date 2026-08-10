@@ -1086,3 +1086,36 @@ closed by round 12's isError/isLoading fixes -- a fresh, scoped
 resilience pass over Create/UpdateInspection.tsx and
 StartInspectionModal.tsx (network-failure toasts on the auto-save path,
 concurrent-edit/stale-cache handling) is the natural next candidate.
+
+## Round 19 (resilience)
+
+Shipped as aexa-frontend PR [#693](https://github.com/Qiyrix/aexa-frontend/pull/693), merged.
+
+Found a genuine double-toast bug on the auto-save path:
+`handleUpdateQuestion` already toasted a specific error (backend message
+included) before re-throwing on a failed save, but its only caller,
+`debouncedUpdateQuestion`'s `setTimeout` callback, caught that same
+re-thrown error and toasted a *second*, generic "Failed to save answer"
+on top of it -- every single auto-save failure surfaced two stacked
+toasts. Fixed by making the wrapper's catch a no-op (comment-only),
+keeping only its `finally` (resetting the per-question saving
+indicator). Review confirmed no other caller relied on the removed
+toast and flagged one nit -- the now-orphaned `answerSaveFailedToast`
+i18n key -- fixed same round rather than left dangling.
+
+QA gate: typecheck/lint clean, full suite 356 files / 5276 tests
+passing. Live-verified against the real running dev server: monkey-
+patched `window.fetch` to make the auto-save PUT return a 500, toggled
+a real checkbox answer, and confirmed via the DOM's actual
+`[data-sonner-toast]` count that exactly one toast fired (with the
+specific "Simulated network error" message) instead of two -- then
+restored the real fetch and reloaded to confirm the real backend record
+was untouched.
+
+**Next: a fresh 9-judge re-score (round 20).** 8 fix rounds have landed
+(12-19) since the last full panel re-score (round 11), each picked from
+round-11's own findings rather than fresh evidence -- per the
+quality-bar-loop skill's own process, a stale baseline risks either
+mis-picking already-closed findings or missing new ones the last 8
+rounds' refactors could have introduced. Re-running the full panel
+before continuing to guess at fixes.
