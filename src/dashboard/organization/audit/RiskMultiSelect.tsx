@@ -1,7 +1,7 @@
 import type { LinkedRisk } from "@/redux/apis/organization/audit.api"
 import { riskCategoryLabel } from "@/utils/riskConfig"
 import { Check, ChevronDown, Search, X } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 // aexa-frontend#165: a self-contained searchable checkbox dropdown for picking
@@ -21,6 +21,16 @@ interface RiskMultiSelectProps {
   selectedIds: string[]
   onChange: (ids: string[]) => void
   isLoading?: boolean
+  // quality-bar-loop round 4 (accessibility, review-round finding): a
+  // plain `id` + a caller's `<label htmlFor>` was tried first and
+  // reverted -- <button> IS a labelable HTML element, so a `<label for>`
+  // association REPLACES the button's accessible name with the label's
+  // static text, silently discarding the dynamic "N risks linked" /
+  // "Select linked risks" state this button's own content carries
+  // (caught live by 2 existing tests breaking). `aria-labelledby`
+  // combining the caller's field-label id with this button's own text
+  // node id preserves both instead of one overwriting the other.
+  labelId?: string
 }
 
 export default function RiskMultiSelect({
@@ -28,8 +38,10 @@ export default function RiskMultiSelect({
   selectedIds,
   onChange,
   isLoading = false,
+  labelId,
 }: RiskMultiSelectProps) {
   const { t } = useTranslation()
+  const stateTextId = useId()
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState("")
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -181,13 +193,14 @@ export default function RiskMultiSelect({
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-labelledby={labelId ? `${labelId} ${stateTextId}` : undefined}
         onClick={() => {
           setOpen((o) => !o)
           setActiveIndex(-1)
         }}
         className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-background px-3 text-sm text-muted-foreground hover:bg-muted/40"
       >
-        <span>
+        <span id={stateTextId}>
           {selectedOptions.length > 0
             ? t("organization.audit.riskSelect.linked", {
                 count: selectedOptions.length,

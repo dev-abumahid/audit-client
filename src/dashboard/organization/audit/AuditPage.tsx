@@ -681,10 +681,14 @@ export default function AuditPage() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
+                <label
+                  htmlFor="audit-modal-ref"
+                  className="text-xs font-medium text-muted-foreground"
+                >
                   {t("organization.audit.refLabel")}
                 </label>
                 <input
+                  id="audit-modal-ref"
                   value={form.ref}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, ref: e.target.value }))
@@ -694,10 +698,14 @@ export default function AuditPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
+                <label
+                  htmlFor="audit-modal-status"
+                  className="text-xs font-medium text-muted-foreground"
+                >
                   {t("organization.audit.statusLabel")}
                 </label>
                 <select
+                  id="audit-modal-status"
                   value={form.status}
                   onChange={(e) =>
                     setForm((f) => ({
@@ -724,10 +732,14 @@ export default function AuditPage() {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground">
+              <label
+                htmlFor="audit-modal-title-field"
+                className="text-xs font-medium text-muted-foreground"
+              >
                 {t("organization.audit.titleLabel")}
               </label>
               <input
+                id="audit-modal-title-field"
                 value={form.title}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, title: e.target.value }))
@@ -737,10 +749,14 @@ export default function AuditPage() {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground">
+              <label
+                htmlFor="audit-modal-scope"
+                className="text-xs font-medium text-muted-foreground"
+              >
                 {t("organization.audit.scopeLabel")}
               </label>
               <textarea
+                id="audit-modal-scope"
                 value={form.scope}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, scope: e.target.value }))
@@ -752,10 +768,14 @@ export default function AuditPage() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
+                <label
+                  htmlFor="audit-modal-lead-auditor"
+                  className="text-xs font-medium text-muted-foreground"
+                >
                   {t("organization.audit.leadAuditorLabel")}
                 </label>
                 <input
+                  id="audit-modal-lead-auditor"
                   value={form.lead_auditor}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, lead_auditor: e.target.value }))
@@ -765,10 +785,14 @@ export default function AuditPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
+                <label
+                  htmlFor="audit-modal-findings-count"
+                  className="text-xs font-medium text-muted-foreground"
+                >
                   {t("organization.audit.findingsCountLabel")}
                 </label>
                 <input
+                  id="audit-modal-findings-count"
                   type="number"
                   value={form.findings_count}
                   onChange={(e) =>
@@ -784,7 +808,10 @@ export default function AuditPage() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
+                <label
+                  htmlFor="audit-modal-priority-score"
+                  className="text-xs font-medium text-muted-foreground"
+                >
                   {t("organization.audit.priorityScoreLabel")}
                 </label>
                 {/* aexa-frontend#404: priority_score round-trips through the
@@ -793,6 +820,7 @@ export default function AuditPage() {
                     the EMPTY_FORM default of 50. Clamp to 0-100 like the
                     displayed range implies (mission card badge). */}
                 <input
+                  id="audit-modal-priority-score"
                   type="number"
                   min={0}
                   max={100}
@@ -814,10 +842,14 @@ export default function AuditPage() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
+                <label
+                  htmlFor="audit-modal-start-date"
+                  className="text-xs font-medium text-muted-foreground"
+                >
                   {t("organization.audit.startDateLabel")}
                 </label>
                 <input
+                  id="audit-modal-start-date"
                   type="date"
                   value={form.started_at}
                   onChange={(e) =>
@@ -827,10 +859,14 @@ export default function AuditPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
+                <label
+                  htmlFor="audit-modal-end-date"
+                  className="text-xs font-medium text-muted-foreground"
+                >
                   {t("organization.audit.endDateLabel")}
                 </label>
                 <input
+                  id="audit-modal-end-date"
                   type="date"
                   value={form.closed_at}
                   onChange={(e) =>
@@ -842,11 +878,23 @@ export default function AuditPage() {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground">
+              {/* quality-bar-loop round 4 (accessibility, round-1 finding):
+                  `id`, not `htmlFor` -- <button> is a labelable HTML
+                  element, so a real `<label for>` association would
+                  REPLACE the trigger's accessible name with this static
+                  text, discarding its dynamic "N risks linked" state
+                  (caught live via 2 breaking tests). `labelId` below
+                  combines this id with the trigger's own text via
+                  aria-labelledby instead, preserving both. */}
+              <label
+                id="audit-modal-linked-risks-label"
+                className="text-xs font-medium text-muted-foreground"
+              >
                 {t("organization.audit.linkedRisksFieldLabel")}
               </label>
               <div className="mt-1">
                 <RiskMultiSelect
+                  labelId="audit-modal-linked-risks-label"
                   options={riskOptions}
                   selectedIds={form.riskIds}
                   onChange={(ids) => setForm((f) => ({ ...f, riskIds: ids }))}

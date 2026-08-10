@@ -385,6 +385,96 @@ describe("AuditPage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 4 (accessibility, round-1 finding): every
+  // field in the create/edit modal used a bare <label> with no
+  // htmlFor/id association -- screen readers relying on programmatic
+  // label association (rather than DOM adjacency) wouldn't reliably
+  // announce field names. getByLabelText only succeeds when the
+  // association is real, so this test would fail against the pre-fix
+  // markup (bare labels aren't reachable via getByLabelText).
+  it("programmatically associates every modal form field with its label", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    await user.click(
+      screen.getByRole("button", { name: /organization\.audit\.newMission/i })
+    )
+
+    expect(
+      screen.getByLabelText("organization.audit.refLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.audit.statusLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.audit.titleLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.audit.scopeLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.audit.leadAuditorLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.audit.findingsCountLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.audit.priorityScoreLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.audit.startDateLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.audit.endDateLabel")
+    ).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 4 (accessibility, review-round finding): the
+  // Linked Risks field's trigger button is a custom widget (RiskMultiSelect),
+  // not a native form control -- a real `<label htmlFor>` association was
+  // tried first and reverted because <button> IS a labelable HTML element,
+  // so it would REPLACE the trigger's own accessible name (which carries
+  // real state: "Select linked risks" vs "N risks linked") with the
+  // static label text, discarding that state. aria-labelledby combining
+  // both ids is the fix -- this test confirms the trigger's accessible
+  // name includes BOTH the field's identity and its current state,
+  // proving neither was silently dropped in either direction.
+  it("gives the Linked Risks trigger an accessible name combining the field label and its current selection state", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    await user.click(
+      screen.getByRole("button", { name: /organization\.audit\.newMission/i })
+    )
+
+    const trigger = screen.getByRole("button", {
+      name: /organization\.audit\.linkedRisksFieldLabel/,
+    })
+    expect(trigger).toHaveAccessibleName(
+      "organization.audit.linkedRisksFieldLabel organization.audit.riskSelect.selectPlaceholder"
+    )
+
+    // The original bug was specifically about losing the DYNAMIC state
+    // text ("N risks linked") -- re-check the combined name updates once
+    // a risk is actually selected, not just in the initial placeholder
+    // state.
+    await user.click(trigger)
+    await user.click(screen.getByText("Data breach"))
+    expect(trigger).toHaveAccessibleName(
+      "organization.audit.linkedRisksFieldLabel organization.audit.riskSelect.linked"
+    )
+  })
+
   it("submits the create form and calls createAuditEngagement with filled data", async () => {
     const user = userEvent.setup()
     mockUseGetAllAuditEngagementsQuery.mockReturnValue({
