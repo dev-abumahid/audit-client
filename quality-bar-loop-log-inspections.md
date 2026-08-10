@@ -1242,3 +1242,53 @@ treatments with exact class strings, giving a clear, bounded scope
 Create/UpdateInspection.tsx/InspectionReport.tsx/UploadNotesModal.tsx)
 without the larger architectural risk industry-standards/code-quality's
 open items carry. Going there next.
+
+## Round 22 (visual polish)
+
+Shipped as aexa-frontend PR [#696](https://github.com/Qiyrix/aexa-frontend/pull/696), merged.
+
+Unified 3 of the round-20 judge's 6 inventoried treatments -- the ones
+that were both inconsistent AND had a real ergonomic downside (the
+other 3 -- attachment-chip remove, already on real semantic tokens, and
+UploadNotesModal's page-level "Delete Note" `Button`, a defensibly
+different affordance -- left as-is per the judge's own note):
+
+- `UpdateInspection.tsx`'s video-answer delete button was smaller/
+  lower-opacity (`bg-black/60 p-1.5 opacity-80`, ~28px) than the
+  image-answer case right below it.
+- `UpdateInspection.tsx`'s document-answer delete button was hover-only
+  (`opacity-0 group-hover:opacity-100`) -- the exact touch-
+  discoverability trap round 13 already eliminated for images,
+  reintroduced when video/document branching was added afterward.
+- The per-question media-thumbnail remove button (both Create/
+  UpdateInspection.tsx) used an amber-bg/red-icon pairing unrelated to
+  the app's severity/destructive tokens.
+
+All three unified to the proven `bg-black/60 text-white` always-visible
+circular button already shipped for the image-answer case (round 13).
+Review confirmed the change is className/icon-only (no JSX structure,
+handler, or aria-label changes), the icon swap (`Trash2`→`Trash`) isn't
+a now-unused import, and the smaller thumbnail's black-on-photo
+contrast is no worse than the identical pattern already proven for the
+full-size case -- no blocking or minor findings.
+
+QA gate: typecheck/lint clean, full suite 356 files / 5283 tests
+passing. Live-verified against the real running dev server: confirmed
+via `document.querySelectorAll` that zero `bg-amber-100` buttons remain
+anywhere on a real inspection's edit page, and visually confirmed no
+rendering regressions.
+
+**Next fix (Round 23):** three axes remain below floor --
+industry-standards (3), UX (6), code quality (5) -- all needing
+larger, more architecturally involved work than a single-round CSS/
+markup fix (real feature scoring/bulk-actions, consolidating the
+orphaned-flow cluster's navigation, or the QuestionCard/`any`-type/
+monolith code-quality items). Given the session has now run 22 rounds
+on this one feature and cleared 6 of 9 axes to the 7/10 floor
+(efficiency 9, resilience 7, mobile 7, security 9, accessibility 7 (est,
+pending re-verification), visual polish now likely improved but not yet
+re-scored), the next move is a fresh full 9-judge re-score before
+picking further individual fixes, both to confirm rounds 20-22's
+credited improvements actually hold and to get accurate current numbers
+for the 3 axes still below floor before committing to which one to
+tackle with the larger effort those really need.
