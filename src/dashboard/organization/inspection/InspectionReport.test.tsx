@@ -577,6 +577,54 @@ describe("InspectionReport", () => {
     ).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 20, security finding): unlike
+  // the single-answer "media" case and inspection-level attachments[]
+  // above, this per-question mediaFiles thumbnail grid never got the
+  // isHttpUrl guard -- a stored javascript:/data: URL (from before the
+  // backend's own httpUrl schema check existed) would render as a
+  // clickable thumbnail whose click handler opened it in the lightbox's
+  // <a href>/<img src>/<video><source src>, executing as script.
+  it("refuses to render a question media thumbnail with a non-http(s) scheme", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  { id: "q-4", question: "Site photo", answerType: "input" },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [
+            {
+              questionId: "q-4",
+              answer: "Looks fine",
+              note: "",
+              mediaFiles: [
+                { url: "javascript:alert(1)", type: "image" },
+              ],
+            },
+          ],
+        }),
+      },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    expect(
+      screen.getByText("organization.inspection.unsafeAttachment")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.inspection.mediaThumbnailAlt",
+      })
+    ).not.toBeInTheDocument()
+  })
+
   // quality-bar-loop (Inspections, round 13, mobile finding): this
   // hand-rolled lightbox close button measured 28x28px live -- it's not
   // built on the shared Dialog component, so it never got the app-wide

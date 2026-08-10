@@ -319,6 +319,28 @@ const QuestionCard = memo(
           {hasMedia && (
             <div className="mt-3 flex flex-wrap gap-2">
               {mediaFiles.map((media, i) => {
+                // quality-bar-loop (Inspections, round 20, security
+                // finding): this thumbnail (and the lightbox it opens,
+                // below) rendered media.url straight into <img src>/
+                // <video><source src>/<a href> with no isHttpUrl guard --
+                // the identical field/sink pair already gets this guard in
+                // CreateNewInspection.tsx/UpdateInspection.tsx (round 3)
+                // and on this same file's single-answer "media" case and
+                // inspection-level attachments[], but it never reached
+                // this per-question mediaFiles thumbnail grid. A stored
+                // javascript:/data: URL (from an inspection saved before
+                // the backend's own httpUrl schema check existed) would
+                // otherwise execute as script when a user clicked it open.
+                if (!isHttpUrl(media.url)) {
+                  return (
+                    <div
+                      key={i}
+                      className="flex h-14 w-14 items-center justify-center rounded-lg border border-border bg-muted text-center text-[10px] text-muted-foreground"
+                    >
+                      {t("organization.inspection.unsafeAttachment")}
+                    </div>
+                  )
+                }
                 const mediaKind = fileType(media.url)
                 return (
                   <button
@@ -1018,7 +1040,17 @@ const InspectionReport = () => {
               </button>
             </div>
             <div className="p-4">
-              {fileType(selectedMedia) === "video" ? (
+              {/* quality-bar-loop (Inspections, round 20, security
+                  finding): defense-in-depth guard at this render sink too,
+                  not just at the thumbnail click handler that currently
+                  feeds it -- matches this codebase's own convention of
+                  guarding every sink a client-supplied URL can reach,
+                  rather than relying on a single chokepoint upstream. */}
+              {!isHttpUrl(selectedMedia) ? (
+                <p className="text-sm text-muted-foreground italic">
+                  {t("organization.inspection.unsafeAttachment")}
+                </p>
+              ) : fileType(selectedMedia) === "video" ? (
                 <video controls className="h-auto max-w-full rounded-xl">
                   <source src={selectedMedia} />
                   {t("organization.inspection.videoUnsupported")}
