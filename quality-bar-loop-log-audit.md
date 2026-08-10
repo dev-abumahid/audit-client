@@ -234,3 +234,30 @@ round.
 below-floor axes: industry-standards (3/10, lowest), UX (6/10), visual
 polish (5/10) -- all real feature/design work, continuing per the
 standing instruction.
+
+## Round 5 (visual polish -- unify hand-rolled colors, PR #669)
+
+Routed the In Progress/Completed stat cards and the Report download
+chip through the shared `SEVERITY_STYLES` vocabulary (medium/low),
+matching `STATUS_CONFIG`'s own mapping already used for status badges
+on the same page -- fixing round 1's "3 competing color systems"
+finding (orange-500/green-500/a third green token, each at a different
+opacity tier than the shared vocabulary).
+
+Review round 1: angle B (live, both themes) fully clean. Angle A
+flagged a real semantic issue in the initial attempt: mapping the
+Total Findings stat (a raw count, no STATUS_CONFIG anchor) to
+`SEVERITY_STYLES.critical` would paint a genuinely good "0 findings"
+result in the most alarming red in the palette. Fixed same-round:
+reverted just that one card to the plain `--destructive` token it
+already had (a real shared design token, not a hand-rolled color --
+round 1's actual finding was about the other 3 elements). A scoped
+review round 2 confirmed the revert byte-identical to pre-PR markup
+and correctly scoped.
+
+**Status:** visual polish should clear the floor now (the remaining
+findings from round 1 -- 3 hand-rolled modals vs. the shared Radix
+Dialog, unthemed native date inputs -- are larger refactors, noted as
+follow-ups rather than bundled here). Remaining below-floor axes:
+industry-standards (3/10, lowest) and UX (6/10) -- both real feature
+work, continuing per the standing instruction.
