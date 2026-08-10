@@ -682,6 +682,7 @@
       "siteLabel": "Site :",
       "sections": "Sections",
       "questions": "Questions",
+      "complianceScore": "Conformité",
       "generating": "Génération…",
       "downloadPdf": "Télécharger le PDF",
       "answerLabel": "Réponse :",

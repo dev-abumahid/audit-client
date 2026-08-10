@@ -88,3 +88,12 @@ export function severityBadgeClasses(
   const s = SEVERITY_STYLES[level]
   return opts?.border ? `${s.bg} ${s.text} border ${s.border}` : `${s.bg} ${s.text}`
 }
+
+// Review finding on PR #698: a caller that only wants the text color (no
+// background) had no way to get it without parsing severityBadgeClasses'
+// combined output string -- fragile, since that string's format was never
+// part of this function's contract. Exposes the text color directly
+// instead.
+export function severityTextClasses(level: SeverityLevel): string {
+  return SEVERITY_STYLES[level].text
+}

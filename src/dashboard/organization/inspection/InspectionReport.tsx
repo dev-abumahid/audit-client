@@ -11,6 +11,7 @@ import {
 } from "@/utils/buildInspectionPdfHtml"
 import { fileType } from "@/utils/fileType"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { computeComplianceScore } from "@/utils/inspectionCompliance"
 import { isHttpUrl } from "@/utils/isHttpUrl"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import {
@@ -19,7 +20,7 @@ import {
 } from "@/utils/inspectionStatus"
 import { A4_WIDTH_MM, computePdfPagePlacements } from "@/utils/pdfPageMath"
 import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
-import { severityBadgeClasses } from "@/utils/severityStyles"
+import { severityBadgeClasses, severityTextClasses } from "@/utils/severityStyles"
 import html2canvas from "html2canvas-pro"
 import jsPDF from "jspdf"
 import {
@@ -34,6 +35,7 @@ import {
   Loader2,
   MessageSquare,
   Paperclip,
+  ShieldCheck,
   ToggleLeft,
   ToggleRight,
 } from "lucide-react"
@@ -610,6 +612,11 @@ const InspectionReport = () => {
     return { totalAnswered: answered, totalQuestions: totalQ }
   }, [answerMap, templatePages])
 
+  const complianceScore = useMemo(
+    () => computeComplianceScore(templatePages, answerMap),
+    [templatePages, answerMap]
+  )
+
   // Intersection Observer for Active Section
   useEffect(() => {
     if (!templatePages.length) return
@@ -791,6 +798,28 @@ const InspectionReport = () => {
           <div className="flex flex-col items-end gap-3">
             <div className="flex flex-wrap gap-2">
               {[
+                // quality-bar-loop (Inspections, round 24, industry-standards
+                // finding): every reference tool in this category leads its
+                // report with a compliance/pass-fail percentage -- this data
+                // model had none at all until now. Only shown when there's
+                // at least one answered checkbox question to score (a
+                // template with no pass/fail questions has nothing
+                // meaningful to report here).
+                ...(complianceScore
+                  ? [
+                      {
+                        label: t("organization.inspection.complianceScore"),
+                        value: `${complianceScore.percentage}%`,
+                        icon: ShieldCheck,
+                        severity:
+                          complianceScore.percentage >= 80
+                            ? ("low" as const)
+                            : complianceScore.percentage >= 50
+                              ? ("medium" as const)
+                              : ("critical" as const),
+                      },
+                    ]
+                  : []),
                 {
                   label: t("organization.inspection.sections"),
                   value: templatePages.length,
@@ -806,7 +835,7 @@ const InspectionReport = () => {
                   value: actions.length,
                   icon: AlertTriangle,
                 },
-              ].map(({ label, value, icon: Icon }) => (
+              ].map(({ label, value, icon: Icon, severity }) => (
                 <div
                   key={label}
                   className="flex items-center gap-2 rounded-xl border border-border bg-muted px-3 py-2"
@@ -816,7 +845,15 @@ const InspectionReport = () => {
                     <p className="text-xs leading-none text-muted-foreground">
                       {label}
                     </p>
-                    <p className="text-sm font-bold text-foreground">{value}</p>
+                    <p
+                      className={`text-sm font-bold ${
+                        severity
+                          ? severityTextClasses(severity)
+                          : "text-foreground"
+                      }`}
+                    >
+                      {value}
+                    </p>
                   </div>
                 </div>
               ))}
