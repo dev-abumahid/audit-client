@@ -58,3 +58,16 @@ picking the most mechanical/lowest-risk fix first, mobile goes first.
 Before that: independently verify the UX judge's flagged Create-Template
 crash, since a broken core create flow would be a correctness bug
 worth fixing immediately regardless of axis.
+
+**Crash verification:** confirmed `CreateTemplateWithAIDialog.tsx` never
+imports `RiskMultiSelect` at all (grep across the whole templates
+directory found zero references outside unrelated test-file comments) --
+no code path connects them. Restarted the dev server fresh and
+re-clicked "Create Template": the editor loaded cleanly with no error.
+The only console errors present were `ReferenceError: ArrowRight is not
+defined` inside `<ItemRow2>` -- stale HMR module state left over from
+this same long-running dev server session's earlier `ArrowRight` ->
+`ArrowRightLeft` icon swap on ThreeLinesOfDefensePage (round 4 of that
+page's own loop), unrelated to Templates. Not a real bug -- environment
+noise, consistent with this session's other documented HMR/role-
+hydration quirks. No fix needed; proceeding to round 2.
