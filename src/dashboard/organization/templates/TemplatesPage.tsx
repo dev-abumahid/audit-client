@@ -158,6 +158,12 @@ export default function TemplatesPage() {
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
+          {/* quality-bar-loop round 2 (mobile, round-1 finding): the
+              shared Input/Button components default to h-7 (Input) and
+              h-7 (Button, "default" size) -- both well under the 44px
+              touch-target guideline, same bug class fixed on 9+ pages
+              this session. `h-11` overrides the component defaults via
+              tailwind-merge, same pattern used everywhere else. */}
           <div className="relative w-full sm:w-80">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -167,12 +173,15 @@ export default function TemplatesPage() {
                 setSearchInput(e.target.value)
                 setPage(1)
               }}
-              className="pl-10"
+              className="h-11 pl-10"
             />
           </div>
 
           {canWrite && (
-            <Button onClick={() => setCreateTemplateModalOpen(true)}>
+            <Button
+              onClick={() => setCreateTemplateModalOpen(true)}
+              className="h-11"
+            >
               <Brain className="mr-2 h-4 w-4" />
               {t("organization.templates.list.generateTemplate")}
             </Button>
@@ -180,7 +189,7 @@ export default function TemplatesPage() {
 
           {canWrite && (
             <Link to="/organization/audit/template/create">
-              <Button>
+              <Button className="h-11">
                 <Plus className="mr-2 h-4 w-4" />
                 {t("organization.templates.list.createTemplate")}
               </Button>
@@ -266,6 +275,13 @@ export default function TemplatesPage() {
                     </TableCell>
 
                     <TableCell className="text-right">
+                      {/* quality-bar-loop round 2 (mobile, round-1
+                          finding): `size="sm"` resolves to `h-6` (24px
+                          tall), well under the 44px touch-target
+                          guideline -- same bug class fixed on 9+ pages
+                          this session. `h-11 w-11` overrides via
+                          tailwind-merge, matching every other page's
+                          icon-only-button fix pattern. */}
                       <div className="flex justify-end gap-1">
                         {canWrite &&
                           (isSystem ? (
@@ -282,7 +298,7 @@ export default function TemplatesPage() {
                                   "organization.templates.list.editButtonLabel",
                                   { name: template.templateName }
                                 )}
-                                className="cursor-not-allowed opacity-40"
+                                className="h-11 w-11 cursor-not-allowed opacity-40"
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -294,7 +310,7 @@ export default function TemplatesPage() {
                                   "organization.templates.list.deleteButtonLabel",
                                   { name: template.templateName }
                                 )}
-                                className="cursor-not-allowed text-destructive opacity-40"
+                                className="h-11 w-11 cursor-not-allowed text-destructive opacity-40"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -311,6 +327,7 @@ export default function TemplatesPage() {
                                     "organization.templates.list.editButtonLabel",
                                     { name: template.templateName }
                                   )}
+                                  className="h-11 w-11"
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
@@ -324,7 +341,7 @@ export default function TemplatesPage() {
                                   "organization.templates.list.deleteButtonLabel",
                                   { name: template.templateName }
                                 )}
-                                className="text-destructive"
+                                className="h-11 w-11 text-destructive"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

@@ -175,6 +175,70 @@ describe("TemplatesPage", () => {
     expect(deleteButton).toHaveAccessibleName()
   })
 
+  // quality-bar-loop round 2 (Templates, mobile, round-1 finding): search
+  // input, Generate/Create buttons and row Edit/Delete icon buttons all
+  // measured well under the 44px touch-target guideline via the shared
+  // Input/Button components' default sizes.
+  it("gives the search input, action buttons, and row Edit/Delete buttons a 44px touch target", () => {
+    render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+    expect(
+      screen.getByPlaceholderText(
+        "organization.templates.list.searchPlaceholder"
+      ).className
+    ).toMatch(/\bh-11\b/)
+    expect(
+      screen.getByText("organization.templates.list.generateTemplate")
+        .closest("button")!.className
+    ).toMatch(/\bh-11\b/)
+    expect(
+      screen.getByText("organization.templates.list.createTemplate")
+        .closest("button")!.className
+    ).toMatch(/\bh-11\b/)
+
+    const editButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-square-pen"))!
+    const deleteButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-trash2"))!
+
+    expect(editButton.className).toMatch(/\bh-11\b/)
+    expect(editButton.className).toMatch(/\bw-11\b/)
+    expect(deleteButton.className).toMatch(/\bh-11\b/)
+    expect(deleteButton.className).toMatch(/\bw-11\b/)
+  })
+
+  it("gives the disabled system-template Edit and Delete buttons a 44px touch target too", () => {
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: {
+        data: [
+          makeTemplate({
+            id: "system-template",
+            templateName: "⚙ AI-Generated Findings (system, do not edit)",
+            templateDisc: null,
+          }),
+        ],
+        meta: { total: 1 },
+      },
+      isLoading: false,
+    })
+
+    render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+    const editButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-square-pen"))!
+    const deleteButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-trash2"))!
+
+    expect(editButton.className).toMatch(/\bh-11\b/)
+    expect(editButton.className).toMatch(/\bw-11\b/)
+    expect(deleteButton.className).toMatch(/\bh-11\b/)
+    expect(deleteButton.className).toMatch(/\bw-11\b/)
+  })
+
   it("hides Generate Template, Create Template, Edit and Delete for a VIEWER", () => {
     mockRole = "VIEWER"
     render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
