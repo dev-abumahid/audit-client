@@ -391,10 +391,34 @@ QA gate: typecheck/lint clean, full suite 354 files / 5228 tests
 passing. Live-verified the report page and Start Inspection modal both
 render normally against real data post-fix.
 
-Per the user's standing instruction to keep working autonomously until
-every feature clears a 7/10 floor on all 9 quality-bar-loop axes,
-continuing immediately into round 6 (still-open resilience findings:
-`RunInspection.tsx` unreachable, the slider data-integrity bug) without
-pausing for a fresh judge re-score first -- a full re-score will follow
-once a batch of these cheaper fixes lands, to avoid re-running the
-9-judge panel after every single-fix round.
+## Round 6 (UX)
+
+Shipped as aexa-frontend PR [#681](https://github.com/Qiyrix/aexa-frontend/pull/681), merged.
+
+The round-1/round-3 slider data-integrity finding: `defaultAnswer =
+q.value || 5` only caught falsy values, so a non-numeric configured
+default (e.g. `"text"`) flowed straight through as the initial answer
+-- live-confirmed rendering the literal string under the slider handle
+while the native `<input type="range">` silently clamped its own DOM
+value to 5, leaving the label and the handle disagreeing. New shared
+`parseSliderDefault()` util (`src/utils/parseSliderDefault.ts`), used
+by both `CreateNewInspection.tsx` and `UpdateInspection.tsx` at the
+initial-default step only (doesn't touch a real saved answer). Review
+caught that a plain `Number(value)` coercion would still silently
+accept a boolean (`true` -> 1) or a whitespace-only string (`"   "` ->
+0) as a "valid" default instead of falling back to 5 -- tightened to
+only accept genuine numbers and non-blank numeric strings, with tests
+for each edge case, negative-controlled throughout.
+
+QA gate: typecheck/lint clean, full suite 355 files / 5236 tests
+passing. Live-verified the edit page still renders normally.
+
+Standing user instruction (received this session): keep working
+autonomously, no pauses, until every feature clears a 7/10 floor on
+all 9 quality-bar-loop axes -- a much larger scope than finishing
+Inspections alone. Continuing the Inspections rounds first since it's
+already mid-loop, then sweeping the rest of the sidebar
+(Findings, Board Reports, Settings, and re-visiting every
+already-"complete" page like Templates/Risk Register for a fresh
+9-axis re-score against this stricter floor) once Inspections itself
+clears 7/10 on all 9 axes.
