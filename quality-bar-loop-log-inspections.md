@@ -917,3 +917,56 @@ refactor left the same ~300-line component duplicated verbatim between
 by 2 extra props on the Update side) -- the largest, most mechanical,
 lowest-risk code-quality fix available: extract a single shared
 `QuestionCard` component both files import.
+
+## Round 16 (code quality)
+
+Shipped as aexa-frontend PR [#690](https://github.com/Qiyrix/aexa-frontend/pull/690), merged.
+
+Started on the planned fix above (unifying the two `QuestionCard`
+components) but a side-by-side diff before implementing revealed the
+"props differ only by 2" framing was stale: since round 10 the two have
+genuinely diverged in *behavior*, not just props --
+`UpdateInspection.tsx`'s handles video/document media-type branching (a
+round-13 fix `CreateNewInspection.tsx` never got, since new inspections
+can't yet have pre-existing video/document answers), an `isSaving`
+indicator, and an `Add Finding` button that `CreateNewInspection.tsx` has
+none of. Fully unifying them into one component would need a
+config-driven design and a much larger, riskier diff than a single round
+should take on blind. Re-scoped down rather than force the original plan
+through: found a second, smaller code-quality duplication that genuinely
+was identical -- the same 5MB size limit + 6-MIME-type allowlist,
+independently copy-pasted 4 times (2 upload handlers x 2 files).
+
+Extracted `validateInspectionFile()` into a new
+`src/utils/inspectionFileValidation.ts`, used at all 4 call sites.
+Callers keep their own toast copy (generic vs. file-name-interpolated),
+since that legitimately differs between the single- and multi-file
+upload flows -- only the check itself and the shared constants moved.
+
+Review round came back clean except one cosmetic nit (the allowlist
+array had no readonly/immutability signal) -- fixed same round.
+
+QA gate: typecheck/lint clean, full suite 356 files / 5271 tests
+passing (including the pre-existing component test that already
+covered the oversized-file-rejection path end-to-end, unchanged through
+the refactor -- a real regression guard, not just new coverage).
+Live-verified: dispatched a synthetic oversized-image and
+unsupported-type upload through the real "Add Media" flow on a live
+inspection, confirmed both error toasts still fire with the correct,
+file-name-interpolated copy through the extracted shared validator.
+
+**The full `QuestionCard` unification is still open** and is now a
+correctly-scoped, larger follow-up: it would need per-file conditional
+rendering (media-type branching, `isSaving`, `Add Finding`) built into
+one shared component via optional/conditional props, not a straight
+extraction -- a multi-round undertaking on its own, not attempted
+piecemeal here.
+
+**Next fix (Round 17):** industry-standards is now the loop's clear
+lowest/most-stale axis (3/10, untouched since round 3) with the most
+concrete, cheaply-fixable gap: `InspectionReport.tsx` has no empty-state
+handling for a template with zero pages/questions (renders a blank
+report body with no message) -- the single smallest, most contained
+industry-standards fix available before tackling the larger scoring/
+bulk-actions/recurring-inspections gaps that same axis's round-3
+findings raised.
