@@ -1406,3 +1406,87 @@ inspections, offline capture, camera-native input, the orphaned
 RunInspection.tsx cluster) is now partially stale and the remaining
 items are each large enough that picking correctly matters more than
 guessing from an aging list.
+
+## Round 25 (industry-standards) -- and an important correction
+
+Fresh industry-standards-only judge re-score: **4/10** (up from 3),
+confirming rounds 23/24's bulk-actions and compliance-scoring work is
+real and holding, and naming the orphaned `RunInspection.tsx` cluster
+(4 routed-but-unreachable pages: `RunInspection`/`InspectionNote`/
+`InspectionRecommendations`/`InspectionActions`) as the single
+highest-leverage remaining gap -- framed by the judge as a simple
+wiring oversight (add nav links).
+
+**Investigated before wiring links, since that framing looked wrong on
+inspection** -- `UpdateInspection.tsx` (the actually-linked edit flow)
+already has inline sections that looked similar to 3 of these 4 pages
+(Upload Note, Add Finding, Generate Recommendation). A dedicated
+investigation agent confirmed: `RunInspection.tsx`, `InspectionNote.tsx`,
+and `InspectionRecommendations.tsx` are genuinely superseded dead code
+from an earlier sprint, each a functionally-inferior duplicate of
+what's actually linked today (missing per-question notes/external
+media/full status control; missing text-note mode/edit/delete; missing
+the AI-generate trigger that makes the linked version usable at all).
+Wiring navigation to them would have shipped a *worse* fix than doing
+nothing -- two competing, inconsistent "edit this inspection" UIs is a
+regression, not a gain, even though it would have superficially
+"closed" the judge's named gap.
+
+Shipped as aexa-frontend PR [#699](https://github.com/Qiyrix/aexa-frontend/pull/699), merged: deleted all
+three dead pages (plus their now-orphaned `QuestionInput.tsx`
+dependency, confirmed to have zero other importers) and their routes.
+`InspectionActions.tsx` (the 4th file) is kept -- it fetches via
+`useFindingsForInspection` to render a genuinely missing capability (a
+per-inspection findings list; `InspectionReport.tsx`'s own dead-code
+comment already names this exact gap), but its inline create/edit form
+is itself a weaker duplicate of the real `CreateNewFindingModal.tsx` --
+flagged as a real, correctly-scoped follow-up (swap the form, then wire
+the link) rather than attempted piecemeal here.
+
+Review confirmed the deletion was clean (no dangling references
+anywhere in the codebase, `WriteGuardRoute` still used by the routes
+that remain, both test files' structure intact) and independently
+re-verified the "strict subset" claim on `InspectionNote.tsx` vs.
+`UploadNotesModal.tsx` rather than trusting the PR description. One
+minor, non-blocking finding (orphaned i18n keys for the 3 deleted
+pages) was investigated further and found to be more involved than it
+looked -- `src/i18n/pluralization.test.ts` still directly exercises
+`pages.inspection.recommendations.findings` for its own pluralization-
+logic testing, unrelated to the now-deleted page -- so removing that
+i18n block isn't a safe drive-by cleanup; left for its own follow-up
+rather than rushed.
+
+**Important correction surfaced during this round, unrelated to the
+fix itself:** discovered and removed two stale, already-merged git
+worktrees (`.claude/worktrees/sweet-goodall-f64cc9`,
+`.../gracious-gates-47a8bb`, confirmed via `git log` to already be in
+`main` via PRs #672/#674) that were silently duplicating the entire
+test suite on every `vitest run` command all session, because they
+were nested inside the project directory and vite's `@/` alias
+resolution pointed back at the main repo's `src/` regardless of which
+physical worktree a test file lived in. **Every "full suite passing"
+count reported in every round of this loop (all "35x files / 5xxx
+tests" figures from round 12 onward) was inflated roughly 3x** --
+the real suite is **121 files / 1785 tests**, confirmed clean after
+the cleanup. This doesn't invalidate any individual round's actual
+verification (each round's new/changed tests, and their negative
+controls, genuinely ran and were genuinely checked) -- only the
+aggregate "full suite" framing in this log and in every merged PR's
+description overstated the scale of what was being protected. Round
+counts and QA-gate results from here forward use the corrected number.
+
+QA gate (round 25 itself): typecheck/lint clean, full suite -- now
+verified against the correct baseline -- 121 files / 1785 tests
+passing. Live-verified against the real running dev server: the
+inspections list, the bulk-select feature, and the `UpdateInspection.tsx`
+edit flow all still work correctly post-deletion, with no console or
+module-resolution errors.
+
+**Next fix (Round 26):** the correctly-scoped `InspectionActions.tsx`
+follow-up identified this round -- swap its inline create/edit form
+for the real `CreateNewFindingModal.tsx`, then add a real "View all
+findings for this inspection" link from `UpdateInspection.tsx`/
+`InspectionReport.tsx` -- is the natural next industry-standards slice,
+since it's a scoped, well-understood fix for a capability already
+confirmed genuinely missing, rather than another guess from an aging
+list.
