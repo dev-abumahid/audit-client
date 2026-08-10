@@ -16,7 +16,8 @@ import {
   Globe,
   Trash,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import type { TFunction } from "i18next"
+import { memo, useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useLocation, useNavigate } from "react-router"
 import { toast } from "sonner"
@@ -26,6 +27,353 @@ type AnswerEntry = {
   note: string
   mediaFiles: { url: string; type: string }[]
 }
+
+// quality-bar-loop (Inspections, round 10, efficiency finding): this whole
+// per-question Card used to be inlined in the parent's page.questions.map,
+// so editing ANY question's answer re-rendered the entire question tree on
+// every keystroke (same class of issue InspectionReport.tsx's own memoized
+// QuestionCard/PageSection already avoids). Extracted here as a memoized
+// component with only primitive/stable props -- `question` is a stable
+// reference from the loaded template, `t` is react-i18next's own stable
+// function reference (same convention InspectionReport.tsx already relies
+// on), and every callback prop is wrapped in useCallback with no/stable
+// deps in the parent below, so React.memo's shallow prop comparison
+// actually blocks a re-render for every sibling question whose own
+// answer/note/mediaFiles/uploading state didn't change.
+const QuestionCard = memo(
+  ({
+    question,
+    questionIndex,
+    answer,
+    note,
+    mediaFiles,
+    isNoteVisible,
+    isAnswerMediaUploading,
+    isExternalMediaUploading,
+    onAnswerChange,
+    onNoteChange,
+    onToggleNote,
+    onAnswerMediaUpload,
+    onExternalMediaUpload,
+    onRemoveMediaFile,
+    t,
+  }: {
+    question: any
+    questionIndex: number
+    answer: any
+    note: string
+    mediaFiles: { url: string; type: string }[]
+    isNoteVisible: boolean
+    isAnswerMediaUploading: boolean
+    isExternalMediaUploading: boolean
+    onAnswerChange: (questionId: string, value: any) => void
+    onNoteChange: (questionId: string, note: string) => void
+    onToggleNote: (questionId: string) => void
+    onAnswerMediaUpload: (questionId: string, file: File) => void
+    onExternalMediaUpload: (questionId: string, files: FileList) => void
+    onRemoveMediaFile: (questionId: string, fileIndex: number) => void
+    t: TFunction
+  }) => {
+    const hasNote = isNoteVisible || !!note
+    const hasMediaFiles = mediaFiles?.length > 0
+
+    const renderQuestionInput = () => {
+      const answerType = question.answerType
+
+      switch (answerType) {
+        case "checkbox":
+          return (
+            // quality-bar-loop round 2 (mobile, round-1 finding): the
+            // native checkbox's own visual box (h-5, 20px) is well under
+            // the 44px touch-target guideline, and unlike a Button the
+            // fix isn't a className override on the input itself -- WCAG's
+            // target-size rule is about the clickable AREA, not the visual
+            // indicator, so `min-h-11` on the wrapping <label> (which
+            // already toggles the checkbox on click via native label
+            // association) extends the real tappable area to 44px while
+            // keeping the checkbox's own visual size unchanged.
+            <label className="flex min-h-11 cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={!!answer}
+                onChange={(e) =>
+                  onAnswerChange(question.id, e.target.checked)
+                }
+                className="h-5 w-5 accent-primary"
+              />
+              <span>
+                {answer
+                  ? t("organization.inspection.yes")
+                  : t("organization.inspection.no")}
+              </span>
+            </label>
+          )
+
+        case "slider":
+          return (
+            <div className="space-y-3">
+              <input
+                type="range"
+                min="0"
+                max="10"
+                step="0.1"
+                value={answer ?? 5}
+                onChange={(e) =>
+                  onAnswerChange(question.id, parseFloat(e.target.value))
+                }
+                className="w-full accent-primary"
+              />
+              <div className="text-center text-xl font-semibold text-primary">
+                {answer ?? 5}
+              </div>
+            </div>
+          )
+
+        case "date":
+          return (
+            <input
+              type="date"
+              value={answer ?? ""}
+              onChange={(e) => onAnswerChange(question.id, e.target.value)}
+              className="w-full rounded-lg border border-input px-4 py-3 focus:ring-2 focus:ring-primary"
+            />
+          )
+
+        case "multipleSelect": {
+          const options = question.value
+            ? String(question.value).replace(/['"]/g, "").split(",")
+            : []
+          return (
+            <select
+              value={answer ?? ""}
+              onChange={(e) => onAnswerChange(question.id, e.target.value)}
+              className="w-full rounded-lg border border-input px-4 py-3"
+            >
+              <option value="">
+                {t("organization.inspection.selectOption")}
+              </option>
+              {options.map((opt: string, i: number) => (
+                <option key={i} value={opt.trim()}>
+                  {opt.trim()}
+                </option>
+              ))}
+            </select>
+          )
+        }
+
+        case "media":
+          return (
+            <>
+              {isAnswerMediaUploading ? (
+                <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-8">
+                  <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></span>
+                  <p className="text-sm text-muted-foreground">
+                    {t("organization.inspection.uploadingMedia")}
+                  </p>
+                </div>
+              ) : answer && !isHttpUrl(answer) ? (
+                // quality-bar-loop (Inspections, round 3, security finding):
+                // `answer` is client-supplied and rendered straight into
+                // <img src> below -- guard the same way InspectionReport.tsx/
+                // UpdateInspection.tsx do before it reaches that sink.
+                <p className="text-sm text-muted-foreground italic">
+                  {t("organization.inspection.unsafeAttachment")}
+                </p>
+              ) : answer ? (
+                <div className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border">
+                  <img
+                    src={answer}
+                    alt={t("organization.inspection.uploadedMediaAlt")}
+                    className="max-h-96 max-w-full object-contain transition-transform group-hover:scale-105"
+                    onError={(e) => {
+                      ;(e.target as HTMLImageElement).src =
+                        PLACEHOLDER_IMAGE_SRC
+                    }}
+                  />
+                  <button
+                    onClick={() => onAnswerChange(question.id, "")}
+                    className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                  >
+                    <span className="rounded bg-red-500 px-2 py-1 text-xs font-medium text-white">
+                      {t("organization.inspection.deleteMedia")}
+                    </span>
+                  </button>
+                </div>
+              ) : (
+                <label htmlFor={`dropzone-file-${question.id}`}>
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="flex w-full cursor-pointer items-center gap-2 py-6"
+                  >
+                    <span>
+                      <CloudUpload className="h-5 w-5" />
+                      {t("organization.inspection.uploadMediaDocuments")}
+                    </span>
+                  </Button>
+                  <input
+                    onChange={(e) => {
+                      const file = (e.target as HTMLInputElement)?.files?.[0]
+                      if (file) {
+                        onAnswerMediaUpload(question.id, file)
+                      }
+                      // Reset input value so same file can be uploaded again
+                      e.target.value = ""
+                    }}
+                    id={`dropzone-file-${question.id}`}
+                    type="file"
+                    accept="image/*,video/*,application/pdf"
+                    // quality-bar-loop (Inspections, round 7, accessibility
+                    // finding): `hidden`/`display:none` removes the input
+                    // from the tab order entirely -- this whole upload
+                    // control was keyboard-unreachable (WCAG 2.1.1).
+                    // `sr-only` keeps it visually hidden but focusable, so
+                    // Tab reaches it and Enter/Space opens the native file
+                    // picker (a real `<input type="file">`'s own built-in
+                    // keyboard behavior).
+                    className="sr-only"
+                  />
+                </label>
+              )}
+            </>
+          )
+
+        default:
+          return (
+            <textarea
+              value={answer ?? ""}
+              onChange={(e) => onAnswerChange(question.id, e.target.value)}
+              rows={5}
+              className="min-h-30 w-full resize-y rounded-lg border border-input px-4 py-3 focus:ring-2 focus:ring-primary"
+              placeholder={t("organization.inspection.answerPlaceholder")}
+            />
+          )
+      }
+    }
+
+    return (
+      <Card className="p-6">
+        <div className="mb-4 flex justify-between">
+          <p className="leading-tight font-medium">
+            {question.question}
+            {question.isRequired && (
+              <span className="ml-1 text-destructive">*</span>
+            )}
+          </p>
+          {/* Found by review (quality-bar-loop round 2, live-confirmed
+              with 3 distinct questions on one page): this badge used
+              `pageIndex + 1`, so every question on a page showed the same
+              "Q1" regardless of its real position -- InspectionReport.tsx's
+              QuestionCard already numbers by questionIndex + 1 correctly. */}
+          <span className="text-xs text-muted-foreground">
+            {t("organization.inspection.questionBadge", {
+              num: questionIndex + 1,
+            })}
+          </span>
+        </div>
+
+        <div className="mb-6">{renderQuestionInput()}</div>
+        {hasMediaFiles && (
+          <div className="flex items-center gap-5">
+            {mediaFiles.map((mediaFile: any, idx: number) => (
+              <div key={idx} className="relative">
+                {/* Found by review (quality-bar-loop round 2): this was a
+                    `<span onClick>` -- no role/tabIndex/keyboard handler,
+                    a genuine keyboard trap (couldn't be focused or
+                    activated from the keyboard at all).
+                    UpdateInspection.tsx's equivalent control already uses
+                    a real `<button aria-label>`; this brings the two in
+                    line, including the dark-mode colors that file
+                    already has and this one didn't. */}
+                <button
+                  type="button"
+                  onClick={() => onRemoveMediaFile(question.id, idx)}
+                  aria-label={t("organization.inspection.removeMedia")}
+                  className="absolute -top-2 -right-2 rounded-full bg-amber-100 p-1 text-red-500 dark:bg-amber-900 dark:text-red-400"
+                >
+                  <Trash className="size-4" />
+                </button>
+                {isHttpUrl(mediaFile.url) ? (
+                  <img className="h-12 w-12" src={mediaFile.url} alt="" />
+                ) : (
+                  // quality-bar-loop (Inspections, round 3, security
+                  // finding): same render-sink guard as the single-answer
+                  // media case above.
+                  <div className="flex h-12 w-12 items-center justify-center rounded border bg-muted text-[10px] text-muted-foreground">
+                    {t("organization.inspection.unsafeAttachment")}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {hasNote && (
+          <div className="mt-4">
+            <p className="mb-2 text-sm font-medium">
+              {t("organization.inspection.note")}
+            </p>
+            <textarea
+              value={note || ""}
+              onChange={(e) => onNoteChange(question.id, e.target.value)}
+              className="min-h-22.5 w-full rounded-lg border border-input px-4 py-3"
+              placeholder={t("organization.inspection.notePlaceholder")}
+            />
+          </div>
+        )}
+
+        {/* quality-bar-loop round 2 (mobile, round-1 finding): `size="sm"`
+            resolves to `h-6` (24px tall), well under the 44px
+            touch-target guideline -- same bug class fixed on 9+ pages
+            this session. */}
+        <div className="mt-6 flex gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onToggleNote(question.id)}
+            className="h-11"
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            {hasNote
+              ? t("organization.inspection.hideNote")
+              : t("organization.inspection.addNote")}
+          </Button>
+
+          {isExternalMediaUploading ? (
+            <p className="flex items-center gap-1 text-xs text-yellow-600">
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-yellow-600 border-t-transparent"></span>
+              {t("organization.inspection.uploading")}
+            </p>
+          ) : (
+            <label htmlFor={`external-media-${question.id}`}>
+              <Button asChild variant="outline" size="sm" className="h-11">
+                <span>
+                  <CloudUpload className="mr-2 h-4 w-4" />
+                  {t("organization.inspection.addMedia")}
+                </span>
+              </Button>
+              <input
+                onChange={(e) => {
+                  const files = (e.target as HTMLInputElement)?.files
+                  if (files) {
+                    onExternalMediaUpload(question.id, files)
+                  }
+                  e.target.value = ""
+                }}
+                id={`external-media-${question.id}`}
+                type="file"
+                multiple
+                accept="image/*,video/*,application/pdf"
+                // quality-bar-loop round 7 (accessibility) -- see the
+                // comment on the other file input in this file.
+                className="sr-only"
+              />
+            </label>
+          )}
+        </div>
+      </Card>
+    )
+  }
+)
 
 export default function CreateNewInspection() {
   const { t } = useTranslation()
@@ -130,23 +478,29 @@ export default function CreateNewInspection() {
     }
   }
 
-  const handleAnswerChange = (questionId: string, value: any) => {
+  // quality-bar-loop (Inspections, round 10, efficiency finding): these
+  // three all already used the functional setState-updater form, so none
+  // of them actually needed `answers`/`visibleNotes` in a dependency array
+  // -- wrapping in useCallback with an empty dep array makes them
+  // referentially stable forever, a prerequisite for QuestionCard's
+  // React.memo below to actually prevent re-rendering sibling questions.
+  const handleAnswerChange = useCallback((questionId: string, value: any) => {
     setAnswers((prev) => ({
       ...prev,
       [questionId]: { ...prev[questionId], answer: value },
     }))
-  }
+  }, [])
 
-  const handleNoteChange = (questionId: string, note: string) => {
+  const handleNoteChange = useCallback((questionId: string, note: string) => {
     setAnswers((prev) => ({
       ...prev,
       [questionId]: { ...prev[questionId], note },
     }))
-  }
+  }, [])
 
-  const toggleNote = (questionId: string) => {
+  const toggleNote = useCallback((questionId: string) => {
     setVisibleNotes((prev) => ({ ...prev, [questionId]: !prev[questionId] }))
-  }
+  }, [])
 
   // checkbox/slider questions always carry a real default value (false / 5)
   // once initialized, so an "empty" answer there would mean init hasn't run
@@ -212,331 +566,174 @@ export default function CreateNewInspection() {
     }
   }
 
-  const handleAnswerMediaUpload = async (questionId: string, file: File) => {
-    // validation
-    if (!file || !questionId) return
+  const handleAnswerMediaUpload = useCallback(
+    async (questionId: string, file: File) => {
+      // validation
+      if (!file || !questionId) return
 
-    // Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error(t("organization.inspection.fileSizeError"))
-      return
-    }
-
-    // Check file type
-    const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "video/mp4",
-      "application/pdf",
-    ]
-    if (!allowedTypes.includes(file.type)) {
-      toast.error(t("organization.inspection.fileTypeError"))
-      return
-    }
-
-    setIsAnswerMediaUploading(questionId)
-
-    try {
-      const formdata = new FormData()
-      formdata.append("file", file)
-      const res = await uploadFileAws(formdata).unwrap()
-
-      if (res?.success && res?.data) {
-        handleAnswerChange(questionId, res.data)
-        toast.success(t("organization.inspection.mediaUploadedToast"))
-      } else {
-        toast.error(t("organization.inspection.mediaUploadFailedToast"))
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(t("organization.inspection.fileSizeError"))
+        return
       }
-    } catch (error: any) {
-      toast.error(
-        error?.message || t("organization.inspection.mediaUploadFailedToast")
-      )
-    } finally {
-      setIsAnswerMediaUploading(null)
-    }
-  }
 
-  // for media file
+      // Check file type
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "video/mp4",
+        "application/pdf",
+      ]
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(t("organization.inspection.fileTypeError"))
+        return
+      }
 
-  const handleExternalMediaUpload = async (
-    questionId: string,
-    files: FileList | File[]
-  ) => {
-    if (!questionId || !files || files.length === 0) return
+      setIsAnswerMediaUploading(questionId)
 
-    // Convert FileList to array if needed
-    const fileArray = Array.isArray(files) ? files : Array.from(files)
-
-    // Set uploading state for this question
-    setExternalMediaUploading(questionId)
-
-    try {
-      // Upload all files in parallel
-      const uploadPromises = fileArray.map(async (file) => {
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          toast.error(
-            t("organization.inspection.fileTooLargeNamed", { name: file.name })
-          )
-          return null
-        }
-
-        // Validate file type
-        const allowedTypes = [
-          "image/jpeg",
-          "image/png",
-          "image/gif",
-          "image/webp",
-          "video/mp4",
-          "application/pdf",
-        ]
-        if (!allowedTypes.includes(file.type)) {
-          toast.error(
-            t("organization.inspection.fileTypeNamedError", { name: file.name })
-          )
-          return null
-        }
-
+      try {
         const formdata = new FormData()
         formdata.append("file", file)
         const res = await uploadFileAws(formdata).unwrap()
 
         if (res?.success && res?.data) {
-          return { url: res.data, type: "image" }
+          handleAnswerChange(questionId, res.data)
+          toast.success(t("organization.inspection.mediaUploadedToast"))
+        } else {
+          toast.error(t("organization.inspection.mediaUploadFailedToast"))
         }
-        return null
-      })
+      } catch (error: any) {
+        toast.error(
+          error?.message || t("organization.inspection.mediaUploadFailedToast")
+        )
+      } finally {
+        setIsAnswerMediaUploading(null)
+      }
+    },
+    [uploadFileAws, t, handleAnswerChange]
+  )
 
-      // Wait for all uploads to complete
-      const uploadedFiles = await Promise.all(uploadPromises)
-      const validFiles = uploadedFiles.filter((file) => file !== null)
+  // for media file
 
-      if (validFiles.length > 0) {
-        // Get existing media files
-        const existingMediaFiles = answers[questionId]?.mediaFiles || []
+  const handleExternalMediaUpload = useCallback(
+    async (questionId: string, files: FileList | File[]) => {
+      if (!questionId || !files || files.length === 0) return
 
-        // Append new files
-        const updatedMediaFiles = [...existingMediaFiles, ...validFiles]
+      // Convert FileList to array if needed
+      const fileArray = Array.isArray(files) ? files : Array.from(files)
 
-        // Update answers with new mediaFiles array
-        setAnswers((prev) => ({
+      // Set uploading state for this question
+      setExternalMediaUploading(questionId)
+
+      try {
+        // Upload all files in parallel
+        const uploadPromises = fileArray.map(async (file) => {
+          // Validate file size (max 5MB)
+          if (file.size > 5 * 1024 * 1024) {
+            toast.error(
+              t("organization.inspection.fileTooLargeNamed", {
+                name: file.name,
+              })
+            )
+            return null
+          }
+
+          // Validate file type
+          const allowedTypes = [
+            "image/jpeg",
+            "image/png",
+            "image/gif",
+            "image/webp",
+            "video/mp4",
+            "application/pdf",
+          ]
+          if (!allowedTypes.includes(file.type)) {
+            toast.error(
+              t("organization.inspection.fileTypeNamedError", {
+                name: file.name,
+              })
+            )
+            return null
+          }
+
+          const formdata = new FormData()
+          formdata.append("file", file)
+          const res = await uploadFileAws(formdata).unwrap()
+
+          if (res?.success && res?.data) {
+            return { url: res.data, type: "image" }
+          }
+          return null
+        })
+
+        // Wait for all uploads to complete
+        const uploadedFiles = await Promise.all(uploadPromises)
+        const validFiles = uploadedFiles.filter((file) => file !== null)
+
+        if (validFiles.length > 0) {
+          // quality-bar-loop (Inspections, round 10, efficiency finding):
+          // reads `prev[questionId]` inside the functional updater instead
+          // of closing over the outer `answers` state -- keeps this
+          // callback's own dependency array free of `answers`, which
+          // changes on every keystroke and would otherwise make this
+          // handler (and every QuestionCard it's passed to) unstable.
+          setAnswers((prev) => {
+            const existingMediaFiles = prev[questionId]?.mediaFiles || []
+            const updatedMediaFiles = [...existingMediaFiles, ...validFiles]
+            return {
+              ...prev,
+              [questionId]: {
+                ...prev[questionId],
+                mediaFiles: updatedMediaFiles,
+              },
+            }
+          })
+
+          toast.success(
+            t("organization.inspection.filesUploadedToast", {
+              count: validFiles.length,
+            })
+          )
+        } else {
+          toast.error(t("organization.inspection.filesUploadFailedToast"))
+        }
+      } catch (error: any) {
+        toast.error(
+          error?.message ||
+            t("organization.inspection.mediaFilesUploadFailedToast")
+        )
+      } finally {
+        setExternalMediaUploading(null)
+      }
+    },
+    [uploadFileAws, t]
+  )
+
+  // Function to remove a specific media file. Reads `prev[questionId]`
+  // inside the functional updater for the same reason as
+  // handleExternalMediaUpload above -- keeps this useCallback's deps free
+  // of `answers`.
+  const handleRemoveMediaFile = useCallback(
+    (questionId: string, fileIndex: number) => {
+      setAnswers((prev) => {
+        const currentMediaFiles = prev[questionId]?.mediaFiles || []
+        const updatedMediaFiles = currentMediaFiles.filter(
+          (_, index) => index !== fileIndex
+        )
+        return {
           ...prev,
           [questionId]: {
             ...prev[questionId],
             mediaFiles: updatedMediaFiles,
           },
-        }))
-
-        toast.success(
-          t("organization.inspection.filesUploadedToast", {
-            count: validFiles.length,
-          })
-        )
-      } else {
-        toast.error(t("organization.inspection.filesUploadFailedToast"))
-      }
-    } catch (error: any) {
-      toast.error(
-        error?.message ||
-          t("organization.inspection.mediaFilesUploadFailedToast")
-      )
-    } finally {
-      setExternalMediaUploading(null)
-    }
-  }
-
-  // Function to remove a specific media file
-  const handleRemoveMediaFile = (questionId: string, fileIndex: number) => {
-    const currentMediaFiles = answers[questionId]?.mediaFiles || []
-    const updatedMediaFiles = currentMediaFiles.filter(
-      (_, index) => index !== fileIndex
-    )
-
-    setAnswers((prev) => ({
-      ...prev,
-      [questionId]: {
-        ...prev[questionId],
-        mediaFiles: updatedMediaFiles,
-      },
-    }))
-
-    toast.success(t("organization.inspection.mediaRemovedToast"))
-  }
-
-  const renderQuestionInput = (question: any) => {
-    const value = answers[question.id]?.answer
-    const answerType = question.answerType
-
-    switch (answerType) {
-      case "checkbox":
-        return (
-          // quality-bar-loop round 2 (mobile, round-1 finding): the
-          // native checkbox's own visual box (h-5, 20px) is well under
-          // the 44px touch-target guideline, and unlike a Button the
-          // fix isn't a className override on the input itself -- WCAG's
-          // target-size rule is about the clickable AREA, not the visual
-          // indicator, so `min-h-11` on the wrapping <label> (which
-          // already toggles the checkbox on click via native label
-          // association) extends the real tappable area to 44px while
-          // keeping the checkbox's own visual size unchanged.
-          <label className="flex min-h-11 cursor-pointer items-center gap-3">
-            <input
-              type="checkbox"
-              checked={!!value}
-              onChange={(e) =>
-                handleAnswerChange(question.id, e.target.checked)
-              }
-              className="h-5 w-5 accent-primary"
-            />
-            <span>
-              {value
-                ? t("organization.inspection.yes")
-                : t("organization.inspection.no")}
-            </span>
-          </label>
-        )
-
-      case "slider":
-        return (
-          <div className="space-y-3">
-            <input
-              type="range"
-              min="0"
-              max="10"
-              step="0.1"
-              value={value ?? 5}
-              onChange={(e) =>
-                handleAnswerChange(question.id, parseFloat(e.target.value))
-              }
-              className="w-full accent-primary"
-            />
-            <div className="text-center text-xl font-semibold text-primary">
-              {value ?? 5}
-            </div>
-          </div>
-        )
-
-      case "date":
-        return (
-          <input
-            type="date"
-            value={value ?? ""}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            className="w-full rounded-lg border border-input px-4 py-3 focus:ring-2 focus:ring-primary"
-          />
-        )
-
-      case "multipleSelect": {
-        const options = question.value
-          ? String(question.value).replace(/['"]/g, "").split(",")
-          : []
-        return (
-          <select
-            value={value ?? ""}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            className="w-full rounded-lg border border-input px-4 py-3"
-          >
-            <option value="">
-              {t("organization.inspection.selectOption")}
-            </option>
-            {options.map((opt: string, i: number) => (
-              <option key={i} value={opt.trim()}>
-                {opt.trim()}
-              </option>
-            ))}
-          </select>
-        )
-      }
-
-      case "media":
-        return (
-          <>
-            {isAnswerMediaUploading === question.id ? (
-              <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-8">
-                <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></span>
-                <p className="text-sm text-muted-foreground">
-                  {t("organization.inspection.uploadingMedia")}
-                </p>
-              </div>
-            ) : value && !isHttpUrl(value) ? (
-              // quality-bar-loop (Inspections, round 3, security finding):
-              // `value` is client-supplied and rendered straight into
-              // <img src> below -- guard the same way InspectionReport.tsx/
-              // UpdateInspection.tsx do before it reaches that sink.
-              <p className="text-sm text-muted-foreground italic">
-                {t("organization.inspection.unsafeAttachment")}
-              </p>
-            ) : value ? (
-              <div className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border">
-                <img
-                  src={value}
-                  alt={t("organization.inspection.uploadedMediaAlt")}
-                  className="max-h-96 max-w-full object-contain transition-transform group-hover:scale-105"
-                  onError={(e) => {
-                    ;(e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE_SRC
-                  }}
-                />
-                <button
-                  onClick={() => handleAnswerChange(question.id, "")}
-                  className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                >
-                  <span className="rounded bg-red-500 px-2 py-1 text-xs font-medium text-white">
-                    {t("organization.inspection.deleteMedia")}
-                  </span>
-                </button>
-              </div>
-            ) : (
-              <label htmlFor={`dropzone-file-${question.id}`}>
-                <Button
-                  asChild
-                  variant="outline"
-                  className="flex w-full cursor-pointer items-center gap-2 py-6"
-                >
-                  <span>
-                    <CloudUpload className="h-5 w-5" />
-                    {t("organization.inspection.uploadMediaDocuments")}
-                  </span>
-                </Button>
-                <input
-                  onChange={(e) => {
-                    const file = (e.target as HTMLInputElement)?.files?.[0]
-                    if (file) {
-                      handleAnswerMediaUpload(question.id, file)
-                    }
-                    // Reset input value so same file can be uploaded again
-                    e.target.value = ""
-                  }}
-                  id={`dropzone-file-${question.id}`}
-                  type="file"
-                  accept="image/*,video/*,application/pdf"
-                  // quality-bar-loop (Inspections, round 7, accessibility
-                  // finding): `hidden`/`display:none` removes the input
-                  // from the tab order entirely -- this whole upload
-                  // control was keyboard-unreachable (WCAG 2.1.1). `sr-only`
-                  // keeps it visually hidden but focusable, so Tab reaches
-                  // it and Enter/Space opens the native file picker (a real
-                  // `<input type="file">`'s own built-in keyboard behavior).
-                  className="sr-only"
-                />
-              </label>
-            )}
-          </>
-        )
-
-      default:
-        return (
-          <textarea
-            value={value ?? ""}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            rows={5}
-            className="min-h-30 w-full resize-y rounded-lg border border-input px-4 py-3 focus:ring-2 focus:ring-primary"
-            placeholder={t("organization.inspection.answerPlaceholder")}
-          />
-        )
-    }
-  }
+        }
+      })
+      toast.success(t("organization.inspection.mediaRemovedToast"))
+    },
+    [t]
+  )
 
   if (isLoading) {
     return (
@@ -624,160 +821,26 @@ export default function CreateNewInspection() {
               </Card>
 
               <div className="space-y-8">
-                {page.questions?.map((question: any, questionIndex: number) => {
-                  const hasNote =
-                    visibleNotes[question.id] || !!answers[question.id]?.note
-                  const hasMediaFiles = answers[question.id]?.mediaFiles
-
-                  return (
-                    <Card key={question.id} className="p-6">
-                      <div className="mb-4 flex justify-between">
-                        <p className="leading-tight font-medium">
-                          {question.question}
-                          {question.isRequired && (
-                            <span className="ml-1 text-destructive">*</span>
-                          )}
-                        </p>
-                        {/* Found by review (quality-bar-loop round 2,
-                            live-confirmed with 3 distinct questions on
-                            one page): this badge used `pageIndex + 1`,
-                            so every question on a page showed the same
-                            "Q1" regardless of its real position --
-                            InspectionReport.tsx's QuestionCard already
-                            numbers by questionIndex + 1 correctly. */}
-                        <span className="text-xs text-muted-foreground">
-                          {t("organization.inspection.questionBadge", {
-                            num: questionIndex + 1,
-                          })}
-                        </span>
-                      </div>
-
-                      <div className="mb-6">
-                        {renderQuestionInput(question)}
-                      </div>
-                      {hasMediaFiles && (
-                        <div className="flex items-center gap-5">
-                          {hasMediaFiles.map((mediaFile: any, idx: number) => (
-                            <div key={idx} className="relative">
-                              {/* Found by review (quality-bar-loop round
-                                  2): this was a `<span onClick>` -- no
-                                  role/tabIndex/keyboard handler, a genuine
-                                  keyboard trap (couldn't be focused or
-                                  activated from the keyboard at all).
-                                  UpdateInspection.tsx's equivalent control
-                                  already uses a real `<button
-                                  aria-label>`; this brings the two in
-                                  line, including the dark-mode colors
-                                  that file already has and this one
-                                  didn't. */}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleRemoveMediaFile(question.id, idx)
-                                }
-                                aria-label={t(
-                                  "organization.inspection.removeMedia"
-                                )}
-                                className="absolute -top-2 -right-2 rounded-full bg-amber-100 p-1 text-red-500 dark:bg-amber-900 dark:text-red-400"
-                              >
-                                <Trash className="size-4" />
-                              </button>
-                              {isHttpUrl(mediaFile.url) ? (
-                                <img
-                                  className="h-12 w-12"
-                                  src={mediaFile.url}
-                                  alt=""
-                                />
-                              ) : (
-                                // quality-bar-loop (Inspections, round 3,
-                                // security finding): same render-sink guard
-                                // as the single-answer media case above.
-                                <div className="flex h-12 w-12 items-center justify-center rounded border bg-muted text-[10px] text-muted-foreground">
-                                  {t("organization.inspection.unsafeAttachment")}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {hasNote && (
-                        <div className="mt-4">
-                          <p className="mb-2 text-sm font-medium">
-                            {t("organization.inspection.note")}
-                          </p>
-                          <textarea
-                            value={answers[question.id]?.note || ""}
-                            onChange={(e) =>
-                              handleNoteChange(question.id, e.target.value)
-                            }
-                            className="min-h-22.5 w-full rounded-lg border border-input px-4 py-3"
-                            placeholder={t(
-                              "organization.inspection.notePlaceholder"
-                            )}
-                          />
-                        </div>
-                      )}
-
-                      {/* quality-bar-loop round 2 (mobile, round-1
-                          finding): `size="sm"` resolves to `h-6` (24px
-                          tall), well under the 44px touch-target
-                          guideline -- same bug class fixed on 9+ pages
-                          this session. */}
-                      <div className="mt-6 flex gap-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toggleNote(question.id)}
-                          className="h-11"
-                        >
-                          <FileText className="mr-2 h-4 w-4" />
-                          {hasNote
-                            ? t("organization.inspection.hideNote")
-                            : t("organization.inspection.addNote")}
-                        </Button>
-
-                        {externalMediaUploading == question.id ? (
-                          <p className="flex items-center gap-1 text-xs text-yellow-600">
-                            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-yellow-600 border-t-transparent"></span>
-                            {t("organization.inspection.uploading")}
-                          </p>
-                        ) : (
-                          <label htmlFor={`external-media-${question.id}`}>
-                            <Button
-                              asChild
-                              variant="outline"
-                              size="sm"
-                              className="h-11"
-                            >
-                              <span>
-                                <CloudUpload className="mr-2 h-4 w-4" />
-                                {t("organization.inspection.addMedia")}
-                              </span>
-                            </Button>
-                            <input
-                              onChange={(e) => {
-                                const files = (e.target as HTMLInputElement)
-                                  ?.files
-                                if (files) {
-                                  handleExternalMediaUpload(question.id, files)
-                                }
-                                e.target.value = ""
-                              }}
-                              id={`external-media-${question.id}`}
-                              type="file"
-                              multiple
-                              accept="image/*,video/*,application/pdf"
-                              // quality-bar-loop round 7 (accessibility) --
-                              // see the comment on the other file input in
-                              // this file.
-                              className="sr-only"
-                            />
-                          </label>
-                        )}
-                      </div>
-                    </Card>
-                  )
-                })}
+                {page.questions?.map((question: any, questionIndex: number) => (
+                  <QuestionCard
+                    key={question.id}
+                    question={question}
+                    questionIndex={questionIndex}
+                    answer={answers[question.id]?.answer}
+                    note={answers[question.id]?.note || ""}
+                    mediaFiles={answers[question.id]?.mediaFiles || []}
+                    isNoteVisible={!!visibleNotes[question.id]}
+                    isAnswerMediaUploading={isAnswerMediaUploading === question.id}
+                    isExternalMediaUploading={externalMediaUploading === question.id}
+                    onAnswerChange={handleAnswerChange}
+                    onNoteChange={handleNoteChange}
+                    onToggleNote={toggleNote}
+                    onAnswerMediaUpload={handleAnswerMediaUpload}
+                    onExternalMediaUpload={handleExternalMediaUpload}
+                    onRemoveMediaFile={handleRemoveMediaFile}
+                    t={t}
+                  />
+                ))}
               </div>
             </div>
           ))}
