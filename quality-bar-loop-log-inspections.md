@@ -358,3 +358,43 @@ touch the industry-standards, UX, efficiency, accessibility, resilience,
 code-quality, or the non-siteId resilience findings (the report page's
 missing `isError` handling, `RunInspection.tsx` being unreachable, the
 slider data-integrity bug), all still open for a future round.
+
+## Round 5 (resilience)
+
+Shipped as aexa-frontend PR [#680](https://github.com/Qiyrix/aexa-frontend/pull/680), merged.
+
+- `InspectionReport.tsx`'s `useGetSingleInspectionQuery` never checked
+  `isLoading`/`isError` -- live-confirmed permanently stuck on "Loading
+  report..." after a real 404 (network log showed the 404, UI never
+  reflected it). Now distinguishes loading (spinner), a genuine fetch
+  error (`role="alert"`, distinct copy, a button back to the list), and
+  a legitimate not-found -- mirrors `UpdateInspection.tsx`'s existing
+  not-found state and `InspectionTable.tsx`'s existing error/empty
+  distinction, both pre-existing patterns in this codebase.
+- `StartInspectionModal.tsx`'s site/template queries had the identical
+  gap: a fetch failure rendered the same "no site/template found" empty
+  state as a legitimately empty org. Now both `CommandEmpty` blocks
+  distinguish a real fetch error from a genuinely empty result.
+
+Review confirmed the fix is correct and complete for these two files
+(no scope collisions, no cmdk-filtering edge case, no unwanted refetch/
+spinner-flash interaction since `InspectionReport.tsx` has no mutations
+on this page) but flagged that the identical unguarded `useGetAllSitesQuery`
+`isError` gap still exists, untouched, in four other pages: `SiteFilter.tsx`,
+`TemplatesPage.tsx`, `CompliancePage.tsx`, and `AllFindingsPage.tsx` (some
+other queries in those same files already guard `isError` from earlier
+quality-bar-loop rounds, just not this one). Noted for when those
+pages/features are reached in the broader sweep -- out of scope for an
+Inspections-only round.
+
+QA gate: typecheck/lint clean, full suite 354 files / 5228 tests
+passing. Live-verified the report page and Start Inspection modal both
+render normally against real data post-fix.
+
+Per the user's standing instruction to keep working autonomously until
+every feature clears a 7/10 floor on all 9 quality-bar-loop axes,
+continuing immediately into round 6 (still-open resilience findings:
+`RunInspection.tsx` unreachable, the slider data-integrity bug) without
+pausing for a fresh judge re-score first -- a full re-score will follow
+once a batch of these cheaper fixes lands, to avoid re-running the
+9-judge panel after every single-fix round.
