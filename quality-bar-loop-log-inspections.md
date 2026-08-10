@@ -736,3 +736,42 @@ Key findings by axis:
 precedented by the identical pattern round 5 already applied to
 `InspectionReport.tsx`/`StartInspectionModal.tsx`, and closes a real
 "silently broken looks like empty" bug in both files.
+
+## Round 12 (resilience)
+
+Shipped as aexa-frontend PR [#686](https://github.com/Qiyrix/aexa-frontend/pull/686), merged.
+
+`CreateNewInspection.tsx`'s `useGetSingleTemplateQuery` and
+`UpdateInspection.tsx`'s `useGetSingleInspectionQuery` only checked
+`isLoading` -- the exact bug class round 5 fixed on their siblings
+(`InspectionReport.tsx`/`StartInspectionModal.tsx`), missed here. A
+failed template fetch rendered a fully-styled, zero-section inspection
+form; a failed inspection fetch showed the same generic "not found"
+message as a genuine 404. Both now distinguish loading, a genuine
+error (`role="alert"`, distinct copy, a button back to the list), and
+(for `UpdateInspection`) a legitimate not-found.
+
+Review confirmed: the early-return ordering doesn't violate React's
+rules of hooks in either file (all hooks still run unconditionally
+before the new early returns), the `template?.pages || []` fallback
+during an error state is safe (never actually rendered, since the new
+error branch returns first), and the new tests correctly use
+`getByRole("alert")` + a separate text-content check rather than
+`getByRole("alert", {name: ...})` -- a pitfall this session already
+hit and learned from twice before (`role="alert"` doesn't support
+name-from-content per ARIA).
+
+QA gate: typecheck/lint clean, full suite 355 files / 5250 tests
+passing. Live-verified the edit page still renders normally with
+prior test data intact.
+
+**Next fix (round 13):** mobile's most severe open finding -- the
+hover-only, full-image delete overlay on uploaded photos
+(`CreateNewInspection.tsx`/`UpdateInspection.tsx`), which is a genuine
+data-loss trap on touch devices (no hover state means tapping
+anywhere on the photo silently deletes it, no confirmation, no
+visible warning first). Concrete and fixable without a large
+redesign: replace the hover-reveal overlay with an always-visible
+small delete button (matching the pattern already used for
+per-question media-thumbnail removal in the same files), removing the
+full-image tap-to-delete surface entirely.
