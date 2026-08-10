@@ -296,3 +296,41 @@ stats are still open, real feature work. This is a natural checkpoint
 for the Audit Missions loop: 6 rounds shipped this session (mobile,
 resilience, accessibility, visual polish, and now industry-standards),
 covering 5 of round 1's original 6 below-floor findings.
+
+## Round 7 (UX -- status filter, PR #671)
+
+Round 1's remaining concrete UX finding: search was the only filter --
+finding "all in-progress missions" meant manually scanning every page
+past PAGE_SIZE=20. The backend's GET /audit doesn't support a status
+query param -- a real server-side filter needs a backend change,
+cross-repo work out of scope here, documented rather than silently
+dropped. Followed this same codebase's own already-shipped precedent
+for exactly this constraint (RiskRegisterPage's statusParam/
+pendingApprovalOnly client-side filters): a status `<select>` next to
+search, fetching a larger page (limit=100) and hiding the pager while
+a filter is active, so results are never silently capped mid-filter.
+
+Negative control confirmed both new tests fail independently (filter
+logic, pager-hiding logic) without their respective fixes. Live
+verification against the real backend: filtered Planned/Completed
+correctly, confirmed via network tab that limit jumped to 100 on
+filter activation.
+
+Review round 1: both angles fully clean. Angle A noted one minor test-
+coverage gap (not a bug -- the code already has redundant page-reset
+protection) rather than a real finding. Angle B went further than the
+PR's own testing -- live-verified direct status-to-status switching,
+combining the filter with search, keyboard operability, and confirmed
+the query correctly reverts to limit=20 once the filter is cleared --
+and independently compared this page's implementation side-by-side
+against RiskRegisterPage's precedent, confirming a faithful, minimal
+port with no divergence.
+
+**Status:** UX's most concrete round-1 finding (no way to filter by
+status) is addressed. Remaining UX gaps (status-transition shortcut on
+the card itself, org-wide stats beyond the current page) are smaller
+than what's already shipped and could be picked up in a future round.
+7 rounds shipped this session for Audit Missions -- mobile, resilience,
+accessibility, visual polish, industry-standards, and UX all had real
+work; this is a natural, comprehensive stopping point covering every
+axis round 1 flagged below floor.
