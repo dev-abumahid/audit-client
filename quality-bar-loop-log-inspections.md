@@ -821,3 +821,99 @@ actual status, unlike `InspectionTable.tsx`/`UpdateInspection.tsx`,
 which correctly use `severityBadgeClasses`) is the cheapest, most
 concrete open finding on this axis: swap the hardcoded classes for the
 same helper the other two files already use.
+
+## Round 14 (visual polish)
+
+Shipped as aexa-frontend PR [#688](https://github.com/Qiyrix/aexa-frontend/pull/688), merged.
+
+Fixed the status-pill inconsistency: `InspectionReport.tsx` hardcoded
+`bg-primary/10 text-primary` regardless of actual status, unlike
+`InspectionTable.tsx` (a `STATUS_BADGE` Record) and `UpdateInspection.tsx`
+(a nested ternary), both of which already color-coded by status via
+`severityBadgeClasses`. A CANCELLED inspection's report page rendered
+the exact same color as a COMPLETED one.
+
+Extracted the status->severity mapping -- now duplicated in 2 places,
+about to become 3rd -- into a single `getInspectionStatusSeverity()`
+helper in `inspectionStatus.ts`, used at all three call sites.
+
+First review round found one real issue: `UpdateInspection.tsx`'s
+`selectedStatus` state can be transiently empty on the render where
+`inspection` first loads (lazy `useState` initializer runs before the
+sync effect), and the new helper's "info" fallback for unrecognized
+status differed from the old ternary's "medium" fallback -- a one-frame
+wrong-color flash for IN_PROGRESS inspections. Fixed by falling back to
+`inspection.status` directly (verified non-null at that render point)
+instead of an empty string. Also added color regression tests to
+`InspectionTable.test.tsx`/`UpdateInspection.test.tsx`, since the first
+pass only covered the new `InspectionReport.tsx` pill, not the refactor
+of the two existing call sites. Second review round came back clean.
+
+QA gate: typecheck/lint clean, full suite 355 files / 5258 tests (then
+5260 tests after round 15's file, see below) passing across both fix
+rounds. Live-verified: opened a Completed inspection's report page,
+confirmed the pill renders emerald/green (matching the table), and
+confirmed a CANCELLED inspection's report page renders red instead of
+the prior fixed teal.
+
+**Next fix (Round 15):** the other visual-polish gap noted in round 11's
+re-score -- `UploadNotesModal.tsx`'s file-upload dropzone hand-rolls raw
+Tailwind gray/white instead of the app's semantic tokens, unlike every
+other dropzone in this feature (`CreateNewInspection.tsx`/
+`UpdateInspection.tsx`, both already on `border-border`/`text-foreground`/
+shared `CloudUpload` icon).
+
+## Round 15 (visual polish)
+
+Shipped as aexa-frontend PR [#689](https://github.com/Qiyrix/aexa-frontend/pull/689), merged.
+
+Fixed `UploadNotesModal.tsx`'s "extract note from file" dropzone: it was
+the only upload control in Inspections still hand-rolling raw Tailwind
+gray/white (`border-gray-300 bg-white dark:border-gray-700
+dark:bg-gray-900`) plus a hand-rolled inline `<svg>` with kebab-case
+attributes (`stroke-width`, `stroke-linecap`/`-linejoin`) that logged an
+"Invalid DOM property" console warning on every render of file-upload
+mode -- confirmed live. Replaced with the same `CloudUpload` icon +
+semantic-token treatment (`border-border`, `bg-muted/30`,
+`text-foreground`, `text-muted-foreground`) already established in
+`CreateNewInspection.tsx`/`UpdateInspection.tsx`, and normalized the
+"selected file" success text from ad hoc `green-600` to the
+`emerald-700`/`emerald-400` shade `severityStyles.ts`'s "low" level
+already uses everywhere else.
+
+Review round came back clean: confirmed `CloudUpload` is a real
+lucide-react export already used identically elsewhere, no structural/
+accessibility regression (the `sr-only` input and its `htmlFor`/`id`
+pairing untouched), and both new tests (semantic-token assertion,
+console-warning absence) genuinely exercise the fix -- verified the
+console-warning test's string match against React's actual
+`console.error` format so it isn't a tautological always-pass.
+
+QA gate: typecheck/lint clean, full suite 355 files / 5260 tests
+passing. Live-verified: opened Upload Notes -> Extract note from file,
+confirmed the dropzone renders with the `CloudUpload` icon and neutral
+bordered-card styling matching the rest of the app; confirmed via
+source grep that no kebab-case SVG attributes remain in this file (one
+console-level pre-existing instance was found in the unrelated
+`CreateTemplateWithAIDialog.tsx` -- noted as an out-of-scope finding for
+a future round, not this one).
+
+**Visual polish's two cheapest concrete findings from round 11 are now
+both closed.** The axis's remaining open item from that re-score --
+"at least five fragmented remove-button treatments" across the feature
+-- is a broader consistency sweep (comparing every delete/remove
+control's icon, color, and hover treatment across Create/UpdateInspection,
+InspectionReport, and UploadNotesModal) rather than a single
+concrete fix, making it the natural next visual-polish candidate, but it
+also risks being a large diff for one round. Weighing that against the
+other still-open axes (industry-standards 3, UX 5, resilience 5, code
+quality 4, mobile 6 as of round 11's re-score) -- since mobile and
+resilience already had rounds this loop (13 and 12 respectively) while
+industry-standards, UX, and code quality haven't been touched since
+round 3, and those three are also the lowest/most numerous-finding
+axes -- **next fix (Round 16): code quality.** The round-10 `QuestionCard`
+refactor left the same ~300-line component duplicated verbatim between
+`CreateNewInspection.tsx` and `UpdateInspection.tsx` (props differ only
+by 2 extra props on the Update side) -- the largest, most mechanical,
+lowest-risk code-quality fix available: extract a single shared
+`QuestionCard` component both files import.
