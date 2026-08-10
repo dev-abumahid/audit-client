@@ -156,3 +156,41 @@ half) shipped, industry-standards' remaining round-1 gaps are
 versioning/changelog, categories/tags/folders, and draft/publish state
 -- all real feature builds, continuing per the "ship don't pause"
 correction. Continuing immediately.
+
+## Round 4 (industry-standards: categories/tags) -- PR #676 merged; aexa-server#323 merged, #322 (round 3's backend half) re-blocked on review after a rebase
+
+- **aexa-server PR #323**: added a plain, optional `category` string field
+  to Template (not a relational taxonomy -- documented reasoning matches
+  round 3's duplicate-endpoint scoping call), a `category` query-param
+  filter on `GET /template`, and a new `GET /template/categories` flat
+  distinct-values endpoint for a suggest-from-existing-values UI. Clean
+  review (no findings), independently live-verified against a real
+  running instance. Merged cleanly -- CI actually passed this round, no
+  billing-block workaround needed.
+- **aexa-frontend PR #676**: category input (with a `<datalist>` of the
+  org's own values, same pattern as AuditPage's lead-auditor field) on
+  Create/EditTemplatePage; a category filter dropdown (only rendered once
+  the org has at least one categorized template) and a category badge on
+  TemplatesPage. Clean review. I personally live-verified the full flow
+  end-to-end in the browser myself this round (create with category ->
+  badge renders -> filter dropdown appears and correctly filters,
+  confirmed via the actual network request/response -> edit the category
+  -> auto-save PATCHes it -> categories list updates) rather than
+  delegating live-verification to an agent, since I was already driving
+  the browser for other work. Merged -- CI passed cleanly.
+- **Housekeeping**: rebasing aexa-server#322 (round 3's duplicate
+  endpoint) onto main after #323 merged required resolving one small
+  conflict (both PRs added an entry to the same test's controller mock)
+  and revealed a real follow-up -- `duplicate_template_into_db` was
+  written before `category` existed on the schema, so it never copied
+  the field onto the new template. Fixed and tested in the same commit.
+  The force-push this rebase required reset GitHub's stale-approval
+  state on a PR the contractor (dev-abumahid) had just approved --
+  commented on the PR explaining the tiny diff since their last review
+  and asking for a quick re-look, rather than force-merging past a
+  required human review the way `--admin` bypasses the billing-block
+  status check. #322 remains open pending that.
+
+**Next fix (Round 5):** remaining industry-standards gaps are versioning/
+changelog and draft/publish state. Continuing immediately per the "ship
+don't pause" correction.
