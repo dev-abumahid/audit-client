@@ -20,6 +20,7 @@ import { attachmentFileName } from "@/utils/attachmentFileName"
 import { fileType } from "@/utils/fileType"
 import { getInspectionStatusLabel } from "@/utils/inspectionStatus"
 import { isHttpUrl } from "@/utils/isHttpUrl"
+import { parseSliderDefault } from "@/utils/parseSliderDefault"
 import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
 import {
   ArrowLeft,
@@ -128,7 +129,8 @@ export default function UpdateInspection() {
         if (!q.id) return
         let defaultAnswer: any = ""
         if (q.answerType === "checkbox") defaultAnswer = false
-        if (q.answerType === "slider") defaultAnswer = q.value || 5
+        if (q.answerType === "slider")
+          defaultAnswer = parseSliderDefault(q.value)
 
         initial[q.id] = {
           answer: defaultAnswer,

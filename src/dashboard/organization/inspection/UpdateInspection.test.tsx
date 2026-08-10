@@ -212,6 +212,45 @@ describe("UpdateInspection", () => {
     ).toMatch(/\bh-11\b/)
   })
 
+  // quality-bar-loop (Inspections, round 6, UX finding): a slider
+  // question with a non-numeric configured default (`value`) previously
+  // flowed straight through as the initial answer for a question with no
+  // existing recorded answer yet -- live-confirmed rendering the literal
+  // string "text" under the slider handle.
+  it("falls back to a numeric default when a slider question's configured value isn't a number and has no existing answer", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-slider",
+                    question: "Rate overall safety (1-10)",
+                    answerType: "slider",
+                    value: "text",
+                    isRequired: false,
+                  },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [],
+        }),
+      },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    expect(screen.getByRole("slider")).toHaveValue("5")
+    expect(screen.getByText("5")).toBeInTheDocument()
+    expect(screen.queryByText("text")).not.toBeInTheDocument()
+  })
+
   // aexa-frontend#552: same site cross-link as InspectionReport.tsx --
   // reuses the established ?siteId=&search= pattern (#533/#541).
   it("links the site label into Sites, scoped to that site", () => {

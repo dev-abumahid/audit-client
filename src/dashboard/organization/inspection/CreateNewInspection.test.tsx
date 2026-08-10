@@ -397,6 +397,40 @@ describe("CreateNewInspection", () => {
     await waitFor(() => expect(mockCreateInspection).toHaveBeenCalled())
   })
 
+  // quality-bar-loop (Inspections, round 6, UX finding): a slider question
+  // with a non-numeric configured default (`value`) previously flowed
+  // straight through as the initial answer -- live-confirmed rendering the
+  // literal string "text" under the slider handle in a submitted record.
+  it("falls back to a numeric default when a slider question's configured value isn't a number", () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: {
+        data: makeTemplate({
+          pages: [
+            {
+              title: "General",
+              questions: [
+                {
+                  id: "q-slider",
+                  question: "Rate overall safety (1-10)",
+                  answerType: "slider",
+                  value: "text",
+                  isRequired: false,
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+
+    expect(screen.getByRole("slider")).toHaveValue("5")
+    expect(screen.getByText("5")).toBeInTheDocument()
+    expect(screen.queryByText("text")).not.toBeInTheDocument()
+  })
+
   it("uploads a media answer file via uploadFileAws", async () => {
     mockUseGetSingleTemplateQuery.mockReturnValue({
       data: {
