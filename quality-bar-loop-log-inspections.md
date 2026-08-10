@@ -1490,3 +1490,39 @@ findings for this inspection" link from `UpdateInspection.tsx`/
 since it's a scoped, well-understood fix for a capability already
 confirmed genuinely missing, rather than another guess from an aging
 list.
+
+## Round 26 (regression fix, found while scoping the round-25 follow-up)
+
+Shipped as aexa-frontend PR [#700](https://github.com/Qiyrix/aexa-frontend/pull/700), merged.
+
+While reading `InspectionActions.tsx` to plan round 25's stated
+follow-up (swap its inline form for `CreateNewFindingModal.tsx`),
+found a real regression round 25 itself introduced: the page's own
+"Inspection" breadcrumb link still pointed at
+`/organization/audit/inspections/:id` -- `RunInspection.tsx`'s route,
+deleted in round 25 as confirmed superseded dead code. Fixed
+immediately rather than deferred, since a dead link is a real,
+user-facing bug, not a design question. Points at
+`UpdateInspection.tsx`'s real edit route instead.
+
+Review confirmed no other stray references to the deleted route exist
+anywhere in the codebase, and that the fixed path is a real,
+`WriteGuardRoute`-wrapped route (not a typo'd singular/plural mixup
+between this app's `/inspection/...` create-edit paths and
+`/inspections/...` list/report/actions paths, an easy mistake given
+how similar the two look).
+
+QA gate: typecheck/lint clean, full suite -- correct baseline -- 121
+files / 1786 tests passing. Live-verified against the real running dev
+server: navigated to a real inspection's Actions page, clicked the
+"Inspection" breadcrumb, confirmed it lands on the real
+`UpdateInspection.tsx` edit page.
+
+**Next fix (Round 27):** back to the round-25 follow-up itself --
+swap `InspectionActions.tsx`'s inline create/edit form for the real
+`CreateNewFindingModal.tsx` (currently a weaker duplicate missing
+assignees/line-of-defense/Five Cs/comments), then add a real "View all
+findings for this inspection" link from `UpdateInspection.tsx`/
+`InspectionReport.tsx`. This is a larger, single-file refactor
+(InspectionActions.tsx is 714 lines) -- worth its own dedicated round
+rather than folding into this one.
