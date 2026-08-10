@@ -185,9 +185,128 @@ consumers. All passed.
 QA gate: typecheck clean, eslint clean (one pre-existing unrelated
 warning), full vitest suite 353 files / 5213 tests passing.
 
-Round 2 is done. Per the standing instruction to keep going down the
-list of tabs without pausing between rounds, round 3 would normally
-start now (next-lowest tied axes: accessibility/efficiency/resilience/
-code-quality/industry-standards, all at 5/10) -- paused here only
-because the user asked to pause specifically after this PR merged, to
-ask a few questions.
+Round 2 is done. User asked to pause after the PR merged to ask a few
+questions (about whether AI-workflow quality is being tracked -- see
+[[project_ai_judge_deferred]] for the resulting decision: add a 10th
+AI-quality judge later, once other pages are near 9/10; for now keep
+running the existing 9-axis panel). Resumed immediately after.
+
+## Round 3 (fresh 9-judge panel)
+
+| Axis | Round 1 | Round 3 |
+|---|---|---|
+| Industry-standards | 5/10 | 4/10 |
+| UX | 6/10 | 3/10 |
+| Efficiency | 5/10 | 4/10 |
+| Accessibility | 5/10 | 4/10 |
+| Visual polish | 6/10 | 6/10 |
+| Resilience & edge cases | 5/10 | 3/10 |
+| Code quality | 5/10 | 5/10 |
+| Mobile/responsive | 3/10 | 6/10 |
+| Security | 9/10 | 6/10 |
+
+**Average: 4.56/10** (down from round 1's 5.44, despite mobile improving
++3). This is **not** a regression caused by round 2's diff -- that diff
+only touched touch-target CSS and a handful of accessible-name/keyboard
+fixes across the frontend inspection files and the shared Dialog
+component; it never touched the backend, `RunInspection.tsx`, the
+slider default-value logic, or answer/mediaFiles rendering. Round 3's
+panel was simply more thorough than round 1's and surfaced real,
+pre-existing issues a shallower first pass missed, plus round 2's own
+accessibility work incidentally exposed adjacent gaps (keyboard-
+unreachable uploads, hover-only delete overlays) that round 1 never
+probed for.
+
+Key new/confirmed findings by axis:
+
+- **UX (3/10, new lowest):** the round-1 slider data-integrity bug is
+  still live (reproduced: a non-numeric configured default renders the
+  literal string "text" under the slider handle). Bigger finding: a
+  second, more mature "run inspection" flow exists
+  (`RunInspection.tsx` + `InspectionNote`/`InspectionRecommendations`/
+  `InspectionActions`, with debounced autosave, a save-state indicator,
+  and a findings-count badge) but is completely unreachable from the UI
+  -- `InspectionTable.tsx` only links to the report and update pages.
+  The actually-wired Create/Update flow has zero required-field
+  validation on marking an inspection COMPLETED, in either flow.
+- **Resilience (3/10, tied lowest):** `InspectionReport.tsx` never
+  destructures `isError`, live-confirmed to permanently show "Loading
+  report..." on a real 404. `StartInspectionModal.tsx`'s site/template
+  queries have the same gap. Backend: `update_inspection_into_db`
+  (aexa-server, inspection.service.ts:261-282) still writes a
+  client-supplied `siteId` with zero org-ownership check, unlike the
+  sibling create path (inspection.service.ts:186-195) which validates
+  it correctly -- confirmed untested in the security test suite too.
+- **Security (6/10, down from 9):** the siteId gap above, persisting
+  through a full round unaddressed. Plus a new finding: `answer`/
+  `mediaFiles` fields (inspection.validation.ts) are typed `z.any()`
+  with no URL-scheme restriction, while `attachments` already has a
+  `httpUrl` schema specifically added to reject `javascript:`/`data:`
+  schemes after an earlier independent review -- the fix was never
+  applied to the other client-supplied URL-bearing fields. Frontend
+  (`InspectionReport.tsx`) renders `answer` straight into `href`,
+  `<img src>`, and `window.open()` with no sanitization, so this is a
+  stored-XSS-shaped gap, not just a theoretical inconsistency.
+- **Accessibility (4/10):** confirmed round-2 fixes hold up live (row
+  button accessible names, keyboard-trap-to-button). New, serious
+  finding: every file/media upload control across the feature (photo
+  attach, note upload, document attach -- CreateNewInspection.tsx,
+  UpdateInspection.tsx, UploadNotesModal.tsx, 6+ call sites) is
+  completely keyboard-unreachable: a `display:none` input inside a
+  `<label>` wrapping a non-focusable `<span>`, a WCAG 2.1.1 Level A
+  failure on a core, frequently-used action. Also: focus-visible
+  failures on 4 hover-only reveal controls, no live-region on
+  full-page async loads.
+- **Efficiency (4/10):** all four round-1 findings (unmemoized
+  question-tree re-renders on every keystroke in both Create/Update,
+  UpdateInspection's O(totalQuestions) visibleNotes effect per
+  keystroke, undebounced site/template search in StartInspectionModal)
+  confirmed unchanged -- round 2 never touched render/memoization code.
+- **Industry-standards (4/10):** all five round-1 gaps (no scoring/
+  compliance %, no bulk actions, no recurring/scheduled inspections, no
+  offline capture, no camera-native input) confirmed still open, plus
+  a confirmed empty-state gap for zero-page templates on the report
+  page (UpdateInspection.tsx already handles this case correctly).
+- **Mobile (6/10, up from 3):** round 2's fixes hold up live (row
+  actions, search/filter, StartInspectionModal, checkbox targets). New
+  findings from a harder mobile pass: the table still has no responsive
+  fallback (only confined horizontal scroll); several controls round 2
+  missed are still sub-44px (UpdateInspection's raw-label "Upload file"
+  attachment button at 114x32, an attachment remove Trash icon at
+  14x14, per-question media-thumbnail remove buttons at 24x24, the
+  report page's "Download PDF" button at 159x40, a hand-rolled media
+  lightbox close button at 28x28 that bypassed the shared Dialog fix
+  since it isn't built on the shared component); and a genuine touch
+  hazard -- the image-answer delete control is a hover-only, full-image
+  overlay (`opacity-0 group-hover:opacity-100`) with no touch
+  equivalent, so tapping anywhere on an uploaded photo silently deletes
+  it with no visible warning first.
+- **Visual polish (6/10, unchanged):** the amber-vs-teal status-pill
+  inconsistency between InspectionTable/UpdateInspection and
+  InspectionReport is still open, live-confirmed in both themes.
+  UploadNotesModal's raw-Tailwind-gray dropzone is unfixed (only the
+  one dark-mode variant round 2 touched was fixed). New: three visually
+  distinct "remove/delete" treatments exist across the feature with no
+  shared pattern, none routed through the app's own
+  `severityBadgeClasses`/`SEVERITY_STYLES` despite that module's stated
+  purpose being to unify exactly this kind of scattered color decision.
+- **Code quality (5/10, unchanged):** the file-validation duplication
+  (4x across Create/Update) is unfixed and has drifted further --
+  UpdateInspection now correctly derives real media type from MIME
+  (fixing bug #515) while CreateNewInspection still hardcodes
+  `type: "image"` for every upload, reintroducing the same bug class in
+  its untouched twin. `any` remains pervasive, including inside
+  InspectionReport.tsx's own sub-component prop types despite a real
+  `PageDef` type being one hop away. The previously-misleading dead
+  "Actions" section now has an honest comment explaining the gap
+  (issue #108) instead of silently rendering empty -- a genuine, if
+  small, improvement.
+
+**Next fix (this round):** the two security findings together --
+they're both backend-only, small, well-precedented by existing sibling
+code in the same files (mirror `create_inspection_into_db`'s siteId
+org-ownership check; mirror `attachments`' `httpUrl` schema), and
+concretely serious (cross-tenant data reassignment + a stored-XSS-shaped
+hole), so they take priority over the larger architectural findings
+(the orphaned RunInspection flow, the Create/Update duplication) which
+need more product-level thought before touching.
