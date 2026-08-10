@@ -27,6 +27,7 @@ import {
   Calendar,
   CopyCheck,
   Download,
+  FileQuestion,
   FileText,
   Globe,
   Hash,
@@ -830,6 +831,15 @@ const InspectionReport = () => {
           <p className="mb-2 px-3 text-xs font-bold tracking-widest text-muted-foreground uppercase">
             {t("organization.inspection.sections")}
           </p>
+          {/* Review finding on PR #691: an empty templatePages here used
+              to leave this <nav> silently empty under the "Sections"
+              label -- UpdateInspection.tsx's own sidebar already shows a
+              one-line fallback for the same condition. */}
+          {templatePages.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-muted-foreground">
+              {t("organization.inspection.noPagesTitle")}
+            </p>
+          ) : (
           <nav
             className="space-y-1"
             aria-label={t("organization.inspection.sections")}
@@ -863,10 +873,31 @@ const InspectionReport = () => {
               )
             })}
           </nav>
+          )}
         </aside>
 
         {/* Main Content */}
         <main className="min-w-0 flex-1 space-y-10">
+          {/* quality-bar-loop (Inspections, round 17, industry-standards
+              finding): this report's main content used to just be an empty
+              `.map` over zero pages, rendering a blank body below the
+              header/stats with no explanation -- UpdateInspection.tsx
+              already has this exact empty state (same icon/copy) for the
+              edit flow; the report (read-only) flow had never gotten it. */}
+          {templatePages.length === 0 && (
+            <div className="flex flex-col items-center justify-center rounded-md border border-border bg-card/30 py-24 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                <FileQuestion size={24} className="text-muted-foreground" />
+              </div>
+              <h3 className="mb-2 text-lg font-medium text-foreground">
+                {t("organization.inspection.noPagesTitle")}
+              </h3>
+              <p className="max-w-md text-sm text-muted-foreground">
+                {t("organization.inspection.noPagesReportDescription")}
+              </p>
+            </div>
+          )}
+
           {templatePages.map((page: PageDef, pi: number) => (
             <div
               key={pi}

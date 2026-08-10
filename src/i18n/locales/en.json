@@ -599,6 +599,7 @@
       "pages": "PAGES",
       "noPagesTitle": "No questions in this template",
       "noPagesDescription": "This inspection's template has no pages or questions defined yet, so there's nothing to answer here.",
+      "noPagesReportDescription": "This inspection's template has no pages or questions defined yet, so there's nothing to show in this report.",
       "section": "Section {{num}}",
       "note": "Note",
       "notePlaceholder": "Add your note here...",

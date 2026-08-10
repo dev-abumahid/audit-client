@@ -189,6 +189,54 @@ describe("InspectionReport", () => {
     expect(pill.className).not.toMatch(/text-primary\b/)
   })
 
+  // quality-bar-loop (Inspections, round 17, industry-standards finding):
+  // a template with zero pages/questions used to render a blank report
+  // body below the header/stats with no explanation -- UpdateInspection.tsx
+  // already has this exact empty state for the edit flow.
+  it("shows an empty-state message instead of a blank body for a zero-page template", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: { templateName: "Empty Template", pages: [] },
+          questionAnswers: [],
+        }),
+      },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    // Two spots now show the "no pages" title (main empty state + sidebar
+    // fallback, see the round-17 review-follow-up test below) -- getAllBy
+    // instead of the singular query.
+    expect(
+      screen.getAllByText("organization.inspection.noPagesTitle").length
+    ).toBeGreaterThan(0)
+    expect(
+      screen.getByText("organization.inspection.noPagesReportDescription")
+    ).toBeInTheDocument()
+  })
+
+  // Review finding on PR #691: the sidebar's Sections <nav> used to render
+  // silently empty (no fallback text) for the same zero-page condition,
+  // unlike UpdateInspection.tsx's sidebar which already shows one.
+  it("shows a fallback in the sidebar nav for a zero-page template", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: { templateName: "Empty Template", pages: [] },
+          questionAnswers: [],
+        }),
+      },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    expect(
+      screen.getAllByText("organization.inspection.noPagesTitle").length
+    ).toBeGreaterThan(0)
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument()
+  })
+
   // quality-bar-loop (Inspections, round 13, mobile finding): this
   // button measured 159x40px live, under the 44px touch-target guideline
   // -- the primary action of the whole report page.
