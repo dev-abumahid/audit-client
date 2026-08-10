@@ -1016,3 +1016,73 @@ wiring a check there (block or warn-and-confirm before allowing
 COMPLETED with unanswered required questions) is a real UX fix within
 one round's scope, unlike the orphaned `RunInspection.tsx` flow or a
 full inspection-scoring feature, both larger product decisions.
+
+## Round 18 (UX)
+
+Shipped as aexa-frontend PR [#692](https://github.com/Qiyrix/aexa-frontend/pull/692), merged. The most
+iterated single fix this loop -- 3 fix-producing review rounds on one
+PR, worth recording in full since two of the three "answered" detection
+strategies tried were each wrong in opposite directions, and future
+rounds touching this same check should start from what's proven rather
+than re-discovering it:
+
+1. **First attempt** -- `answer === "" || answer == null` (borrowed
+   from InspectionReport.tsx's own `totalAnswered` convention). Broken:
+   `UpdateInspection.tsx`'s init effect seeds every checkbox question
+   with a local default of `false` and every slider with a non-empty
+   default (`parseSliderDefault`), so an untouched required checkbox/
+   slider already reads as "answered" and silently passes -- likely the
+   single most common `isRequired` type, so this made the fix largely a
+   no-op. Caught by review, which also flagged that the round's own test
+   faked the checkbox as `answer: ""`, an unrealistic state that masked
+   the gap.
+2. **Second attempt** -- `!questionAnswerId` (only set once a real
+   backend `QuestionAnswer` row exists). Looked right, but broken in the
+   *opposite* direction: verified directly against aexa-server's
+   `inspection.service.ts`, `create_inspection_into_db` creates a
+   `QuestionAnswer` row for **every** question in the template at
+   inspection-creation time (the frontend's create payload always
+   submits one entry per question, defaults included, not just touched
+   ones) -- so `questionAnswerId` exists for every question from the
+   moment an inspection is created, checkbox/slider included, making
+   this check never block anything for a real inspection. Caught by a
+   second review round instructed to re-verify the claim against the
+   actual backend code rather than trust the reasoning.
+3. **Landed design** -- back to the value-based check, but now scoped
+   honestly in a code comment: a real "unanswered" signal for text/
+   date/multipleSelect/media questions (blank default genuinely is
+   `""`), and a *documented, deliberate no-op* for checkbox/slider,
+   whose local defaults are real, valid answers with no distinguishable
+   "unset" state anywhere in this data model. A true tri-state
+   "unanswered" checkbox would need a data-model change (a real `null`
+   third state, with matching UI) well beyond one round's scope --
+   written down rather than silently left unstated. A third review
+   round, told to independently re-verify the backend claim itself
+   (not just trust the commit message) and judge whether the narrowed
+   scope was still worth shipping, came back clean.
+
+QA gate (all three rounds): typecheck/lint clean, full suite ending at
+356 files / 5275 tests passing. Tests updated each round to match:
+final tests cover blocking on a genuinely-unanswered required text
+question, and confirm an untouched required checkbox does *not* block
+(the documented limitation, verified rather than assumed). Live-verified
+against the real running dev server across the whole arc: confirmed a
+real inspection's happy-path completion (all required answered) still
+succeeds after every version of the check; used the session's
+established fetch-monkeypatch technique to inject a genuinely-unanswered
+required question into a live inspection's response and confirmed the
+final version blocks it with "Cannot mark as Completed: 1 required
+question(s) still unanswered" -- then restored the real fetch and
+reloaded to confirm the actual backend record was never touched.
+
+**Next fix (Round 19):** the checkbox/slider required-validation gap
+documented above is a real, known-open item, but fixing it needs a
+data-model change (a genuine tri-state "unanswered" value) rather than
+a UI-only patch -- flagging for a future round's product-level
+decision rather than attempting it piecemeal. For round 19, moving to
+resilience (5/10, last touched round 12): its most concrete remaining
+gap per round 11's re-score is any resilience finding not already
+closed by round 12's isError/isLoading fixes -- a fresh, scoped
+resilience pass over Create/UpdateInspection.tsx and
+StartInspectionModal.tsx (network-failure toasts on the auto-save path,
+concurrent-edit/stale-cache handling) is the natural next candidate.
