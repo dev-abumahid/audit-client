@@ -252,6 +252,45 @@ describe("UploadNotesModal", () => {
     expect(input.className).not.toMatch(/\bhidden\b/)
   })
 
+  // quality-bar-loop (Inspections, round 15, visual polish finding): this
+  // dropzone hardcoded raw Tailwind gray/white instead of the app's
+  // semantic tokens (every other Inspections upload control uses border-
+  // border/text-foreground/text-muted-foreground), and its hand-rolled SVG
+  // used kebab-case attribute names instead of React's camelCase, which
+  // React logs as an "Invalid DOM property" console warning on every
+  // render -- confirmed live at the browser console.
+  it("uses the app's semantic color tokens for the file dropzone, not raw gray", async () => {
+    renderModal()
+
+    await userEvent.click(
+      screen.getByText("organization.inspection.extractNoteFromFile")
+    )
+    const input = document.querySelector<HTMLInputElement>(
+      'input[type="file"]'
+    )!
+    const dropzone = input.closest("label")!
+
+    expect(dropzone.className).toMatch(/border-border/)
+    expect(dropzone.className).not.toMatch(/border-gray-300/)
+    expect(dropzone.className).not.toMatch(/bg-white\b/)
+  })
+
+  it("renders the dropzone icon without an invalid-DOM-property console warning", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    renderModal()
+    await userEvent.click(
+      screen.getByText("organization.inspection.extractNoteFromFile")
+    )
+
+    const invalidPropWarning = errorSpy.mock.calls.some((call) =>
+      String(call[0]).includes("Invalid DOM property")
+    )
+    expect(invalidPropWarning).toBe(false)
+
+    errorSpy.mockRestore()
+  })
+
   it("shows the update form when a note already exists", () => {
     mockUseGetNoteByInspectionIdQuery.mockReturnValue({
       data: { data: { id: "note-1", extracted_text: "Existing note content" } },

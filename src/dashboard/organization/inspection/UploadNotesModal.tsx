@@ -19,7 +19,7 @@ import {
   useSaveRawNoteMutation,
   useUpdateNoteMutation,
 } from "@/redux/apis/organization/note.api"
-import { FileUp, Notebook, TypeOutline } from "lucide-react"
+import { CloudUpload, FileUp, Notebook, TypeOutline } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -395,35 +395,35 @@ export default function UploadNotesModal({
             <div>
               <label
                 htmlFor="file"
-                className="block text-sm text-gray-500 dark:text-gray-300"
+                className="block text-sm text-muted-foreground"
               >
                 {t("organization.inspection.uploadAnyFile")}
               </label>
 
+              {/* quality-bar-loop (Inspections, round 15, visual polish
+                  finding): this dropzone was the only upload control in
+                  the Inspections feature hand-rolling raw Tailwind
+                  gray/white instead of the app's semantic tokens (every
+                  other dropzone -- CreateNewInspection.tsx,
+                  UpdateInspection.tsx -- uses border-border/text-
+                  foreground/text-muted-foreground), and its raw inline SVG
+                  used kebab-case attribute names (stroke-width,
+                  stroke-linecap/-linejoin) instead of React's camelCase,
+                  spamming console with "Invalid DOM property" warnings on
+                  every render -- confirmed live. Swapped for the same
+                  CloudUpload icon + semantic-token treatment already
+                  established in the other two upload flows. */}
               <label
                 htmlFor="dropzone-file-pdf"
-                className="mx-auto mt-2 flex w-full max-w-lg cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-gray-300 bg-white p-5 text-center dark:border-gray-700 dark:bg-gray-900"
+                className="mx-auto mt-2 flex w-full max-w-lg cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-border bg-muted/30 p-5 text-center"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="1.5"
-                  stroke="currentColor"
-                  className="h-8 w-8 text-gray-500 dark:text-gray-400"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"
-                  />
-                </svg>
+                <CloudUpload className="h-8 w-8 text-muted-foreground" />
 
-                <h2 className="mt-1 font-medium tracking-wide text-gray-700 dark:text-gray-200">
+                <h2 className="mt-1 font-medium tracking-wide text-foreground">
                   {t("organization.inspection.anyFile")}
                 </h2>
 
-                <p className="mt-2 text-xs tracking-wide text-gray-500 dark:text-gray-400">
+                <p className="mt-2 text-xs tracking-wide text-muted-foreground">
                   {t("organization.inspection.uploadAnyFileHint")}{" "}
                 </p>
 
@@ -441,7 +441,7 @@ export default function UploadNotesModal({
                 />
               </label>
               {file && (
-                <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+                <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
                   {t("organization.inspection.selectedFile", {
                     name: file.name,
                   })}
