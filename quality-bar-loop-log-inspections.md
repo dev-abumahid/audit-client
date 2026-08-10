@@ -558,3 +558,68 @@ memoized `QuestionCard`/`PageSection` pattern) -- is next: a larger,
 riskier refactor (extracting per-question sub-components across two
 700-1300 line files) that needs more careful design than a
 single-effect fix, so it gets its own round.
+
+## Round 10 (efficiency -- last of the four originally-identified findings)
+
+Shipped as aexa-frontend PR [#685](https://github.com/Qiyrix/aexa-frontend/pull/685), merged. The largest and riskiest single change of this loop.
+
+Both `CreateNewInspection.tsx` and `UpdateInspection.tsx` inlined
+their entire per-question `Card` in the parent's
+`page.questions.map()`, so editing any single question's answer
+re-rendered every question on the page on every keystroke -- the same
+class of issue `InspectionReport.tsx`'s own memoized
+`QuestionCard`/`PageSection` pattern already avoids. Extracted a
+memoized `QuestionCard` component in each file (`React.memo`,
+primitive/stable props only), which required making every callback
+passed into it referentially stable:
+
+- `CreateNewInspection.tsx`: three handlers already used the
+  functional setState-updater form and just needed `useCallback` with
+  an empty dep array; two others were rewritten to read
+  `prev[questionId]` inside the functional updater instead of closing
+  over `answers` directly.
+- `UpdateInspection.tsx` needed a different pattern since its
+  auto-save mutation always sends the full answer/note/mediaFiles
+  trio, not a partial patch -- added an `answersRef` mirror (synced
+  via a small effect) so handlers can read the *current* value of a
+  question's other fields at save time while `setAnswers` itself
+  stays a pure functional updater.
+
+Given the size and risk of this change, dispatched an unusually
+thorough review (allowed up to 600 words instead of the usual ~350)
+covering: behavioral equivalence of the rewritten handlers, a
+rapid-fire same-question-edit race in the new `answersRef` pattern,
+RTK Query mutation-trigger reference stability (traced into
+`@reduxjs/toolkit`'s own source to confirm `updateQuestionAnswer` is
+genuinely stable), `useParams()` stability assumptions, and a
+line-by-line JSX diff of both extracted components against the
+originals. No confirmed regressions: the one race condition found
+(same-question, two-different-fields edited in the same tick can drop
+the first field's change from the persisted payload until the next
+edit) was verified to exist identically in the pre-refactor
+closure-based code -- a preserved characteristic, not something this
+refactor introduced. Two minor, non-blocking notes (a cosmetic
+`?? ""` vs `!` non-null-assertion difference, and a currently-safe but
+fragile `mediaFiles` array fallback) were judged not worth blocking on.
+
+QA gate: typecheck/lint clean, full suite 355 files / 5248 tests
+passing (all existing functional tests for both files pass unchanged
+against the refactored components -- meaningful given neither file
+has a dedicated render-count test, matching this codebase's own
+existing convention for `InspectionReport.tsx`'s memoized components).
+Live-verified extensively: typing in an answer updates only that
+field, `UpdateInspection`'s debounced auto-save still fires and
+succeeds (confirmed via the PUT request and success toast), the note
+field opens/edits independently of the answer field, and the "Add
+Finding" modal still opens with the correct question data --
+confirmed on both `CreateNewInspection.tsx` (fresh inspection flow)
+and `UpdateInspection.tsx` (editing an existing one).
+
+**This closes out all four originally-identified efficiency findings
+from round 1/3's judge panel.** Combined with rounds 4-9's security,
+resilience, UX, and accessibility fixes, a fresh 9-judge re-score is
+warranted before picking the next round -- most axes should have
+moved meaningfully since the round-3 baseline (4.56/10 average). Per
+the user's standing instruction to keep working autonomously without
+pausing, re-running the panel now and continuing directly into
+whichever axis is lowest.
