@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // UpdateInspection.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Button } from "@/components/ui/button"
@@ -758,8 +757,15 @@ export default function UpdateInspection() {
         try {
           await handleUpdateQuestion(questionId, data)
           toast.success(t("organization.inspection.answerSavedToast"))
-        } catch (error) {
-          toast.error(t("organization.inspection.answerSaveFailedToast"))
+        } catch {
+          // quality-bar-loop (Inspections, round 19, resilience finding):
+          // handleUpdateQuestion already toasts a specific error (with the
+          // backend's actual message) before re-throwing -- this used to
+          // catch that same rethrown error and toast a second, generic
+          // "Failed to save answer" on top of it, so every single
+          // auto-save failure surfaced as two stacked toasts. This
+          // try/finally only needs to reset the saving indicator now; the
+          // error itself was already reported.
         } finally {
           setSavingQuestions((prev) => ({ ...prev, [questionId]: false }))
         }

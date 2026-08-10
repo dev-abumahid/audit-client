@@ -648,7 +648,6 @@
       "inspectionLoadError": "Impossible de charger cette inspection. Veuillez réessayer.",
       "backToInspections": "Retour aux inspections",
       "answerSavedToast": "Réponse enregistrée avec succès",
-      "answerSaveFailedToast": "Échec de l'enregistrement de la réponse",
       "updateQuestionFailedToast": "Échec de la mise à jour de la question {{questionId}} : {{message}}",
       "statusUpdatedToast": "Statut mis à jour vers {{status}}",
       "statusUpdateFailedToast": "Échec de la mise à jour du statut",

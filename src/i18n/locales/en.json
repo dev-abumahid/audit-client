@@ -648,7 +648,6 @@
       "inspectionLoadError": "Couldn't load this inspection. Please try again.",
       "backToInspections": "Back to Inspections",
       "answerSavedToast": "Answer saved successfully",
-      "answerSaveFailedToast": "Failed to save answer",
       "updateQuestionFailedToast": "Failed to update question {{questionId}}: {{message}}",
       "statusUpdatedToast": "Status updated to {{status}}",
       "statusUpdateFailedToast": "Failed to update status",

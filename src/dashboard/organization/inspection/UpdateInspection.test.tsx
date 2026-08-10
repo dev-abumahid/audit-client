@@ -507,6 +507,34 @@ describe("UpdateInspection", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 19, resilience finding): the
+  // debounced auto-save wrapper's own catch used to toast a second,
+  // generic "Failed to save answer" on top of handleUpdateQuestion's
+  // already-fired, more specific error toast -- every auto-save failure
+  // stacked two toasts. Confirms exactly one error toast fires now.
+  it("shows exactly one error toast when auto-save fails, not two", async () => {
+    const toast = (await import("sonner")).toast
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+    mockUpdateQuestionAnswer.mockReturnValue({
+      unwrap: () => Promise.reject({ data: { message: "Network error" } }),
+    })
+
+    render(<UpdateInspection />, withRouter)
+    const checkbox = screen.getAllByRole("checkbox")[0]
+    await userEvent.click(checkbox)
+
+    await waitFor(() => expect(mockUpdateQuestionAnswer).toHaveBeenCalled(), {
+      timeout: 2000,
+    })
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1))
+    expect(toast.error).toHaveBeenCalledWith(
+      "organization.inspection.updateQuestionFailedToast"
+    )
+  })
+
   it("does not auto-save a question with no existing questionAnswerId", () => {
     vi.useFakeTimers()
     mockUseGetSingleInspectionQuery.mockReturnValue({
