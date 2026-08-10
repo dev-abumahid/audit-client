@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { useSectionScroll } from "@/hooks/useSectionScroll"
-import { useCreateNewTemplateMutation } from "@/redux/apis/organization/template.api"
+import {
+  useCreateNewTemplateMutation,
+  useGetTemplateCategoriesQuery,
+} from "@/redux/apis/organization/template.api"
 import type {
   AnswerType,
   QuestionField,
@@ -27,6 +30,14 @@ const uid = () => `rhf-${++_idCounter}-${Math.random().toString(36).slice(2)}`
 const CreateTemplatePage = () => {
   const { t } = useTranslation()
   const [createNewTemplate, { isLoading }] = useCreateNewTemplateMutation()
+  // quality-bar-loop round 4 (industry-standards, round-1 finding): no
+  // categories/tags/folders at all -- category is a plain free-text field
+  // (see aexa-server's template.prisma comment for why, not a relational
+  // taxonomy), with a <datalist> of the org's own already-used values so
+  // repeat categories converge on the same spelling, same pattern as
+  // AuditPage's lead-auditor suggestions.
+  const { data: categoriesData } = useGetTemplateCategoriesQuery()
+  const categorySuggestions = categoriesData?.data ?? []
   const navigate = useNavigate()
   const [addModalTarget, setAddModalTarget] = useState<number | null>(null)
   // aexa-frontend#490 -- role="dialog"/focus-trap/Escape for the "Add New"
@@ -56,6 +67,7 @@ const CreateTemplatePage = () => {
       defaultValues: {
         templateName: t("organization.templates.create.defaultTemplateName"),
         templateDisc: "",
+        category: "",
         pages: [
           {
             id: uid(),
@@ -306,6 +318,27 @@ const CreateTemplatePage = () => {
                     )}
                     className="resize-none border border-border bg-transparent text-muted-foreground focus:ring-0"
                   />
+                )}
+              />
+              <Controller
+                control={control}
+                name="category"
+                render={({ field }) => (
+                  <>
+                    <input
+                      {...field}
+                      list="create-template-category-suggestions"
+                      placeholder={t(
+                        "organization.templates.create.categoryPlaceholder"
+                      )}
+                      className="w-full rounded-md border border-border bg-transparent p-2 text-sm text-foreground focus:ring-0"
+                    />
+                    <datalist id="create-template-category-suggestions">
+                      {categorySuggestions.map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
+                  </>
                 )}
               />
             </div>

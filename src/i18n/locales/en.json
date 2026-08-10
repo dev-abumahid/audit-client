@@ -364,7 +364,9 @@
         "systemTemplateTooltip": "System template - cannot be edited or deleted",
         "editButtonLabel": "Edit {{name}}",
         "deleteButtonLabel": "Delete {{name}}",
-        "duplicateButtonLabel": "Duplicate {{name}}"
+        "duplicateButtonLabel": "Duplicate {{name}}",
+        "categoryFilterLabel": "Filter by category",
+        "allCategories": "All categories"
       },
       "report": {
         "untitled": "Untitled Template",
@@ -410,6 +412,7 @@
         "namePlaceholder": "Template Name",
         "nameRequired": "Template name is required",
         "descPlaceholder": "Add a description for this template...",
+        "categoryPlaceholder": "Category (e.g. Safety, Quality)",
         "noSections": "No sections yet.",
         "createFirstSection": "Create First Section",
         "addNewSection": "Add New Section",

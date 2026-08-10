@@ -33,6 +33,7 @@ vi.mock("@/redux/apis/organization/template.api", () => ({
     mockCreateNewTemplate,
     { isLoading: false },
   ],
+  useGetTemplateCategoriesQuery: () => ({ data: { data: [] } }),
 }))
 
 // PageSection pulls in dnd-kit and its own mutations — irrelevant to the
@@ -239,6 +240,32 @@ describe("CreateTemplatePage", () => {
       expect(mockToastSuccess).toHaveBeenCalledWith("Template created")
     )
     expect(mockNavigate).toHaveBeenCalledWith("/organization/audit/templates")
+  })
+
+  // quality-bar-loop round 4 (industry-standards): category/tag support.
+  it("includes the typed category in the submitted payload", async () => {
+    mockCreateNewTemplate.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ success: true, message: "Template created" }),
+    })
+
+    renderPage()
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        /organization\.templates\.create\.categoryPlaceholder/i
+      ),
+      "Safety"
+    )
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.templates\.create\.saveTemplate/i,
+      })
+    )
+
+    await waitFor(() => expect(mockCreateNewTemplate).toHaveBeenCalled())
+    const submittedFormData = mockCreateNewTemplate.mock.calls[0][0] as FormData
+    const payload = JSON.parse(submittedFormData.get("data") as string)
+    expect(payload.category).toBe("Safety")
   })
 
   it("shows an error toast when the create response indicates failure, and does not navigate away", async () => {

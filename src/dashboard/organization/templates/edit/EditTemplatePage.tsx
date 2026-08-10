@@ -7,6 +7,7 @@ import { useModalA11y } from "@/hooks/useModalA11y"
 import { useSectionScroll } from "@/hooks/useSectionScroll"
 import {
   useGetSingleTemplateQuery,
+  useGetTemplateCategoriesQuery,
   useUpdateTemplateBasicsMutation,
 } from "@/redux/apis/organization/template.api"
 import type {
@@ -61,11 +62,16 @@ const EditTemplatePage = () => {
   const initialLoadComplete = useRef(false)
   const { data: templateData, isLoading: isFetchingTemplate } =
     useGetSingleTemplateQuery(id || "", { skip: !id })
+  // quality-bar-loop round 4 (industry-standards): same free-text +
+  // suggest-from-existing-values pattern as CreateTemplatePage.tsx.
+  const { data: categoriesData } = useGetTemplateCategoriesQuery()
+  const categorySuggestions = categoriesData?.data ?? []
 
   const form = useForm<TemplateFormValues>({
     defaultValues: {
       templateName: t("organization.templates.create.defaultTemplateName"),
       templateDisc: "",
+      category: "",
       pages: [],
     },
     mode: "onChange", // Track changes in real-time
@@ -155,6 +161,7 @@ const EditTemplatePage = () => {
           t("organization.templates.create.defaultTemplateName")
       )
       setValue("templateDisc", template.templateDisc || "")
+      setValue("category", template.category || "")
 
       if (template.templateLogo) {
         setLogoPreview(template.templateLogo)
@@ -475,6 +482,27 @@ const EditTemplatePage = () => {
                     )}
                     className="resize-none border border-border bg-transparent text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                   />
+                )}
+              />
+              <Controller
+                control={control}
+                name="category"
+                render={({ field }) => (
+                  <>
+                    <input
+                      {...field}
+                      list="edit-template-category-suggestions"
+                      placeholder={t(
+                        "organization.templates.create.categoryPlaceholder"
+                      )}
+                      className="w-full rounded-md border border-border bg-transparent p-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                    />
+                    <datalist id="edit-template-category-suggestions">
+                      {categorySuggestions.map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
+                  </>
                 )}
               />
             </div>

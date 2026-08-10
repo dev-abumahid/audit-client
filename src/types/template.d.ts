@@ -27,6 +27,7 @@ export interface ITemplate {
   templateLogo?: string | null
   templateName: string
   templateDisc?: string | null
+  category?: string | null
   pages: IPage[]
   access: ITemplateAccess[]
   createdAt: Date
@@ -43,6 +44,7 @@ export interface TemplateSummary {
   templateLogo?: string | null
   templateName: string
   templateDisc?: string | null
+  category?: string | null
   createdAt: string
   updatedAt: string
   access: { userId: string }[]
@@ -74,5 +76,6 @@ export interface PageField {
 export interface TemplateFormValues {
   templateName: string
   templateDisc: string
+  category: string
   pages: PageField[]
 }

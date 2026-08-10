@@ -55,6 +55,7 @@ vi.mock("@/redux/apis/organization/template.api", () => ({
     mockUpdateTemplateBasics,
     { isLoading: false },
   ],
+  useGetTemplateCategoriesQuery: () => ({ data: { data: [] } }),
 }))
 
 // EditPageSection pulls in dnd-kit and its own mutations — irrelevant to the
@@ -327,6 +328,31 @@ describe("EditTemplatePage", () => {
     await waitFor(() => expect(mockUpdateTemplateBasics).toHaveBeenCalled(), {
       timeout: 3000,
     })
+  }, 6000)
+
+  // quality-bar-loop round 4 (industry-standards): category/tag support.
+  it("loads the existing category into the field and includes edits in the save payload", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplateData({ category: "Safety" }) },
+      isLoading: false,
+    })
+    mockUpdateTemplateBasics.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    renderPage()
+
+    const categoryInput = await screen.findByDisplayValue("Safety")
+    fireEvent.change(categoryInput, { target: { value: "Quality" } })
+
+    await waitFor(() => expect(mockUpdateTemplateBasics).toHaveBeenCalled(), {
+      timeout: 3000,
+    })
+    const call = mockUpdateTemplateBasics.mock.calls[0][0] as {
+      data: FormData
+    }
+    const payload = JSON.parse(call.data.get("data") as string)
+    expect(payload.category).toBe("Quality")
   }, 6000)
 
   // Found by PR #675's review while auditing isSystemTemplate.ts's other

@@ -18,6 +18,7 @@ import {
   useDeleteTemplateMutation,
   useDuplicateTemplateMutation,
   useGetAllTemplatesQuery,
+  useGetTemplateCategoriesQuery,
 } from "@/redux/apis/organization/template.api"
 import type { TemplateSummary } from "@/types/template"
 import { format } from "date-fns"
@@ -89,7 +90,13 @@ export default function TemplatesPage() {
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
 
   const [searchInput, setSearchInput] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("")
   const [page, setPage] = useState(1)
+  // quality-bar-loop round 4 (industry-standards): filter dropdown lists
+  // the org's own already-used categories -- an unfiltered free-text field
+  // here would let a typo silently return zero results with no feedback.
+  const { data: categoriesData } = useGetTemplateCategoriesQuery()
+  const categoryOptions = categoriesData?.data ?? []
   const [createTemplateModalOpen, setCreateTemplateModalOpen] =
     useState<boolean>(false)
 
@@ -107,6 +114,7 @@ export default function TemplatesPage() {
     page,
     limit,
     searchTerm: debouncedSearchTerm,
+    category: categoryFilter || undefined,
   })
 
   const templates: TemplateSummary[] = data?.data || []
@@ -216,6 +224,27 @@ export default function TemplatesPage() {
             />
           </div>
 
+          {categoryOptions.length > 0 && (
+            <select
+              aria-label={t("organization.templates.list.categoryFilterLabel")}
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value)
+                setPage(1)
+              }}
+              className="h-11 rounded-md border border-input bg-input/20 px-2 text-sm dark:bg-input/30"
+            >
+              <option value="">
+                {t("organization.templates.list.allCategories")}
+              </option>
+              {categoryOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          )}
+
           {canWrite && (
             <Button
               onClick={() => setCreateTemplateModalOpen(true)}
@@ -283,12 +312,19 @@ export default function TemplatesPage() {
                             className="h-8 w-8 rounded-md object-cover"
                           />
                         )}
-                        <div className="line-clamp-1 font-medium">
-                          <Link
-                            to={`/organization/audit/template/report/${template.id}`}
-                          >
-                            {template.templateName}
-                          </Link>
+                        <div>
+                          <div className="line-clamp-1 font-medium">
+                            <Link
+                              to={`/organization/audit/template/report/${template.id}`}
+                            >
+                              {template.templateName}
+                            </Link>
+                          </div>
+                          {template.category && (
+                            <span className="mt-1 inline-block rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                              {template.category}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </TableCell>

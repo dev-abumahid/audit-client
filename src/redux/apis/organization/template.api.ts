@@ -7,6 +7,7 @@ interface GetAllTemplatesArgs {
   page: number
   limit: number
   searchTerm: string
+  category?: string
 }
 
 interface UpdateOrCreateQuestionArgs {
@@ -31,8 +32,20 @@ const templateApi = baseApi.injectEndpoints({
       PaginatedApiResponse<TemplateSummary>,
       GetAllTemplatesArgs
     >({
-      query: ({ page, limit, searchTerm }) => ({
-        url: `/template?${buildQueryString({ page, limit, searchTerm })}`,
+      query: ({ page, limit, searchTerm, category }) => ({
+        url: `/template?${buildQueryString({ page, limit, searchTerm, category })}`,
+        method: "GET",
+      }),
+      providesTags: ["TEMPLATE"],
+    }),
+    // aexa-server PR #323 (quality-bar-loop industry-standards fix) --
+    // flat list of the org's own distinct, already-used category values,
+    // for a suggest-from-existing-values datalist (see AuditPage's
+    // lead-auditor field for the same pattern) rather than a managed
+    // taxonomy.
+    getTemplateCategories: builder.query<ApiResponse<string[]>, void>({
+      query: () => ({
+        url: `/template/categories`,
         method: "GET",
       }),
       providesTags: ["TEMPLATE"],
@@ -126,6 +139,7 @@ const templateApi = baseApi.injectEndpoints({
 
 export const {
   useGetAllTemplatesQuery,
+  useGetTemplateCategoriesQuery,
   useDeleteTemplateMutation,
   useCreateNewTemplateMutation,
   useGetSingleTemplateQuery,

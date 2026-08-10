@@ -364,7 +364,9 @@
         "systemTemplateTooltip": "Modèle système - ne peut pas être modifié ou supprimé",
         "duplicateButtonLabel": "Dupliquer {{name}}",
         "editButtonLabel": "Modifier {{name}}",
-        "deleteButtonLabel": "Supprimer {{name}}"
+        "deleteButtonLabel": "Supprimer {{name}}",
+        "categoryFilterLabel": "Filtrer par catégorie",
+        "allCategories": "Toutes les catégories"
       },
       "report": {
         "untitled": "Modèle sans titre",
@@ -410,6 +412,7 @@
         "namePlaceholder": "Nom du modèle",
         "nameRequired": "Le nom du modèle est requis",
         "descPlaceholder": "Ajoutez une description pour ce modèle...",
+        "categoryPlaceholder": "Catégorie (ex. Sécurité, Qualité)",
         "noSections": "Aucune section pour le moment.",
         "createFirstSection": "Créer la première section",
         "addNewSection": "Ajouter une section",

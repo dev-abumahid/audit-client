@@ -31,6 +31,7 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
 }))
 
 const mockUseGetAllTemplatesQuery = vi.fn()
+const mockUseGetTemplateCategoriesQuery = vi.fn()
 const mockDeleteTemplate = vi.fn()
 const mockDuplicateTemplate = vi.fn()
 // Mutable per-test, same convention as RiskRegisterPage.test.tsx's
@@ -50,6 +51,8 @@ vi.mock("@/redux/apis/organization/template.api", () => ({
     mockDuplicateTemplate,
     { isLoading: mockIsTemplateDuplicating },
   ],
+  useGetTemplateCategoriesQuery: (...args: unknown[]) =>
+    mockUseGetTemplateCategoriesQuery(...args),
 }))
 
 vi.mock("./shared/CreateTemplateWithAIDialog", () => ({
@@ -91,6 +94,7 @@ describe("TemplatesPage", () => {
     mockLanguage = undefined
     mockRole = "ADMIN"
     mockUseGetAllTemplatesQuery.mockReset()
+    mockUseGetTemplateCategoriesQuery.mockReset()
     mockDeleteTemplate.mockReset()
     mockDuplicateTemplate.mockReset()
     mockIsTemplateDeleting = false
@@ -99,6 +103,7 @@ describe("TemplatesPage", () => {
       data: { data: [makeTemplate()], meta: { total: 1 } },
       isLoading: false,
     })
+    mockUseGetTemplateCategoriesQuery.mockReturnValue({ data: { data: [] } })
   })
 
   it("shows Generate Template, Create Template, Edit and Delete for an ADMIN", () => {
@@ -245,6 +250,77 @@ describe("TemplatesPage", () => {
     expect(editButton.className).toMatch(/\bw-11\b/)
     expect(deleteButton.className).toMatch(/\bh-11\b/)
     expect(deleteButton.className).toMatch(/\bw-11\b/)
+  })
+
+  // aexa-server PR #323 / quality-bar-loop round 4 (industry-standards):
+  // category/tag support, another gap shared by every reference tool in
+  // this category.
+  describe("category filter", () => {
+    it("shows the category as a badge on rows that have one, and omits it otherwise", () => {
+      mockUseGetAllTemplatesQuery.mockReturnValue({
+        data: {
+          data: [
+            makeTemplate({ id: "t1", category: "Safety" }),
+            makeTemplate({ id: "t2", templateName: "No category", category: null }),
+          ],
+          meta: { total: 2 },
+        },
+        isLoading: false,
+      })
+
+      render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+      expect(screen.getByText("Safety")).toBeInTheDocument()
+    })
+
+    it("does not render a category filter dropdown when the org has no categorized templates", () => {
+      mockUseGetTemplateCategoriesQuery.mockReturnValue({ data: { data: [] } })
+      render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+      expect(
+        screen.queryByLabelText(
+          "organization.templates.list.categoryFilterLabel"
+        )
+      ).not.toBeInTheDocument()
+    })
+
+    it("renders a category filter dropdown populated from the org's distinct categories, and refetches on change", async () => {
+      mockUseGetTemplateCategoriesQuery.mockReturnValue({
+        data: { data: ["Electrical", "Safety"] },
+      })
+
+      render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+      const select = screen.getByLabelText(
+        "organization.templates.list.categoryFilterLabel"
+      )
+      expect(
+        screen.getByRole("option", { name: "Electrical" })
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("option", { name: "Safety" })
+      ).toBeInTheDocument()
+
+      await userEvent.selectOptions(select, "Safety")
+
+      await waitFor(() =>
+        expect(mockUseGetAllTemplatesQuery).toHaveBeenLastCalledWith(
+          expect.objectContaining({ category: "Safety", page: 1 })
+        )
+      )
+    })
+
+    it("passes category: undefined (no filter) when 'All categories' is selected", async () => {
+      mockUseGetTemplateCategoriesQuery.mockReturnValue({
+        data: { data: ["Safety"] },
+      })
+
+      render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+      expect(mockUseGetAllTemplatesQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ category: undefined })
+      )
+    })
   })
 
   // aexa-server PR #322 / quality-bar-loop round 3 (industry-standards):
