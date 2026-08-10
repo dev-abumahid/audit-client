@@ -25,8 +25,9 @@ import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { useGetAllTemplatesQuery } from "@/redux/apis/organization/template.api"
 import type { SiteSummary } from "@/types/organization"
 import type { TemplateSummary } from "@/types/template"
+import { isSystemTemplateName } from "@/utils/isSystemTemplate"
 import { Check, ChevronDown, FileText, Globe } from "lucide-react"
-import { useState } from "react"
+import { useId, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
@@ -47,6 +48,15 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
   const [templateOpen, setTemplateOpen] = useState(false)
   const [templateSearch, setTemplateSearch] = useState("")
   const [siteSearch, setSiteSearch] = useState("")
+  // quality-bar-loop round 2 (accessibility): aria-labelledby on the
+  // trigger buttons below needs to combine the static field label with
+  // each trigger's own dynamic text (the selected site/template name) --
+  // pointing aria-labelledby at ONLY the static label would replace the
+  // button's own text-derived accessible name entirely (buttons are
+  // labelable elements), the same bug found and fixed on AuditPage's
+  // RiskMultiSelect this session.
+  const siteStateTextId = useId()
+  const templateStateTextId = useId()
   const navigate = useNavigate()
 
   const { data: sitesData } = useGetAllSitesQuery({
@@ -77,6 +87,15 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
 
   const selectedTemplate = templatesData?.data?.find(
     (t: TemplateSummary) => t.id === selectedTemplateId
+  )
+
+  // quality-bar-loop round 2 (UX, round-1 finding): the protected system
+  // template ("AI-Generated Findings, do not edit") was live-confirmed
+  // selectable here, with nothing stopping a real inspection from being
+  // started against it -- same exclusion TemplatesPage.tsx already
+  // applies to Edit/Delete for the identical template.
+  const selectableTemplates = (templatesData?.data ?? []).filter(
+    (temp: TemplateSummary) => !isSystemTemplateName(temp.templateName)
   )
 
   const onSubmit = (data: FormData) => {
@@ -113,21 +132,33 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Site Selection */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <label
+              id="start-inspection-site-label"
+              className="flex items-center gap-2 text-sm font-medium text-foreground"
+            >
               <Globe className="h-4 w-4 text-muted-foreground" />
               {t("organization.inspection.selectSite")}
             </label>
 
             <Popover open={siteOpen} onOpenChange={setSiteOpen}>
               <PopoverTrigger asChild>
+                {/* quality-bar-loop round 2 (mobile, round-1 finding): the
+                    shared Button's default height (h-7) is well under the
+                    44px touch-target guideline, same bug class fixed on
+                    9+ pages this session. aria-labelledby combines the
+                    static field label with this span's own dynamic text
+                    (see siteStateTextId comment above). */}
                 <Button
                   variant="outline"
                   role="combobox"
-                  className="w-full justify-between"
+                  aria-labelledby={`start-inspection-site-label ${siteStateTextId}`}
+                  className="h-11 w-full justify-between"
                 >
-                  {selectedSite
-                    ? selectedSite.name
-                    : t("organization.inspection.chooseSite")}
+                  <span id={siteStateTextId}>
+                    {selectedSite
+                      ? selectedSite.name
+                      : t("organization.inspection.chooseSite")}
+                  </span>
                   <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -152,7 +183,7 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
                     <CommandGroup>
                       {sitesData?.data?.map((site: SiteSummary) => (
                         <CommandItem
-                          className="w-full"
+                          className="h-11 w-full"
                           key={site.id}
                           value={site.name}
                           onSelect={() => {
@@ -179,7 +210,10 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
 
           {/* Template Selection */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <label
+              id="start-inspection-template-label"
+              className="flex items-center gap-2 text-sm font-medium text-foreground"
+            >
               <FileText className="h-4 w-4 text-muted-foreground" />
               {t("organization.inspection.selectTemplate")}
             </label>
@@ -189,11 +223,14 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
                 <Button
                   variant="outline"
                   role="combobox"
-                  className="w-full justify-between"
+                  aria-labelledby={`start-inspection-template-label ${templateStateTextId}`}
+                  className="h-11 w-full justify-between"
                 >
-                  {selectedTemplate
-                    ? selectedTemplate.templateName
-                    : t("organization.inspection.chooseTemplate")}
+                  <span id={templateStateTextId}>
+                    {selectedTemplate
+                      ? selectedTemplate.templateName
+                      : t("organization.inspection.chooseTemplate")}
+                  </span>
                   <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -213,8 +250,9 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
                         : t("organization.inspection.noTemplateFound")}
                     </CommandEmpty>
                     <CommandGroup>
-                      {templatesData?.data?.map((temp: TemplateSummary) => (
+                      {selectableTemplates.map((temp: TemplateSummary) => (
                         <CommandItem
+                          className="h-11"
                           key={temp.id}
                           value={temp.templateName}
                           onSelect={() => {
@@ -242,13 +280,14 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
 
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <Button type="button" variant="outline" className="h-11">
                 {t("organization.inspection.cancel")}
               </Button>
             </DialogClose>
             <Button
               type="submit"
               disabled={!selectedSiteId || !selectedTemplateId}
+              className="h-11"
             >
               {t("organization.inspection.startInspection")}
             </Button>

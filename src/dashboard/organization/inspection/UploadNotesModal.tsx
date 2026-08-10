@@ -252,10 +252,15 @@ export default function UploadNotesModal({
               </div>
             </div>
 
+            {/* quality-bar-loop round 2 (mobile, round-1 finding): the
+                shared Button's default height (h-7) is well under the
+                44px touch-target guideline, same bug class fixed on 9+
+                pages this session. */}
             <DialogFooter className="mt-4">
               <Button
                 onClick={() => setIsDeleteModalOpen(true)}
                 variant="destructive"
+                className="h-11"
               >
                 {t("organization.inspection.deleteNote")}
               </Button>
@@ -263,6 +268,7 @@ export default function UploadNotesModal({
                 disabled={isSplitting}
                 onClick={handleSplitNote}
                 variant="secondary"
+                className="h-11"
               >
                 {isSplitting
                   ? t("organization.inspection.splitting")
@@ -271,6 +277,7 @@ export default function UploadNotesModal({
               <Button
                 onClick={handleUpdate}
                 disabled={isUpdating || !extractedText.trim()}
+                className="h-11"
               >
                 {isUpdating
                   ? t("organization.inspection.updating")
@@ -379,7 +386,7 @@ export default function UploadNotesModal({
                   "organization.inspection.writeDetailedNotePlaceholder"
                 )}
                 rows={8}
-                className="overflow-y-aut mt-2 h-52 resize-none"
+                className="mt-2 h-52 resize-none overflow-y-auto"
               />
             </div>
           )}
@@ -428,7 +435,7 @@ export default function UploadNotesModal({
                 />
               </label>
               {file && (
-                <p className="mt-1 text-xs text-green-600">
+                <p className="mt-1 text-xs text-green-600 dark:text-green-400">
                   {t("organization.inspection.selectedFile", {
                     name: file.name,
                   })}
@@ -439,7 +446,7 @@ export default function UploadNotesModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
+          <Button variant="outline" onClick={handleClose} className="h-11">
             {t("organization.inspection.cancel")}
           </Button>
           <Button
@@ -450,6 +457,7 @@ export default function UploadNotesModal({
               (mode === "text" && !extractedText.trim()) ||
               (mode === "file" && !file)
             }
+            className="h-11"
           >
             {isLoading
               ? t("organization.inspection.extracting")

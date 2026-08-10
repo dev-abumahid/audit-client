@@ -1,8 +1,23 @@
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import StartInspectionModal from "./StartInspectionModal"
 
 // i18n isn't initialized in the test environment, so t() echoes the raw key
 // back (see RiskRegisterPage.test.tsx for the same convention).
+
+// jsdom has no ResizeObserver; cmdk (the Command palette behind the
+// template/site pickers) uses it to measure list height. Only needed once
+// a test actually opens a popover (added in round 2 of the quality-bar-loop
+// to test the system-template exclusion).
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal("ResizeObserver", MockResizeObserver)
+// jsdom also doesn't implement scrollIntoView, which cmdk calls when
+// highlighting an item.
+Element.prototype.scrollIntoView = vi.fn()
 
 const mockNavigate = vi.fn()
 vi.mock("react-router", async (importOriginal) => {
@@ -56,6 +71,81 @@ describe("StartInspectionModal", () => {
     expect(
       screen.getByText("organization.inspection.selectTemplate")
     ).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 2 (mobile, round-1 finding): the site/template
+  // combobox triggers and footer buttons measured ~28px tall live at
+  // 375px width, well under the 44px touch-target guideline.
+  it("gives the site/template triggers and footer buttons a 44px touch target", () => {
+    render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
+
+    expect(
+      screen.getByRole("combobox", {
+        name: "organization.inspection.selectSite organization.inspection.chooseSite",
+      }).className
+    ).toMatch(/\bh-11\b/)
+    expect(
+      screen.getByRole("button", { name: "organization.inspection.cancel" })
+        .className
+    ).toMatch(/\bh-11\b/)
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.startInspection",
+      }).className
+    ).toMatch(/\bh-11\b/)
+  })
+
+  // quality-bar-loop round 2 (accessibility): aria-labelledby on the
+  // trigger combines the static field label with the trigger's own
+  // dynamic text -- pointing it at ONLY the static label would replace
+  // the button's text-derived accessible name entirely (buttons are
+  // labelable elements), the same bug found and fixed on AuditPage's
+  // RiskMultiSelect earlier this session.
+  it("gives the site trigger an accessible name that includes both the field label and the selected site", () => {
+    render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
+
+    expect(
+      screen.getByRole("combobox", {
+        name: "organization.inspection.selectSite organization.inspection.chooseSite",
+      })
+    ).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 2 (UX, round-1 finding): live-confirmed the
+  // protected "AI-Generated Findings (system, do not edit)" template was
+  // selectable here, with nothing preventing a real inspection from
+  // being started against it.
+  it("excludes the protected system template from the picker", async () => {
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "t1",
+            templateName: "Fire Safety Audit",
+            status: "PUBLISHED",
+          },
+          {
+            id: "t2",
+            templateName: "⚙ AI-Generated Findings (system, do not edit)",
+            status: "PUBLISHED",
+          },
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
+
+    await userEvent.click(
+      screen.getByRole("combobox", {
+        name: "organization.inspection.selectTemplate organization.inspection.chooseTemplate",
+      })
+    )
+
+    expect(await screen.findByText("Fire Safety Audit")).toBeInTheDocument()
+    expect(
+      screen.queryByText("⚙ AI-Generated Findings (system, do not edit)")
+    ).not.toBeInTheDocument()
   })
 
   it("renders the localized footer buttons", () => {

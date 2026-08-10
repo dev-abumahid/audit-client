@@ -69,9 +69,25 @@ function DialogContent({
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
+            {/* quality-bar-loop round 2 (Inspections, mobile, round-1
+                finding): `size="icon-sm"` resolves to a 24x24px square,
+                well under the 44px touch-target guideline, same bug
+                class fixed on 9+ pages this session -- caught here at
+                the SHARED Dialog component level, so this one fix
+                corrects it for every dialog app-wide at once. Uses
+                `!h-11 !w-11` (important modifier), not a plain `h-11
+                w-11`: `icon-sm` resolves to the single `size-6` utility,
+                which tailwind-merge does not reliably dedupe against
+                separate `h-*`/`w-*` classes the way it does for plain
+                `h-*`/`w-*` size variants -- same class of gotcha as the
+                InspectionTable SelectTrigger fix elsewhere in this
+                round. Verified via the full test suite plus live checks
+                on multiple other dialog consumers, given this
+                component's much larger blast radius than a single-page
+                fix. */}
             <Button
               variant="ghost"
-              className="absolute top-2 right-2"
+              className="absolute top-2 right-2 !h-11 !w-11"
               size="icon-sm"
             >
               <XIcon />
@@ -115,7 +131,13 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">{t("common.close")}</Button>
+          {/* quality-bar-loop round 2 (Inspections, mobile, round-1
+              finding): the default Button size (h-7) is well under the
+              44px touch-target guideline -- same shared-component fix
+              as DialogContent's own close button above. */}
+          <Button variant="outline" className="h-11">
+            {t("common.close")}
+          </Button>
         </DialogPrimitive.Close>
       )}
     </div>

@@ -177,6 +177,41 @@ describe("UpdateInspection", () => {
     expect(screen.queryByText("IN_PROGRESS")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 2 (mobile, round-1 finding): the checkbox
+  // answer's visual box is well under the 44px touch-target guideline;
+  // WCAG's target-size rule is about the clickable AREA, so the wrapping
+  // <label> needs min-h-11 instead of resizing the checkbox itself.
+  it("gives the checkbox answer's wrapping label a 44px touch target", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    const checkbox = screen.getAllByRole("checkbox")[0]
+    expect(checkbox.closest("label")?.className).toMatch(/\bmin-h-11\b/)
+  })
+
+  // quality-bar-loop round 2 (mobile, round-1 finding): this pill-styled
+  // trigger is a real interactive control (opens the status-change menu),
+  // not just a badge -- it measured well under the 44px touch-target
+  // guideline live.
+  it("gives the status dropdown trigger a 44px touch target", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    expect(
+      screen.getByText("organization.inspection.statusInProgress").closest(
+        "button"
+      )?.className
+    ).toMatch(/\bh-11\b/)
+  })
+
   // aexa-frontend#552: same site cross-link as InspectionReport.tsx --
   // reuses the established ?siteId=&search= pattern (#533/#541).
   it("links the site label into Sites, scoped to that site", () => {

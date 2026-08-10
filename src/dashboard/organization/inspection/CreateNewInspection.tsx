@@ -369,7 +369,16 @@ export default function CreateNewInspection() {
     switch (answerType) {
       case "checkbox":
         return (
-          <label className="flex cursor-pointer items-center gap-3">
+          // quality-bar-loop round 2 (mobile, round-1 finding): the
+          // native checkbox's own visual box (h-5, 20px) is well under
+          // the 44px touch-target guideline, and unlike a Button the
+          // fix isn't a className override on the input itself -- WCAG's
+          // target-size rule is about the clickable AREA, not the visual
+          // indicator, so `min-h-11` on the wrapping <label> (which
+          // already toggles the checkbox on click via native label
+          // association) extends the real tappable area to 44px while
+          // keeping the checkbox's own visual size unchanged.
+          <label className="flex min-h-11 cursor-pointer items-center gap-3">
             <input
               type="checkbox"
               checked={!!value}
@@ -523,9 +532,14 @@ export default function CreateNewInspection() {
     <div className="min-h-screen bg-background">
       {/* Top Header */}
       <div className="sticky top-0 z-50 border-b bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+        {/* quality-bar-loop round 2 (mobile, round-1 finding): same
+            wrap fix as UpdateInspection.tsx's identical header
+            structure -- a long template name pushes the h1 to multiple
+            lines, and this row had no flex-wrap/items-start to handle
+            that gracefully. */}
+        <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-4 px-6 py-5">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate(-1)}>
+            <Button variant="ghost" onClick={() => navigate(-1)} className="h-11">
               <ArrowLeft className="mr-2 h-5 w-5" />{" "}
               {t("organization.inspection.back")}
             </Button>
@@ -592,7 +606,7 @@ export default function CreateNewInspection() {
               </Card>
 
               <div className="space-y-8">
-                {page.questions?.map((question: any) => {
+                {page.questions?.map((question: any, questionIndex: number) => {
                   const hasNote =
                     visibleNotes[question.id] || !!answers[question.id]?.note
                   const hasMediaFiles = answers[question.id]?.mediaFiles
@@ -606,9 +620,16 @@ export default function CreateNewInspection() {
                             <span className="ml-1 text-destructive">*</span>
                           )}
                         </p>
+                        {/* Found by review (quality-bar-loop round 2,
+                            live-confirmed with 3 distinct questions on
+                            one page): this badge used `pageIndex + 1`,
+                            so every question on a page showed the same
+                            "Q1" regardless of its real position --
+                            InspectionReport.tsx's QuestionCard already
+                            numbers by questionIndex + 1 correctly. */}
                         <span className="text-xs text-muted-foreground">
                           {t("organization.inspection.questionBadge", {
-                            num: pageIndex + 1,
+                            num: questionIndex + 1,
                           })}
                         </span>
                       </div>
@@ -620,14 +641,29 @@ export default function CreateNewInspection() {
                         <div className="flex items-center gap-5">
                           {hasMediaFiles.map((mediaFile: any, idx: number) => (
                             <div key={idx} className="relative">
-                              <span
+                              {/* Found by review (quality-bar-loop round
+                                  2): this was a `<span onClick>` -- no
+                                  role/tabIndex/keyboard handler, a genuine
+                                  keyboard trap (couldn't be focused or
+                                  activated from the keyboard at all).
+                                  UpdateInspection.tsx's equivalent control
+                                  already uses a real `<button
+                                  aria-label>`; this brings the two in
+                                  line, including the dark-mode colors
+                                  that file already has and this one
+                                  didn't. */}
+                              <button
+                                type="button"
                                 onClick={() =>
                                   handleRemoveMediaFile(question.id, idx)
                                 }
-                                className="absolute -top-2 -right-2 cursor-pointer rounded-full bg-amber-100 p-1 text-red-500"
+                                aria-label={t(
+                                  "organization.inspection.removeMedia"
+                                )}
+                                className="absolute -top-2 -right-2 rounded-full bg-amber-100 p-1 text-red-500 dark:bg-amber-900 dark:text-red-400"
                               >
                                 <Trash className="size-4" />
-                              </span>
+                              </button>
                               <img
                                 className="h-12 w-12"
                                 src={mediaFile.url}
@@ -655,11 +691,17 @@ export default function CreateNewInspection() {
                         </div>
                       )}
 
+                      {/* quality-bar-loop round 2 (mobile, round-1
+                          finding): `size="sm"` resolves to `h-6` (24px
+                          tall), well under the 44px touch-target
+                          guideline -- same bug class fixed on 9+ pages
+                          this session. */}
                       <div className="mt-6 flex gap-3">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => toggleNote(question.id)}
+                          className="h-11"
                         >
                           <FileText className="mr-2 h-4 w-4" />
                           {hasNote
@@ -674,7 +716,12 @@ export default function CreateNewInspection() {
                           </p>
                         ) : (
                           <label htmlFor={`external-media-${question.id}`}>
-                            <Button asChild variant="outline" size="sm">
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className="h-11"
+                            >
                               <span>
                                 <CloudUpload className="mr-2 h-4 w-4" />
                                 {t("organization.inspection.addMedia")}
@@ -705,19 +752,35 @@ export default function CreateNewInspection() {
             </div>
           ))}
 
-          {/* Bottom Navigation */}
-          <div className="mt-12 flex justify-between border-t pt-8">
+          {/* Bottom Navigation. quality-bar-loop round 2 (mobile,
+              round-1 finding): even the largest shared Button size
+              (`lg`) only reaches h-8 (32px), still under the 44px
+              touch-target guideline -- these are the primary submit
+              controls of the entire feature, so `h-11` matters most
+              here. Also `sticky bottom-0`: on a phone this bottom nav
+              was previously plain in-flow, so reaching Next/Submit
+              meant scrolling past every question on the current page
+              first -- pinning it keeps the primary action reachable
+              from anywhere on a long question page, matching the
+              header's existing `sticky top-0` treatment one level up. */}
+          <div className="sticky bottom-0 mt-12 flex justify-between border-t bg-background py-4">
             <Button
               variant="outline"
               onClick={() => scrollToPage(currentPageIndex - 1)}
               disabled={currentPageIndex === 0}
+              className="h-11"
             >
               <ChevronLeft className="mr-2" />{" "}
               {t("organization.inspection.previous")}
             </Button>
 
             {currentPageIndex === pages.length - 1 ? (
-              <Button onClick={handleSubmit} size="lg" disabled={isSubmitting}>
+              <Button
+                onClick={handleSubmit}
+                size="lg"
+                disabled={isSubmitting}
+                className="h-11"
+              >
                 {isSubmitting
                   ? t("organization.inspection.submitting")
                   : t("organization.inspection.submitInspection")}
@@ -726,6 +789,7 @@ export default function CreateNewInspection() {
               <Button
                 onClick={() => scrollToPage(currentPageIndex + 1)}
                 size="lg"
+                className="h-11"
               >
                 {t("organization.inspection.nextPage")}
                 <ChevronRight className="ml-2" />

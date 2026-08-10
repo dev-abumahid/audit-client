@@ -150,8 +150,20 @@ vi.mock("@/components/ui/select", () => ({
       {children}
     </select>
   ),
-  SelectTrigger: () => null,
-  SelectValue: () => null,
+  SelectTrigger: ({
+    className,
+    children,
+  }: {
+    className?: string
+    children: React.ReactNode
+  }) => (
+    <div data-testid="select-trigger" className={className}>
+      {children}
+    </div>
+  ),
+  SelectValue: ({ placeholder }: { placeholder?: string }) => (
+    <>{placeholder}</>
+  ),
   SelectContent: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
@@ -264,6 +276,91 @@ describe("InspectionTable", () => {
       screen.getAllByText("organization.inspection.statusInProgress").length
     ).toBeGreaterThan(0)
     expect(screen.queryByText("IN_PROGRESS")).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 2 (mobile + accessibility, round-1 findings):
+  // row Eye/Edit/Delete buttons were 30x24px with zero accessible name
+  // (confirmed live: ariaLabel null, empty text) -- the single
+  // highest-traffic control on the page.
+  it("gives the row Eye/Edit/Delete buttons a 44px touch target and a distinct accessible name each", async () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: {
+        data: [makeInspection()],
+        meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+      },
+      isLoading: false,
+    })
+
+    renderTable()
+
+    await waitFor(() =>
+      expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+    )
+
+    const viewButton = screen.getByRole("button", {
+      name: "organization.inspection.viewButtonLabel",
+    })
+    const editButton = screen.getByRole("button", {
+      name: "organization.inspection.editButtonLabel",
+    })
+    const deleteButton = screen.getByRole("button", {
+      name: "organization.inspection.deleteButtonLabel",
+    })
+
+    for (const button of [viewButton, editButton, deleteButton]) {
+      expect(button.className).toMatch(/\bh-11\b/)
+      expect(button.className).toMatch(/\bw-11\b/)
+    }
+    expect(viewButton.getAttribute("aria-label")).not.toBe(
+      editButton.getAttribute("aria-label")
+    )
+    expect(editButton.getAttribute("aria-label")).not.toBe(
+      deleteButton.getAttribute("aria-label")
+    )
+  })
+
+  it("gives the Start New button and search input a 44px touch target", async () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: { data: [], meta: { page: 1, limit: 10, total: 0, totalPage: 0 } },
+      isLoading: false,
+    })
+
+    renderTable()
+
+    expect(
+      screen.getByRole("button", {
+        name: /organization\.inspection\.startNew/i,
+      }).className
+    ).toMatch(/\bh-11\b/)
+    expect(
+      screen.getByPlaceholderText(
+        "organization.inspection.searchPlaceholder"
+      ).className
+    ).toMatch(/\bh-11\b/)
+  })
+
+  // quality-bar-loop round 2 (mobile, round-1 finding): both filter
+  // SelectTriggers measured 28px tall live despite a plain `h-11` className
+  // -- SelectTrigger sizes itself via a data-attribute-scoped Tailwind
+  // variant (`data-[size=default]:h-7`), which tailwind-merge does not
+  // reliably override with an unscoped className the way it does for plain
+  // cva size variants (Button/Input). Fixed with the `!h-11` important
+  // modifier. This test was added after the bug was only caught by live
+  // browser measurement -- the SelectTrigger mock previously returned
+  // `null`, so no unit test could see the className at all.
+  it("gives the status and site filter dropdowns a 44px touch target", async () => {
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: { data: [], meta: { page: 1, limit: 10, total: 0, totalPage: 0 } },
+      isLoading: false,
+    })
+
+    renderTable()
+
+    const triggers = screen.getAllByTestId("select-trigger")
+    expect(triggers).toHaveLength(2)
+    for (const trigger of triggers) {
+      expect(trigger.className).toMatch(/!h-11\b/)
+    }
   })
 
   // aexa-frontend#563: the Site column showed item.site.name as plain text

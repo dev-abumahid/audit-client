@@ -568,7 +568,13 @@ export default function UpdateInspection() {
     switch (answerType) {
       case "checkbox":
         return (
-          <label className="flex cursor-pointer items-center gap-3">
+          // quality-bar-loop round 2 (mobile, round-1 finding): same
+          // fix as CreateNewInspection.tsx's identical control -- WCAG's
+          // target-size rule is about the clickable AREA, not the visual
+          // indicator, so `min-h-11` on the wrapping <label> extends the
+          // real tappable area to 44px while keeping the checkbox's own
+          // visual size unchanged.
+          <label className="flex min-h-11 cursor-pointer items-center gap-3">
             <input
               type="checkbox"
               checked={!!value}
@@ -797,9 +803,16 @@ export default function UpdateInspection() {
     <div className="min-h-screen bg-background">
       {/* Top Header */}
       <div className="border-b bg-card">
-        <div className="mx-auto flex items-center justify-between px-6 py-5">
+        {/* quality-bar-loop round 2 (mobile, round-1 finding): a long
+            template name makes the h1 wrap to multiple lines, but this
+            row had no flex-wrap and stayed `items-center` -- Back/Upload
+            Note ended up vertically centered against the now much
+            taller title block instead of sitting predictably. flex-wrap
+            + items-start lets the whole row reflow into two lines on a
+            narrow viewport instead of misaligning in place. */}
+        <div className="mx-auto flex flex-wrap items-start justify-between gap-4 px-6 py-5">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate(-1)}>
+            <Button variant="ghost" onClick={() => navigate(-1)} className="h-11">
               <ArrowLeft className="mr-2 h-5 w-5" />{" "}
               {t("organization.inspection.back")}
             </Button>
@@ -829,10 +842,16 @@ export default function UpdateInspection() {
                 </span>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
+                    {/* quality-bar-loop round 2 (mobile, round-1
+                        finding): this pill-styled trigger is a real
+                        interactive control (opens the status-change
+                        menu), not just a badge -- `h-7` -> `h-11` for
+                        the same 44px touch-target guideline as every
+                        other button this round, same fix pattern. */}
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`h-7 px-2 text-xs font-medium ${severityBadgeClasses(
+                      className={`h-11 px-2 text-xs font-medium ${severityBadgeClasses(
                         selectedStatus === "COMPLETED"
                           ? "low"
                           : selectedStatus === "CANCELLED"
@@ -900,7 +919,7 @@ export default function UpdateInspection() {
               </div>
             </div>
           </div>
-          <Button onClick={() => setOpenUploadNoteModal(true)}>
+          <Button onClick={() => setOpenUploadNoteModal(true)} className="h-11">
             {inspection?.note?.id ? (
               <>
                 <Eye /> {t("organization.inspection.viewNote")}
@@ -1174,11 +1193,18 @@ export default function UpdateInspection() {
                         </div>
                       )}
 
+                      {/* quality-bar-loop round 2 (mobile, round-1
+                          finding): `size="sm"` resolves to `h-6` (24px
+                          tall), well under the 44px touch-target
+                          guideline -- same bug class fixed on 9+ pages
+                          this session, and on CreateNewInspection.tsx's
+                          identical controls in this same round. */}
                       <div className="flex gap-3">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => toggleNote(question.id)}
+                          className="h-11"
                         >
                           <FileText className="mr-2 h-4 w-4" />
                           {hasNote
@@ -1195,7 +1221,12 @@ export default function UpdateInspection() {
                           <label
                             htmlFor={`update-external-media-${question.id}`}
                           >
-                            <Button asChild variant="outline" size="sm">
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className="h-11"
+                            >
                               <span>
                                 <CloudUpload className="mr-2 h-4 w-4" />
                                 {t("organization.inspection.addMedia")}

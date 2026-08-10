@@ -99,6 +99,23 @@ describe("UploadNotesModal", () => {
     ).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 2 (mobile, round-1 finding): the shared
+  // Button's default height (h-7) is well under the 44px touch-target
+  // guideline, same bug class fixed on 9+ pages this session.
+  it("gives the footer Cancel/Upload buttons a 44px touch target", () => {
+    renderModal()
+
+    expect(
+      screen.getByRole("button", { name: "organization.inspection.cancel" })
+        .className
+    ).toMatch(/\bh-11\b/)
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNotes",
+      }).className
+    ).toMatch(/\bh-11\b/)
+  })
+
   it('reveals the text field after choosing "Notes by Text"', async () => {
     renderModal()
 

@@ -20,11 +20,23 @@ vi.mock("react-i18next", async (importOriginal) => {
       const real = mod.useTranslation()
       return {
         ...real,
-        t: (key: string, params?: Record<string, unknown>) =>
-          key === "organization.inspection.requiredAnswerMissingToast" &&
-          params?.question
-            ? `Please answer the required question: "${params.question}"`
-            : real.t(key),
+        t: (key: string, params?: Record<string, unknown>) => {
+          if (
+            key === "organization.inspection.requiredAnswerMissingToast" &&
+            params?.question
+          ) {
+            return `Please answer the required question: "${params.question}"`
+          }
+          // Round 2 addition: interpolate `num` so the per-question "Qn"
+          // badge test below can actually distinguish "Q1"/"Q2" instead of
+          // both echoing the identical raw key (which would make the test
+          // pass regardless of whether the underlying bug -- every
+          // question on a page showing the same number -- was present).
+          if (key === "organization.inspection.questionBadge" && params?.num) {
+            return `Q${params.num}`
+          }
+          return real.t(key)
+        },
       }
     },
   }
@@ -149,6 +161,37 @@ describe("CreateNewInspection", () => {
     expect(screen.getByText("HQ Casablanca")).toBeInTheDocument()
     expect(screen.getByText("Extinguisher present?")).toBeInTheDocument()
     expect(screen.getByText("Notes on condition")).toBeInTheDocument()
+  })
+
+  // Found by review (quality-bar-loop round 2, live-confirmed with 3
+  // distinct questions on one page): the "Qn" badge used `pageIndex + 1`
+  // for every question on a page, so all of them showed the same number.
+  it("numbers each question on a page by its own position, not the page's", () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+
+    expect(screen.getByText("Q1")).toBeInTheDocument()
+    expect(screen.getByText("Q2")).toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 2 (mobile, round-1 finding): the checkbox's own
+  // visual box (h-5, 20px) is well under the 44px touch-target guideline;
+  // WCAG's target-size rule is about the clickable AREA, so the wrapping
+  // <label> needs min-h-11 instead.
+  it("gives the checkbox answer's wrapping label a 44px touch target", () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+
+    const checkbox = screen.getByRole("checkbox")
+    expect(checkbox.closest("label")?.className).toMatch(/\bmin-h-11\b/)
   })
 
   it("renders a checkbox for checkbox-type questions and toggles its answer", async () => {
@@ -399,6 +442,41 @@ describe("CreateNewInspection", () => {
         "https://cdn.example.com/photo.jpg"
       )
     )
+  })
+
+  // Found by review (quality-bar-loop round 2): the "remove media" control
+  // on an uploaded external-media file was a `<span onClick>` -- no
+  // role/tabIndex/keyboard handler, a genuine keyboard trap (couldn't be
+  // focused or activated from the keyboard at all).
+  it("renders the remove-media control on an uploaded external file as a real, accessible button", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+    mockUploadFileAws.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: "https://cdn.example.com/photo.jpg",
+        }),
+    })
+
+    const { container } = render(<CreateNewInspection />)
+    const file = new File(["img"], "site.png", { type: "image/png" })
+    const input = container.querySelector<HTMLInputElement>(
+      'input[id^="external-media-"]'
+    )!
+
+    await userEvent.upload(input, file)
+
+    const removeButton = await screen.findByRole("button", {
+      name: "organization.inspection.removeMedia",
+    })
+    // A real <button> is focusable/keyboard-activatable by construction --
+    // the prior <span onClick> had no role and no way to receive focus at
+    // all, so this assertion alone distinguishes the two.
+    removeButton.focus()
+    expect(removeButton).toHaveFocus()
   })
 
   it("rejects an oversized media file without uploading", async () => {

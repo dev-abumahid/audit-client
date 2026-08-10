@@ -239,7 +239,11 @@ const InspectionTable = () => {
           </div>
 
           {canCreateInspection && (
-            <Button onClick={() => setOpen(true)} className="">
+            // quality-bar-loop round 2 (mobile, round-1 finding): the
+            // shared Button component's default size (h-7) is well under
+            // the 44px touch-target guideline, same bug class fixed on
+            // 9+ pages this session.
+            <Button onClick={() => setOpen(true)} className="h-11">
               <Plus className="mr-2 h-4 w-4" />
               {t("organization.inspection.startNew")}
             </Button>
@@ -264,7 +268,7 @@ const InspectionTable = () => {
               placeholder={t("organization.inspection.searchPlaceholder")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="h-11 pl-10"
             />
           </div>
 
@@ -285,8 +289,17 @@ const InspectionTable = () => {
             onValueChange={handleStatusFilterChange}
             disabled={activeStatusFilter}
           >
+            {/* `!h-11`, not a plain `h-11`: SelectTrigger's own height
+                comes from a data-attribute-scoped utility
+                (`data-[size=default]:h-7`), which tailwind-merge doesn't
+                reliably dedupe against a plain `h-11` override the way
+                it does for a cva size variant's un-scoped classes (the
+                Button/Input override pattern used everywhere else this
+                session) -- confirmed live-broken (still 28px) before
+                switching to `!h-11`, which forces the override
+                regardless of generated-CSS ordering. */}
             <SelectTrigger
-              className="w-full md:w-48"
+              className="!h-11 w-full md:w-48"
               aria-describedby={
                 activeStatusFilter ? "active-status-filter-notice" : undefined
               }
@@ -314,7 +327,10 @@ const InspectionTable = () => {
           </Select>
 
           <Select value={siteFilter} onValueChange={handleSiteFilterChange}>
-            <SelectTrigger className="w-full md:w-48">
+            {/* `!h-11` -- see the comment on the status SelectTrigger
+                above for why a plain `h-11` doesn't reliably override
+                this component's own data-attribute-scoped height. */}
+            <SelectTrigger className="!h-11 w-full md:w-48">
               <SelectValue placeholder={t("organization.inspection.allSites")} />
             </SelectTrigger>
 
@@ -430,11 +446,26 @@ const InspectionTable = () => {
                         t("organization.inspection.orgFallback")}
                     </TableCell>
                     <TableCell className="text-right">
+                      {/* quality-bar-loop round 2 (mobile + accessibility,
+                          round-1 findings): `size="sm"` resolves to `h-6`
+                          (24px tall), well under the 44px touch-target
+                          guideline -- same bug class fixed on 9+ pages
+                          this session. These icon-only buttons also had
+                          zero accessible name (confirmed live: ariaLabel
+                          null, empty text) -- a screen reader announced
+                          only "button, button, button" with no way to
+                          tell view/edit/delete apart. */}
                       <div className="flex justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleViewReport(item.id)}
+                          aria-label={t("organization.inspection.viewButtonLabel", {
+                            name:
+                              item.template?.templateName ||
+                              t("organization.inspection.orgFallback"),
+                          })}
+                          className="h-11 w-11"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -443,6 +474,12 @@ const InspectionTable = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(item.id)}
+                            aria-label={t("organization.inspection.editButtonLabel", {
+                              name:
+                                item.template?.templateName ||
+                                t("organization.inspection.orgFallback"),
+                            })}
+                            className="h-11 w-11"
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
@@ -452,7 +489,12 @@ const InspectionTable = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteConfirmModal(item.id)}
-                            className="text-destructive hover:text-destructive"
+                            aria-label={t("organization.inspection.deleteButtonLabel", {
+                              name:
+                                item.template?.templateName ||
+                                t("organization.inspection.orgFallback"),
+                            })}
+                            className="h-11 w-11 text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
