@@ -736,6 +736,40 @@ describe("CreateNewInspection", () => {
     expect(removeButton).toHaveFocus()
   })
 
+  // quality-bar-loop (Inspections, round 22, visual polish finding):
+  // amber-bg/red-icon had no relationship to this app's severity/
+  // destructive token system -- unified to the same bg-black/60
+  // text-white treatment as every other "delete this media" control in
+  // this feature (matches UpdateInspection.tsx's identical fix).
+  it("uses the shared bg-black/60 treatment for the media-thumbnail remove button, not amber/red", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+    mockUploadFileAws.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: "https://cdn.example.com/photo.jpg",
+        }),
+    })
+
+    const { container } = render(<CreateNewInspection />)
+    const file = new File(["img"], "site.png", { type: "image/png" })
+    const input = container.querySelector<HTMLInputElement>(
+      'input[id^="external-media-"]'
+    )!
+
+    await userEvent.upload(input, file)
+
+    const removeButton = await screen.findByRole("button", {
+      name: "organization.inspection.removeMedia",
+    })
+    expect(removeButton.className).toMatch(/bg-black\/60/)
+    expect(removeButton.className).not.toMatch(/bg-amber-100/)
+    expect(removeButton.className).not.toMatch(/text-red-500/)
+  })
+
   // quality-bar-loop (Inspections, round 3, security finding): mediaFile.url
   // is rendered straight into <img src> for the thumbnail -- same guard as
   // the single-answer media case above.

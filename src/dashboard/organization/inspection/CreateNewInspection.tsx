@@ -312,11 +312,18 @@ const QuestionCard = memo(
                     a real `<button aria-label>`; this brings the two in
                     line, including the dark-mode colors that file
                     already has and this one didn't. */}
+                {/* quality-bar-loop (Inspections, round 22, visual polish
+                    finding): amber-bg/red-icon had no relationship to
+                    this app's severity/destructive token system --
+                    unified to the same bg-black/60 text-white circular
+                    button used for every other "delete this media"
+                    control in this feature, scaled down for this
+                    thumbnail's smaller size. */}
                 <button
                   type="button"
                   onClick={() => onRemoveMediaFile(question.id, idx)}
                   aria-label={t("organization.inspection.removeMedia")}
-                  className="absolute -top-2 -right-2 rounded-full bg-amber-100 p-1 text-red-500 dark:bg-amber-900 dark:text-red-400"
+                  className="absolute -top-2 -right-2 rounded-full bg-black/60 p-1 text-white transition-colors hover:bg-black/80"
                 >
                   <Trash className="size-4" />
                 </button>

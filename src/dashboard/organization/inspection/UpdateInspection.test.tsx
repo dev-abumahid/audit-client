@@ -300,6 +300,156 @@ describe("UpdateInspection", () => {
     }
   })
 
+  // quality-bar-loop (Inspections, round 22, visual polish finding):
+  // this delete button used to be hover-only (opacity-0
+  // group-hover:opacity-100) -- the exact touch-discoverability trap
+  // round 13 already eliminated for the image-answer case. Confirms the
+  // document-answer delete button is now always visible and matches the
+  // same bg-black/60 text-white h-11 w-11 treatment.
+  it("gives the document-answer delete button an always-visible 44px touch target", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-media",
+                    question: "Site plan",
+                    answerType: "media",
+                    isRequired: false,
+                  },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [
+            {
+              id: "qa-media",
+              questionId: "q-media",
+              answer: "https://cdn.example.com/site-plan.pdf",
+              note: "",
+              mediaFiles: [],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    const deleteButton = screen.getByRole("button", {
+      name: "organization.inspection.deleteMedia",
+    })
+    expect(deleteButton.className).toMatch(/\bh-11\b/)
+    expect(deleteButton.className).toMatch(/\bw-11\b/)
+    expect(deleteButton.className).toMatch(/bg-black\/60/)
+    expect(deleteButton.className).not.toMatch(/opacity-0/)
+    expect(deleteButton.className).not.toMatch(/group-hover/)
+  })
+
+  // quality-bar-loop (Inspections, round 22, visual polish finding):
+  // this delete button used a smaller size and lower opacity
+  // (bg-black/60 p-1.5 opacity-80, ~28px) than the image-answer case's
+  // proven pattern -- unified to the same button.
+  it("gives the video-answer delete button the same 44px treatment as the image-answer case", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-media",
+                    question: "Site walkthrough",
+                    answerType: "media",
+                    isRequired: false,
+                  },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [
+            {
+              id: "qa-media",
+              questionId: "q-media",
+              answer: "https://cdn.example.com/walkthrough.mp4",
+              note: "",
+              mediaFiles: [],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    const deleteButton = screen.getByRole("button", {
+      name: "organization.inspection.deleteMedia",
+    })
+    expect(deleteButton.className).toMatch(/\bh-11\b/)
+    expect(deleteButton.className).toMatch(/\bw-11\b/)
+    expect(deleteButton.className).not.toMatch(/opacity-80/)
+  })
+
+  // quality-bar-loop (Inspections, round 22, visual polish finding):
+  // amber-bg/red-icon had no relationship to this app's severity/
+  // destructive token system -- unified to the same bg-black/60
+  // text-white treatment as every other "delete this media" control.
+  it("uses the shared bg-black/60 treatment for the media-thumbnail remove button, not amber/red", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-1",
+                    question: "Extinguisher present?",
+                    answerType: "checkbox",
+                    isRequired: false,
+                  },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [
+            {
+              id: "qa-1",
+              questionId: "q-1",
+              answer: true,
+              note: "",
+              mediaFiles: [
+                { url: "https://cdn.example.com/photo.jpg", type: "image" },
+              ],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    const removeButton = screen.getByRole("button", {
+      name: "organization.inspection.remove",
+    })
+    expect(removeButton.className).toMatch(/bg-black\/60/)
+    expect(removeButton.className).not.toMatch(/bg-amber-100/)
+    expect(removeButton.className).not.toMatch(/text-red-500/)
+  })
+
   // quality-bar-loop (Inspections, round 6, UX finding): a slider
   // question with a non-numeric configured default (`value`) previously
   // flowed straight through as the initial answer for a question with no

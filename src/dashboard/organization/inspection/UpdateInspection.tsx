@@ -242,7 +242,16 @@ const QuestionCard = memo(
                   {t("organization.inspection.unsafeAttachment")}
                 </p>
               ) : answer && mediaType === "video" ? (
-                <div className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border p-2">
+                // quality-bar-loop (Inspections, round 22, visual polish
+                // finding): this delete button used a different color/
+                // size/opacity treatment (bg-black/60 p-1.5 opacity-80,
+                // ~28px) than the image-answer case's proven pattern right
+                // below (bg-black/60 text-white h-11 w-11, always
+                // visible) -- unified to the same button, since this is
+                // the same action (delete the only answer) on the same
+                // relative surface (a full-size media preview), just a
+                // different file type.
+                <div className="relative flex w-full items-center justify-center overflow-hidden rounded-lg border p-2">
                   <video controls className="max-h-96 max-w-full rounded">
                     <source src={answer} />
                     {t("organization.inspection.videoUnsupported")}
@@ -251,14 +260,22 @@ const QuestionCard = memo(
                     type="button"
                     onClick={() => onAnswerChange(question.id, "")}
                     aria-label={t("organization.inspection.deleteMedia")}
-                    className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white opacity-80 transition-opacity hover:opacity-100"
+                    className="absolute top-1 right-1 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash className="size-5" />
                   </button>
                 </div>
               ) : answer &&
                 (mediaType === "document" || mediaType === "file") ? (
-                <div className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border">
+                // quality-bar-loop (Inspections, round 22, visual polish
+                // finding): this delete button was hover-only
+                // (opacity-0 group-hover:opacity-100) -- the exact same
+                // touch-discoverability trap round 13 already eliminated
+                // for the image-answer case below (no hover state on
+                // touch means the control was undiscoverable, not just
+                // inconsistent styling). Unified to the same
+                // always-visible bg-black/60 text-white h-11 w-11 button.
+                <div className="relative flex w-full items-center justify-center overflow-hidden rounded-lg border">
                   <a
                     href={answer}
                     target="_blank"
@@ -277,9 +294,9 @@ const QuestionCard = memo(
                     type="button"
                     onClick={() => onAnswerChange(question.id, "")}
                     aria-label={t("organization.inspection.deleteMedia")}
-                    className="absolute top-2 right-2 rounded-full bg-black/10 p-1.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-black/20"
+                    className="absolute top-1 right-1 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash className="size-5" />
                   </button>
                 </div>
               ) : answer ? (
@@ -397,11 +414,17 @@ const QuestionCard = memo(
               const mediaKind = fileType(mediaFile.url)
               return (
                 <div key={idx} className="relative">
+                  {/* quality-bar-loop (Inspections, round 22, visual
+                      polish finding): amber-bg/red-icon had no
+                      relationship to this app's severity/destructive
+                      token system -- unified to the same bg-black/60
+                      text-white circular button used for every other
+                      "delete this media" control in this feature. */}
                   <button
                     type="button"
                     onClick={() => onRemoveMediaFile(question.id, idx)}
                     aria-label={t("organization.inspection.remove")}
-                    className="absolute -top-2 -right-2 cursor-pointer rounded-full bg-amber-100 p-1 text-red-500 dark:bg-amber-900 dark:text-red-400"
+                    className="absolute -top-2 -right-2 cursor-pointer rounded-full bg-black/60 p-1 text-white transition-colors hover:bg-black/80"
                   >
                     <Trash className="size-4" />
                   </button>
