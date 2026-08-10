@@ -25,8 +25,10 @@ vi.mock("react-router", async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
+const mockUseGetAllSitesQuery = vi.fn()
 vi.mock("@/redux/apis/organization/sites.api", () => ({
-  useGetAllSitesQuery: () => ({ data: { data: [] } }),
+  useGetAllSitesQuery: (...args: unknown[]) =>
+    mockUseGetAllSitesQuery(...args),
 }))
 
 const mockUseGetAllTemplatesQuery = vi.fn()
@@ -43,6 +45,8 @@ describe("StartInspectionModal", () => {
       data: { data: [] },
       isLoading: false,
     })
+    mockUseGetAllSitesQuery.mockReset()
+    mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [] } })
   })
 
   // quality-bar-loop round 5 (Templates, industry-standards): starting a
@@ -145,6 +149,55 @@ describe("StartInspectionModal", () => {
     expect(await screen.findByText("Fire Safety Audit")).toBeInTheDocument()
     expect(
       screen.queryByText("⚙ AI-Generated Findings (system, do not edit)")
+    ).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop (Inspections, round 5, resilience finding): neither
+  // query checked isError, so a genuine fetch failure rendered the same
+  // "no site/template found" empty state as a legitimately empty org,
+  // with no indication the fetch itself failed.
+  it("shows a real error, not the empty-results message, when the sites fetch fails", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+    })
+
+    render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
+
+    await userEvent.click(
+      screen.getByRole("combobox", {
+        name: "organization.inspection.selectSite organization.inspection.chooseSite",
+      })
+    )
+
+    expect(
+      await screen.findByText("organization.inspection.sitesLoadError")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.inspection.noSiteFound")
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows a real error, not the empty-results message, when the templates fetch fails", async () => {
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    })
+
+    render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
+
+    await userEvent.click(
+      screen.getByRole("combobox", {
+        name: "organization.inspection.selectTemplate organization.inspection.chooseTemplate",
+      })
+    )
+
+    expect(
+      await screen.findByText("organization.inspection.templatesLoadError")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.inspection.noTemplateFound")
     ).not.toBeInTheDocument()
   })
 

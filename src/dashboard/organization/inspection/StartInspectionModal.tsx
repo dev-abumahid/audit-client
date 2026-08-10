@@ -59,12 +59,22 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
   const templateStateTextId = useId()
   const navigate = useNavigate()
 
-  const { data: sitesData } = useGetAllSitesQuery({
+  // quality-bar-loop (Inspections, round 5, resilience finding): neither
+  // query checked isError -- a genuine fetch failure rendered the same
+  // "no site/template found" empty state as a legitimately empty org,
+  // silently blocking inspection creation with no indication the fetch
+  // itself failed. Same bug class InspectionTable.tsx already fixed for
+  // itself.
+  const { data: sitesData, isError: isSitesError } = useGetAllSitesQuery({
     page: 1,
     limit: 1000,
     searchTerm: siteSearch,
   })
-  const { data: templatesData, isLoading } = useGetAllTemplatesQuery({
+  const {
+    data: templatesData,
+    isLoading,
+    isError: isTemplatesError,
+  } = useGetAllTemplatesQuery({
     page: 1,
     limit: 100,
     searchTerm: templateSearch,
@@ -178,7 +188,11 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
                   />
                   <CommandList>
                     <CommandEmpty>
-                      {t("organization.inspection.noSiteFound")}
+                      <span role={isSitesError ? "alert" : undefined}>
+                        {isSitesError
+                          ? t("organization.inspection.sitesLoadError")
+                          : t("organization.inspection.noSiteFound")}
+                      </span>
                     </CommandEmpty>
                     <CommandGroup>
                       {sitesData?.data?.map((site: SiteSummary) => (
@@ -245,9 +259,13 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
                   />
                   <CommandList>
                     <CommandEmpty>
-                      {isLoading
-                        ? t("organization.inspection.loadingShort")
-                        : t("organization.inspection.noTemplateFound")}
+                      <span role={isTemplatesError ? "alert" : undefined}>
+                        {isLoading
+                          ? t("organization.inspection.loadingShort")
+                          : isTemplatesError
+                            ? t("organization.inspection.templatesLoadError")
+                            : t("organization.inspection.noTemplateFound")}
+                      </span>
                     </CommandEmpty>
                     <CommandGroup>
                       {selectableTemplates.map((temp: TemplateSummary) => (

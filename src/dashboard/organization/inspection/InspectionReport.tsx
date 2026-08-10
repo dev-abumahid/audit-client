@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useGetSingleInspectionQuery } from "@/redux/apis/organization/inspection.api"
+import { Button } from "@/components/ui/button"
 import type { PageDef } from "@/types/inspection"
 import { attachmentFileName } from "@/utils/attachmentFileName"
 import {
@@ -498,7 +499,12 @@ const InspectionReport = () => {
   const { t } = useTranslation()
   const { id } = useParams()
 
-  const { data: inspectionRaw } = useGetSingleInspectionQuery(id ?? "")
+  const navigate = useNavigate()
+  const {
+    data: inspectionRaw,
+    isLoading: isLoadingInspection,
+    isError: isInspectionError,
+  } = useGetSingleInspectionQuery(id ?? "")
 
   const inspection = inspectionRaw?.data
   const template = inspection?.template
@@ -682,7 +688,7 @@ const InspectionReport = () => {
     }
   }, [inspection, template, templateName, templatePages, actions, t])
 
-  if (!inspection) {
+  if (isLoadingInspection) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="space-y-3 text-center">
@@ -691,6 +697,31 @@ const InspectionReport = () => {
             {t("organization.inspection.loadingReport")}
           </p>
         </div>
+      </div>
+    )
+  }
+
+  // quality-bar-loop (Inspections, round 5, resilience finding): this
+  // query never checked isLoading/isError, so a real fetch failure fell
+  // through to the same "loading" branch forever -- live-confirmed
+  // (network log showed a 404, but the page just kept showing "Loading
+  // report..." indefinitely). UpdateInspection.tsx (same query) already
+  // has a real not-found state; InspectionTable.tsx already distinguishes
+  // a genuine fetch error from an empty result. Mirrors both here.
+  if (isInspectionError || !inspection) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background">
+        <p
+          role="alert"
+          className="text-lg text-muted-foreground"
+        >
+          {isInspectionError
+            ? t("organization.inspection.reportLoadError")
+            : t("organization.inspection.notFound")}
+        </p>
+        <Button onClick={() => navigate("/organization/audit/inspections")}>
+          {t("organization.inspection.backToInspections")}
+        </Button>
       </div>
     )
   }

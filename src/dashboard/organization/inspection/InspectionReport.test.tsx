@@ -93,7 +93,10 @@ describe("InspectionReport", () => {
   })
 
   it("shows a loading state while there is no inspection data yet", () => {
-    mockUseGetSingleInspectionQuery.mockReturnValue({ data: undefined })
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    })
 
     render(<InspectionReport />, withRouter)
 
@@ -101,6 +104,49 @@ describe("InspectionReport", () => {
     // key back (see RiskRegisterPage.test.tsx for the same convention).
     expect(
       screen.getByText("organization.inspection.loadingReport")
+    ).toBeInTheDocument()
+  })
+
+  // quality-bar-loop (Inspections, round 5, resilience finding): this
+  // query never checked isLoading/isError, so a genuine fetch failure fell
+  // through to the same "loading" branch forever -- live-confirmed via a
+  // real 404 that just kept showing "Loading report..." indefinitely.
+  it("shows a real error state, not a permanent loading state, on a genuine fetch failure", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    expect(
+      screen.queryByText("organization.inspection.loadingReport")
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "organization.inspection.reportLoadError"
+    )
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.backToInspections",
+      })
+    ).toBeInTheDocument()
+  })
+
+  it("shows a not-found state, not a permanent loading state, when the query succeeds with no data", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    expect(
+      screen.queryByText("organization.inspection.loadingReport")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText("organization.inspection.notFound")
     ).toBeInTheDocument()
   })
 
