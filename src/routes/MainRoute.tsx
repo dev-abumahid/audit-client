@@ -36,9 +36,6 @@ import ExternalLoginPage from "@/pages/external/ExternalLoginPage"
 import ExternalPortalPage from "@/pages/external/ExternalPortalPage"
 import Home from "@/pages/home/Home"
 import InspectionActions from "@/pages/inspection/InspectionActions"
-import InspectionNote from "@/pages/inspection/InspectionNote"
-import InspectionRecommendations from "@/pages/inspection/InspectionRecommendations"
-import RunInspection from "@/pages/inspection/RunInspection"
 import PrivacyPolicy from "@/pages/policy/PrivacyPolicy"
 import TermsAndConditions from "@/pages/policy/Terms"
 import { createBrowserRouter } from "react-router"
@@ -136,42 +133,36 @@ export const mainRoute = createBrowserRouter([
         ),
       },
       { path: "audit/inspections/report/:id", element: <InspectionReport /> },
-      // Inspection run workflow (from main PR #32). #271 -- guarded the same
-      // way as template/inspection create-edit; #270 (assignment-based
-      // client-side scoping) is still open as of this change, so this only
-      // enforces the role-level canWriteOrgResource check for now. Once #270
-      // lands, this should also deny a write-capable role (e.g.
-      // LEAD_AUDITOR) with no assignment on this specific inspection --
-      // tracked as a fast-follow rather than blocking this PR on it.
-      {
-        path: "audit/inspections/:id",
-        element: (
-          <WriteGuardRoute fallback="/organization/audit/inspections">
-            <RunInspection />
-          </WriteGuardRoute>
-        ),
-      },
-      // aexa-frontend#278 -- these three sibling routes hold the same kind of
-      // live mutations (finding CRUD, recommendation summary updates, AI note
-      // splitting) as the routes guarded above in #271, but were missed when
-      // that guard was wired in. Guarded the same way, with the same
-      // inspections-list fallback.
-      {
-        path: "audit/inspections/:id/note",
-        element: (
-          <WriteGuardRoute fallback="/organization/audit/inspections">
-            <InspectionNote />
-          </WriteGuardRoute>
-        ),
-      },
-      {
-        path: "audit/inspections/:id/recommendations",
-        element: (
-          <WriteGuardRoute fallback="/organization/audit/inspections">
-            <InspectionRecommendations />
-          </WriteGuardRoute>
-        ),
-      },
+      // quality-bar-loop (Inspections, round 25, industry-standards
+      // finding): the routes this comment used to guard (bare `:id` ->
+      // RunInspection, `:id/note` -> InspectionNote, `:id/recommendations`
+      // -> InspectionRecommendations) were never linked from anywhere in
+      // the app -- InspectionTable.tsx always routes edits to
+      // `audit/inspection/update/:id` (UpdateInspection.tsx) instead.
+      // Investigated rather than assumed a wiring oversight: all three were
+      // an earlier sprint's parallel implementation of the same
+      // answer-editing/note/recommendation features UpdateInspection.tsx
+      // (and its inline UploadNotesModal.tsx/ViewAndEditRecommendation.tsx)
+      // now handles -- RunInspection called the same mutations as
+      // UpdateInspection but with a strictly smaller feature set (no
+      // per-question notes, no external media, a binary Complete action vs.
+      // a full status dropdown); InspectionNote was a strict subset of
+      // UploadNotesModal.tsx (no text mode, no edit, no delete);
+      // InspectionRecommendations was missing the AI-generate trigger that
+      // makes ViewAndEditRecommendation.tsx usable for an inspection with
+      // no recommendation yet. Deleted as genuinely superseded dead code
+      // (along with their now-orphaned QuestionInput.tsx dependency)
+      // rather than linked, since exposing them would give users two
+      // competing, inconsistent "edit this inspection" UIs.
+      //
+      // `audit/inspections/:id/actions` -> InspectionActions.tsx is kept:
+      // it fetches via useFindingsForInspection to render a per-inspection
+      // findings list, a real capability missing elsewhere (confirmed via
+      // InspectionReport.tsx's own dead-code comment on this exact gap) --
+      // its inline create/edit form is a weaker duplicate of
+      // CreateNewFindingModal.tsx and needs that swapped in, plus a real
+      // nav link added, before this route is worth exposing -- tracked as
+      // a follow-up round rather than attempted here.
       {
         path: "audit/inspections/:id/actions",
         element: (

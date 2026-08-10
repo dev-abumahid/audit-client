@@ -115,12 +115,6 @@ vi.mock("@/pages/external/ExternalLoginPage", () => stub("ExternalLoginPage"))
 vi.mock("@/pages/external/ExternalPortalPage", () => stub("ExternalPortalPage"))
 vi.mock("@/pages/home/Home", () => stub("Home"))
 vi.mock("@/pages/inspection/InspectionActions", () => stub("InspectionActions"))
-vi.mock("@/pages/inspection/InspectionNote", () => stub("InspectionNote"))
-vi.mock(
-  "@/pages/inspection/InspectionRecommendations",
-  () => stub("InspectionRecommendations")
-)
-vi.mock("@/pages/inspection/RunInspection", () => stub("RunInspection"))
 vi.mock("@/pages/policy/PrivacyPolicy", () => stub("PrivacyPolicy"))
 vi.mock("@/pages/policy/Terms", () => stub("Terms"))
 vi.mock("./ExternalProtectedRoute", () => ({
@@ -146,19 +140,6 @@ const GUARDED_ROUTES: Array<[path: string, formLabel: string, listLabel: string]
   [
     "/organization/audit/inspection/update/i1",
     "UpdateInspection",
-    "InspectionTable",
-  ],
-  ["/organization/audit/inspections/i1", "RunInspection", "InspectionTable"],
-  // aexa-frontend#278 -- these three were missed when #271 wired the guard
-  // onto their sibling routes above.
-  [
-    "/organization/audit/inspections/i1/note",
-    "InspectionNote",
-    "InspectionTable",
-  ],
-  [
-    "/organization/audit/inspections/i1/recommendations",
-    "InspectionRecommendations",
     "InspectionTable",
   ],
   [
