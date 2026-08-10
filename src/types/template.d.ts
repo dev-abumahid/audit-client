@@ -21,6 +21,8 @@ interface ITemplateAccess {
   userId: string
 }
 
+export type TemplateStatus = "DRAFT" | "PUBLISHED"
+
 export interface ITemplate {
   id: string
   orgAccountId: string
@@ -28,6 +30,7 @@ export interface ITemplate {
   templateName: string
   templateDisc?: string | null
   category?: string | null
+  status: TemplateStatus
   pages: IPage[]
   access: ITemplateAccess[]
   createdAt: Date
@@ -45,6 +48,7 @@ export interface TemplateSummary {
   templateName: string
   templateDisc?: string | null
   category?: string | null
+  status: TemplateStatus
   createdAt: string
   updatedAt: string
   access: { userId: string }[]
@@ -77,5 +81,6 @@ export interface TemplateFormValues {
   templateName: string
   templateDisc: string
   category: string
+  status: TemplateStatus
   pages: PageField[]
 }

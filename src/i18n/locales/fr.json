@@ -366,7 +366,8 @@
         "editButtonLabel": "Modifier {{name}}",
         "deleteButtonLabel": "Supprimer {{name}}",
         "categoryFilterLabel": "Filtrer par catégorie",
-        "allCategories": "Toutes les catégories"
+        "allCategories": "Toutes les catégories",
+        "draftBadge": "Brouillon"
       },
       "report": {
         "untitled": "Modèle sans titre",
@@ -435,6 +436,13 @@
         "updateSuccess": "Modèle mis à jour avec succès !",
         "updateFailed": "Échec de la mise à jour du modèle",
         "saveError": "Erreur d'enregistrement",
+        "draft": "Brouillon",
+        "published": "Publié",
+        "publish": "Publier",
+        "unpublish": "Dépublier",
+        "publishSuccess": "Modèle publié",
+        "unpublishSuccess": "Modèle remis en brouillon",
+        "statusUpdateFailed": "Échec de la mise à jour du statut du modèle",
         "systemTemplateBlockedTitle": "Ce modèle ne peut pas être modifié",
         "systemTemplateBlockedDescription": "Il s'agit d'un modèle système, généré automatiquement et requis pour l'analyse des causes profondes par IA. Il ne peut pas être modifié ou supprimé.",
         "backToTemplates": "Retour aux modèles"

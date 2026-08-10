@@ -1,13 +1,19 @@
 import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
-import type { AnswerType, ITemplate, TemplateSummary } from "@/types/template"
+import type {
+  AnswerType,
+  ITemplate,
+  TemplateStatus,
+  TemplateSummary,
+} from "@/types/template"
 
 interface GetAllTemplatesArgs {
   page: number
   limit: number
   searchTerm: string
   category?: string
+  status?: TemplateStatus
 }
 
 interface UpdateOrCreateQuestionArgs {
@@ -32,8 +38,8 @@ const templateApi = baseApi.injectEndpoints({
       PaginatedApiResponse<TemplateSummary>,
       GetAllTemplatesArgs
     >({
-      query: ({ page, limit, searchTerm, category }) => ({
-        url: `/template?${buildQueryString({ page, limit, searchTerm, category })}`,
+      query: ({ page, limit, searchTerm, category, status }) => ({
+        url: `/template?${buildQueryString({ page, limit, searchTerm, category, status })}`,
         method: "GET",
       }),
       providesTags: ["TEMPLATE"],
@@ -85,6 +91,28 @@ const templateApi = baseApi.injectEndpoints({
         method: "PATCH",
         body: data,
       }),
+      invalidatesTags: ["TEMPLATE"],
+    }),
+    // quality-bar-loop round 5 (industry-standards): publish/unpublish
+    // toggle. PATCH /:id always expects the multipart "data" envelope
+    // (template.route.ts's uploader.single('file') + JSON.parse), even
+    // for a single-field change -- there's no separate lightweight JSON
+    // PATCH route, so this builds the same FormData shape
+    // updateTemplateBasics uses rather than adding a new backend route
+    // for what's really the same update operation.
+    updateTemplateStatus: builder.mutation<
+      ApiResponse<ITemplate>,
+      { id: string; status: TemplateStatus }
+    >({
+      query: ({ id, status }) => {
+        const formData = new FormData()
+        formData.append("data", JSON.stringify({ status }))
+        return {
+          url: `/template/${id}`,
+          method: "PATCH",
+          body: formData,
+        }
+      },
       invalidatesTags: ["TEMPLATE"],
     }),
     updateOrCreateQuestion: builder.mutation<
@@ -144,6 +172,7 @@ export const {
   useCreateNewTemplateMutation,
   useGetSingleTemplateQuery,
   useUpdateTemplateBasicsMutation,
+  useUpdateTemplateStatusMutation,
   useUpdateOrCreateQuestionMutation,
   useDeleteQuestionMutation,
   useUpdateOrCreatePageMutation,

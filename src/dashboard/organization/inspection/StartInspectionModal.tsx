@@ -58,6 +58,10 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
     page: 1,
     limit: 100,
     searchTerm: templateSearch,
+    // quality-bar-loop round 5 (industry-standards): exclude drafts --
+    // starting a real inspection against an unfinished checklist would
+    // silently produce an incomplete report with no warning.
+    status: "PUBLISHED",
   })
 
   const { handleSubmit, watch, setValue } = useForm<FormData>({

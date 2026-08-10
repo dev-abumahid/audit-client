@@ -320,11 +320,22 @@ export default function TemplatesPage() {
                               {template.templateName}
                             </Link>
                           </div>
-                          {template.category && (
-                            <span className="mt-1 inline-block rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                              {template.category}
-                            </span>
-                          )}
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {/* quality-bar-loop round 5 (industry-
+                                standards): only drafts get a badge here
+                                -- a published template (the common case)
+                                keeps today's row layout unchanged. */}
+                            {template.status === "DRAFT" && (
+                              <span className="inline-block rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                                {t("organization.templates.list.draftBadge")}
+                              </span>
+                            )}
+                            {template.category && (
+                              <span className="inline-block rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                                {template.category}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </TableCell>

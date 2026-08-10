@@ -14,13 +14,31 @@ vi.mock("@/redux/apis/organization/sites.api", () => ({
   useGetAllSitesQuery: () => ({ data: { data: [] } }),
 }))
 
+const mockUseGetAllTemplatesQuery = vi.fn()
 vi.mock("@/redux/apis/organization/template.api", () => ({
-  useGetAllTemplatesQuery: () => ({ data: { data: [] }, isLoading: false }),
+  useGetAllTemplatesQuery: (...args: unknown[]) =>
+    mockUseGetAllTemplatesQuery(...args),
 }))
 
 describe("StartInspectionModal", () => {
   beforeEach(() => {
     mockNavigate.mockReset()
+    mockUseGetAllTemplatesQuery.mockReset()
+    mockUseGetAllTemplatesQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+  })
+
+  // quality-bar-loop round 5 (Templates, industry-standards): starting a
+  // real inspection against an unfinished draft template would silently
+  // produce an incomplete report with no warning.
+  it("excludes draft templates from the picker by querying status=PUBLISHED", () => {
+    render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
+
+    expect(mockUseGetAllTemplatesQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "PUBLISHED" })
+    )
   })
 
   it("renders the localized title, description and field labels", () => {

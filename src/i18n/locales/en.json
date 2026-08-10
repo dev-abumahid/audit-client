@@ -366,7 +366,8 @@
         "deleteButtonLabel": "Delete {{name}}",
         "duplicateButtonLabel": "Duplicate {{name}}",
         "categoryFilterLabel": "Filter by category",
-        "allCategories": "All categories"
+        "allCategories": "All categories",
+        "draftBadge": "Draft"
       },
       "report": {
         "untitled": "Untitled Template",
@@ -435,6 +436,13 @@
         "updateSuccess": "Template updated successfully!",
         "updateFailed": "Failed to update template",
         "saveError": "Save error",
+        "draft": "Draft",
+        "published": "Published",
+        "publish": "Publish",
+        "unpublish": "Unpublish",
+        "publishSuccess": "Template published",
+        "unpublishSuccess": "Template moved back to draft",
+        "statusUpdateFailed": "Failed to update template status",
         "systemTemplateBlockedTitle": "This template can't be edited",
         "systemTemplateBlockedDescription": "This is a system template, generated automatically and required for AI root-cause analysis. It can't be edited or deleted.",
         "backToTemplates": "Back to Templates"

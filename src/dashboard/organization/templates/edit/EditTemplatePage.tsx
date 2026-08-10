@@ -9,6 +9,7 @@ import {
   useGetSingleTemplateQuery,
   useGetTemplateCategoriesQuery,
   useUpdateTemplateBasicsMutation,
+  useUpdateTemplateStatusMutation,
 } from "@/redux/apis/organization/template.api"
 import type {
   AnswerType,
@@ -35,6 +36,8 @@ const EditTemplatePage = () => {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const [updateTemplateBasics] = useUpdateTemplateBasicsMutation()
+  const [updateTemplateStatus, { isLoading: isTogglingStatus }] =
+    useUpdateTemplateStatusMutation()
   const [addModalTarget, setAddModalTarget] = useState<number | null>(null)
   // aexa-frontend#490 -- role="dialog"/focus-trap/Escape for the "Add New"
   // modal, same pattern KriDashboardPage uses (round 10, #487).
@@ -72,6 +75,10 @@ const EditTemplatePage = () => {
       templateName: t("organization.templates.create.defaultTemplateName"),
       templateDisc: "",
       category: "",
+      // Overwritten with the loaded template's real status once the fetch
+      // resolves (see the load effect below) -- PUBLISHED here is just the
+      // pre-load placeholder, matching every existing template's default.
+      status: "PUBLISHED",
       pages: [],
     },
     mode: "onChange", // Track changes in real-time
@@ -162,6 +169,7 @@ const EditTemplatePage = () => {
       )
       setValue("templateDisc", template.templateDisc || "")
       setValue("category", template.category || "")
+      setValue("status", template.status || "PUBLISHED")
 
       if (template.templateLogo) {
         setLogoPreview(template.templateLogo)
@@ -278,6 +286,28 @@ const EditTemplatePage = () => {
     [answerPanel, setValue]
   )
 
+  const currentStatus = useWatch({ control, name: "status" })
+
+  const handleToggleStatus = async () => {
+    if (!id || isTogglingStatus) return
+    const nextStatus = currentStatus === "PUBLISHED" ? "DRAFT" : "PUBLISHED"
+    try {
+      const res = await updateTemplateStatus({ id, status: nextStatus }).unwrap()
+      if (res?.success) {
+        setValue("status", nextStatus)
+        toast.success(
+          nextStatus === "PUBLISHED"
+            ? t("organization.templates.edit.publishSuccess")
+            : t("organization.templates.edit.unpublishSuccess")
+        )
+      }
+    } catch (error: any) {
+      toast.error(
+        error?.data?.message || t("organization.templates.edit.statusUpdateFailed")
+      )
+    }
+  }
+
   const onSubmit = async () => {
     try {
       await manualSave()
@@ -350,6 +380,37 @@ const EditTemplatePage = () => {
           </Link>
 
           <div className="flex items-center gap-4">
+            {/* quality-bar-loop round 5 (industry-standards): draft/
+                publish toggle, matching Typeform/Google Forms/
+                SafetyCulture's distinction between a half-built template
+                and one ready for real use. */}
+            <span
+              className={
+                currentStatus === "PUBLISHED"
+                  ? "rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400"
+                  : "rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+              }
+            >
+              {currentStatus === "PUBLISHED"
+                ? t("organization.templates.edit.published")
+                : t("organization.templates.edit.draft")}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              onClick={handleToggleStatus}
+              disabled={isTogglingStatus}
+            >
+              {isTogglingStatus ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : currentStatus === "PUBLISHED" ? (
+                t("organization.templates.edit.unpublish")
+              ) : (
+                t("organization.templates.edit.publish")
+              )}
+            </Button>
+
             {/* Save Status Indicator */}
             <SaveStatusIndicator status={saveStatus} hasChanges={hasChanges} />
 

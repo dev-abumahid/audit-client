@@ -82,6 +82,7 @@ function makeTemplate(overrides = {}) {
     id: "template-1",
     templateName: "ISO 27001 Audit Template",
     templateDisc: "Standard information security audit checklist",
+    status: "PUBLISHED",
     createdAt: "2026-06-01T10:00:00.000Z",
     updatedAt: "2026-06-01T10:00:00.000Z",
     access: [],
@@ -250,6 +251,37 @@ describe("TemplatesPage", () => {
     expect(editButton.className).toMatch(/\bw-11\b/)
     expect(deleteButton.className).toMatch(/\bh-11\b/)
     expect(deleteButton.className).toMatch(/\bw-11\b/)
+  })
+
+  // aexa-server PR #324 / quality-bar-loop round 5 (industry-standards):
+  // draft/publish status, addressing the "no publish/draft state" gap.
+  describe("draft status badge", () => {
+    it("shows a Draft badge for a draft template, and none for a published one", () => {
+      mockUseGetAllTemplatesQuery.mockReturnValue({
+        data: {
+          data: [
+            makeTemplate({ id: "t1", templateName: "Draft One", status: "DRAFT" }),
+            makeTemplate({
+              id: "t2",
+              templateName: "Published One",
+              status: "PUBLISHED",
+            }),
+          ],
+          meta: { total: 2 },
+        },
+        isLoading: false,
+      })
+
+      render(<MemoryRouter><TemplatesPage /></MemoryRouter>)
+
+      expect(
+        screen.getByText("organization.templates.list.draftBadge")
+      ).toBeInTheDocument()
+      // Only one badge should exist -- the published row gets none.
+      expect(
+        screen.getAllByText("organization.templates.list.draftBadge")
+      ).toHaveLength(1)
+    })
   })
 
   // aexa-server PR #323 / quality-bar-loop round 4 (industry-standards):

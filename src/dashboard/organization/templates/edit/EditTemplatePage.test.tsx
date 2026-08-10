@@ -27,6 +27,7 @@ function makeTemplateData(overrides = {}) {
     templateName: "Existing Template",
     templateDisc: "",
     templateLogo: null,
+    status: "PUBLISHED",
     pages: [
       {
         id: "p1",
@@ -48,11 +49,16 @@ function makeTemplateData(overrides = {}) {
 
 const mockUpdateTemplateBasics = vi.fn()
 const mockUseGetSingleTemplateQuery = vi.fn()
+const mockUpdateTemplateStatus = vi.fn()
 vi.mock("@/redux/apis/organization/template.api", () => ({
   useGetSingleTemplateQuery: (...args: unknown[]) =>
     mockUseGetSingleTemplateQuery(...args),
   useUpdateTemplateBasicsMutation: () => [
     mockUpdateTemplateBasics,
+    { isLoading: false },
+  ],
+  useUpdateTemplateStatusMutation: () => [
+    mockUpdateTemplateStatus,
     { isLoading: false },
   ],
   useGetTemplateCategoriesQuery: () => ({ data: { data: [] } }),
@@ -91,6 +97,7 @@ function renderPage() {
 describe("EditTemplatePage", () => {
   beforeEach(() => {
     mockUpdateTemplateBasics.mockReset()
+    mockUpdateTemplateStatus.mockReset()
     mockUseGetSingleTemplateQuery.mockReset()
     mockUseGetSingleTemplateQuery.mockReturnValue({
       data: { data: makeTemplateData() },
@@ -354,6 +361,132 @@ describe("EditTemplatePage", () => {
     const payload = JSON.parse(call.data.get("data") as string)
     expect(payload.category).toBe("Quality")
   }, 6000)
+
+  // quality-bar-loop round 5 (industry-standards): draft/publish toggle.
+  describe("draft/publish status toggle", () => {
+    it("shows a Draft badge and a Publish button for a draft template", () => {
+      mockUseGetSingleTemplateQuery.mockReturnValue({
+        data: { data: makeTemplateData({ status: "DRAFT" }) },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("organization.templates.edit.draft")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", {
+          name: "organization.templates.edit.publish",
+        })
+      ).toBeInTheDocument()
+    })
+
+    it("shows a Published badge and an Unpublish button for a published template", () => {
+      mockUseGetSingleTemplateQuery.mockReturnValue({
+        data: { data: makeTemplateData({ status: "PUBLISHED" }) },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("organization.templates.edit.published")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", {
+          name: "organization.templates.edit.unpublish",
+        })
+      ).toBeInTheDocument()
+    })
+
+    it("publishes a draft template and updates the badge immediately", async () => {
+      mockUseGetSingleTemplateQuery.mockReturnValue({
+        data: { data: makeTemplateData({ status: "DRAFT" }) },
+        isLoading: false,
+      })
+      mockUpdateTemplateStatus.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.templates.edit.publish",
+        })
+      )
+
+      expect(mockUpdateTemplateStatus).toHaveBeenCalledWith({
+        id: "template-1",
+        status: "PUBLISHED",
+      })
+      expect(
+        await screen.findByText("organization.templates.edit.published")
+      ).toBeInTheDocument()
+      const { toast } = await import("sonner")
+      expect(toast.success).toHaveBeenCalledWith(
+        "organization.templates.edit.publishSuccess"
+      )
+    })
+
+    // Review (PR #677) predicted that toggling status (setValue("status",
+    // ...)) would trigger useAutoSave's form.watch() "change" handler and
+    // cause a redundant full-form auto-save ~2s later. Verified via a
+    // negative control (temporarily reverting the fix candidate) that this
+    // does not actually reproduce: react-hook-form's setValue does not
+    // populate watch's `type` as "change" the way a real DOM input event
+    // does, so useAutoSave's `type === "change"` guard never fires for it.
+    // No fix needed; documented here so this doesn't get re-investigated.
+    it("does not trigger a redundant full-form auto-save after toggling status", async () => {
+      mockUseGetSingleTemplateQuery.mockReturnValue({
+        data: { data: makeTemplateData({ status: "DRAFT" }) },
+        isLoading: false,
+      })
+      mockUpdateTemplateStatus.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+      mockUpdateTemplateBasics.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.templates.edit.publish",
+        })
+      )
+      await screen.findByText("organization.templates.edit.published")
+
+      // Auto-save fires every 2s; give it comfortably past that window.
+      await new Promise((resolve) => setTimeout(resolve, 3500))
+      expect(mockUpdateTemplateBasics).not.toHaveBeenCalled()
+    }, 8000)
+
+    it("shows an error toast and leaves the status unchanged when the toggle fails", async () => {
+      mockUseGetSingleTemplateQuery.mockReturnValue({
+        data: { data: makeTemplateData({ status: "PUBLISHED" }) },
+        isLoading: false,
+      })
+      mockUpdateTemplateStatus.mockReturnValue({
+        unwrap: () => Promise.reject({ data: { message: "Server error" } }),
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.templates.edit.unpublish",
+        })
+      )
+
+      const { toast } = await import("sonner")
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("Server error")
+      )
+      expect(
+        screen.getByText("organization.templates.edit.published")
+      ).toBeInTheDocument()
+    })
+  })
 
   // Found by PR #675's review while auditing isSystemTemplate.ts's other
   // consumer -- this catch block read `error?.message`, but RTK Query's

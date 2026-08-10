@@ -68,6 +68,12 @@ const CreateTemplatePage = () => {
         templateName: t("organization.templates.create.defaultTemplateName"),
         templateDisc: "",
         category: "",
+        // quality-bar-loop round 5 (industry-standards): a newly created
+        // template starts as a draft, same convention as Typeform/Google
+        // Forms -- it becomes usable for real inspections (see
+        // StartInspectionModal's status=PUBLISHED filter) once explicitly
+        // published from the Templates list.
+        status: "DRAFT",
         pages: [
           {
             id: uid(),
