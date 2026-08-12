@@ -566,7 +566,10 @@ const InspectionReport = () => {
   // per-inspection write actions, rather than linking somewhere a chunk
   // of the audience can't actually reach.
   const role = useMyOrgRole()
-  const assignedInspectionIds = useMyAssignedInspectionIds()
+  // quality-bar-loop (Inspections, round 50, efficiency finding): skip the
+  // assignments fetch once role is known to be one that can never have any
+  // -- see useMyAssignedInspectionIds's own comment.
+  const assignedInspectionIds = useMyAssignedInspectionIds(role)
 
   const inspection = inspectionRaw?.data
   const template = inspection?.template

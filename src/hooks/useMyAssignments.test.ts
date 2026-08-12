@@ -6,8 +6,8 @@ import {
 
 const mockUseGetMyInspectionAssignmentsQuery = vi.fn()
 vi.mock("@/redux/apis/organization/inspection.api", () => ({
-  useGetMyInspectionAssignmentsQuery: () =>
-    mockUseGetMyInspectionAssignmentsQuery(),
+  useGetMyInspectionAssignmentsQuery: (...args: unknown[]) =>
+    mockUseGetMyInspectionAssignmentsQuery(...args),
 }))
 
 const mockUseGetMyFindingAssignmentsQuery = vi.fn()
@@ -65,6 +65,60 @@ describe("useMyAssignedInspectionIds", () => {
     })
     const { result } = renderHook(() => useMyAssignedInspectionIds())
     expect(result.current).toEqual(new Set())
+  })
+
+  // quality-bar-loop (Inspections, round 50, efficiency finding): a caller
+  // that's already resolved role can skip this fetch entirely once role is
+  // known to be one that can never have any assignments -- see the hook's
+  // own comment. Omitting `role` (every pre-existing call site above) must
+  // keep the original always-fetch behavior exactly.
+  it("skips the request once role is known to be VIEWER/LIGHT_USER", () => {
+    mockUseGetMyInspectionAssignmentsQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    })
+    renderHook(() => useMyAssignedInspectionIds("VIEWER"))
+    expect(mockUseGetMyInspectionAssignmentsQuery).toHaveBeenCalledWith(
+      undefined,
+      { skip: true }
+    )
+
+    mockUseGetMyInspectionAssignmentsQuery.mockClear()
+    renderHook(() => useMyAssignedInspectionIds("LIGHT_USER"))
+    expect(mockUseGetMyInspectionAssignmentsQuery).toHaveBeenCalledWith(
+      undefined,
+      { skip: true }
+    )
+  })
+
+  it("does not skip the request for ADMIN/LEAD_AUDITOR, or while role is still loading (undefined)", () => {
+    mockUseGetMyInspectionAssignmentsQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    })
+    renderHook(() => useMyAssignedInspectionIds("ADMIN"))
+    expect(mockUseGetMyInspectionAssignmentsQuery).toHaveBeenCalledWith(
+      undefined,
+      { skip: false }
+    )
+
+    mockUseGetMyInspectionAssignmentsQuery.mockClear()
+    renderHook(() => useMyAssignedInspectionIds("LEAD_AUDITOR"))
+    expect(mockUseGetMyInspectionAssignmentsQuery).toHaveBeenCalledWith(
+      undefined,
+      { skip: false }
+    )
+
+    // role omitted entirely (every pre-existing caller) -- must behave
+    // identically to the pre-round-50 always-fetch hook.
+    mockUseGetMyInspectionAssignmentsQuery.mockClear()
+    renderHook(() => useMyAssignedInspectionIds())
+    expect(mockUseGetMyInspectionAssignmentsQuery).toHaveBeenCalledWith(
+      undefined,
+      { skip: false }
+    )
   })
 })
 

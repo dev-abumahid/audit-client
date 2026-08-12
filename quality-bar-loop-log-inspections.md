@@ -2412,3 +2412,61 @@ in browser: a fresh untouched required checkbox blocks submission with
 the error toast rendering top-center (not overlapping the sticky
 bottom bar) and a visible focus ring landing on the exact offending
 question card; touching it and resubmitting succeeds.
+
+## Round 49 -- fresh 9-judge re-score
+
+First full panel since round 47, run after round 48 (PR #726) merged.
+
+| Axis | R44 | R47 | R49 | stuck_streak (into R50) | Note |
+|---|---|---|---|---|---|
+| Industry-standards | 7 | 8 | 8 | 0 (above floor) | unchanged. Both open findings (11 missing `type="button"`, no discard-confirmation) re-confirmed via fresh grep + live reproduction -- typed a note, clicked Back, navigated instantly with zero warning and the typed text silently discarded. Round 48 confirmed out-of-scope for this axis |
+| UX | 7 | 7 | **8** | 0 (streak broken) | **the round-47 stuck axis (streak 5) finally moved.** Round 48's fix live-verified end-to-end on the completion-gate path: toast names the question, page scrolls, `document.activeElement` confirmed landing on the exact offending question card. The two flows (create/update) are now structurally symmetric |
+| Efficiency | 7 | 7 | 7 | **5** (now the longest-stuck axis) | unchanged, re-confirmed via fresh live network trace: `GET /api/auth/me`, `GET /api/organization/members` (unpaginated), `GET /api/inspection/assignments/mine` still fire unconditionally in `InspectionTable.tsx`/`InspectionReport.tsx` just to gate row-action link visibility. Round 48's own refactor (`pages.reduce`->`pages.map().flat()`) confirmed non-regressive -- one-time click-path cost, not render-path |
+| Accessibility | 8 | 8 | 8 | 0 (above floor) | unchanged average, but a real nuance surfaced: round 48's focus-move mechanically lands focus on the right question card, but the card itself has no `role`/`aria-label`/`aria-labelledby` pointing at the question text -- a screen reader has nothing to announce on arrival even though a sighted user sees the right place. Add Media/Add Finding naming collision still open, unchanged |
+| Visual polish | **9** | 9 | **8** | 0 (above floor) | **soft regression, caused by round 48's own new code.** The new focus ring (`focus:ring-2 focus:ring-destructive`, full opacity) doesn't match this app's established error-ring convention everywhere else (`aria-invalid:ring-2 aria-invalid:ring-destructive/20`, paired with a border-color change) -- visibly harsher than every other error indicator in the design system. 48x48px video-thumbnail-controls finding (round 47) unchanged |
+| Resilience | **8** | 8 | **7** | 0 (regressed to floor, not yet "stuck" by definition) | **soft regression** -- not caused by any round-48 code change (round 48's two new mechanisms, the empty-pages case and the stale-focus-id fallback, were both independently verified safe this round). Purely a persistence penalty: `CreateNewFindingModal.tsx`'s missing `validateInspectionFile()` call is now unfixed for 4 rounds running (45->49) |
+| Code quality | 7 | 8 | 8 | 0 (above floor) | unchanged average, one real finding: the Radix close-focus-race workaround now exists in 4 near-identical hand-rolled copies (`UpdateInspection.tsx` + 3 auth modals) -- past the threshold this codebase used to justify round 45's `MediaThumbnail` extraction, a legitimate shared-hook candidate now rather than "still fine inline" |
+| Mobile | 8 | 8 | 8 | 0 (above floor) | round 47's toast/submit-button overlap confirmed FIXED via DOM measurement (zero rect intersection). But round 48's own scroll-to-question mechanism has a new bug on `CreateNewInspection.tsx` specifically: the page's `sticky top-0` 129px header covers the top ~70px of the scrolled-to card, hiding the exact question text the toast just named -- `UpdateInspection.tsx` has no sticky page header so its identical mechanism works cleanly. 48x48px/24x24px touch-target findings unchanged |
+| Security | 9 | 9 | 9 | 0 (above floor) | unchanged, confirmed clean. Round 48's new `getElementById(...).focus()` calls confirmed not an injection-capable sink; `question.id` confirmed non-attacker-influenceable in any HTML-construction context |
+
+**Average: 7.89/10** (down from round 47's 8.11 -- the first score
+decrease since round 44's regression). **No axis dropped below its
+floor** (resilience's drop to 7 lands exactly at floor, not below) --
+per the tiered guardrail this does **not** stop the loop. Not two
+consecutive rounds of no improvement either (round 48 was a fix round,
+not a re-score) -- stagnation guardrail doesn't trip. Continuing.
+
+**Round 50 selection, per the stuck_streak-based priority order:** no
+data-correctness/security finding at-or-below floor exists this round.
+Efficiency now carries the longest `stuck_streak` (5) and wins primary
+selection: of the three unconditional queries the finding names
+(`GET /api/auth/me`, `GET /api/organization/members`, `GET
+/api/inspection/assignments/mine`), only the third
+(`useMyAssignedInspectionIds()`) has a real, safe lever available from
+the frontend alone -- it's genuinely guaranteed-empty for VIEWER/
+LIGHT_USER per the hook's own doc comment, so it can skip once role is
+known. The other two (`useGetMeQuery`/`useGetAllOrgUsersQuery`, both
+inside `useMyOrgRole()`) can't be skipped the same way: `useMyOrgRole()`
+IS the mechanism that resolves role in the first place, so gating it on
+a role that doesn't exist yet isn't available, and
+`GET /api/organization/members`'s real fix (server-side pagination) is
+an aexa-server change out of this loop's frontend-only scope. This
+round's fix is therefore a partial, correctly-scoped win on this
+finding -- not the full "triple-query" cost -- in
+`InspectionTable.tsx`/`InspectionReport.tsx`. The org-members
+unpaginated-cost half stays open, tracked for a future round with
+aexa-server changes in scope.
+
+Batched alongside it (all Tier 1/2, file-disjoint from the efficiency
+fix and from each other, each addressing a finding a judge actually
+flagged this round rather than invented scope):
+- **Visual polish's regression fix**: swap the new focus ring to the
+  established `/20`-opacity + border-color pattern in both
+  `CreateNewInspection.tsx`/`UpdateInspection.tsx`'s `QuestionCard`.
+- **Resilience's persistent finding**: add the missing
+  `validateInspectionFile()` call to `CreateNewFindingModal.tsx`'s
+  finding-attachment upload (4 rounds unfixed).
+- **Mobile's new finding**: account for `CreateNewInspection.tsx`'s
+  sticky header height when scrolling to the flagged question, so the
+  question text round 48 just started naming isn't immediately hidden
+  under it.

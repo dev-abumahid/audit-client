@@ -18,6 +18,7 @@ import { useGetAllOrgUsersQuery } from "@/redux/apis/organization/org.user.api"
 import type { IAction, IActionMessage } from "@/types/finding"
 import { toLocalDatetimeInputValue } from "./dueDateInput"
 import { fileType } from "@/utils/fileType"
+import { validateInspectionFile } from "@/utils/inspectionFileValidation"
 import { isHttpUrl } from "@/utils/isHttpUrl"
 import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import {
@@ -220,6 +221,28 @@ export default function CreateNewFindingModal({
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files as FileList
     if (!files || files.length === 0) return
+    // quality-bar-loop (Inspections, round 44/50, resilience finding): this
+    // input had no client-side validation, unlike every sibling upload flow
+    // in this feature (CreateNewInspection.tsx/UpdateInspection.tsx/
+    // UploadNotesModal.tsx) -- a bad/oversized file was only caught after a
+    // full network round-trip failed. Same immediate-reject-with-toast
+    // pattern as those flows. Review finding on PR #728: the shared
+    // validator's PDF allowance is unreachable through this input's own
+    // `accept="image/*,video/*"` OS-picker filter (below) -- harmless
+    // (reusing the shared validator as-is is still correct), just noting it
+    // isn't a live path for this specific caller.
+    const validation = validateInspectionFile(files[0])
+    if (!validation.valid) {
+      toast.error(
+        t(
+          validation.reason === "size"
+            ? "organization.inspection.fileSizeError"
+            : "organization.inspection.fileTypeError"
+        )
+      )
+      if (fileInputRef.current) fileInputRef.current.value = ""
+      return
+    }
     setIsUploading(true)
     try {
       const formData = new FormData()

@@ -271,7 +271,28 @@ const QuestionCard = memo(
       <Card
         id={`question-card-${question.id}`}
         tabIndex={-1}
-        className="p-6 focus:ring-2 focus:ring-destructive focus:outline-none"
+        // quality-bar-loop (Inspections, round 50, visual-polish finding):
+        // round 48 shipped this at full ring opacity, visibly harsher than
+        // every other error indicator in the design system, which pairs
+        // `border-destructive` with a softened `ring-destructive/20`
+        // (`/40` dark) -- see input.tsx/textarea.tsx/select.tsx's
+        // `aria-invalid:` variants. Card has no border utility of its own
+        // (only its default `ring-1 ring-foreground/10`), so match the
+        // opacity convention on the ring alone rather than bolting on an
+        // unrelated border.
+        //
+        // quality-bar-loop (Inspections, round 50, mobile finding): this
+        // page's `sticky top-0` header can reach ~129px tall at the 375px
+        // mobile viewport this was measured at (long template name wraps
+        // to 2 lines), and a browser's native "scroll the newly-focused
+        // element into view" aligns this card's top edge with the
+        // viewport's top edge -- landing the question text this whole
+        // mechanism exists to surface right under the sticky header.
+        // `scroll-mt-40` (160px) gives the native scroll a safe offset to
+        // respect, with headroom beyond the 375px-measured height for a
+        // narrower device (e.g. 320px) wrapping the header's page-count
+        // badge onto its own row as well.
+        className="scroll-mt-40 p-6 focus:ring-2 focus:ring-destructive/20 focus:outline-none dark:focus:ring-destructive/40"
       >
         <div className="mb-4 flex justify-between">
           <p

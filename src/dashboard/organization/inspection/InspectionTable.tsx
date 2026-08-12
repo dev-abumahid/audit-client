@@ -64,7 +64,11 @@ const InspectionTable = () => {
   // assignment state; `undefined` (still loading / fetch failed) degrades
   // canWriteInspection back to the same role-only behavior as before #270.
   const canCreateInspection = role === "ADMIN"
-  const assignedInspectionIds = useMyAssignedInspectionIds()
+  // quality-bar-loop (Inspections, round 50, efficiency finding): role is
+  // already resolved above, so pass it through to skip the assignments
+  // fetch entirely once it's known to be a role that can never have any
+  // (VIEWER/LIGHT_USER) -- see useMyAssignedInspectionIds's own comment.
+  const assignedInspectionIds = useMyAssignedInspectionIds(role)
   const [searchParams] = useSearchParams()
   // quality-bar-loop round 14 (industry-standards): the dashboard's
   // "Active Inspections" KPI card used to be a static, non-clickable

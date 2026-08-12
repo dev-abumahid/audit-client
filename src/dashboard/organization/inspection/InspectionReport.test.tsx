@@ -68,8 +68,12 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
   useMyOrgRole: () => mockRole,
 }))
 let mockAssignedInspectionIds: Set<string> | undefined = new Set()
+const mockUseMyAssignedInspectionIds = vi.fn<
+  (role?: string) => Set<string> | undefined
+>(() => mockAssignedInspectionIds)
 vi.mock("@/hooks/useMyAssignments", () => ({
-  useMyAssignedInspectionIds: () => mockAssignedInspectionIds,
+  useMyAssignedInspectionIds: (role?: string) =>
+    mockUseMyAssignedInspectionIds(role),
 }))
 
 function makeInspection(overrides = {}) {
@@ -463,6 +467,22 @@ describe("InspectionReport", () => {
     const actionsLabel = screen.getByText("organization.inspection.colActions")
     expect(actionsLabel.parentElement).toHaveTextContent("1")
     expect(actionsLabel.closest("a")).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop (Inspections, round 50, efficiency finding): once role
+  // is resolved, it must be passed through to useMyAssignedInspectionIds so
+  // it can skip its own fetch for a role that can never have any
+  // assignments -- see that hook's own test for the skip logic itself; this
+  // just verifies the wiring at the call site.
+  it("passes the resolved role through to useMyAssignedInspectionIds", () => {
+    mockRole = "ADMIN"
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    expect(mockUseMyAssignedInspectionIds).toHaveBeenCalledWith("ADMIN")
   })
 
   it("does not render the Actions stat as a link when there is no inspection id yet", () => {

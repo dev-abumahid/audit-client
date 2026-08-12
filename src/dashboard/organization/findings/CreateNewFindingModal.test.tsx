@@ -541,6 +541,56 @@ describe("CreateNewFindingModal", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 44/50, resilience finding): unlike
+  // every sibling upload flow (CreateNewInspection.tsx/UpdateInspection.tsx/
+  // UploadNotesModal.tsx), this input had no client-side validation -- a
+  // bad file was only caught after a full network round-trip failed. These
+  // two tests are negative controls for the added validateInspectionFile()
+  // call: an oversized or disallowed-type file must be rejected immediately,
+  // with zero network request.
+  it("rejects an oversized file immediately, with no upload request", async () => {
+    const { toast } = await import("sonner")
+
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+    const oversized = new File(
+      [new Uint8Array(6 * 1024 * 1024)],
+      "huge.png",
+      { type: "image/png" }
+    )
+    await userEvent.upload(fileInput, oversized)
+
+    expect(mockUploadFile).not.toHaveBeenCalled()
+    expect(toast.error).toHaveBeenCalledWith(
+      "organization.inspection.fileSizeError"
+    )
+  })
+
+  it("rejects a disallowed file type immediately, with no upload request", async () => {
+    const { toast } = await import("sonner")
+
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+    // matches the input's "image/*" accept filter (so userEvent.upload
+    // doesn't itself block the selection) but isn't in
+    // ALLOWED_INSPECTION_FILE_TYPES's explicit allowlist.
+    const disallowed = new File(["hello"], "photo.bmp", {
+      type: "image/bmp",
+    })
+    await userEvent.upload(fileInput, disallowed)
+
+    expect(mockUploadFile).not.toHaveBeenCalled()
+    expect(toast.error).toHaveBeenCalledWith(
+      "organization.inspection.fileTypeError"
+    )
+  })
+
   // quality-bar-loop (Inspections, round 29 mobile finding): the dialog's
   // `min-w-xl` (min-width: 576px) applied unconditionally, forcing the
   // modal to overflow off-screen at mobile viewports with no way to

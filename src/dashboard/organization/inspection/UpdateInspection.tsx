@@ -313,7 +313,14 @@ const QuestionCard = memo(
       <Card
         id={`question-card-${question.id}`}
         tabIndex={-1}
-        className="rounded-xl border border-border bg-card p-6 focus:ring-2 focus:ring-destructive focus:outline-none"
+        // quality-bar-loop (Inspections, round 50, visual-polish finding):
+        // matches the softened ring-opacity convention this app's other
+        // error indicators use (input.tsx/textarea.tsx/select.tsx's
+        // `aria-invalid:` variants pair `border-destructive` with
+        // `ring-destructive/20`, `/40` dark) instead of round 48's original
+        // full-opacity ring. This card DOES have a real border (unlike
+        // CreateNewInspection.tsx's), so it gets the full pairing.
+        className="rounded-xl border border-border bg-card p-6 focus:border-destructive focus:ring-2 focus:ring-destructive/20 focus:outline-none dark:focus:border-destructive/50 dark:focus:ring-destructive/40"
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">

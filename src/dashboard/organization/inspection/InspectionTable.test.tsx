@@ -50,8 +50,12 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
 // same meaning useMyAssignedInspectionIds gives it), so tests can exercise
 // the graceful-degradation path explicitly.
 let mockAssignedInspectionIds: Set<string> | undefined = new Set()
+const mockUseMyAssignedInspectionIds = vi.fn<
+  (role?: string) => Set<string> | undefined
+>(() => mockAssignedInspectionIds)
 vi.mock("@/hooks/useMyAssignments", () => ({
-  useMyAssignedInspectionIds: () => mockAssignedInspectionIds,
+  useMyAssignedInspectionIds: (role?: string) =>
+    mockUseMyAssignedInspectionIds(role),
   useMyActiveFindingAssignmentIds: () => new Set(),
 }))
 
@@ -689,6 +693,31 @@ describe("InspectionTable", () => {
   // entity (Audit/Templates/Reports/Risk/Sites/Findings/KRI/Compliance),
   // already gated via useMyOrgRole()/canWriteOrgResource(role) per #217.
   describe("role gating (#242)", () => {
+    // quality-bar-loop (Inspections, round 50, efficiency finding): once
+    // role is resolved, it must be passed through to
+    // useMyAssignedInspectionIds so it can skip its own fetch for a role
+    // that can never have any assignments -- see that hook's own test for
+    // the skip logic itself; this just verifies the wiring at the call site.
+    it("passes the resolved role through to useMyAssignedInspectionIds", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: {
+          data: [makeInspection()],
+          meta: { page: 1, limit: 10, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+      })
+
+      renderTable()
+
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+      expect(mockUseMyAssignedInspectionIds).toHaveBeenCalledWith(
+        "LEAD_AUDITOR"
+      )
+    })
+
     it("shows Start New/Edit/Delete for ADMIN", async () => {
       mockRole = "ADMIN"
       mockUseGetAllInspectionQuery.mockReturnValue({

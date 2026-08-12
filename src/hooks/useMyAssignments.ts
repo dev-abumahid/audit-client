@@ -1,6 +1,7 @@
 import { useGetMyInspectionAssignmentsQuery } from "@/redux/apis/organization/inspection.api"
 import { useGetMyFindingAssignmentsQuery } from "@/redux/apis/organization/findings.api"
 import { deriveAssignmentState } from "@/utils/assignmentScope"
+import type { OrgRole } from "@/types/organizationMember"
 
 /**
  * aexa-frontend#270: fetches the caller's own InspectionAssignment rows
@@ -18,9 +19,22 @@ import { deriveAssignmentState } from "@/utils/assignmentScope"
  * return []` guard, and VIEWER/LIGHT_USER never reach the LEAD_AUDITOR
  * branch in assignmentScope.ts regardless), so callers can call this
  * unconditionally without checking role first.
+ *
+ * quality-bar-loop (Inspections, round 50, efficiency finding): "can call
+ * unconditionally" doesn't mean "should" -- a VIEWER/LIGHT_USER caller who
+ * already knows their own role gets a real, if cheap, wasted network round
+ * trip every time. The optional `role` param lets a caller that's already
+ * resolved its role skip the request entirely once it's known to be
+ * guaranteed-empty; omitting it (every pre-existing caller) preserves the
+ * original always-fetch behavior exactly.
  */
-export function useMyAssignedInspectionIds(): Set<string> | undefined {
-  const { data, isLoading, isError } = useGetMyInspectionAssignmentsQuery()
+export function useMyAssignedInspectionIds(
+  role?: OrgRole
+): Set<string> | undefined {
+  const { data, isLoading, isError } = useGetMyInspectionAssignmentsQuery(
+    undefined,
+    { skip: role !== undefined && role !== "ADMIN" && role !== "LEAD_AUDITOR" }
+  )
 
   if (isLoading || isError) return undefined
 
