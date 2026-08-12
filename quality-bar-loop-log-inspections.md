@@ -2359,3 +2359,56 @@ it, move focus). Batched alongside it: mobile's round-46-caused
 toast/submit-button overlap on `CreateNewInspection.tsx` -- same tier
 (contained UI fix), disjoint file from the UX fix, so it qualifies for
 the same round under the batching rule.
+
+## Round 48 -- shipped, reviewed, merged
+
+`UpdateInspection.tsx`'s `handleStatusChange` COMPLETED branch now
+finds every unmet required question across all pages (`pages.map(...)`
+producing per-page arrays, `.flat()`'d into one ordered list), names
+the first one in the toast alongside the total count, calls
+`scrollToPage` on its page, and focuses its question card via a new
+`pendingFocusIdRef` consumed by `DropdownMenuContent`'s
+`onCloseAutoFocus` -- necessary because Radix returns focus to the
+dropdown's own trigger when it closes, which runs after (and would
+otherwise override) a direct `.focus()` call made synchronously inside
+the click handler. `CreateNewInspection.tsx`'s `QuestionCard` gained
+the same `question-card-{id}` anchor (`id` + `tabIndex={-1}`)
+`UpdateInspection.tsx`'s `QuestionCard` already had from earlier in
+this PR, and its `handleSubmit` now focuses that anchor too, not just
+scrolls to it.
+
+Batched alongside it: mobile's round-46-caused finding -- the default
+bottom-anchored toast fully covered `CreateNewInspection.tsx`'s sticky
+Submit button at mobile widths, right when the user needed to act on
+it. Both of `handleSubmit`'s submit-blocking toasts now pass `{
+position: "top-center" }`, scoped to this page's two call sites rather
+than changed globally (no other page in the feature has a sticky
+bottom action bar).
+
+Shipped as aexa-frontend PR
+[#726](https://github.com/Qiyrix/aexa-frontend/pull/726). Round-1
+review (2 parallel angles) found two real medium findings: (1) the new
+`onCloseAutoFocus` handler called `preventDefault()` unconditionally
+once a pending focus id was set, silently dropping focus with no
+fallback if the id lookup ever missed -- unlike this codebase's
+existing identical pattern in `SignInModal.tsx`, which guards via
+`document.contains(...)` before overriding. Fixed by looking up the
+target first and only overriding once it's confirmed to exist. (2) the
+`reduce`-to-`map`/`flat` refactor had no test for multiple missing
+required questions spread across multiple pages, to confirm the total
+count still accumulates correctly and the first-found question
+resolves in true page order rather than an arbitrary match. Added a
+`react-i18next` interpolation mock (matching an existing pattern
+already used in `CreateNewInspection.test.tsx`) plus a 2-page test
+confirming both the count and the ordering; this also required
+updating two pre-existing tests' assertions from the raw untranslated
+i18n key to the now-interpolated string. Round 2 (diff scoped to the
+fix commit) came back clean.
+
+Merged as aexa-frontend PR
+[#726](https://github.com/Qiyrix/aexa-frontend/pull/726). QA gate at
+merge: typecheck/lint clean, full suite 1852/1852 passing. Live-verified
+in browser: a fresh untouched required checkbox blocks submission with
+the error toast rendering top-center (not overlapping the sticky
+bottom bar) and a visible focus ring landing on the exact offending
+question card; touching it and resubmitting succeeds.
