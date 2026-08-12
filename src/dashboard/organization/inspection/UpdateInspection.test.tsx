@@ -25,9 +25,43 @@ import UpdateInspection from "./UpdateInspection"
 // react-hooks/static-components lint rule flags creating a NEW component
 // on every render, which a `children`-closure version would have done)
 // rather than a generic children-wrapping route.
-const Stub = createRoutesStub([{ path: "*", Component: UpdateInspection }])
+//
+// quality-bar-loop (Inspections, round 58, resilience finding, PR #734
+// round 3): `useNavigate` used to be mocked out entirely (a plain spy,
+// `mockNavigate`), which -- same as CreateNewInspection.test.tsx's round
+// 56 fix -- made `saveBlocker` a no-op in every test, since a mocked
+// navigate never reaches the router to be blocked. The Back button's two
+// tests below now assert against a sentinel destination page's rendered
+// text instead of a mock spy call, and `initialEntries` seeds two real
+// history entries so navigate(-1) has somewhere genuine to go back to.
+const NAVIGATED_TO_LIST_SENTINEL = "NAVIGATED_TO_INSPECTIONS_LIST"
+function ListSentinel() {
+  return <>{NAVIGATED_TO_LIST_SENTINEL}</>
+}
+// Round 58 review finding (PR #736): a second real navigation target,
+// distinct from the Back button's `/organization/audit/inspections`, is
+// needed to reproduce the "two different links in quick succession" race
+// this round's fix targets -- the site cross-link at the top of the page
+// navigates here.
+const NAVIGATED_TO_SITE_SENTINEL = "NAVIGATED_TO_SITE"
+function SiteSentinel() {
+  return <>{NAVIGATED_TO_SITE_SENTINEL}</>
+}
+const Stub = createRoutesStub([
+  { path: "/organization/audit/inspections", Component: ListSentinel },
+  { path: "/organization/sites", Component: SiteSentinel },
+  { path: "*", Component: UpdateInspection },
+])
 function RouterWrapper() {
-  return <Stub initialEntries={["/"]} />
+  return (
+    <Stub
+      initialEntries={[
+        "/organization/audit/inspections",
+        "/organization/audit/inspection/insp-1/edit",
+      ]}
+      initialIndex={1}
+    />
+  )
 }
 const withRouter = { wrapper: RouterWrapper }
 
@@ -74,12 +108,10 @@ class MockIntersectionObserver {
 }
 vi.stubGlobal("IntersectionObserver", MockIntersectionObserver)
 
-const mockNavigate = vi.fn()
 vi.mock("react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-router")>()
   return {
     ...actual,
-    useNavigate: () => mockNavigate,
     useParams: () => ({ id: "insp-1" }),
   }
 })
@@ -163,7 +195,6 @@ function makeInspection(overrides = {}) {
 
 describe("UpdateInspection", () => {
   beforeEach(async () => {
-    mockNavigate.mockReset()
     mockUseGetSingleInspectionQuery.mockReset()
     mockUpdateInspection.mockReset()
     mockUpdateQuestionAnswer.mockReset()
@@ -862,7 +893,95 @@ describe("UpdateInspection", () => {
         })
       )
     )
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(-1))
+    await waitFor(() =>
+      expect(screen.getByText(NAVIGATED_TO_LIST_SENTINEL)).toBeInTheDocument()
+    )
+  })
+
+  // Round 58 review finding (PR #736): the try/catch around
+  // `saveBlocker.proceed()` shipped with no test proving it's actually
+  // reachable/necessary. This reproduces the race the PR body describes:
+  // `flushPendingSaves` clears `saveTimeoutRef` synchronously (before the
+  // mutation resolves), so react-router's own reactive re-evaluation of
+  // the blocker's `shouldBlock` predicate can auto-settle THIS SAME
+  // blocker instance to "unblocked" before the effect's `.then()`
+  // callback gets a chance to call `.proceed()` -- at which point
+  // `.proceed()` throws `Invalid blocker state transition: unblocked ->
+  // proceeding`. Confirmed by temporarily reverting the try/catch: this
+  // exact single-Back-click flow (no second navigation target needed --
+  // the race is inherent to the timing between the synchronous
+  // `saveTimeoutRef` clear and the awaited mutation, not to competing
+  // navigation targets) reliably reproduces it. Node's `process` emits
+  // `unhandledRejection` for a rejection an effect's `.then()` never
+  // catches -- that's the actual channel Vitest's own "Unhandled Errors"
+  // report reads from, not jsdom's `window` `unhandledrejection` event
+  // (which never fires here, since the throw happens on the Node side of
+  // the test, not as a browser-dispatched promise rejection).
+  it("does not throw an unhandled rejection when the flush's own settle races the blocker's proceed", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+    mockUpdateQuestionAnswer.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+
+    // This project has no @types/node, so `process` isn't ambiently typed
+    // here -- reach it via `globalThis` instead of adding a global dep just
+    // for one test's assertion.
+    const nodeProcess = (
+      globalThis as unknown as {
+        process: {
+          on: (event: string, listener: (reason: unknown) => void) => void
+          off: (event: string, listener: (reason: unknown) => void) => void
+        }
+      }
+    ).process
+
+    const rejections: unknown[] = []
+    const onUnhandledRejection = (reason: unknown) => {
+      rejections.push(reason)
+    }
+    nodeProcess.on("unhandledRejection", onUnhandledRejection)
+
+    try {
+      render(<UpdateInspection />, withRouter)
+      const checkbox = screen.getAllByRole("checkbox")[0]
+      await userEvent.click(checkbox)
+
+      // Click Back well before the 1000ms debounce would have fired on
+      // its own, same trigger as the "flushes a pending debounced save"
+      // test above -- the unhandled-rejection channel that test never
+      // asserted on is exactly what this test exists to check.
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.inspection.back" })
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByText(NAVIGATED_TO_LIST_SENTINEL)
+        ).toBeInTheDocument()
+      )
+      // Give the flush's own microtask/macrotask queue a chance to settle
+      // so a swallowed-vs-unhandled rejection would have already surfaced.
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      // Round 58 review round 2 finding: `process` is a single, per-worker
+      // EventEmitter, so this listener technically has no way to scope
+      // itself to just this test's own async work -- filter to the
+      // specific invariant this test exists to guard against, rather than
+      // asserting on the raw (unscoped) rejection list, so an unrelated
+      // rejection from elsewhere can't turn this into a flaky false
+      // failure.
+      const blockerRaceRejections = rejections.filter(
+        (reason) =>
+          reason instanceof Error &&
+          reason.message.includes("Invalid blocker state transition")
+      )
+      expect(blockerRaceRejections).toEqual([])
+    } finally {
+      nodeProcess.off("unhandledRejection", onUnhandledRejection)
+    }
   })
 
   it("navigates back immediately when there is no pending save to flush", async () => {
@@ -877,7 +996,9 @@ describe("UpdateInspection", () => {
     )
 
     expect(mockUpdateQuestionAnswer).not.toHaveBeenCalled()
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(-1))
+    await waitFor(() =>
+      expect(screen.getByText(NAVIGATED_TO_LIST_SENTINEL)).toBeInTheDocument()
+    )
   })
 
   // quality-bar-loop (Inspections, round 19, resilience finding): the

@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard"
 import { useUploadAnyFileAwsMutation } from "@/redux/apis/common.api"
 import {
   useGetSingleInspectionQuery,
@@ -765,6 +766,20 @@ export default function UpdateInspection() {
   // separate confirmation UX that would fight the existing autosave
   // design.
   const pendingSaveDataRef = useRef<Record<string, AnswerEntry>>({})
+  // Round 58 review finding (PR #736, MAJOR): `saveTimeoutRef` used to be
+  // the blocker's only signal for "a save is still outstanding," but both
+  // the debounce timer's own callback and `flushPendingSaves` delete their
+  // entry from it BEFORE awaiting the actual mutation -- so `shouldBlock()`
+  // (below) could go false, and react-router could let navigation proceed,
+  // while the mutation itself was still in flight and could still fail.
+  // That's a real data-loss window, not just the cosmetic
+  // "already-settled blocker" race this round originally set out to fix:
+  // the save might never land, and the user has already left the page by
+  // the time the error toast would have fired. This ref counts saves that
+  // are past the "scheduled" stage and into "actually awaiting the network
+  // call," so the blocker (and the beforeunload guard) stay armed for the
+  // full lifetime of a save, not just its debounce-queue portion.
+  const inFlightSaveCountRef = useRef(0)
 
   const debouncedUpdateQuestion = useCallback(
     (questionId: string, data: AnswerEntry) => {
@@ -777,6 +792,7 @@ export default function UpdateInspection() {
       saveTimeoutRef.current[questionId] = setTimeout(async () => {
         delete saveTimeoutRef.current[questionId]
         delete pendingSaveDataRef.current[questionId]
+        inFlightSaveCountRef.current += 1
         try {
           await handleUpdateQuestion(questionId, data)
           toast.success(t("organization.inspection.answerSavedToast"))
@@ -791,6 +807,7 @@ export default function UpdateInspection() {
           // error itself was already reported.
         } finally {
           setSavingQuestions((prev) => ({ ...prev, [questionId]: false }))
+          inFlightSaveCountRef.current -= 1
         }
       }, 1000)
     },
@@ -812,6 +829,7 @@ export default function UpdateInspection() {
       const data = pendingSaveDataRef.current[questionId]
       delete pendingSaveDataRef.current[questionId]
       if (!data) return
+      inFlightSaveCountRef.current += 1
       try {
         await handleUpdateQuestion(questionId, data)
       } catch {
@@ -819,6 +837,7 @@ export default function UpdateInspection() {
         // handleUpdateQuestion already toasted the specific error.
       } finally {
         setSavingQuestions((prev) => ({ ...prev, [questionId]: false }))
+        inFlightSaveCountRef.current -= 1
       }
     })
     return Promise.all(flushes)
@@ -835,12 +854,83 @@ export default function UpdateInspection() {
   // automatic: flush, then proceed the instant the flush resolves, with
   // no user-facing interruption, consistent with the rest of this file's
   // "just saves in the background" design.
+  // Round 58 review finding (PR #736, MAJOR): this predicate used to read
+  // only `saveTimeoutRef` (the debounce-queue stage), which goes empty the
+  // instant a save moves from "queued" to "in flight" -- letting the
+  // blocker (and the beforeunload guard below) unblock while the mutation
+  // itself could still be pending, or could still fail, after the user has
+  // already left. Now includes `inFlightSaveCountRef`, which stays > 0 for
+  // the save's full lifetime, so navigation stays blocked until the
+  // mutation actually settles, not just until it's dequeued.
   const saveBlocker = useBlocker(
-    () => Object.keys(saveTimeoutRef.current).length > 0
+    () =>
+      Object.keys(saveTimeoutRef.current).length > 0 ||
+      inFlightSaveCountRef.current > 0
   )
+  // Review finding on PR #734 round 3 (live-reproduced, not
+  // speculative): clicking two different links in quick succession
+  // while a save is pending re-targets the navigation, which the router
+  // handles by resetting this blocker and creating a new one for the
+  // new target -- but this effect had already captured the OLD
+  // `saveBlocker` in its `flushPendingSaves().then(...)` closure. When
+  // that stale closure resolved, it called `.proceed()` on a blocker
+  // object the router had already moved past, and react-router's own
+  // invariant threw `Invalid blocker state transition: unblocked ->
+  // proceeding`. The effect's cleanup function is the standard React
+  // fix for exactly this class of bug: it runs BEFORE the next effect
+  // instance (i.e. before the new saveBlocker is set up) whenever
+  // `saveBlocker` changes identity, so a stale in-flight flush's
+  // `.then()` callback correctly becomes a no-op instead of acting on
+  // a blocker that's no longer current.
+  //
+  // Round 58 QA (live-reproduced via a test that exercises the real
+  // router, not a mocked `navigate`): even with the cancellation guard
+  // above, the SAME invariant could still throw, because the predicate
+  // above used to go false the instant `saveTimeoutRef` was cleared --
+  // before the mutation it guarded had actually resolved. Tracking
+  // `inFlightSaveCountRef` through the mutation's full lifetime (see
+  // `flushPendingSaves` and `debouncedUpdateQuestion` above) closes the
+  // real problem -- navigation can no longer complete while a save could
+  // still be lost -- but does NOT eliminate the throw itself: confirmed by
+  // temporarily removing this try/catch with the `inFlightSaveCountRef`
+  // fix still in place, which still reproduced the exact same invariant.
+  // The gap is react-router's own internals -- our `inFlightSaveCountRef`
+  // decrement and react-router's reactive re-poll of `shouldBlock` are two
+  // independent async schedules, so there's an inherent window where the
+  // count has already hit zero (correctly, the save is done) but our own
+  // `.then()` hasn't called `.proceed()` yet, and react-router auto-settles
+  // the blocker first. React-router is the only source of truth for
+  // whether a queued `.proceed()` call is still valid, and the only way it
+  // exposes that is by throwing -- so this catch is the actual, necessary
+  // fix for the throw, while `inFlightSaveCountRef` above is the fix for
+  // the data-loss risk that throw was originally masking. Narrowed to the
+  // specific known invariant message so a genuinely different, unrelated
+  // error from the same call site isn't silently swallowed too.
   useEffect(() => {
-    if (saveBlocker.state === "blocked") {
-      flushPendingSaves().then(() => saveBlocker.proceed?.())
+    if (saveBlocker.state !== "blocked") return
+    let cancelled = false
+    flushPendingSaves().then(() => {
+      if (cancelled) return
+      try {
+        saveBlocker.proceed?.()
+      } catch (err) {
+        // Round 58 review round 2 finding: matching react-router's exact
+        // internal message is inherently coupled to the installed version
+        // -- it's not a typed error class react-router publishes, so this
+        // is the narrowest check available today. Deliberately accepted:
+        // pinned via package-lock.json, so this can only go stale on a
+        // deliberate react-router upgrade, at which point
+        // "flushes a pending debounced save before navigating back" and
+        // the dedicated race-regression test below would need re-running
+        // anyway as part of normal upgrade verification.
+        const isKnownBlockerRace =
+          err instanceof Error &&
+          err.message.includes("Invalid blocker state transition")
+        if (!isKnownBlockerRace) throw err
+      }
+    })
+    return () => {
+      cancelled = true
     }
   }, [saveBlocker, flushPendingSaves])
 
@@ -851,18 +941,14 @@ export default function UpdateInspection() {
   // gone by the time a flush's network request would land), so the best
   // available mitigation is the browser's own native "leave site?"
   // confirmation, shown only while a save genuinely hasn't landed yet.
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (Object.keys(saveTimeoutRef.current).length === 0) return
-      e.preventDefault()
-      // Chrome (and the spec) ignore any custom string and show their own
-      // generic message; older browsers can use this returnValue.
-      e.returnValue = ""
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload)
-    return () =>
-      window.removeEventListener("beforeunload", handleBeforeUnload)
-  }, [])
+  // Round 58 review finding: same fix as `saveBlocker` above -- include
+  // `inFlightSaveCountRef` so this stays armed for a save's full
+  // lifetime, not just its debounce-queue portion.
+  useBeforeUnloadGuard(
+    () =>
+      Object.keys(saveTimeoutRef.current).length > 0 ||
+      inFlightSaveCountRef.current > 0
+  )
 
   // quality-bar-loop (Inspections, round 10, efficiency finding): each of
   // these four handlers used to read `answers[questionId]` directly from

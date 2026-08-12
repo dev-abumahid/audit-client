@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard"
 import { useUploadAnyFileAwsMutation } from "@/redux/apis/common.api"
 import { useCreateNewInspectionMutation } from "@/redux/apis/organization/inspection.api"
 import { useGetSingleTemplateQuery } from "@/redux/apis/organization/template.api"
@@ -543,16 +544,7 @@ export default function CreateNewInspection() {
   // "blocked" and cancels the very navigation it just approved.
   const blockerProceedingRef = useRef(false)
 
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!hasUnsavedChangesRef.current) return
-      e.preventDefault()
-      e.returnValue = ""
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload)
-    return () =>
-      window.removeEventListener("beforeunload", handleBeforeUnload)
-  }, [])
+  useBeforeUnloadGuard(() => hasUnsavedChangesRef.current)
 
   // Initialize answers using question.id
   useEffect(() => {

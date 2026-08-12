@@ -2835,3 +2835,118 @@ inspection, clicked a sidebar link (not the Back button), confirmed
 the discard-confirmation dialog now renders -- the exact gap round 1's
 review flagged, genuinely closed rather than left as a known
 limitation.
+
+## Round 57 -- fresh 9-judge re-score
+
+First full panel since round 55, run after round 56 (PR #734) merged.
+The security judge did not report back after an extended wait
+(multiple retry windows, well beyond every other judge's actual
+completion time this round) -- treated as a stalled background task
+rather than blocking the loop indefinitely. Security's round 55 score
+(9/10, confirmed clean) is carried forward rather than guessed at,
+since every other judge this round independently characterized round
+56's diff as pure UI/navigation-state logic (useBlocker, dialogs,
+beforeunload) with no new data flow, no new render sinks, and no new
+user-input-to-sink path -- consistent with round 55's own security
+judge's read of the same code before it was merged.
+
+| Axis | R53 | R55 | R57 | stuck_streak (into R58) | Note |
+|---|---|---|---|---|---|
+| Industry-standards | 8 | 8 | **9** | 0 (above floor) | **round 56's data-loss fix confirmed genuinely closed.** Live-reproduced the EXACT round-55 repro (type edit, click a sidebar link) on both flows: UpdateInspection.tsx silently flushes and persists (confirmed via direct API re-fetch), CreateNewInspection.tsx blocks with the discard dialog and fires zero premature POST. type="button" and Retry-height fixes re-confirmed holding |
+| UX | 8 | 9 | 9 | 0 (above floor) | unchanged, held at the round-55 high. Discard dialog's copy/buttons verified clear; "Keep editing" round-trips correctly with the answer preserved; UpdateInspection.tsx's silent flush confirmed to genuinely complete (not silently drop) via live network trace |
+| Efficiency | 7 | 8 | 8 | 0 (above floor) | unchanged. `useBlocker`'s predicate confirmed via react-router source to only run on actual navigation attempts, not per-render/keystroke; `beforeunload` listeners confirmed registered once per mount. Both persistent open findings (useMyOrgRole dual query, diverging useGetAllSitesQuery cache keys) unchanged |
+| Accessibility | 7 | 9 | 9 | 0 (above floor) | unchanged, held at the round-55 recovery. New discard dialog live-verified via real keyboard interaction: correct initial focus (safe "Keep editing", not destructive "Discard"), real focus trap, Escape correctly cancels navigation and restores focus sensibly. Add Media/Add Finding naming collision still open (scoped specifically to UpdateInspection.tsx, per this round's more precise read) |
+| Visual polish | 9 | 8 | 8 | 0 (above floor) | unchanged average, but a **new finding**: the discard dialog uses bare unstyled Radix defaults instead of matching `DeleteAlertModal.tsx`'s established confirmation-dialog language (rounded-3xl, centered, warning icon, equal-width buttons) -- and more importantly, "Discard" (a stated-permanent, irreversible action) is styled in the ordinary primary color, not destructive red, inverting this app's own convention for dangerous actions. Retry-button height fix confirmed closed. MediaThumbnail 48px/24px finding unchanged |
+| Resilience | 7 | 8 | **7** | 0 (fresh regression, at floor) | **regression, a real live-reproduced bug in round 56's own new code, not speculative.** Rapid clicks on two different links while an UpdateInspection.tsx save is pending throws an unhandled exception: `Error: Invalid blocker state transition: unblocked -> proceeding`, from a stale `flushPendingSaves().then(() => saveBlocker.proceed?.())` closure firing after the router has already re-targeted/reset the blocker. Final navigation destination is still correct, but it's a genuine uncaught exception on a realistic multi-click gesture. `UpdateInspection.test.tsx` confirmed to never actually exercise `saveBlocker` (still mocks `useNavigate`), so this bug shipped past this loop's own test gate |
+| Code quality | 8 | 8 | **7** | 0 (fresh regression, at floor) | **regression, caused by round 56's own new code.** The new `beforeunload` guard was hand-rolled near-identically in both `CreateNewInspection.tsx` and `UpdateInspection.tsx` (same handler shape, same DOM API, differing only in a one-line guard condition) -- the exact "near-identical, same-shape, worth extracting" pattern that justified round 45's `MediaThumbnail` extraction, freshly reintroduced in the same round that should have been most alert to it (the log itself has flagged the still-open `onCloseAutoFocus` duplication, now 5 rounds unaddressed, in this same file, in every recent round) |
+| Mobile | 7 | 7 | **8** | 0 (above floor) | **regression from round 55 resolved.** Retry button re-measured live: 48.5x44px, correct height. Discard dialog confirmed touch-friendly at 375px (both buttons 288x44px, full-width stack, no overflow). Both persistent findings (MediaThumbnail touch targets, the false-positive `focus:` vs `focus-visible:` ring) re-confirmed unchanged |
+| Security | 9 | 9 | *(carried forward)* | -- | judge did not report this round (see note above); no code change in round 56 plausibly affects this axis per every other judge's independent read of the diff |
+
+**Average: 8.22/10** (using security's carried-forward 9; matches round
+55's average exactly, despite significant movement underneath --
+industry-standards/mobile recovered/improved while resilience/code-
+quality freshly regressed, netting to the same average). **All axes at
+or above floor** (resilience and code quality both land exactly at
+floor, not below) -- the tiered guardrail does not stop the loop.
+
+**Round 58 selection:** two axes regressed this round while staying
+at/above floor (resilience, code quality) -- per the guardrail these
+get one round's selection priority. Between them, resilience's finding
+is a live-reproduced, concretely-thrown exception (not a hypothetical
+"could happen" case), the more severe of the two by a clear margin, so
+it's the primary pick: fix the stale-closure race in
+`UpdateInspection.tsx`'s flush-then-proceed effect (a cancellation
+guard, the standard React pattern for exactly this class of bug), and
+add real test coverage that exercises `saveBlocker` through a genuine
+router (this file's test suite currently can't catch this class of bug
+at all, since `useNavigate` is still mocked there).
+
+Batched alongside it: code quality's fresh regression, since fixing it
+touches the exact same two files already in scope and is now
+past the threshold this codebase has used to justify extraction
+twice before (`MediaThumbnail`, and this same `beforeunload` pattern
+now flagged twice in two consecutive rounds) -- extract a shared
+`useBeforeUnloadGuard(shouldBlock)` hook.
+
+The `onCloseAutoFocus` duplication (now 5 rounds overdue, crosses into
+3 auth modals outside this feature) remains deliberately NOT batched
+-- unchanged reasoning from every prior round: its cross-feature blast
+radius warrants its own dedicated round.
+
+## Round 58 outcome
+
+Shipped both batched fixes from round 57's selection, plus one
+additional fix discovered during QA (not from a judge -- from actually
+exercising the real router in tests and live browser verification,
+per this loop's own "mandatory live UI verification" discipline):
+
+1. **Resilience fix -- stale-closure race in `UpdateInspection.tsx`'s
+   flush-then-proceed effect.** Added the standard React
+   cancellation-flag-in-cleanup pattern so a superseded blocker's
+   `.then()` callback becomes a no-op instead of calling `.proceed()`
+   on a blocker the router has already moved past.
+
+2. **QA-caught second bug in the same mechanism (not from a judge):**
+   fixing test coverage properly -- removing `UpdateInspection.test.tsx`'s
+   `useNavigate` mock and switching to a real `createRoutesStub` router
+   with a sentinel destination (matching `CreateNewInspection.test.tsx`'s
+   round-56 pattern), exactly as round 57's resilience judge recommended
+   -- immediately caught a SECOND, distinct trigger of the same
+   `Invalid blocker state transition: unblocked -> proceeding` invariant:
+   `flushPendingSaves` clears `saveTimeoutRef` synchronously (before
+   awaiting the mutation), so react-router's own reactive re-evaluation
+   of the blocker's `shouldBlock` predicate can auto-settle the blocker
+   to "unblocked" on its own, *before* the effect's `.then()` callback
+   calls `.proceed()`. The cancellation-flag fix from (1) does not catch
+   this -- it's the same blocker *instance*, not a stale one, so the
+   `cancelled` flag stays false, and the captured `saveBlocker.state`
+   inside the closure is a snapshot, not a live value, so re-checking it
+   doesn't help either. React-router itself is the only source of truth
+   for whether a queued `.proceed()` call is still valid, and it only
+   exposes that by throwing -- so the correct fix is a try/catch around
+   the `.proceed()` call: by the time this fires, the navigation intent
+   has already been honored one way or another (the flush landed and the
+   router auto-proceeded, or a newer blocker superseded this one), so
+   the throw is not a real failure and is safe to swallow. Verified via
+   the rewritten test suite (which now genuinely exercises `saveBlocker`
+   through a real router) and live in the browser: typed an answer,
+   fired two rapid clicks at two different real navigation targets
+   (the site cross-link, then a sidebar link) before the debounce/flush
+   resolved -- zero console errors, zero unhandled exceptions, app
+   stayed fully interactive.
+
+3. **Code quality fix -- extracted `useBeforeUnloadGuard(shouldWarn)`**
+   to `src/hooks/useBeforeUnloadGuard.ts`, replacing the two
+   near-identical hand-rolled `beforeunload` effects in
+   `CreateNewInspection.tsx` and `UpdateInspection.tsx`. Added a
+   co-located `useBeforeUnloadGuard.test.ts` (4 tests: warns when
+   `shouldWarn` is true, no-ops when false, reads `shouldWarn` live
+   rather than a value captured at mount, and removes its listener on
+   unmount), matching this repo's established hook-test convention.
+
+QA: `npm run typecheck` clean, `npx eslint .` clean (0 errors, 4
+pre-existing warnings unrelated to this change), full suite
+`npx vitest run` -- 123 files, 1881 tests, all passing (including the
+rewritten `UpdateInspection.test.tsx`, now 63 tests, which caught bug
+(2) above before it ever reached the browser). Live-verified in the
+browser per the mandatory frontend verification step.
