@@ -105,7 +105,15 @@ function makeTemplate(overrides = {}) {
             id: "q-1",
             question: "Extinguisher present?",
             answerType: "checkbox",
-            isRequired: true,
+            // quality-bar-loop (Inspections, round 46): most tests using
+            // this default template submit without ever touching q-1 --
+            // now that a required checkbox genuinely blocks submission
+            // until touched (see the dedicated tests below), keeping this
+            // one required would break every unrelated test that submits
+            // through the default template. Required-checkbox validation
+            // itself is covered by its own tests using a purpose-built
+            // template instead.
+            isRequired: false,
           },
           {
             id: "q-2",
@@ -326,6 +334,128 @@ describe("CreateNewInspection", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 46, UX finding): a required
+  // checkbox/slider is seeded with a real default value (false / 5), so
+  // the "is this blank" check every other answer type relies on can never
+  // catch a required checkbox/slider the user never actually touched --
+  // live-reproduced every round since 40. Fixed via a separate
+  // touchedQuestionIds signal rather than trying to encode "unanswered"
+  // in the value itself.
+  it("blocks submission when a required checkbox is left untouched, even though it carries a default value", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: {
+        data: makeTemplate({
+          pages: [
+            {
+              title: "General",
+              questions: [
+                {
+                  id: "q-7",
+                  question: "Fire extinguisher present?",
+                  answerType: "checkbox",
+                  isRequired: true,
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.submitInspection",
+      })
+    )
+
+    expect(mockCreateInspection).not.toHaveBeenCalled()
+    expect(mockToastError).toHaveBeenCalledWith(
+      'Please answer the required question: "Fire extinguisher present?"'
+    )
+  })
+
+  it("allows submission once a required checkbox has been touched, even if left at its unchecked default", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: {
+        data: makeTemplate({
+          pages: [
+            {
+              title: "General",
+              questions: [
+                {
+                  id: "q-7",
+                  question: "Fire extinguisher present?",
+                  answerType: "checkbox",
+                  isRequired: true,
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+    mockCreateInspection.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    render(<CreateNewInspection />)
+    const checkbox = screen.getByRole("checkbox")
+    // Touch it on, then back off -- ends up unchecked (== the default),
+    // but the question was genuinely interacted with.
+    await userEvent.click(checkbox)
+    await userEvent.click(checkbox)
+    expect(checkbox).not.toBeChecked()
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.submitInspection",
+      })
+    )
+
+    await waitFor(() => expect(mockCreateInspection).toHaveBeenCalled())
+    expect(mockToastError).not.toHaveBeenCalledWith(
+      expect.stringContaining("Fire extinguisher present?")
+    )
+  })
+
+  it("blocks submission when a required slider is left untouched, even though it carries a default value", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: {
+        data: makeTemplate({
+          pages: [
+            {
+              title: "General",
+              questions: [
+                {
+                  id: "q-8",
+                  question: "Rate overall safety",
+                  answerType: "slider",
+                  isRequired: true,
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.submitInspection",
+      })
+    )
+
+    expect(mockCreateInspection).not.toHaveBeenCalled()
+    expect(mockToastError).toHaveBeenCalledWith(
+      'Please answer the required question: "Rate overall safety"'
+    )
+  })
+
   it("scrolls back to an earlier page containing the first missing required answer, from the last page", async () => {
     const scrollIntoViewSpy = HTMLElement.prototype
       .scrollIntoView as ReturnType<typeof vi.fn>
@@ -402,27 +532,12 @@ describe("CreateNewInspection", () => {
     expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1)
   })
 
-  it("allows submission when a required checkbox question keeps its default (unset) value", async () => {
-    // Checkbox/slider questions are always initialized with a real default
-    // (false / 5), so "required" there shouldn't block submission -- only
-    // text/date/select/media questions that default to "" should.
-    mockUseGetSingleTemplateQuery.mockReturnValue({
-      data: { data: makeTemplate() },
-      isLoading: false,
-    })
-    mockCreateInspection.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true }),
-    })
-
-    render(<CreateNewInspection />)
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: "organization.inspection.submitInspection",
-      })
-    )
-
-    await waitFor(() => expect(mockCreateInspection).toHaveBeenCalled())
-  })
+  // Superseded by round 46's fix: a required checkbox/slider left at its
+  // default (unset) value now correctly blocks submission -- see "blocks
+  // submission when a required checkbox/slider is left untouched" above.
+  // This test used to assert the opposite (the bug itself); replaced
+  // rather than deleted so the history of what changed and why stays
+  // visible in the diff.
 
   // quality-bar-loop (Inspections, round 6, UX finding): a slider question
   // with a non-numeric configured default (`value`) previously flowed

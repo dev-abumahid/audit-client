@@ -407,6 +407,26 @@ export default function CreateNewInspection() {
 
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, AnswerEntry>>({})
+  // quality-bar-loop (Inspections, round 46, UX finding): checkbox/slider
+  // questions are seeded below with a real default value (false / a
+  // numeric default), same as every other answer type, so the payload
+  // this page submits always carries a real value for them -- changing
+  // that seeding to null/undefined would send a missing `answer` field
+  // for an untouched question, and aexa-server's QuestionAnswer.answer
+  // column is a non-nullable Json with no default (confirmed in
+  // inspection.prisma/inspection.service.ts's create_inspection_into_db),
+  // so that would break inspection creation outright for any untouched
+  // non-required checkbox/slider. Tracking "has this question actually
+  // been interacted with in this session" separately, rather than trying
+  // to encode it in the answer value itself, fixes the required-field
+  // gate below without touching the submission payload or the backend at
+  // all. Deliberately never pre-populated from anything -- there's no way
+  // to know in retrospect whether an already-loaded answer was ever
+  // really touched, so treating every checkbox/slider as untouched until
+  // this session's own onChange fires is the honest, safe default.
+  const [touchedQuestionIds, setTouchedQuestionIds] = useState<Set<string>>(
+    new Set()
+  )
 
   const [visibleNotes, setVisibleNotes] = useState<Record<string, boolean>>({})
   const [isAnswerMediaUploading, setIsAnswerMediaUploading] = useState<
@@ -497,6 +517,12 @@ export default function CreateNewInspection() {
       ...prev,
       [questionId]: { ...prev[questionId], answer: value },
     }))
+    setTouchedQuestionIds((prev) => {
+      if (prev.has(questionId)) return prev
+      const next = new Set(prev)
+      next.add(questionId)
+      return next
+    })
   }, [])
 
   const handleNoteChange = useCallback((questionId: string, note: string) => {
@@ -510,13 +536,22 @@ export default function CreateNewInspection() {
     setVisibleNotes((prev) => ({ ...prev, [questionId]: !prev[questionId] }))
   }, [])
 
-  // checkbox/slider questions always carry a real default value (false / 5)
-  // once initialized, so an "empty" answer there would mean init hasn't run
-  // yet, not that the user skipped it -- only guard against null/undefined.
-  // Every other answer type defaults to "" and genuinely means unanswered.
-  const isAnswerEmpty = (answerType: string, answer: any) => {
+  // quality-bar-loop (Inspections, round 46, UX finding): checkbox/slider
+  // questions are seeded with a real default value (false / 5) that's
+  // indistinguishable from a genuine answer -- `answer === undefined ||
+  // answer === null` here was true precisely never in practice, so a
+  // required checkbox/slider the user never touched silently passed this
+  // check. `touchedQuestionIds` (tracked in handleAnswerChange above) is
+  // the real "was this actually answered" signal for these two types;
+  // every other answer type's blank default genuinely is `""`, so their
+  // existing check is untouched.
+  const isAnswerEmpty = (
+    answerType: string,
+    answer: any,
+    questionId: string
+  ) => {
     if (answerType === "checkbox" || answerType === "slider") {
-      return answer === undefined || answer === null
+      return !touchedQuestionIds.has(questionId)
     }
     return answer === undefined || answer === null || answer === ""
   }
@@ -527,7 +562,7 @@ export default function CreateNewInspection() {
       for (const question of page.questions || []) {
         if (!question.isRequired) continue
         const answer = answers[question.id]?.answer
-        if (isAnswerEmpty(question.answerType, answer)) {
+        if (isAnswerEmpty(question.answerType, answer, question.id)) {
           return { pageIndex, question }
         }
       }

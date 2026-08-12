@@ -898,18 +898,18 @@ describe("UpdateInspection", () => {
     )
   })
 
-  // Documents a known, deliberate scope limitation (see the code comment
-  // on handleStatusChange): a required checkbox question's local default
-  // of `false` is indistinguishable from an explicit "No" answer anywhere
-  // in this data model (the backend creates every question's
-  // QuestionAnswer row, default value included, at inspection-creation
-  // time) -- so an untouched required checkbox must NOT block COMPLETED,
-  // unlike a genuinely-blank required text/date/multipleSelect/media
-  // question.
-  it("allows marking COMPLETED with an untouched required checkbox question", async () => {
+  // quality-bar-loop (Inspections, round 46, UX finding): the fix for the
+  // gap the comment above used to document as an accepted limitation --
+  // a required checkbox/slider left at its literal default is now
+  // correctly treated as unanswered via a separate touchedQuestionIds
+  // signal, entirely independent of the answer value itself.
+  it("blocks marking COMPLETED when a required checkbox has never been answered", async () => {
+    const toast = (await import("sonner")).toast
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: {
         data: makeInspection({
+          // No questionAnswers entry for q-1 at all -- never touched,
+          // not even a persisted default.
           questionAnswers: [
             {
               id: "qa-2",
@@ -935,12 +935,131 @@ describe("UpdateInspection", () => {
       await screen.findByText("organization.inspection.statusCompleted")
     )
 
+    expect(mockUpdateInspection).not.toHaveBeenCalled()
+    expect(toast.error).toHaveBeenCalledWith(
+      "organization.inspection.cannotCompleteRequiredUnanswered"
+    )
+  })
+
+  // The one signal actually derivable from data alone: a persisted value
+  // that *differs* from the question's computed default means it really
+  // was answered in a past session, even though there's no explicit
+  // "touched" flag anywhere in this data model. Protects the realistic
+  // multi-session workflow (fill out most of an inspection, come back
+  // later to finish and complete it) from being forced to re-touch every
+  // already-correct checkbox/slider.
+  it("allows marking COMPLETED when a required checkbox was already answered in a past session", async () => {
+    // Default makeInspection() already has q-1 (required checkbox)
+    // persisted as `answer: true` -- differs from the computed default
+    // of `false`, so it's inferred touched on load without the user
+    // re-clicking anything in this session.
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+    mockUpdateInspection.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+    render(<UpdateInspection />, withRouter)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.inspection\.statusInProgress/i,
+      })
+    )
+    await userEvent.click(
+      await screen.findByText("organization.inspection.statusCompleted")
+    )
+
     await waitFor(() =>
       expect(mockUpdateInspection).toHaveBeenCalledWith({
         id: "insp-1",
         data: { status: "COMPLETED" },
       })
     )
+  })
+
+  it("allows marking COMPLETED once a required checkbox is touched in the current session", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          // No persisted answer for q-1 -- starts genuinely untouched.
+          questionAnswers: [
+            {
+              id: "qa-2",
+              questionId: "q-2",
+              answer: "Fine",
+              note: "",
+              mediaFiles: [],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+    mockUpdateInspection.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+    render(<UpdateInspection />, withRouter)
+    await userEvent.click(screen.getByRole("checkbox"))
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.inspection\.statusInProgress/i,
+      })
+    )
+    await userEvent.click(
+      await screen.findByText("organization.inspection.statusCompleted")
+    )
+
+    await waitFor(() =>
+      expect(mockUpdateInspection).toHaveBeenCalledWith({
+        id: "insp-1",
+        data: { status: "COMPLETED" },
+      })
+    )
+  })
+
+  // Review finding on PR #724: `qa.answer` is typed `any` off a Json
+  // column, so a backend that serializes the checkbox default as the
+  // string "false" (instead of the boolean false) must still be read as
+  // "at its default" -- a naive `=== false` comparison would treat this
+  // as "differs from default" and wrongly infer the question was touched,
+  // silently reintroducing the bug this PR fixes for that data shape.
+  it("blocks marking COMPLETED when a persisted checkbox default arrives as the string \"false\"", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          questionAnswers: [
+            {
+              id: "qa-1",
+              questionId: "q-1",
+              answer: "false",
+              note: "",
+              mediaFiles: [],
+            },
+            {
+              id: "qa-2",
+              questionId: "q-2",
+              answer: "Fine",
+              note: "",
+              mediaFiles: [],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+    mockUpdateInspection.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+    render(<UpdateInspection />, withRouter)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.inspection\.statusInProgress/i,
+      })
+    )
+    await userEvent.click(
+      await screen.findByText("organization.inspection.statusCompleted")
+    )
+
+    expect(mockUpdateInspection).not.toHaveBeenCalled()
   })
 
   // Regression (aexa-frontend round-9 audit #463): the status dropdown's

@@ -483,6 +483,17 @@ export default function UpdateInspection() {
 
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, AnswerEntry>>({})
+  // quality-bar-loop (Inspections, round 46, UX finding): see
+  // CreateNewInspection.tsx's identical field for the full rationale --
+  // checkbox/slider always carry a real default value indistinguishable
+  // from a genuine answer, so "was this question actually answered" has
+  // to be tracked separately from the answer value itself. Starts empty
+  // here (nothing loaded yet); the init effect below pre-populates it
+  // from the loaded inspection's existing answers where that's actually
+  // derivable -- see that effect's own comment for how.
+  const [touchedQuestionIds, setTouchedQuestionIds] = useState<Set<string>>(
+    new Set()
+  )
   const [visibleNotes, setVisibleNotes] = useState<Record<string, boolean>>({})
   const [selectedStatus, setSelectedStatus] = useState(inspection?.status)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
@@ -543,6 +554,7 @@ export default function UpdateInspection() {
     })
 
     // Then, populate with existing answers from the API
+    const touchedFromLoad = new Set<string>()
     inspection.questionAnswers.forEach((qa: any) => {
       if (initial[qa.questionId]) {
         initial[qa.questionId] = {
@@ -554,6 +566,38 @@ export default function UpdateInspection() {
       }
     })
 
+    // quality-bar-loop (Inspections, round 46, UX finding): a checkbox/
+    // slider's persisted value is indistinguishable from its computed
+    // default when it happens to equal that default -- there's no
+    // persisted "was this actually touched" flag anywhere in this data
+    // model (see handleStatusChange's comment for the full history). But
+    // when the persisted value *differs* from the default, that's a real,
+    // derivable signal the question genuinely was answered in a past
+    // session -- pre-populate touchedQuestionIds from that signal so
+    // re-opening an already-filled-out inspection doesn't force the user
+    // to re-touch every checkbox/slider that's already correctly answered.
+    // A required checkbox/slider still sitting at its exact default (the
+    // one case this can't distinguish from "never touched") correctly
+    // stays blocked, which is the actual bug every round since 40 lived-
+    // reproduced.
+    pages.forEach((page: any) => {
+      page.questions?.forEach((q: any) => {
+        if (!q.id) return
+        if (q.answerType !== "checkbox" && q.answerType !== "slider") return
+        // `persisted` comes from a Json column typed `any` -- normalize
+        // before comparing so a backend that serializes booleans/numbers as
+        // strings (e.g. "false", "5") doesn't get misread as "differs from
+        // default" and wrongly pre-populate touched state.
+        const persisted = initial[q.id]?.answer
+        const isDefault =
+          q.answerType === "checkbox"
+            ? persisted === false || persisted === "false"
+            : Number(persisted) === parseSliderDefault(q.value)
+        if (!isDefault) touchedFromLoad.add(q.id)
+      })
+    })
+
+    setTouchedQuestionIds(touchedFromLoad)
     setAnswers(initial)
 
     // quality-bar-loop (Inspections, round 9, efficiency finding): this
@@ -705,6 +749,12 @@ export default function UpdateInspection() {
         ...prev,
         [questionId]: { ...prev[questionId], answer: value },
       }))
+      setTouchedQuestionIds((prev) => {
+        if (prev.has(questionId)) return prev
+        const next = new Set(prev)
+        next.add(questionId)
+        return next
+      })
 
       const questionAnswerId = answersRef.current[questionId]?.questionAnswerId
       if (questionAnswerId) {
@@ -769,8 +819,8 @@ export default function UpdateInspection() {
     // could flip status to Completed with required questions still
     // unanswered, with no warning at all.
     //
-    // Two false starts before this, both worth recording so a future round
-    // doesn't re-try them:
+    // Two false starts before round 46's actual fix, both worth recording
+    // so a future round doesn't re-try them:
     // 1. `answer === "" || answer == null` (InspectionReport.tsx's own
     //    totalAnswered convention) doesn't work here -- the init effect
     //    above seeds every checkbox question with a local default of
@@ -787,15 +837,14 @@ export default function UpdateInspection() {
     //    the moment an inspection is created, checkbox/slider included,
     //    making this check never block anything in practice.
     //
-    // Landed on the value check after all, but scoped honestly: it's a
-    // real, meaningful "unanswered" signal for text/date/multipleSelect/
-    // media questions (their blank default genuinely is `""`), and a
-    // no-op for checkbox/slider, whose local defaults are legitimate,
-    // real answers with no distinguishable "unset" state anywhere in this
-    // data model. Giving checkbox/slider a real tri-state "unanswered"
-    // representation is a data-model change (e.g. `null` as a genuine
-    // third state, with UI to match) well beyond this round's scope --
-    // documented here rather than silently left unstated.
+    // round 46: `touchedQuestionIds` (tracked in handleAnswerChangeWithSave
+    // above) is the real "was this actually answered" signal for
+    // checkbox/slider, entirely separate from the answer value itself --
+    // doesn't require a data-model/payload change (the submitted answer
+    // is still always a real false/number, never null/undefined, so
+    // aexa-server's non-nullable QuestionAnswer.answer column is
+    // unaffected). Every other answer type's blank default genuinely is
+    // `""`, so their existing value-based check is untouched.
     if (newStatus === "COMPLETED") {
       const unansweredRequiredCount = pages.reduce((count: number, page: any) => {
         const pageQuestions = page.questions ?? []
@@ -803,6 +852,9 @@ export default function UpdateInspection() {
           count +
           pageQuestions.filter((q: any) => {
             if (!q.isRequired) return false
+            if (q.answerType === "checkbox" || q.answerType === "slider") {
+              return !touchedQuestionIds.has(q.id)
+            }
             const answer = answersRef.current[q.id]?.answer
             return answer === "" || answer == null
           }).length
