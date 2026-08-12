@@ -2015,3 +2015,49 @@ MIME-based type detection `UpdateInspection.tsx` already has, closing
 a real, quotable instance of the QuestionCard-duplication bug class
 (video/PDF uploads during inspection *creation* currently mis-tag as
 images).
+
+## Round 41 -- shipped, reviewed, merged
+
+All four fixes from round 40's plan implemented with negative-controlled
+tests (each fix temporarily reverted, confirmed the new test fails,
+restored). Full QA gate clean (typecheck, lint, 121 files / 1822 tests).
+Live-verified in the browser: `UploadNotesModal`'s note-fetch query
+confirmed absent from the network log until the modal opened, then fired
+exactly once on open. `aexa-server`'s real S3 upload endpoint isn't
+reachable in this preview environment -- video is rejected outright by
+the server's multer allowlist (JPEG/PNG/WebP/GIF/PDF only), and a
+synthetic PDF also failed upstream -- so the `CreateNewInspection` media
+fix was verified by intercepting the upload `fetch` call to return a
+realistic success response, then confirming a video upload renders a
+real `<video controls>` element and a PDF renders a document link with a
+`FileText` icon, matching `UpdateInspection.tsx`'s equivalent exactly.
+(Flagged the server-side video-upload allowlist gap separately -- it's a
+different repo and a product/infra decision, not something to fix
+silently inside this loop.)
+
+Shipped as [PR #714](https://github.com/Qiyrix/aexa-frontend/pull/714).
+Two independent parallel review agents (line-by-line diff scan;
+cross-file tracing + test-coverage + duplication audit) both returned
+**zero correctness findings** in round 1 -- no fix round needed. The
+line-by-line pass confirmed the ported MIME-detection and render-branch
+logic is byte-for-byte equivalent to `UpdateInspection.tsx`'s reference
+implementation (same guard order, same security guard on all three new
+branches, same `onError` fallback), and confirmed `skip: !open` is safe
+against RTK Query's tag-invalidation/refetch-on-resubscribe behavior (no
+stale-cache risk on reopen). The cross-file pass confirmed no caller
+assumes the old hardcoded `"image"` tag or the old unconditional
+note-fetch, and that all four fixes are genuinely regression-tested (not
+just claimed to be).
+
+One non-blocking suggestion, logged as a candidate for a future round
+rather than actioned now: this PR is the **third** time media-kind
+branching logic (the render JSX and the MIME-tagging function) has been
+duplicated near-verbatim between `CreateNewInspection.tsx` and
+`UpdateInspection.tsx`. The reviewer's recommendation -- extract a shared
+`getMediaKindFromMime(file)` util (mirroring `fileType()`'s existing
+extraction) and a shared `<MediaThumbnail>` component -- is a pure
+refactor with no behavior change, and worth picking up as round 42+'s
+code-quality fix if that axis is still below target then.
+
+Merged as aexa-frontend PR [#714](https://github.com/Qiyrix/aexa-frontend/pull/714). QA gate at merge: typecheck/lint
+clean, full suite 121 files / 1822 tests passing.
