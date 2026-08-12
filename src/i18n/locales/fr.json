@@ -679,6 +679,7 @@
       "submitFailedToast": "Échec de la soumission de l'inspection",
       "loadingReport": "Chargement du rapport…",
       "reportLoadError": "Impossible de charger ce rapport. Veuillez réessayer.",
+      "actionsLoadError": "Échec du chargement",
       "siteLabel": "Site :",
       "sections": "Sections",
       "questions": "Questions",

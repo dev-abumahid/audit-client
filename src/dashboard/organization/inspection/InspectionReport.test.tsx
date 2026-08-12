@@ -314,6 +314,74 @@ describe("InspectionReport", () => {
     expect(actionsLabel.parentElement).toHaveTextContent("2")
   })
 
+  // quality-bar-loop (Inspections, round 34, resilience finding): a
+  // still-loading or genuinely-failed findings fetch used to render as "0"
+  // -- indistinguishable from a real zero-findings inspection.
+  it("shows a loading indicator on the Actions stat instead of a misleading 0 while findings are still loading", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+    })
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isFetching: true,
+      isError: false,
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    const actionsLabel = screen.getByText("organization.inspection.colActions")
+    expect(actionsLabel.parentElement).toHaveTextContent("…")
+    expect(actionsLabel.parentElement).not.toHaveTextContent("0")
+  })
+
+  it("shows a load-error indicator on the Actions stat instead of a misleading 0 when the findings fetch fails", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+    })
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isFetching: false,
+      isError: true,
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    const actionsLabel = screen.getByText("organization.inspection.colActions")
+    expect(actionsLabel.parentElement).toHaveTextContent(
+      "organization.inspection.actionsLoadError"
+    )
+    expect(actionsLabel.parentElement).not.toHaveTextContent("0")
+  })
+
+  // quality-bar-loop (Inspections, round 34, accessibility finding): label
+  // and value used to render as two sibling <p> tags with no separator, so
+  // this stat's computed accessible name as a focusable link was the glued
+  // word "Actions2" rather than "Actions 2".
+  it("gives the Actions link a real, non-glued accessible name combining the label and value", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+    })
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        meta: { page: 1, limit: 100, total: 2, totalPage: 1 },
+        data: [{ id: "a-1" }, { id: "a-2" }],
+      },
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    expect(
+      screen.getByRole("link", {
+        name: "organization.inspection.colActions 2",
+      })
+    ).toBeInTheDocument()
+  })
+
   // quality-bar-loop (Inspections, round 33, UX finding): this stat used to
   // be the only place a user might look for a findings rollup, and it was
   // a dead end -- no link anywhere from this report into the real list.

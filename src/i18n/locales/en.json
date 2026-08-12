@@ -679,6 +679,7 @@
       "submitFailedToast": "Failed to submit inspection",
       "loadingReport": "Loading report…",
       "reportLoadError": "Couldn't load this report. Please try again.",
+      "actionsLoadError": "Couldn't load",
       "siteLabel": "Site:",
       "sections": "Sections",
       "questions": "Questions",

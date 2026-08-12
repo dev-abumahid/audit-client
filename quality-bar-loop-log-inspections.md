@@ -1823,3 +1823,39 @@ reach the route. Round 2 (fresh full-diff pass) came back clean.
 
 Merged as aexa-frontend PR [#706](https://github.com/Qiyrix/aexa-frontend/pull/706). QA gate at merge: typecheck/lint
 clean, full suite 121 files / 1803 tests passing.
+
+## Round 34 -- fresh 9-judge re-score
+
+Full panel re-run (round 32 -> round 34, round 33's PR #706 in between fixed UX's Actions-count/link gap):
+
+| Axis | R32 | R34 | Note |
+|---|---|---|---|
+| Industry-standards | 7 | 7 | unchanged; one new low-severity finding noted (CreateNewFindingModal.tsx's assignee dropdown has no Escape-to-close/focus-trap, standard WAI-ARIA combobox expectation) |
+| UX | 5 | 8 | **massive jump, clears floor** -- the 12-round headline finding (stale "Actions 0" stat, no nav link) confirmed fully fixed and live-verified end-to-end: real count, working link, correctly gated by write-permission. The two independently-drifted required-field validators remain the one still-open UX gap |
+| Efficiency | 8 | 7 | **regression from round 33** -- the new `useMyOrgRole()` call added to gate the Actions link internally fires an unbounded org-wide member-list fetch just to derive one boolean, adding real cost for every report viewer (including ones who'll never see the link) |
+| Accessibility | 8 | 8 | unchanged overall; new minor finding from round 33's diff -- the Actions stat's label and value render in separate sibling `<p>` tags with no separator, so its computed accessible name as a focusable link is the glued word "Actions1" rather than "Actions 1" (same pattern pre-existed on the static Sections/Questions cards but wasn't exposed as an interactive control's name until now) |
+| Visual polish | 8 | 8 | unchanged, confirmed clean; one very minor nit noted (the new link's hover state renders slightly lighter, not more prominent -- backwards from the usual convention, not a blocker) |
+| Resilience | 7 | 6 | **regression from round 33** -- the new Actions stat discards `isLoading`/`isError` from `useFindingsForInspection`, so a loading or failed findings fetch renders identically to a genuine zero; the two other known gaps (silent delete failure, slider-NaN) remain open |
+| Code quality | 7 | 7 | unchanged; new naming-clarity nit -- `actions` (legacy, never-populated) and `realActions` (new, real) sit side-by-side with no naming signal distinguishing which is which |
+| Mobile | 8 | 8 | unchanged, confirmed clean; round 33's new link verified to clear the 44px touch-target floor with no layout disruption |
+| Security | 9 | 9 | unchanged, confirmed clean; the new permission check verified as UX-only (hides a dead-end link), not the actual security boundary, which remains server-side + WriteGuardRoute |
+
+**Average: 7.56/10** (up from round 32's 7.44). **8 of 9 axes clear the
+7 floor** -- only resilience (6) is below, and it's a self-inflicted
+regression from round 33's own new code, not a pre-existing gap.
+
+**Next fix (Round 35):** four findings all trace back to the same new
+code added in round 33 (`InspectionReport.tsx`'s Actions stat) --
+worth one bundled fix rather than four separate rounds, per this
+session's tier-batching convention: (1) surface `isLoading`/`isError`
+from `useFindingsForInspection` instead of discarding them, so a
+loading/failed fetch doesn't read as a real zero (resilience); (2) stop
+calling `useMyOrgRole()`'s underlying unbounded org-wide fetch just to
+gate one link -- check whether `useMyOrgRole` has (or needs) a lighter
+path, or gate differently; (3) rename `actions`/`realActions` to make
+which is legacy vs. real unambiguous (code quality); (4) add a visible
+separator between the stat label and value so the Actions link's
+accessible name isn't a glued word (accessibility). None of these are
+individually large, but each is a real, verified finding -- shipping
+them together closes out the last below-floor axis and should push the
+average meaningfully closer to the 9/10 target.

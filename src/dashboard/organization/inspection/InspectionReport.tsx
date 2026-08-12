@@ -564,8 +564,22 @@ const InspectionReport = () => {
   // into this fix: rewiring per-question grouping correctly needs its own
   // scoped pass, not a drive-by rename inside a fix aimed at the
   // top-level count/navigation lie.
-  const { findings: realActions } = useFindingsForInspection<IAction>(id)
-  const actions = (inspection as { actions?: any[] } | undefined)?.actions ?? []
+  // quality-bar-loop (Inspections, round 34 resilience finding): the
+  // isLoading/isError this hook already returns were being discarded, so
+  // a still-loading or genuinely-failed findings fetch rendered as "0" --
+  // indistinguishable from a real zero-findings inspection.
+  const {
+    findings: realActions,
+    isLoading: isLoadingRealActions,
+    isError: isRealActionsError,
+  } = useFindingsForInspection<IAction>(id)
+  // quality-bar-loop (Inspections, round 34 code-quality finding): renamed
+  // from the ambiguous `actions` -- this is the never-populated
+  // `inspection.actions` relation (see the comment above `legacyActions`'s
+  // one remaining consumer, `actionsByQuestion`, below), not to be
+  // confused with `realActions` above.
+  const legacyActions =
+    (inspection as { actions?: any[] } | undefined)?.actions ?? []
 
   const templatePages: PageDef[] = template?.pages ?? []
   const templateName =
@@ -573,14 +587,14 @@ const InspectionReport = () => {
 
   const actionsByQuestion = useMemo(() => {
     const map: Record<string, any[]> = {}
-    actions.forEach((action: any) => {
+    legacyActions.forEach((action: any) => {
       if (action.question) {
         map[action.question] = map[action.question] || []
         map[action.question].push(action)
       }
     })
     return map
-  }, [actions])
+  }, [legacyActions])
 
   const answerMap = useMemo(() => {
     const map = new Map<
@@ -726,7 +740,7 @@ const InspectionReport = () => {
         updatedAt: inspection.updatedAt,
         templatePages,
         questionAndAnswers: inspection.questionAnswers ?? [],
-        actions,
+        actions: legacyActions,
         labels,
       })
       await renderHtmlToPdf(html, `${templateName}-report.pdf`)
@@ -737,7 +751,7 @@ const InspectionReport = () => {
     } finally {
       setIsDownloading(false)
     }
-  }, [inspection, template, templateName, templatePages, actions, t])
+  }, [inspection, template, templateName, templatePages, legacyActions, t])
 
   if (isLoadingInspection) {
     return (
@@ -850,7 +864,16 @@ const InspectionReport = () => {
                 },
                 {
                   label: t("organization.inspection.colActions"),
-                  value: realActions.length,
+                  // quality-bar-loop (Inspections, round 34, resilience
+                  // finding): a still-loading or genuinely-failed findings
+                  // fetch used to render as "0" -- indistinguishable from a
+                  // real zero-findings inspection. Show a distinct value
+                  // for each state instead of trusting a bare `.length`.
+                  value: isLoadingRealActions
+                    ? "…"
+                    : isRealActionsError
+                      ? t("organization.inspection.actionsLoadError")
+                      : realActions.length,
                   icon: AlertTriangle,
                   // quality-bar-loop (Inspections, round 33, UX finding):
                   // this stat used to be the only place a user might look
@@ -867,6 +890,15 @@ const InspectionReport = () => {
                       : undefined,
                 },
               ].map(({ label, value, icon: Icon, severity, href }) => {
+                // quality-bar-loop (Inspections, round 34, accessibility
+                // finding): label and value used to render as two sibling
+                // <p> tags with no separator between their text nodes, so
+                // once this stat became a focusable <Link> its computed
+                // accessible name was the glued word "Actions1" instead of
+                // "Actions 1". An explicit aria-label on the wrapper is
+                // more robust than a visible space, since it survives
+                // whatever the value's own formatting is (e.g. "3/5", "80%").
+                const accessibleLabel = `${label} ${value}`
                 const content = (
                   <>
                     <Icon className="h-3.5 w-3.5 text-muted-foreground" />
@@ -892,6 +924,7 @@ const InspectionReport = () => {
                   <Link
                     key={label}
                     to={href}
+                    aria-label={accessibleLabel}
                     className={`${className} transition-colors hover:bg-muted/70`}
                   >
                     {content}
