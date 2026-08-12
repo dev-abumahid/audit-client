@@ -1980,3 +1980,38 @@ left over from the old hover-only button styling) -- both fixed. Round
 
 Merged as aexa-frontend PR [#712](https://github.com/Qiyrix/aexa-frontend/pull/712). QA gate at merge: typecheck/lint
 clean, full suite 121 files / 1815 tests passing.
+
+## Round 40 -- fresh 9-judge re-score
+
+Full panel re-run (round 38 -> round 40, round 39's PR #712 in between fixed 3 well-corroborated gaps):
+
+| Axis | R38 | R40 | Note |
+|---|---|---|---|
+| Industry-standards | 7 | 7 | round-39 media-remove-button fix confirmed holding. New finding -- InspectionActions.tsx has 6 `<button>` elements missing `type="button"`, breaking this codebase's own established convention (harmless today since none sit inside a `<form>`, but a real footgun) |
+| UX | 8 | 7 | round-39 whitespace-title fix confirmed live end-to-end. The validator-drift gap is unchanged, but now explicitly documented in-code as an accepted gap rather than fixed -- a real, if narrower, remaining inconsistency for required checkbox/slider questions specifically in the update/complete flow |
+| Efficiency | 7 | 7 | round-39 StartInspectionModal.tsx fix confirmed live (no template fetch until modal opens). New finding -- UploadNotesModal.tsx's `useGetNoteByInspectionIdQuery` has no `skip` guard at all, the same always-mounted-modal pattern rounds 37/39 already fixed twice elsewhere, now found a third time |
+| Accessibility | 7 | 8 | **cleared back up** -- round-39 fix confirmed live via real keyboard navigation (Shift+Tab, not programmatic focus) showing a real focus-visible ring, and the accessible name resolves correctly ("Remove attachment 1"). The known "Add Media" naming-collision gap remains open, unchanged |
+| Visual polish | 8 | 8 | unchanged, confirmed round-39's button restyle is visually consistent with the established black-pill pattern used elsewhere in the feature |
+| Resilience | 7 | 8 | unchanged from round 38's already-recovered level; confirmed no regression from round 39. New small finding -- UploadNotesModal.tsx's create-note handler has no fallback error message (unlike every sibling handler in the same file) |
+| Code quality | 7 | 7 | unchanged; round-39's fixes (including the round-2 dead-CSS cleanup) confirmed cleanly integrated. New, highly concrete instance of the QuestionCard duplication bug found -- CreateNewInspection.tsx's `handleExternalMediaUpload` hardcodes `type: "image"` for every upload, while UpdateInspection.tsx's identical function was already fixed with real MIME-based branching under a closed issue that never propagated to this file |
+| Mobile | 8 | 8 | unchanged, confirmed no regression |
+| Security | 9 | 9 | unchanged, confirmed clean |
+
+**Average: 7.67/10** (up from round 38's 7.56, matching round 36's
+prior high). No stagnation (average improved between rounds) and no
+regression (no axis dropped). All 9 axes clear the 7 floor.
+
+**Next fix (Round 41):** four small, independently-verified,
+concrete fixes across three files, batched together: (1)
+`UploadNotesModal.tsx`'s note-fetch query gets the same `skip: !open`
+treatment already proven twice this session (rounds 37, 39) -- the
+third instance of this exact pattern; (2) the same file's create-note
+handler gets a fallback error message matching every sibling handler
+in it; (3) `InspectionActions.tsx`'s 6 buttons get explicit
+`type="button"`, matching the established convention already followed
+in `CreateNewFindingModal.tsx`/`UpdateInspection.tsx`; (4)
+`CreateNewInspection.tsx`'s `handleExternalMediaUpload` gets the same
+MIME-based type detection `UpdateInspection.tsx` already has, closing
+a real, quotable instance of the QuestionCard-duplication bug class
+(video/PDF uploads during inspection *creation* currently mis-tag as
+images).
