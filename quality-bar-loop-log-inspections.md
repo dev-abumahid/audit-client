@@ -1910,3 +1910,19 @@ file's own third query already uses (efficiency); (2)
 failure path its sibling `updateStatus` handler already has
 (resilience); (3) `InspectionReport.tsx`'s slider render gets a
 `Number.isFinite` guard against the long-standing NaN gap (resilience).
+
+**Review loop (PR #710):** round 1 (2 parallel angles) found no code
+bugs across all three fixes -- confirmed no stale-empty-array
+regression from the new `skip` guards (every consumer of the modal's
+inspections/org-users data is gated behind an `if (!open) return`
+effect already), confirmed the delete-failure fix correctly leaves
+`deletingId` set (banner stays open) while `deleteInFlight` still
+resets in `finally`, confirmed the slider fix's block braces are
+correctly scoped with no other case affected. One minor test-coverage
+gap found (no companion assertion that the modal's queries actually
+fire with `skip: false` when open, only that they skip when closed) --
+fixed with one additional test. Round 2 (scoped to that fix) came back
+clean.
+
+Merged as aexa-frontend PR [#710](https://github.com/Qiyrix/aexa-frontend/pull/710). QA gate at merge: typecheck/lint
+clean, full suite 121 files / 1811 tests passing.
