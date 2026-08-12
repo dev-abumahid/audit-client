@@ -2110,3 +2110,48 @@ rounds) is met.
 Pausing the autonomous loop here per the skill's guardrail rules,
 escalating to Omar with this round's findings and a proposed round-42
 fix candidate rather than shipping another fix unilaterally.
+
+## Round 43 -- shipped, reviewed, merged (resumed by Omar)
+
+Omar confirmed treating round 42's two regressed findings as round 43's
+fix and resuming the loop. Both addressed:
+
+- `CreateNewInspection.tsx`'s single "media"-question answer preview
+  still unconditionally rendered `<img>` for a video/PDF answer --
+  round 41 only fixed this file's mediaFiles *thumbnail* rendering, not
+  the single-answer preview. Ports `UpdateInspection.tsx`'s already-
+  shipped video/document branching (round 13/#507) rather than
+  re-deriving it.
+- `UploadNotesModal.tsx`'s "Extract note from file" input had no
+  `accept` attribute and never called `validateInspectionFile()`,
+  unlike every sibling upload flow in this feature -- a bad file was
+  only caught after a full network round-trip failed. Same immediate
+  reject-with-toast pattern as the other two files.
+
+Live-verified: confirmed aexa-server's video-upload allowlist fix
+(PR #326, merged earlier this session) works end-to-end from this
+side -- a real `video/mp4` upload now passes multer's `fileFilter` and
+only fails downstream on a pre-existing local-dev AWS credentials gap,
+unrelated to either change. The single-answer video/PDF render path has
+no reachable "media"-type question in this preview account's available
+templates, so it's verified via the same fetch-intercept technique used
+for round 41's equivalent thumbnail fix, plus negative-controlled unit
+tests against the real render path. `UploadNotesModal`'s file
+validation was fully live-verified: selecting an oversized file shows
+the toast immediately with zero network request fired.
+
+Shipped as [PR #719](https://github.com/Qiyrix/aexa-frontend/pull/719).
+Round-1 review found no structural bugs in the ported branching, but
+did catch one real, concrete regression: the shared
+`validateInspectionFile()` util was missing `video/quicktime` (.mov)
+and `video/webm`, both of which aexa-server's own upload allowlist
+already accepts (PR #326) -- since `UploadNotesModal.tsx`'s input
+previously had *no* client-side validation at all, this PR's new
+validation would have silently regressed `.mov`/`.webm` note-extraction
+uploads that used to work. Fixed by widening the shared allowlist
+(benefiting every consumer, not just this one file) and updating the
+now-stale "MP4 videos" copy strings. Round 2 (fresh diff pass on the
+fix commit) came back clean.
+
+Merged as aexa-frontend PR [#719](https://github.com/Qiyrix/aexa-frontend/pull/719). QA gate at merge: typecheck/lint
+clean, full suite 121 files / 1833 tests passing.
