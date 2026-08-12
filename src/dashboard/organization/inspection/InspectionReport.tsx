@@ -1,7 +1,12 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { useFindingsForInspection } from "@/hooks/useFindingsForInspection"
+import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
+import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useGetSingleInspectionQuery } from "@/redux/apis/organization/inspection.api"
+import type { IAction } from "@/types/finding"
+import { canWriteInspection } from "@/utils/assignmentScope"
 import { Button } from "@/components/ui/button"
 import type { PageDef } from "@/types/inspection"
 import { attachmentFileName } from "@/utils/attachmentFileName"
@@ -533,20 +538,33 @@ const InspectionReport = () => {
     isLoading: isLoadingInspection,
     isError: isInspectionError,
   } = useGetSingleInspectionQuery(id ?? "")
+  // quality-bar-loop (Inspections, round 33 review finding): the
+  // `audit/inspections/:id/actions` route InspectionActions.tsx lives at
+  // is wrapped in WriteGuardRoute (MainRoute.tsx), but this report route
+  // has no such guard -- a read-only viewer who can see the report would
+  // click the new Actions link below and get silently redirected away.
+  // Gate the link the same way InspectionTable.tsx gates its own
+  // per-inspection write actions, rather than linking somewhere a chunk
+  // of the audience can't actually reach.
+  const role = useMyOrgRole()
+  const assignedInspectionIds = useMyAssignedInspectionIds()
 
   const inspection = inspectionRaw?.data
   const template = inspection?.template
-  // `InspectionDetail` (types/inspection.ts) deliberately doesn't declare
-  // `actions` — GET /inspection/:id (inspection.service.ts's
-  // get_single_inspection_from_db) never `include`s that relation, so this
-  // is `[]` for every real response today. This whole "Actions" section
-  // (and its legacy `action._id`/`action.state` field references below,
-  // which don't match the real Action model's `id`/`status` either) reads
-  // as pre-existing, not-yet-wired-up functionality rather than something
-  // this typing pass (issue #108) should take on rewiring — fetching real
-  // findings here would be via useFindingsForInspection, same as
-  // RunInspection.tsx. Cast (not deleted) so this stays visibly a known gap
-  // for a follow-up rather than silently disabled.
+  // quality-bar-loop (Inspections, round 33, UX finding): this used to
+  // read `inspection.actions` -- a relation GET /inspection/:id never
+  // `include`s (inspection.service.ts's get_single_inspection_from_db),
+  // so it was `[]` for every real response, silently lying to the user
+  // ("Actions 0") even when real findings existed. Fetches the real count
+  // the same way InspectionActions.tsx does. The per-question
+  // `relatedActions` grouping just below still keys off the legacy
+  // `action._id`/`action.state`/`action.question` shape (which doesn't
+  // match the real Action model's `id`/`status`/`questionId`) --
+  // deliberately left as a separate, still-open gap rather than folded
+  // into this fix: rewiring per-question grouping correctly needs its own
+  // scoped pass, not a drive-by rename inside a fix aimed at the
+  // top-level count/navigation lie.
+  const { findings: realActions } = useFindingsForInspection<IAction>(id)
   const actions = (inspection as { actions?: any[] } | undefined)?.actions ?? []
 
   const templatePages: PageDef[] = template?.pages ?? []
@@ -832,31 +850,58 @@ const InspectionReport = () => {
                 },
                 {
                   label: t("organization.inspection.colActions"),
-                  value: actions.length,
+                  value: realActions.length,
                   icon: AlertTriangle,
+                  // quality-bar-loop (Inspections, round 33, UX finding):
+                  // this stat used to be the only place a user might look
+                  // for a findings rollup, and it was both wrong (always
+                  // "0") and a dead end (no link anywhere into the actual
+                  // list). Now real, and clickable straight into it -- but
+                  // only for a role that can actually reach that route
+                  // (WriteGuardRoute-gated); other roles still see the
+                  // real count, just not a link that would redirect them
+                  // away.
+                  href:
+                    id && canWriteInspection(role, id, assignedInspectionIds)
+                      ? `/organization/audit/inspections/${id}/actions`
+                      : undefined,
                 },
-              ].map(({ label, value, icon: Icon, severity }) => (
-                <div
-                  key={label}
-                  className="flex items-center gap-2 rounded-xl border border-border bg-muted px-3 py-2"
-                >
-                  <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {label}
-                    </p>
-                    <p
-                      className={`text-sm font-bold ${
-                        severity
-                          ? severityTextClasses(severity)
-                          : "text-foreground"
-                      }`}
-                    >
-                      {value}
-                    </p>
+              ].map(({ label, value, icon: Icon, severity, href }) => {
+                const content = (
+                  <>
+                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {label}
+                      </p>
+                      <p
+                        className={`text-sm font-bold ${
+                          severity
+                            ? severityTextClasses(severity)
+                            : "text-foreground"
+                        }`}
+                      >
+                        {value}
+                      </p>
+                    </div>
+                  </>
+                )
+                const className =
+                  "flex items-center gap-2 rounded-xl border border-border bg-muted px-3 py-2"
+                return href ? (
+                  <Link
+                    key={label}
+                    to={href}
+                    className={`${className} transition-colors hover:bg-muted/70`}
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <div key={label} className={className}>
+                    {content}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* quality-bar-loop (Inspections, round 13, mobile finding):

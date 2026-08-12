@@ -31,12 +31,16 @@ class MockIntersectionObserver {
 vi.stubGlobal("IntersectionObserver", MockIntersectionObserver)
 
 const mockNavigate = vi.fn()
+// Mutable so the one test exercising the id-undefined branch (the Actions
+// stat has no route params yet, e.g. mid-navigation) can override it --
+// every other test keeps the real "insp-1" id.
+let mockParamsId: string | undefined = "insp-1"
 vi.mock("react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-router")>()
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useParams: () => ({ id: "insp-1" }),
+    useParams: () => ({ id: mockParamsId }),
   }
 })
 
@@ -44,6 +48,28 @@ const mockUseGetSingleInspectionQuery = vi.fn()
 vi.mock("@/redux/apis/organization/inspection.api", () => ({
   useGetSingleInspectionQuery: (...args: unknown[]) =>
     mockUseGetSingleInspectionQuery(...args),
+}))
+
+// quality-bar-loop (Inspections, round 33): the "Actions" stat now fetches
+// real findings via useFindingsForInspection (same hook InspectionActions.tsx
+// uses) instead of the always-empty inspection.actions relation.
+const mockUseGetAllFindingsQuery = vi.fn()
+vi.mock("@/redux/apis/organization/findings.api", () => ({
+  useGetAllFindingsQuery: (...args: unknown[]) =>
+    mockUseGetAllFindingsQuery(...args),
+}))
+
+// quality-bar-loop (Inspections, round 33 review finding): the Actions
+// stat's link only makes sense for a role that can actually reach the
+// WriteGuardRoute-gated route it points to -- same mocking convention as
+// InspectionTable.test.tsx.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+}))
+let mockAssignedInspectionIds: Set<string> | undefined = new Set()
+vi.mock("@/hooks/useMyAssignments", () => ({
+  useMyAssignedInspectionIds: () => mockAssignedInspectionIds,
 }))
 
 function makeInspection(overrides = {}) {
@@ -89,7 +115,17 @@ describe("InspectionReport", () => {
   beforeEach(() => {
     mockLanguage = undefined
     mockNavigate.mockReset()
+    mockParamsId = "insp-1"
+    mockRole = "ADMIN"
+    mockAssignedInspectionIds = new Set()
     mockUseGetSingleInspectionQuery.mockReset()
+    mockUseGetAllFindingsQuery.mockReset()
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { meta: { page: 1, limit: 100, total: 0, totalPage: 0 }, data: [] },
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+    })
   })
 
   it("shows a loading state while there is no inspection data yet", () => {
@@ -252,6 +288,87 @@ describe("InspectionReport", () => {
     expect(
       screen.queryByText("organization.inspection.complianceScore")
     ).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop (Inspections, round 33, UX finding): this stat used to
+  // read `inspection.actions`, a relation GET /inspection/:id never
+  // populates -- always "0" even when real findings existed. Now sourced
+  // from the same useFindingsForInspection hook InspectionActions.tsx uses.
+  it("shows the real findings count on the Actions stat, not the always-empty inspection.actions relation", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection({ actions: [] }) },
+    })
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        meta: { page: 1, limit: 100, total: 2, totalPage: 1 },
+        data: [{ id: "a-1" }, { id: "a-2" }],
+      },
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    const actionsLabel = screen.getByText("organization.inspection.colActions")
+    expect(actionsLabel.parentElement).toHaveTextContent("2")
+  })
+
+  // quality-bar-loop (Inspections, round 33, UX finding): this stat used to
+  // be the only place a user might look for a findings rollup, and it was
+  // a dead end -- no link anywhere from this report into the real list.
+  it("links the Actions stat into the real per-inspection findings list", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    const actionsLabel = screen.getByText("organization.inspection.colActions")
+    const link = actionsLabel.closest("a")
+    expect(link).toHaveAttribute(
+      "href",
+      "/organization/audit/inspections/insp-1/actions"
+    )
+  })
+
+  // quality-bar-loop (Inspections, round 33 review finding): the route
+  // this link points at (audit/inspections/:id/actions) is
+  // WriteGuardRoute-gated -- a role that can't write there would click
+  // through and get silently redirected away. Show the real count either
+  // way, but only make it a link for a role that can actually reach it.
+  it("shows the real count without a dead-end link for a role that can't write to this inspection", () => {
+    mockRole = "LIGHT_USER"
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+    })
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: {
+        meta: { page: 1, limit: 100, total: 1, totalPage: 1 },
+        data: [{ id: "a-1" }],
+      },
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    const actionsLabel = screen.getByText("organization.inspection.colActions")
+    expect(actionsLabel.parentElement).toHaveTextContent("1")
+    expect(actionsLabel.closest("a")).not.toBeInTheDocument()
+  })
+
+  it("does not render the Actions stat as a link when there is no inspection id yet", () => {
+    mockParamsId = undefined
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    const actionsLabel = screen.getByText("organization.inspection.colActions")
+    expect(actionsLabel.closest("a")).not.toBeInTheDocument()
   })
 
   // quality-bar-loop (Inspections, round 14, visual polish finding): this

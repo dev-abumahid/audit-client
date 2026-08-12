@@ -1769,3 +1769,45 @@ new ones. No fix round needed.
 
 Merged as aexa-frontend PR [#704](https://github.com/Qiyrix/aexa-frontend/pull/704). QA gate at merge: typecheck/lint
 clean, full suite 121 files / 1799 tests passing.
+
+## Round 32 -- fresh 9-judge re-score
+
+Full panel re-run (round 30 -> round 32, round 31's PR #704 in between fixed accessibility labeling only):
+
+| Axis | R30 | R32 | Note |
+|---|---|---|---|
+| Industry-standards | 7 | 7 | unchanged, confirmed -- recurring/offline/camera-capture still absent |
+| UX | 6 | 5 | same root-cause finding as every round since 20, proven with the most damning live evidence yet -- a completed inspection's report showed "Actions 0" while 2 real actions existed at a URL with zero discoverable path to it |
+| Efficiency | 8 | 8 | unchanged, confirmed |
+| Accessibility | 3 | 8 | **massive jump, clears floor** -- round 31's fix (PR #704) confirmed live and thoroughly: checkbox/free-text/Note fields and CreateNewFindingModal's Five Cs fields all resolve correct accessible names against real inspection data with real content loaded, keyboard tab order through a full question card confirmed logical with no traps. New minor gap found: every question's media-upload file input shares the identical accessible name "Add Media" -- same ambiguity class as the fields just fixed, just not yet applied to this control |
+| Visual polish | 8 | 8 | unchanged, confirmed zero regression from round 31's attribute-only diff; two pre-existing minor items noted (not new) -- a missing dark-mode variant in CreateNewInspection.tsx's upload-status text, and UnSplitText.tsx's hardcoded hex colors bypassing the design-system token layer |
+| Resilience | 7 | 7 | unchanged -- both known gaps (slider-NaN report-render, silent delete-failure) confirmed still open |
+| Code quality | 7 | 7 | unchanged -- QuestionCard duplication confirmed still two separate trees; round 31's fix applied identically to both, no fresh drift introduced |
+| Mobile | 8 | 8 | unchanged; new minor finding -- the round-29 dialog-width fix's `max-w-xl` is silently overridden by tailwind-merge's last-wins rule, dropping the base component's `max-w-[calc(100%-2rem)]` mobile gutter entirely (zero side margin on phones, not a functional blocker since the close button stays reachable) |
+| Security | 9 | 9 | unchanged, confirmed clean |
+
+**Average: 7.44/10** (up from round 30's 7.0). **8 of 9 axes now clear
+the 7 floor.** UX (5) is the sole remaining blocker, and it's the same
+root cause every round since round 20 has independently reproduced:
+`InspectionReport.tsx`'s "Actions" stat reads a relation the backend
+never populates, and there is zero navigation path from the report/edit
+views into the one place (`InspectionActions.tsx`) that has the real
+data.
+
+**Also flagged this round, out of scope for Inspections:** the UX judge
+incidentally found `/organization/findings` (the global findings list,
+a different feature) hangs indefinitely on load with console 404s.
+Spun off as a separate background task rather than pulled into this
+loop's scope.
+
+**Next fix (Round 33):** finally fix UX's root cause -- the InspectionReport.tsx
+findings-count/reachability gap that's been open for 12 rounds. Two
+parts: (1) stop trusting the unpopulated `inspection.actions` relation
+-- fetch the real count via the same `useFindingsForInspection` hook
+`InspectionActions.tsx` already uses, so the stat card shows a true
+number; (2) make that stat card (or an adjacent element) a real link
+into `/organization/audit/inspections/:id/actions`. This is Tier 2/3
+(touches a shared report component, more than one real caller via
+InspectionReport.tsx) and is the last blocker standing between this
+feature and the 9/10 target -- worth the full review-loop treatment
+given how long this specific gap has resisted being deprioritized.
