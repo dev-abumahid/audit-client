@@ -1759,3 +1759,13 @@ aria-labelledby pattern already proven for slider/date/multipleSelect
 in round 21. This is Tier 2/3 (touches the primary data-entry surface
 of the whole feature, more than one caller) and should get the full
 review-loop treatment rather than a single-round shortcut.
+
+**Review loop (PR #704):** all 3 parallel round-1 angles (line-by-line,
+cross-file consistency between the two independently-duplicated
+QuestionCard components, adversarial attribute-only-diff sweep) came
+back clean -- no bugs found, the two files' fixes confirmed genuinely
+identical in structure, all 128 relevant tests passing including the 6
+new ones. No fix round needed.
+
+Merged as aexa-frontend PR [#704](https://github.com/Qiyrix/aexa-frontend/pull/704). QA gate at merge: typecheck/lint
+clean, full suite 121 files / 1799 tests passing.
