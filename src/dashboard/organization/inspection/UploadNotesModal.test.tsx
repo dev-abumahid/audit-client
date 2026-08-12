@@ -83,6 +83,30 @@ describe("UploadNotesModal", () => {
     })
   })
 
+  // quality-bar-loop (Inspections, round 41, efficiency finding): this
+  // modal is always mounted by UpdateInspection.tsx (only `open` toggles),
+  // and this query used to fire unconditionally on mount -- the third
+  // instance of the same always-mounted-modal/unguarded-query pattern
+  // already fixed for CreateNewFindingModal.tsx (round 37) and
+  // StartInspectionModal.tsx (round 39).
+  it("skips the note fetch while the modal is closed", () => {
+    renderModal({ open: false })
+
+    expect(mockUseGetNoteByInspectionIdQuery).toHaveBeenCalledWith(
+      "insp-1",
+      expect.objectContaining({ skip: true })
+    )
+  })
+
+  it("does not skip the note fetch while the modal is open", () => {
+    renderModal({ open: true })
+
+    expect(mockUseGetNoteByInspectionIdQuery).toHaveBeenCalledWith(
+      "insp-1",
+      expect.objectContaining({ skip: false })
+    )
+  })
+
   it("shows the upload-method chooser when no note exists yet", () => {
     renderModal()
 
@@ -402,6 +426,36 @@ describe("UploadNotesModal", () => {
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("Server unavailable")
+    )
+  })
+
+  // quality-bar-loop (Inspections, round 41, resilience finding): this
+  // was the one handler in this file with no fallback message -- every
+  // sibling handler (handleUpdate, above) falls back to a translated
+  // generic string when the server response has no data.message.
+  it("shows an error toast with a fallback message when creating a raw-text note fails without a server message", async () => {
+    mockUploadRawNote.mockReturnValue({
+      unwrap: () => Promise.reject({}),
+    })
+
+    renderModal()
+    await userEvent.click(
+      screen.getByText("organization.inspection.notesByText")
+    )
+    await userEvent.type(
+      screen.getByLabelText("organization.inspection.writeDetailedNote"),
+      "Some note"
+    )
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNotes",
+      })
+    )
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.inspection.noteCreateFailedToast"
+      )
     )
   })
 

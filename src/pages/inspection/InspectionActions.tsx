@@ -172,6 +172,7 @@ export default function InspectionActions() {
           )}
         </div>
         <button
+          type="button"
           onClick={() => setModalState({ open: true, editData: null })}
           className="flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
@@ -195,6 +196,7 @@ export default function InspectionActions() {
             {t("pages.inspection.actions.empty")}
           </p>
           <button
+            type="button"
             onClick={() => setModalState({ open: true, editData: null })}
             className="text-sm font-medium text-primary hover:underline"
           >
@@ -224,6 +226,7 @@ export default function InspectionActions() {
                     {PRIORITY_LABELS[action.priority]}
                   </span>
                   <button
+                    type="button"
                     onClick={() =>
                       setModalState({ open: true, editData: action })
                     }
@@ -233,6 +236,7 @@ export default function InspectionActions() {
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => setDeletingId(action.id)}
                     className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                     aria-label={t("pages.inspection.actions.deleteAction")}
@@ -280,12 +284,14 @@ export default function InspectionActions() {
                   </p>
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       onClick={() => setDeletingId(null)}
                       className="text-xs text-muted-foreground hover:text-foreground"
                     >
                       {t("pages.inspection.actions.form.cancel")}
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleDelete(action.id)}
                       disabled={deleteInFlight}
                       className="flex items-center gap-1 text-xs font-medium text-destructive hover:underline disabled:opacity-60"

@@ -844,6 +844,126 @@ describe("CreateNewInspection", () => {
     expect(document.querySelector("img")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 41, code-quality finding): this
+  // component's handleExternalMediaUpload used to hardcode `type: "image"`
+  // for every uploaded file regardless of its real MIME type, and the
+  // thumbnail renderer never branched on file type at all -- so a video
+  // uploaded during inspection *creation* rendered as a broken <img>
+  // instead of a <video>. UpdateInspection.tsx's identical function
+  // already tags and renders this correctly (aexa-frontend#515); this
+  // ports that fix to close the sibling-file duplication bug.
+  it("renders an uploaded video file as a <video>, not a broken <img>", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+    mockUploadFileAws.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: "https://cdn.example.com/clip.mp4",
+        }),
+    })
+
+    const { container } = render(<CreateNewInspection />)
+    const file = new File(["vid"], "clip.mp4", { type: "video/mp4" })
+    const input = container.querySelector<HTMLInputElement>(
+      'input[id^="external-media-"]'
+    )!
+
+    await userEvent.upload(input, file)
+
+    await waitFor(() =>
+      expect(container.querySelector("video")).toBeInTheDocument()
+    )
+    expect(
+      container.querySelector('img[src="https://cdn.example.com/clip.mp4"]')
+    ).not.toBeInTheDocument()
+  })
+
+  it("renders an uploaded PDF file as a document link, not a broken <img>", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+    mockUploadFileAws.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: "https://cdn.example.com/report.pdf",
+        }),
+    })
+
+    const { container } = render(<CreateNewInspection />)
+    const file = new File(["pdf"], "report.pdf", {
+      type: "application/pdf",
+    })
+    const input = container.querySelector<HTMLInputElement>(
+      'input[id^="external-media-"]'
+    )!
+
+    await userEvent.upload(input, file)
+
+    await waitFor(() =>
+      expect(
+        container.querySelector('a[href="https://cdn.example.com/report.pdf"]')
+      ).toBeInTheDocument()
+    )
+    expect(
+      container.querySelector('img[src="https://cdn.example.com/report.pdf"]')
+    ).not.toBeInTheDocument()
+  })
+
+  // Companion to the two rendering tests above: proves the upload handler
+  // itself tags the file correctly (not just that the thumbnail happens to
+  // render right via the URL-based fileType() fallback), by checking what
+  // actually reaches the create-inspection payload.
+  it("tags an uploaded video file as type \"video\" (not \"image\") in the submitted payload", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+    mockUploadFileAws.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: "https://cdn.example.com/clip.mp4",
+        }),
+    })
+    mockCreateInspection.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    const { container } = render(<CreateNewInspection />)
+    const file = new File(["vid"], "clip.mp4", { type: "video/mp4" })
+    const input = container.querySelector<HTMLInputElement>(
+      'input[id^="external-media-"]'
+    )!
+    await userEvent.upload(input, file)
+    await waitFor(() =>
+      expect(container.querySelector("video")).toBeInTheDocument()
+    )
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.submitInspection",
+      })
+    )
+
+    await waitFor(() => expect(mockCreateInspection).toHaveBeenCalled())
+    const payload = mockCreateInspection.mock.calls[0][0]
+    expect(payload.questionAnswers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          questionId: "q-1",
+          mediaFiles: [
+            { url: "https://cdn.example.com/clip.mp4", type: "video" },
+          ],
+        }),
+      ])
+    )
+  })
+
   it("rejects an oversized media file without uploading", async () => {
     mockUseGetSingleTemplateQuery.mockReturnValue({
       data: {

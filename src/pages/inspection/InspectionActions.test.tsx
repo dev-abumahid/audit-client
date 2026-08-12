@@ -178,6 +178,30 @@ describe("InspectionActions", () => {
     expect(screen.getByText("pages.inspection.actions.priorityHigh")).toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 41, industry-standards finding):
+  // none of this file's buttons declared type="button", defaulting to the
+  // implicit type="submit" -- harmless only because none of this markup
+  // currently sits inside a <form>, but a real footgun if it ever does,
+  // and inconsistent with CreateNewFindingModal.tsx/UpdateInspection.tsx,
+  // which both explicitly set type="button" on every non-submit control.
+  it("gives every button an explicit type so none default to implicit submit", async () => {
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [makeAction()] },
+      isLoading: false,
+      isError: false,
+    })
+    renderPage()
+    await waitFor(() => screen.getByText("Replace extinguisher"))
+
+    await userEvent.click(screen.getByLabelText("pages.inspection.actions.deleteAction"))
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
+
   // aexa-frontend#378: the due-date badge used a bare toLocaleDateString()
   // with no locale, always showing English month names under a French UI.
   it("formats the due date using the shared locale-aware helper", async () => {

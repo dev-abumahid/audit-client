@@ -721,6 +721,7 @@
       "generatingNote": "Génération de la note...",
       "noteUpdatedToast": "Note mise à jour avec succès",
       "noteUpdateFailedToast": "Échec de la mise à jour de la note",
+      "noteCreateFailedToast": "Échec de la création de la note",
       "noteSplitFailedToast": "Échec du fractionnement de la note",
       "noteDeleteFailedToast": "Échec de la suppression de la note",
       "updateNote": "Mettre à jour la note",

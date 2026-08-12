@@ -62,7 +62,18 @@ export default function UploadNotesModal({
   const [splitInspectionNote] = useSplitInspectionNoteMutation()
   const [deleteNote, { isLoading: isNoteDeleting }] =
     useDeleteNoteByIdMutation()
-  const { data, refetch } = useGetNoteByInspectionIdQuery(inspectionId)
+  // quality-bar-loop (Inspections, round 41, efficiency finding): this
+  // modal is always mounted by UpdateInspection.tsx (only `open` toggles),
+  // and this query used to fire unconditionally on mount -- the third
+  // instance of the same always-mounted-modal/unguarded-query pattern
+  // already fixed for CreateNewFindingModal.tsx (round 37) and
+  // StartInspectionModal.tsx (round 39). Every `hasNote`/`existingNote`
+  // usage below is already gated on `open` (directly or via a handler only
+  // reachable while the modal is interactive), so skipping while closed is
+  // safe.
+  const { data, refetch } = useGetNoteByInspectionIdQuery(inspectionId, {
+    skip: !open,
+  })
 
   const existingNote = data?.data
   const hasNote = !!existingNote
@@ -123,7 +134,17 @@ export default function UploadNotesModal({
       handleClose()
       setOpen(true)
     } catch (error: any) {
-      toast.error(error?.data?.message)
+      // quality-bar-loop (Inspections, round 41, resilience finding): this
+      // was the one handler in this file with no fallback message --
+      // every sibling handler (handleUpdate, handleSplitNote,
+      // handleNoteDelete) falls back to a translated generic string when
+      // the server response has no data.message (a timeout, a CORS
+      // failure, a 502 from a proxy). This one used to surface a blank
+      // toast in exactly that case.
+      toast.error(
+        error?.data?.message ||
+          t("organization.inspection.noteCreateFailedToast")
+      )
     } finally {
       setIsLoading(false)
     }
