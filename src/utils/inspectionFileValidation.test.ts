@@ -47,6 +47,12 @@ describe("validateInspectionFile", () => {
     "image/gif",
     "image/webp",
     "video/mp4",
+    // Found by review of PR #719: aexa-server's upload allowlist
+    // (uploader.ts, aexa-server#326) already accepts these two alongside
+    // video/mp4 -- missing them here would make this client-side check
+    // reject a file the backend actually accepts.
+    "video/quicktime",
+    "video/webm",
     "application/pdf",
   ])("accepts the allowed MIME type %s", (type) => {
     const file = makeFile({ size: 1024, type })

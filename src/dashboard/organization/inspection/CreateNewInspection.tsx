@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card"
 import { useUploadAnyFileAwsMutation } from "@/redux/apis/common.api"
 import { useCreateNewInspectionMutation } from "@/redux/apis/organization/inspection.api"
 import { useGetSingleTemplateQuery } from "@/redux/apis/organization/template.api"
+import { attachmentFileName } from "@/utils/attachmentFileName"
 import { fileType } from "@/utils/fileType"
 import { validateInspectionFile } from "@/utils/inspectionFileValidation"
 import { isHttpUrl } from "@/utils/isHttpUrl"
@@ -182,7 +183,16 @@ const QuestionCard = memo(
           )
         }
 
-        case "media":
+        case "media": {
+          // quality-bar-loop (Inspections, round 43, visual-polish
+          // regression finding): round 41 fixed this same video/document
+          // branching for the per-question mediaFiles *thumbnails*, but
+          // left this single-answer preview unconditionally rendering
+          // <img> -- so a video/PDF answer still fell through to the
+          // broken-image placeholder here, unlike UpdateInspection.tsx's
+          // identical preview, which already has full parity. Ports that
+          // implementation (round 13/#507) rather than re-deriving it.
+          const mediaType = answer ? fileType(answer) : null
           return (
             <>
               {isAnswerMediaUploading ? (
@@ -200,6 +210,47 @@ const QuestionCard = memo(
                 <p className="text-sm text-muted-foreground italic">
                   {t("organization.inspection.unsafeAttachment")}
                 </p>
+              ) : answer && mediaType === "video" ? (
+                <div className="relative flex w-full items-center justify-center overflow-hidden rounded-lg border p-2">
+                  <video controls className="max-h-96 max-w-full rounded">
+                    <source src={answer} />
+                    {t("organization.inspection.videoUnsupported")}
+                  </video>
+                  <button
+                    type="button"
+                    onClick={() => onAnswerChange(question.id, "")}
+                    aria-label={t("organization.inspection.deleteMedia")}
+                    className="absolute top-1 right-1 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+                  >
+                    <Trash className="size-5" />
+                  </button>
+                </div>
+              ) : answer &&
+                (mediaType === "document" || mediaType === "file") ? (
+                <div className="relative flex w-full items-center justify-center overflow-hidden rounded-lg border">
+                  <a
+                    href={answer}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-2 px-8 py-10 text-center text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <FileText className="h-10 w-10" />
+                    <span className="max-w-60 truncate text-sm font-medium text-foreground">
+                      {attachmentFileName(answer)}
+                    </span>
+                    <span className="text-xs">
+                      {t("organization.inspection.openDocument")}
+                    </span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => onAnswerChange(question.id, "")}
+                    aria-label={t("organization.inspection.deleteMedia")}
+                    className="absolute top-1 right-1 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+                  >
+                    <Trash className="size-5" />
+                  </button>
+                </div>
               ) : answer ? (
                 <div className="relative inline-block overflow-hidden rounded-lg border">
                   <img
@@ -269,6 +320,7 @@ const QuestionCard = memo(
               )}
             </>
           )
+        }
 
         default:
           // quality-bar-loop (Inspections, round 31, accessibility

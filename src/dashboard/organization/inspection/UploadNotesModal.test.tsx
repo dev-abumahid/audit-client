@@ -257,6 +257,71 @@ describe("UploadNotesModal", () => {
     ).not.toBeDisabled()
   })
 
+  // quality-bar-loop (Inspections, round 43, resilience finding): this
+  // input had no accept attribute and never called validateInspectionFile()
+  // -- unlike CreateNewInspection.tsx/UpdateInspection.tsx's sibling flows,
+  // a bad file here was only caught after a full network round-trip to
+  // extractNoteFromFile failed.
+  it("rejects an oversized file at selection time, before ever reaching the upload button", async () => {
+    renderModal()
+
+    await userEvent.click(
+      screen.getByText("organization.inspection.extractNoteFromFile")
+    )
+    const input = document.querySelector<HTMLInputElement>(
+      'input[type="file"]'
+    )!
+    const oversized = new File(
+      [new Uint8Array(6 * 1024 * 1024)],
+      "huge.pdf",
+      { type: "application/pdf" }
+    )
+    await userEvent.upload(input, oversized)
+
+    expect(mockToastError).toHaveBeenCalledWith(
+      "organization.inspection.fileSizeError"
+    )
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNotes",
+      })
+    ).toBeDisabled()
+  })
+
+  it("rejects a disallowed file type at selection time, before ever reaching the upload button", async () => {
+    renderModal()
+
+    await userEvent.click(
+      screen.getByText("organization.inspection.extractNoteFromFile")
+    )
+    const input = document.querySelector<HTMLInputElement>(
+      'input[type="file"]'
+    )!
+    const badType = new File(["#!/bin/sh"], "script.sh", {
+      type: "application/x-sh",
+    })
+    // userEvent.upload respects the input's `accept` attribute the same way
+    // a real OS file picker does, so it won't even offer a mismatched file
+    // for selection -- fireEvent.change bypasses that to exercise
+    // validateInspectionFile() itself as a defense-in-depth check (the
+    // `accept` attribute is a UX hint only; nothing stops a mismatched
+    // file reaching this input via drag-and-drop or direct DOM access).
+    Object.defineProperty(input, "files", {
+      value: [badType],
+      configurable: true,
+    })
+    fireEvent.change(input)
+
+    expect(mockToastError).toHaveBeenCalledWith(
+      "organization.inspection.fileTypeError"
+    )
+    expect(
+      screen.getByRole("button", {
+        name: "organization.inspection.uploadNotes",
+      })
+    ).toBeDisabled()
+  })
+
   // quality-bar-loop (Inspections, round 7, accessibility finding): this
   // file input used `className="hidden"` (display:none), removing it from
   // the tab order entirely -- a keyboard-only user couldn't upload a note

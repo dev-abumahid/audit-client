@@ -604,6 +604,101 @@ describe("CreateNewInspection", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 43, visual-polish regression
+  // finding): round 41 fixed video/document branching for the per-question
+  // mediaFiles thumbnails, but left this single-answer preview rendering a
+  // broken <img> for a video/PDF answer -- ports UpdateInspection.tsx's
+  // already-shipped equivalent (round 13/#507).
+  it("renders a video media answer as a <video>, not a broken <img>", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: {
+        data: makeTemplate({
+          pages: [
+            {
+              title: "General",
+              questions: [
+                {
+                  id: "q-3",
+                  question: "Site walkthrough",
+                  answerType: "media",
+                  isRequired: false,
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+    mockUploadFileAws.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: "https://cdn.example.com/clip.mp4",
+        }),
+    })
+
+    const { container } = render(<CreateNewInspection />)
+    const file = new File(["vid"], "clip.mp4", { type: "video/mp4" })
+    const input =
+      container.querySelector<HTMLInputElement>('input[type="file"]')!
+    await userEvent.upload(input, file)
+
+    await waitFor(() =>
+      expect(container.querySelector("video")).toBeInTheDocument()
+    )
+    expect(
+      container.querySelector('img[src="https://cdn.example.com/clip.mp4"]')
+    ).not.toBeInTheDocument()
+  })
+
+  it("renders a PDF media answer as a document link, not a broken <img>", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: {
+        data: makeTemplate({
+          pages: [
+            {
+              title: "General",
+              questions: [
+                {
+                  id: "q-3",
+                  question: "Site walkthrough",
+                  answerType: "media",
+                  isRequired: false,
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+    mockUploadFileAws.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: "https://cdn.example.com/report.pdf",
+        }),
+    })
+
+    const { container } = render(<CreateNewInspection />)
+    const file = new File(["pdf"], "report.pdf", {
+      type: "application/pdf",
+    })
+    const input =
+      container.querySelector<HTMLInputElement>('input[type="file"]')!
+    await userEvent.upload(input, file)
+
+    await waitFor(() =>
+      expect(
+        container.querySelector('a[href="https://cdn.example.com/report.pdf"]')
+      ).toBeInTheDocument()
+    )
+    expect(
+      container.querySelector('img[src="https://cdn.example.com/report.pdf"]')
+    ).not.toBeInTheDocument()
+  })
+
   // quality-bar-loop (Inspections, round 7, accessibility finding): both
   // file inputs used `className="hidden"` (display:none), removing them
   // from the tab order entirely -- a keyboard-only user couldn't attach a

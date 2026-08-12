@@ -19,6 +19,7 @@ import {
   useSaveRawNoteMutation,
   useUpdateNoteMutation,
 } from "@/redux/apis/organization/note.api"
+import { validateInspectionFile } from "@/utils/inspectionFileValidation"
 import { CloudUpload, FileUp, Notebook, TypeOutline } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -449,9 +450,35 @@ export default function UploadNotesModal({
                 </p>
 
                 <input
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    const selected = e.target.files?.[0] || null
+                    // quality-bar-loop (Inspections, round 43, resilience
+                    // finding): this input had no `accept` and never
+                    // called validateInspectionFile() -- unlike every
+                    // sibling upload flow in this feature
+                    // (CreateNewInspection.tsx/UpdateInspection.tsx), a
+                    // bad file here was only caught after a full network
+                    // round-trip to extractNoteFromFile failed. Same
+                    // immediate-reject-with-toast pattern as those flows.
+                    if (selected) {
+                      const validation = validateInspectionFile(selected)
+                      if (!validation.valid) {
+                        toast.error(
+                          t(
+                            validation.reason === "size"
+                              ? "organization.inspection.fileSizeError"
+                              : "organization.inspection.fileTypeError"
+                          )
+                        )
+                        e.target.value = ""
+                        return
+                      }
+                    }
+                    setFile(selected)
+                  }}
                   id="dropzone-file-pdf"
                   type="file"
+                  accept="image/*,video/mp4,video/quicktime,video/webm,application/pdf"
                   // quality-bar-loop (Inspections, round 7, accessibility
                   // finding): `hidden`/`display:none` removes the input
                   // from the tab order entirely -- this upload control was

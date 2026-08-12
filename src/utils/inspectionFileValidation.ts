@@ -13,6 +13,15 @@ export const ALLOWED_INSPECTION_FILE_TYPES: readonly string[] = [
   "image/gif",
   "image/webp",
   "video/mp4",
+  // Found by review of PR #719: aexa-server's upload allowlist (uploader.ts,
+  // fixed under aexa-server#326) already accepts video/quicktime (.mov) and
+  // video/webm alongside video/mp4 -- this list was missing both, so
+  // UploadNotesModal.tsx's newly-added client-side validation (round 43)
+  // would have rejected a .mov/.webm note-extraction file the backend
+  // actually accepts, a real regression from the previously-unvalidated
+  // (accept-anything) behavior.
+  "video/quicktime",
+  "video/webm",
   "application/pdf",
 ]
 
