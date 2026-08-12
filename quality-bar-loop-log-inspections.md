@@ -1811,3 +1811,15 @@ into `/organization/audit/inspections/:id/actions`. This is Tier 2/3
 InspectionReport.tsx) and is the last blocker standing between this
 feature and the 9/10 target -- worth the full review-loop treatment
 given how long this specific gap has resisted being deprioritized.
+
+**Review loop (PR #706):** round 1 (3 parallel angles) found 2 real
+issues -- the new Actions-stat link pointed at a WriteGuardRoute-gated
+route with no corresponding permission check (a read-only role would
+click through and get silently redirected away), and no test covered
+the id-undefined branch. Both fixed: the link is now gated by the same
+`canWriteInspection` check `InspectionTable.tsx` already uses, showing
+the real count either way but only linking for a role that can actually
+reach the route. Round 2 (fresh full-diff pass) came back clean.
+
+Merged as aexa-frontend PR [#706](https://github.com/Qiyrix/aexa-frontend/pull/706). QA gate at merge: typecheck/lint
+clean, full suite 121 files / 1803 tests passing.
