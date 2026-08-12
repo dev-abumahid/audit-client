@@ -1,15 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import MediaThumbnail from "@/components/shared/MediaThumbnail"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useUploadAnyFileAwsMutation } from "@/redux/apis/common.api"
 import { useCreateNewInspectionMutation } from "@/redux/apis/organization/inspection.api"
 import { useGetSingleTemplateQuery } from "@/redux/apis/organization/template.api"
-import { attachmentFileName } from "@/utils/attachmentFileName"
-import { fileType } from "@/utils/fileType"
+import { getMediaKindFromMime } from "@/utils/fileType"
 import { validateInspectionFile } from "@/utils/inspectionFileValidation"
-import { isHttpUrl } from "@/utils/isHttpUrl"
 import { parseSliderDefault } from "@/utils/parseSliderDefault"
-import { PLACEHOLDER_IMAGE_SRC } from "@/utils/placeholderImage"
 import {
   ArrowLeft,
   ChevronLeft,
@@ -17,7 +15,6 @@ import {
   CloudUpload,
   FileText,
   Globe,
-  Trash,
 } from "lucide-react"
 import type { TFunction } from "i18next"
 import { memo, useCallback, useEffect, useRef, useState } from "react"
@@ -184,15 +181,6 @@ const QuestionCard = memo(
         }
 
         case "media": {
-          // quality-bar-loop (Inspections, round 43, visual-polish
-          // regression finding): round 41 fixed this same video/document
-          // branching for the per-question mediaFiles *thumbnails*, but
-          // left this single-answer preview unconditionally rendering
-          // <img> -- so a video/PDF answer still fell through to the
-          // broken-image placeholder here, unlike UpdateInspection.tsx's
-          // identical preview, which already has full parity. Ports that
-          // implementation (round 13/#507) rather than re-deriving it.
-          const mediaType = answer ? fileType(answer) : null
           return (
             <>
               {isAnswerMediaUploading ? (
@@ -202,86 +190,21 @@ const QuestionCard = memo(
                     {t("organization.inspection.uploadingMedia")}
                   </p>
                 </div>
-              ) : answer && !isHttpUrl(answer) ? (
-                // quality-bar-loop (Inspections, round 3, security finding):
-                // `answer` is client-supplied and rendered straight into
-                // <img src> below -- guard the same way InspectionReport.tsx/
-                // UpdateInspection.tsx do before it reaches that sink.
-                <p className="text-sm text-muted-foreground italic">
-                  {t("organization.inspection.unsafeAttachment")}
-                </p>
-              ) : answer && mediaType === "video" ? (
-                <div className="relative flex w-full items-center justify-center overflow-hidden rounded-lg border p-2">
-                  <video controls className="max-h-96 max-w-full rounded">
-                    <source src={answer} />
-                    {t("organization.inspection.videoUnsupported")}
-                  </video>
-                  <button
-                    type="button"
-                    onClick={() => onAnswerChange(question.id, "")}
-                    aria-label={t("organization.inspection.deleteMedia")}
-                    className="absolute top-1 right-1 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-                  >
-                    <Trash className="size-5" />
-                  </button>
-                </div>
-              ) : answer &&
-                (mediaType === "document" || mediaType === "file") ? (
-                <div className="relative flex w-full items-center justify-center overflow-hidden rounded-lg border">
-                  <a
-                    href={answer}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-2 px-8 py-10 text-center text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <FileText className="h-10 w-10" />
-                    <span className="max-w-60 truncate text-sm font-medium text-foreground">
-                      {attachmentFileName(answer)}
-                    </span>
-                    <span className="text-xs">
-                      {t("organization.inspection.openDocument")}
-                    </span>
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => onAnswerChange(question.id, "")}
-                    aria-label={t("organization.inspection.deleteMedia")}
-                    className="absolute top-1 right-1 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-                  >
-                    <Trash className="size-5" />
-                  </button>
-                </div>
               ) : answer ? (
-                <div className="relative inline-block overflow-hidden rounded-lg border">
-                  <img
-                    src={answer}
-                    alt={t("organization.inspection.uploadedMediaAlt")}
-                    className="max-h-96 max-w-full object-contain"
-                    onError={(e) => {
-                      ;(e.target as HTMLImageElement).src =
-                        PLACEHOLDER_IMAGE_SRC
-                    }}
-                  />
-                  {/* quality-bar-loop (Inspections, round 13, mobile
-                      finding): the previous full-image, hover-only overlay
-                      was a genuine data-loss trap on touch devices -- no
-                      hover state means a single tap anywhere on the photo
-                      silently deleted it, no confirmation, no visible
-                      warning first. Replaced with an always-visible small
-                      corner button (same pattern as the per-question
-                      media-thumbnail remove control elsewhere in this
-                      file), at a full 44px touch target since deleting the
-                      only answer photo is a more consequential action than
-                      removing one of several thumbnails. */}
-                  <button
-                    type="button"
-                    onClick={() => onAnswerChange(question.id, "")}
-                    aria-label={t("organization.inspection.deleteMedia")}
-                    className="absolute top-1 right-1 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-                  >
-                    <Trash className="size-5" />
-                  </button>
-                </div>
+                // quality-bar-loop (Inspections, round 45, code-quality
+                // finding): this video/document/image branch was
+                // independently copy-pasted across this file and
+                // UpdateInspection.tsx, twice each -- extracted to
+                // MediaThumbnail (round 41's PR review first recommended
+                // this, round 43 made the duplication worse by porting a
+                // fourth copy instead).
+                <MediaThumbnail
+                  url={answer}
+                  variant="answer"
+                  onDelete={() => onAnswerChange(question.id, "")}
+                  deleteLabel={t("organization.inspection.deleteMedia")}
+                  t={t}
+                />
               ) : (
                 <label htmlFor={`dropzone-file-${question.id}`}>
                   <Button
@@ -366,76 +289,16 @@ const QuestionCard = memo(
         <div className="mb-6">{renderQuestionInput()}</div>
         {hasMediaFiles && (
           <div className="flex items-center gap-5">
-            {mediaFiles.map((mediaFile: any, idx: number) => {
-              // quality-bar-loop (Inspections, round 41, code-quality
-              // finding): this always rendered an <img>, regardless of
-              // file type, even after handleExternalMediaUpload started
-              // tagging video/document uploads correctly -- the tag alone
-              // didn't help since nothing here ever read it. Ports
-              // UpdateInspection.tsx's identical branch (round 13/#507)
-              // rather than re-deriving it, closing the actual
-              // user-visible half of the same duplicated bug.
-              const mediaKind = fileType(mediaFile.url)
-              return (
-                <div key={idx} className="relative">
-                  {/* Found by review (quality-bar-loop round 2): this was a
-                      `<span onClick>` -- no role/tabIndex/keyboard handler,
-                      a genuine keyboard trap (couldn't be focused or
-                      activated from the keyboard at all).
-                      UpdateInspection.tsx's equivalent control already uses
-                      a real `<button aria-label>`; this brings the two in
-                      line, including the dark-mode colors that file
-                      already has and this one didn't. */}
-                  {/* quality-bar-loop (Inspections, round 22, visual polish
-                      finding): amber-bg/red-icon had no relationship to
-                      this app's severity/destructive token system --
-                      unified to the same bg-black/60 text-white circular
-                      button used for every other "delete this media"
-                      control in this feature, scaled down for this
-                      thumbnail's smaller size. */}
-                  <button
-                    type="button"
-                    onClick={() => onRemoveMediaFile(question.id, idx)}
-                    aria-label={t("organization.inspection.removeMedia")}
-                    className="absolute -top-2 -right-2 rounded-full bg-black/60 p-1 text-white transition-colors hover:bg-black/80"
-                  >
-                    <Trash className="size-4" />
-                  </button>
-                  {!isHttpUrl(mediaFile.url) ? (
-                    // quality-bar-loop (Inspections, round 3, security
-                    // finding): same render-sink guard as the single-answer
-                    // media case above.
-                    <div className="flex h-12 w-12 items-center justify-center rounded border bg-muted text-[10px] text-muted-foreground">
-                      {t("organization.inspection.unsafeAttachment")}
-                    </div>
-                  ) : mediaKind === "video" ? (
-                    <video controls className="h-12 w-12 rounded object-cover">
-                      <source src={mediaFile.url} />
-                      {t("organization.inspection.videoUnsupported")}
-                    </video>
-                  ) : mediaKind === "document" || mediaKind === "file" ? (
-                    <a
-                      href={mediaFile.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex h-12 w-12 items-center justify-center rounded border bg-muted"
-                    >
-                      <FileText className="size-5 text-muted-foreground" />
-                    </a>
-                  ) : (
-                    <img
-                      className="h-12 w-12"
-                      src={mediaFile.url}
-                      alt={t("organization.inspection.uploadedMediaAlt")}
-                      onError={(e) => {
-                        ;(e.target as HTMLImageElement).src =
-                          PLACEHOLDER_IMAGE_SRC
-                      }}
-                    />
-                  )}
-                </div>
-              )
-            })}
+            {mediaFiles.map((mediaFile: any, idx: number) => (
+              <MediaThumbnail
+                key={idx}
+                url={mediaFile.url}
+                variant="thumbnail"
+                onDelete={() => onRemoveMediaFile(question.id, idx)}
+                deleteLabel={t("organization.inspection.removeMedia")}
+                t={t}
+              />
+            ))}
           </div>
         )}
         {hasNote && (
@@ -785,18 +648,7 @@ export default function CreateNewInspection() {
           const res = await uploadFileAws(formdata).unwrap()
 
           if (res?.success && res?.data) {
-            // quality-bar-loop (Inspections, round 41, code-quality
-            // finding): hardcoded "image" even though the accept list
-            // above allows video and PDF uploads too -- UpdateInspection.tsx's
-            // identical function was already fixed the same way under
-            // aexa-frontend#515, but that fix never propagated to this
-            // file's own copy of the same duplicated logic.
-            const type = file.type.startsWith("video/")
-              ? "video"
-              : file.type === "application/pdf"
-                ? "document"
-                : "image"
-            return { url: res.data, type }
+            return { url: res.data, type: getMediaKindFromMime(file.type) }
           }
           return null
         })
