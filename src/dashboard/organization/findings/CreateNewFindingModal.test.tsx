@@ -306,6 +306,95 @@ describe("CreateNewFindingModal", () => {
     ).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 28 review finding): this modal is
+  // now also opened by InspectionActions.tsx with editData.actionDisc
+  // potentially null (aexa-server#173 -- actionDisc is optional/nullable at
+  // the DB level) -- previously only covered by InspectionActions.tsx's own
+  // now-deleted local-form test, leaving this integration point untested.
+  it("opens for edit with a null actionDisc without a controlled-input warning (aexa-server#173)", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={makeEditData({ actionDisc: null }) as any}
+      />
+    )
+
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("Fix broken railing")).toBeInTheDocument()
+    )
+    expect(
+      consoleError.mock.calls.some((args) =>
+        String(args[0]).includes("a component is changing an uncontrolled input")
+      )
+    ).toBe(false)
+
+    consoleError.mockRestore()
+  })
+
+  // quality-bar-loop (Inspections, round 28 review finding): InspectionActions.tsx
+  // only ever passes additionalData={{ inspectionId }} (no actionTitle/
+  // questionId/complianceObligationId) -- every other test above exercises a
+  // richer additionalData shape, leaving this specific bare-inspectionId
+  // integration untested.
+  it("sends inspectionId from a bare additionalData={{ inspectionId }} shape on create", async () => {
+    mockCreateNewFinding.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        additionalData={{ inspectionId: "insp-1" }}
+      />
+    )
+
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
+      "Bare inspectionId finding"
+    )
+    await userEvent.selectOptions(
+      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      "FIRST"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
+    )
+
+    await waitFor(() => expect(mockCreateNewFinding).toHaveBeenCalled())
+    const payload = mockCreateNewFinding.mock.calls[0][0]
+    expect(payload).toHaveProperty("inspectionId", "insp-1")
+  })
+
+  // aexa-frontend#242-equivalent for this modal's own upload path: the old
+  // InspectionActions.tsx local form had a dedicated test for an upload
+  // failure toast; that coverage didn't move with the upload logic into
+  // this modal (round 28 review finding) -- only the success path was
+  // tested here.
+  it("shows a toast error when a media upload fails", async () => {
+    const { toast } = await import("sonner")
+    mockUploadFile.mockReturnValue({
+      unwrap: () => Promise.reject(new Error("Upload failed")),
+    })
+
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+    const file = new File(["hello"], "photo.png", { type: "image/png" })
+    await userEvent.upload(fileInput, file)
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "organization.findings.mediaUploadFailed"
+      )
+    )
+  })
+
   it("normalizes editData.assignBy ({id, name} objects) to raw user ids and preserves them on submit", async () => {
     mockOrgUsers.mockReturnValue({
       data: {

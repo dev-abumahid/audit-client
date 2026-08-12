@@ -1,279 +1,57 @@
+import CreateNewFindingModal from "@/dashboard/organization/findings/CreateNewFindingModal"
 import { useFindingsForInspection } from "@/hooks/useFindingsForInspection"
 import {
-  useCreateNewFindingMutation,
   useDeleteFindingByIdMutation,
   useUpdateFindingByIdMutation,
 } from "@/redux/apis/organization/findings.api"
+import type { IAction } from "@/types/finding"
+import { fileType } from "@/utils/fileType"
 import { formatLocaleDate } from "@/utils/formatDate"
-import {
-  FileText,
-  Loader2,
-  Paperclip,
-  Pencil,
-  Plus,
-  Trash2,
-  X,
-} from "lucide-react"
-import { useId, useState } from "react"
+import { isHttpUrl } from "@/utils/isHttpUrl"
+import { severityBadgeClasses } from "@/utils/severityStyles"
+import { FileText, Loader2, Pencil, Plus, Trash2 } from "lucide-react"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useParams, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ""
+// quality-bar-loop (Inspections, round 28): this file used to hand-roll its
+// own create/edit form (ActionForm) and a narrower local `Action` type,
+// duplicating CreateNewFindingModal.tsx -- the real, canonical finding
+// create/edit UI already used by UpdateInspection.tsx/AllFindingsPage.tsx.
+// The local form was missing assignees, the Five Cs fields, and comments,
+// had no accessible labels on its inputs, undersized touch targets, and
+// hand-rolled status/priority colors with no dark-mode variants -- all
+// gaps the real modal already closes. Swapped to it rather than patching
+// each symptom separately; see the round-27/28 log entries.
 
-type ActionPriority = "Low" | "Medium" | "High"
-type ActionStatus = "TO_DO" | "IN_PROGRESS" | "COMPLETE" | "CANT_DO"
-
-interface Action {
-  id: string
-  inspectionId: string
-  actionTitle: string
-  // Optional/nullable at the DB level (aexa-server#173) -- omitted/null on
-  // rows created with a blank "Description (Optional)" field.
-  actionDisc?: string | null
-  priority: ActionPriority
-  dueDate: string
-  status: ActionStatus
-  site: { id: string; name: string } | null
-  attachments: string[]
+// Same status/priority -> severity mapping as AllFindingsPage.tsx, so a
+// finding renders in the same color here as everywhere else it's shown.
+const PRIORITY_BADGE: Record<IAction["priority"], string> = {
+  Low: severityBadgeClasses("low"),
+  Medium: severityBadgeClasses("medium"),
+  High: severityBadgeClasses("high"),
 }
 
-const PRIORITY_CLASSES: Record<ActionPriority, string> = {
-  Low: "bg-slate-100 text-slate-600",
-  Medium: "bg-amber-100 text-amber-700",
-  High: "bg-red-100 text-red-600",
-}
-
-const STATUS_CLASSES: Record<ActionStatus, string> = {
-  TO_DO: "bg-slate-100 text-slate-600",
-  IN_PROGRESS: "bg-blue-100 text-blue-700",
-  COMPLETE: "bg-green-100 text-green-700",
-  CANT_DO: "bg-red-100 text-red-600",
-}
-
-const EMPTY_FORM = {
-  actionTitle: "",
-  actionDisc: "",
-  priority: "Medium" as ActionPriority,
-  dueDate: "",
-  status: "TO_DO" as ActionStatus,
-}
-
-type FormState = typeof EMPTY_FORM
-
-function ActionForm({
-  title,
-  form,
-  setForm,
-  onSubmit,
-  onCancel,
-  submitting,
-  formError,
-  submitLabel,
-  attachments,
-  onAttach,
-  attachUploading,
-  isEdit,
-}: {
-  title: string
-  form: FormState
-  setForm: React.Dispatch<React.SetStateAction<FormState>>
-  onSubmit: (e: React.FormEvent) => void
-  onCancel: () => void
-  submitting: boolean
-  formError: string | null
-  submitLabel: string
-  attachments: string[]
-  onAttach: (file: File) => Promise<void>
-  attachUploading: boolean
-  isEdit?: boolean
-}) {
-  const { t } = useTranslation()
-  const dueDateId = useId()
-  return (
-    <form
-      onSubmit={onSubmit}
-      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5"
-    >
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-muted-foreground">
-          {t("pages.inspection.actions.form.titleLabel")}
-        </label>
-        <input
-          required
-          value={form.actionTitle}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, actionTitle: e.target.value }))
-          }
-          placeholder={t("pages.inspection.actions.form.titlePlaceholder")}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-muted-foreground">
-          {t("pages.inspection.actions.form.descriptionLabel")}
-        </label>
-        <textarea
-          required
-          rows={3}
-          value={form.actionDisc}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, actionDisc: e.target.value }))
-          }
-          placeholder={t(
-            "pages.inspection.actions.form.descriptionPlaceholder"
-          )}
-          className="resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-muted-foreground">
-          {t("pages.inspection.actions.form.attachmentsLabel")}
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {attachments.map((url, i) => {
-            const isImage = /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url)
-            const fullUrl = url.startsWith("http") ? url : `${BASE_URL}${url}`
-            return isImage ? (
-              <img
-                key={i}
-                src={fullUrl}
-                alt={t("pages.inspection.actions.attachment", {
-                  index: i + 1,
-                })}
-                className="h-16 w-16 rounded-md border border-border object-cover"
-              />
-            ) : (
-              <a
-                key={i}
-                href={fullUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
-              >
-                <FileText className="h-3.5 w-3.5" />{" "}
-                {t("pages.inspection.actions.file", { index: i + 1 })}
-              </a>
-            )
-          })}
-          <label
-            className={`flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted ${attachUploading ? "pointer-events-none opacity-60" : ""}`}
-          >
-            {attachUploading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Paperclip className="h-3.5 w-3.5" />
-            )}
-            {t("pages.inspection.actions.form.attachFile")}
-            <input
-              type="file"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f) onAttach(f)
-              }}
-              disabled={attachUploading}
-            />
-          </label>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">
-            {t("pages.inspection.actions.form.priorityLabel")}
-          </label>
-          <select
-            value={form.priority}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                priority: e.target.value as ActionPriority,
-              }))
-            }
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            <option value="Low">
-              {t("pages.inspection.actions.priorityLow")}
-            </option>
-            <option value="Medium">
-              {t("pages.inspection.actions.priorityMedium")}
-            </option>
-            <option value="High">
-              {t("pages.inspection.actions.priorityHigh")}
-            </option>
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor={dueDateId}
-            className="text-xs font-medium text-muted-foreground"
-          >
-            {t("pages.inspection.actions.form.dueDateLabel")}
-          </label>
-          <input
-            id={dueDateId}
-            required
-            type="date"
-            value={form.dueDate}
-            min={isEdit ? undefined : new Date().toISOString().slice(0, 10)}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, dueDate: e.target.value }))
-            }
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-          />
-        </div>
-      </div>
-
-      {formError && <p className="text-xs text-destructive">{formError}</p>}
-
-      <div className="flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
-        >
-          {t("pages.inspection.actions.form.cancel")}
-        </button>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-        >
-          {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          {submitLabel}
-        </button>
-      </div>
-    </form>
-  )
+const STATUS_BADGE: Record<IAction["status"], string> = {
+  TO_DO: severityBadgeClasses("medium"),
+  IN_PROGRESS: severityBadgeClasses("info"),
+  COMPLETE: severityBadgeClasses("low"),
+  CANT_DO: severityBadgeClasses("critical"),
 }
 
 export default function InspectionActions() {
   const { t, i18n } = useTranslation()
   const { id: inspectionId } = useParams<{ id: string }>()
 
-  const STATUS_LABELS: Record<ActionStatus, string> = {
+  const STATUS_LABELS: Record<IAction["status"], string> = {
     TO_DO: t("pages.inspection.actions.statusToDo"),
     IN_PROGRESS: t("pages.inspection.actions.statusInProgress"),
     COMPLETE: t("pages.inspection.actions.statusComplete"),
     CANT_DO: t("pages.inspection.actions.statusCantDo"),
   }
 
-  const PRIORITY_LABELS: Record<ActionPriority, string> = {
+  const PRIORITY_LABELS: Record<IAction["priority"], string> = {
     Low: t("pages.inspection.actions.priorityLow"),
     Medium: t("pages.inspection.actions.priorityMedium"),
     High: t("pages.inspection.actions.priorityHigh"),
@@ -284,15 +62,14 @@ export default function InspectionActions() {
     isLoading: loading,
     isFetching: findingsFetching,
     isError: hasLoadError,
-  } = useFindingsForInspection<Action>(inspectionId)
+  } = useFindingsForInspection<IAction>(inspectionId)
   const error = hasLoadError ? t("pages.inspection.actions.loadFailed") : null
   // True only while a background refetch (e.g. after create/update/delete
-  // invalidates the FINDINGS tag) is in flight — `loading` only covers the
+  // invalidates the FINDINGS tag) is in flight -- `loading` only covers the
   // very first fetch, so without this the list can go silent for a moment
   // after a mutation with no visible feedback.
   const isBackgroundRefreshing = findingsFetching && !loading
 
-  const [createNewFinding] = useCreateNewFindingMutation()
   const [updateFindingById] = useUpdateFindingByIdMutation()
   const [deleteFindingById] = useDeleteFindingByIdMutation()
 
@@ -300,122 +77,17 @@ export default function InspectionActions() {
 
   const [searchParams] = useSearchParams()
 
-  // create form
-  const [showCreate, setShowCreate] = useState(
-    () => searchParams.get("new") === "1"
-  )
-  const [createForm, setCreateForm] = useState(EMPTY_FORM)
-  const [creating, setCreating] = useState(false)
-  const [createError, setCreateError] = useState<string | null>(null)
-  const [createAttachments, setCreateAttachments] = useState<string[]>([])
-  const [createAttachUploading, setCreateAttachUploading] = useState(false)
-
-  // edit form
-  const [editingAction, setEditingAction] = useState<Action | null>(null)
-  const [editForm, setEditForm] = useState(EMPTY_FORM)
-  const [updating, setUpdating] = useState(false)
-  const [editError, setEditError] = useState<string | null>(null)
-  const [editAttachments, setEditAttachments] = useState<string[]>([])
-  const [editAttachUploading, setEditAttachUploading] = useState(false)
+  // Create/edit both go through the real CreateNewFindingModal now --
+  // `editData: null` means "create", matching AllFindingsPage.tsx's own
+  // modalState convention.
+  const [modalState, setModalState] = useState<{
+    open: boolean
+    editData: IAction | null
+  }>(() => ({ open: searchParams.get("new") === "1", editData: null }))
 
   // delete confirm
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteInFlight, setDeleteInFlight] = useState(false)
-
-  async function uploadAttachment(
-    file: File,
-    onUrl: (url: string) => void,
-    setUploading: (v: boolean) => void
-  ) {
-    setUploading(true)
-    try {
-      const form = new FormData()
-      form.append("file", file)
-      const res = await fetch(`${BASE_URL}/api/action/attachment`, {
-        method: "POST",
-        credentials: "include",
-        body: form,
-      })
-      if (!res.ok) throw new Error("Upload failed")
-      const json = await res.json()
-      const url: string = json.data?.url ?? json.url ?? ""
-      if (url) {
-        onUrl(url)
-      } else {
-        toast.error(t("pages.inspection.actions.uploadFailed"))
-      }
-    } catch {
-      toast.error(t("pages.inspection.actions.uploadFailed"))
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!inspectionId) return
-    setCreating(true)
-    setCreateError(null)
-    try {
-      await createNewFinding({
-        ...createForm,
-        inspectionId,
-        dueDate: new Date(createForm.dueDate).toISOString(),
-        attachments: createAttachments,
-      }).unwrap()
-      setCreateForm(EMPTY_FORM)
-      setCreateAttachments([])
-      setShowCreate(false)
-    } catch (err) {
-      setCreateError(
-        (err as { data?: { message?: string } })?.data?.message ??
-          t("pages.inspection.actions.createFailed")
-      )
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  function openEdit(action: Action) {
-    setEditingAction(action)
-    setEditForm({
-      actionTitle: action.actionTitle,
-      // action.actionDisc can be null/undefined (aexa-server#173) -- fall
-      // back to "" so this stays a controlled input, matching the empty
-      // string EMPTY_FORM already seeds for a fresh create.
-      actionDisc: action.actionDisc ?? "",
-      priority: action.priority,
-      dueDate: action.dueDate.slice(0, 10),
-      status: action.status,
-    })
-    setEditAttachments(action.attachments ?? [])
-    setEditError(null)
-  }
-
-  async function handleUpdate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!editingAction) return
-    setUpdating(true)
-    setEditError(null)
-    try {
-      await updateFindingById({
-        id: editingAction.id,
-        body: {
-          ...editForm,
-          dueDate: new Date(editForm.dueDate).toISOString(),
-          attachments: editAttachments,
-        },
-      }).unwrap()
-      setEditingAction(null)
-    } catch (err) {
-      setEditError(
-        (err as { data?: { message?: string } })?.data?.message ??
-          t("pages.inspection.actions.updateFailed")
-      )
-    } finally {
-      setUpdating(false)
-    }
-  }
 
   async function handleDelete(id: string) {
     setDeleteInFlight(true)
@@ -429,7 +101,7 @@ export default function InspectionActions() {
     }
   }
 
-  async function updateStatus(id: string, status: ActionStatus) {
+  async function updateStatus(id: string, status: IAction["status"]) {
     setUpdatingStatusId(id)
     try {
       await updateFindingById({ id, body: { status } }).unwrap()
@@ -490,68 +162,12 @@ export default function InspectionActions() {
           )}
         </div>
         <button
-          onClick={() => {
-            setShowCreate(true)
-            setEditingAction(null)
-          }}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          onClick={() => setModalState({ open: true, editData: null })}
+          className="flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" /> {t("pages.inspection.actions.newAction")}
         </button>
       </div>
-
-      {/* Create form */}
-      {showCreate && (
-        <ActionForm
-          title={t("pages.inspection.actions.newActionFormTitle")}
-          form={createForm}
-          setForm={setCreateForm}
-          onSubmit={handleCreate}
-          onCancel={() => {
-            setShowCreate(false)
-            setCreateError(null)
-          }}
-          submitting={creating}
-          formError={createError}
-          submitLabel={t("pages.inspection.actions.createAction")}
-          attachments={createAttachments}
-          onAttach={(file) =>
-            uploadAttachment(
-              file,
-              (url) => setCreateAttachments((prev) => [...prev, url]),
-              setCreateAttachUploading
-            )
-          }
-          attachUploading={createAttachUploading}
-        />
-      )}
-
-      {/* Edit form */}
-      {editingAction && (
-        <ActionForm
-          title={t("pages.inspection.actions.editActionFormTitle")}
-          isEdit
-          form={editForm}
-          setForm={setEditForm}
-          onSubmit={handleUpdate}
-          onCancel={() => {
-            setEditingAction(null)
-            setEditError(null)
-          }}
-          submitting={updating}
-          formError={editError}
-          submitLabel={t("pages.inspection.actions.saveChanges")}
-          attachments={editAttachments}
-          onAttach={(file) =>
-            uploadAttachment(
-              file,
-              (url) => setEditAttachments((prev) => [...prev, url]),
-              setEditAttachUploading
-            )
-          }
-          attachUploading={editAttachUploading}
-        />
-      )}
 
       {error && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
@@ -569,7 +185,7 @@ export default function InspectionActions() {
             {t("pages.inspection.actions.empty")}
           </p>
           <button
-            onClick={() => setShowCreate(true)}
+            onClick={() => setModalState({ open: true, editData: null })}
             className="text-sm font-medium text-primary hover:underline"
           >
             {t("pages.inspection.actions.addFirst")}
@@ -593,20 +209,22 @@ export default function InspectionActions() {
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_CLASSES[action.priority]}`}
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_BADGE[action.priority]}`}
                   >
                     {PRIORITY_LABELS[action.priority]}
                   </span>
                   <button
-                    onClick={() => openEdit(action)}
-                    className="ml-1 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    onClick={() =>
+                      setModalState({ open: true, editData: action })
+                    }
+                    className="ml-1 flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                     aria-label={t("pages.inspection.actions.editAction")}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => setDeletingId(action.id)}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                     aria-label={t("pages.inspection.actions.deleteAction")}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -617,14 +235,12 @@ export default function InspectionActions() {
               {(action.attachments?.length ?? 0) > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {action.attachments.map((url, i) => {
-                    const isImage = /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url)
-                    const fullUrl = url.startsWith("http")
-                      ? url
-                      : `${BASE_URL}${url}`
+                    if (!isHttpUrl(url)) return null
+                    const isImage = fileType(url) === "image"
                     return isImage ? (
                       <img
                         key={i}
-                        src={fullUrl}
+                        src={url}
                         alt={t("pages.inspection.actions.attachment", {
                           index: i + 1,
                         })}
@@ -633,7 +249,7 @@ export default function InspectionActions() {
                     ) : (
                       <a
                         key={i}
-                        href={fullUrl}
+                        href={url}
                         target="_blank"
                         rel="noreferrer"
                         className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
@@ -683,7 +299,7 @@ export default function InspectionActions() {
                     every change (including re-picking the same value). */}
                 {action.status === "COMPLETE" || action.status === "CANT_DO" ? (
                   <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASSES[action.status]}`}
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[action.status]}`}
                     title={t("pages.inspection.actions.statusClosedHint")}
                   >
                     {STATUS_LABELS[action.status]}
@@ -693,9 +309,15 @@ export default function InspectionActions() {
                     value={action.status}
                     disabled={updatingStatusId === action.id}
                     onChange={(e) =>
-                      updateStatus(action.id, e.target.value as ActionStatus)
+                      updateStatus(
+                        action.id,
+                        e.target.value as IAction["status"]
+                      )
                     }
-                    className={`rounded-full border-0 px-2.5 py-0.5 text-xs font-medium focus:ring-1 focus:ring-ring focus:outline-none disabled:opacity-60 ${STATUS_CLASSES[action.status]}`}
+                    aria-label={t("pages.inspection.actions.statusFor", {
+                      title: action.actionTitle,
+                    })}
+                    className={`rounded-full border-0 px-2.5 py-0.5 text-xs font-medium focus:ring-1 focus:ring-ring focus:outline-none disabled:opacity-60 ${STATUS_BADGE[action.status]}`}
                   >
                     <option value="TO_DO">{STATUS_LABELS.TO_DO}</option>
                     <option value="IN_PROGRESS">
@@ -713,6 +335,15 @@ export default function InspectionActions() {
           ))}
         </div>
       )}
+
+      <CreateNewFindingModal
+        open={modalState.open}
+        onClose={() => setModalState({ open: false, editData: null })}
+        editData={modalState.editData}
+        additionalData={
+          modalState.editData ? undefined : { inspectionId: inspectionId ?? "" }
+        }
+      />
     </div>
   )
 }

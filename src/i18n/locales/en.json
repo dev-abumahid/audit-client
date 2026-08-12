@@ -2398,6 +2398,7 @@
         "saveChanges": "Save changes",
         "statusCantDo": "Can't do",
         "statusComplete": "Complete",
+        "statusFor": "Status for {{title}}",
         "statusInProgress": "In progress",
         "statusToDo": "To do",
         "statusUpdateFailed": "Failed to update status",

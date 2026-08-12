@@ -1526,3 +1526,55 @@ findings for this inspection" link from `UpdateInspection.tsx`/
 `InspectionReport.tsx`. This is a larger, single-file refactor
 (InspectionActions.tsx is 714 lines) -- worth its own dedicated round
 rather than folding into this one.
+
+## Round 27 — fresh 9-judge re-score (first full panel since round 20)
+
+Full panel re-run, live-verified against the running dev server + real
+data (round 20 → round 27):
+
+| Axis | R20 | R27 | Note |
+|---|---|---|---|
+| Industry-standards | 3 | 6 | compliance scoring (R24) + bulk actions (R23) confirmed real and holding; recurring/offline/camera-capture still entirely absent; `InspectionActions.tsx`'s finding form confirmed missing assignee support vs. `CreateNewFindingModal.tsx` |
+| UX | 6 | 6 | orphaned-page cleanup (R25/26) genuinely reduced confusion, but the findings-reachability gap is now proven *actively wrong*, not just missing — `InspectionReport.tsx`'s "Actions" stat card reads a stale `inspection.actions` relation and shows "0" for an inspection with 1 real finding, live-confirmed via direct API fetch |
+| Efficiency | 9 | 9 | confirmed clean; compliance score properly memoized, bulk-delete uses concurrent `Promise.allSettled`, no regressions in R21-26 |
+| Accessibility | 6 (7 est. after R21 fix, never re-verified) | 5 | R21's `aria-labelledby` fix on slider/date/multipleSelect holds and is unregressed, but scope was too narrow — checkbox and free-text answers (the two most common types) have zero accessible name, live-confirmed via DOM inspection; `InspectionActions.tsx` has the same defect and was never audited before this round |
+| Visual polish | 6 (7 est. after R22 fix, never re-verified) | 6 | R22's button unification holds; `InspectionActions.tsx` reintroduces the exact color-fragmentation problem `severityStyles.ts` was built to eliminate — hand-rolled badge colors, zero dark-mode variants, no shared UI components |
+| Resilience | 7 | 7 | holding; bulk-delete partial-failure handling correct and tested; new narrow gap — slider-NaN guard covers input-creation time (PR #681) but not report-render time for malformed legacy data (`InspectionReport.tsx:101-116`) |
+| Code quality | 5 | 5 | unchanged; QuestionCard duplication persists; `any`-typing got structurally worse (blanket file-level ESLint suppressions added to 5 files, not scattered casts); new duplicate form (`InspectionActions.tsx`'s `ActionForm` vs. `CreateNewFindingModal.tsx`) added since R20; utils layer (`inspectionCompliance.ts`, `severityStyles.ts`) remains a genuine bright spot |
+| Mobile | 7 | 6 | R20's hover-only delete-button regression confirmed fixed (R22); but `InspectionTable.tsx` has no responsive/stacked layout at 375px (row actions sit off-screen behind horizontal scroll — pre-existing, not caused by R21-26); `InspectionActions.tsx` never received a touch-target pass (26px icon buttons, 38px form buttons vs. the 44px standard applied everywhere else this session) |
+| Security | 9 | 9 | confirmed clean; `isHttpUrl` guard intact and unregressed across all sinks; one non-blocking convergence nit — `InspectionActions.tsx` uses a bespoke (functionally equivalent but unaudited) URL check instead of the shared utility |
+
+**Average: 6.56/10** (up from round 20's real 6.1). **3 of 9 axes clear
+the 7 floor** (efficiency, resilience, security) — down from an assumed
+6 of 9, because 2 of those assumed clears (accessibility, visual
+polish) were never re-verified after their fix rounds and turned out
+to be wrong; a third (mobile) genuinely dropped from a previously
+*confirmed* 7 to a confirmed 6.
+
+**Guardrail note:** mobile's 7→6 is a confirmed-to-confirmed drop,
+which the loop's regression guardrail is written to catch. Judged not
+a true regression — nothing in rounds 21-26 touched
+`InspectionTable.tsx`'s responsive layout or `InspectionActions.tsx`'s
+touch targets; this is a pre-existing gap a more thorough live pass
+finally caught, the same pattern as round 20's own accessibility "new
+finding, not a fix regression." Logged and flagged rather than treated
+as a hard stop.
+
+**Cross-cutting pattern:** `InspectionActions.tsx` (kept in round 25
+for its unique per-inspection findings-list capability, its inline
+form's replacement explicitly deferred as a follow-up) is now the
+common thread behind four independent findings this round —
+unaudited/failing accessibility, untouched by the visual-polish token
+system, missing touch targets, and a duplicate form vs.
+`CreateNewFindingModal.tsx`. Four judges converged on the same file
+independently.
+
+**Next fix (Round 28):** the already-planned refactor — swap
+`InspectionActions.tsx`'s inline `ActionForm` for the real
+`CreateNewFindingModal.tsx` — is now higher-leverage than originally
+scoped, since the real modal already has correct `aria-labelledby`
+labeling, shared UI components on `severityStyles` tokens, and 44px
+touch targets. Expected to close or shrink the accessibility,
+visual-polish, and code-quality findings on this file in one pass,
+alongside industry-standards' assignee-field gap. Going there next
+rather than patching each axis's symptom on this file separately.

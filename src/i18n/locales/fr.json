@@ -2398,6 +2398,7 @@
         "saveChanges": "Enregistrer les modifications",
         "statusCantDo": "Impossible à faire",
         "statusComplete": "Terminée",
+        "statusFor": "Statut pour {{title}}",
         "statusInProgress": "En cours",
         "statusToDo": "À faire",
         "statusUpdateFailed": "Échec de la mise à jour du statut",
