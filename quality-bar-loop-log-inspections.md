@@ -2155,3 +2155,46 @@ fix commit) came back clean.
 
 Merged as aexa-frontend PR [#719](https://github.com/Qiyrix/aexa-frontend/pull/719). QA gate at merge: typecheck/lint
 clean, full suite 121 files / 1833 tests passing.
+
+## Round 44 -- fresh 9-judge re-score -- REGRESSION, loop paused again
+
+Full panel re-run (round 42 -> round 44, round 43's PR #719 in between
+fixed round 42's two regressions -- visual polish's single-answer media
+preview, resilience's note-file validation):
+
+| Axis | R40 | R42 | R44 | Note |
+|---|---|---|---|---|
+| Industry-standards | 7 | 7 | 7 | unchanged. Both known gaps confirmed still open and untouched by round 43: `type="button"` missing in 8+ buttons across `InspectionReport.tsx`/`UpdateInspection.tsx`/`UploadNotesModal.tsx`, and no draft/discard-confirmation on exiting a partially-filled inspection wizard. Noted precisely: `UpdateInspection.tsx`'s per-question *answering* flow already has real debounced autosave -- the gap is specifically the initial site/template wizard and general navigate-away, not the answering screen itself |
+| UX | 7 | 7 | 7 | unchanged. Validator-drift gap (required checkbox/slider silently passes validation) confirmed still live-reproducible -- unchecked a required checkbox, marked the inspection Completed, no validation fired. Minor new observation: a success-toast can visually overlap the status dropdown right after a save, causing an apparent-no-op first click |
+| Efficiency | 7 | 7 | 7 | unchanged. `useMyOrgRole()`/`useMyAssignedInspectionIds()` triple-query cost on every report view confirmed still firing via live network trace (6 total requests, 3 purely to gate one link's visibility); `GET /api/organization/members` still unpaginated, cost scales with org size |
+| Accessibility | 8 | 8 | 8 | unchanged. "Add Media"/"Add Finding" naming-collision gap confirmed still open via real keyboard Tab traversal across multiple questions -- both resolve to identical, unqualified accessible names regardless of which question they belong to |
+| Visual polish | 8 | 7 | **9** | **regression resolved, cleared past its prior high.** Round-43's fix (PR #719) confirmed correct: `CreateNewInspection.tsx`'s single-answer media preview now has full video/document/image branching, structurally identical to `UpdateInspection.tsx`'s reference (same guard order, same delete-button treatment) |
+| Resilience | 8 | 7 | **8** | **regression resolved.** Round-43's fix confirmed live: selecting an oversized file in `UploadNotesModal.tsx`'s file-extraction mode now shows a toast immediately with zero network request fired. New finding, different file, not double-counted: `CreateNewFindingModal.tsx`'s finding-attachment upload still has no `validateInspectionFile()` call -- same bug class, not yet fixed there |
+| Code quality | 7 | 7 | **6** | **regressed.** Unlike round 42's two regressions (pre-existing gaps a more thorough panel happened to find), this one is directly caused by round 43's own shipped code: porting `UpdateInspection.tsx`'s video/document branching into `CreateNewInspection.tsx`'s single-answer preview added a *fourth* copy of the same duplicated media-kind-branching pattern (now 6 total instances counting both JSX render blocks and both MIME-tagging functions across the two files) -- the shared-helper extraction round 41's own PR review first recommended is now more overdue, not less. The round-41 stale comment ("hardcoded 'image'...", still sitting above code that's no longer hardcoded) also remains unfixed |
+| Mobile | 8 | 8 | 8 | unchanged. Round-43's new single-answer `<video controls>` element confirmed correctly sized (44px delete button, full-width video, matching `UpdateInspection.tsx`'s reference) -- not a repeat of the still-open 48x48px thumbnail-video / 24x24px remove-button touch-target issues, which remain open unchanged (now confirmed in 3 places including `CreateNewFindingModal.tsx`) |
+| Security | 9 | 9 | 9 | unchanged, confirmed clean. Round 43's new render sinks in `CreateNewInspection.tsx`'s single-answer preview verified structurally gated by the same `isHttpUrl()` guard as every other sink; the widened client-side MIME allowlist confirmed advisory-only, aexa-server's `uploader.ts` remains the authoritative server-side gate |
+
+**Average: 7.67/10** (up from round 42's 7.44, actually the highest
+average this loop has reached). **But one axis regressed between
+rounds (code quality 7->6)** -- per this loop's own guardrails, an
+individual-axis drop trips the regression guardrail regardless of what
+the overall average does, the same rule that paused the loop at round
+42.
+
+**Diagnosis -- materially different from round 42's regressions:**
+round 42's two regressions were pre-existing gaps a more thorough judge
+pass happened to surface for the first time, not caused by any shipped
+fix. This one **is** directly caused by round 43's own shipped code:
+faced with a choice between porting the duplicated branching logic
+(fast, safe, proven-correct-by-precedent) or finally extracting the
+shared `getMediaKindFromMime`/`MediaThumbnail` helper round 41's PR
+review first recommended, round 43 chose the faster path and made the
+underlying duplication measurably worse (a fourth JSX/render copy, six
+total instances of the same pattern) in the course of legitimately
+fixing a real, user-visible bug. The fix itself is correct and
+necessary -- the cost was paid in code-quality debt, not functionality.
+
+Pausing the autonomous loop here per the skill's guardrail rules,
+escalating to Omar with this round's findings rather than picking round
+45's fix (which would almost certainly be the same extraction
+recommendation, now flagged for a third round running) unilaterally.
