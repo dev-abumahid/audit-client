@@ -2772,3 +2772,66 @@ Code quality's `onCloseAutoFocus` extraction (now 4 rounds overdue,
 crosses into 3 auth modals outside this feature) remains deliberately
 NOT batched -- its cross-feature blast radius still warrants its own
 dedicated round.
+
+## Round 56 -- shipped, reviewed, merged
+
+Shipped as aexa-frontend PR
+[#734](https://github.com/Qiyrix/aexa-frontend/pull/734). Round-1
+review (2 parallel angles) found a MAJOR issue the original design
+missed entirely: the fix only protected the Back button's `onClick` --
+a sidebar link, or any other in-app navigation, still bypassed both
+the flush-before-navigate logic and the discard-confirmation dialog,
+silently losing data exactly as before this round. Grepped the app
+and confirmed multiple pages link to the inspections list with plain
+`<Link>` elements never routed through the Back button's handler.
+
+Fixed properly rather than patched around: replaced the manual
+Back-button checks with React Router's `useBlocker`, confirmed
+available since the app is served through a real data router
+(`createBrowserRouter`/`RouterProvider`). `useBlocker` intercepts
+every client-side navigation the router dispatches, not just one
+button's click handler.
+
+- `UpdateInspection.tsx`: navigation now blocks automatically whenever
+  a debounced save is pending, flushes it, then proceeds -- silent, no
+  dialog, consistent with the file's existing autosave design.
+- `CreateNewInspection.tsx`: the discard-confirmation dialog is now
+  driven by `blocker.state`. This surfaced and fixed a genuine race:
+  Radix's `AlertDialogAction` auto-closes on click, firing
+  `onOpenChange(false)` immediately after Discard's own `onClick`
+  called `blocker.proceed()` -- without a guard, the auto-close's
+  `onOpenChange` handler would call `blocker.reset()` right after,
+  cancelling the navigation it had just approved. Also reset the dirty
+  ref before the successful-submit `navigate()` call, since that
+  navigation goes through the same blocker and would otherwise trigger
+  a spurious dialog on the happy path.
+- Both test files needed real (not mocked) navigation for `useBlocker`
+  to have anything to intercept -- switched from `MemoryRouter`/no
+  router to `createRoutesStub` (a real data router), and
+  `CreateNewInspection.test.tsx`'s `useNavigate` mock was removed
+  entirely, replaced with assertions against a sentinel destination
+  route's rendered content.
+
+Round 2 found three more issues, all confirmed genuine on inspection:
+the auto-close race above (fixed same round, verified as a real Radix
+interaction, not a misdiagnosis); a minor UX gap (no loading indicator
+during `UpdateInspection.tsx`'s silent blocked-navigation flush,
+accepted as a documented future-polish item, consistent with the
+file's existing silent-autosave convention); a speculative, self-
+acknowledged-as-likely-harmless re-entrancy edge case in the same
+flush effect (accepted, not proven to occur); and one real minor test-
+isolation issue (a test's second `render()` call didn't unmount the
+first tree, only passing by luck on non-colliding element names) --
+fixed same round. Round 3 (scoped to that one-line fix) came back
+clean, converging the review loop after 3 total fix rounds -- each
+round found genuine, distinct issues (not diminishing-severity
+padding), consistent with this loop's own convergence guidance.
+
+Merged as aexa-frontend PR
+[#734](https://github.com/Qiyrix/aexa-frontend/pull/734). QA gate at
+merge: typecheck/lint clean, full suite 1877/1877 passing. Live-
+verified in browser: typed an answer in a fresh create-flow
+inspection, clicked a sidebar link (not the Back button), confirmed
+the discard-confirmation dialog now renders -- the exact gap round 1's
+review flagged, genuinely closed rather than left as a known
+limitation.
