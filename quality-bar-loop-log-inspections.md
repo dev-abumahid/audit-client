@@ -2247,3 +2247,79 @@ commit) came back clean.
 
 Merged as aexa-frontend PR [#722](https://github.com/Qiyrix/aexa-frontend/pull/722). QA gate at merge: typecheck/lint
 clean, full suite 122 files / 1845 tests passing.
+
+## Round 46 -- shipped, reviewed, merged (skill selection logic redesigned first)
+
+Before picking this round's fix, the quality-bar-loop skill itself was
+redesigned (`/Users/omartakadoum/.claude/skills/quality-bar-loop/`)
+after Omar flagged a real structural flaw: UX and industry-standards
+had sat flat at exactly floor (7/7) since round 38 (rounds 38, 40, 42,
+44 -- 4 consecutive full panels, `stuck_streak = 4`), while every fix
+in that window instead targeted whichever axis had most recently
+regressed (code quality, visual polish, resilience), because a fresh
+regression is more salient in the moment than an old, unmoving score.
+The skill now computes a per-axis `stuck_streak` and gives the
+longest-stuck axis mechanical priority over a same-round regression
+that stays at/above floor (full rationale in `design.md`'s "Revision
+(v2)" section).
+
+Applying the redesigned priority order to this loop's own data:
+industry-standards/UX both `stuck_streak = 4`, industry-standards wins
+the tie (lower raw score in round 44's panel -- UX's own
+"required-checkbox/slider silently passes validation" finding was
+tagged `data-correctness`, which under the new rule 5c(1) actually
+outranks the stuck-streak tiebreak entirely: a data-correctness finding
+at-or-below floor is selected first regardless of streak length).
+
+**The fix**: required checkbox/slider questions were seeded with a real
+default value (`false` / a computed numeric default) indistinguishable
+from a genuine answer, so the submission/completion gate silently
+treated an untouched required checkbox/slider as answered -- first
+noted as an accepted limitation as far back as round 18, twice
+punted on since because it looked like it needed a backend/data-model
+change. Investigated the actual Prisma schema
+(`aexa-server/prisma/schema/inspection.prisma`:
+`QuestionAnswer.answer Json`, non-nullable, no default) and confirmed
+that seeding `null`/`undefined` would break inspection creation. Instead
+added a `touchedQuestionIds: Set<string>` piece of client-only state,
+marked on every answer-change handler and consulted (instead of the
+answer value) only for checkbox/slider in each file's required-field
+gate -- zero backend/payload changes. For `UpdateInspection.tsx`
+(loads an existing, possibly-already-answered inspection),
+`touchedQuestionIds` is pre-populated on load for any checkbox/slider
+whose persisted value differs from its computed default -- a real,
+derivable "this was genuinely answered in a past session" signal --
+so reopening an already-filled-out inspection doesn't force re-touching
+every correct answer. The one case this can't distinguish (a value
+explicitly set back to its exact default) is documented inline, not
+silently accepted.
+
+Negative-controlled tests added in both files' suites; the old tests
+that had asserted the bug as intended behavior were replaced, not
+left dangling.
+
+Shipped as aexa-frontend PR
+[#724](https://github.com/Qiyrix/aexa-frontend/pull/724). Round-1
+review (2 parallel angles) found one real medium finding: the
+pre-population heuristic compared `qa.answer` (typed `any` off a Json
+column) to the computed default with strict equality, so a backend
+serializing the default as a string (`"false"`, `"5"`) instead of a
+native boolean/number would be misread as "differs from default" and
+wrongly mark the question touched -- reintroducing the exact bug for
+that data shape. Fixed by normalizing both comparisons
+(`persisted === false || persisted === "false"` for checkbox,
+`Number(persisted) === parseSliderDefault(q.value)` for slider) with a
+negative-control test for the string-serialized case. Also confirmed:
+touched-marking is a no-op for every other answer type (their gates
+stay value-based, never consult `touchedQuestionIds`); React state
+timing is safe (functional updaters, no stale-closure risk); test
+rewrites genuinely exercise the real component/handlers, not mocks;
+`InspectionReport.tsx`'s read-only `totalAnswered` stat has the same
+latent pattern but is correctly out of scope (not a validation gate) --
+flagged as a reasonable future follow-up, not a blocker. Round 2 (diff
+scoped to the fix commit) came back clean.
+
+Merged as aexa-frontend PR
+[#724](https://github.com/Qiyrix/aexa-frontend/pull/724). QA gate at
+merge: typecheck/lint clean, full suite passing (83/83 in the two
+touched test files, no regressions elsewhere).
