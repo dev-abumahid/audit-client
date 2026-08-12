@@ -1719,6 +1719,7 @@
       "noAttachments": "Aucune pièce jointe",
       "images": "Images",
       "uploadMediaAlt": "Téléchargement {{index}}",
+      "removeMedia": "Supprimer la pièce jointe {{index}}",
       "attachmentMediaAlt": "Pièce jointe {{index}}",
       "remove": "Supprimer",
       "files": "Fichiers",

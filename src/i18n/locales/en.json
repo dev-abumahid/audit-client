@@ -1719,6 +1719,7 @@
       "noAttachments": "No attachments",
       "images": "Images",
       "uploadMediaAlt": "Upload {{index}}",
+      "removeMedia": "Remove attachment {{index}}",
       "attachmentMediaAlt": "Attachment {{index}}",
       "remove": "Remove",
       "files": "Files",

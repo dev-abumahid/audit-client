@@ -74,24 +74,37 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
   // silently blocking inspection creation with no indication the fetch
   // itself failed. Same bug class InspectionTable.tsx already fixed for
   // itself.
-  const { data: sitesData, isError: isSitesError } = useGetAllSitesQuery({
-    page: 1,
-    limit: 1000,
-    searchTerm: debouncedSiteSearch,
-  })
+  // quality-bar-loop (Inspections, round 39, efficiency finding): this
+  // modal is always mounted by InspectionTable.tsx (only `open` toggles),
+  // and these two queries used to fire unconditionally on mount -- the
+  // sites one unbounded up to 1000 rows. Every visit to the inspections
+  // list page paid that cost before the user ever clicked "Start
+  // Inspection." Same fix pattern already proven for CreateNewFindingModal.tsx
+  // (round 37).
+  const { data: sitesData, isError: isSitesError } = useGetAllSitesQuery(
+    {
+      page: 1,
+      limit: 1000,
+      searchTerm: debouncedSiteSearch,
+    },
+    { skip: !open }
+  )
   const {
     data: templatesData,
     isLoading,
     isError: isTemplatesError,
-  } = useGetAllTemplatesQuery({
-    page: 1,
-    limit: 100,
-    searchTerm: debouncedTemplateSearch,
-    // quality-bar-loop round 5 (industry-standards): exclude drafts --
-    // starting a real inspection against an unfinished checklist would
-    // silently produce an incomplete report with no warning.
-    status: "PUBLISHED",
-  })
+  } = useGetAllTemplatesQuery(
+    {
+      page: 1,
+      limit: 100,
+      searchTerm: debouncedTemplateSearch,
+      // quality-bar-loop round 5 (industry-standards): exclude drafts --
+      // starting a real inspection against an unfinished checklist would
+      // silently produce an incomplete report with no warning.
+      status: "PUBLISHED",
+    },
+    { skip: !open }
+  )
 
   const { handleSubmit, watch, setValue } = useForm<FormData>({
     defaultValues: { siteId: "", templateId: "" },

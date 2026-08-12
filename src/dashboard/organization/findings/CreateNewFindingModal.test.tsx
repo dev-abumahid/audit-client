@@ -616,6 +616,58 @@ describe("CreateNewFindingModal", () => {
     expect(document.querySelector('[src^="javascript:"]')).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 39, accessibility/visual-polish
+  // finding): this button had no aria-label (icon-only, screen readers
+  // heard just "button") and was hover-only invisible with no
+  // focus-visible fallback -- unreachable by keyboard.
+  it("gives the media-remove button a real accessible name, reachable without hover", async () => {
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={
+          makeEditData({
+            attachments: ["https://cdn.example.com/existing.png"],
+          }) as any
+        }
+      />
+    )
+
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("Fix broken railing")).toBeInTheDocument()
+    )
+    const removeButtons = Array.from(
+      document.querySelectorAll("button[aria-label]")
+    ).filter((el) => el.getAttribute("aria-label")?.includes("removeMedia"))
+    expect(removeButtons.length).toBe(1)
+    expect(removeButtons[0].className).not.toContain("opacity-0")
+  })
+
+  // quality-bar-loop (Inspections, round 39, UX finding): a whitespace-only
+  // title passed the `required` check (a non-empty string), so it silently
+  // made it to submit -- where it gets trimmed to "" and sent anyway --
+  // before being rejected server-side with a generic, untargeted toast.
+  it("shows an inline error for a whitespace-only Action Title instead of letting it reach submit", async () => {
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
+      "   "
+    )
+    await userEvent.selectOptions(
+      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      "FIRST"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
+    )
+
+    expect(
+      screen.getByText("organization.findings.actionTitleRequired")
+    ).toBeInTheDocument()
+    expect(mockCreateNewFinding).not.toHaveBeenCalled()
+  })
+
   // quality-bar-loop (Inspections, round 29 resilience finding): a failed
   // fetch on any of these three queries used to silently show just the
   // placeholder/empty state, with nothing distinguishing "no data" from

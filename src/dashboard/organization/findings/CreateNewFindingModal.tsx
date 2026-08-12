@@ -542,6 +542,16 @@ export default function CreateNewFindingModal({
               id={actionTitleId}
               {...register("actionTitle", {
                 required: t("organization.findings.actionTitleRequired"),
+                // quality-bar-loop (Inspections, round 39, UX finding): a
+                // whitespace-only title passed this `required` check (a
+                // non-empty string), so it silently made it to submit
+                // (where it gets trimmed to "" and sent anyway) before
+                // being rejected server-side with a generic, untargeted
+                // toast -- unlike Line of Defense/Due Date, which both
+                // show a real inline error for their own required checks.
+                validate: (value) =>
+                  value.trim().length > 0 ||
+                  t("organization.findings.actionTitleRequired"),
               })}
               placeholder={t("organization.findings.actionTitlePlaceholder")}
               className={`w-full rounded-lg border px-4 py-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none ${
@@ -1045,7 +1055,7 @@ export default function CreateNewFindingModal({
                   // this codebase does, rather than trusting it implicitly.
                   if (!isHttpUrl(url)) return null
                   return (
-                    <div key={i} className="group relative">
+                    <div key={i} className="relative">
                       {isVideoUrl(url) ? (
                         <video
                           src={url}
@@ -1061,12 +1071,24 @@ export default function CreateNewFindingModal({
                           className="h-16 w-16 rounded-lg border border-border object-cover"
                         />
                       )}
+                      {/* quality-bar-loop (Inspections, round 39,
+                          accessibility/visual-polish finding): this button
+                          had no aria-label (icon-only, screen readers heard
+                          just "button"), was hover-only invisible (no
+                          focus-visible fallback -- unreachable by keyboard),
+                          and used a destructive-red/opacity treatment
+                          unrelated to this app's established pattern for
+                          the identical "remove this media thumbnail"
+                          control (UpdateInspection.tsx's round-22 fix). */}
                       <button
                         type="button"
                         onClick={() => removeMedia(url)}
-                        className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive opacity-0 transition-opacity group-hover:opacity-100"
+                        aria-label={t("organization.findings.removeMedia", {
+                          index: i + 1,
+                        })}
+                        className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                       >
-                        <X size={10} className="text-destructive-foreground" />
+                        <X size={12} />
                       </button>
                     </div>
                   )

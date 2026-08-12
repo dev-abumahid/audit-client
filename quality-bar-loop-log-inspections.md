@@ -1926,3 +1926,41 @@ clean.
 
 Merged as aexa-frontend PR [#710](https://github.com/Qiyrix/aexa-frontend/pull/710). QA gate at merge: typecheck/lint
 clean, full suite 121 files / 1811 tests passing.
+
+## Round 38 -- fresh 9-judge re-score
+
+Full panel re-run (round 36 -> round 38, round 37's PR #710 in between fixed 3 small efficiency/resilience gaps):
+
+| Axis | R36 | R38 | Note |
+|---|---|---|---|
+| Industry-standards | 7 | 7 | unchanged; independently corroborates the media-remove-button aria-label gap (below), plus 3 smaller narrow items (no client-side file validation on notes upload, nonstandard dialog-dismissal choice with documented rationale, one inconsistent raw-error toast) |
+| UX | 8 | 7 | new, live-confirmed gap -- CreateNewFindingModal.tsx's Action Title required-check doesn't trim; a whitespace-only title passes client validation with no inline error, gets rejected server-side with an unhelpful generic toast. The two independently-drifted required-field validators remain open, unchanged |
+| Efficiency | 7 | 7 | unchanged; round 37's fix confirmed correct and regression-tested. New finding -- StartInspectionModal.tsx has the identical unguarded-query pattern round 37 just fixed elsewhere (no `skip: !open` on its site/template queries), and it's larger (limit 1000 sites vs the 100 fixed previously), always mounted on the main inspections list page |
+| Accessibility | 8 | 7 | new findings in CreateNewFindingModal.tsx's media-remove button -- no accessible name (icon-only, no aria-label unlike its sibling upload button), invisible on keyboard focus (opacity-0 with no focus-visible fallback), and undersized touch target (20px vs the established 44px convention). The known "Add Media" naming-collision gap remains open, unchanged |
+| Visual polish | 8 | 8 | unchanged, confirmed clean; independently corroborates the same media-remove-button hover-only pattern as a minor, not-previously-flagged item -- "the same footgun explicitly fixed elsewhere in this feature" |
+| Resilience | 7 | 8 | **improved** -- both round-37 fixes (delete-failure toast, slider NaN guard) confirmed correctly implemented via a fresh sweep across 5 files; the 100-item findings cap was re-assessed and judged genuinely low-priority (per-inspection scope, not org-wide) rather than worth re-flagging |
+| Code quality | 7 | 7 | unchanged; round 37's 3 fixes confirmed cleanly integrated. Sharper framing on the QuestionCard duplication -- the media-case divergence is now confirmed an actual functional bug (video/PDF uploads silently break during inspection *creation*, not just during edit), not merely cosmetic duplication |
+| Mobile | 8 | 8 | unchanged, confirmed no regression from round 37 |
+| Security | 9 | 9 | unchanged, confirmed clean |
+
+**Average: 7.56/10** (down slightly from round 36's 7.67 -- driven by
+fresh, deeper audits surfacing real new issues on the same file
+(`CreateNewFindingModal.tsx`'s media-remove button, corroborated
+independently by 4 judges) now that round 37's fixes closed the
+previous layer, not by any regression from what shipped). All 9 axes
+still clear the 7 floor.
+
+**Next fix (Round 39):** three well-corroborated, contained fixes
+across two files, batched together: (1) `CreateNewFindingModal.tsx`'s
+media-remove button gets an `aria-label`, an always-visible (not
+hover-only) treatment with a `focus-visible` fallback -- closes the
+accessibility, visual-polish, and industry-standards findings on the
+same control in one pass; (2)
+`StartInspectionModal.tsx`'s two unguarded queries get the same
+`skip: !open` treatment round 37 already proved out, generalizing the
+fix to its sibling modal rather than leaving the larger (limit 1000)
+instance of the same pattern unaddressed; (3)
+`CreateNewFindingModal.tsx`'s Action Title validation gets a
+trim-aware check with a real inline error, instead of silently passing
+whitespace-only input to the server and surfacing an unhelpful generic
+toast.

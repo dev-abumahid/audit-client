@@ -27,8 +27,7 @@ vi.mock("react-router", async (importOriginal) => {
 
 const mockUseGetAllSitesQuery = vi.fn()
 vi.mock("@/redux/apis/organization/sites.api", () => ({
-  useGetAllSitesQuery: (...args: unknown[]) =>
-    mockUseGetAllSitesQuery(...args),
+  useGetAllSitesQuery: (...args: unknown[]) => mockUseGetAllSitesQuery(...args),
 }))
 
 const mockUseGetAllTemplatesQuery = vi.fn()
@@ -49,6 +48,38 @@ describe("StartInspectionModal", () => {
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [] } })
   })
 
+  // quality-bar-loop (Inspections, round 39, efficiency finding): this
+  // modal is always mounted by InspectionTable.tsx (only `open` toggles),
+  // and these two queries used to fire unconditionally on mount -- the
+  // sites one unbounded up to 1000 rows. Every visit to the inspections
+  // list page paid that cost before the user ever clicked "Start
+  // Inspection."
+  it("skips the sites and templates fetches while the modal is closed", () => {
+    render(<StartInspectionModal open={false} setOpen={vi.fn()} />)
+
+    expect(mockUseGetAllSitesQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ skip: true })
+    )
+    expect(mockUseGetAllTemplatesQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ skip: true })
+    )
+  })
+
+  it("does not skip the sites and templates fetches while the modal is open", () => {
+    render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
+
+    expect(mockUseGetAllSitesQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ skip: false })
+    )
+    expect(mockUseGetAllTemplatesQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ skip: false })
+    )
+  })
+
   // quality-bar-loop round 5 (Templates, industry-standards): starting a
   // real inspection against an unfinished draft template would silently
   // produce an incomplete report with no warning.
@@ -56,7 +87,8 @@ describe("StartInspectionModal", () => {
     render(<StartInspectionModal open={true} setOpen={vi.fn()} />)
 
     expect(mockUseGetAllTemplatesQuery).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "PUBLISHED" })
+      expect.objectContaining({ status: "PUBLISHED" }),
+      expect.anything()
     )
   })
 
@@ -274,14 +306,16 @@ describe("StartInspectionModal", () => {
       })
 
       expect(mockUseGetAllTemplatesQuery).toHaveBeenLastCalledWith(
-        expect.objectContaining({ searchTerm: "" })
+        expect.objectContaining({ searchTerm: "" }),
+        expect.anything()
       )
 
       act(() => {
         vi.advanceTimersByTime(300)
       })
       expect(mockUseGetAllTemplatesQuery).toHaveBeenLastCalledWith(
-        expect.objectContaining({ searchTerm: "" })
+        expect.objectContaining({ searchTerm: "" }),
+        expect.anything()
       )
     })
 
@@ -305,7 +339,8 @@ describe("StartInspectionModal", () => {
       })
 
       expect(mockUseGetAllTemplatesQuery).toHaveBeenLastCalledWith(
-        expect.objectContaining({ searchTerm: "fire" })
+        expect.objectContaining({ searchTerm: "fire" }),
+        expect.anything()
       )
     })
 
@@ -326,7 +361,8 @@ describe("StartInspectionModal", () => {
       })
 
       expect(mockUseGetAllSitesQuery).toHaveBeenLastCalledWith(
-        expect.objectContaining({ searchTerm: "" })
+        expect.objectContaining({ searchTerm: "" }),
+        expect.anything()
       )
     })
 
@@ -350,7 +386,8 @@ describe("StartInspectionModal", () => {
       })
 
       expect(mockUseGetAllSitesQuery).toHaveBeenLastCalledWith(
-        expect.objectContaining({ searchTerm: "hq" })
+        expect.objectContaining({ searchTerm: "hq" }),
+        expect.anything()
       )
     })
   })
