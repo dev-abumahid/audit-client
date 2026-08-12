@@ -367,7 +367,15 @@ const QuestionCard = memo(
         <div className="">{renderQuestionInput()}</div>
 
         {hasMediaFiles && (
-          <div className="flex items-center gap-5">
+          // quality-bar-loop (Inspections, round 62, mobile finding, found
+          // in round 61): this row had no flex-wrap and no horizontal
+          // scroll, so a question with ~8+ attached photos overflowed the
+          // parent Card's overflow-hidden at narrow viewports and clipped
+          // later thumbnails' delete buttons out of the tappable area
+          // entirely. flex-wrap lets it grow downward instead; gap-y-6
+          // (taller than gap-x-5) gives the delete button's -top-3 poke-out
+          // room to clear the row above it once wrapped.
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-6">
             {mediaFiles.map((mediaFile: any, idx: number) => (
               <MediaThumbnail
                 key={idx}

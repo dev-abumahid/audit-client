@@ -1900,6 +1900,45 @@ describe("UpdateInspection", () => {
         })
       ).not.toBeInTheDocument()
     })
+
+    // quality-bar-loop (Inspections, round 62, mobile finding, found in
+    // round 61): a question with many attached photos overflowed the
+    // thumbnail row's parent Card and clipped later thumbnails' delete
+    // buttons out of the tappable area at narrow viewports, since the row
+    // had no flex-wrap.
+    it("wraps the media-thumbnail row instead of letting it overflow horizontally", () => {
+      mockUseGetSingleInspectionQuery.mockReturnValue({
+        data: {
+          data: makeInspection({
+            questionAnswers: [
+              {
+                id: "qa-1",
+                questionId: "q-1",
+                answer: true,
+                note: "",
+                mediaFiles: Array.from({ length: 8 }, (_, i) => ({
+                  url: `https://cdn.example.com/photo-${i}.jpg`,
+                })),
+              },
+              {
+                id: "qa-2",
+                questionId: "q-2",
+                answer: "Fine",
+                note: "",
+                mediaFiles: [],
+              },
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+
+      const { container } = render(<UpdateInspection />, withRouter)
+
+      const row = container.querySelector(".flex.items-center.gap-x-5")
+      expect(row).not.toBeNull()
+      expect(row?.className).toContain("flex-wrap")
+    })
   })
 
   // Round 14 (#515): the "additional media files" secondary upload path

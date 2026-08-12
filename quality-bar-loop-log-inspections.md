@@ -3017,3 +3017,42 @@ The `onCloseAutoFocus` duplication (now 7 rounds overdue) and the
 round) both remain deliberately NOT batched -- unchanged reasoning:
 cross-feature/cross-component blast radius each warrants its own
 dedicated round.
+
+## Round 61 -- targeted re-score
+
+Round 60 (PR #737) was a pure CSS-styling diff touching exactly two
+things: `CreateNewInspection.tsx`'s discard dialog and
+`MediaThumbnail.tsx`'s thumbnail delete button. Only the two axes
+whose round-59 findings that diff targeted (visual polish, mobile)
+were re-dispatched with full live verification this round; the other
+seven axes are carried forward unchanged from round 59, since the
+diff has zero code overlap with any of their surface area (no data
+flow, no auth, no new components, no behavior change of any kind --
+confirmed by round 60's own PR review finding zero logic changes,
+only classNames).
+
+| Axis | R59 | R61 | stuck_streak (into R62) | Note |
+|---|---|---|---|---|
+| Industry-standards | 9 | 9 *(carried)* | 0 | not touched by round 60's diff |
+| UX | 9 | 9 *(carried)* | 0 | not touched by round 60's diff |
+| Efficiency | 8 | 8 *(carried)* | 2 | not touched by round 60's diff. Two persistent findings unchanged, now several rounds overdue: `useMyOrgRole` dual query, diverging `useGetAllSitesQuery` cache keys |
+| Accessibility | 9 | 9 *(carried)* | 0 | not touched by round 60's diff |
+| Visual polish | 8 | **9** | 0 (above floor) | **both open findings closed, live-confirmed.** Discard dialog re-tested live and screenshotted side-by-side against `DeleteAlertModal.tsx` -- visually indistinguishable in layout/spacing/red treatment. MediaThumbnail delete button verified with REAL rendered thumbnails this time (not just math): uploaded 3 real files via the actual Add Media flow, measured via `getBoundingClientRect()` -- 8px clearance between adjacent thumbnails' buttons, zero overlap. New minor observation (not scored, flagged for later): every inspection's "View report" link points to the same `/organization/audit/template/report/{templateId}` route regardless of which specific inspection, not an inspection-specific report URL |
+| Resilience | 8 | 8 *(carried)* | 1 | not touched by round 60's diff |
+| Code quality | 8 | 8 *(carried)* | 1 | not touched by round 60's diff |
+| Mobile | 8 | 8 | 2 | held, not raised -- **new finding** (live-verified via DOM measurement at 375px, real uploaded thumbnails, not attributed as a round-60 regression since it's a pre-existing container gap unrelated to button sizing): the media-thumbnail row (`flex items-center gap-5`, no `flex-wrap`, no horizontal scroll) clips later thumbnails' delete buttons under the parent Card's `overflow-hidden` once a question has ~8 attached photos -- confirmed via rects, later buttons become untappable at 375px |
+| Security | 9 | 9 *(carried)* | 0 | not touched by round 60's diff |
+
+**Average: 8.56/10** (up from round 59's 8.44). **All axes above
+floor.** No regressions.
+
+**Round 62 selection:** no axis at/below floor, no regression this
+round. Among axes tied at 8 (efficiency, resilience, code quality,
+mobile), picking mobile's freshly-confirmed thumbnail-row overflow
+finding: concrete, live-reproduced via real DOM measurement this
+round (not carried-forward/stale), well-scoped to a single container
+(`flex items-center gap-5` -> add wrapping or horizontal scroll), and
+lower-risk than efficiency's two long-standing findings, which
+involve deeper query/cache-key architecture and haven't been selected
+in over 4 rounds -- flagging efficiency as the next round's likely
+pick if it isn't addressed soon, per the stuck_streak signal.

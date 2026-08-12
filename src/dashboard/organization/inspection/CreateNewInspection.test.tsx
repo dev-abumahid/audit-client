@@ -1288,6 +1288,40 @@ describe("CreateNewInspection", () => {
     expect(removeButton.className).not.toMatch(/text-red-500/)
   })
 
+  // quality-bar-loop (Inspections, round 62, mobile finding, found in
+  // round 61 on UpdateInspection.tsx's identical row -- this file has the
+  // byte-identical thumbnail row, fixed the same way in the same PR).
+  it("wraps the media-thumbnail row instead of letting it overflow horizontally", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+    mockUploadFileAws.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: "https://cdn.example.com/photo.jpg",
+        }),
+    })
+
+    const { container } = render(<CreateNewInspection />, withRouter)
+    const input = container.querySelector<HTMLInputElement>(
+      'input[id^="external-media-"]'
+    )!
+
+    await userEvent.upload(
+      input,
+      new File(["img"], "photo-1.png", { type: "image/png" })
+    )
+    await screen.findByRole("button", {
+      name: "organization.inspection.removeMedia",
+    })
+
+    const row = container.querySelector(".flex.items-center.gap-x-5")
+    expect(row).not.toBeNull()
+    expect(row?.className).toContain("flex-wrap")
+  })
+
   // quality-bar-loop (Inspections, round 3, security finding): mediaFile.url
   // is rendered straight into <img src> for the thumbnail -- same guard as
   // the single-answer media case above.

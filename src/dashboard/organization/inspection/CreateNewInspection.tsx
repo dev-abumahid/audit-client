@@ -357,7 +357,12 @@ const QuestionCard = memo(
 
         <div className="mb-6">{renderQuestionInput()}</div>
         {hasMediaFiles && (
-          <div className="flex items-center gap-5">
+          // quality-bar-loop (Inspections, round 62, mobile finding, found
+          // in round 61 on UpdateInspection.tsx's identical row): same fix
+          // here -- flex-wrap so a question with many attached photos grows
+          // downward instead of overflowing the parent Card and clipping
+          // later thumbnails' delete buttons at narrow viewports.
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-6">
             {mediaFiles.map((mediaFile: any, idx: number) => (
               <MediaThumbnail
                 key={idx}
