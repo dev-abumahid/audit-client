@@ -93,6 +93,12 @@ const QuestionCard = memo(
             // already toggles the checkbox on click via native label
             // association) extends the real tappable area to 44px while
             // keeping the checkbox's own visual size unchanged.
+            // quality-bar-loop (Inspections, round 31, accessibility
+            // finding): same fix as UpdateInspection.tsx's identical
+            // control -- aria-labelledby combines the sibling question
+            // <p>'s id with this state span's own id, so the accessible
+            // name is "<question text> Yes/No" rather than just "Yes"/
+            // "No" with no question context.
             <label className="flex min-h-11 cursor-pointer items-center gap-3">
               <input
                 type="checkbox"
@@ -100,9 +106,10 @@ const QuestionCard = memo(
                 onChange={(e) =>
                   onAnswerChange(question.id, e.target.checked)
                 }
+                aria-labelledby={`question-label-${question.id} checkbox-state-${question.id}`}
                 className="h-5 w-5 accent-primary"
               />
-              <span>
+              <span id={`checkbox-state-${question.id}`}>
                 {answer
                   ? t("organization.inspection.yes")
                   : t("organization.inspection.no")}
@@ -263,11 +270,15 @@ const QuestionCard = memo(
           )
 
         default:
+          // quality-bar-loop (Inspections, round 31, accessibility
+          // finding): the free-text answer -- the single most common
+          // question type -- had no accessible name at all.
           return (
             <textarea
               value={answer ?? ""}
               onChange={(e) => onAnswerChange(question.id, e.target.value)}
               rows={5}
+              aria-labelledby={`question-label-${question.id}`}
               className="min-h-30 w-full resize-y rounded-lg border border-input px-4 py-3 focus:ring-2 focus:ring-primary"
               placeholder={t("organization.inspection.answerPlaceholder")}
             />
@@ -343,12 +354,20 @@ const QuestionCard = memo(
         )}
         {hasNote && (
           <div className="mt-4">
-            <p className="mb-2 text-sm font-medium">
+            {/* quality-bar-loop (Inspections, round 31, accessibility
+                finding): same fix as UpdateInspection.tsx's identical
+                note field -- this label was a visual-only sibling with
+                no id/htmlFor. */}
+            <p
+              id={`note-label-${question.id}`}
+              className="mb-2 text-sm font-medium"
+            >
               {t("organization.inspection.note")}
             </p>
             <textarea
               value={note || ""}
               onChange={(e) => onNoteChange(question.id, e.target.value)}
+              aria-labelledby={`note-label-${question.id}`}
               className="min-h-22.5 w-full rounded-lg border border-input px-4 py-3"
               placeholder={t("organization.inspection.notePlaceholder")}
             />

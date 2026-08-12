@@ -515,6 +515,48 @@ describe("CreateNewInspection", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 31, accessibility finding): the
+  // checkbox and free-text ("input") answer types -- the two MOST COMMON
+  // question types -- were the only ones round 21 missed.
+  it("gives the checkbox and free-text answer inputs an accessible name from their question text", () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+
+    expect(
+      screen.getByRole("checkbox", { name: /Extinguisher present\?/ })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("textbox", { name: "Notes on condition" })
+    ).toBeInTheDocument()
+  })
+
+  // quality-bar-loop (Inspections, round 31, accessibility finding): same
+  // fix as UpdateInspection.tsx's identical Note field.
+  it("gives the per-question Note field an accessible name once opened", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+
+    await userEvent.click(
+      screen.getAllByRole("button", {
+        name: "organization.inspection.addNote",
+      })[0]
+    )
+
+    expect(
+      screen.getByRole("textbox", {
+        name: "organization.inspection.note",
+      })
+    ).toBeInTheDocument()
+  })
+
   it("uploads a media answer file via uploadFileAws", async () => {
     mockUseGetSingleTemplateQuery.mockReturnValue({
       data: {

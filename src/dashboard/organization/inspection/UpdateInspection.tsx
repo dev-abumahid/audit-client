@@ -133,6 +133,15 @@ const QuestionCard = memo(
             // visual indicator, so `min-h-11` on the wrapping <label>
             // extends the real tappable area to 44px while keeping the
             // checkbox's own visual size unchanged.
+            // quality-bar-loop (Inspections, round 31, accessibility
+            // finding): the wrapping <label> only ever gave this control
+            // an accessible name of "Yes"/"No" -- never the question text
+            // -- so a screen reader on a page with multiple checkbox
+            // questions heard indistinguishable "Yes, checkbox"/"No,
+            // checkbox" controls. aria-labelledby on the input itself
+            // combines the sibling question <p>'s id with this state
+            // span's own id, same combining pattern already proven for
+            // the closed-status case in CreateNewFindingModal.tsx.
             <label className="flex min-h-11 cursor-pointer items-center gap-3">
               <input
                 type="checkbox"
@@ -140,9 +149,10 @@ const QuestionCard = memo(
                 onChange={(e) =>
                   onAnswerChange(question.id, e.target.checked)
                 }
+                aria-labelledby={`question-label-${question.id} checkbox-state-${question.id}`}
                 className="h-5 w-5 accent-primary"
               />
-              <span>
+              <span id={`checkbox-state-${question.id}`}>
                 {answer
                   ? t("organization.inspection.yes")
                   : t("organization.inspection.no")}
@@ -371,11 +381,17 @@ const QuestionCard = memo(
         }
 
         default: {
+          // quality-bar-loop (Inspections, round 31, accessibility
+          // finding): the free-text answer -- the single most common
+          // question type -- had no accessible name at all (no id/label/
+          // aria-label/aria-labelledby), unlike every other answer type
+          // in this switch.
           return (
             <TextareaAutosize
               value={answer ?? ""}
               onChange={(e: any) => onAnswerChange(question.id, e.target.value)}
               rows={2}
+              aria-labelledby={`question-label-${question.id}`}
               className="w-full resize-y rounded-lg border border-input px-4 py-3 focus:ring-2 focus:ring-primary"
               placeholder={t("organization.inspection.answerPlaceholder")}
             />
@@ -470,12 +486,19 @@ const QuestionCard = memo(
         )}
         {hasNote && (
           <div className="">
-            <p className="mb-2 text-sm font-medium">
+            {/* quality-bar-loop (Inspections, round 31, accessibility
+                finding): this label was a visual-only sibling of the
+                textarea below -- no id/htmlFor tying them together. */}
+            <p
+              id={`note-label-${question.id}`}
+              className="mb-2 text-sm font-medium"
+            >
               {t("organization.inspection.note")}
             </p>
             <textarea
               value={note || ""}
               onChange={(e) => onNoteChange(question.id, e.target.value)}
+              aria-labelledby={`note-label-${question.id}`}
               className="min-h-22.5 w-full rounded-lg border border-input px-4 py-3"
               placeholder={t("organization.inspection.notePlaceholder")}
             />

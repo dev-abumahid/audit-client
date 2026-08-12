@@ -121,6 +121,13 @@ export default function CreateNewFindingModal({
   const statusLabelId = useId()
   const statusStateTextId = useId()
   const dueDateId = useId()
+  // quality-bar-loop (Inspections, round 30 accessibility finding): the
+  // Five Cs fields below were missed by round 29's otherwise-complete
+  // label-association pass on this component.
+  const criteriaId = useId()
+  const conditionId = useId()
+  const causeId = useId()
+  const effectId = useId()
   // aexa-server#252: COMPLETE/CANT_DO can now only be reached via an approved
   // closure request (FindingClosureControls.tsx) -- a direct PATCH sending
   // either as `status` 400s, even as a no-op resend of the finding's own
@@ -925,10 +932,14 @@ export default function CreateNewFindingModal({
                 className="space-y-4 border-t border-border p-5"
               >
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  <label
+                    htmlFor={criteriaId}
+                    className="mb-1.5 block text-sm font-medium text-foreground"
+                  >
                     {t("organization.findings.criteriaLabel")}
                   </label>
                   <TextareaAutosize
+                    id={criteriaId}
                     {...register("criteria")}
                     placeholder={t("organization.findings.criteriaPlaceholder")}
                     rows={1}
@@ -936,10 +947,14 @@ export default function CreateNewFindingModal({
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  <label
+                    htmlFor={conditionId}
+                    className="mb-1.5 block text-sm font-medium text-foreground"
+                  >
                     {t("organization.findings.conditionLabel")}
                   </label>
                   <TextareaAutosize
+                    id={conditionId}
                     {...register("condition")}
                     placeholder={t("organization.findings.conditionPlaceholder")}
                     rows={1}
@@ -947,10 +962,14 @@ export default function CreateNewFindingModal({
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  <label
+                    htmlFor={causeId}
+                    className="mb-1.5 block text-sm font-medium text-foreground"
+                  >
                     {t("organization.findings.causeLabel")}
                   </label>
                   <TextareaAutosize
+                    id={causeId}
                     {...register("cause")}
                     placeholder={t("organization.findings.causePlaceholder")}
                     rows={1}
@@ -958,10 +977,14 @@ export default function CreateNewFindingModal({
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  <label
+                    htmlFor={effectId}
+                    className="mb-1.5 block text-sm font-medium text-foreground"
+                  >
                     {t("organization.findings.effectLabel")}
                   </label>
                   <TextareaAutosize
+                    id={effectId}
                     {...register("effect")}
                     placeholder={t("organization.findings.effectPlaceholder")}
                     rows={1}

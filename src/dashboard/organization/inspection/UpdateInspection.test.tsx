@@ -550,6 +550,51 @@ describe("UpdateInspection", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 31, accessibility finding): the
+  // checkbox and free-text ("input") answer types -- the two MOST COMMON
+  // question types -- were the only ones round 21 missed; a screen reader
+  // heard just "Yes"/"No, checkbox" or nothing at all for a free-text
+  // field, with zero tie to the question text.
+  it("gives the checkbox and free-text answer inputs an accessible name from their question text", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    expect(
+      screen.getByRole("checkbox", { name: /Extinguisher present\?/ })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("textbox", { name: "Notes on condition" })
+    ).toBeInTheDocument()
+  })
+
+  // quality-bar-loop (Inspections, round 31, accessibility finding): the
+  // per-question Note field's <p> label was a visual-only sibling of its
+  // textarea, with no id/htmlFor connecting them.
+  it("gives the per-question Note field an accessible name once opened", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    await userEvent.click(
+      screen.getAllByRole("button", {
+        name: "organization.inspection.addNote",
+      })[0]
+    )
+
+    expect(
+      screen.getByRole("textbox", {
+        name: "organization.inspection.note",
+      })
+    ).toBeInTheDocument()
+  })
+
   // quality-bar-loop (Inspections, round 9, efficiency finding): the
   // effect that seeds visibleNotes used to be keyed on `[answers]` and
   // unconditionally overwrote the whole visibleNotes object on every

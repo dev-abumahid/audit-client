@@ -200,6 +200,32 @@ describe("CreateNewFindingModal", () => {
     ).toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 30 accessibility finding, round
+  // 31 fix): round 29's otherwise-complete label-association pass on this
+  // component missed the Five Cs fields -- same visual-only-label defect,
+  // just inside the collapsible section so it wasn't caught by the
+  // always-visible fields the earlier test covers.
+  it("gives the Five Cs fields a real accessible name once the section is expanded", async () => {
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    await userEvent.click(
+      screen.getByText("organization.findings.fiveCsSectionTitle")
+    )
+
+    expect(
+      screen.getByLabelText("organization.findings.criteriaLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.findings.conditionLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.findings.causeLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.findings.effectLabel")
+    ).toBeInTheDocument()
+  })
+
   it("does not point the Status label at a nonexistent control when the finding is closed (read-only status)", async () => {
     render(
       <CreateNewFindingModal

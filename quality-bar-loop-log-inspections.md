@@ -1723,3 +1723,39 @@ tests added. Round 2 (fresh full-diff pass) came back clean.
 
 Merged as aexa-frontend PR [#703](https://github.com/Qiyrix/aexa-frontend/pull/703). QA gate at merge: typecheck/lint
 clean, full suite 121 files / 1794 tests passing.
+
+## Round 30 -- fresh 9-judge re-score
+
+Full panel re-run (round 29 -> round 30):
+
+| Axis | R29 | R30 | Note |
+|---|---|---|---|
+| Industry-standards | 7 | 7 | unchanged, as expected -- PR #703 was a pure hardening pass, no capability change; recurring/offline/camera-capture still absent |
+| UX | 6 | 6 | unchanged -- the severe mobile modal-dismiss bug is confirmed fixed live, but the core findings-reachability/stale-"0"-count gap is unchanged and independently reproduced against live data again this round |
+| Efficiency | 8 | 8 | unchanged, confirmed -- the org-wide inspection/user list overfetch on every modal mount was never in scope for PR #703 (that PR added error handling to the same queries, not lazy-loading) |
+| Accessibility | 4 | 3 | **worse, and now the single dominant blocker.** Two real findings: (1) checkbox/free-text answer types in Create/UpdateInspection.tsx's QuestionCard -- the two most common question types, core inspection-answering workflow -- remain completely unlabeled after two full rounds, plus a newly-found third instance (the per-question Note textarea). (2) round 29's own CreateNewFindingModal.tsx fix was incomplete -- its "Five Cs" fields (Criteria/Condition/Cause/Effect) still resolve to accessible-name NONE live, the identical defect class the rest of that fix eliminated |
+| Visual polish | 8 | 8 | unchanged, confirmed clean in both themes and both viewport classes; round 29's new destructive-error-text and responsive modal width both read as native to the design system |
+| Resilience | 6 | 7 | **cleared floor** -- round 29's isError fix on CreateNewFindingModal.tsx's 3 queries confirmed working; new minor gap found (unrelated to this round's fix): InspectionActions.tsx's delete handler swallows failures silently with no toast, unlike its sibling status-update handler |
+| Code quality | 6 | 7 | **cleared floor** -- round 29's additions to CreateNewFindingModal.tsx (useId labels, isError UI, isHttpUrl guard) confirmed cleanly integrated, idiomatic, well-commented; QuestionCard duplication remains the one real structural liability, now confirmed to have drifted into genuinely different media-handling behavior between the two files, not just duplicated markup |
+| Mobile | 3 | 8 | **cleared floor, severe bug confirmed fixed** -- live DOM measurement confirms zero overflow at 375px and a fully reachable, functional close button; new minor gap found (not severe): the Due Date row has a small internal horizontal overflow inside the "Action Details" card at 375px (datetime-local input's intrinsic width + missing min-w-0) |
+| Security | 8 | 9 | **cleared floor, back to fully clean** -- isHttpUrl guard on media previews confirmed working via both a live test and a full fresh sweep of every URL sink in the feature; nothing missed |
+
+**Average: 7.0/10** (up from round 29's 6.22). **7 of 9 axes now clear the
+7 floor** -- only UX (6) and accessibility (3, the lowest score recorded
+for any axis in this entire loop) remain open. This is the best result
+of the loop so far by a wide margin.
+
+**Next fix (Round 31):** accessibility is now unambiguously the highest-
+leverage target -- 6 points below floor, affecting the feature's primary
+workflow (answering inspection questions), not a peripheral surface.
+Two parts, both same-axis and worth shipping together per this session's
+tier-batching convention: (1) the contained, same-file fix -- label
+CreateNewFindingModal.tsx's 4 remaining Five-Cs fields, closing the gap
+round 29's fix should have caught; (2) the larger fix -- give the
+checkbox and free-text/default answer types in Create/UpdateInspection.tsx's
+QuestionCard (plus the newly-found per-question Note textarea) real
+accessible names tied to their question text, following the same
+aria-labelledby pattern already proven for slider/date/multipleSelect
+in round 21. This is Tier 2/3 (touches the primary data-entry surface
+of the whole feature, more than one caller) and should get the full
+review-loop treatment rather than a single-round shortcut.
