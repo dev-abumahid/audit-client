@@ -1859,3 +1859,21 @@ accessible name isn't a glued word (accessibility). None of these are
 individually large, but each is a real, verified finding -- shipping
 them together closes out the last below-floor axis and should push the
 average meaningfully closer to the 9/10 target.
+
+**Review loop (PR #708):** both round-1 angles came back with no code
+issues, but one caught a real inaccuracy in the PR's own reasoning --
+the claim that `useMyOrgRole()`'s cost was "already shared/cached" via
+`WriteGuardRoute` overstated the case, since `InspectionReport.tsx`
+itself isn't `WriteGuardRoute`-gated and a cold direct landing pays the
+fetch fresh (RTK Query's default 60s cache doesn't help a first visit).
+Corrected the PR description rather than let the inaccurate framing
+stand; the underlying decision (don't add complexity to avoid a single
+bounded, codebase-standard fetch) held up on the corrected reasoning.
+No code changes needed as a result -- the fix itself (loading/error
+states, rename, aria-label) was already correct. Two non-blocking
+polish nits noted for a future round (loading-state aria-label reads
+"Actions …"; new states don't follow the codebase's existing
+skeleton/`role="alert"` conventions).
+
+Merged as aexa-frontend PR [#708](https://github.com/Qiyrix/aexa-frontend/pull/708). QA gate at merge: typecheck/lint
+clean, full suite 121 files / 1806 tests passing.
