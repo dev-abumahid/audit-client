@@ -1710,3 +1710,16 @@ If accessibility is still below floor after re-scoring (likely, since
 Create/UpdateInspection.tsx's free-text/checkbox labeling gap is
 untouched by this round), that remains the single largest concrete a11y
 gap left in the feature.
+
+**Review loop (PR #703):** round 1 (4 parallel angles) found no correctness
+bugs but 2 real polish findings -- a test-mock hygiene gap (`mockOrgUsers`
+not reset in `beforeEach`, leaking an `isError: true` override into later
+tests) and a missing accessible-name association on the Status field's
+closed/read-only `<span>` (its label's `htmlFor` was correctly nulled for
+this branch, but nothing replaced it -- fixed via the same combined
+`aria-labelledby` pattern this session already established in
+`StartInspectionModal.tsx`/`RiskMultiSelect.tsx`). Both fixed, plus 2 new
+tests added. Round 2 (fresh full-diff pass) came back clean.
+
+Merged as aexa-frontend PR [#703](https://github.com/Qiyrix/aexa-frontend/pull/703). QA gate at merge: typecheck/lint
+clean, full suite 121 files / 1794 tests passing.
