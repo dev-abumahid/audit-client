@@ -2470,3 +2470,62 @@ flagged this round rather than invented scope):
   sticky header height when scrolling to the flagged question, so the
   question text round 48 just started naming isn't immediately hidden
   under it.
+
+## Round 50 -- shipped, reviewed, merged
+
+All four batched fixes above shipped together, each scoped to its own
+file(s):
+
+1. `useMyAssignedInspectionIds()` gained an optional `role` param that
+   skips `GET /inspection/assignments/mine` once role resolves to
+   VIEWER/LIGHT_USER (guaranteed-empty per the hook's own doc comment);
+   `InspectionTable.tsx`/`InspectionReport.tsx` now pass their already-
+   resolved role through. Omitting the param (every other call site in
+   the app) preserves the original always-fetch behavior exactly. This
+   is a partial fix of the underlying finding -- `useMyOrgRole()`'s own
+   two queries can't be gated the same way (it's the mechanism that
+   resolves role in the first place), and the org-members endpoint's
+   real fix is server-side pagination, out of this frontend-only loop's
+   scope. Both stay open.
+2. Both files' `QuestionCard` focus ring swapped from round 48's full-
+   opacity `ring-destructive` to the softened `/20` (`/40` dark)
+   convention this app's other error indicators already use, with the
+   full border+ring pairing where a real border exists
+   (`UpdateInspection.tsx`) and ring-only where it doesn't
+   (`CreateNewInspection.tsx`, which has no border utility on `Card`).
+3. `CreateNewInspection.tsx`'s `QuestionCard` gained `scroll-mt-40`
+   (160px) so the page's `sticky top-0` header (~129px at 375px width)
+   can't cover the card a validation error just scrolled/focused to.
+4. `CreateNewFindingModal.tsx`'s finding-attachment upload now calls
+   `validateInspectionFile()` before the network round-trip, same
+   immediate-reject-with-toast pattern as every sibling upload flow.
+
+Shipped as aexa-frontend PR
+[#728](https://github.com/Qiyrix/aexa-frontend/pull/728). Round-1
+review (2 parallel angles) found 3 real findings, all fixed same round:
+(1) `UpdateInspection.tsx`'s new ring styling was missing
+`dark:focus:border-destructive/50` to complete the established
+convention's light+dark border/ring pairing; (2) `scroll-mt-36` (144px)
+was sized to the 129px header height measured at exactly 375px, with a
+real risk a narrower device could wrap the header further -- bumped to
+`scroll-mt-40` (160px) for headroom; (3) this round's own selection
+rationale (written before the fix, above) overstated scope as fixing
+the full "triple-query cost" when the diff only addresses one of the
+three named queries -- corrected in place rather than left inaccurate.
+Also comment-only: noted that `CreateNewFindingModal.tsx`'s file input
+accept filter makes the shared validator's PDF branch unreachable for
+this caller (harmless). One review agent on round 1 executed a broad
+`git checkout <branch> -- .` in what its own security-policy warning
+flagged as a boundary violation -- verified the actual working tree
+was unaffected (agents of this type are read-only by tool access; this
+appears to have run in an isolated context) and the round-2 review
+dispatch explicitly instructed read-only git commands only, which came
+back clean. Round 2 (diff scoped to the fix commit) found nothing.
+
+Merged as aexa-frontend PR
+[#728](https://github.com/Qiyrix/aexa-frontend/pull/728). QA gate at
+merge: typecheck/lint clean, full suite 1858/1858 passing. Live-
+verified at 375px: fresh untouched required checkbox blocks
+submission, softened focus ring renders on the flagged card, and the
+card (measured top: 508px) fully clears the sticky header (measured
+bottom: 129px) -- confirmed via DOM measurement, not visual glance.
