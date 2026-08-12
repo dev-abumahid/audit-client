@@ -20,6 +20,7 @@ import { getMediaKindFromMime } from "@/utils/fileType"
 import { validateInspectionFile } from "@/utils/inspectionFileValidation"
 import { parseSliderDefault } from "@/utils/parseSliderDefault"
 import {
+  AlertCircle,
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
@@ -1078,24 +1079,42 @@ export default function CreateNewInspection() {
           blockerProceedingRef.current = false
         }}
       >
-        <AlertDialogContent>
+        {/* quality-bar-loop (Inspections, round 60, visual-polish finding,
+            open since round 55): this dialog used bare Radix defaults
+            instead of matching DeleteAlertModal.tsx's established
+            confirmation-dialog language, and "Discard" -- a stated-
+            permanent, irreversible action -- was styled in the ordinary
+            primary color instead of this app's own destructive-red
+            convention. Matches DeleteAlertModal.tsx's rounded-3xl/
+            centered-icon/equal-width-button treatment; doesn't copy that
+            component's loading-state/focus-restore logic, since this
+            dialog's open state is driven by `blocker` (react-router), not
+            a caller-owned open/setOpen pair with its own trigger to
+            restore focus to. */}
+        <AlertDialogContent className="flex max-w-sm flex-col items-center justify-center rounded-3xl p-6 sm:p-8">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("organization.inspection.discardChangesTitle")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("organization.inspection.discardChangesDescription")}
-            </AlertDialogDescription>
+            <div className="flex flex-col items-center justify-center gap-3 text-center">
+              <AlertCircle
+                className="h-9 w-9 shrink-0 text-red-600"
+                strokeWidth={2}
+              />
+              <AlertDialogTitle className="max-w-full text-xl font-semibold wrap-break-word">
+                {t("organization.inspection.discardChangesTitle")}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="max-w-full wrap-break-word">
+                {t("organization.inspection.discardChangesDescription")}
+              </AlertDialogDescription>
+            </div>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="mt-6 flex w-full flex-row gap-3 sm:justify-between sm:space-x-0">
             <AlertDialogCancel
-              className="h-11"
+              className="mt-0 h-11 flex-1 cursor-pointer rounded-xl border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80"
               onClick={() => blocker.reset?.()}
             >
               {t("organization.inspection.keepEditing")}
             </AlertDialogCancel>
             <AlertDialogAction
-              className="h-11"
+              className="h-11 flex-1 cursor-pointer rounded-xl border-none bg-red-600 text-white shadow-sm hover:bg-red-700"
               onClick={() => {
                 blockerProceedingRef.current = true
                 blocker.proceed?.()

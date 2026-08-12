@@ -2950,3 +2950,70 @@ pre-existing warnings unrelated to this change), full suite
 rewritten `UpdateInspection.test.tsx`, now 63 tests, which caught bug
 (2) above before it ever reached the browser). Live-verified in the
 browser per the mandatory frontend verification step.
+
+## Round 59 -- fresh 9-judge re-score
+
+First full panel since round 57, run after round 58 (PR #736) merged.
+
+**Environment note:** several judges this round independently hit a
+"Rendered more hooks than during the previous render" crash on
+`UpdateInspection.tsx` in long-lived browser tabs, and separately hit
+429 rate-limit errors from `aexa-server`'s Redis-backed request
+limiter. Both were run to ground: the hooks crash does NOT reproduce
+in a fresh browser tab / after a clean dev-server restart -- it's Vite
+Fast Refresh module-state corruption accumulated from many hours of
+live-editing `UpdateInspection.tsx` during round 58's own development
+session, not a real defect reachable by an actual user hitting a
+clean page load. Confirmed independently by two separate judges (the
+resilience judge explicitly diagnosed it via fresh-tab A/B testing;
+manual investigation during triage reached the same conclusion via a
+full dev-server restart). The 429s were simply this round's own 9
+concurrent judges (plus manual triage) all hammering one shared dev
+backend faster than its rate limiter allows -- not an app defect
+either. The UX judge's first pass scored 3/10 almost entirely on the
+since-disproven crash; re-dispatched a clean re-verification pass in
+a fresh tab once the false positive was confirmed, rather than average
+a phantom regression into the round's score.
+
+| Axis | R55 | R57 | R59 | stuck_streak (into R60) | Note |
+|---|---|---|---|---|---|
+| Industry-standards | 8 | 9 | 9 | 0 (above floor) | held. Round 56/57's autosave-vs-confirm data-loss fix re-verified live and still holding after round 58's hardening; round 58's own `useBeforeUnloadGuard` fix (registers once per mount, not per-render) verified correct by direct source read |
+| UX | 9 | 9 | 9 | 0 (above floor) | held, after re-verification in a clean tab (first pass scored 3/10 on the now-disproven HMR crash, discarded). Autosave-flush-then-navigate re-tested via 3 different navigation paths including the exact round-58 race scenario -- no stuck spinner, no silent drop, no double-warning. CreateNewInspection.tsx's discard dialog "Keep editing"/"Discard" round-trip re-confirmed correct |
+| Efficiency | 8 | 8 | 8 | 1 | held. `useBeforeUnloadGuard`'s render-stability fix (ref-synced via its own effect, empty-dep listener-registration effect) verified correct by direct source read; `inFlightSaveCountRef` confirmed to be a plain ref (no extra renders). Two persistent findings unchanged: `useMyOrgRole` dual query, diverging `useGetAllSitesQuery` cache keys |
+| Accessibility | 9 | 9 | 9 | 0 (above floor) | held. Discard dialog's focus/keyboard behavior re-confirmed unchanged (round 58's diff never touched that JSX). "Add Media"/"Add Finding" naming-collision finding still open, and broadened this round: "Add Note" carries the identical per-question naming collision too -- same root cause, not a new regression |
+| Visual polish | 8 | 8 | 8 | 2 | **still open, 3rd consecutive round.** Discard dialog in `CreateNewInspection.tsx` (lines ~1081-1108) confirmed still using bare unstyled `AlertDialogContent` (no rounded-3xl/icon/equal-width buttons) vs. `DeleteAlertModal.tsx`'s established language, and "Discard" (a stated-permanent action) is still styled as ordinary primary, not destructive red -- inverts this app's own dangerous-action convention. MediaThumbnail small-thumbnail delete buttons (~24px effective target) also still open, unchanged since round 45 |
+| Resilience | 7 | 7 | 8 | 0 (regression resolved) | **round 58's fix confirmed working, live, twice** (scripted race + real rapid UI clicks): typed markers persisted correctly through both the stale-closure and live-state-auto-settle races, zero unhandled exceptions in a clean tab. Full `UpdateInspection.test.tsx` suite (64 tests) re-run and passing. One real minor gap found: the test file's `SiteSentinel`/`NAVIGATED_TO_SITE_SENTINEL` scaffolding claims to cover the "two different links" race in its own comment but no test actually clicks that second link -- coverage overclaim, not a masked bug (verified live it works) |
+| Code quality | 7 | 7 | 8 | 0 (regression resolved) | **`beforeunload` duplication confirmed fixed** -- both files now call the shared `useBeforeUnloadGuard`, no leftover hand-rolled logic. Two new, smaller findings: (1) `UpdateInspection.tsx`'s comment density around the `saveBlocker`/`inFlightSaveCountRef`/try-catch block has grown to ~80 lines layering four rounds of incident history, denser than this codebase's own established comment norm; (2) the predicate `Object.keys(saveTimeoutRef.current).length > 0 \|\| inFlightSaveCountRef.current > 0` is now inlined identically at two call sites (3 lines, not yet warranting extraction, but the same shape that triggered round 58's fix in the first place) |
+| Mobile | 7 | 8 | 8 | 1 | held. Retry button and the autosave-flush-then-navigate race re-verified correct at 375px (typed marker persisted, no discard dialog misfire on the update flow, which correctly has none). MediaThumbnail small-thumbnail touch targets (~24px) and the `focus:` vs `focus-visible:` distinction (confirmed non-issue for touch) both persistent, unchanged |
+| Security | 9 | *(carried forward)* | 9 | 0 (above floor) | **judge reported promptly this round** (unlike round 57's stall). Confirmed no `dangerouslySetInnerHTML`/injection sinks in the six feature files; round 58's `inFlightSaveCountRef` and narrowly-scoped try/catch confirmed pure internal bookkeeping with no user-controlled data flowing into either |
+
+**Average: 8.44/10** (up from round 57's 8.22, using round 57's real
+components not the carried-forward security guess). **All axes above
+floor.** No regressions this round -- resilience and code quality both
+recovered from round 57's floor-level 7 back to 8, matching round
+58's intent exactly.
+
+**Round 60 selection:** no axis at/below floor, no fresh regression
+this round, so selection falls to the tiebreak: furthest-below-target
+among axes tied at 8/10 (efficiency, visual polish, resilience, code
+quality, mobile -- all 1 point under the 9 target). Visual polish's
+discard-dialog-styling finding is the pick: it's now open for its 3rd
+consecutive round (55/57/59) with an unchanged, fully-specified fix
+(match `DeleteAlertModal.tsx`'s rounded-3xl/icon/equal-width-button
+language, and destructive red for "Discard") -- the most overdue,
+lowest-risk, single-file fix among the tied candidates, and arguably
+closer to a real safety/convention issue than pure aesthetics (a
+stated-irreversible action styled identically to a safe one).
+
+Batched alongside it: the MediaThumbnail small-thumbnail touch-target
+finding, since it's persistent across BOTH the mobile and visual-
+polish axes and the fix pattern is already established in the same
+file (`h-11 w-11`, already applied to the standalone-preview variants
+in an earlier round) -- low risk, single shared component, two-axis
+leverage.
+
+The `onCloseAutoFocus` duplication (now 7 rounds overdue) and the
+"Add Media"/"Add Finding"/"Add Note" naming-collision (broadened this
+round) both remain deliberately NOT batched -- unchanged reasoning:
+cross-feature/cross-component blast radius each warrants its own
+dedicated round.

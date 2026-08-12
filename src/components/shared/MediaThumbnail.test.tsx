@@ -164,6 +164,26 @@ describe("MediaThumbnail", () => {
     expect(link).toHaveAttribute("href", "https://cdn.example.com/dataset.xyz")
   })
 
+  // quality-bar-loop (Inspections, round 60, mobile/visual-polish
+  // finding, open since round 45): the thumbnail variant's delete button
+  // used to be `p-1` around a `size-4` icon -- an effective ~24px touch
+  // target -- while the answer variant already met the 44px guideline.
+  it("gives the thumbnail-variant delete button a 44px touch target, matching the answer variant", () => {
+    render(
+      <MediaThumbnail
+        url="https://cdn.example.com/photo.jpg"
+        variant="thumbnail"
+        onDelete={vi.fn()}
+        deleteLabel="Remove"
+        t={t}
+      />
+    )
+
+    const button = screen.getByRole("button", { name: "Remove" })
+    expect(button.className).toContain("h-11")
+    expect(button.className).toContain("w-11")
+  })
+
   it("calls onDelete when the delete/remove button is clicked", async () => {
     const onDelete = vi.fn()
     render(

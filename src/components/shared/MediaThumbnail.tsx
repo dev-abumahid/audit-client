@@ -62,11 +62,19 @@ export default function MediaThumbnail({
     }
     return (
       <div className="relative">
+        {/* quality-bar-loop (Inspections, round 60, mobile/visual-polish
+            finding, open since round 45): this thumbnail-variant delete
+            button was `p-1` around a `size-4` icon -- an effective ~24px
+            touch target, well under the 44px guideline this same file's
+            "answer"-variant delete buttons already meet below. The
+            thumbnails render in a `gap-5` (20px) flex row, so a larger
+            button anchored at the corner has room without overlapping a
+            sibling thumbnail. */}
         <button
           type="button"
           onClick={onDelete}
           aria-label={deleteLabel}
-          className="absolute -top-2 -right-2 cursor-pointer rounded-full bg-black/60 p-1 text-white transition-colors hover:bg-black/80"
+          className="absolute -top-3 -right-3 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
         >
           <Trash className="size-4" />
         </button>
@@ -82,11 +90,19 @@ export default function MediaThumbnail({
   if (variant === "thumbnail") {
     return (
       <div className="relative">
+        {/* quality-bar-loop (Inspections, round 60, mobile/visual-polish
+            finding, open since round 45): this thumbnail-variant delete
+            button was `p-1` around a `size-4` icon -- an effective ~24px
+            touch target, well under the 44px guideline this same file's
+            "answer"-variant delete buttons already meet below. The
+            thumbnails render in a `gap-5` (20px) flex row, so a larger
+            button anchored at the corner has room without overlapping a
+            sibling thumbnail. */}
         <button
           type="button"
           onClick={onDelete}
           aria-label={deleteLabel}
-          className="absolute -top-2 -right-2 cursor-pointer rounded-full bg-black/60 p-1 text-white transition-colors hover:bg-black/80"
+          className="absolute -top-3 -right-3 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
         >
           <Trash className="size-4" />
         </button>

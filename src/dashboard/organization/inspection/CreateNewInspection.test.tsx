@@ -367,6 +367,36 @@ describe("CreateNewInspection", () => {
     ).toBeInTheDocument()
   })
 
+  // quality-bar-loop (Inspections, round 60, visual-polish finding, open
+  // since round 55): "Discard" is a stated-permanent, irreversible action,
+  // but used to be styled in the ordinary primary color instead of this
+  // app's own destructive-red convention (see DeleteAlertModal.tsx).
+  it("styles the irreversible Discard action as destructive, matching this app's DeleteAlertModal convention", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />, withRouter)
+    const textInput = screen.getByPlaceholderText(
+      "organization.inspection.answerPlaceholder"
+    )
+    await userEvent.type(textInput, "Looks good")
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.back" })
+    )
+
+    const discardButton = screen.getByRole("button", {
+      name: "organization.inspection.discardChanges",
+    })
+    expect(discardButton.className).toContain("bg-red-600")
+
+    const keepEditingButton = screen.getByRole("button", {
+      name: "organization.inspection.keepEditing",
+    })
+    expect(keepEditingButton.className).not.toContain("bg-red-600")
+  })
+
   it("navigates back once the user confirms Discard in the dialog", async () => {
     mockUseGetSingleTemplateQuery.mockReturnValue({
       data: { data: makeTemplate() },
