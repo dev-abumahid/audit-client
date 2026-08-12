@@ -156,11 +156,18 @@ export default function CreateNewFindingModal({
       : false
   // ── API hooks ──────────────────────────────────────────────────────────────
   const [uploadFIle] = useUploadAnyFileAwsMutation()
+  // quality-bar-loop (Inspections, round 37, efficiency finding): these two
+  // queries used to fire unconditionally on mount, unlike the
+  // useGetFindingByIdQuery call below in this same file, which already
+  // correctly `skip`s on `!open`. Since InspectionActions.tsx/AllFindingsPage.tsx
+  // always mount this modal (only toggling `open`), every visit to those
+  // pages fired a full org-member list fetch and a 100-inspection fetch
+  // before the user ever opened the dialog.
   const {
     data: usersData,
     isLoading: usersLoading,
     isError: usersError,
-  } = useGetAllOrgUsersQuery(undefined)
+  } = useGetAllOrgUsersQuery(undefined, { skip: !open })
 
   const inspectionQueryArgs = useMemo(
     () => ({ page: 1, limit: 100, searchTerm: "", status: "", siteId: "" }),
@@ -170,7 +177,7 @@ export default function CreateNewFindingModal({
     data: inspectionsData,
     isLoading: inspectionsLoading,
     isError: inspectionsError,
-  } = useGetAllInspectionQuery(inspectionQueryArgs)
+  } = useGetAllInspectionQuery(inspectionQueryArgs, { skip: !open })
 
   const [addAction, { isLoading: isCreating }] = useCreateNewFindingMutation()
   const [updateAction, { isLoading: isUpdating }] =

@@ -103,22 +103,41 @@ const renderAnswerValue = (
         </span>
       )
 
-    case "slider":
+    case "slider": {
+      // quality-bar-loop (Inspections, round 37, resilience finding): a
+      // malformed/non-numeric stored answer (predates stricter validation,
+      // or a value written via a different path) used to render as a
+      // literal "NaN" label with an invalid `width: NaN%` -- silently
+      // dropped by the browser, so the bar just showed whatever width it
+      // last had, with no indication the underlying data was bad.
+      const numericAnswer = Number(answer)
+      const isValidAnswer = Number.isFinite(numericAnswer)
       return (
         <div className="w-full max-w-xs">
           <div className="mb-1 flex justify-between text-xs text-muted-foreground">
             <span>0</span>
-            <span className="font-semibold text-primary">{answer}</span>
+            <span
+              className={
+                isValidAnswer
+                  ? "font-semibold text-primary"
+                  : "text-destructive italic"
+              }
+            >
+              {isValidAnswer
+                ? answer
+                : t("organization.inspection.invalidSliderAnswer")}
+            </span>
             <span>10</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-primary transition-all"
-              style={{ width: `${Number(answer) * 10}%` }}
+              style={{ width: `${isValidAnswer ? numericAnswer * 10 : 0}%` }}
             />
           </div>
         </div>
       )
+    }
 
     case "date":
       return (

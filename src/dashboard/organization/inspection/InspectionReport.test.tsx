@@ -207,6 +207,44 @@ describe("InspectionReport", () => {
     expect(screen.getByText("3/3")).toBeInTheDocument() // totalAnswered/totalQuestions
   })
 
+  // quality-bar-loop (Inspections, round 37, resilience finding): a
+  // malformed/non-numeric stored slider answer used to render a literal
+  // "NaN" label with an invalid `width: NaN%` bar -- no indication the
+  // underlying data was bad, just a silently broken-looking widget.
+  it("shows an invalid-value message instead of NaN for a malformed slider answer", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-slider",
+                    question: "Condition rating",
+                    answerType: "slider",
+                  },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [
+            { questionId: "q-slider", answer: "not-a-number", note: "", mediaFiles: [] },
+          ],
+        }),
+      },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    expect(
+      screen.getByText("organization.inspection.invalidSliderAnswer")
+    ).toBeInTheDocument()
+    expect(screen.queryByText("NaN")).not.toBeInTheDocument()
+  })
+
   // quality-bar-loop (Inspections, round 24, industry-standards finding):
   // inspection scoring/compliance percentage was absent from the data
   // model entirely -- the single gap the round-20 judge panel called out

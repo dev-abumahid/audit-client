@@ -42,7 +42,9 @@ vi.mock("@/redux/apis/organization/findings.api", () => ({
 }))
 
 const mockInspections = vi.fn<
-  () => {
+  (
+    ...args: unknown[]
+  ) => {
     data: { data: { id: string; template: { templateName: string } }[] }
     isLoading: boolean
   }
@@ -58,20 +60,29 @@ const mockInspections = vi.fn<
   isLoading: false,
 }))
 vi.mock("@/redux/apis/organization/inspection.api", () => ({
-  useGetAllInspectionQuery: () => mockInspections(),
+  useGetAllInspectionQuery: (...args: unknown[]) => mockInspections(...args),
 }))
 
-const mockOrgUsers = vi.fn(() => ({
+const mockOrgUsers = vi.fn<
+  (
+    ...args: unknown[]
+  ) => {
+    data: {
+      data: {
+        id: string
+        account?: { email?: string; profile?: { fullName?: string } }
+      }[]
+    }
+    isLoading: boolean
+  }
+>(() => ({
   data: {
-    data: [] as {
-      id: string
-      account?: { email?: string; profile?: { fullName?: string } }
-    }[],
+    data: [],
   },
   isLoading: false,
 }))
 vi.mock("@/redux/apis/organization/org.user.api", () => ({
-  useGetAllOrgUsersQuery: () => mockOrgUsers(),
+  useGetAllOrgUsersQuery: (...args: unknown[]) => mockOrgUsers(...args),
 }))
 
 function makeEditData(overrides = {}) {
@@ -128,6 +139,45 @@ describe("CreateNewFindingModal", () => {
       },
       isLoading: false,
     })
+  })
+
+  // quality-bar-loop (Inspections, round 37, efficiency finding): these two
+  // queries used to fire unconditionally on mount -- unlike
+  // useGetFindingByIdQuery in this same file, which already correctly
+  // skips on `!open`. Since InspectionActions.tsx/AllFindingsPage.tsx
+  // always mount this modal (only toggling `open`), every visit to those
+  // pages fired a full org-member list fetch and a 100-inspection fetch
+  // before the user ever opened the dialog.
+  it("skips the inspections and org-users fetches while the modal is closed", () => {
+    render(<CreateNewFindingModal open={false} onClose={vi.fn()} />)
+
+    expect(mockInspections).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ skip: true })
+    )
+    expect(mockOrgUsers).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ skip: true })
+    )
+  })
+
+  // Companion to the closed-state test above (round 37 review finding) --
+  // the mocks return their canned data regardless of the `skip` value
+  // passed, so a test that only renders `open` and checks the dropdown
+  // populates can't actually distinguish "the query really fired" from
+  // "it would have been skipped but the mock ignores that anyway."
+  // Asserting on the call args directly closes that gap.
+  it("does not skip the inspections and org-users fetches while the modal is open", () => {
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    expect(mockInspections).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ skip: false })
+    )
+    expect(mockOrgUsers).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ skip: false })
+    )
   })
 
   it("keys Inspection dropdown options by the real InspectionSummary shape (id only, no _id) without a React key warning (#120)", async () => {

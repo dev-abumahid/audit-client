@@ -94,8 +94,18 @@ export default function InspectionActions() {
     try {
       await deleteFindingById(id).unwrap()
       setDeletingId(null)
-    } catch {
-      setDeletingId(null)
+    } catch (err) {
+      // quality-bar-loop (Inspections, round 37, resilience finding): this
+      // used to swallow a failed delete silently -- the confirm UI just
+      // closed as if it had worked, identical to `updateStatus` right
+      // below's failure path before it was fixed to toast. Deliberately
+      // NOT clearing `deletingId` here (unlike the success path) so the
+      // inline confirm banner stays open for a retry instead of the user
+      // having to re-click delete to see the row again.
+      toast.error(
+        (err as { data?: { message?: string } })?.data?.message ??
+          t("pages.inspection.actions.deleteFailed")
+      )
     } finally {
       setDeleteInFlight(false)
     }

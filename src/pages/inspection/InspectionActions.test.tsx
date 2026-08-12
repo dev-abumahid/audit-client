@@ -337,6 +337,57 @@ describe("InspectionActions", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 37, resilience finding): a failed
+  // delete used to silently close the confirm UI with zero feedback --
+  // identical to a successful delete from the user's point of view. Now
+  // toasts, matching the sibling updateStatus failure path.
+  it("shows a toast error and keeps the confirm banner open when delete fails", async () => {
+    const { toast } = await import("sonner")
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [makeAction()] },
+      isLoading: false,
+      isError: false,
+    })
+    mockDeleteFindingById.mockReturnValue({
+      unwrap: () => Promise.reject({ data: { message: "Server unavailable" } }),
+    })
+    renderPage()
+    await waitFor(() => screen.getByText("Replace extinguisher"))
+
+    await userEvent.click(screen.getByLabelText("pages.inspection.actions.deleteAction"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.delete"))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Server unavailable")
+    )
+    expect(
+      screen.getByText("pages.inspection.actions.deleteConfirm")
+    ).toBeInTheDocument()
+  })
+
+  it("falls back to a generic delete-failure message when the rejection has no data.message", async () => {
+    const { toast } = await import("sonner")
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { ...emptyResponse, data: [makeAction()] },
+      isLoading: false,
+      isError: false,
+    })
+    mockDeleteFindingById.mockReturnValue({
+      unwrap: () => Promise.reject({}),
+    })
+    renderPage()
+    await waitFor(() => screen.getByText("Replace extinguisher"))
+
+    await userEvent.click(screen.getByLabelText("pages.inspection.actions.deleteAction"))
+    await userEvent.click(screen.getByText("pages.inspection.actions.delete"))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "pages.inspection.actions.deleteFailed"
+      )
+    )
+  })
+
   it("calls updateFindingById with { id, body: { status } } via select change and disables it while pending", async () => {
     mockUseGetAllFindingsQuery.mockReturnValue({
       data: { ...emptyResponse, data: [makeAction()] },

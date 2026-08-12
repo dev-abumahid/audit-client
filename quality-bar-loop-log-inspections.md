@@ -1877,3 +1877,36 @@ skeleton/`role="alert"` conventions).
 
 Merged as aexa-frontend PR [#708](https://github.com/Qiyrix/aexa-frontend/pull/708). QA gate at merge: typecheck/lint
 clean, full suite 121 files / 1806 tests passing.
+
+## Round 36 -- fresh 9-judge re-score
+
+Full panel re-run (round 34 -> round 36, round 35's PR #708 in between fixed resilience's regression):
+
+| Axis | R34 | R36 | Note |
+|---|---|---|---|
+| Industry-standards | 7 | 7 | unchanged; the dominant remaining gap is now clearly the pervasive `any`-typing sprawl (50+ instances across the feature) rather than any single missing capability |
+| UX | 8 | 8 | unchanged, confirmed live end-to-end (create -> answer -> submit -> add finding -> report shows it); the two independently-drifted required-field validators remain the one open gap |
+| Efficiency | 7 | 7 | unchanged, but the judge corrected my own round-35 framing -- the "one bounded call" description undercounted the real cost (useMyOrgRole fires 2 queries, useMyAssignedInspectionIds a 3rd, none prefetched by any shared layout); also re-confirmed CreateNewFindingModal.tsx's unconditional org-wide inspection/user fetch (no `skip` guard, unlike its own sibling query in the same file) |
+| Accessibility | 8 | 8 | unchanged; round 35's aria-label fix confirmed live as robust (aria-label overrides subtree text per the accname spec, not fragile); known media-upload-input naming gap still open |
+| Visual polish | 8 | 8 | unchanged; minor state-dependent width hiccup noted on the new error-state text (French copy is wider, stretches the card briefly) |
+| Resilience | 6 | 7 | **cleared floor** -- round 35's loading/error-state fix confirmed real and correctly wired; slider-NaN and silent-delete-failure gaps remain open, plus a newly-noted edge case (findings fetch's hardcoded 100-item cap has no truncation indicator) |
+| Code quality | 7 | 7 | unchanged; round 35's rename confirmed clean and complete; QuestionCard duplication and blanket `any`/exhaustive-deps suppressions remain the two biggest drags, neither touched this round |
+| Mobile | 8 | 8 | unchanged, confirmed clean |
+| Security | 9 | 9 | unchanged, confirmed clean |
+
+**Average: 7.67/10** (up from round 34's 7.56). **All 9 axes now clear
+the 7 floor simultaneously for the first time in this entire loop.**
+Still below the 9/10 target average.
+
+**Next fix (Round 37):** with every axis now above floor, picking from
+whichever axes sit furthest below the 9 target and have concrete,
+contained, repeatedly-flagged fixes available rather than large
+architectural work. Three small, independent, well-understood gaps
+across three different files, batched together per this session's
+tier-batching convention: (1) `CreateNewFindingModal.tsx`'s two
+unconditional org-wide queries get the same `skip: !open` guard the
+file's own third query already uses (efficiency); (2)
+`InspectionActions.tsx`'s delete handler gets the same `toast.error`
+failure path its sibling `updateStatus` handler already has
+(resilience); (3) `InspectionReport.tsx`'s slider render gets a
+`Number.isFinite` guard against the long-standing NaN gap (resilience).
