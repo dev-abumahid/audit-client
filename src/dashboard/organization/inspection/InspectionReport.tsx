@@ -264,6 +264,7 @@ const renderAnswerValue = (
             }}
           />
           <button
+            type="button"
             onClick={() => window.open(answer, "_blank", "noopener,noreferrer")}
             className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
           >
@@ -371,6 +372,7 @@ const QuestionCard = memo(
                 return (
                   <button
                     key={i}
+                    type="button"
                     onClick={() => onMediaClick(media.url)}
                     aria-label={t("organization.inspection.mediaThumbnailAlt", {
                       index: i + 1,
@@ -413,6 +415,7 @@ const QuestionCard = memo(
                 {relatedActions.map((action: any) => (
                   <button
                     key={action._id}
+                    type="button"
                     onClick={() =>
                       navigate(`/dashboard/single-action/${action._id}`)
                     }
@@ -963,6 +966,7 @@ const InspectionReport = () => {
                 measured 159x40px live, under the 44px touch-target
                 guideline -- the primary action of this whole page. */}
             <button
+              type="button"
               onClick={downloadPdf}
               disabled={isDownloading}
               className="flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60"
@@ -1008,6 +1012,7 @@ const InspectionReport = () => {
               return (
                 <button
                   key={idx}
+                  type="button"
                   onClick={() => scrollToPage(idx)}
                   aria-current={isActive ? "true" : undefined}
                   className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all ${
@@ -1169,6 +1174,7 @@ const InspectionReport = () => {
                   (not built on the shared Dialog component), so it never
                   got the app-wide 44px close-button fix applied there. */}
               <button
+                type="button"
                 onClick={() => setSelectedMedia(null)}
                 aria-label={t("organization.inspection.closeMediaPreview")}
                 className="flex h-11 w-11 items-center justify-center rounded-full font-bold text-muted-foreground transition-colors hover:bg-muted"

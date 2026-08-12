@@ -584,6 +584,7 @@
       "loading": "Loading inspections...",
       "empty": "No inspections found",
       "listLoadError": "Failed to load inspections. Please try again later.",
+      "retryLoadInspections": "Retry",
       "orgFallback": "Org",
       "viewButtonLabel": "View report for {{name}}",
       "editButtonLabel": "Edit {{name}}",

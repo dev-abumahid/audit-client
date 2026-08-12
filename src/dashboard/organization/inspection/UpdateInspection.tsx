@@ -1439,6 +1439,7 @@ export default function UpdateInspection() {
                       layout). Not the full 44px guideline, but a real,
                       proportionate improvement over a bare icon. */}
                   <button
+                    type="button"
                     onClick={() => handleRemoveAttachment(url)}
                     disabled={isMutatingAttachments}
                     title={t("organization.inspection.remove")}
@@ -1473,6 +1474,7 @@ export default function UpdateInspection() {
                 {pages.map((page: any, index: number) => (
                   <button
                     key={index}
+                    type="button"
                     onClick={() => scrollToPage(index)}
                     aria-current={
                       currentPageIndex === index ? "true" : undefined

@@ -584,6 +584,7 @@
       "loading": "Chargement des inspections...",
       "empty": "Aucune inspection trouvée",
       "listLoadError": "Échec du chargement des inspections. Veuillez réessayer plus tard.",
+      "retryLoadInspections": "Réessayer",
       "orgFallback": "Org",
       "viewButtonLabel": "Voir le rapport de {{name}}",
       "editButtonLabel": "Modifier {{name}}",

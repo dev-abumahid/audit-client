@@ -2621,3 +2621,52 @@ verified in browser: all three question cards on a real inspection
 have `aria-labelledby` resolving to their real question text, the
 `/70` classes render, and `peer-focus-visible:ring-2` is present on
 the Add Media button's computed sibling classes.
+
+
+## Round 53 -- fresh 9-judge re-score
+
+First full panel since round 51, run after round 52 (PR #730) merged.
+
+| Axis | R49 | R51 | R53 | stuck_streak (into R54) | Note |
+|---|---|---|---|---|---|
+| Industry-standards | 8 | 8 | 8 | 0 (above floor) | unchanged. Both open findings (11 missing `type="button"`, no discard-confirmation) re-confirmed via fresh grep + live reproduction, unfixed since round 41 -- now 12 rounds |
+| UX | 8 | 8 | 8 | 0 (above floor) | unchanged. `InspectionTable.tsx`'s load-failure state confirmed to have zero recovery affordance (not even a navigational escape hatch, unlike `InspectionReport.tsx`'s equivalent). Round 52's higher-contrast ring live-verified to read as proportionate to the hard blocker it represents, not alarmist |
+| Efficiency | 7 | 8 | 8 | 0 (above floor) | unchanged, confirmed round 52 was efficiency-neutral (zero new hooks/queries in the diff). `useMyOrgRole()`'s two queries and `StartInspectionModal.tsx`/`InspectionTable.tsx`'s diverging `useGetAllSitesQuery` cache keys both still open |
+| Accessibility | 8 | **7** | **9** | 0 (fully recovered, exceeded prior high) | **round 52's fix confirmed working via real measurement, not just source inspection.** Live-computed contrast from actual rendered `boxShadow`/CSS tokens: UpdateInspection.tsx dark ~3.32:1, CreateNewInspection.tsx light ~3.67:1, both clearing 3:1. `aria-labelledby` confirmed resolving to real question text via `document.activeElement`. Visible focus indicators confirmed via genuine Tab-key `:focus-visible` matching in all 3 files. Add Media/Add Finding naming collision still open, unchanged |
+| Visual polish | 9 | 9 | 9 | 0 (above floor) | holding. Round 52's contrast-driven `/70` bump confirmed NOT to reproduce round 48's harshness -- live-verified in all 4 file×theme combinations as "controlled," reading as an intentional error state rather than an alarm. 48x48px video-thumbnail-controls finding unchanged, now 6 rounds |
+| Resilience | 7 | 8 | 8 | 0 (above floor) | unchanged. Round 52's JSX reorder (input before Button, for the `peer` selector) confirmed functionally safe -- live-tested a real file upload through a reordered control end-to-end, including the error-toast path on a real 500 |
+| Code quality | 8 | 8 | 8 | 0 (above floor) | unchanged. The round-49 finding (4 duplicated `onCloseAutoFocus` implementations) confirmed still open, now 3 rounds past this codebase's own extraction threshold. Round 52's own new `peer`/`has-[:focus-visible]` additions (5 instances) judged NOT a comparable duplication problem -- structurally different DOM shapes per instance, extraction would add more indirection than it saves |
+| Mobile | 8 | 8 | 8 | 0 (above floor) | unchanged, round 52's ring/peer changes confirmed not to affect touch. **New finding**: canceling the native file picker returns focus to the ancestor `QuestionCard` (`tabIndex={-1}`), triggering its plain `focus:` (not `focus-visible:`) ring even though nothing is actually invalid -- a false-positive "looks like validation failed" flash on a common gesture, pre-existing since round 48 but made more noticeable by round 52's contrast bump. Touch-target findings unchanged |
+| Security | 9 | 9 | 9 | 0 (above floor) | unchanged, confirmed clean. Round 52's diff read in full and confirmed zero new security-relevant surface -- static opacity/aria/class changes only |
+
+**Average: 8.33/10** (up from round 51's 8.11 -- a new high for this
+loop). **All 9 axes at or above floor, several with real margin**
+(accessibility/visual-polish/security all at 9). No regression of any
+kind this round. Not converged (target 9) -- continuing.
+
+**Round 54 selection:** no data-correctness/security finding at-or-below
+floor exists. No axis carries a nonzero `stuck_streak` -- every axis is
+either above floor or (accessibility) just recovered from a fresh
+regression, so the streak tier is tied at zero across the board with
+no regressions to fall back on either. Falls to the last-resort tier:
+six axes (industry-standards, UX, efficiency, resilience, code quality,
+mobile) are tied one point below target (8/9). Breaking the tie on
+leverage/risk/readiness rather than an arbitrary rule: **industry-
+standards' `type="button"` finding** is picked -- cheapest, most
+mechanical, zero behavioral risk, and now the single longest-unfixed
+finding *within this feature* (12 rounds, since round 41).
+Batched alongside it (file-disjoint, same tier): **UX's**
+`InspectionTable.tsx` load-failure retry-button gap. Code quality's
+`onCloseAutoFocus` extraction (now 3 rounds overdue) is deliberately
+NOT batched this round -- its blast radius crosses into 3 auth modals
+outside this feature's own files, warranting its own dedicated round
+rather than folding into a mixed batch.
+
+**Scope correction (PR #732 review):** a full-tree scan found ~156
+more raw `<button>` elements missing `type="button"` across 43 files
+*outside* Inspections (`FindingDetails.tsx`, `CorrelationMatrixPage.tsx`,
+`KriDashboardPage.tsx`, auth modals, `NavBar.tsx`, and others). This
+round's fix closes the finding for this feature specifically -- it is
+not evidence of a near-complete app-wide convention, and this log
+should not be read that way. The app-wide gap is real and large; out
+of scope for this loop, which is scoped to Inspections only.

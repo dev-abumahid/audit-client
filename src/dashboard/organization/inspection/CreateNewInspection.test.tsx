@@ -605,6 +605,28 @@ describe("CreateNewInspection", () => {
     expect(visibleControl.className).toContain("peer-focus-visible:ring-2")
   })
 
+  // quality-bar-loop (Inspections, round 54, industry-standards finding):
+  // the sidebar page-nav pill had no explicit type, defaulting to
+  // type="submit" -- an unset <button> pill sitting right next to the
+  // Submit Inspection button was a real latent bug (Enter/click could
+  // trigger the wrong action if this ever ends up inside a <form>).
+  it("gives the sidebar page-nav button an explicit type=\"button\"", () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+
+    // "General" (the page title) renders in both the sidebar nav button
+    // and the page's own <h2> heading -- find the one inside a <button>.
+    const navButton = screen
+      .getAllByText("General")
+      .map((el) => el.closest("button"))
+      .find((btn) => btn !== null)!
+    expect(navButton.type).toBe("button")
+  })
+
   // Superseded by round 46's fix: a required checkbox/slider left at its
   // default (unset) value now correctly blocks submission -- see "blocks
   // submission when a required checkbox/slider is left untouched" above.

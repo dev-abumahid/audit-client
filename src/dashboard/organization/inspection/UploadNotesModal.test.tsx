@@ -361,6 +361,25 @@ describe("UploadNotesModal", () => {
     expect(dropzone.className).toContain("has-[:focus-visible]:ring-2")
   })
 
+  // quality-bar-loop (Inspections, round 54, industry-standards finding):
+  // the two raw <button> mode-select elements had no explicit type,
+  // defaulting to type="submit" -- scoped to just these two (not a full
+  // sweep) since this file also renders several shadcn <Button>s with
+  // their own separate, pre-existing type gap outside round 54's scope.
+  it("gives both mode-select buttons an explicit type=\"button\"", () => {
+    renderModal()
+
+    expect(
+      screen.getByText("organization.inspection.notesByText").closest("button")!
+        .type
+    ).toBe("button")
+    expect(
+      screen
+        .getByText("organization.inspection.extractNoteFromFile")
+        .closest("button")!.type
+    ).toBe("button")
+  })
+
   // quality-bar-loop (Inspections, round 15, visual polish finding): this
   // dropzone hardcoded raw Tailwind gray/white instead of the app's
   // semantic tokens (every other Inspections upload control uses border-

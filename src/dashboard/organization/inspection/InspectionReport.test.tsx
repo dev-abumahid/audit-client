@@ -211,6 +211,90 @@ describe("InspectionReport", () => {
     expect(screen.getByText("3/3")).toBeInTheDocument() // totalAnswered/totalQuestions
   })
 
+  // quality-bar-loop (Inspections, round 54, industry-standards finding):
+  // none of this page's non-submit buttons declared type="button" -- an
+  // unset <button> defaults to type="submit", a latent bug if any of these
+  // ever end up inside a <form> (same convention already used elsewhere in
+  // this feature, e.g. InspectionActions.tsx). Same sweep-test pattern as
+  // that file's own regression test.
+  //
+  // Review finding on PR #732: the default makeInspection() fixture only
+  // ever mounts 2 of the 6 fixed buttons (download-PDF, sidebar page-nav)
+  // -- the media-answer overlay button, the media-thumbnail button, the
+  // related-action badge, and the lightbox close button all need specific
+  // data/state to render at all, so a blanket sweep against the default
+  // fixture silently skipped 4 of the 6. This fixture combines a `media`-
+  // type question (view-full-size overlay), a question with an attached
+  // mediaFiles thumbnail, and a legacy `actions` entry matching a question
+  // (related-action badge) -- then opens the lightbox (close button) --
+  // so the sweep actually checks all 6.
+  it("gives every rendered button an explicit type=\"button\", including buttons that only render with media/action data", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          actions: [{ _id: "action-1", question: "Uploaded photo" }],
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-5",
+                    question: "Uploaded photo",
+                    answerType: "media",
+                  },
+                  {
+                    id: "q-4",
+                    question: "Site photo",
+                    answerType: "input",
+                  },
+                ],
+              },
+            ],
+          },
+          questionAnswers: [
+            {
+              questionId: "q-5",
+              answer: "https://cdn.example.com/uploaded-photo.jpg",
+              note: "",
+              mediaFiles: [],
+            },
+            {
+              questionId: "q-4",
+              answer: "Looks fine",
+              note: "",
+              mediaFiles: [
+                { url: "https://cdn.example.com/photo.jpg", type: "image" },
+              ],
+            },
+          ],
+        }),
+      },
+    })
+
+    render(<InspectionReport />, withRouter)
+
+    // Open the lightbox so its close button mounts too.
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.mediaThumbnailAlt",
+      })
+    )
+    expect(
+      screen.getByText("organization.inspection.mediaPreview")
+    ).toBeInTheDocument()
+
+    const buttons = document.querySelectorAll("button")
+    // download-PDF, sidebar nav, view-full-size overlay, media-thumbnail,
+    // related-action badge, lightbox close -- confirms all 6 mounted, not
+    // just a subset.
+    expect(buttons.length).toBeGreaterThanOrEqual(6)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
+
   // quality-bar-loop (Inspections, round 37, resilience finding): a
   // malformed/non-numeric stored slider answer used to render a literal
   // "NaN" label with an invalid `width: NaN%` bar -- no indication the

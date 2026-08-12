@@ -112,6 +112,7 @@ const InspectionTable = () => {
     data,
     isLoading,
     isError: inspectionsError,
+    refetch: refetchInspections,
   } = useGetAllInspectionQuery({
     page: activeStatusFilter ? 1 : currentPage,
     limit: activeStatusFilter ? 100 : limit,
@@ -512,9 +513,28 @@ const InspectionTable = () => {
               ) : inspectionsError ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">
-                    <span role="alert" className="text-muted-foreground">
-                      {t("organization.inspection.listLoadError")}
-                    </span>
+                    {/* quality-bar-loop (Inspections, round 54, UX
+                        finding): unlike InspectionReport.tsx's equivalent
+                        error state (a real "Back to Inspections" button),
+                        this was static text with zero recovery affordance
+                        -- and unlike the detail page, "go back to the
+                        list" isn't a meaningful escape hatch here, since
+                        this IS the list. A retry (re-run the same query)
+                        is the actual useful action for a transient
+                        failure. */}
+                    <div className="flex flex-col items-center gap-2">
+                      <span role="alert" className="text-muted-foreground">
+                        {t("organization.inspection.listLoadError")}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetchInspections()}
+                      >
+                        {t("organization.inspection.retryLoadInspections")}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : inspections.length === 0 ? (

@@ -675,6 +675,7 @@ describe("InspectionTable", () => {
       data: undefined,
       isLoading: false,
       isError: true,
+      refetch: vi.fn(),
     })
 
     renderTable()
@@ -687,6 +688,29 @@ describe("InspectionTable", () => {
     expect(
       screen.queryByText("organization.inspection.empty")
     ).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop (Inspections, round 54, UX finding): the error state
+  // used to be static text with no recovery affordance at all -- unlike
+  // InspectionReport.tsx's detail-page error state, "go back to the list"
+  // isn't a meaningful escape hatch here (this IS the list), so retry is
+  // the real fix, not a navigation link.
+  it("re-runs the inspections query when Retry is clicked on the error state", async () => {
+    const mockRefetch = vi.fn()
+    mockUseGetAllInspectionQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: mockRefetch,
+    })
+
+    renderTable()
+
+    await userEvent.click(
+      await screen.findByText("organization.inspection.retryLoadInspections")
+    )
+
+    expect(mockRefetch).toHaveBeenCalledTimes(1)
   })
 
   // aexa-frontend#242: Inspection had zero role gating, unlike every sibling

@@ -1115,6 +1115,39 @@ describe("UpdateInspection", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 54, industry-standards finding):
+  // the attachment-remove and page-nav pill buttons had no explicit type,
+  // defaulting to type="submit" -- same latent-bug class fixed across the
+  // other 9 buttons in this loop's history (round 41+).
+  it("gives the attachment-remove and page-nav buttons an explicit type=\"button\"", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          attachments: ["https://cdn.example.com/report.pdf"],
+        }),
+      },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    expect(
+      screen.getByTitle("organization.inspection.remove").tagName
+    ).toBe("BUTTON")
+    expect(
+      (screen.getByTitle("organization.inspection.remove") as HTMLButtonElement)
+        .type
+    ).toBe("button")
+
+    // "General" (the page title) renders in both the sidebar nav button
+    // and the page's own heading -- find the one inside a <button>.
+    const navButton = screen
+      .getAllByText("General")
+      .map((el) => el.closest("button"))
+      .find((btn) => btn !== null)!
+    expect(navButton.type).toBe("button")
+  })
+
   // Review finding on PR #726: the reduce->map/flat refactor needed a test
   // with missing required questions spread across *multiple* pages, to
   // confirm the total count still accumulates correctly (not just the

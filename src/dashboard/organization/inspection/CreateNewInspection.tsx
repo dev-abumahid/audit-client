@@ -896,6 +896,7 @@ export default function CreateNewInspection() {
             {pages.map((page: any, index: number) => (
               <button
                 key={index}
+                type="button"
                 onClick={() => scrollToPage(index)}
                 className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all ${
                   currentPageIndex === index
