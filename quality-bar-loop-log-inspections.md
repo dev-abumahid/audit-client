@@ -1964,3 +1964,19 @@ instance of the same pattern unaddressed; (3)
 trim-aware check with a real inline error, instead of silently passing
 whitespace-only input to the server and surfacing an unhelpful generic
 toast.
+
+**Review loop (PR #712):** round 1 (2 parallel angles) found no
+functional bugs across any of the three fixes -- confirmed the
+media-remove button's aria-label is genuinely per-item (correct map
+index), confirmed `sitesData`/`templatesData` being `undefined` while
+skipped is handled safely everywhere via optional chaining, confirmed
+the Action Title's `required`/`validate` rules don't produce a garbled
+double-message, confirmed no stale test elsewhere asserted on the old
+button styling. Two minor documentation/cleanup items found (round-38's
+"Next fix" plan text inaccurately said 44px when the implementation
+used ~24px matching an established precedent; a now-dead `group` class
+left over from the old hover-only button styling) -- both fixed. Round
+2 (scoped to that fix) came back clean.
+
+Merged as aexa-frontend PR [#712](https://github.com/Qiyrix/aexa-frontend/pull/712). QA gate at merge: typecheck/lint
+clean, full suite 121 files / 1815 tests passing.
