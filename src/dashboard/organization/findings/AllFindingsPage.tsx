@@ -26,7 +26,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
@@ -154,6 +154,28 @@ export default function AllFindingsPage() {
     useDeleteFindingByIdMutation()
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
+  // quality-bar-loop round 32 (Inspections, incidentally): this route was
+  // once observed hanging indefinitely on this exact spinner with no way
+  // out -- not reproduced since, but `fetchBaseQuery` has no request
+  // timeout (baseApi.ts), so a genuine network-level stall (dropped
+  // connection, server never responding) leaves `isLoading` true forever
+  // with zero escape hatch, unlike the `findingsError` branch below which
+  // only ever fires once the request actually settles. This is a
+  // defensive floor for that failure mode, not a claimed root-cause fix --
+  // surface a manual retry once loading has clearly gone on too long
+  // rather than trusting it'll always resolve on its own.
+  const [loadingTooLong, setLoadingTooLong] = useState(false)
+  useEffect(() => {
+    if (!isLoading) {
+      // Scheduled rather than called synchronously in the effect body, per
+      // this codebase's react-hooks/set-state-in-effect rule.
+      const reset = setTimeout(() => setLoadingTooLong(false), 0)
+      return () => clearTimeout(reset)
+    }
+    const timer = setTimeout(() => setLoadingTooLong(true), 10000)
+    return () => clearTimeout(timer)
+  }, [isLoading])
+
   const fetchedActions: IAction[] = data?.data || []
   const actions: IAction[] = openStatusFilter
     ? fetchedActions.filter(
@@ -205,6 +227,20 @@ export default function AllFindingsPage() {
           <p className="mt-4 text-muted-foreground">
             {t("organization.findings.loadingFindings")}
           </p>
+          {loadingTooLong && (
+            <div className="mt-4">
+              <p className="text-sm text-muted-foreground">
+                {t("organization.findings.loadingTakingTooLong")}
+              </p>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="mt-2 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                {t("organization.findings.retryLoad")}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )

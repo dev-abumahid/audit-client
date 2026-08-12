@@ -1620,6 +1620,8 @@
       "monthsAgo_one": "il y a {{count}} mois",
       "monthsAgo_other": "il y a {{count}} mois",
       "loadingFindings": "Chargement des constats...",
+      "loadingTakingTooLong": "Cela prend plus de temps que prévu.",
+      "retryLoad": "Réessayer",
       "actionDeleteSuccess": "Action supprimée avec succès !",
       "actionDeleteFailed": "Échec de la suppression de l'action",
       "noFindingsFound": "Aucun constat trouvé",

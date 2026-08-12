@@ -1620,6 +1620,8 @@
       "monthsAgo_one": "{{count}} month ago",
       "monthsAgo_other": "{{count}} months ago",
       "loadingFindings": "Loading findings...",
+      "loadingTakingTooLong": "This is taking longer than expected.",
+      "retryLoad": "Retry",
       "actionDeleteSuccess": "Action deleted successfully!",
       "actionDeleteFailed": "Failed to delete action",
       "noFindingsFound": "No findings found",

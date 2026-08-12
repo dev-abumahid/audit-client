@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import AllFindingsPage from "./AllFindingsPage"
@@ -546,6 +546,175 @@ describe("AllFindingsPage", () => {
       expect(
         screen.queryByText("organization.findings.filteredByOpenStatus")
       ).not.toBeInTheDocument()
+    })
+  })
+
+  // quality-bar-loop round 32 (Inspections, incidentally): this route was
+  // once observed hanging indefinitely on the loading spinner with no way
+  // out. Not reproduced since, but `useGetAllFindingsQuery`'s `isLoading`
+  // has no timeout escape hatch -- a genuine stalled request leaves the
+  // spinner up forever. These tests cover the defensive fix: a "taking
+  // longer than expected" retry hint after 10s of continuous loading.
+  describe("slow-load retry hint", () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it("does not show a retry hint while loading normally", () => {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        refetch: vi.fn(),
+      })
+
+      render(<AllFindingsPage />, withRouter)
+
+      expect(
+        screen.getByText("organization.findings.loadingFindings")
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.findings.loadingTakingTooLong")
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows a retry hint once loading has continued for 10+ seconds", () => {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        refetch: vi.fn(),
+      })
+
+      render(<AllFindingsPage />, withRouter)
+
+      act(() => {
+        vi.advanceTimersByTime(10000)
+      })
+
+      expect(
+        screen.getByText("organization.findings.loadingTakingTooLong")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", {
+          name: "organization.findings.retryLoad",
+        })
+      ).toBeInTheDocument()
+    })
+
+    it("calls refetch when the retry button is clicked", () => {
+      const mockRefetch = vi.fn()
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        refetch: mockRefetch,
+      })
+
+      render(<AllFindingsPage />, withRouter)
+
+      act(() => {
+        vi.advanceTimersByTime(10000)
+      })
+
+      act(() => {
+        screen
+          .getByRole("button", { name: "organization.findings.retryLoad" })
+          .click()
+      })
+
+      expect(mockRefetch).toHaveBeenCalledTimes(1)
+    })
+
+    it("clears the retry hint once loading finishes", () => {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        refetch: vi.fn(),
+      })
+
+      const { rerender } = render(<AllFindingsPage />, withRouter)
+
+      act(() => {
+        vi.advanceTimersByTime(10000)
+      })
+      expect(
+        screen.getByText("organization.findings.loadingTakingTooLong")
+      ).toBeInTheDocument()
+
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: {
+          data: [makeAction()],
+          meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+        refetch: vi.fn(),
+      })
+      rerender(<AllFindingsPage />)
+
+      expect(
+        screen.queryByText("organization.findings.loadingTakingTooLong")
+      ).not.toBeInTheDocument()
+    })
+
+    // Found by review: the previous test only proved the hint disappears
+    // once `isLoading` goes false -- true regardless of whether the
+    // internal `loadingTooLong` flag was actually reset, since the whole
+    // block is unreachable outside the `isLoading` branch either way. The
+    // real risk this timer-reset logic guards against is a *new* load
+    // cycle starting with a stale `loadingTooLong=true` still set, which
+    // would flash the hint immediately instead of after another 10s.
+    it("does not immediately re-show the retry hint when a new load cycle starts after a completed one", () => {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        refetch: vi.fn(),
+      })
+      const { rerender } = render(<AllFindingsPage />, withRouter)
+
+      act(() => {
+        vi.advanceTimersByTime(10000)
+      })
+      expect(
+        screen.getByText("organization.findings.loadingTakingTooLong")
+      ).toBeInTheDocument()
+
+      // Loading finishes -- the pending `setTimeout(..., 0)` reset needs to
+      // actually run before the next load cycle starts.
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: {
+          data: [makeAction()],
+          meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+        refetch: vi.fn(),
+      })
+      rerender(<AllFindingsPage />)
+      act(() => {
+        vi.advanceTimersByTime(0)
+      })
+
+      // A new load cycle starts (e.g. a filter/search change) -- the hint
+      // must not reappear immediately just because `loadingTooLong` was
+      // left stale from the previous cycle.
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        refetch: vi.fn(),
+      })
+      rerender(<AllFindingsPage />)
+
+      expect(
+        screen.queryByText("organization.findings.loadingTakingTooLong")
+      ).not.toBeInTheDocument()
+
+      act(() => {
+        vi.advanceTimersByTime(10000)
+      })
+      expect(
+        screen.getByText("organization.findings.loadingTakingTooLong")
+      ).toBeInTheDocument()
     })
   })
 })
