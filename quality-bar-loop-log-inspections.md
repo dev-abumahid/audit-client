@@ -2198,3 +2198,52 @@ Pausing the autonomous loop here per the skill's guardrail rules,
 escalating to Omar with this round's findings rather than picking round
 45's fix (which would almost certainly be the same extraction
 recommendation, now flagged for a third round running) unilaterally.
+
+## Round 45 -- shipped, reviewed, merged (resumed by Omar)
+
+Omar confirmed treating the code-quality regression's own root cause --
+the overdue extraction -- as round 45's fix and resuming the loop.
+
+Extracted the video/document/image media-kind branching (duplicated
+four times across `CreateNewInspection.tsx`/`UpdateInspection.tsx`,
+plus its MIME-tagging counterpart duplicated twice more) into:
+- `getMediaKindFromMime(mimeType)` in `fileType.ts`, alongside the
+  existing `fileType(url)` it mirrors.
+- `MediaThumbnail`, a new shared component in
+  `src/components/shared/`, covering both call-site shapes (a large
+  single-answer preview vs. a small per-question thumbnail) via a
+  `variant` prop -- the one real layout difference between the four
+  original copies. Delete-button labels are caller-resolved rather
+  than computed internally, since the four originals actually used
+  three different translation keys for the same conceptual action, a
+  genuine pre-existing copy difference preserved rather than
+  silently collapsed.
+
+Pure refactor, no behavior change: both files' existing test suites
+(28 + 51 tests) passed completely unchanged. Live-verified: both
+files render correctly through the extracted component; a real video
+upload (via fetch-intercept) still renders a working `<video
+controls>` through `MediaThumbnail`.
+
+Shipped as [PR #722](https://github.com/Qiyrix/aexa-frontend/pull/722).
+Round-1 review (2 parallel angles: line-by-line correctness against
+the pre-PR source; cross-file completeness + import-hygiene + test-
+coverage-vs-blast-radius) found one real, major regression the "pure
+refactor" framing had missed: the original mediaFiles thumbnail's
+remove button rendered unconditionally, *outside* the `isHttpUrl`
+guard, so a legacy unsafe-URL entry could still be removed via the
+UI -- the extracted component's single early-return for both variants
+silently dropped that for the thumbnail case (the single-answer
+variant never had a button in this case, so that half was already
+correct). Fixed by branching on `variant` before the `isHttpUrl`
+check instead of returning early for both. Also fixed two minor
+findings: switched to a default export to match every sibling in
+`src/components/shared/`, and added test coverage for `fileType()`'s
+`"file"` fallback kind. `CreateNewFindingModal.tsx`'s narrower,
+similar-but-not-identical media pattern (image/video only, no PDF,
+different sizing) was correctly flagged as a reasonable follow-up
+rather than folded into this PR. Round 2 (fresh diff pass on the fix
+commit) came back clean.
+
+Merged as aexa-frontend PR [#722](https://github.com/Qiyrix/aexa-frontend/pull/722). QA gate at merge: typecheck/lint
+clean, full suite 122 files / 1845 tests passing.
