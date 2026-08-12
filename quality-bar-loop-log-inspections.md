@@ -1578,3 +1578,135 @@ touch targets. Expected to close or shrink the accessibility,
 visual-polish, and code-quality findings on this file in one pass,
 alongside industry-standards' assignee-field gap. Going there next
 rather than patching each axis's symptom on this file separately.
+
+## Round 28 (industry-standards/accessibility/visual-polish/mobile/code-quality -- InspectionActions.tsx refactor)
+
+Shipped as aexa-frontend PR [#702](https://github.com/Qiyrix/aexa-frontend/pull/702), merged.
+
+Round 27's fresh 9-judge panel converged on `InspectionActions.tsx` from
+four independent angles at once (missing assignee support, unlabeled
+inputs, hand-rolled colors with no dark-mode variants, undersized touch
+targets) plus a fifth from code-quality (a second, independently
+maintained finding-form implementation). Rather than patch each symptom,
+swapped the file's inline `ActionForm`/local mutations/local `Action`
+type for the real, already-existing `CreateNewFindingModal.tsx` --
+already used by `UpdateInspection.tsx`/`AllFindingsPage.tsx`, already
+correct on all five dimensions.
+
+Also fixed in the same pass: the attachment list's bespoke
+`url.startsWith("http") ? url : BASE_URL + url` check replaced with the
+shared `isHttpUrl()` guard (the round-27 security judge's one
+non-blocking nit); verified directly against aexa-server's
+`upload_action_attachment_into_aws` (has returned Cloudinary's
+`secure_url` since its first commit -- never a relative path) that this
+isn't a regression against real data. Added an `aria-label` to the
+per-finding status `<select>` identifying which finding it belongs to
+(round-27 accessibility finding on this file).
+
+**Review loop:** round 1 (4 parallel angles -- line-by-line, cross-file
+tracer, removed-behavior auditor, test-coverage) found zero correctness
+bugs but 3 real test-coverage gaps at the seam between this file and
+`CreateNewFindingModal.tsx` (its own test suite never covered
+`editData.actionDisc === null`, a bare `additionalData={{ inspectionId
+}}` shape, or a media-upload failure toast -- all previously covered by
+this file's own now-deleted local-form tests). Fixed by adding 3 tests
+to `CreateNewFindingModal.test.tsx` rather than re-adding them here,
+since the seam is that modal's contract. Round 2 (fresh full-diff pass)
+came back clean.
+
+QA gate: typecheck/lint clean, full suite 121 files / 1784 tests
+passing. Live-verified against the real running dev server on a real
+inspection with a real finding: confirmed the real Edit/Create Finding
+modal renders correctly (pre-filled on edit, inspection pre-selected on
+create), confirmed the status select's `aria-label` resolves correctly
+in the DOM, no new console/network errors.
+
+**Round 27 → round 29 impact (estimated, not yet re-verified via a
+fresh judge panel):** industry-standards' assignee gap, all of
+accessibility's InspectionActions.tsx findings, visual-polish's
+color-fragmentation finding, and mobile's touch-target finding on this
+file should all be closed by this swap -- but per this session's own
+round-20/27 lesson (estimated post-fix scores drifting from reality),
+these are not confirmed until re-scored live.
+
+**Next fix (Round 29):** round 20's still-open UX finding -- no "View
+all findings for this inspection" link from `InspectionReport.tsx`/
+`UpdateInspection.tsx` into this page, and the "Actions" stat card
+showing a stale "0" instead of the real finding count (live-confirmed
+by the round-27 UX judge via direct API fetch) -- was explicitly kept
+out of scope for round 28's refactor and remains the single largest
+concrete UX gap. Requires a real nav affordance plus either a backend
+fix to the `inspection.actions` relation or a frontend-side count
+fetched via the same `useFindingsForInspection` hook this page already
+uses. Given the accumulated estimation-drift risk from rounds 20-27,
+worth a fresh full 9-judge re-score before committing further individual
+fixes, rather than assuming round 28 closed everything it's expected to.
+
+## Round 29 -- fresh 9-judge re-score, plus an immediate mobile-usability fix
+
+Full panel re-run (round 27 -> round 29):
+
+| Axis | R27 | R29 | Note |
+|---|---|---|---|
+| Industry-standards | 6 | 7 | **cleared floor** -- round 28's CreateNewFindingModal swap confirmed live: assignees, Five Cs, comment thread all present now on InspectionActions.tsx's finding form |
+| UX | 6 | 6 | unchanged as expected -- round 28 didn't touch the findings-reachability gap; still live-confirmed "Actions: 0" on a report with 1 real finding, still zero nav links into InspectionActions.tsx |
+| Efficiency | 9 | 8 | new, real, minor finding -- CreateNewFindingModal.tsx unconditionally fetches the org-wide inspection list + org users list on every mount (inherited from its other call sites, but InspectionActions.tsx never had this cost before round 28); no re-render regression found |
+| Accessibility | 5 | 4 | **new finding, not a regression from round 28's own claimed fix** -- free-text and checkbox answer types in Create/UpdateInspection.tsx remain unlabeled (unchanged), AND round 28's swap moved InspectionActions.tsx onto CreateNewFindingModal.tsx, which itself had 8 of 10 form fields with zero programmatic label association (visible `<label>` text with no `htmlFor`/wrapping) -- fixed this round, see below |
+| Visual polish | 6 | 8 | **cleared floor** -- round 27's color-fragmentation finding confirmed fixed live, including dark mode; codebase-wide grep confirms no hand-rolled severity colors remain anywhere in the feature |
+| Resilience | 7 | 6 | confirmed-to-confirmed drop, but not a round-28 regression -- CreateNewFindingModal.tsx's 3 queries (inspection list, org users, finding detail) had no `isError` handling, silently showing empty/placeholder state on failure; pre-existing in the modal's other call sites, newly exposed via InspectionActions.tsx -- fixed this round |
+| Code quality | 5 | 6 | round 28's `ActionForm` duplication confirmed genuinely gone; new nuance found -- `QuestionCard` duplication between Create/UpdateInspection.tsx has drifted into genuinely different rendering behavior (video/document media branch exists in Update, not Create), not just duplicated LOC |
+| Mobile | 6 | 3 | **severe, live-reproducible bug found and fixed immediately** -- see below |
+| Security | 9 | 8 | new finding, not a round-28 regression -- CreateNewFindingModal.tsx's media-preview `<img>`/`<video>` sinks had no `isHttpUrl` guard (every other attachment sink in the codebase has one); low practical severity (img/video `src` doesn't execute `javascript:` the way `href` does) but a real consistency gap -- fixed this round |
+
+**Average: 6.22/10** (down from round 27's 6.56 -- driven almost entirely
+by the mobile modal-width bug, which the round-27 panel never exercised
+since it predates round 28's swap). 3 of 9 axes clear the 7 floor
+(industry-standards, efficiency, visual-polish) before this round's
+fixes; resilience/security/code-quality/UX/accessibility/mobile remain
+open.
+
+**Severe finding, fixed immediately (not deferred):** the mobile judge
+found `CreateNewFindingModal.tsx`'s `DialogContent` had `min-w-xl`
+(min-width: 576px) applied unconditionally, forcing the dialog to
+overflow ~100px off both edges of the screen at any viewport narrower
+than 576px. Combined with `onInteractOutside`/`onEscapeKeyDown` both
+being suppressed (intentional, to avoid accidental data loss on a form)
+and the dialog's own close button rendering off-screen along with the
+rest of the dialog, **a user opening Create/Edit Finding on a real phone
+had no way to close the modal at all** -- not by tapping outside, not by
+Escape, not by reaching the X. This is the exact modal round 28 gave
+`InspectionActions.tsx` as its create/edit UI, so it's a direct
+regression in reachability for a feature this app's own field-inspection
+audience (per the industry-standards judge's own framing) would use on
+mobile constantly. Scoped `min-w-xl` to `sm:` and up so mobile falls
+back to the base `DialogContent`'s viewport-safe
+`max-w-[calc(100%-2rem)]` sizing. Live-verified at 375x812: modal now
+renders fully on-screen with its close button reachable.
+
+Bundled into the same fix (same file, same round, per this session's
+own tier-batching convention): the security judge's `isHttpUrl` gap on
+media previews, the resilience judge's missing `isError` handling on
+the 3 queries (with new inline error text + i18n keys), and the
+accessibility judge's missing label associations on 8 of 10 form fields
+(Action Title, Description, Inspection, Priority, Status, Due Date via
+`useId()`; Upload Media button + Add-an-update input via `aria-label`).
+Every fix negative-controlled (reverted, confirmed the corresponding new
+test fails, restored). Live-verified the accessibility fix specifically
+via the browser's real accessibility tree (`read_page`), not just
+jsdom -- every field now resolves a real accessible name
+(`combobox "Low"`, `textbox "Due Date *"`, `button "Upload media"`,
+etc.), not just visually-adjacent text.
+
+QA gate: typecheck/lint clean, full suite 121 files / 1792 tests
+passing (10 new tests: mobile-width regression guard, media-URL guard,
+3 query-failure-indicator tests, 2 accessible-name tests).
+
+**Next fix (Round 30):** with this round's fixes not yet re-scored by a
+fresh judge panel, the highest-confidence next move is verifying their
+actual impact (mobile/security/resilience/accessibility all touched)
+before picking further work -- this session has been burned twice now
+(rounds 20, 27) by assuming a fix's score impact without re-verifying.
+If accessibility is still below floor after re-scoring (likely, since
+Create/UpdateInspection.tsx's free-text/checkbox labeling gap is
+untouched by this round), that remains the single largest concrete a11y
+gap left in the feature.

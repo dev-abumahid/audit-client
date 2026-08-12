@@ -18,6 +18,7 @@ import { useGetAllOrgUsersQuery } from "@/redux/apis/organization/org.user.api"
 import type { IAction, IActionMessage } from "@/types/finding"
 import { toLocalDatetimeInputValue } from "./dueDateInput"
 import { fileType } from "@/utils/fileType"
+import { isHttpUrl } from "@/utils/isHttpUrl"
 import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import {
   AlertCircle,
@@ -29,7 +30,7 @@ import {
   User,
   X,
 } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import TextareaAutosize from "react-textarea-autosize"
@@ -98,6 +99,28 @@ export default function CreateNewFindingModal({
 }: CreateActionModalProps) {
   const { t } = useTranslation()
   const isEdit = !!editData
+  // quality-bar-loop (Inspections, round 29 accessibility finding): every
+  // <label> in this form was a visual-only sibling of its control (no
+  // htmlFor/wrapping) -- 8 of 10 fields had zero programmatic label
+  // association despite having visible label text right next to them.
+  // useId() (not a hardcoded id like line-of-defense-select already used)
+  // since this modal can in principle be rendered from more than one
+  // call site's tree.
+  const actionTitleId = useId()
+  const actionDiscId = useId()
+  const inspectionSelectId = useId()
+  const priorityId = useId()
+  const statusId = useId()
+  // Separate from statusId (the <select>'s own id, referenced by the
+  // label's htmlFor when open): the closed/read-only <span> combines both
+  // this label id and its own state-text id via aria-labelledby, matching
+  // this codebase's established pattern for a static label next to
+  // dynamic state text (StartInspectionModal.tsx, RiskMultiSelect.tsx) --
+  // pointing aria-labelledby at ONLY the static label would replace the
+  // accessible name instead of combining "Status" + "Complete".
+  const statusLabelId = useId()
+  const statusStateTextId = useId()
+  const dueDateId = useId()
   // aexa-server#252: COMPLETE/CANT_DO can now only be reached via an approved
   // closure request (FindingClosureControls.tsx) -- a direct PATCH sending
   // either as `status` 400s, even as a no-op resend of the finding's own
@@ -126,15 +149,21 @@ export default function CreateNewFindingModal({
       : false
   // ── API hooks ──────────────────────────────────────────────────────────────
   const [uploadFIle] = useUploadAnyFileAwsMutation()
-  const { data: usersData, isLoading: usersLoading } =
-    useGetAllOrgUsersQuery(undefined)
+  const {
+    data: usersData,
+    isLoading: usersLoading,
+    isError: usersError,
+  } = useGetAllOrgUsersQuery(undefined)
 
   const inspectionQueryArgs = useMemo(
     () => ({ page: 1, limit: 100, searchTerm: "", status: "", siteId: "" }),
     []
   )
-  const { data: inspectionsData, isLoading: inspectionsLoading } =
-    useGetAllInspectionQuery(inspectionQueryArgs)
+  const {
+    data: inspectionsData,
+    isLoading: inspectionsLoading,
+    isError: inspectionsError,
+  } = useGetAllInspectionQuery(inspectionQueryArgs)
 
   const [addAction, { isLoading: isCreating }] = useCreateNewFindingMutation()
   const [updateAction, { isLoading: isUpdating }] =
@@ -149,9 +178,10 @@ export default function CreateNewFindingModal({
   // bodies (aexa-server issue #162 — the list endpoint's `messages` include
   // was trimmed to a count-only shape). Fetch the single-action detail on
   // open so the existing conversation thread still renders correctly.
-  const { data: findingDetail } = useGetFindingByIdQuery(editData?.id ?? "", {
-    skip: !open || !editData?.id,
-  })
+  const { data: findingDetail, isError: findingDetailError } =
+    useGetFindingByIdQuery(editData?.id ?? "", {
+      skip: !open || !editData?.id,
+    })
 
   const isSaving = isCreating || isUpdating || isAddingMessage
   const users = usersData?.data || []
@@ -457,7 +487,16 @@ export default function CreateNewFindingModal({
       <DialogContent
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
-        className="flex max-h-[90vh] w-full max-w-xl min-w-xl flex-col gap-0 overflow-hidden bg-background p-0"
+        // quality-bar-loop (Inspections, round 29 mobile finding): `min-w-xl`
+        // unconditionally forced a 576px minimum width regardless of
+        // viewport, overflowing ~100px off both edges of the screen at
+        // mobile widths -- with onInteractOutside/onEscapeKeyDown both
+        // suppressed above, the dialog's own close button rendered off-screen
+        // too, leaving no way to dismiss it. Scoped the min-width to `sm:`
+        // and up (640px, where 576px comfortably fits with margin) so mobile
+        // falls back to the base DialogContent's `max-w-[calc(100%-2rem)]`
+        // sizing instead.
+        className="flex max-h-[90vh] w-full max-w-xl flex-col gap-0 overflow-hidden bg-background p-0 sm:min-w-xl"
       >
         {/* ── Header ── */}
         <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
@@ -479,10 +518,14 @@ export default function CreateNewFindingModal({
         <div className="flex-1 space-y-4 overflow-y-auto p-6">
           {/* Action Title */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
+            <label
+              htmlFor={actionTitleId}
+              className="mb-1.5 block text-sm font-medium text-foreground"
+            >
               {t("organization.findings.actionTitleLabel")}
             </label>
             <input
+              id={actionTitleId}
               {...register("actionTitle", {
                 required: t("organization.findings.actionTitleRequired"),
               })}
@@ -502,10 +545,14 @@ export default function CreateNewFindingModal({
 
           {/* Description */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
+            <label
+              htmlFor={actionDiscId}
+              className="mb-1.5 block text-sm font-medium text-foreground"
+            >
               {t("organization.findings.descriptionOptional")}
             </label>
             <TextareaAutosize
+              id={actionDiscId}
               {...register("actionDisc")}
               placeholder={t("organization.findings.descriptionPlaceholder")}
               rows={1}
@@ -515,10 +562,14 @@ export default function CreateNewFindingModal({
 
           {/* Inspection */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
+            <label
+              htmlFor={inspectionSelectId}
+              className="mb-1.5 block text-sm font-medium text-foreground"
+            >
               {t("organization.findings.inspectionLabel")}
             </label>
             <select
+              id={inspectionSelectId}
               value={selectedInspectionId}
               onChange={(e) => handleInspectionChange(e.target.value)}
               className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
@@ -537,6 +588,15 @@ export default function CreateNewFindingModal({
                 ))
               )}
             </select>
+            {/* quality-bar-loop (Inspections, round 29 resilience finding):
+                this dropdown used to silently show just the placeholder
+                option on a failed fetch, with no indication anything went
+                wrong. */}
+            {inspectionsError && (
+              <p className="mt-1 text-xs text-destructive">
+                {t("organization.findings.inspectionsLoadFailed")}
+              </p>
+            )}
           </div>
 
           {/* ── Action Details card ── */}
@@ -547,7 +607,10 @@ export default function CreateNewFindingModal({
 
             {/* Priority */}
             <div className="flex items-center justify-between gap-4">
-              <label className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+              <label
+                htmlFor={priorityId}
+                className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground"
+              >
                 <AlertCircle size={16} /> {t("organization.findings.priority")}
               </label>
               <Controller
@@ -556,6 +619,7 @@ export default function CreateNewFindingModal({
                 render={({ field }) => (
                   <select
                     {...field}
+                    id={priorityId}
                     className={`w-full max-w-55 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:outline-none ${PRIORITY_STYLES[field.value]}`}
                   >
                     <option className={`${PRIORITY_STYLES["Low"]}`} value="Low">
@@ -580,13 +644,19 @@ export default function CreateNewFindingModal({
 
             {/* Status */}
             <div className="flex items-center justify-between gap-4">
-              <label className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+              <label
+                id={statusLabelId}
+                htmlFor={isClosed ? undefined : statusId}
+                className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground"
+              >
                 <AlertCircle size={16} />{" "}
                 {t("organization.findings.statusLabel")}
               </label>
               {isClosed ? (
                 <div className="flex w-full max-w-55 flex-col items-end gap-1">
                   <span
+                    id={statusStateTextId}
+                    aria-labelledby={`${statusLabelId} ${statusStateTextId}`}
                     className={`w-full rounded-lg px-4 py-2 text-right text-sm font-medium ${STATUS_STYLES[editData!.status]}`}
                   >
                     {editData!.status === "COMPLETE"
@@ -604,6 +674,7 @@ export default function CreateNewFindingModal({
                   render={({ field }) => (
                     <select
                       {...field}
+                      id={statusId}
                       className={`w-full max-w-55 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none ${STATUS_STYLES[field.value]}`}
                     >
                       <option
@@ -691,11 +762,15 @@ export default function CreateNewFindingModal({
 
             {/* Due Date */}
             <div className="flex items-start justify-between gap-4">
-              <label className="mt-2 flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+              <label
+                htmlFor={dueDateId}
+                className="mt-2 flex shrink-0 items-center gap-2 text-sm text-muted-foreground"
+              >
                 <Calendar size={16} /> {t("organization.findings.dueDateLabel")}
               </label>
               <div className="flex w-full max-w-55 flex-col items-end gap-1">
                 <input
+                  id={dueDateId}
                   type="datetime-local"
                   {...register("dueDate", {
                     required: t("organization.findings.dueDateRequired"),
@@ -770,6 +845,10 @@ export default function CreateNewFindingModal({
                             {usersLoading ? (
                               <p className="p-3 text-center text-sm text-muted-foreground">
                                 {t("organization.findings.loading")}
+                              </p>
+                            ) : usersError ? (
+                              <p className="p-3 text-center text-sm text-destructive">
+                                {t("organization.findings.usersLoadFailed")}
                               </p>
                             ) : (
                               users.map((user: any) => (
@@ -895,6 +974,16 @@ export default function CreateNewFindingModal({
 
           {/* ── Updates / Messages section ── */}
           <div className="space-y-3">
+            {/* quality-bar-loop (Inspections, round 29 resilience finding):
+                if the detail fetch (findingDetail, above) fails, this
+                section used to just stay empty with nothing distinguishing
+                "no comments yet" from "couldn't load the comments" -- only
+                relevant on edit, since create has no detail fetch to fail. */}
+            {isEdit && findingDetailError && messages.length === 0 && (
+              <p className="text-xs text-destructive">
+                {t("organization.findings.conversationLoadFailed")}
+              </p>
+            )}
             {/* Existing messages */}
             {messages.length > 0 && (
               <div className="max-h-36 space-y-2 overflow-y-auto">
@@ -918,32 +1007,40 @@ export default function CreateNewFindingModal({
             {/* Media previews */}
             {mediaFiles.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {mediaFiles.map((url, i) => (
-                  <div key={i} className="group relative">
-                    {isVideoUrl(url) ? (
-                      <video
-                        src={url}
-                        muted
-                        className="h-16 w-16 rounded-lg border border-border object-cover"
-                      />
-                    ) : (
-                      <img
-                        src={url}
-                        alt={t("organization.findings.uploadMediaAlt", {
-                          index: i,
-                        })}
-                        className="h-16 w-16 rounded-lg border border-border object-cover"
-                      />
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeMedia(url)}
-                      className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive opacity-0 transition-opacity group-hover:opacity-100"
-                    >
-                      <X size={10} className="text-destructive-foreground" />
-                    </button>
-                  </div>
-                ))}
+                {mediaFiles.map((url, i) => {
+                  // quality-bar-loop (Inspections, round 29 security
+                  // finding): mediaFiles can come from editData.attachments
+                  // (server-returned, pre-existing-record data) -- guard the
+                  // src sink the same way every other attachment renderer in
+                  // this codebase does, rather than trusting it implicitly.
+                  if (!isHttpUrl(url)) return null
+                  return (
+                    <div key={i} className="group relative">
+                      {isVideoUrl(url) ? (
+                        <video
+                          src={url}
+                          muted
+                          className="h-16 w-16 rounded-lg border border-border object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={url}
+                          alt={t("organization.findings.uploadMediaAlt", {
+                            index: i,
+                          })}
+                          className="h-16 w-16 rounded-lg border border-border object-cover"
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeMedia(url)}
+                        className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive opacity-0 transition-opacity group-hover:opacity-100"
+                      >
+                        <X size={10} className="text-destructive-foreground" />
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -966,6 +1063,7 @@ export default function CreateNewFindingModal({
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
               title={t("organization.findings.uploadMedia")}
+              aria-label={t("organization.findings.uploadMedia")}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-input bg-background text-primary transition-colors hover:border-primary hover:bg-primary/10 disabled:opacity-50"
             >
               {isUploading ? (
@@ -981,6 +1079,7 @@ export default function CreateNewFindingModal({
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
               placeholder={t("organization.findings.addUpdatePlaceholder")}
+              aria-label={t("organization.findings.addUpdatePlaceholder")}
               className="flex-1 rounded-lg border border-input bg-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>

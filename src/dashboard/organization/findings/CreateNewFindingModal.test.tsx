@@ -17,7 +17,10 @@ const mockCreateNewFinding = vi.fn()
 const mockUpdateFindingById = vi.fn()
 const mockAddFindingMessage = vi.fn()
 const mockGetFindingById = vi.fn<
-  (id: string, options?: { skip?: boolean }) => { data: unknown }
+  (
+    id: string,
+    options?: { skip?: boolean }
+  ) => { data: unknown; isError?: boolean }
 >(() => ({
   data: undefined,
 }))
@@ -104,6 +107,16 @@ describe("CreateNewFindingModal", () => {
     vi.mocked(toast.success).mockClear()
     vi.mocked(toast.error).mockClear()
     vi.mocked(toast.info).mockClear()
+    // quality-bar-loop (Inspections, round 29 review finding): this was
+    // missing before -- a test that overrides mockOrgUsers with
+    // `isError: true` (see the "query failure indicators" describe block)
+    // left that override in place for every test that runs after it,
+    // relying on later tests happening not to touch the assignees
+    // dropdown rather than genuinely resetting state.
+    mockOrgUsers.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
     mockInspections.mockReturnValue({
       data: {
         data: [
@@ -145,6 +158,63 @@ describe("CreateNewFindingModal", () => {
     expect(keyWarning).toBe(false)
 
     consoleError.mockRestore()
+  })
+
+  // quality-bar-loop (Inspections, round 29 accessibility finding): every
+  // <label> in this form was a visual-only sibling of its control -- no
+  // htmlFor, no wrapping -- so 8 of 10 fields had zero programmatic label
+  // association despite visible label text next to each one. getByLabelText
+  // only succeeds via a real id/htmlFor (or aria-label/aria-labelledby)
+  // association, so these assertions fail if that wiring regresses.
+  it("gives every form field a real accessible name via htmlFor/id or aria-label, not just visual-adjacent text", async () => {
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    expect(
+      screen.getByLabelText("organization.findings.actionTitleLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.findings.descriptionOptional")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.findings.inspectionLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.findings.priority")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.findings.statusLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.findings.dueDateLabel")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.findings.uploadMedia")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("organization.findings.addUpdatePlaceholder")
+    ).toBeInTheDocument()
+    // Line of Defense was already correctly associated before this round --
+    // included here as a same-pattern sanity check, not a new fix.
+    expect(
+      screen.getByLabelText("organization.findings.lineOfDefenseLabel")
+    ).toBeInTheDocument()
+  })
+
+  it("does not point the Status label at a nonexistent control when the finding is closed (read-only status)", async () => {
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={makeEditData({ status: "COMPLETE" }) as any}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("Fix broken railing")).toBeInTheDocument()
+    )
+    // A closed finding renders status as a read-only <span>, not a <select>
+    // -- getByLabelText would throw if the label's htmlFor pointed at an id
+    // that doesn't exist in the DOM in this state.
+    expect(screen.queryByRole("combobox", { name: /status/i })).not.toBeInTheDocument()
   })
 
   it("sends questionId (not question) in the request body when a question is selected", async () => {
@@ -393,6 +463,149 @@ describe("CreateNewFindingModal", () => {
         "organization.findings.mediaUploadFailed"
       )
     )
+  })
+
+  // quality-bar-loop (Inspections, round 29 mobile finding): the dialog's
+  // `min-w-xl` (min-width: 576px) applied unconditionally, forcing the
+  // modal to overflow off-screen at mobile viewports with no way to
+  // dismiss it (onInteractOutside/onEscapeKeyDown are both suppressed, and
+  // the close button rendered off-screen along with the rest of the
+  // dialog). Scoped the min-width to `sm:` and up so mobile falls back to
+  // the base DialogContent's viewport-safe `max-w-[calc(100%-2rem)]`.
+  it("does not force a fixed minimum dialog width below the sm breakpoint", () => {
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+    const dialog = document.querySelector('[data-slot="dialog-content"]')
+    expect(dialog).toBeInTheDocument()
+    expect(dialog?.className).toContain("sm:min-w-xl")
+    expect(dialog?.className).not.toMatch(/(?<!sm:)\bmin-w-xl\b/)
+  })
+
+  // jsdom doesn't do real layout, so this can't assert computed width at a
+  // viewport -- it guards the narrower, still-real regression of someone
+  // dropping the `sm:` desktop sizing entirely while fixing the mobile bug
+  // (e.g. removing min-w-xl outright), which would silently shrink the
+  // dialog to the base DialogContent's much smaller `sm:max-w-sm` (384px)
+  // at desktop widths too.
+  it("still requests the wider desktop sizing at the sm breakpoint and up", () => {
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+    const dialog = document.querySelector('[data-slot="dialog-content"]')
+    expect(dialog?.className).toContain("max-w-xl")
+    expect(dialog?.className).toContain("sm:min-w-xl")
+  })
+
+  it("gives the Status label a real accessible name that combines with its value when the finding is closed (read-only, no <select> to htmlFor)", async () => {
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={makeEditData({ status: "COMPLETE" }) as any}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("Fix broken railing")).toBeInTheDocument()
+    )
+    const statusText = screen.getByText(
+      "organization.findings.statusComplete"
+    )
+    expect(statusText.getAttribute("aria-labelledby")).toMatch(/\S+ \S+/)
+  })
+
+  // quality-bar-loop (Inspections, round 29 security finding): media
+  // previews (sourced from editData.attachments -- server-returned,
+  // pre-existing-record data) rendered straight into <img src>/<video src>
+  // with no isHttpUrl guard, unlike every other attachment sink in this
+  // codebase.
+  it("does not render a non-http(s) media attachment URL into an img/video src", async () => {
+    render(
+      <CreateNewFindingModal
+        open
+        onClose={vi.fn()}
+        editData={
+          makeEditData({
+            attachments: [
+              "javascript:alert(1)",
+              "https://cdn.example.com/existing.png",
+            ],
+          }) as any
+        }
+      />
+    )
+
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("Fix broken railing")).toBeInTheDocument()
+    )
+    expect(
+      document.querySelector('img[src="https://cdn.example.com/existing.png"]')
+    ).toBeInTheDocument()
+    expect(document.querySelector('[src^="javascript:"]')).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop (Inspections, round 29 resilience finding): a failed
+  // fetch on any of these three queries used to silently show just the
+  // placeholder/empty state, with nothing distinguishing "no data" from
+  // "couldn't load".
+  describe("query failure indicators (round 29 resilience finding)", () => {
+    it("shows an inline error under the Inspection dropdown when the inspections fetch fails", async () => {
+      mockInspections.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      } as any)
+
+      render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+      expect(
+        screen.getByText("organization.findings.inspectionsLoadFailed")
+      ).toBeInTheDocument()
+    })
+
+    it("shows an inline error in the Assignees dropdown when the org-users fetch fails", async () => {
+      mockOrgUsers.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      } as any)
+
+      render(<CreateNewFindingModal open onClose={vi.fn()} />)
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.findings.addAssignees",
+        })
+      )
+
+      expect(
+        screen.getByText("organization.findings.usersLoadFailed")
+      ).toBeInTheDocument()
+    })
+
+    it("shows an inline error instead of a silently-empty conversation when the finding-detail fetch fails on edit", async () => {
+      mockGetFindingById.mockReturnValue({ data: undefined, isError: true })
+
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ messages: [] }) as any}
+        />
+      )
+
+      await waitFor(() =>
+        expect(screen.getByDisplayValue("Fix broken railing")).toBeInTheDocument()
+      )
+      expect(
+        screen.getByText("organization.findings.conversationLoadFailed")
+      ).toBeInTheDocument()
+    })
+
+    it("does not show the conversation error on create (no detail fetch to fail)", async () => {
+      mockGetFindingById.mockReturnValue({ data: undefined, isError: true })
+
+      render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+      expect(
+        screen.queryByText("organization.findings.conversationLoadFailed")
+      ).not.toBeInTheDocument()
+    })
   })
 
   it("normalizes editData.assignBy ({id, name} objects) to raw user ids and preserves them on submit", async () => {
