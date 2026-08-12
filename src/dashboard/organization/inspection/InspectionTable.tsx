@@ -526,10 +526,20 @@ const InspectionTable = () => {
                       <span role="alert" className="text-muted-foreground">
                         {t("organization.inspection.listLoadError")}
                       </span>
+                      {/* quality-bar-loop (Inspections, round 56, visual-
+                          polish/mobile finding): round 54's `size="sm"`
+                          resolved to h-6 (24px) -- every other actionable
+                          control on this page (Start New, bulk-toolbar
+                          buttons, row actions) uses an explicit h-11 (44px)
+                          override, a convention this loop established back
+                          in round 2. `size="sm"` still gives the right
+                          padding/text-size for a secondary action; only the
+                          height needed the same override as its neighbors. */}
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
+                        className="h-11"
                         onClick={() => refetchInspections()}
                       >
                         {t("organization.inspection.retryLoadInspections")}

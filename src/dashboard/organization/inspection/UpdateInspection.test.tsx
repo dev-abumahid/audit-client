@@ -6,7 +6,7 @@ import {
   within,
 } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { MemoryRouter } from "react-router"
+import { createRoutesStub } from "react-router"
 import UpdateInspection from "./UpdateInspection"
 
 // aexa-frontend#552: the site label is now a real <Link>, so every render()
@@ -14,7 +14,22 @@ import UpdateInspection from "./UpdateInspection"
 // too, so this is a drop-in addition rather than needing a renderPage()
 // helper everywhere (same convention as CorrelationMatrixPage.test.tsx's
 // #549 fix).
-const withRouter = { wrapper: MemoryRouter }
+//
+// quality-bar-loop (Inspections, round 56, industry-standards finding):
+// round 56 added a `useBlocker` call (see UpdateInspection.tsx), which
+// throws outside a real *data* router -- plain `MemoryRouter` doesn't
+// qualify. `createRoutesStub` builds a minimal data router that supports
+// useBlocker/useNavigate/etc. the same way the real createBrowserRouter
+// app does. `UpdateInspection` takes no props, so the route's Component
+// references it directly (a stable, module-scope value -- the
+// react-hooks/static-components lint rule flags creating a NEW component
+// on every render, which a `children`-closure version would have done)
+// rather than a generic children-wrapping route.
+const Stub = createRoutesStub([{ path: "*", Component: UpdateInspection }])
+function RouterWrapper() {
+  return <Stub initialEntries={["/"]} />
+}
+const withRouter = { wrapper: RouterWrapper }
 
 // jsdom has no scrollIntoView; round 48's completion-gate fix now calls
 // scrollToPage the same way CreateNewInspection.tsx's submit gate already
@@ -752,18 +767,32 @@ describe("UpdateInspection", () => {
       data: { data: makeInspection() },
       isLoading: false,
     })
-    const { rerender } = render(<UpdateInspection />, withRouter)
+    const { unmount } = render(<UpdateInspection />, withRouter)
     expect(
       screen.getByRole("button", {
         name: "organization.inspection.uploadNote",
       })
     ).toBeInTheDocument()
 
+    // quality-bar-loop (Inspections, round 56, industry-standards
+    // finding): a real `rerender()` no longer reliably propagates through
+    // the `createRoutesStub`-based router wrapper `useBlocker` now
+    // requires (the data router's own internal state-subscription can
+    // bail out a plain ancestor re-render, unlike the previous bare
+    // MemoryRouter). UpdateInspection has no internal state that would be
+    // lost by mounting fresh instead, so a second render with the updated
+    // mock is behaviorally equivalent for what this test actually checks.
+    // Review finding on PR #734: unmount the first tree explicitly first
+    // -- RTL's automatic cleanup only runs `afterEach`, not between two
+    // `render()` calls in the same test, so without this the two trees
+    // would coexist and any future edit giving both an identically-named
+    // button would break `getByRole` with a "multiple elements" error.
+    unmount()
     mockUseGetSingleInspectionQuery.mockReturnValue({
       data: { data: makeInspection({ note: { id: "note-1" } }) },
       isLoading: false,
     })
-    rerender(<UpdateInspection />)
+    render(<UpdateInspection />, withRouter)
     expect(
       screen.getByRole("button", {
         name: "organization.inspection.viewNote",
@@ -795,6 +824,60 @@ describe("UpdateInspection", () => {
         ),
       { timeout: 2000 }
     )
+  })
+
+  // quality-bar-loop (Inspections, round 56, industry-standards finding):
+  // live-reproduced data loss -- typing an answer then clicking Back
+  // *inside* the 1s debounce window navigated away before the pending
+  // save ever fired, silently discarding the edit with zero warning.
+  // Unlike CreateNewInspection.tsx (which has nothing to flush and needs
+  // a real discard-confirmation instead), this file already auto-saves --
+  // the fix is flushing the pending save immediately rather than letting
+  // navigation race it.
+  it("flushes a pending debounced save before navigating back, instead of losing it to the race", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+    mockUpdateQuestionAnswer.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    })
+
+    render(<UpdateInspection />, withRouter)
+    const checkbox = screen.getAllByRole("checkbox")[0]
+    await userEvent.click(checkbox)
+
+    // Click Back well before the 1000ms debounce would have fired on its
+    // own -- the old behavior navigated away here with the save still
+    // pending, never persisting it.
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.back" })
+    )
+
+    await waitFor(() =>
+      expect(mockUpdateQuestionAnswer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "qa-1",
+          data: expect.objectContaining({ answer: false }),
+        })
+      )
+    )
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(-1))
+  })
+
+  it("navigates back immediately when there is no pending save to flush", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.back" })
+    )
+
+    expect(mockUpdateQuestionAnswer).not.toHaveBeenCalled()
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(-1))
   })
 
   // quality-bar-loop (Inspections, round 19, resilience finding): the

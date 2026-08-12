@@ -1,5 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import MediaThumbnail from "@/components/shared/MediaThumbnail"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useUploadAnyFileAwsMutation } from "@/redux/apis/common.api"
@@ -19,7 +29,7 @@ import {
 import type { TFunction } from "i18next"
 import { memo, useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useLocation, useNavigate } from "react-router"
+import { useBlocker, useLocation, useNavigate } from "react-router"
 import { toast } from "sonner"
 
 type AnswerEntry = {
@@ -503,6 +513,46 @@ export default function CreateNewInspection() {
 
   const pageRefs = useRef<(HTMLDivElement | null)[]>([])
   const initialized = useRef(false)
+  // quality-bar-loop (Inspections, round 56, industry-standards finding):
+  // unlike UpdateInspection.tsx (which auto-saves and just needs its
+  // pending save flushed before navigating away), this flow has nothing
+  // persisted until the final Submit -- live-reproduced data loss: typing
+  // an answer, clicking Back, the entire in-progress inspection vanished
+  // with zero warning. A ref (not state) since it's read from a
+  // `useBlocker` callback (see below) and inside handleAnswerChange,
+  // where setting it must not break that handler's referential stability
+  // (empty dep array, required for QuestionCard's React.memo below).
+  const hasUnsavedChangesRef = useRef(false)
+  // Review finding on PR #734: the Back button alone only caught one exit
+  // path -- a sidebar link, or any other in-app navigation, bypassed it
+  // entirely and still silently discarded the inspection. `useBlocker`
+  // intercepts every client-side navigation this data router dispatches
+  // (Back button, <Link> clicks, browser back/forward), not just this one
+  // button's own onClick, so the confirmation now genuinely covers every
+  // way to leave this page via the router. A separate beforeunload guard
+  // below covers the one path a router-level blocker structurally cannot:
+  // a full tab close/refresh/URL-bar navigation.
+  const blocker = useBlocker(
+    () => hasUnsavedChangesRef.current
+  )
+  // Radix's AlertDialogAction auto-closes the dialog on click, firing
+  // onOpenChange(false) -- without this guard, that would immediately
+  // call blocker.reset() right after Discard's own onClick called
+  // blocker.proceed(), since the state update from proceed() hasn't
+  // re-rendered yet when onOpenChange's callback runs, so it still reads
+  // "blocked" and cancels the very navigation it just approved.
+  const blockerProceedingRef = useRef(false)
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!hasUnsavedChangesRef.current) return
+      e.preventDefault()
+      e.returnValue = ""
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () =>
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [])
 
   // Initialize answers using question.id
   useEffect(() => {
@@ -578,6 +628,7 @@ export default function CreateNewInspection() {
   // referentially stable forever, a prerequisite for QuestionCard's
   // React.memo below to actually prevent re-rendering sibling questions.
   const handleAnswerChange = useCallback((questionId: string, value: any) => {
+    hasUnsavedChangesRef.current = true
     setAnswers((prev) => ({
       ...prev,
       [questionId]: { ...prev[questionId], answer: value },
@@ -591,6 +642,7 @@ export default function CreateNewInspection() {
   }, [])
 
   const handleNoteChange = useCallback((questionId: string, note: string) => {
+    hasUnsavedChangesRef.current = true
     setAnswers((prev) => ({
       ...prev,
       [questionId]: { ...prev[questionId], note },
@@ -678,6 +730,11 @@ export default function CreateNewInspection() {
     try {
       await createInspection(payload).unwrap()
       toast.success(t("organization.inspection.submittedToast"))
+      // A successful submit is itself a navigation through this same
+      // router -- without clearing this first, `useBlocker` would fire
+      // its own discard-confirmation dialog on the very navigate() call
+      // that's supposed to be the happy path.
+      hasUnsavedChangesRef.current = false
       navigate("/organization/audit/inspections")
     } catch (error: any) {
       toast.error(
@@ -770,6 +827,7 @@ export default function CreateNewInspection() {
         const validFiles = uploadedFiles.filter((file) => file !== null)
 
         if (validFiles.length > 0) {
+          hasUnsavedChangesRef.current = true
           // quality-bar-loop (Inspections, round 10, efficiency finding):
           // reads `prev[questionId]` inside the functional updater instead
           // of closing over the outer `answers` state -- keeps this
@@ -864,7 +922,16 @@ export default function CreateNewInspection() {
             that gracefully. */}
         <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-4 px-6 py-5">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate(-1)} className="h-11">
+            {/* quality-bar-loop (Inspections, round 56, industry-standards
+                finding): the `useBlocker` above now intercepts this click
+                the same as any other navigation, so this stays a plain
+                navigate(-1) -- the blocker decides whether to actually let
+                it through, not this onClick. */}
+            <Button
+              variant="ghost"
+              onClick={() => navigate(-1)}
+              className="h-11"
+            >
               <ArrowLeft className="mr-2 h-5 w-5" />{" "}
               {t("organization.inspection.back")}
             </Button>
@@ -1002,6 +1069,51 @@ export default function CreateNewInspection() {
           </div>
         </div>
       </div>
+
+      {/* quality-bar-loop (Inspections, round 56, industry-standards
+          finding): confirms before discarding an in-progress inspection --
+          nothing here is persisted until Submit, unlike UpdateInspection.tsx
+          (which auto-saves and just flushes a pending save instead). Driven
+          by the useBlocker above (open = blocker.state === "blocked") so it
+          catches every navigation attempt the blocker intercepts, not just
+          one specific button's click handler. */}
+      <AlertDialog
+        open={blocker.state === "blocked"}
+        onOpenChange={(open) => {
+          if (!open && !blockerProceedingRef.current) {
+            blocker.reset?.()
+          }
+          blockerProceedingRef.current = false
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("organization.inspection.discardChangesTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("organization.inspection.discardChangesDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              className="h-11"
+              onClick={() => blocker.reset?.()}
+            >
+              {t("organization.inspection.keepEditing")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="h-11"
+              onClick={() => {
+                blockerProceedingRef.current = true
+                blocker.proceed?.()
+              }}
+            >
+              {t("organization.inspection.discardChanges")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

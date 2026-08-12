@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { createRoutesStub } from "react-router"
 import CreateNewInspection from "./CreateNewInspection"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
@@ -62,16 +63,54 @@ vi.stubGlobal("IntersectionObserver", MockIntersectionObserver)
 // calls scrollToPage(), which invokes it on the target page's ref.
 HTMLElement.prototype.scrollIntoView = vi.fn()
 
-const mockNavigate = vi.fn()
 let mockLocationState: Record<string, unknown> = {}
 vi.mock("react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-router")>()
   return {
     ...actual,
-    useNavigate: () => mockNavigate,
     useLocation: () => ({ state: mockLocationState }),
   }
 })
+
+// quality-bar-loop (Inspections, round 56, industry-standards finding):
+// round 56 added a `useBlocker` call (see CreateNewInspection.tsx), which
+// only works within a real *data* router and needs a genuine `navigate()`
+// to intercept -- `useNavigate` used to be mocked out entirely (a plain
+// spy, `mockNavigate`), which would have made the blocker a no-op in
+// every test (a mocked navigate never reaches the router to be blocked).
+// `createRoutesStub` builds a minimal two-route data router: this page at
+// "/", and a sentinel destination page whose rendered text is what tests
+// now assert against instead of a mock spy call. `initialEntries` seeds
+// two history entries so navigate(-1) (the Back button) has somewhere
+// real to go back to, matching how the app is actually entered (list ->
+// create page), not a synthetic single-entry stack.
+const NAVIGATED_TO_LIST_SENTINEL = "NAVIGATED_TO_INSPECTIONS_LIST"
+// react-hooks/static-components: both route Components must be stable,
+// module-scope references, not created fresh inside RouterWrapper's
+// render -- CreateNewInspection takes no props, so it can be referenced
+// directly, same as UpdateInspection.test.tsx's identical fix.
+function ListSentinel() {
+  return <>{NAVIGATED_TO_LIST_SENTINEL}</>
+}
+const Stub = createRoutesStub([
+  { path: "/organization/audit/inspections", Component: ListSentinel },
+  {
+    path: "/organization/audit/inspection/create",
+    Component: CreateNewInspection,
+  },
+])
+function RouterWrapper() {
+  return (
+    <Stub
+      initialEntries={[
+        "/organization/audit/inspections",
+        "/organization/audit/inspection/create",
+      ]}
+      initialIndex={1}
+    />
+  )
+}
+const withRouter = { wrapper: RouterWrapper }
 
 const mockUseGetSingleTemplateQuery = vi.fn()
 const mockCreateInspection = vi.fn()
@@ -130,7 +169,6 @@ function makeTemplate(overrides = {}) {
 
 describe("CreateNewInspection", () => {
   beforeEach(() => {
-    mockNavigate.mockReset()
     mockUseGetSingleTemplateQuery.mockReset()
     mockCreateInspection.mockReset()
     mockUploadFileAws.mockReset()
@@ -148,7 +186,7 @@ describe("CreateNewInspection", () => {
       isLoading: true,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     // i18n isn't initialized in the test environment, so t() echoes the raw
     // key back (see RiskRegisterPage.test.tsx for the same convention).
@@ -169,7 +207,7 @@ describe("CreateNewInspection", () => {
       isError: true,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     expect(
       screen.queryByText("organization.inspection.loadingTemplate")
@@ -190,7 +228,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
     expect(screen.getByText("HQ Casablanca")).toBeInTheDocument()
@@ -207,7 +245,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     expect(screen.getByText("Q1")).toBeInTheDocument()
     expect(screen.getByText("Q2")).toBeInTheDocument()
@@ -223,7 +261,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     const checkbox = screen.getByRole("checkbox")
     expect(checkbox.closest("label")?.className).toMatch(/\bmin-h-11\b/)
@@ -235,7 +273,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
     const checkbox = screen.getAllByRole("checkbox")[0]
     expect(checkbox).not.toBeChecked()
 
@@ -256,7 +294,7 @@ describe("CreateNewInspection", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
     const textInput = screen.getByPlaceholderText(
       "organization.inspection.answerPlaceholder"
     )
@@ -276,10 +314,113 @@ describe("CreateNewInspection", () => {
       ])
     )
     await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith(
-        "/organization/audit/inspections"
-      )
+      expect(screen.getByText(NAVIGATED_TO_LIST_SENTINEL)).toBeInTheDocument()
     )
+  })
+
+  // quality-bar-loop (Inspections, round 56, industry-standards finding):
+  // live-reproduced data loss -- typing an answer then clicking Back
+  // navigated away instantly with zero warning, silently discarding the
+  // entire in-progress inspection (nothing here is persisted until
+  // Submit). Negative control: an untouched form still navigates
+  // immediately, no unnecessary dialog.
+  it("navigates back immediately when nothing has been touched", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />, withRouter)
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.back" })
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText(NAVIGATED_TO_LIST_SENTINEL)).toBeInTheDocument()
+    )
+    expect(
+      screen.queryByText("organization.inspection.discardChangesTitle")
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows a discard-confirmation dialog instead of navigating immediately once an answer has been touched", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />, withRouter)
+    const textInput = screen.getByPlaceholderText(
+      "organization.inspection.answerPlaceholder"
+    )
+    await userEvent.type(textInput, "Looks good")
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.back" })
+    )
+
+    expect(
+      screen.queryByText(NAVIGATED_TO_LIST_SENTINEL)
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText("organization.inspection.discardChangesTitle")
+    ).toBeInTheDocument()
+  })
+
+  it("navigates back once the user confirms Discard in the dialog", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />, withRouter)
+    const textInput = screen.getByPlaceholderText(
+      "organization.inspection.answerPlaceholder"
+    )
+    await userEvent.type(textInput, "Looks good")
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.back" })
+    )
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.discardChanges",
+      })
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText(NAVIGATED_TO_LIST_SENTINEL)).toBeInTheDocument()
+    )
+  })
+
+  it("stays on the page and preserves the answer when the user chooses Keep editing", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />, withRouter)
+    const textInput = screen.getByPlaceholderText(
+      "organization.inspection.answerPlaceholder"
+    )
+    await userEvent.type(textInput, "Looks good")
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.inspection.back" })
+    )
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.inspection.keepEditing",
+      })
+    )
+
+    expect(
+      screen.queryByText(NAVIGATED_TO_LIST_SENTINEL)
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.inspection.discardChangesTitle")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText("organization.inspection.answerPlaceholder")
+    ).toHaveValue("Looks good")
   })
 
   it("shows an error toast and does not submit when template or site is missing", async () => {
@@ -289,7 +430,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.inspection.submitInspection",
@@ -321,7 +462,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.inspection.submitInspection",
@@ -364,7 +505,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.inspection.submitInspection",
@@ -403,7 +544,7 @@ describe("CreateNewInspection", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
     const checkbox = screen.getByRole("checkbox")
     // Touch it on, then back off -- ends up unchecked (== the default),
     // but the question was genuinely interacted with.
@@ -445,7 +586,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.inspection.submitInspection",
@@ -500,7 +641,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     // The Submit button only renders once currentPageIndex === last page,
     // which in the real app is driven by IntersectionObserver as the user
@@ -550,7 +691,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     const card = document.getElementById("question-card-q-1")!
     const labelId = card.getAttribute("aria-labelledby")
@@ -573,7 +714,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     const card = document.getElementById("question-card-q-1")!
     expect(card.className).toContain("ring-destructive/70")
@@ -592,7 +733,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     const externalMediaInput = document.querySelector(
       'input[id^="external-media-"]'
@@ -616,7 +757,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     // "General" (the page title) renders in both the sidebar nav button
     // and the page's own <h2> heading -- find the one inside a <button>.
@@ -661,7 +802,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     expect(screen.getByRole("slider")).toHaveValue("5")
     expect(screen.getByText("5")).toBeInTheDocument()
@@ -708,7 +849,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
 
     expect(
       screen.getByRole("slider", { name: "Rate overall safety (1-10)" })
@@ -734,7 +875,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     expect(
       screen.getByRole("checkbox", { name: /Extinguisher present\?/ })
@@ -752,7 +893,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    render(<CreateNewInspection />)
+    render(<CreateNewInspection />, withRouter)
 
     await userEvent.click(
       screen.getAllByRole("button", {
@@ -796,7 +937,7 @@ describe("CreateNewInspection", () => {
         }),
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
     const file = new File(["img"], "site.png", { type: "image/png" })
     const input =
       container.querySelector<HTMLInputElement>('input[type="file"]')!
@@ -848,7 +989,7 @@ describe("CreateNewInspection", () => {
         }),
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
     const file = new File(["vid"], "clip.mp4", { type: "video/mp4" })
     const input =
       container.querySelector<HTMLInputElement>('input[type="file"]')!
@@ -891,7 +1032,7 @@ describe("CreateNewInspection", () => {
         }),
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
     const file = new File(["pdf"], "report.pdf", {
       type: "application/pdf",
     })
@@ -948,7 +1089,7 @@ describe("CreateNewInspection", () => {
         }),
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
     const file = new File(["img"], "site.png", { type: "image/png" })
     const input =
       container.querySelector<HTMLInputElement>('input[type="file"]')!
@@ -986,7 +1127,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
 
     const inputs = container.querySelectorAll<HTMLInputElement>(
       'input[type="file"]'
@@ -1032,7 +1173,7 @@ describe("CreateNewInspection", () => {
         }),
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
     const file = new File(["img"], "site.png", { type: "image/png" })
     const input =
       container.querySelector<HTMLInputElement>('input[type="file"]')!
@@ -1065,7 +1206,7 @@ describe("CreateNewInspection", () => {
         }),
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
     const file = new File(["img"], "site.png", { type: "image/png" })
     const input = container.querySelector<HTMLInputElement>(
       'input[id^="external-media-"]'
@@ -1101,7 +1242,7 @@ describe("CreateNewInspection", () => {
         }),
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
     const file = new File(["img"], "site.png", { type: "image/png" })
     const input = container.querySelector<HTMLInputElement>(
       'input[id^="external-media-"]'
@@ -1133,7 +1274,7 @@ describe("CreateNewInspection", () => {
         }),
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
     const file = new File(["img"], "site.png", { type: "image/png" })
     const input = container.querySelector<HTMLInputElement>(
       'input[id^="external-media-"]'
@@ -1170,7 +1311,7 @@ describe("CreateNewInspection", () => {
         }),
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
     const file = new File(["vid"], "clip.mp4", { type: "video/mp4" })
     const input = container.querySelector<HTMLInputElement>(
       'input[id^="external-media-"]'
@@ -1199,7 +1340,7 @@ describe("CreateNewInspection", () => {
         }),
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
     const file = new File(["pdf"], "report.pdf", {
       type: "application/pdf",
     })
@@ -1239,7 +1380,7 @@ describe("CreateNewInspection", () => {
       unwrap: () => Promise.resolve({ success: true }),
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
     const file = new File(["vid"], "clip.mp4", { type: "video/mp4" })
     const input = container.querySelector<HTMLInputElement>(
       'input[id^="external-media-"]'
@@ -1291,7 +1432,7 @@ describe("CreateNewInspection", () => {
       isLoading: false,
     })
 
-    const { container } = render(<CreateNewInspection />)
+    const { container } = render(<CreateNewInspection />, withRouter)
     const bigFile = new File([new ArrayBuffer(6 * 1024 * 1024)], "huge.png", {
       type: "image/png",
     })

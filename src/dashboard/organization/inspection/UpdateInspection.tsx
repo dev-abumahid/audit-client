@@ -45,7 +45,7 @@ import { severityBadgeClasses } from "@/utils/severityStyles"
 import type { TFunction } from "i18next"
 import { memo, useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Link, useNavigate, useParams } from "react-router"
+import { Link, useBlocker, useNavigate, useParams } from "react-router"
 import TextareaAutosize from "react-textarea-autosize"
 import { toast } from "sonner"
 import CreateNewFindingModal from "../findings/CreateNewFindingModal"
@@ -753,6 +753,18 @@ export default function UpdateInspection() {
   const saveTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>(
     {}
   )
+  // quality-bar-loop (Inspections, round 56, industry-standards finding):
+  // the latest not-yet-saved payload per question, so a pending debounced
+  // save can be flushed immediately (on Back / navigate-away) instead of
+  // silently lost if the user leaves within the 1s debounce window --
+  // live-reproduced: type an edit, click Back inside that window, the
+  // edit was never persisted server-side. This file already auto-saves
+  // (unlike CreateNewInspection.tsx, which has nothing to flush and needs
+  // a real discard-confirmation instead), so the correct fix here is
+  // completing the save that's already in flight, not bolting on a
+  // separate confirmation UX that would fight the existing autosave
+  // design.
+  const pendingSaveDataRef = useRef<Record<string, AnswerEntry>>({})
 
   const debouncedUpdateQuestion = useCallback(
     (questionId: string, data: AnswerEntry) => {
@@ -760,8 +772,11 @@ export default function UpdateInspection() {
         clearTimeout(saveTimeoutRef.current[questionId])
       }
       setSavingQuestions((prev) => ({ ...prev, [questionId]: true }))
+      pendingSaveDataRef.current[questionId] = data
 
       saveTimeoutRef.current[questionId] = setTimeout(async () => {
+        delete saveTimeoutRef.current[questionId]
+        delete pendingSaveDataRef.current[questionId]
         try {
           await handleUpdateQuestion(questionId, data)
           toast.success(t("organization.inspection.answerSavedToast"))
@@ -781,6 +796,73 @@ export default function UpdateInspection() {
     },
     [handleUpdateQuestion, t]
   )
+
+  // quality-bar-loop (Inspections, round 56, industry-standards finding):
+  // flushes every pending debounced save immediately (used before
+  // navigating away) instead of waiting out the remaining debounce delay
+  // or letting it get cancelled by unmount. Returns the flush promise so
+  // the caller can await it before actually navigating.
+  const flushPendingSaves = useCallback(() => {
+    const pendingIds = Object.keys(saveTimeoutRef.current)
+    if (pendingIds.length === 0) return Promise.resolve()
+
+    const flushes = pendingIds.map(async (questionId) => {
+      clearTimeout(saveTimeoutRef.current[questionId])
+      delete saveTimeoutRef.current[questionId]
+      const data = pendingSaveDataRef.current[questionId]
+      delete pendingSaveDataRef.current[questionId]
+      if (!data) return
+      try {
+        await handleUpdateQuestion(questionId, data)
+      } catch {
+        // Same rationale as debouncedUpdateQuestion's own catch --
+        // handleUpdateQuestion already toasted the specific error.
+      } finally {
+        setSavingQuestions((prev) => ({ ...prev, [questionId]: false }))
+      }
+    })
+    return Promise.all(flushes)
+  }, [handleUpdateQuestion])
+
+  // Review finding on PR #734: the Back button's own onClick only caught
+  // one exit path -- a sidebar link, or any other in-app navigation,
+  // bypassed the flush entirely and lost the pending edit exactly as
+  // before. `useBlocker` intercepts every client-side navigation this
+  // data router dispatches, not just this one button's click handler.
+  // Unlike CreateNewInspection.tsx's blocker (which shows a real
+  // confirmation dialog, since it has nothing else to fall back on), this
+  // file already auto-saves -- so blocking navigation here is silent and
+  // automatic: flush, then proceed the instant the flush resolves, with
+  // no user-facing interruption, consistent with the rest of this file's
+  // "just saves in the background" design.
+  const saveBlocker = useBlocker(
+    () => Object.keys(saveTimeoutRef.current).length > 0
+  )
+  useEffect(() => {
+    if (saveBlocker.state === "blocked") {
+      flushPendingSaves().then(() => saveBlocker.proceed?.())
+    }
+  }, [saveBlocker, flushPendingSaves])
+
+  // quality-bar-loop (Inspections, round 56, industry-standards finding):
+  // the Back button now flushes pending saves before navigating, but a
+  // tab close/refresh/URL-bar navigation bypasses that entirely --
+  // `beforeunload` can't run async work reliably (the page may already be
+  // gone by the time a flush's network request would land), so the best
+  // available mitigation is the browser's own native "leave site?"
+  // confirmation, shown only while a save genuinely hasn't landed yet.
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (Object.keys(saveTimeoutRef.current).length === 0) return
+      e.preventDefault()
+      // Chrome (and the spec) ignore any custom string and show their own
+      // generic message; older browsers can use this returnValue.
+      e.returnValue = ""
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () =>
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [])
 
   // quality-bar-loop (Inspections, round 10, efficiency finding): each of
   // these four handlers used to read `answers[questionId]` directly from
@@ -1201,7 +1283,19 @@ export default function UpdateInspection() {
             narrow viewport instead of misaligning in place. */}
         <div className="mx-auto flex flex-wrap items-start justify-between gap-4 px-6 py-5">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate(-1)} className="h-11">
+            {/* quality-bar-loop (Inspections, round 56, industry-standards
+                finding): live-reproduced data loss -- typing an answer and
+                clicking Back within the 1s autosave debounce window
+                navigated away before the pending save ever fired, silently
+                discarding the edit with zero warning. The `saveBlocker`
+                above now intercepts this click the same as any other
+                navigation and flushes automatically, so this stays a
+                plain navigate(-1). */}
+            <Button
+              variant="ghost"
+              onClick={() => navigate(-1)}
+              className="h-11"
+            >
               <ArrowLeft className="mr-2 h-5 w-5" />{" "}
               {t("organization.inspection.back")}
             </Button>

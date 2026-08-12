@@ -2712,3 +2712,63 @@ verified in browser: simulated a real fetch failure (verified a benign
 GET passed through the patch first), confirmed the error state and
 Retry button render, restored fetch, clicked Retry, confirmed the
 query re-ran and rendered the correct post-recovery state.
+
+## Round 55 -- fresh 9-judge re-score
+
+First full panel since round 53, run after round 54 (PR #732) merged.
+
+| Axis | R51 | R53 | R55 | stuck_streak (into R56) | Note |
+|---|---|---|---|---|---|
+| Industry-standards | 8 | 8 | 8 | 0 (above floor) | round 54's type="button" fix confirmed genuinely closed, re-grepped all 4 files. **The remaining open finding (no discard-confirmation on exiting a partially-filled wizard) is now proven via a live end-to-end repro, not just missing-code inference**: typed a real edit into a real in-progress inspection, clicked Back, then re-fetched the record directly from the API and confirmed the edit was never persisted -- silent, unrecoverable data loss, unfixed since round 41 (14 rounds) |
+| UX | 8 | 8 | **9** | 0 (above floor) | round 54's Retry fix live-verified end-to-end: real fetch failure simulated, error state + Retry rendered, fetch restored, Retry clicked, query re-ran and resolved correctly through both an active-search and cleared-search state |
+| Efficiency | 7 | 8 | 8 | 0 (above floor) | unchanged. The new Retry button's re-click behavior traced through RTK Query's actual dispatch/condition logic and confirmed self-throttling (a second synchronous click is a no-op while the first request is still pending) -- not a defect. Both previously-open findings (useMyOrgRole's dual query, diverging useGetAllSitesQuery cache keys) still open, unchanged |
+| Accessibility | 7 | 9 | 9 | 0 (above floor) | unchanged, holding at the round-53 recovery. New Retry button confirmed to have a clear, real accessible name (visible text) and genuine keyboard reachability/activation. type="button" additions confirmed to leave every pre-existing aria-label untouched. Add Media/Add Finding naming collision still open, unchanged |
+| Visual polish | 9 | 9 | **8** | 0 (fresh regression, at/above floor) | **regression, caused by round 54's own new code.** The Retry button's `size="sm"` resolved to `h-6` (24px) with no height override, unlike every other actionable control on this page (Start New, bulk-toolbar buttons, row actions), all of which have carried an explicit `h-11` (44px) override since round 2 -- a visible inconsistency in button weight/size on the same page |
+| Resilience | 7 | 8 | 8 | 0 (above floor) | unchanged. Live-tested both the persistent-failure path (Retry clicked while the failure is still active correctly re-shows the error state, no stuck/blank state) and the recovery path (Retry against a real backend repopulates the table) -- both hold. Minor, non-scored observation: Retry has no `isFetching`-driven disabled/loading state, unlike this same file's delete/bulk-delete controls |
+| Code quality | 8 | 8 | 8 | 0 (above floor) | unchanged. The round-49 `onCloseAutoFocus` duplication (4 near-identical copies) confirmed still open, now 4 rounds past this codebase's own extraction threshold with no plan attached beyond "later." Round 54's own two changes (Retry button, type="button" batch) confirmed clean, idiomatic, and consistent with each file's existing conventions |
+| Mobile | 8 | 8 | **7** | 0 (fresh regression, at floor) | **regression, same root cause as visual polish's.** The Retry button measured 48.5x24px live at 375px -- well under the 44px target this loop established back in round 2 on this exact table's other controls. Touch-target findings (MediaThumbnail 48px/24px) and the false-positive `focus:` ring on canceling a file picker (first noted round 53) both re-confirmed still open, unchanged |
+| Security | 9 | 9 | 9 | 0 (above floor) | unchanged, confirmed clean. Round 54's diff read in full: 11 static attribute additions plus a Retry button that re-issues the page's own existing, already-authenticated query with zero new user-controllable input |
+
+**Average: 8.22/10** (down from round 53's 8.33 -- the first decrease
+in this rescore sequence, but not two consecutive rounds of decline,
+so the stagnation guardrail doesn't trip). **All 9 axes at or above
+floor** (mobile's drop to 7 lands exactly at floor, not below) -- the
+tiered guardrail does not stop the loop. Both regressions (visual
+polish, mobile) trace to the exact same cause: round 54's new Retry
+button not sized to this page's own established 44px convention.
+
+**Round 56 selection:** mechanically, no axis carries a nonzero
+`stuck_streak` and two axes regressed this round while staying at/above
+floor (visual polish, mobile) -- both from the identical root cause, so
+per the guardrail's own tiered priority this would normally be the
+pick: resize the Retry button to `h-11` to match its neighbors.
+
+That fix is real and is being shipped this round. But it is
+deliberately NOT the primary pick. The industry-standards judge's
+finding this round -- a live, end-to-end-proven silent loss of a real
+user's unsaved edit, not a theoretical gap -- is a materially more
+consequential bug than a button's height, even though industry-
+standards itself sits at 8/10 (above its floor, so the mechanical
+`data-correctness`-at-floor override doesn't technically fire). Judged
+on actual user harm rather than the mechanical formula alone: real
+field inspectors doing a walked physical checklist losing their
+answers to an un-warned accidental Back click is the single highest-
+value fix available this round, and it's fixed together with the
+button-height regression (file-disjoint, safe to batch) rather than
+delayed for a mechanically "correct" but lower-value pick.
+
+The fix is architecture-aware, not a single pattern copy-pasted
+across both files: `UpdateInspection.tsx` already auto-saves every
+answer via a 1s debounce (established round 18/44), so its fix flushes
+any pending debounced save before navigating, completing a save
+that's already committed to happening rather than bolting on a
+confirmation dialog that would fight the file's existing silent-
+autosave design. `CreateNewInspection.tsx` has nothing persisted until
+the final Submit, so it gets a real discard-confirmation dialog
+instead -- the two files' fixes are deliberately different because
+their underlying save models are different.
+
+Code quality's `onCloseAutoFocus` extraction (now 4 rounds overdue,
+crosses into 3 auth modals outside this feature) remains deliberately
+NOT batched -- its cross-feature blast radius still warrants its own
+dedicated round.
