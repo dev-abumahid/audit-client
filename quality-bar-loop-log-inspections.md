@@ -2670,3 +2670,45 @@ round's fix closes the finding for this feature specifically -- it is
 not evidence of a near-complete app-wide convention, and this log
 should not be read that way. The app-wide gap is real and large; out
 of scope for this loop, which is scoped to Inspections only.
+
+## Round 54 -- shipped, reviewed, merged
+
+Both fixes shipped together:
+
+1. `type="button"` added to all 11 remaining stray `<button>` elements
+   in this feature: `InspectionReport.tsx` (6: media-answer overlay,
+   media-thumbnail, related-action badge, download-PDF, sidebar
+   page-nav, lightbox close), `UploadNotesModal.tsx` (2: mode-select),
+   `CreateNewInspection.tsx` (1: sidebar page-nav),
+   `UpdateInspection.tsx` (2: attachment-remove, sidebar page-nav).
+2. `InspectionTable.tsx`'s load-failure state gained a real Retry
+   button wired to the query's own `refetch()`, replacing static text
+   with zero recovery affordance.
+
+Shipped as aexa-frontend PR
+[#732](https://github.com/Qiyrix/aexa-frontend/pull/732). Round-1
+review (2 parallel angles) found two real findings: (1)
+`InspectionReport.test.tsx`'s new sweep test used the default test
+fixture, which only mounted 2 of the 6 buttons this PR actually fixed
+-- rebuilt the fixture (a media-type question, an attached mediaFiles
+thumbnail, a legacy actions entry matching a question, then opening
+the lightbox) so the sweep genuinely exercises all 6; verified via a
+temporary wrong-count assertion that exactly 6 buttons mount, not
+fewer. (2) The log's "12 rounds, since round 41" framing read as if
+the type="button" convention was nearly complete app-wide; a full-tree
+scan found ~156 more instances across 43 other files -- corrected the
+log to scope the claim to this feature and flagged the app-wide gap as
+a separate task rather than silently overclaiming. Round 2 (diff
+scoped to the fix commit) came back clean, independently cross-checked
+the ~156/43 figure via a second grep heuristic (found ~193/67, same
+order of magnitude) and confirmed the fixture's data actually satisfies
+`InspectionReport.tsx`'s real rendering conditions (isHttpUrl,
+fileType resolution, actionsByQuestion's exact-match keying).
+
+Merged as aexa-frontend PR
+[#732](https://github.com/Qiyrix/aexa-frontend/pull/732). QA gate at
+merge: typecheck/lint clean, full suite 1871/1871 passing. Live-
+verified in browser: simulated a real fetch failure (verified a benign
+GET passed through the patch first), confirmed the error state and
+Retry button render, restored fetch, clicked Retry, confirmed the
+query re-ran and rendered the correct post-recovery state.
