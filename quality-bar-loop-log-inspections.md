@@ -2061,3 +2061,52 @@ code-quality fix if that axis is still below target then.
 
 Merged as aexa-frontend PR [#714](https://github.com/Qiyrix/aexa-frontend/pull/714). QA gate at merge: typecheck/lint
 clean, full suite 121 files / 1822 tests passing.
+
+## Round 42 -- fresh 9-judge re-score -- REGRESSION, loop paused
+
+Full panel re-run (round 40 -> round 42, round 41's PR #714 in between
+fixed 4 well-corroborated gaps: industry-standards's missing
+`type="button"`, efficiency's missing `skip: !open` on
+`UploadNotesModal`, resilience's missing fallback toast in the same
+file, and code-quality's hardcoded media type):
+
+| Axis | R38 | R40 | R42 | Note |
+|---|---|---|---|---|
+| Industry-standards | 7 | 7 | 7 | round-41 fix confirmed holding (all 6 `InspectionActions.tsx` buttons). New finding -- the identical `type="button"` gap is unaddressed in 12+ other buttons across sibling files in the same feature (`InspectionReport.tsx`, `UpdateInspection.tsx`, `CreateNewInspection.tsx`, `UploadNotesModal.tsx`); round 41 fixed the one file explicitly named, not the convention across the feature. Also flagged: no draft/autosave or discard-confirmation on exiting a partially-filled inspection |
+| UX | 7 | 7 | 7 | validator-drift gap (required checkbox/slider silently passes validation) confirmed still open, unchanged, not double-counted. Minor new observation: the required-field asterisk implies enforcement that doesn't exist for these two answer types, a silent-failure trap |
+| Efficiency | 7 | 7 | 7 | round-41 fix confirmed live (no note fetch until modal opens). The previously-noted `useMyOrgRole()` triple-query cost on every report view is now directly confirmed via live network trace (3 extra parallel queries just to gate one link's visibility) -- still open, unchanged |
+| Accessibility | 7 | 8 | 8 | unchanged. "Add Media" naming-collision gap confirmed still open via real keyboard Tab traversal (not double-counted). New observation, same root cause: "Add Finding" button has the identical unqualified-name problem, not previously scoped that broadly |
+| Visual polish | 8 | 8 | **7** | **regressed.** Round-41's new thumbnail rendering (video/document cases in `CreateNewInspection.tsx`) confirmed visually consistent with `UpdateInspection.tsx`'s precedent -- but round 41 only fixed the *mediaFiles thumbnail* rendering, not `CreateNewInspection.tsx`'s single "media"-question answer preview, which still unconditionally renders `<img>` for video/PDF answers. `UpdateInspection.tsx`'s equivalent single-answer preview already has full video/document parity. This leaves `CreateNewInspection.tsx` internally inconsistent -- attachment thumbnails are now type-aware, the primary answer preview still isn't |
+| Resilience | 7 | 8 | **7** | **regressed.** Round-41 fix (fallback toast on note-create failure) confirmed holding. New finding: `UploadNotesModal.tsx`'s "Extract note from file" upload path has no `accept` attribute and never calls the shared `validateInspectionFile()` helper every sibling upload flow in this feature uses (5MB cap + MIME allowlist) -- a bad/oversized file is only caught after a network round-trip, not client-side like everywhere else |
+| Code quality | 7 | 7 | 7 | round-41 fix confirmed correctly propagated (MIME branching matches `UpdateInspection.tsx` verbatim). New minor finding: the inline comment above the fix still describes the *old* bug ("hardcoded 'image'...") directly above code that no longer has that bug -- stale/misleading comment left behind by round 41. Duplication-extraction candidate (from round-41's PR review) confirmed still open, third occurrence |
+| Mobile | 8 | 8 | 8 | unchanged. Round-41's new video thumbnail (native `<video controls>` in a 48x48px box) has effectively no usable touch surface for its built-in controls -- not a fresh regression (mirrors code that already existed unchanged in `UpdateInspection.tsx`), but newly-exposed surface area in `CreateNewInspection.tsx`'s flow. Confirmed systemic: the 24x24px thumbnail remove-buttons (vs. this feature's own established 44x44px convention) recur a third time in `CreateNewFindingModal.tsx` |
+| Security | 9 | 9 | 9 | unchanged, confirmed clean. Both of round 41's new render sinks (`<video><source>`, `<a href>`) verified structurally gated by the same leading `isHttpUrl()` check as the existing `<img>` sink -- no regression |
+
+**Average: 7.44/10** (down from round 40's 7.67). **Two axes regressed
+between rounds (visual polish 8->7, resilience 8->7)** -- per this
+loop's own guardrails, an individual-axis drop between rounds trips the
+regression guardrail regardless of what the overall average does, and
+warrants pausing to diagnose rather than continuing to loop silently.
+
+**Diagnosis:** neither regression was caused by a bug *introduced* by
+round 41's shipped code -- both are pre-existing gaps that a differently-
+scoped round-40 judge pass didn't happen to surface, and that round 41's
+narrower fixes (each scoped to a single named finding) didn't happen to
+cover:
+- Visual polish's drop is really "round 41 fixed half of a duplicated
+  bug (thumbnails) and left the other half (single-answer preview)
+  unfixed," which reads as a fresh inconsistency once judged again,
+  even though the single-answer gap itself predates round 41.
+- Resilience's drop is a genuinely separate, previously-unflagged gap in
+  a file round 41 *did* touch for a different reason (the fallback-toast
+  fix), caught by this round's more thorough live file-upload probing.
+
+Neither is a case of a shipped fix quietly breaking something that used
+to work -- both are pre-existing gaps this round's panel happened to
+find. That distinction matters for how to respond, but doesn't change
+that the guardrail's literal condition (an axis score dropped between
+rounds) is met.
+
+Pausing the autonomous loop here per the skill's guardrail rules,
+escalating to Omar with this round's findings and a proposed round-42
+fix candidate rather than shipping another fix unilaterally.
