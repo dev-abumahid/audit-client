@@ -2568,3 +2568,56 @@ the `sr-only` "Add Media" file input's missing visible focus indicator,
 and add `aria-labelledby` on the focused question card pointing at its
 existing `question-label-{id}` element, closing the "nothing to
 announce" gap first flagged at round 49.
+
+
+## Round 52 -- shipped, reviewed, merged
+
+All three fixes shipped together in `CreateNewInspection.tsx`/
+`UpdateInspection.tsx`:
+
+1. Computed the actual rendered contrast against the real
+   `--destructive`/`--card` HSL tokens (OKLab->sRGB conversion,
+   cross-validated against a live-measured reference color) to find the
+   opacity needed to clear WCAG 1.4.11's 3:1 floor: `/70` for
+   `CreateNewInspection.tsx`'s ring-only Card in both themes (was
+   `/20`/`/40`, ~1.4:1), and `/70` for `UpdateInspection.tsx`'s
+   dark-mode border+ring pairing specifically (was `/50`/`/40`,
+   ~2.3:1/~1.9:1) -- its light mode was left unchanged, since the
+   full-opacity border alone already clears 3:1 there.
+2. Both files' `QuestionCard` gained `aria-labelledby` pointing at the
+   sibling `question-label-{id}` element already holding the question
+   text.
+3. The `sr-only` "Add Media" file inputs (4 instances across both
+   files) gained `peer`, with their sibling Button gaining
+   `peer-focus-visible:ring-2 peer-focus-visible:ring-ring/30` -- the
+   JSX order had to swap (input before Button) since Tailwind's `peer-*`
+   selector only reaches later siblings. The one input with no separate
+   Button sibling (`UpdateInspection.tsx`'s inspection-level attachment
+   upload) used `has-[:focus-visible]:ring-2` on its wrapping label
+   directly instead.
+
+Shipped as aexa-frontend PR
+[#730](https://github.com/Qiyrix/aexa-frontend/pull/730). Round-1
+review (2 parallel angles, explicitly instructed read-only git commands
+after an earlier round's review agent mistakenly ran a broad
+`git checkout <branch> -- .`) found no defects in the diff itself, but
+the cross-file angle surfaced that `UploadNotesModal.tsx`'s dropzone
+input has the exact same `sr-only`-clips-focus-ring gap this PR had
+just fixed for the structurally identical `UpdateInspection.tsx`
+attachment upload -- same feature, same bug class, same
+`has-[:focus-visible]` fix already in hand. Fixed in the same round
+rather than deferred. Also noted (not a defect, no action taken): the
+new `/70` opacity value is a third ad-hoc contrast tier alongside the
+existing `/20`+`/40` convention, with no shared design-token
+documenting it as sanctioned for reuse -- a legitimate one-off given
+these Cards' sole-visual-indicator situation, worth a design-system
+doc note in some future round but not blocking. Round 2 (diff scoped
+to the `UploadNotesModal.tsx` fix commit) came back clean.
+
+Merged as aexa-frontend PR
+[#730](https://github.com/Qiyrix/aexa-frontend/pull/730). QA gate at
+merge: typecheck/lint clean, full suite 1866/1866 passing. Live-
+verified in browser: all three question cards on a real inspection
+have `aria-labelledby` resolving to their real question text, the
+`/70` classes render, and `peer-focus-visible:ring-2` is present on
+the Add Media button's computed sibling classes.
