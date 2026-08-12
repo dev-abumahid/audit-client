@@ -330,7 +330,8 @@ describe("CreateNewInspection", () => {
 
     expect(mockCreateInspection).not.toHaveBeenCalled()
     expect(mockToastError).toHaveBeenCalledWith(
-      'Please answer the required question: "Describe the hazard"'
+      'Please answer the required question: "Describe the hazard"',
+      { position: "top-center" }
     )
   })
 
@@ -372,7 +373,8 @@ describe("CreateNewInspection", () => {
 
     expect(mockCreateInspection).not.toHaveBeenCalled()
     expect(mockToastError).toHaveBeenCalledWith(
-      'Please answer the required question: "Fire extinguisher present?"'
+      'Please answer the required question: "Fire extinguisher present?"',
+      { position: "top-center" }
     )
   })
 
@@ -452,7 +454,8 @@ describe("CreateNewInspection", () => {
 
     expect(mockCreateInspection).not.toHaveBeenCalled()
     expect(mockToastError).toHaveBeenCalledWith(
-      'Please answer the required question: "Rate overall safety"'
+      'Please answer the required question: "Rate overall safety"',
+      { position: "top-center" }
     )
   })
 
@@ -525,11 +528,15 @@ describe("CreateNewInspection", () => {
 
     expect(mockCreateInspection).not.toHaveBeenCalled()
     expect(mockToastError).toHaveBeenCalledWith(
-      'Please answer the required question: "Describe the hazard"'
+      'Please answer the required question: "Describe the hazard"',
+      { position: "top-center" }
     )
     // The missing required question is on page index 0 ("Hazards"), not the
     // currently-visible last page -- scrollToPage should jump back to it.
     expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1)
+    // quality-bar-loop (Inspections, round 48, UX finding): scrolling isn't
+    // enough on its own -- focus should land on the actual question card too.
+    expect(document.activeElement?.id).toBe("question-card-q-6")
   })
 
   // Superseded by round 46's fix: a required checkbox/slider left at its

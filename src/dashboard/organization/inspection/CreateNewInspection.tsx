@@ -263,7 +263,16 @@ const QuestionCard = memo(
     }
 
     return (
-      <Card className="p-6">
+      // quality-bar-loop (Inspections, round 48, UX finding): the missing-
+      // required-question error already named the question and scrolled its
+      // page into view, but never moved focus there -- id + tabIndex={-1}
+      // lets handleSubmit call .focus() on the actual card after scrolling,
+      // same anchor for every answer type (not just checkbox/slider).
+      <Card
+        id={`question-card-${question.id}`}
+        tabIndex={-1}
+        className="p-6 focus:ring-2 focus:ring-destructive focus:outline-none"
+      >
         <div className="mb-4 flex justify-between">
           <p
             id={`question-label-${question.id}`}
@@ -572,18 +581,30 @@ export default function CreateNewInspection() {
 
   const handleSubmit = async () => {
     if (!templateId || !siteId) {
-      toast.error(t("organization.inspection.missingInfoToast"))
+      toast.error(t("organization.inspection.missingInfoToast"), {
+        position: "top-center",
+      })
       return
     }
 
     const missingRequired = findFirstMissingRequiredQuestion()
     if (missingRequired) {
+      // quality-bar-loop (Inspections, round 48, mobile finding): the
+      // default bottom-anchored toast position fully covered this page's
+      // sticky bottom Submit button at mobile widths, hiding the exact
+      // control the toast was telling the user to use next. This is the
+      // only page in the feature with a sticky bottom action bar, so the
+      // override is scoped to this call rather than changed globally.
       toast.error(
         t("organization.inspection.requiredAnswerMissingToast", {
           question: missingRequired.question.question,
-        })
+        }),
+        { position: "top-center" }
       )
       scrollToPage(missingRequired.pageIndex)
+      document
+        .getElementById(`question-card-${missingRequired.question.id}`)
+        ?.focus()
       return
     }
 

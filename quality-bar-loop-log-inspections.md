@@ -2323,3 +2323,39 @@ Merged as aexa-frontend PR
 [#724](https://github.com/Qiyrix/aexa-frontend/pull/724). QA gate at
 merge: typecheck/lint clean, full suite passing (83/83 in the two
 touched test files, no regressions elsewhere).
+
+## Round 47 -- fresh 9-judge re-score
+
+First full panel since round 44, run entirely with live browser
+verification per judge, after round 46 (PR #724) merged.
+
+| Axis | R42 | R44 | R47 | stuck_streak (into R48) | Note |
+|---|---|---|---|---|---|
+| Industry-standards | 7 | 7 | **8** | 0 (streak broken) | **the round-44 stuck axis finally moved.** Live-verified end-to-end: a fresh required checkbox/slider left at its default now correctly blocks submission (`Please answer the required question: "..."`), touching it correctly allows submission. Two of round 44's three open findings remain untouched: `type="button"` missing on 11 buttons across 4 files, and no draft/discard-confirmation on exiting a partially-filled wizard. New observation (not scored as a regression): no pre-submit review/summary screen, unlike SafetyCulture/GoCanvas |
+| UX | 7 | 7 | **7** | **5** (now the longest-stuck axis) | unchanged average, but the underlying finding actually *changed*: the old validator-drift bug is confirmed fixed and live-verified, but round 46's fix introduced an asymmetric gap -- `CreateNewInspection.tsx`'s submit path names the missing question and scrolls to its page; `UpdateInspection.tsx`'s completion gate (the more common real-world path, editing an in-progress inspection) only shows a bare unanswered-count toast with no question name, no scroll, no focus. A screen-reader/keyboard/mobile user has no way to locate the flagged field on the more-used path |
+| Efficiency | 7 | 7 | 7 | 4 | unchanged. `useMyOrgRole()`/`useMyAssignedInspectionIds()` triple-query cost re-confirmed via live network trace, still unpaginated. Round 46's new `touchedQuestionIds` Set confirmed non-issue at scale: both files guard the copy with `if (prev.has(id)) return prev` before `new Set(prev)`, so a slider drag's continuous `onChange` doesn't copy the Set on every event, and the state isn't in `QuestionCard`'s memo-defeating prop path |
+| Accessibility | 8 | 8 | 8 | 0 (above floor) | unchanged. Add Media/Add Finding naming collision still open. Round 46's validation error is announced via Sonner's `aria-live="polite"` region but not focus-managed -- same underlying gap as the UX finding above, different axis's lens on it |
+| Visual polish | 7/9 | **9** | 9 | 0 (above floor) | holding at its round-44 high, no regression. New minor finding: `MediaThumbnail.tsx`'s `thumbnail` variant renders a native `<video controls>` inside a 48x48px box -- browser controls crushed at that size (image/document thumbnails unaffected) |
+| Resilience | 7 | **8** | 8 | 0 (above floor) | holding. `CreateNewFindingModal.tsx`'s still-missing `validateInspectionFile()` call (round 44) confirmed still open, unfixed, now 3 rounds running. Round 46's load-time pre-population confirmed to degrade safely against malformed/empty `qa.answer` shapes -- no throw, defaults to the safe (blocking) direction |
+| Code quality | 7 | **6** | **8** | 0 (streak broken, cleared past its pre-regression high) | round 45's `MediaThumbnail` extraction confirmed still holding, not re-duplicated. Round 46's small `touchedQuestionIds` marking-snippet duplication (~6 lines, byte-identical in both files) noted as a legitimate small extraction opportunity but explicitly judged not a repeat of round 44's ~300-line regression pattern -- the surrounding required-field-gate logic has genuinely diverged in shape between the two files |
+| Mobile | 8 | 8 | 8 | 0 (above floor) | unchanged known gaps (48x48px thumbnail touch targets) confirmed still open. New finding, directly caused by round 46: at 375px the validation-error toast fully visually overlaps the sticky Submit button right when the user needs to act on it (still technically clickable underneath, confirmed via `elementFromPoint`, but a real UX gap) |
+| Security | 9 | 9 | 9 | 0 (above floor) | unchanged, confirmed clean. Round 46's diff introduces no new render sinks, no new user-input-to-sink path; every prior guard (`isHttpUrl`, server-side MIME allowlist) re-verified still in place |
+
+**Average: 8.11/10** (up from round 44's 7.67 -- the highest this loop
+has reached). **All 9 axes clear their floor. No regression of any
+kind this round** (industry-standards and code quality both improved;
+every other axis held steady). Not converged (target 9) -- continuing
+the loop.
+
+**Round 48 selection, per the redesigned stuck_streak-based priority
+order:** no data-correctness/security finding at-or-below floor exists
+this round (industry-standards' remaining findings are both
+cosmetic/convention-tagged). UX now carries the longest `stuck_streak`
+(5, having inherited the position industry-standards held through
+round 44) and wins selection on that basis. Fix: bring
+`UpdateInspection.tsx`'s completion-gate error surfacing up to parity
+with `CreateNewInspection.tsx`'s (name the missing question, scroll to
+it, move focus). Batched alongside it: mobile's round-46-caused
+toast/submit-button overlap on `CreateNewInspection.tsx` -- same tier
+(contained UI fix), disjoint file from the UX fix, so it qualifies for
+the same round under the batching rule.

@@ -305,7 +305,16 @@ const QuestionCard = memo(
     }
 
     return (
-      <Card className="rounded-xl border border-border bg-card p-6">
+      // quality-bar-loop (Inspections, round 48, UX finding): same anchor
+      // pattern as CreateNewInspection.tsx's QuestionCard -- lets
+      // handleStatusChange focus the actual offending card after scrolling,
+      // bringing this file's completion-gate error surfacing up to parity
+      // with the create flow's submit-gate error surfacing.
+      <Card
+        id={`question-card-${question.id}`}
+        tabIndex={-1}
+        className="rounded-xl border border-border bg-card p-6 focus:ring-2 focus:ring-destructive focus:outline-none"
+      >
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <p
@@ -508,6 +517,10 @@ export default function UpdateInspection() {
   const isMutatingAttachments = isUploadingAttachment || removingAttachmentUrl !== null
   const pageRefs = useRef<(HTMLDivElement | null)[]>([])
   const initialized = useRef(false)
+  // quality-bar-loop (Inspections, round 48): id of the question card to
+  // focus once the status dropdown's own close-focus-restore is redirected
+  // -- see DropdownMenuContent's onCloseAutoFocus and handleStatusChange.
+  const pendingFocusIdRef = useRef<string | null>(null)
   const [isAnswerMediaUploading, setIsAnswerMediaUploading] = useState<
     string | null
   >(null)
@@ -846,27 +859,48 @@ export default function UpdateInspection() {
     // unaffected). Every other answer type's blank default genuinely is
     // `""`, so their existing value-based check is untouched.
     if (newStatus === "COMPLETED") {
-      const unansweredRequiredCount = pages.reduce((count: number, page: any) => {
-        const pageQuestions = page.questions ?? []
-        return (
-          count +
-          pageQuestions.filter((q: any) => {
-            if (!q.isRequired) return false
-            if (q.answerType === "checkbox" || q.answerType === "slider") {
-              return !touchedQuestionIds.has(q.id)
-            }
-            const answer = answersRef.current[q.id]?.answer
-            return answer === "" || answer == null
-          }).length
-        )
-      }, 0)
+      // quality-bar-loop (Inspections, round 48, UX finding): this used to
+      // only report a bare count, unlike CreateNewInspection.tsx's submit
+      // gate which names the missing question, scrolls to it, and focuses
+      // it -- editing an existing inspection is the more common real-world
+      // completion path, so it deserves at least the same guidance. Still
+      // reports the full count (more informative here than the create
+      // flow's single-question toast, since a user completing an inspection
+      // may have several pages to revisit), but now also names and
+      // navigates to the first one.
+      const missingByPage: { pageIndex: number; question: any }[][] =
+        pages.map((page: any, pageIndex: number) => {
+          const pageQuestions = page.questions ?? []
+          return pageQuestions
+            .filter((q: any) => {
+              if (!q.isRequired) return false
+              if (q.answerType === "checkbox" || q.answerType === "slider") {
+                return !touchedQuestionIds.has(q.id)
+              }
+              const answer = answersRef.current[q.id]?.answer
+              return answer === "" || answer == null
+            })
+            .map((question: any) => ({ pageIndex, question }))
+        })
+      const missing = missingByPage.flat()
+      const unansweredRequiredCount = missing.length
 
       if (unansweredRequiredCount > 0) {
+        const { pageIndex, question } = missing[0]
         toast.error(
           t("organization.inspection.cannotCompleteRequiredUnanswered", {
             count: unansweredRequiredCount,
+            question: question.question,
           })
         )
+        scrollToPage(pageIndex)
+        // "Completed" is picked from a Radix dropdown menu, unlike
+        // CreateNewInspection.tsx's plain Submit button -- Radix returns
+        // focus to the dropdown trigger when the menu closes, which would
+        // otherwise override a direct .focus() call here. Stash the target
+        // and let the DropdownMenuContent's onCloseAutoFocus redirect
+        // Radix's own restore instead of racing it.
+        pendingFocusIdRef.current = `question-card-${question.id}`
         return
       }
     }
@@ -1213,7 +1247,34 @@ export default function UpdateInspection() {
                       )}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
+                  <DropdownMenuContent
+                    align="start"
+                    // quality-bar-loop (Inspections, round 48, UX finding):
+                    // Radix returns focus to this dropdown's own trigger
+                    // when it closes, which would otherwise unconditionally
+                    // override handleStatusChange's focus-the-missing-
+                    // question call below (that call runs synchronously
+                    // inside the same click, before Radix's close-focus
+                    // effect fires). Redirect Radix's own restore instead
+                    // of racing a timeout against it.
+                    onCloseAutoFocus={(e) => {
+                      // Review finding on PR #726: only override Radix's
+                      // default restoration once the target actually
+                      // exists -- same guard as SignInModal.tsx's identical
+                      // pattern (aexa-frontend#477). If the id lookup ever
+                      // misses (stale ref, DOM change), fall through and let
+                      // Radix's own restore run rather than silently
+                      // dropping focus.
+                      const target = pendingFocusIdRef.current
+                        ? document.getElementById(pendingFocusIdRef.current)
+                        : null
+                      if (target) {
+                        e.preventDefault()
+                        target.focus()
+                      }
+                      pendingFocusIdRef.current = null
+                    }}
+                  >
                     <DropdownMenuItem
                       onClick={() => handleStatusChange("IN_PROGRESS")}
                     >

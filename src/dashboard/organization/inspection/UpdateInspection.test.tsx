@@ -16,7 +16,41 @@ import UpdateInspection from "./UpdateInspection"
 // #549 fix).
 const withRouter = { wrapper: MemoryRouter }
 
+// jsdom has no scrollIntoView; round 48's completion-gate fix now calls
+// scrollToPage the same way CreateNewInspection.tsx's submit gate already
+// did (see that file's test for the identical polyfill).
+HTMLElement.prototype.scrollIntoView = vi.fn()
+
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+
+// `t()` just echoes the raw key back in this uninitialized test environment,
+// which would normally swallow round 48's new `count`/`question` params on
+// "cannotCompleteRequiredUnanswered" -- special-case just that one key to
+// interpolate it, same pattern as CreateNewInspection.test.tsx's
+// "requiredAnswerMissingToast" mock, so the multi-page test below can
+// actually assert the computed count and first-question ordering instead of
+// both being indistinguishable from the raw key.
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  return {
+    ...mod,
+    useTranslation: () => {
+      const real = mod.useTranslation()
+      return {
+        ...real,
+        t: (key: string, params?: Record<string, unknown>) => {
+          if (
+            key === "organization.inspection.cannotCompleteRequiredUnanswered" &&
+            params?.question !== undefined
+          ) {
+            return `Cannot mark as Completed: ${params.count} required question(s) still unanswered, starting with "${params.question}"`
+          }
+          return real.t(key)
+        },
+      }
+    },
+  }
+})
 
 class MockIntersectionObserver {
   observe = vi.fn()
@@ -894,7 +928,7 @@ describe("UpdateInspection", () => {
 
     expect(mockUpdateInspection).not.toHaveBeenCalled()
     expect(toast.error).toHaveBeenCalledWith(
-      "organization.inspection.cannotCompleteRequiredUnanswered"
+      'Cannot mark as Completed: 1 required question(s) still unanswered, starting with "Notes on condition"'
     )
   })
 
@@ -937,7 +971,130 @@ describe("UpdateInspection", () => {
 
     expect(mockUpdateInspection).not.toHaveBeenCalled()
     expect(toast.error).toHaveBeenCalledWith(
-      "organization.inspection.cannotCompleteRequiredUnanswered"
+      'Cannot mark as Completed: 1 required question(s) still unanswered, starting with "Extinguisher present?"'
+    )
+  })
+
+  // quality-bar-loop (Inspections, round 48, UX finding): this gate used to
+  // only report a bare count with no way to locate the offending question --
+  // an asymmetric gap relative to CreateNewInspection.tsx's submit gate,
+  // which always named the question and scrolled to it. Now both scroll and
+  // focus land on the actual question, same as the create flow.
+  it("scrolls to and focuses the first unanswered required question when completion is blocked", async () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-1",
+                    question: "Extinguisher present?",
+                    answerType: "checkbox",
+                    isRequired: true,
+                  },
+                ],
+              },
+            ],
+          },
+          // No questionAnswers entry for q-1 -- genuinely never touched.
+          questionAnswers: [],
+        }),
+      },
+      isLoading: false,
+    })
+    mockUpdateInspection.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+    render(<UpdateInspection />, withRouter)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.inspection\.statusInProgress/i,
+      })
+    )
+    await userEvent.click(
+      await screen.findByText("organization.inspection.statusCompleted")
+    )
+
+    expect(mockUpdateInspection).not.toHaveBeenCalled()
+    expect(
+      (HTMLElement.prototype.scrollIntoView as ReturnType<typeof vi.fn>)
+    ).toHaveBeenCalled()
+    // Deferred past the dropdown menu's own focus-return -- see the code
+    // comment on handleStatusChange for why this can't be synchronous here.
+    await waitFor(() =>
+      expect(document.activeElement?.id).toBe("question-card-q-1")
+    )
+  })
+
+  // Review finding on PR #726: the reduce->map/flat refactor needed a test
+  // with missing required questions spread across *multiple* pages, to
+  // confirm the total count still accumulates correctly (not just the
+  // first match) and that missing[0] resolves to the first page's question
+  // in document order, not an arbitrary one.
+  it("counts every missing required question across pages, and targets the first one in page order", async () => {
+    const toast = (await import("sonner")).toast
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: {
+        data: makeInspection({
+          template: {
+            templateName: "Fire Safety Audit",
+            pages: [
+              {
+                title: "Hazards",
+                questions: [
+                  {
+                    id: "q-6",
+                    question: "Describe the hazard",
+                    answerType: "input",
+                    isRequired: true,
+                  },
+                ],
+              },
+              {
+                title: "General",
+                questions: [
+                  {
+                    id: "q-1",
+                    question: "Extinguisher present?",
+                    answerType: "checkbox",
+                    isRequired: true,
+                  },
+                ],
+              },
+            ],
+          },
+          // Neither q-6 (page 0) nor q-1 (page 1) has a persisted answer --
+          // both genuinely unanswered, on two different pages.
+          questionAnswers: [],
+        }),
+      },
+      isLoading: false,
+    })
+    mockUpdateInspection.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+    render(<UpdateInspection />, withRouter)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.inspection\.statusInProgress/i,
+      })
+    )
+    await userEvent.click(
+      await screen.findByText("organization.inspection.statusCompleted")
+    )
+
+    expect(mockUpdateInspection).not.toHaveBeenCalled()
+    // count reflects BOTH missing questions, not just the first found.
+    expect(toast.error).toHaveBeenCalledWith(
+      'Cannot mark as Completed: 2 required question(s) still unanswered, starting with "Describe the hazard"'
+    )
+    // and focus/scroll target page 0's question ("Describe the hazard"),
+    // not page 1's ("Extinguisher present?") -- proving .flat() preserved
+    // page order rather than picking an arbitrary match.
+    await waitFor(() =>
+      expect(document.activeElement?.id).toBe("question-card-q-6")
     )
   })
 
