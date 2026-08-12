@@ -1029,6 +1029,92 @@ describe("UpdateInspection", () => {
     )
   })
 
+  // quality-bar-loop (Inspections, round 52, accessibility finding): same
+  // fix as CreateNewInspection.tsx's identical gap -- a screen reader
+  // landing on the focused card via round 48's mechanism previously had
+  // nothing to announce.
+  it("gives every question card an aria-labelledby that resolves to its own question text", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    const card = document.getElementById("question-card-q-1")!
+    const labelId = card.getAttribute("aria-labelledby")
+    expect(labelId).toBe("question-label-q-1")
+    expect(document.getElementById(labelId!)?.textContent).toContain(
+      "Extinguisher present?"
+    )
+  })
+
+  // quality-bar-loop (Inspections, round 52, accessibility finding): in
+  // dark mode neither round 50's `border/50` nor `ring/40` cleared WCAG
+  // 1.4.11's 3:1 non-text-contrast floor (computed against the real
+  // --destructive/--card tokens); both bumped to `/70`. Negative control:
+  // asserts the fixed dark-mode values are present, not the under-contrast
+  // ones round 50 shipped. Light mode is untouched (the full-opacity
+  // border alone already clears 3:1 there).
+  it("uses contrast-safe dark-mode border/ring opacity on the focused question card", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    const card = document.getElementById("question-card-q-1")!
+    expect(card.className).toContain("dark:focus:border-destructive/70")
+    expect(card.className).toContain("dark:focus:ring-destructive/70")
+    expect(card.className).not.toContain("dark:focus:border-destructive/50")
+    expect(card.className).not.toContain("dark:focus:ring-destructive/40")
+  })
+
+  // quality-bar-loop (Inspections, round 52, accessibility finding): same
+  // fix as CreateNewInspection.tsx's identical gap -- `sr-only` clips the
+  // file input's own focus ring, leaving keyboard focus reachable but
+  // visually invisible (WCAG 2.4.7).
+  it("gives the sr-only Add Media file input's visible sibling Button a peer-focus-visible ring", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    const externalMediaInput = document.querySelector(
+      'input[id^="update-external-media-"]'
+    )!
+    expect(externalMediaInput.className).toContain("peer")
+
+    // Button uses `asChild`, so its actual DOM node is the <span> it wraps,
+    // not a real <button> -- select the peer's next sibling directly.
+    const visibleControl = externalMediaInput.nextElementSibling!
+    expect(visibleControl.className).toContain("peer-focus-visible:ring-2")
+  })
+
+  // quality-bar-loop (Inspections, round 52, accessibility finding): the
+  // inspection-level attachment upload input isn't wrapped by a separate
+  // Button sibling (its label wraps the visible content directly), so it
+  // uses `has-[:focus-visible]` on the label instead of the `peer` pattern
+  // used by the other file inputs in this file.
+  it("gives the attachment-upload label a focus-visible ring via has-[:focus-visible]", () => {
+    mockUseGetSingleInspectionQuery.mockReturnValue({
+      data: { data: makeInspection() },
+      isLoading: false,
+    })
+
+    render(<UpdateInspection />, withRouter)
+
+    const attachmentInput = screen.getByText(
+      "organization.inspection.uploadFile"
+    ).closest("label")!.querySelector('input[type="file"]')!
+    expect(attachmentInput.closest("label")!.className).toContain(
+      "has-[:focus-visible]:ring-2"
+    )
+  })
+
   // Review finding on PR #726: the reduce->map/flat refactor needed a test
   // with missing required questions spread across *multiple* pages, to
   // confirm the total count still accumulates correctly (not just the

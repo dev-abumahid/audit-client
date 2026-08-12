@@ -207,16 +207,6 @@ const QuestionCard = memo(
                 />
               ) : (
                 <label htmlFor={`dropzone-file-${question.id}`}>
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="flex w-full cursor-pointer items-center gap-2 py-6"
-                  >
-                    <span>
-                      <CloudUpload className="h-5 w-5" />
-                      {t("organization.inspection.uploadMediaDocuments")}
-                    </span>
-                  </Button>
                   <input
                     onChange={(e) => {
                       const file = (e.target as HTMLInputElement)?.files?.[0]
@@ -237,8 +227,26 @@ const QuestionCard = memo(
                     // Tab reaches it and Enter/Space opens the native file
                     // picker (a real `<input type="file">`'s own built-in
                     // keyboard behavior).
-                    className="sr-only"
+                    //
+                    // quality-bar-loop (Inspections, round 52, accessibility
+                    // finding): `sr-only` clips the input to 1x1px, so a
+                    // focus ring on the input itself would never render --
+                    // this left keyboard focus with NO visible indicator at
+                    // all (WCAG 2.4.7), reachable but invisible. `peer`
+                    // lets the sibling Button (the actual visible control)
+                    // react to this input's focus state instead.
+                    className="peer sr-only"
                   />
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="flex w-full cursor-pointer items-center gap-2 py-6 peer-focus-visible:ring-2 peer-focus-visible:ring-ring/30 peer-focus-visible:outline-none"
+                  >
+                    <span>
+                      <CloudUpload className="h-5 w-5" />
+                      {t("organization.inspection.uploadMediaDocuments")}
+                    </span>
+                  </Button>
                 </label>
               )}
             </>
@@ -271,6 +279,13 @@ const QuestionCard = memo(
       <Card
         id={`question-card-${question.id}`}
         tabIndex={-1}
+        // quality-bar-loop (Inspections, round 52, accessibility finding):
+        // programmatic .focus() on this card previously had nothing to
+        // announce -- no role/aria-label pointed at why a screen reader
+        // landed here. aria-labelledby reuses the sibling <p>'s existing id
+        // (already the accessible name source for this question's own
+        // answer input) so a copy edit in one place stays in sync.
+        aria-labelledby={`question-label-${question.id}`}
         // quality-bar-loop (Inspections, round 50, visual-polish finding):
         // round 48 shipped this at full ring opacity, visibly harsher than
         // every other error indicator in the design system, which pairs
@@ -280,6 +295,18 @@ const QuestionCard = memo(
         // (only its default `ring-1 ring-foreground/10`), so match the
         // opacity convention on the ring alone rather than bolting on an
         // unrelated border.
+        //
+        // quality-bar-loop (Inspections, round 52, accessibility finding):
+        // round 50's `/20`/`/40` values matched the *convention*, but this
+        // Card has no border to share the burden with -- the ring is its
+        // ONLY error indicator, and at that opacity it computed to ~1.4:1
+        // against the white card background (measured via the actual
+        // --destructive/--card HSL tokens), well under WCAG 1.4.11's 3:1
+        // non-text-contrast floor. `/70` computes to ~4.6:1 in light mode
+        // and clears 3:1 in dark mode too -- still visibly softer than
+        // round 48's full-opacity original (a real contrast/harshness
+        // trade-off, resolved in contrast's favor since this ring is this
+        // card's sole visual error signal, not a supplementary one).
         //
         // quality-bar-loop (Inspections, round 50, mobile finding): this
         // page's `sticky top-0` header can reach ~129px tall at the 375px
@@ -292,7 +319,7 @@ const QuestionCard = memo(
         // respect, with headroom beyond the 375px-measured height for a
         // narrower device (e.g. 320px) wrapping the header's page-count
         // badge onto its own row as well.
-        className="scroll-mt-40 p-6 focus:ring-2 focus:ring-destructive/20 focus:outline-none dark:focus:ring-destructive/40"
+        className="scroll-mt-40 p-6 focus:ring-2 focus:ring-destructive/70 focus:outline-none dark:focus:ring-destructive/70"
       >
         <div className="mb-4 flex justify-between">
           <p
@@ -377,12 +404,6 @@ const QuestionCard = memo(
             </p>
           ) : (
             <label htmlFor={`external-media-${question.id}`}>
-              <Button asChild variant="outline" size="sm" className="h-11">
-                <span>
-                  <CloudUpload className="mr-2 h-4 w-4" />
-                  {t("organization.inspection.addMedia")}
-                </span>
-              </Button>
               <input
                 onChange={(e) => {
                   const files = (e.target as HTMLInputElement)?.files
@@ -396,9 +417,23 @@ const QuestionCard = memo(
                 multiple
                 accept="image/*,video/*,application/pdf"
                 // quality-bar-loop round 7 (accessibility) -- see the
-                // comment on the other file input in this file.
-                className="sr-only"
+                // comment on the other file input in this file. `peer` --
+                // round 52's accessibility fix, same file -- lets the
+                // sibling Button react to this input's focus state, since
+                // `sr-only` clips any focus ring on the input itself.
+                className="peer sr-only"
               />
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-11 peer-focus-visible:ring-2 peer-focus-visible:ring-ring/30 peer-focus-visible:outline-none"
+              >
+                <span>
+                  <CloudUpload className="mr-2 h-4 w-4" />
+                  {t("organization.inspection.addMedia")}
+                </span>
+              </Button>
             </label>
           )}
         </div>

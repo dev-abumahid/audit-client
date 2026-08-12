@@ -539,6 +539,72 @@ describe("CreateNewInspection", () => {
     expect(document.activeElement?.id).toBe("question-card-q-6")
   })
 
+  // quality-bar-loop (Inspections, round 52, accessibility finding): a
+  // screen reader landing on the focused question card via round 48's
+  // mechanism previously had nothing to announce -- no role/aria-label
+  // pointed at why it was focused. aria-labelledby must resolve to the
+  // real question text, not just be present.
+  it("gives every question card an aria-labelledby that resolves to its own question text", () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+
+    const card = document.getElementById("question-card-q-1")!
+    const labelId = card.getAttribute("aria-labelledby")
+    expect(labelId).toBe("question-label-q-1")
+    expect(document.getElementById(labelId!)?.textContent).toContain(
+      "Extinguisher present?"
+    )
+  })
+
+  // quality-bar-loop (Inspections, round 52, accessibility finding):
+  // round 50's `/20`/`/40` ring opacity matched this app's design-system
+  // convention, but this Card has no border to share the contrast burden
+  // with -- computed against the real --destructive/--card tokens, `/20`
+  // landed at ~1.4:1, under WCAG 1.4.11's 3:1 non-text-contrast floor.
+  // Negative control: asserts the fixed `/70` value is present, not the
+  // under-contrast `/20`/`/40` values round 50 shipped.
+  it("uses a contrast-safe ring opacity on the focused question card, not round 50's under-contrast values", () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+
+    const card = document.getElementById("question-card-q-1")!
+    expect(card.className).toContain("ring-destructive/70")
+    expect(card.className).not.toContain("ring-destructive/20")
+    expect(card.className).not.toContain("ring-destructive/40")
+  })
+
+  // quality-bar-loop (Inspections, round 52, accessibility finding):
+  // `sr-only` clips the file input's own focus ring to 1x1px, leaving
+  // keyboard focus reachable (round 7's fix) but visually invisible
+  // (WCAG 2.4.7). The `peer`/`peer-focus-visible:` pairing lets the
+  // visible sibling Button react to the hidden input's focus state.
+  it("gives the sr-only Add Media file input's visible sibling Button a peer-focus-visible ring", () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: { data: makeTemplate() },
+      isLoading: false,
+    })
+
+    render(<CreateNewInspection />)
+
+    const externalMediaInput = document.querySelector(
+      'input[id^="external-media-"]'
+    )!
+    expect(externalMediaInput.className).toContain("peer")
+
+    // Button uses `asChild`, so its actual DOM node is the <span> it wraps,
+    // not a real <button> -- select the peer's next sibling directly.
+    const visibleControl = externalMediaInput.nextElementSibling!
+    expect(visibleControl.className).toContain("peer-focus-visible:ring-2")
+  })
+
   // Superseded by round 46's fix: a required checkbox/slider left at its
   // default (unset) value now correctly blocks submission -- see "blocks
   // submission when a required checkbox/slider is left untouched" above.

@@ -246,16 +246,6 @@ const QuestionCard = memo(
                 />
               ) : (
                 <label htmlFor={`dropzone-file-${question.id}`}>
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="flex w-full cursor-pointer items-center gap-2 py-6"
-                  >
-                    <span>
-                      <CloudUpload className="h-5 w-5" />
-                      {t("organization.inspection.uploadMediaDocuments")}
-                    </span>
-                  </Button>
                   <input
                     onChange={(e) => {
                       const file = (e.target as HTMLInputElement)?.files?.[0]
@@ -276,8 +266,25 @@ const QuestionCard = memo(
                     // Tab reaches it and Enter/Space opens the native file
                     // picker (a real `<input type="file">`'s own built-in
                     // keyboard behavior).
-                    className="sr-only"
+                    //
+                    // quality-bar-loop (Inspections, round 52, accessibility
+                    // finding): same fix as CreateNewInspection.tsx's
+                    // identical control -- `sr-only` clips any focus ring on
+                    // the input itself, leaving keyboard focus reachable but
+                    // invisible (WCAG 2.4.7). `peer` lets the sibling Button
+                    // react to this input's focus state instead.
+                    className="peer sr-only"
                   />
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="flex w-full cursor-pointer items-center gap-2 py-6 peer-focus-visible:ring-2 peer-focus-visible:ring-ring/30 peer-focus-visible:outline-none"
+                  >
+                    <span>
+                      <CloudUpload className="h-5 w-5" />
+                      {t("organization.inspection.uploadMediaDocuments")}
+                    </span>
+                  </Button>
                 </label>
               )}
             </>
@@ -313,6 +320,11 @@ const QuestionCard = memo(
       <Card
         id={`question-card-${question.id}`}
         tabIndex={-1}
+        // quality-bar-loop (Inspections, round 52, accessibility finding):
+        // same fix as CreateNewInspection.tsx's QuestionCard -- reuses the
+        // sibling <p>'s existing id so a screen reader landing here via
+        // programmatic focus has something to announce.
+        aria-labelledby={`question-label-${question.id}`}
         // quality-bar-loop (Inspections, round 50, visual-polish finding):
         // matches the softened ring-opacity convention this app's other
         // error indicators use (input.tsx/textarea.tsx/select.tsx's
@@ -320,7 +332,16 @@ const QuestionCard = memo(
         // `ring-destructive/20`, `/40` dark) instead of round 48's original
         // full-opacity ring. This card DOES have a real border (unlike
         // CreateNewInspection.tsx's), so it gets the full pairing.
-        className="rounded-xl border border-border bg-card p-6 focus:border-destructive focus:ring-2 focus:ring-destructive/20 focus:outline-none dark:focus:border-destructive/50 dark:focus:ring-destructive/40"
+        //
+        // quality-bar-loop (Inspections, round 52, accessibility finding):
+        // in light mode the full-opacity `border-destructive` alone already
+        // clears WCAG 1.4.11's 3:1 non-text-contrast floor (~6:1, computed
+        // against the white card), so the softer `/20` ring there is fine
+        // as a supplementary accent. In DARK mode neither `border/50`
+        // (~2.3:1) nor `ring/40` (~1.9:1) cleared 3:1 on their own -- both
+        // bumped to `/70` (computed ~3.3-3.4:1 against the dark card),
+        // still visibly softer than round 48's full-opacity original.
+        className="rounded-xl border border-border bg-card p-6 focus:border-destructive focus:ring-2 focus:ring-destructive/20 focus:outline-none dark:focus:border-destructive/70 dark:focus:ring-destructive/70"
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -404,12 +425,6 @@ const QuestionCard = memo(
             </p>
           ) : (
             <label htmlFor={`update-external-media-${question.id}`}>
-              <Button asChild variant="outline" size="sm" className="h-11">
-                <span>
-                  <CloudUpload className="mr-2 h-4 w-4" />
-                  {t("organization.inspection.addMedia")}
-                </span>
-              </Button>
               <input
                 onChange={(e) => {
                   const files = (e.target as HTMLInputElement)?.files
@@ -423,9 +438,23 @@ const QuestionCard = memo(
                 multiple
                 accept="image/*,video/*,application/pdf"
                 // quality-bar-loop round 7 (accessibility) -- see the
-                // comment on the other file inputs in this file.
-                className="sr-only"
+                // comment on the other file inputs in this file. `peer` --
+                // round 52's accessibility fix -- lets the sibling Button
+                // react to this input's focus state, since `sr-only` clips
+                // any focus ring on the input itself.
+                className="peer sr-only"
               />
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-11 peer-focus-visible:ring-2 peer-focus-visible:ring-ring/30 peer-focus-visible:outline-none"
+              >
+                <span>
+                  <CloudUpload className="mr-2 h-4 w-4" />
+                  {t("organization.inspection.addMedia")}
+                </span>
+              </Button>
             </label>
           )}
 
@@ -1343,7 +1372,7 @@ export default function UpdateInspection() {
                 Button, so it was missed by the earlier touch-target sweep.
                 `min-h-11` fixes it the same way a wrapping label's hit area
                 was fixed elsewhere this loop. */}
-            <label className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+            <label className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/30">
               {isUploadingAttachment ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -1355,6 +1384,14 @@ export default function UpdateInspection() {
                 // quality-bar-loop round 7 (accessibility) -- see the
                 // comment on the other file inputs in this file/
                 // CreateNewInspection.tsx.
+                //
+                // quality-bar-loop (Inspections, round 52, accessibility
+                // finding): `sr-only` clips any focus ring on the input
+                // itself, leaving keyboard focus reachable but invisible
+                // (WCAG 2.4.7). Unlike the other file inputs in this file,
+                // this input's label wraps its own visible content directly
+                // (no separate Button sibling), so `has-[:focus-visible]`
+                // on the label above works instead of the `peer` pattern.
                 className="sr-only"
                 disabled={isMutatingAttachments}
                 onChange={(e) => {

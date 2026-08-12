@@ -341,6 +341,26 @@ describe("UploadNotesModal", () => {
     expect(input.className).not.toMatch(/\bhidden\b/)
   })
 
+  // quality-bar-loop (Inspections, round 52, accessibility finding): being
+  // keyboard-reachable (round 7) isn't the same as being keyboard-visible --
+  // `sr-only` clips any focus ring on the input itself, so Tab reached this
+  // control with no visual indicator at all (WCAG 2.4.7). The dropzone
+  // label wraps the input directly, so `has-[:focus-visible]` on the label
+  // reacts to the input's own focus state.
+  it("gives the file dropzone a visible focus indicator via has-[:focus-visible]", async () => {
+    renderModal()
+
+    await userEvent.click(
+      screen.getByText("organization.inspection.extractNoteFromFile")
+    )
+    const input = document.querySelector<HTMLInputElement>(
+      'input[type="file"]'
+    )!
+    const dropzone = input.closest("label")!
+
+    expect(dropzone.className).toContain("has-[:focus-visible]:ring-2")
+  })
+
   // quality-bar-loop (Inspections, round 15, visual polish finding): this
   // dropzone hardcoded raw Tailwind gray/white instead of the app's
   // semantic tokens (every other Inspections upload control uses border-

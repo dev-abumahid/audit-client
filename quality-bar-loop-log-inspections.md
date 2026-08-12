@@ -2529,3 +2529,42 @@ verified at 375px: fresh untouched required checkbox blocks
 submission, softened focus ring renders on the flagged card, and the
 card (measured top: 508px) fully clears the sticky header (measured
 bottom: 129px) -- confirmed via DOM measurement, not visual glance.
+
+## Round 51 -- fresh 9-judge re-score
+
+First full panel since round 49, run after round 50 (PR #728) merged.
+
+| Axis | R47 | R49 | R51 | stuck_streak (into R52) | Note |
+|---|---|---|---|---|---|
+| Industry-standards | 8 | 8 | 8 | 0 (above floor) | unchanged. Both open findings (11 missing `type="button"`, no discard-confirmation) re-confirmed via fresh grep + live reproduction -- typed a unique marker into an answer field, clicked Back, navigated instantly with the text silently discarded. Round 50 confirmed out-of-scope for this axis |
+| UX | 7 | 8 | 8 | 0 (above floor) | unchanged, holding. Round 48's completion-gate fix re-verified live and still structurally symmetric between create/update flows. Round 50's softened ring confirmed to carry no usability cost (still clearly visible). New finding: `InspectionTable.tsx`'s load-failure state has no retry action, unlike the detail page's equivalent error state |
+| Efficiency | 7 | 7 | **8** | 0 (streak broken) | **round 50's fix landed.** Live network trace + unit-test verification confirmed `useMyAssignedInspectionIds()` correctly skips for VIEWER/LIGHT_USER, still fetches for ADMIN/LEAD_AUDITOR. Log accurately describes this as a partial fix -- `useMyOrgRole()`'s two queries remain open, correctly out of frontend-only scope |
+| Accessibility | 8 | 8 | **7** | 0 (fresh regression, not yet a streak) | **regression, caused directly by round 50's own fix.** The `/20`+`/40` opacity values chosen to match this app's design-system convention measurably under-shoot WCAG 1.4.11's 3:1 non-text-contrast floor in 3 of 4 file×theme combinations (computed via OKLab->sRGB conversion, validated against a live-measured reference color) -- the design-consistency motivation was sound, the specific values weren't contrast-checked. Also newly found: the `sr-only` "Add Media" file input has no visible focus indicator at all (WCAG 2.4.7), a gap round 7's reachability fix never addressed. Add Media/Add Finding naming collision and the focused-card's-no-aria-label gap both still open, unchanged |
+| Visual polish | 9 | 8 | **9** | 0 (above floor) | **regression resolved, back to round-47's high.** Round 50's fix live-verified in both light and dark theme via computed styles matching the exact class values; confirmed true design-system parity against `input.tsx`'s `aria-invalid:` classes, not just a superficial visual match. 48x48px video-thumbnail-controls finding unchanged |
+| Resilience | 8 | 7 | **8** | 0 (above floor) | **regression resolved.** Round 50's `validateInspectionFile()` fix live-verified end-to-end (6MB file rejected immediately, zero network request, input reset and immediately reusable) plus full negative-control test coverage. Prior rounds' error-state fixes (`InspectionReport.tsx`/`InspectionTable.tsx`) re-confirmed holding under a real, incidental 429 during this round's testing |
+| Code quality | 7 | 8 | 8 | 0 (above floor) | unchanged. The round-49 finding (4 duplicated `onCloseAutoFocus` Radix-race workarounds across `UpdateInspection.tsx` + 3 auth modals) confirmed still open, now 2 rounds past this codebase's own extraction threshold. Round 50's own two changes (the `role` param, the validator call) both confirmed clean and well-tested -- the duplication ceiling isn't round 50's fault, just still unpaid down |
+| Mobile | 8 | 8 | 8 | 0 (above floor) | round 49's sticky-header finding confirmed fixed at 375px (387px clearance) AND stress-tested at 320px, the exact narrower-device risk round 50's own PR review flagged -- header grows to 141px as anticipated, `scroll-mt-40`'s 160px still clears it with 19px margin. Touch-target findings unchanged |
+| Security | 9 | 9 | 9 | 0 (above floor) | unchanged, confirmed clean. Round 50's `role` param confirmed to only gate a `skip` boolean with no authorization implications (the underlying endpoint is self-scoped server-side regardless); new client-side validator confirmed explicitly advisory, consistent with every sibling upload flow |
+
+**Average: 8.11/10** (up from round 49's 7.89, matching round 47's
+prior high). **All 9 axes at or above floor** (accessibility's drop to
+7 lands exactly at floor, not below) -- per the tiered guardrail this
+does **not** stop the loop. Two consecutive rounds of improvement, not
+stagnation. Continuing.
+
+**Round 52 selection, per the stuck_streak-based priority order:** no
+data-correctness/security finding at-or-below floor exists this round.
+No axis carries a nonzero `stuck_streak` (every previously-stuck axis
+moved in rounds 48-51; accessibility's drop is a fresh regression, not
+an accumulated streak) -- the streak tier is tied at zero across the
+board. Falls to the next tier: **accessibility regressed this round
+while staying at/above floor**, the only axis meeting that condition,
+so it wins selection. Fix: choose ring/border opacity values for both
+files' `QuestionCard` focus state that clear WCAG 1.4.11's 3:1 non-text
+contrast floor in all 4 file×theme combinations while staying visibly
+softer than round 48's original full-opacity treatment. Batched
+alongside it (same axis, same round, both cheap and well-scoped): fix
+the `sr-only` "Add Media" file input's missing visible focus indicator,
+and add `aria-labelledby` on the focused question card pointing at its
+existing `question-label-{id}` element, closing the "nothing to
+announce" gap first flagged at round 49.

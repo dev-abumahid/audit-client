@@ -437,7 +437,15 @@ export default function UploadNotesModal({
                   established in the other two upload flows. */}
               <label
                 htmlFor="dropzone-file-pdf"
-                className="mx-auto mt-2 flex w-full max-w-lg cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-border bg-muted/30 p-5 text-center"
+                // quality-bar-loop (Inspections, round 52, accessibility
+                // finding): same gap as CreateNewInspection.tsx/
+                // UpdateInspection.tsx's identical `sr-only` file inputs had
+                // -- `sr-only` clips any focus ring on the input itself,
+                // leaving keyboard focus reachable (round 7's fix) but
+                // visually invisible (WCAG 2.4.7). This label wraps its
+                // input directly, so `has-[:focus-visible]` works the same
+                // way as UpdateInspection.tsx's attachment-upload fix.
+                className="mx-auto mt-2 flex w-full max-w-lg cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-border bg-muted/30 p-5 text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/30"
               >
                 <CloudUpload className="h-8 w-8 text-muted-foreground" />
 
