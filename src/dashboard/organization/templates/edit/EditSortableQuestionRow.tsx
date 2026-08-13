@@ -8,7 +8,8 @@ import {
 import { isValidUUID } from "@/utils/validUUID"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { ChevronDown, GripVertical, Trash2 } from "lucide-react"
+import { ChevronDown, GripVertical } from "lucide-react"
+import { RemoveIconButton } from "../shared/RemoveIconButton"
 import { useEffect, useRef, useState } from "react"
 import { Controller, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -233,16 +234,12 @@ function EditSortableQuestionRow({
       }`}
     >
       {/* Delete Button */}
-      <button
-        type="button"
+      <RemoveIconButton
         onClick={handleDeleteQuestion}
         disabled={isDeletingQuestion || isUpdatingQuestion}
-        aria-label={t("organization.templates.builder.deleteQuestion")}
-        className="absolute top-4 left-2 z-10 rounded-full bg-red-500 p-1 text-white opacity-0 transition-all group-hover:opacity-100 hover:bg-red-600 disabled:opacity-50"
-        title={t("organization.templates.builder.deleteQuestion")}
-      >
-        <Trash2 size={12} />
-      </button>
+        label={t("organization.templates.builder.deleteQuestion")}
+        className="absolute top-4 left-2 z-10 opacity-0 transition-all group-hover:opacity-100"
+      />
 
       {/* Sync Status */}
       {!isDragging && isSyncing && (
@@ -299,7 +296,7 @@ function EditSortableQuestionRow({
                     id={`req-${sortableId}`}
                     checked={field.value}
                     onChange={(e) => field.onChange(e.target.checked)}
-                    className="h-4 w-4 rounded border-input text-green-600 focus:ring-green-500"
+                    className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
                   />
                 )}
               />

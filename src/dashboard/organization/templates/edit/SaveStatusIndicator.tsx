@@ -1,3 +1,4 @@
+import { severityTextClasses } from "@/utils/severityStyles"
 import { AlertCircle, CheckCircle2, Loader2, Save } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -17,19 +18,19 @@ export function SaveStatusIndicator({
         return {
           icon: <Loader2 className="h-4 w-4 animate-spin" />,
           text: t("organization.templates.builder.savingChanges"),
-          className: "text-blue-600",
+          className: severityTextClasses("info"),
         }
       case "saved":
         return {
           icon: <CheckCircle2 className="h-4 w-4" />,
           text: t("organization.templates.builder.allChangesSaved"),
-          className: "text-green-600",
+          className: severityTextClasses("low"),
         }
       case "error":
         return {
           icon: <AlertCircle className="h-4 w-4" />,
           text: t("organization.templates.builder.autoSaveFailed"),
-          className: "text-red-600",
+          className: severityTextClasses("critical"),
         }
       default:
         return {
@@ -41,7 +42,9 @@ export function SaveStatusIndicator({
           text: hasChanges
             ? t("organization.templates.builder.unsavedChanges")
             : t("organization.templates.builder.allChangesSaved"),
-          className: hasChanges ? "text-yellow-600" : "text-gray-500",
+          className: hasChanges
+            ? severityTextClasses("medium")
+            : "text-muted-foreground",
         }
     }
   }

@@ -14,9 +14,10 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus } from "lucide-react"
 import { Controller, useFieldArray } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { RemoveIconButton } from "../shared/RemoveIconButton"
 import SortableQuestionRow from "./SortableQuestionRow"
 
 interface PageSectionProps {
@@ -73,14 +74,12 @@ function PageSection({
     <div className="relative mb-8 rounded-2xl border border-border bg-card p-5">
       {/* Delete Section Button */}
       {totalPages > 1 && (
-        <button
-          type="button"
+        <RemoveIconButton
           onClick={() => removePage(pageIndex)}
-          className="absolute -top-3 -right-3 z-10 rounded-full bg-red-500 p-1.5 text-white shadow-md transition-colors hover:bg-red-600"
-          title={t("organization.templates.builder.deleteSection")}
-        >
-          <Trash2 size={14} />
-        </button>
+          label={t("organization.templates.builder.deleteSection")}
+          className="absolute -top-3 -right-3 z-10 shadow-md"
+          iconSize={14}
+        />
       )}
 
       {/* Section Title */}

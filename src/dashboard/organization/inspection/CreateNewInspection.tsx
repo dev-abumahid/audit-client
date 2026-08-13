@@ -1100,7 +1100,7 @@ export default function CreateNewInspection() {
           <AlertDialogHeader>
             <div className="flex flex-col items-center justify-center gap-3 text-center">
               <AlertCircle
-                className="h-9 w-9 shrink-0 text-red-600"
+                className="h-9 w-9 shrink-0 text-destructive"
                 strokeWidth={2}
               />
               <AlertDialogTitle className="max-w-full text-xl font-semibold wrap-break-word">
@@ -1119,7 +1119,7 @@ export default function CreateNewInspection() {
               {t("organization.inspection.keepEditing")}
             </AlertDialogCancel>
             <AlertDialogAction
-              className="h-11 flex-1 cursor-pointer rounded-xl border-none bg-red-600 text-white shadow-sm hover:bg-red-700"
+              className="h-11 flex-1 cursor-pointer rounded-xl border-none bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
               onClick={() => {
                 blockerProceedingRef.current = true
                 blocker.proceed?.()

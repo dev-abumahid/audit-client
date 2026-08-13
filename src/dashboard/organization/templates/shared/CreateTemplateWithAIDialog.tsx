@@ -24,6 +24,7 @@ import {
 } from "@/redux/apis/organization/ai.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import type { Risk } from "@/types/organization"
+import { severityTextClasses } from "@/utils/severityStyles"
 import { AnimatePresence, motion } from "framer-motion"
 import { AlertCircleIcon, Brain, FileText, Upload } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -293,14 +294,14 @@ export default function CreateTemplateWithAIDialog({
             <div>
               <label
                 htmlFor="file"
-                className="block text-sm text-gray-500 dark:text-gray-300"
+                className="block text-sm text-muted-foreground"
               >
                 {t("organization.templates.ai.uploadFile")}
               </label>
 
               <label
                 htmlFor="dropzone-file"
-                className="mx-auto mt-2 flex w-full max-w-lg cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-gray-300 bg-white p-5 text-center dark:border-gray-700 dark:bg-gray-900"
+                className="mx-auto mt-2 flex w-full max-w-lg cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-border bg-card p-5 text-center"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -308,7 +309,7 @@ export default function CreateTemplateWithAIDialog({
                   viewBox="0 0 24 24"
                   stroke-width="1.5"
                   stroke="currentColor"
-                  className="h-8 w-8 text-gray-500 dark:text-gray-400"
+                  className="h-8 w-8 text-muted-foreground"
                 >
                   <path
                     stroke-linecap="round"
@@ -317,11 +318,11 @@ export default function CreateTemplateWithAIDialog({
                   />
                 </svg>
 
-                <h2 className="mt-1 font-medium tracking-wide text-gray-700 dark:text-gray-200">
+                <h2 className="mt-1 font-medium tracking-wide text-foreground">
                   {t("organization.templates.ai.anyFile")}
                 </h2>
 
-                <p className="mt-2 text-xs tracking-wide text-gray-500 dark:text-gray-400">
+                <p className="mt-2 text-xs tracking-wide text-muted-foreground">
                   {t("organization.templates.ai.dropHint")}{" "}
                 </p>
 
@@ -333,7 +334,7 @@ export default function CreateTemplateWithAIDialog({
                 />
               </label>
               {file && (
-                <p className="mt-1 text-xs text-green-600">
+                <p className={`mt-1 text-xs ${severityTextClasses("low")}`}>
                   {t("organization.templates.ai.selectedFile", { name: file.name })}
                 </p>
               )}

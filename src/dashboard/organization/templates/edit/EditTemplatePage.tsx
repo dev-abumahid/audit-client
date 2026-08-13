@@ -18,13 +18,14 @@ import type {
 } from "@/types/template"
 import { isSystemTemplateName } from "@/utils/isSystemTemplate"
 import { transformValuesToString } from "@/utils/transformValuesToString"
-import { Loader2, Plus, Sliders, Upload, X } from "lucide-react"
+import { Loader2, Plus, Sliders, Upload } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { Link, useParams } from "react-router"
 import { toast } from "sonner"
 import QnASettingsPanel from "../shared/QnASettingsPanel"
+import { RemoveIconButton } from "../shared/RemoveIconButton"
 import SectionNavigator from "../shared/SectionNavigator"
 import EditPageSection from "./EditPagesection"
 import { SaveStatusIndicator } from "./SaveStatusIndicator"
@@ -447,18 +448,18 @@ const EditTemplatePage = () => {
                       className="h-20 w-20 rounded-xl border object-cover"
                       alt={t("organization.templates.edit.logoAlt")}
                     />
-                    <button
-                      type="button"
-                      aria-label={t("organization.templates.create.removeLogo")}
+                    <RemoveIconButton
                       onClick={() => {
                         setLogoFile(null)
                         setLogoObjectUrl(null)
                         setLogoPreview(null)
                       }}
-                      className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+                      label={t("organization.templates.create.removeLogo")}
+                      className="absolute -top-2 -right-2"
+                      icon="x"
+                      iconSize={12}
+                      size="icon-sm"
+                    />
                   </div>
                 ) : logoPreview ? (
                   <div className="relative h-20 w-20">
@@ -467,14 +468,14 @@ const EditTemplatePage = () => {
                       className="h-20 w-20 rounded-xl border object-cover"
                       alt={t("organization.templates.edit.logoAlt")}
                     />
-                    <button
-                      type="button"
-                      aria-label={t("organization.templates.create.removeLogo")}
+                    <RemoveIconButton
                       onClick={() => setLogoPreview(null)}
-                      className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+                      label={t("organization.templates.create.removeLogo")}
+                      className="absolute -top-2 -right-2"
+                      icon="x"
+                      iconSize={12}
+                      size="icon-sm"
+                    />
                   </div>
                 ) : (
                   <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border bg-muted transition-colors hover:bg-muted/70">

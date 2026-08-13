@@ -248,7 +248,7 @@ export default function FindingClosureControls({ action }: Props) {
             type="button"
             onClick={handleApprove}
             disabled={isApproving}
-            className="flex items-center gap-1 rounded border border-green-500/40 px-1.5 py-0.5 text-[10px] font-medium text-green-600 hover:bg-green-500/10 disabled:opacity-50"
+            className="flex items-center gap-1 rounded border border-emerald-500/40 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-500/10 disabled:opacity-50 dark:border-emerald-400/40 dark:text-emerald-400 dark:hover:bg-emerald-400/10"
           >
             <Check className="h-2.5 w-2.5" />
             {t("organization.findings.closure.approve")}

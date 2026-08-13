@@ -21,6 +21,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { severityBadgeClasses, severityTextClasses } from "@/utils/severityStyles"
 import TextareaAutosize from "react-textarea-autosize"
 import CreateNewFindingModal from "../findings/CreateNewFindingModal"
 import { toast } from "sonner"
@@ -295,13 +296,13 @@ export default function ViewAndEditRecommendation({
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6 md:p-8">
               <div className="flex flex-col items-center text-center">
-                <div className="mb-4 rounded-full bg-[#6EC075]/10 p-3">
-                  <Sparkles className="h-8 w-8 text-[#6EC075]" />
+                <div className="mb-4 rounded-full bg-primary/10 p-3">
+                  <Sparkles className="h-8 w-8 text-primary" />
                 </div>
                 <h2 className="mb-2 text-2xl font-bold">
                   {t("organization.recommendation.noRecommendation")}
                 </h2>
-                <p className="mb-6 text-gray-600">
+                <p className="mb-6 text-muted-foreground">
                   {t("organization.recommendation.noRecommendationDesc")}
                 </p>
                 <Button
@@ -351,13 +352,14 @@ export default function ViewAndEditRecommendation({
               saveStatus.type === "success" ||
               saveStatus.type === "error") && (
               <div
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 ${
+                className={`flex items-center gap-2 rounded-lg px-4 py-2 ${severityBadgeClasses(
                   saveStatus.type === "saving"
-                    ? "border border-blue-200 bg-blue-50 text-blue-700"
+                    ? "info"
                     : saveStatus.type === "success"
-                      ? "border border-green-200 bg-green-50 text-green-700"
-                      : "border border-red-200 bg-red-50 text-red-700"
-                }`}
+                      ? "low"
+                      : "critical",
+                  { border: true }
+                )}`}
               >
                 {saveStatus.type === "saving" && (
                   <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current"></div>
@@ -379,11 +381,11 @@ export default function ViewAndEditRecommendation({
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#6EC075]/10">
-                  <FileText className="h-5 w-5 text-[#6EC075]" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <FileText className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     {t("organization.recommendation.totalFindings")}
                   </p>
                   <p className="text-xl font-semibold">{questions.length}</p>
@@ -393,11 +395,13 @@ export default function ViewAndEditRecommendation({
 
             <div className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
-                  <Sparkles className="h-5 w-5 text-blue-600" />
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg ${severityBadgeClasses("info")}`}
+                >
+                  <Sparkles className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     {t("organization.recommendation.created")}
                   </p>
                   <p className="text-sm font-medium">
@@ -413,14 +417,14 @@ export default function ViewAndEditRecommendation({
 
             <div className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50">
-                  <AlertCircle className="h-5 w-5 text-purple-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/15 dark:bg-purple-400/15">
+                  <AlertCircle className="h-5 w-5 text-purple-700 dark:text-purple-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     {t("organization.recommendation.autoSave")}
                   </p>
-                  <p className="text-sm font-medium text-green-600">
+                  <p className={`text-sm font-medium ${severityTextClasses("low")}`}>
                     {t("organization.recommendation.active")}
                   </p>
                 </div>
@@ -440,7 +444,7 @@ export default function ViewAndEditRecommendation({
                 className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all"
               >
                 {/* Header */}
-                <div className="border-b border-[#6EC075]/20 bg-[#6EC075]/5 px-6 py-4">
+                <div className="border-b border-primary/20 bg-primary/5 px-6 py-4">
                   <div className="flex items-center justify-between">
                     <div className="flex w-full items-center gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
@@ -477,7 +481,7 @@ export default function ViewAndEditRecommendation({
                   {/* Observation */}
                   <div>
                     <div className="mb-3 flex items-center gap-2">
-                      <AlertCircle className="h-5 w-5 text-[#6EC075]" />
+                      <AlertCircle className="h-5 w-5 text-primary" />
                       <h3
                         id={`recommendation-observation-${question.id}`}
                         className="font-semibold"
@@ -506,7 +510,7 @@ export default function ViewAndEditRecommendation({
                   {/* Recommendation */}
                   <div>
                     <div className="mb-3 flex items-center gap-2">
-                      <CheckCircle className="h-5 w-5 text-[#6EC075]" />
+                      <CheckCircle className="h-5 w-5 text-primary" />
                       <h3
                         id={`recommendation-recommendation-${question.id}`}
                         className="font-semibold"
@@ -535,7 +539,7 @@ export default function ViewAndEditRecommendation({
                   {/* Standard */}
                   <div>
                     <div className="mb-3 flex items-center gap-2">
-                      <Star className="h-5 w-5 text-[#6EC075]" />
+                      <Star className="h-5 w-5 text-primary" />
                       <h3
                         id={`recommendation-standard-${question.id}`}
                         className="font-semibold"
@@ -601,7 +605,7 @@ export default function ViewAndEditRecommendation({
                 >
                   {t("organization.recommendation.executiveSummary")}
                 </h2>
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-muted-foreground">
                   {t("organization.recommendation.autoSavesHint")}
                 </p>
               </div>
@@ -611,7 +615,7 @@ export default function ViewAndEditRecommendation({
                   {...register("summary")}
                   rows={1}
                   aria-labelledby="recommendation-executive-summary"
-                  className="w-full resize-none rounded-lg border border-border px-3 py-3 font-mono text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-[#6EC075]"
+                  className="w-full resize-none rounded-lg border border-border px-3 py-3 font-mono text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-primary"
                   placeholder={t(
                     "organization.recommendation.summaryPlaceholder"
                   )}

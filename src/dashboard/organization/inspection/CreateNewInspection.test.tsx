@@ -389,12 +389,12 @@ describe("CreateNewInspection", () => {
     const discardButton = screen.getByRole("button", {
       name: "organization.inspection.discardChanges",
     })
-    expect(discardButton.className).toContain("bg-red-600")
+    expect(discardButton.className).toContain("bg-destructive")
 
     const keepEditingButton = screen.getByRole("button", {
       name: "organization.inspection.keepEditing",
     })
-    expect(keepEditingButton.className).not.toContain("bg-red-600")
+    expect(keepEditingButton.className).not.toContain("bg-destructive")
   })
 
   it("navigates back once the user confirms Discard in the dialog", async () => {

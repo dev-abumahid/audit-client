@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { ChevronDown, GripVertical, Trash2 } from "lucide-react"
+import { ChevronDown, GripVertical } from "lucide-react"
 import { Controller, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { RemoveIconButton } from "../shared/RemoveIconButton"
 
 interface SortableQuestionRowProps {
   sortableId: string
@@ -71,15 +72,11 @@ function SortableQuestionRow({
       className="group relative border-b border-border bg-card transition-colors last:border-b-0 hover:bg-muted/50"
     >
       {/* Delete Button */}
-      <button
-        type="button"
+      <RemoveIconButton
         onClick={() => remove(questionIndex)}
-        aria-label={t("organization.templates.builder.deleteQuestion")}
-        className="absolute top-4 left-2 z-10 rounded-full bg-red-500 p-1 text-white opacity-0 transition-all group-hover:opacity-100 hover:bg-red-600"
-        title={t("organization.templates.builder.deleteQuestion")}
-      >
-        <Trash2 size={12} />
-      </button>
+        label={t("organization.templates.builder.deleteQuestion")}
+        className="absolute top-4 left-2 z-10 opacity-0 transition-all group-hover:opacity-100"
+      />
 
       <div className="grid grid-cols-12 items-start">
         {/* Question Column */}
@@ -120,7 +117,7 @@ function SortableQuestionRow({
                     id={`req-${sortableId}`}
                     checked={field.value}
                     onChange={(e) => field.onChange(e.target.checked)}
-                    className="h-4 w-4 rounded border-input text-green-600 focus:ring-green-500"
+                    className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
                   />
                 )}
               />

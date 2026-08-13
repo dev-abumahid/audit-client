@@ -11,13 +11,13 @@ export default function UnSplitText({ unSplitText }: { unSplitText: string }) {
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6 md:p-8">
               <div className="flex flex-col items-center text-center">
-                <div className="mb-4 rounded-full bg-[#6EC075]/10 p-3">
-                  <Text className="h-8 w-8 text-[#6EC075]" />
+                <div className="mb-4 rounded-full bg-primary/10 p-3">
+                  <Text className="h-8 w-8 text-primary" />
                 </div>
                 <h2 className="mb-2 text-2xl font-bold">
                   {t("organization.inspection.noUnsplitTextTitle")}
                 </h2>
-                <p className="mb-6 text-gray-600">
+                <p className="mb-6 text-muted-foreground">
                   {t("organization.inspection.noUnsplitTextTip")}
                 </p>
               </div>
@@ -36,7 +36,7 @@ export default function UnSplitText({ unSplitText }: { unSplitText: string }) {
               <h2 className="mb-2 text-2xl font-bold">
                 {t("organization.inspection.unsplitText")}
               </h2>
-              <p className="mb-6 text-justify text-gray-600">{unSplitText}</p>
+              <p className="mb-6 text-justify text-muted-foreground">{unSplitText}</p>
             </div>
           </div>
         </div>

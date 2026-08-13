@@ -1,4 +1,9 @@
 import { Button } from "@/components/ui/button"
+import { useModalA11y } from "@/hooks/useModalA11y"
+import {
+  severityBadgeClasses,
+  type SeverityLevel,
+} from "@/utils/severityStyles"
 import {
   Calendar,
   CheckSquare,
@@ -10,7 +15,6 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useModalA11y } from "@/hooks/useModalA11y"
 
 interface QnASettingsPanelProps {
   onClose: () => void
@@ -71,26 +75,27 @@ const DEFAULT_RESPONSE_SETS: ResponseSet[] = [
   },
 ]
 
-const OPTION_CHIP_COLORS: Record<string, string> = {
-  good: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400",
-  pass: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400",
-  yes: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400",
-  compliant:
-    "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400",
-  poor: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-400",
-  fail: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-400",
-  no: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-400",
-  "not-compliant":
-    "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-400",
-  fair: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-400",
-  "n/a":
-    "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400",
+// Shares SEVERITY_STYLES' shade convention (opacity-tinted bg + 700/400
+// text/dark:text, both cleared 4.5:1 contrast) instead of a one-off
+// 100/900-scale palette, so these default-answer chips read as visually
+// consistent with every other status/severity chip in the app.
+const OPTION_CHIP_COLORS: Record<string, SeverityLevel> = {
+  good: "low",
+  pass: "low",
+  yes: "low",
+  compliant: "low",
+  poor: "critical",
+  fail: "critical",
+  no: "critical",
+  "not-compliant": "critical",
+  fair: "info",
+  "n/a": "neutral",
 }
 
 function chipColor(text: string) {
-  return (
-    OPTION_CHIP_COLORS[text.toLowerCase()] ??
-    "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400"
+  return severityBadgeClasses(
+    OPTION_CHIP_COLORS[text.toLowerCase()] ?? "neutral",
+    { border: true }
   )
 }
 
@@ -232,7 +237,7 @@ function QnASettingsPanel({
                           onClick={() =>
                             onSelectResponseSet(set.options.map((o) => o.text))
                           }
-                          className={`rounded-md border px-3 py-1 text-xs font-medium transition-all hover:opacity-90 ${chipColor(opt.text)}`}
+                          className={`rounded-md px-3 py-1 text-xs font-medium transition-all hover:opacity-90 ${chipColor(opt.text)}`}
                         >
                           {optionLabel(t, opt)}
                         </button>
@@ -323,7 +328,7 @@ function QnASettingsPanel({
                             { id: newId, text: "" },
                           ])
                         }}
-                        className="mt-2 flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-700"
+                        className="mt-2 flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
                       >
                         <Plus size={14} /> {t("organization.templates.qna.addOption")}
                       </button>
