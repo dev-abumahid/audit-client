@@ -454,7 +454,7 @@ const DominoChainRefButton = memo(function DominoChainRefButton({
       onClick={() => onSelect(riskRef)}
       onMouseEnter={() => onHoverChange(riskRef)}
       onMouseLeave={() => onHoverChange(null)}
-      className="font-mono-data font-bold text-foreground hover:text-primary"
+      className="focus-ring font-mono-data font-bold text-foreground hover:text-primary"
       title={riskRef}
     >
       {shortRef(riskRef)}
@@ -1889,7 +1889,7 @@ export default function RiskGraphPage() {
                       role="option"
                       aria-selected={false}
                       onClick={() => selectSearchMatch(r.ref)}
-                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
+                      className="focus-ring flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
                     >
                       <span className="font-mono-data font-bold text-foreground">
                         {r.ref}
@@ -1975,7 +1975,7 @@ export default function RiskGraphPage() {
           <button
             type="button"
             onClick={() => setSelectedRisk(null)}
-            className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
+            className="focus-ring flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
           >
             <X className="h-3 w-3" />
             {t("organization.riskGraph.clearSelection")}
@@ -2493,7 +2493,7 @@ export default function RiskGraphPage() {
               type="button"
               onClick={() => setShowDomino(!showDomino)}
               aria-expanded={showDomino}
-              className="flex w-full items-center justify-between text-sm font-semibold text-foreground"
+              className="focus-ring flex w-full items-center justify-between text-sm font-semibold text-foreground"
             >
               <span className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-destructive" />

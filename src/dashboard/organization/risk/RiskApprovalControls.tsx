@@ -174,7 +174,7 @@ export default function RiskApprovalControls({ risk }: Props) {
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex items-center gap-1 rounded border border-input px-1.5 py-0.5 text-[10px] font-medium hover:bg-muted disabled:opacity-50"
+            className="focus-ring flex items-center gap-1 rounded border border-input px-1.5 py-0.5 text-[10px] font-medium hover:bg-muted disabled:opacity-50"
           >
             <Send className="h-2.5 w-2.5" />
             {t("organization.riskRegister.approval.submit")}
@@ -187,7 +187,7 @@ export default function RiskApprovalControls({ risk }: Props) {
               type="button"
               onClick={handleApprove}
               disabled={isApproving}
-              className="flex items-center gap-1 rounded border border-emerald-500/40 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-500/10 disabled:opacity-50 dark:border-emerald-400/40 dark:text-emerald-400 dark:hover:bg-emerald-400/10"
+              className="focus-ring flex items-center gap-1 rounded border border-emerald-500/40 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-500/10 disabled:opacity-50 dark:border-emerald-400/40 dark:text-emerald-400 dark:hover:bg-emerald-400/10"
             >
               <Check className="h-2.5 w-2.5" />
               {t("organization.riskRegister.approval.approve")}
@@ -196,7 +196,7 @@ export default function RiskApprovalControls({ risk }: Props) {
               type="button"
               onClick={() => setShowRejectModal(true)}
               disabled={isRejecting}
-              className="flex items-center gap-1 rounded border border-destructive/40 px-1.5 py-0.5 text-[10px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+              className="focus-ring flex items-center gap-1 rounded border border-destructive/40 px-1.5 py-0.5 text-[10px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
             >
               <X className="h-2.5 w-2.5" />
               {t("organization.riskRegister.approval.reject")}
@@ -269,7 +269,7 @@ export default function RiskApprovalControls({ risk }: Props) {
                   setShowRejectModal(false)
                   setRejectReason("")
                 }}
-                className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                className="focus-ring rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted"
               >
                 {t("organization.riskRegister.approval.cancel")}
               </button>
@@ -277,7 +277,7 @@ export default function RiskApprovalControls({ risk }: Props) {
                 type="button"
                 onClick={handleReject}
                 disabled={isRejecting}
-                className="text-destructive-foreground rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                className="focus-ring text-destructive-foreground rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium disabled:opacity-50"
               >
                 {t("organization.riskRegister.approval.rejectConfirm")}
               </button>

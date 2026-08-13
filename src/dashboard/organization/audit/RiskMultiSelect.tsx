@@ -178,7 +178,7 @@ export default function RiskMultiSelect({
                   name: risk.name,
                 })}
                 onClick={() => toggle(risk.id)}
-                className="rounded-full hover:bg-primary/20"
+                className="focus-ring rounded-full hover:bg-primary/20"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -198,7 +198,7 @@ export default function RiskMultiSelect({
           setOpen((o) => !o)
           setActiveIndex(-1)
         }}
-        className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-background px-3 text-sm text-muted-foreground hover:bg-muted/40"
+        className="focus-ring flex h-9 w-full items-center justify-between rounded-lg border border-input bg-background px-3 text-sm text-muted-foreground hover:bg-muted/40"
       >
         <span id={stateTextId}>
           {selectedOptions.length > 0

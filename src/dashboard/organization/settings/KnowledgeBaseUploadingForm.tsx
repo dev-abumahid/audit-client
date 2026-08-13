@@ -346,7 +346,7 @@ const KnowledgeBaseUploadingForm = () => {
                     deletingId === doc.id ||
                     (!!doc.fileId && pollingUploads.has(doc.fileId))
                   }
-                  className={`rounded-md p-1.5 transition-colors hover:bg-risk-critical/10 disabled:opacity-50 ${SEVERITY_STYLES.critical.text}`}
+                  className={`focus-ring rounded-md p-1.5 transition-colors hover:bg-risk-critical/10 disabled:opacity-50 ${SEVERITY_STYLES.critical.text}`}
                   title={t("organization.knowledgeBase.delete")}
                 >
                   {deletingId === doc.id ? (

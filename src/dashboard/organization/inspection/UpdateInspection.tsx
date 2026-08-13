@@ -471,7 +471,7 @@ const QuestionCard = memo(
             <button
               onClick={() => onAddFinding(question.id, question.question)}
               type="button"
-              className="flex items-center gap-1 text-sm text-primary hover:text-primary/80"
+              className="focus-ring flex items-center gap-1 text-sm text-primary hover:text-primary/80"
             >
               <CopyCheck className="w-4" />{" "}
               {t("organization.inspection.addFinding")}
@@ -1631,7 +1631,7 @@ export default function UpdateInspection() {
                     onClick={() => handleRemoveAttachment(url)}
                     disabled={isMutatingAttachments}
                     title={t("organization.inspection.remove")}
-                    className="-m-2.5 p-2.5 text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
+                    className="focus-ring -m-2.5 p-2.5 text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
                   >
                     {removingAttachmentUrl === url ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1667,7 +1667,7 @@ export default function UpdateInspection() {
                     aria-current={
                       currentPageIndex === index ? "true" : undefined
                     }
-                    className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all ${
+                    className={`focus-ring flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all ${
                       currentPageIndex === index
                         ? "bg-primary font-medium text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"

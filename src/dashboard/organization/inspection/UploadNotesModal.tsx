@@ -362,7 +362,7 @@ export default function UploadNotesModal({
           <button
             type="button"
             onClick={() => handleModeChange("text")}
-            className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all hover:bg-secondary ${
+            className={`focus-ring flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all hover:bg-secondary ${
               mode === "text" ? "border-primary bg-primary/5" : "border-border"
             }`}
           >
@@ -381,7 +381,7 @@ export default function UploadNotesModal({
           <button
             type="button"
             onClick={() => handleModeChange("file")}
-            className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all hover:bg-secondary ${
+            className={`focus-ring flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all hover:bg-secondary ${
               mode === "file" ? "border-primary bg-primary/5" : "border-border"
             }`}
           >

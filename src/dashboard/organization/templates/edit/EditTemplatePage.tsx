@@ -652,7 +652,7 @@ const EditTemplatePage = () => {
               <button
                 type="button"
                 onClick={handleAddQuestion}
-                className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-secondary"
+                className="focus-ring flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-secondary"
               >
                 <Plus className="text-primary" />
                 <span className="font-medium">
@@ -662,7 +662,7 @@ const EditTemplatePage = () => {
               <button
                 type="button"
                 onClick={handleAddSection}
-                className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-secondary"
+                className="focus-ring flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-secondary"
               >
                 <Sliders className="text-primary" />
                 <span className="font-medium">

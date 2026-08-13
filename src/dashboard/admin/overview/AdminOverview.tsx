@@ -355,7 +355,7 @@ const AdminOverview = () => {
             <Link to="/admin/transaction">
               <button
                 type="button"
-                className="rounded-xl border border-border bg-background px-5 py-2 text-sm font-medium transition-colors hover:bg-muted"
+                className="focus-ring rounded-xl border border-border bg-background px-5 py-2 text-sm font-medium transition-colors hover:bg-muted"
               >
                 {t("admin.overview.viewAll")}
               </button>
@@ -470,7 +470,7 @@ const AdminOverview = () => {
                   </span>
                   <button
                     type="button"
-                    className="text-primary hover:underline"
+                    className="focus-ring text-primary hover:underline"
                   >
                     {t("admin.overview.viewDetails")}
                   </button>

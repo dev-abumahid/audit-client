@@ -218,7 +218,7 @@ export default function FindingClosureControls({ action }: Props) {
               type="button"
               onClick={() => handleSubmit("COMPLETE")}
               disabled={isSubmitting || !hasEvidence}
-              className="flex items-center gap-1 rounded border border-input px-1.5 py-0.5 text-[10px] font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              className="focus-ring flex items-center gap-1 rounded border border-input px-1.5 py-0.5 text-[10px] font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send className="h-2.5 w-2.5" />
               {t("organization.findings.closure.submitComplete")}
@@ -227,7 +227,7 @@ export default function FindingClosureControls({ action }: Props) {
               type="button"
               onClick={() => handleSubmit("CANT_DO")}
               disabled={isSubmitting || !hasEvidence}
-              className="flex items-center gap-1 rounded border border-input px-1.5 py-0.5 text-[10px] font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              className="focus-ring flex items-center gap-1 rounded border border-input px-1.5 py-0.5 text-[10px] font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send className="h-2.5 w-2.5" />
               {t("organization.findings.closure.submitCantDo")}
@@ -248,7 +248,7 @@ export default function FindingClosureControls({ action }: Props) {
             type="button"
             onClick={handleApprove}
             disabled={isApproving}
-            className="flex items-center gap-1 rounded border border-emerald-500/40 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-500/10 disabled:opacity-50 dark:border-emerald-400/40 dark:text-emerald-400 dark:hover:bg-emerald-400/10"
+            className="focus-ring flex items-center gap-1 rounded border border-emerald-500/40 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-500/10 disabled:opacity-50 dark:border-emerald-400/40 dark:text-emerald-400 dark:hover:bg-emerald-400/10"
           >
             <Check className="h-2.5 w-2.5" />
             {t("organization.findings.closure.approve")}
@@ -257,7 +257,7 @@ export default function FindingClosureControls({ action }: Props) {
             type="button"
             onClick={() => setShowRejectModal(true)}
             disabled={isRejecting}
-            className="flex items-center gap-1 rounded border border-destructive/40 px-1.5 py-0.5 text-[10px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+            className="focus-ring flex items-center gap-1 rounded border border-destructive/40 px-1.5 py-0.5 text-[10px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
           >
             <X className="h-2.5 w-2.5" />
             {t("organization.findings.closure.reject")}
@@ -324,7 +324,7 @@ export default function FindingClosureControls({ action }: Props) {
                   setShowRejectModal(false)
                   setRejectReason("")
                 }}
-                className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                className="focus-ring rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted"
               >
                 {t("organization.findings.closure.cancel")}
               </button>
@@ -332,7 +332,7 @@ export default function FindingClosureControls({ action }: Props) {
                 type="button"
                 onClick={handleReject}
                 disabled={isRejecting}
-                className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground disabled:opacity-50"
+                className="focus-ring rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground disabled:opacity-50"
               >
                 {t("organization.findings.closure.rejectConfirm")}
               </button>

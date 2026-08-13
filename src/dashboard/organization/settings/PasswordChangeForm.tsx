@@ -136,7 +136,7 @@ export default function PasswordChangeForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="focus-ring rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isLoading
             ? t("organization.settings.passwordChange.submittingLabel")

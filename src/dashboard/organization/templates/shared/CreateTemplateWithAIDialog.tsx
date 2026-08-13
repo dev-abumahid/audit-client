@@ -226,7 +226,7 @@ export default function CreateTemplateWithAIDialog({
           <button
             type="button"
             onClick={() => handleModeChange("prompt")}
-            className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all hover:bg-secondary ${
+            className={`focus-ring flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all hover:bg-secondary ${
               mode === "prompt"
                 ? "border-primary bg-primary/5"
                 : "border-border"
@@ -245,7 +245,7 @@ export default function CreateTemplateWithAIDialog({
           <button
             type="button"
             onClick={() => handleModeChange("file")}
-            className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all hover:bg-secondary ${
+            className={`focus-ring flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all hover:bg-secondary ${
               mode === "file" ? "border-primary bg-primary/5" : "border-border"
             }`}
           >
@@ -262,7 +262,7 @@ export default function CreateTemplateWithAIDialog({
           <button
             type="button"
             onClick={() => handleModeChange("risk")}
-            className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all hover:bg-secondary ${
+            className={`focus-ring flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all hover:bg-secondary ${
               mode === "risk" ? "border-primary bg-primary/5" : "border-border"
             }`}
           >

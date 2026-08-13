@@ -678,7 +678,7 @@ export default function ThreeLinesOfDefensePage() {
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="flex h-11 items-center gap-1.5 rounded-md border border-destructive/30 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
+            className="focus-ring flex h-11 items-center gap-1.5 rounded-md border border-destructive/30 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isFetching && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {isFetching

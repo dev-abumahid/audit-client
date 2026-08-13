@@ -208,7 +208,7 @@ function QnASettingsPanel({
             type="button"
             aria-label={t("organization.templates.qna.closePanel")}
             onClick={onClose}
-            className="rounded-lg p-1.5 transition-colors hover:bg-muted"
+            className="focus-ring rounded-lg p-1.5 transition-colors hover:bg-muted"
           >
             <X size={18} className="text-muted-foreground" />
           </button>
@@ -237,7 +237,7 @@ function QnASettingsPanel({
                           onClick={() =>
                             onSelectResponseSet(set.options.map((o) => o.text))
                           }
-                          className={`rounded-md px-3 py-1 text-xs font-medium transition-all hover:opacity-90 ${chipColor(opt.text)}`}
+                          className={`focus-ring rounded-md px-3 py-1 text-xs font-medium transition-all hover:opacity-90 ${chipColor(opt.text)}`}
                         >
                           {optionLabel(t, opt)}
                         </button>
@@ -251,7 +251,7 @@ function QnASettingsPanel({
                         { number: setIndex + 1 }
                       )}
                       onClick={() => startEdit(set)}
-                      className="rounded-lg p-2 transition-colors hover:bg-muted"
+                      className="focus-ring rounded-lg p-2 transition-colors hover:bg-muted"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -311,7 +311,7 @@ function QnASettingsPanel({
                                 prev.filter((o) => o.id !== opt.id)
                               )
                             }
-                            className="rounded-lg p-1.5 transition-colors hover:bg-destructive/10"
+                            className="focus-ring rounded-lg p-1.5 transition-colors hover:bg-destructive/10"
                           >
                             <Trash2 size={14} className="text-destructive" />
                           </button>
@@ -328,7 +328,7 @@ function QnASettingsPanel({
                             { id: newId, text: "" },
                           ])
                         }}
-                        className="mt-2 flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                        className="focus-ring mt-2 flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
                       >
                         <Plus size={14} /> {t("organization.templates.qna.addOption")}
                       </button>
@@ -387,7 +387,7 @@ function QnASettingsPanel({
                   key={type.value}
                   type="button"
                   onClick={() => onSelectInput(type.value)}
-                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-colors hover:bg-accent"
+                  className="focus-ring flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-colors hover:bg-accent"
                 >
                   <type.icon size={18} className="text-muted-foreground" />
                   <span className="font-medium">

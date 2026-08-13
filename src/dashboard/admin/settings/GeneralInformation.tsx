@@ -163,7 +163,7 @@ const GeneralInformation = () => {
                 <button
                   type="button"
                   onClick={handleRemoveLogo}
-                  className="text-destructive-foreground absolute -top-2 -right-2 rounded-full bg-destructive p-1 hover:bg-destructive/90"
+                  className="focus-ring text-destructive-foreground absolute -top-2 -right-2 rounded-full bg-destructive p-1 hover:bg-destructive/90"
                 >
                   <X className="h-3.5 w-3.5" />
                   <span className="sr-only">
@@ -178,7 +178,7 @@ const GeneralInformation = () => {
               <button
                 type="button"
                 onClick={handleUploadClick}
-                className="flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+                className="focus-ring flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
               >
                 <Upload className="h-4 w-4" />
                 {logoFile || logoPreview
@@ -295,7 +295,7 @@ const GeneralInformation = () => {
           type="button"
           onClick={handleSubmit}
           disabled={isSubmitting}
-          className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+          className="focus-ring flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
         >
           {isSubmitting ? (
             <>

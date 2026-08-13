@@ -113,7 +113,7 @@ export default function PersonalInfoForm({
               onClick={handleAvatarClick}
               aria-label={t("organization.personalInfo.changePhoto")}
               disabled={isLoading}
-              className="absolute right-0 bottom-0 rounded-full bg-primary p-1.5 text-primary-foreground shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+              className="focus-ring absolute right-0 bottom-0 rounded-full bg-primary p-1.5 text-primary-foreground shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Upload size={12} />
             </button>
@@ -168,7 +168,7 @@ export default function PersonalInfoForm({
         <button
           type="submit"
           disabled={isLoading || (!isDirty && !selectedFile)}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="focus-ring rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isLoading
             ? t("organization.personalInfo.saving")

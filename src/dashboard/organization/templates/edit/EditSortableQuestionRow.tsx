@@ -263,7 +263,7 @@ function EditSortableQuestionRow({
           <button
             type="button"
             aria-label={t("organization.templates.builder.dragToReorder")}
-            className="mt-1.5 cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing disabled:opacity-50"
+            className="focus-ring mt-1.5 cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing disabled:opacity-50"
             disabled={isDragging}
             {...attributes}
             {...listeners}

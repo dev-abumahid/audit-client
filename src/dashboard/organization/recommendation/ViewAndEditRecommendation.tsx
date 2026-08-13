@@ -585,7 +585,7 @@ export default function ViewAndEditRecommendation({
                       })
                     }
                     type="button"
-                    className="flex items-center gap-1 text-sm text-primary hover:text-primary/80"
+                    className="focus-ring flex items-center gap-1 text-sm text-primary hover:text-primary/80"
                   >
                     <CopyCheck className="w-4" />{" "}
                     {t("organization.recommendation.addToFinding")}

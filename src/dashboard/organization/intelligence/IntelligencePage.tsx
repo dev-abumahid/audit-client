@@ -350,7 +350,7 @@ export default function IntelligencePage() {
           type="button"
           onClick={handleScrape}
           disabled={isScraping}
-          className="flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-40"
+          className="focus-ring flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-40"
         >
           {isScraping ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -366,7 +366,7 @@ export default function IntelligencePage() {
           type="button"
           onClick={handleAnalyze}
           disabled={isAnalyzing || unanalyzedCount === 0}
-          className="flex h-11 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-40"
+          className="focus-ring flex h-11 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-40"
         >
           {isAnalyzing ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -391,7 +391,7 @@ export default function IntelligencePage() {
             type="button"
             onClick={handlePredict}
             disabled={isPredicting}
-            className="flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
+            className="focus-ring flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
           >
             {isPredicting ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -407,7 +407,7 @@ export default function IntelligencePage() {
             type="button"
             onClick={handleMitigations}
             disabled={isGeneratingMitigations}
-            className="flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
+            className="focus-ring flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
           >
             {isGeneratingMitigations ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -423,7 +423,7 @@ export default function IntelligencePage() {
             type="button"
             onClick={handleRcsa}
             disabled={isGeneratingRcsa}
-            className="flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
+            className="focus-ring flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
           >
             {isGeneratingRcsa ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -439,7 +439,7 @@ export default function IntelligencePage() {
             type="button"
             onClick={handleResilienceScan}
             disabled={isScanningResilience}
-            className="flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
+            className="focus-ring flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
           >
             {isScanningResilience ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -842,7 +842,7 @@ export default function IntelligencePage() {
                 setFilterSeverity(sev)
                 setPage(1)
               }}
-              className={`flex h-11 items-center rounded-md px-3 text-xs font-medium transition-colors ${
+              className={`focus-ring flex h-11 items-center rounded-md px-3 text-xs font-medium transition-colors ${
                 filterSeverity === sev
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -963,7 +963,7 @@ export default function IntelligencePage() {
                             type="button"
                             onClick={() => setConfirmRiskItem(item)}
                             disabled={creatingRiskId === item.id}
-                            className="flex h-11 items-center gap-1 rounded-md border border-primary/40 px-2 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+                            className="focus-ring flex h-11 items-center gap-1 rounded-md border border-primary/40 px-2 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
                           >
                             {creatingRiskId === item.id ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
@@ -988,7 +988,7 @@ export default function IntelligencePage() {
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="flex h-11 items-center rounded-md border border-border px-3 text-xs disabled:opacity-40"
+              className="focus-ring flex h-11 items-center rounded-md border border-border px-3 text-xs disabled:opacity-40"
             >
               {t("organization.intelligence.pagination.previous")}
             </button>
@@ -1002,7 +1002,7 @@ export default function IntelligencePage() {
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="flex h-11 items-center rounded-md border border-border px-3 text-xs disabled:opacity-40"
+              className="focus-ring flex h-11 items-center rounded-md border border-border px-3 text-xs disabled:opacity-40"
             >
               {t("organization.intelligence.pagination.next")}
             </button>

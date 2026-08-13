@@ -442,7 +442,7 @@ export default function KriDashboardPage() {
             // quality-bar-loop round 2 (mobile, round-1 finding): measured
             // 343x32px at 375px width -- full-width but only 32px tall,
             // under the 44px touch-target guideline.
-            className="flex h-11 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground"
+            className="focus-ring flex h-11 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground"
           >
             <Plus className="h-3.5 w-3.5" /> {t("organization.kri.newKri")}
           </button>
@@ -611,7 +611,7 @@ export default function KriDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setTrendKriId(kri.id)}
-                  className="ml-auto flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="focus-ring ml-auto flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title={t("organization.kri.trend.viewTooltip")}
                   aria-label={t("organization.kri.trend.viewTooltip")}
                 >
@@ -621,7 +621,7 @@ export default function KriDashboardPage() {
                   <button
                     type="button"
                     onClick={() => openUpdateValue(kri)}
-                    className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     title={t("organization.kri.updateValueTooltip")}
                     aria-label={t("organization.kri.updateValueTooltip")}
                   >
@@ -637,7 +637,7 @@ export default function KriDashboardPage() {
                   <button
                     type="button"
                     onClick={() => openEdit(kri)}
-                    className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     title={t("organization.kri.editTooltip")}
                     aria-label={t("organization.kri.editTooltip")}
                   >
@@ -648,7 +648,7 @@ export default function KriDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setDeletingKri(kri)}
-                    className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                     title={t("organization.kri.deleteTooltip")}
                     aria-label={t("organization.kri.deleteTooltip")}
                   >
@@ -726,7 +726,7 @@ export default function KriDashboardPage() {
                 aria-label={t("organization.kri.cancel")}
                 // quality-bar-loop round 2 (mobile, round-1 finding):
                 // measured ~28px -- under the 44px touch-target guideline.
-                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -743,7 +743,7 @@ export default function KriDashboardPage() {
               <button
                 type="button"
                 onClick={() => setUpdatingKriId(null)}
-                className="rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+                className="focus-ring rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
               >
                 {t("organization.kri.cancel")}
               </button>
@@ -751,7 +751,7 @@ export default function KriDashboardPage() {
                 type="button"
                 onClick={handleUpdateValue}
                 disabled={isUpdatingValue}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {isUpdatingValue ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -791,7 +791,7 @@ export default function KriDashboardPage() {
                 type="button"
                 onClick={() => setEditingKriId(null)}
                 aria-label={t("organization.kri.cancel")}
-                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -912,7 +912,7 @@ export default function KriDashboardPage() {
               <button
                 type="button"
                 onClick={() => setEditingKriId(null)}
-                className="rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+                className="focus-ring rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
               >
                 {t("organization.kri.cancel")}
               </button>
@@ -920,7 +920,7 @@ export default function KriDashboardPage() {
                 type="button"
                 onClick={handleSaveEdit}
                 disabled={isSavingEdit || !editForm.name}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {isSavingEdit ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -978,7 +978,7 @@ export default function KriDashboardPage() {
                 aria-label={t("organization.kri.cancel")}
                 // quality-bar-loop round 2 (mobile, round-1 finding):
                 // measured ~28px -- under the 44px touch-target guideline.
-                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1163,7 +1163,7 @@ export default function KriDashboardPage() {
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+                className="focus-ring rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
               >
                 {t("organization.kri.cancel")}
               </button>
@@ -1171,7 +1171,7 @@ export default function KriDashboardPage() {
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving || !form.name || !form.risk_id}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {isSaving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1214,7 +1214,7 @@ export default function KriDashboardPage() {
                 aria-label={t("organization.kri.cancel")}
                 // quality-bar-loop round 2 (mobile, round-1 finding):
                 // measured ~28px -- under the 44px touch-target guideline.
-                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>

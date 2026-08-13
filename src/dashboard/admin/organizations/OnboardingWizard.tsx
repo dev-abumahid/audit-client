@@ -398,7 +398,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               onClose()
             }}
             aria-label={t("admin.onboarding.close")}
-            className="text-muted-foreground hover:text-foreground"
+            className="focus-ring text-muted-foreground hover:text-foreground"
           >
             <X className="h-5 w-5" />
           </button>
@@ -485,7 +485,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
+                  className="focus-ring rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
                 >
                   {t("admin.onboarding.cancel")}
                 </button>
@@ -493,7 +493,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   type="button"
                   onClick={handleAnalyze}
                   disabled={isIdentifying}
-                  className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                  className="focus-ring flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                 >
                   {isIdentifying && (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -569,7 +569,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   <button
                     type="button"
                     onClick={addConfirmSite}
-                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                    className="focus-ring flex items-center gap-1 text-xs text-primary hover:underline"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     {t("admin.onboarding.confirm.addSite")}
@@ -696,7 +696,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 <button
                   type="button"
                   onClick={() => setStep("entry")}
-                  className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
+                  className="focus-ring rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
                 >
                   {t("admin.onboarding.back")}
                 </button>
@@ -704,7 +704,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   type="button"
                   onClick={handleGenerate}
                   disabled={selectedConfirmSites.length === 0 || isGenerating}
-                  className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                  className="focus-ring flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                 >
                   {t("admin.onboarding.confirm.continue")}
                 </button>
@@ -866,7 +866,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                               aria-label={t(
                                 "admin.onboarding.review.excludeRisk"
                               )}
-                              className="text-muted-foreground hover:text-red-700 dark:hover:text-red-400"
+                              className="focus-ring text-muted-foreground hover:text-red-700 dark:hover:text-red-400"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -893,7 +893,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   <button
                     type="button"
                     onClick={() => setStep("confirm")}
-                    className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
+                    className="focus-ring rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
                   >
                     {t("admin.onboarding.back")}
                   </button>
@@ -901,7 +901,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     type="button"
                     onClick={handleCommit}
                     disabled={isCommitting}
-                    className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                    className="focus-ring flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                   >
                     {isCommitting && (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -940,7 +940,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                className="focus-ring rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 {t("admin.onboarding.done.close")}
               </button>

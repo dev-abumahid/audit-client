@@ -85,7 +85,7 @@ function SortableQuestionRow({
           <button
             type="button"
             aria-label={t("organization.templates.builder.dragToReorder")}
-            className="mt-1.5 cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
+            className="focus-ring mt-1.5 cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
             {...attributes}
             {...listeners}
           >

@@ -105,7 +105,7 @@ const AdminSettings: React.FC = () => {
               tabIndex={activeTab === tab.value ? 0 : -1}
               onClick={() => setActiveTab(tab.value)}
               onKeyDown={(e) => handleTabKeyDown(e, index)}
-              className={`-mb-px border-b-2 px-6 py-3 text-sm font-medium transition-colors ${
+              className={`focus-ring -mb-px border-b-2 px-6 py-3 text-sm font-medium transition-colors ${
                 activeTab === tab.value
                   ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground"

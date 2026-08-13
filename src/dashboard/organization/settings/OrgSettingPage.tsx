@@ -113,7 +113,7 @@ export default function OrgSettingPage() {
                 tabIndex={activeTab === tab.key ? 0 : -1}
                 onClick={() => setActiveTab(tab.key)}
                 onKeyDown={(e) => handleTabKeyDown(e, index, tabs)}
-                className={`flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-medium transition-all ${
+                className={`focus-ring flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-medium transition-all ${
                   activeTab === tab.key
                     ? "border-b-2 border-primary text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"

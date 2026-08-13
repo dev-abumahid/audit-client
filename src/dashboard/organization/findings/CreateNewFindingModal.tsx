@@ -1063,7 +1063,7 @@ export default function CreateNewFindingModal({
               onClick={() => setShowFiveCs((p) => !p)}
               aria-expanded={showFiveCs}
               aria-controls="finding-five-cs-panel"
-              className="flex w-full items-center justify-between px-5 py-3 text-left"
+              className="focus-ring flex w-full items-center justify-between px-5 py-3 text-left"
             >
               <h3 className="text-base font-semibold text-card-foreground">
                 {t("organization.findings.fiveCsSectionTitle")}
@@ -1249,7 +1249,7 @@ export default function CreateNewFindingModal({
               disabled={isUploading}
               title={t("organization.findings.uploadMedia")}
               aria-label={t("organization.findings.uploadMedia")}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-input bg-background text-primary transition-colors hover:border-primary hover:bg-primary/10 disabled:opacity-50"
+              className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-input bg-background text-primary transition-colors hover:border-primary hover:bg-primary/10 disabled:opacity-50"
             >
               {isUploading ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -1293,7 +1293,7 @@ export default function CreateNewFindingModal({
               }
             })}
             disabled={isSaving}
-            className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             {isSaving ? (
               <>

@@ -207,7 +207,7 @@ export default function AlertsPage() {
           <button
             type="button"
             onClick={() => refetch()}
-            className="flex items-center gap-1.5 rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+            className="focus-ring flex items-center gap-1.5 rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
           >
             <RotateCw className="h-3.5 w-3.5" />
             {t("organization.alerts.retry")}
@@ -255,7 +255,7 @@ export default function AlertsPage() {
             type="button"
             onClick={handleMarkAllRead}
             disabled={isMarkingAllRead}
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+            className="focus-ring flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
           >
             {isMarkingAllRead ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -294,7 +294,7 @@ export default function AlertsPage() {
               onClick={() =>
                 setSeverityFilter((prev) => (prev === sev ? null : sev))
               }
-              className={`flex h-11 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${
+              className={`focus-ring flex h-11 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${
                 isActive
                   ? SEVERITY_ACTIVE_CLASSES[sev]
                   : "border-border bg-card text-muted-foreground hover:bg-muted"

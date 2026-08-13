@@ -123,7 +123,7 @@ export default function ExternalMembersSection() {
           <button
             type="button"
             onClick={openInvite}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             <UserPlus className="h-4 w-4" />
             {t("organization.externalMembers.inviteButton")}
@@ -177,7 +177,7 @@ export default function ExternalMembersSection() {
                   <button
                     type="button"
                     onClick={() => handleCopyLink(member)}
-                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                    className="focus-ring flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
                   >
                     {copiedId === member.id ? (
                       <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
@@ -275,14 +275,14 @@ export default function ExternalMembersSection() {
                   type="button"
                   onClick={() => setShowInviteForm(false)}
                   disabled={isInviting}
-                  className="rounded-lg px-5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                  className="focus-ring rounded-lg px-5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
                 >
                   {t("organization.externalMembers.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={isInviting}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                  className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
                 >
                   {isInviting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

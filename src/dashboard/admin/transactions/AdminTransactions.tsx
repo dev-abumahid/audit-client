@@ -185,7 +185,7 @@ const AdminTransactions: React.FC = () => {
           <button
             type="button"
             onClick={() => toast.success(t("admin.transactions.exportSent"))}
-            className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="focus-ring flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Download className="h-4 w-4" />
             {t("admin.transactions.exportPdf")}

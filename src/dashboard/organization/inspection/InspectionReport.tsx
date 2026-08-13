@@ -266,7 +266,7 @@ const renderAnswerValue = (
           <button
             type="button"
             onClick={() => window.open(answer, "_blank", "noopener,noreferrer")}
-            className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+            className="focus-ring absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
           >
             <span className="rounded bg-white px-2 py-1 text-xs font-medium text-black">
               {t("organization.inspection.viewFullSize")}
@@ -377,7 +377,7 @@ const QuestionCard = memo(
                     aria-label={t("organization.inspection.mediaThumbnailAlt", {
                       index: i + 1,
                     })}
-                    className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-border transition-all duration-200 hover:scale-105 hover:shadow-md"
+                    className="focus-ring flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-border transition-all duration-200 hover:scale-105 hover:shadow-md"
                   >
                     {mediaKind === "video" ? (
                       <video className="h-full w-full object-cover">
@@ -419,7 +419,7 @@ const QuestionCard = memo(
                     onClick={() =>
                       navigate(`/dashboard/single-action/${action._id}`)
                     }
-                    className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors hover:opacity-80 ${severityBadgeClasses("low", { border: true })}`}
+                    className={`focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors hover:opacity-80 ${severityBadgeClasses("low", { border: true })}`}
                   >
                     <CopyCheck className="h-3 w-3 shrink-0" />
                     {action.actionTitle}
@@ -969,7 +969,7 @@ const InspectionReport = () => {
               type="button"
               onClick={downloadPdf}
               disabled={isDownloading}
-              className="flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60"
+              className="focus-ring flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isDownloading ? (
                 <>
@@ -1015,7 +1015,7 @@ const InspectionReport = () => {
                   type="button"
                   onClick={() => scrollToPage(idx)}
                   aria-current={isActive ? "true" : undefined}
-                  className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all ${
+                  className={`focus-ring flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all ${
                     isActive
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-foreground hover:bg-card hover:text-foreground hover:shadow-sm"
@@ -1177,7 +1177,7 @@ const InspectionReport = () => {
                 type="button"
                 onClick={() => setSelectedMedia(null)}
                 aria-label={t("organization.inspection.closeMediaPreview")}
-                className="flex h-11 w-11 items-center justify-center rounded-full font-bold text-muted-foreground transition-colors hover:bg-muted"
+                className="focus-ring flex h-11 w-11 items-center justify-center rounded-full font-bold text-muted-foreground transition-colors hover:bg-muted"
               >
                 ×
               </button>

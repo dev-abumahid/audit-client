@@ -554,7 +554,7 @@ export default function CompliancePage() {
           <button
             type="button"
             onClick={openCreate}
-            className="flex h-11 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground"
+            className="focus-ring flex h-11 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground"
           >
             <Plus className="h-3.5 w-3.5" />{" "}
             {t("organization.compliance.newObligation")}
@@ -893,7 +893,7 @@ export default function CompliancePage() {
                           <button
                             type="button"
                             onClick={() => openCreateAction(obl)}
-                            className="flex h-11 shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 text-[10px] font-medium text-primary hover:bg-primary/20"
+                            className="focus-ring flex h-11 shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 text-[10px] font-medium text-primary hover:bg-primary/20"
                           >
                             <Plus className="h-3 w-3" />
                             {t("organization.compliance.createAction.button")}
@@ -1036,7 +1036,7 @@ export default function CompliancePage() {
                 type="button"
                 onClick={() => setShowForm(false)}
                 aria-label={t("organization.compliance.form.close")}
-                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1285,7 +1285,7 @@ export default function CompliancePage() {
                         aria-label={t(
                           "organization.compliance.form.removeAttachment"
                         )}
-                        className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
+                        className="focus-ring shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -1315,7 +1315,7 @@ export default function CompliancePage() {
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="flex h-11 items-center rounded-lg border border-input px-4 text-sm text-muted-foreground hover:bg-muted"
+                className="focus-ring flex h-11 items-center rounded-lg border border-input px-4 text-sm text-muted-foreground hover:bg-muted"
               >
                 {t("organization.compliance.form.cancel")}
               </button>
@@ -1323,7 +1323,7 @@ export default function CompliancePage() {
                 type="button"
                 onClick={handleSave}
                 disabled={isCreating || isUpdating || !form.title.trim()}
-                className="flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                className="focus-ring flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {isCreating || isUpdating ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1400,7 +1400,7 @@ export default function CompliancePage() {
               <button
                 type="button"
                 onClick={() => setAttestObligation(null)}
-                className="flex h-11 items-center rounded-lg border border-input px-4 text-sm text-muted-foreground hover:bg-muted"
+                className="focus-ring flex h-11 items-center rounded-lg border border-input px-4 text-sm text-muted-foreground hover:bg-muted"
               >
                 {t("organization.compliance.form.cancel")}
               </button>
@@ -1408,7 +1408,7 @@ export default function CompliancePage() {
                 type="button"
                 onClick={confirmAttest}
                 disabled={isAttesting}
-                className="flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                className="focus-ring flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {isAttesting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1456,7 +1456,7 @@ export default function CompliancePage() {
                 aria-label={t(
                   "organization.compliance.attest.historyModalClose"
                 )}
-                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>

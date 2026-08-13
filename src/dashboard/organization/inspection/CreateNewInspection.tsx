@@ -963,7 +963,7 @@ export default function CreateNewInspection() {
                 key={index}
                 type="button"
                 onClick={() => scrollToPage(index)}
-                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all ${
+                className={`focus-ring flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all ${
                   currentPageIndex === index
                     ? "bg-primary font-medium text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"

@@ -589,7 +589,7 @@ export default function CorrelationMatrixPage() {
                 type="button"
                 onClick={() => setMatrixSize(s as MatrixSize)}
                 aria-pressed={matrixSize === s}
-                className={`flex h-11 min-w-11 items-center justify-center px-3 text-xs font-medium ${matrixSize === s ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
+                className={`focus-ring flex h-11 min-w-11 items-center justify-center px-3 text-xs font-medium ${matrixSize === s ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
               >
                 {s}×{s}
               </button>
@@ -607,7 +607,7 @@ export default function CorrelationMatrixPage() {
                 type="button"
                 onClick={() => setGroupMode(mode as GroupMode)}
                 aria-pressed={groupMode === mode}
-                className={`flex h-11 items-center justify-center px-3 text-xs font-medium ${groupMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
+                className={`focus-ring flex h-11 items-center justify-center px-3 text-xs font-medium ${groupMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
               >
                 {t(`${NS}.${labelKey}`)}
               </button>
@@ -627,7 +627,7 @@ export default function CorrelationMatrixPage() {
                 type="button"
                 onClick={() => setViewMode(mode as ViewMode)}
                 aria-pressed={viewMode === mode}
-                className={`flex h-11 items-center justify-center px-3 text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
+                className={`focus-ring flex h-11 items-center justify-center px-3 text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
               >
                 {t(`${NS}.${labelKey}`)}
               </button>
@@ -738,7 +738,7 @@ export default function CorrelationMatrixPage() {
                               rootCause: label,
                               consequence: axisLabels.consequence[col],
                             })}
-                            className={`${getCellColor(row, col, matrixSize)} relative flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-black transition-all hover:z-20 hover:scale-105 ${isSelected ? "z-20 scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-70"}`}
+                            className={`focus-ring ${getCellColor(row, col, matrixSize)} relative flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-black transition-all hover:z-20 hover:scale-105 ${isSelected ? "z-20 scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-70"}`}
                           >
                             {cellRisks.length > 0 && (
                               <>
@@ -810,7 +810,7 @@ export default function CorrelationMatrixPage() {
                 <button
                   type="button"
                   onClick={() => setShowLinkForm(true)}
-                  className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+                  className="focus-ring flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   {t(`${NS}.addLink`)}
@@ -891,7 +891,7 @@ export default function CorrelationMatrixPage() {
                   <button
                     type="button"
                     onClick={resetLinkForm}
-                    className="flex items-center gap-1 rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
+                    className="focus-ring flex items-center gap-1 rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
                   >
                     <X className="h-3 w-3" />
                     {t(`${NS}.linkFormCancel`)}
@@ -899,7 +899,7 @@ export default function CorrelationMatrixPage() {
                   <button
                     type="submit"
                     disabled={isCreatingLink}
-                    className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                    className="focus-ring flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
                     {isCreatingLink && (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -956,7 +956,7 @@ export default function CorrelationMatrixPage() {
                           source: link.source_ref,
                           target: link.target_ref,
                         })}
-                        className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        className="focus-ring rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -1051,7 +1051,7 @@ export default function CorrelationMatrixPage() {
                         type="button"
                         onClick={() => toggleBucket(bucket.name)}
                         aria-expanded={expandedBucket === bucket.name}
-                        className="flex w-full items-center justify-between p-3 text-left hover:bg-muted/50"
+                        className="focus-ring flex w-full items-center justify-between p-3 text-left hover:bg-muted/50"
                       >
                         <div>
                           <p className="text-sm font-medium">{bucket.name}</p>
@@ -1112,7 +1112,7 @@ export default function CorrelationMatrixPage() {
                   type="button"
                   onClick={runAIBucketing}
                   disabled={isAILoading}
-                  className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  className="focus-ring flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   {isAILoading ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -1301,7 +1301,7 @@ function BucketList({
             type="button"
             onClick={() => toggleBucket(bucket.name)}
             aria-expanded={expandedBucket === bucket.name}
-            className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
+            className="focus-ring flex w-full justify-between p-3 text-left hover:bg-muted/50"
           >
             <div>
               <p className="font-medium">{bucket.name}</p>
@@ -1384,7 +1384,7 @@ function AIRiskBucketCard({
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
+        className="focus-ring flex w-full justify-between p-3 text-left hover:bg-muted/50"
       >
         <div>
           <p className="font-medium">{bucket.bucketName}</p>
@@ -1440,7 +1440,7 @@ function AIRiskBucketCard({
                 type="button"
                 onClick={onSendToFinding}
                 disabled={isSending || isSent}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                className="focus-ring flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 {isSending ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -1480,7 +1480,7 @@ function AIFindingBucketCard({
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
+        className="focus-ring flex w-full justify-between p-3 text-left hover:bg-muted/50"
       >
         <div>
           <p className="font-medium">{bucket.bucketName}</p>
