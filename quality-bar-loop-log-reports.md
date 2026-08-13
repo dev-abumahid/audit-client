@@ -252,3 +252,61 @@ GENERATING->READY/FAILED poll transition and the no-results-state
 change, `aria-describedby` wiring `generatingHint` to the Generate
 button, and a proper accessible label (not just a placeholder) on the
 search input.
+
+## Round 6 outcome
+
+Shipped via PR #762 (merged), across four commits -- the most review
+iteration any single round has needed so far in this loop, each pass
+catching a real, progressively subtler bug:
+
+1. **Initial fix**: search input `aria-label`, `role="status"` on the
+   no-results/empty-state text, `aria-describedby` wiring
+   `generatingHint` to the Generate button, and `aria-live="polite"`
+   on every report card's status badge.
+2. **Review pass 1 finding (real)**: the blanket `aria-live` on every
+   badge (not just the transitioning one) turns every report into a
+   permanent live region and risks announcing unrelated re-renders --
+   scoped to `aria-live={isGen ? "polite" : undefined}`, and
+   `role="status"` scoped to only the `debouncedSearch` branch (the
+   static empty-org message isn't a state change worth announcing).
+3. **Review pass 2 finding (real, subtler)**: the `isGen`-gated
+   `aria-live` from pass 1 still had a race -- `isGen` flips `false`
+   in the *same commit* that changes the status text, so some screen
+   readers evaluate "is this node still live" at mutation-processing
+   time and can silently swallow the exact announcement it exists for.
+   Replaced with the standard pattern: a single, always-present
+   `sr-only` live region whose `aria-live`/`role` never toggle, only
+   its text -- updated a render *after* the transition via its own
+   effect that diffs each report's current vs. previous status.
+   `reports` was memoized (a lint warning caught an unstable array
+   reference that would've made the effect re-diff every render).
+4. **Review pass 3 (clean, minor note)**: confirmed the race is
+   genuinely fixed, the mount-guard logic is correct (`undefined ===
+   "GENERATING"` is false, so a report's first appearance never
+   spuriously announces), and the tests correctly exercise the
+   two-render transition via `rerender()`. One minor, explicitly
+   accepted limitation flagged and documented rather than fixed: if
+   two reports transition out of GENERATING in the same update, only
+   the last is announced -- not worth a queue's complexity given
+   generation is one-at-a-time in this app (single Generate button, no
+   bulk-generate).
+
+**QA**: lint clean, typecheck clean (same pre-existing, unrelated
+TS2556 failure on `main`, not re-investigated). Full suite:
+1987/1987 passing, including 8 new accessibility regression tests
+(the final 3, covering the live-region fix, replaced 2 tests from
+pass 1 that no longer applied once the per-badge approach was
+replaced). Every fix in every pass had a genuine negative control
+-- reverted, confirmed the relevant tests failed, restored.
+
+**Live verification**: all fixes confirmed in a fresh browser tab
+(avoiding the round-5 stale-tab pitfall) against the running dev
+server -- the search input's accessible name via the a11y tree, the
+`role="status"` no-results announcement by typing a non-matching
+search term, the live region's presence/emptiness on load, and (for
+the final fix) a real generate-and-fail cycle correctly *not*
+spuriously announcing, since generation is synchronous in this app
+(a report never appears as GENERATING in the list at all) -- the
+polling-recovery transition this region exists for is covered by the
+unit tests instead, since this preview environment has no way to
+trigger it live.
