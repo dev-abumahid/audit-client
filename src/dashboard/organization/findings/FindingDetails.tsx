@@ -348,7 +348,10 @@ export default function FindingDetails() {
   // `action.inspectionId` once `action` is known, to narrow LEAD_AUDITOR's
   // Edit/Delete below to only findings on an inspection they're actually
   // assigned to -- see canWrite's new definition after the `action` guard.
-  const assignedInspectionIds = useMyAssignedInspectionIds()
+  // Round 9/10 efficiency finding: passing `role` (already resolved above)
+  // lets the hook skip its fetch for VIEWER/LIGHT_USER -- see
+  // useMyAssignedInspectionIds's own comment.
+  const assignedInspectionIds = useMyAssignedInspectionIds(role)
   const { id } = useParams<{ id: string }>()
   const { data, isLoading } = useGetFindingByIdQuery(id as string)
   const [deleteFinding, { isLoading: isDeleting }] =

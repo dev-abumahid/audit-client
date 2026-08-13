@@ -104,7 +104,11 @@ export default function FindingClosureControls({ action }: Props) {
   // graceful-degradation requirement -- other call sites that previously
   // excluded LIGHT_USER entirely keep `false` (canWriteFinding's own
   // default) instead.
-  const assignedInspectionIds = useMyAssignedInspectionIds()
+  //
+  // Round 9/10 efficiency finding: passing `role` (already resolved above)
+  // lets the hook skip its fetch for VIEWER/LIGHT_USER -- see
+  // useMyAssignedInspectionIds's own comment.
+  const assignedInspectionIds = useMyAssignedInspectionIds(role)
   const activeFindingAssignmentIds = useMyActiveFindingAssignmentIds()
   const canSubmit = canWriteFinding(
     role,

@@ -46,8 +46,12 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
 // having to know about assignment data at all.
 let mockAssignedInspectionIds: Set<string> | undefined = undefined
 let mockActiveFindingAssignmentIds: Set<string> | undefined = undefined
+// Round 9/10 efficiency finding -- spied so a test can assert this
+// component actually passes its resolved role through.
+const mockUseMyAssignedInspectionIds = vi.fn(() => mockAssignedInspectionIds)
 vi.mock("@/hooks/useMyAssignments", () => ({
-  useMyAssignedInspectionIds: () => mockAssignedInspectionIds,
+  useMyAssignedInspectionIds: (...args: unknown[]) =>
+    mockUseMyAssignedInspectionIds(...args),
   useMyActiveFindingAssignmentIds: () => mockActiveFindingAssignmentIds,
 }))
 
@@ -142,6 +146,18 @@ describe("FindingClosureControls", () => {
     mockClosureState("NOT_SUBMITTED")
     mockAssignedInspectionIds = undefined
     mockActiveFindingAssignmentIds = undefined
+    mockUseMyAssignedInspectionIds.mockClear()
+  })
+
+  // Round 9/10 efficiency finding: this hook was called with no `role`,
+  // wasting a fetch for VIEWER/LIGHT_USER despite `role` already being
+  // resolved locally and the hook's own skip param existing for exactly
+  // this case.
+  it("passes the resolved role to useMyAssignedInspectionIds so VIEWER/LIGHT_USER can skip the assignments fetch", () => {
+    mockRole = "VIEWER"
+    render(<FindingClosureControls action={makeAction()} />)
+
+    expect(mockUseMyAssignedInspectionIds).toHaveBeenCalledWith("VIEWER")
   })
 
   it("renders nothing while the closure state is loading", () => {

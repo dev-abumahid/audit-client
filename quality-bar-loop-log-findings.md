@@ -410,3 +410,62 @@ Deferred, not fixed: the review's larger suggestion to converge these
 raw `<button>` elements onto the codebase's shared `cva`-based `Button`
 component -- real visual-regression risk, pre-existing debt this
 refactor didn't introduce, disproportionate to a contained round.
+
+## Round 9 — scoped panel (code quality only)
+
+Round 8's diff was a pure refactor, confirmed behavior-identical by two
+independent review passes, confined to one file
+(`FindingDetails.tsx`). Per the skill's scoped-carry-forward shortcut,
+only re-ran the axis round 8 actually targeted (code quality); the
+other 8 axes carry forward their round-7 scores unchanged, each with
+zero code-overlap with round 8's diff.
+
+| Axis | R7 | R9 | Note |
+|---|---|---|---|
+| Industry-standards | 7 | 7 (carried forward) | Not touched by round 8's diff. |
+| UX | 9 | 9 (carried forward) | Not touched. |
+| Efficiency | 6 | 6 (carried forward) | Not touched. |
+| Accessibility | 8 | 8 (carried forward) | Not touched. |
+| Visual polish | 8 | 8 (carried forward) | Not touched. |
+| Resilience | 6 | 6 (carried forward) | Not touched. |
+| Code quality | 7 | **8** | Fresh re-score. Attachment-UI-duplication finding confirmed genuinely resolved (one implementation, not two blocks relocated) -- both of the extraction's own review-flagged issues (t prop-drilling, relocated ternaries) also confirmed fixed. The other three standing findings (god component, `any` usage, Controller dual-source-of-truth) unchanged; comment volume roughly flat. |
+| Mobile | 7 | 7 (carried forward) | Not touched. |
+| Security | 9 | 9 (carried forward) | Not touched. |
+
+**Average: 7.56/10** ((7+9+6+8+8+6+8+7+9)/9). **Two axes below floor**
+(efficiency 6, resilience 6) -- not converged, loop continues.
+
+**Round 10 selection**: no `data-correctness`/`security` finding at/below
+floor. `stuck_streak`, extending the R1/R3/R5/R7/R9 sequence (treating
+a carried-forward score as a genuine "unchanged" data point, since it's
+even stronger evidence nothing was attempted on that axis than an
+independently-reconfirmed unchanged score would be):
+- Efficiency: R5=7, R7=6 (changed, streak resets to 0 at R7), R7=6 →
+  R9=6 (unchanged AND at/below floor) -- **streak = 1 at R9**.
+- Resilience: R5=8, R7=6 (changed, streak resets to 0 at R7), R7=6 →
+  R9=6 (unchanged AND at/below floor) -- **streak = 1 at R9**.
+- Industry-standards: now above floor (7), not eligible. Code quality:
+  R7=7→R9=8, changed, streak = 0.
+
+Efficiency and resilience tie at streak=1. Tiebreak: lowest raw score
+first (also tied, both 6), then roster order -- Efficiency is listed
+before Resilience in the judge roster, so efficiency wins.
+
+**Fix selection**: efficiency's two open findings, both confirmed still
+present via direct code read every round since round 3 (rounds 3, 5,
+7): (1) `AllFindingsPage.tsx`'s search input has no debounce, firing a
+fresh backend request per keystroke; (2) `useMyAssignedInspectionIds()`
+is called with no `role` argument at all 3 Findings call sites
+(`AllFindingsPage.tsx`, `FindingDetails.tsx`, `FindingClosureControls.tsx`),
+wasting a fetch for VIEWER/LIGHT_USER despite `role` already being
+resolved locally in each file and the hook's own skip-param existing
+specifically for this. Both are Tier 1/2, both from the same axis --
+shipping together this round even though the debounce fix and one of
+the three role-param call sites both touch `AllFindingsPage.tsx`: the
+file-overlap restriction in the skill's batching rule is about
+batching *different* candidate fixes from potentially different
+sources into one round to save review cycles, not about doing two
+related fixes from the same selected axis in the same file
+sequentially within one round's own diff -- there's no simultaneous-
+edit merge-conflict risk since it's one continuous diff, not two
+independently-developed branches being combined.

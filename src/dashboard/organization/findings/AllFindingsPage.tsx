@@ -9,6 +9,7 @@ import {
 } from "@/redux/apis/organization/findings.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
+import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { IAction } from "@/types/finding"
@@ -102,8 +103,12 @@ export default function AllFindingsPage() {
   // below -- `canWrite` above stays role-only for the page-level "Create
   // new" affordance (creating a finding needs no assignment to narrow by;
   // it's inspection-scoped only, same reasoning as InspectionTable.tsx's
-  // "Start New").
-  const assignedInspectionIds = useMyAssignedInspectionIds()
+  // "Start New"). Round 9/10 efficiency finding: passing `role` (already
+  // resolved above) lets the hook skip its fetch entirely for
+  // VIEWER/LIGHT_USER, matching InspectionTable.tsx/InspectionReport.tsx's
+  // already-migrated call sites -- see useMyAssignedInspectionIds's own
+  // comment.
+  const assignedInspectionIds = useMyAssignedInspectionIds(role)
   const [searchParams] = useSearchParams()
   // quality-bar-loop round 14 (industry-standards): the dashboard's
   // "Open Actions" KPI card used to be a static, non-clickable number --
@@ -118,6 +123,14 @@ export default function AllFindingsPage() {
   // being linked to was computed in the first place, not a paginated view.
   const openStatusFilter = searchParams.get("status") === "open"
   const [search, setSearch] = useState("")
+  // Round 9/10 efficiency finding: `search` used to feed straight into
+  // useGetAllFindingsQuery's cache key, so every keystroke fired a fresh
+  // backend request -- same debounce pattern already used by
+  // TemplatesPage.tsx/SitesEntities.tsx/RiskRegisterPage.tsx for the
+  // identical problem. `search` itself still drives the input's value (so
+  // typing feels instant) and the "Clear filters" visibility check below;
+  // only the query's searchTerm reads the debounced value.
+  const debouncedSearch = useDebouncedValue(search, 300)
   const [selectedSiteId, setSelectedSiteId] = useState<string>("")
   const [page, setPage] = useState(1)
   const [modalState, setModalState] = useState<{
@@ -148,7 +161,7 @@ export default function AllFindingsPage() {
   } = useGetAllFindingsQuery({
     page: openStatusFilter ? 1 : page,
     limit: openStatusFilter ? 100 : 20,
-    searchTerm: search,
+    searchTerm: debouncedSearch,
     siteId: selectedSiteId || "",
   })
 
@@ -665,13 +678,23 @@ export default function AllFindingsPage() {
                           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
                             <Plus size={24} className="text-muted-foreground" />
                           </div>
+                          {/* Round 9/10 review finding: this text used to
+                              branch on the raw (undebounced) `search` while
+                              the empty state itself is driven by the
+                              debounced query result -- during the ~300ms
+                              debounce window, typing a new character could
+                              flip this copy to "no results, adjust your
+                              search" a beat before the query for that new
+                              term had even fired. Branching on
+                              `debouncedSearch` keeps this in sync with
+                              what's actually being shown. */}
                           <h3 className="mb-2 text-lg font-medium text-foreground">
-                            {search || selectedSiteId
+                            {debouncedSearch || selectedSiteId
                               ? t("organization.findings.noFindingsFound")
                               : t("organization.findings.noFindingsYet")}
                           </h3>
                           <p className="text-muted-foreground">
-                            {search || selectedSiteId
+                            {debouncedSearch || selectedSiteId
                               ? t("organization.findings.adjustSearch")
                               : t("organization.findings.getStarted")}
                           </p>

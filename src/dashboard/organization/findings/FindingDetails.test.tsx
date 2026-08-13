@@ -34,8 +34,12 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
 
 // aexa-frontend#270 -- mutable holder, same convention as mockRole above.
 let mockAssignedInspectionIds: Set<string> | undefined = new Set()
+// Round 9/10 efficiency finding -- spied so a test can assert this page
+// actually passes its resolved role through, not just that the hook fires.
+const mockUseMyAssignedInspectionIds = vi.fn(() => mockAssignedInspectionIds)
 vi.mock("@/hooks/useMyAssignments", () => ({
-  useMyAssignedInspectionIds: () => mockAssignedInspectionIds,
+  useMyAssignedInspectionIds: (...args: unknown[]) =>
+    mockUseMyAssignedInspectionIds(...args),
   useMyActiveFindingAssignmentIds: () => new Set(),
 }))
 
@@ -147,6 +151,7 @@ describe("FindingDetails", () => {
     mockAddFindingMessage.mockReset()
     mockToastError.mockReset()
     mockToastSuccess.mockReset()
+    mockUseMyAssignedInspectionIds.mockClear()
     mockUseGetFindingByIdQuery.mockReturnValue({
       data: { data: makeAction() },
       isLoading: false,
@@ -163,6 +168,17 @@ describe("FindingDetails", () => {
     expect(
       screen.getByRole("button", { name: "organization.findings.delete" })
     ).toBeInTheDocument()
+  })
+
+  // Round 9/10 efficiency finding: this hook was called with no `role`,
+  // wasting a fetch for VIEWER/LIGHT_USER despite `role` already being
+  // resolved locally and the hook's own skip param existing for exactly
+  // this case.
+  it("passes the resolved role to useMyAssignedInspectionIds so VIEWER/LIGHT_USER can skip the assignments fetch", () => {
+    mockRole = "VIEWER"
+    renderPage()
+
+    expect(mockUseMyAssignedInspectionIds).toHaveBeenCalledWith("VIEWER")
   })
 
   // Regression: the priority badge used to concatenate two separately-

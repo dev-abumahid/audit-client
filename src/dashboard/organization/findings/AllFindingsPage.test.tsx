@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import AllFindingsPage from "./AllFindingsPage"
@@ -48,8 +48,14 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
 
 // aexa-frontend#270 -- mutable holder, same convention as mockRole above.
 let mockAssignedInspectionIds: Set<string> | undefined = new Set()
+// Round 9/10 efficiency finding: this hook's own `role` param lets a caller
+// that already knows its role skip a wasted fetch -- spied (not just
+// stubbed) so a test below can assert this page actually passes it, not
+// just that the hook is called at all.
+const mockUseMyAssignedInspectionIds = vi.fn(() => mockAssignedInspectionIds)
 vi.mock("@/hooks/useMyAssignments", () => ({
-  useMyAssignedInspectionIds: () => mockAssignedInspectionIds,
+  useMyAssignedInspectionIds: (...args: unknown[]) =>
+    mockUseMyAssignedInspectionIds(...args),
   useMyActiveFindingAssignmentIds: () => new Set(),
 }))
 
@@ -122,6 +128,7 @@ describe("AllFindingsPage", () => {
     mockUseGetAllSitesQuery.mockReset()
     mockDeleteAction.mockReset()
     mockToastError.mockReset()
+    mockUseMyAssignedInspectionIds.mockClear()
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [] } })
     mockUseGetAllFindingsQuery.mockReturnValue({
       data: {
@@ -143,6 +150,67 @@ describe("AllFindingsPage", () => {
     expect(
       screen.getAllByRole("button").some((b) => b.querySelector("svg.lucide-pen"))
     ).toBe(true)
+  })
+
+  // Round 9/10 efficiency finding: search used to feed the query's cache
+  // key directly, firing a fresh request per keystroke.
+  describe("search debounce (round 9/10)", () => {
+    it("does not refetch on every keystroke -- only after the debounce delay", () => {
+      vi.useFakeTimers()
+      try {
+        render(<AllFindingsPage />, withRouter)
+
+        const callsBeforeTyping = mockUseGetAllFindingsQuery.mock.calls.length
+        const searchInput = screen.getByPlaceholderText(
+          "organization.findings.searchPlaceholder"
+        )
+        act(() => {
+          fireEvent.change(searchInput, { target: { value: "railing" } })
+        })
+
+        // Still within the debounce window -- the query hook may have
+        // re-rendered for other reasons, but never yet with the typed value.
+        expect(
+          mockUseGetAllFindingsQuery.mock.calls
+            .slice(callsBeforeTyping)
+            .some((call) => (call[0] as { searchTerm?: string })?.searchTerm === "railing")
+        ).toBe(false)
+
+        act(() => {
+          vi.advanceTimersByTime(300)
+        })
+
+        expect(
+          mockUseGetAllFindingsQuery.mock.calls.some(
+            (call) => (call[0] as { searchTerm?: string })?.searchTerm === "railing"
+          )
+        ).toBe(true)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it("keeps the search input responsive (uncontrolled by the debounce) while typing", () => {
+      render(<AllFindingsPage />, withRouter)
+
+      const searchInput = screen.getByPlaceholderText(
+        "organization.findings.searchPlaceholder"
+      ) as HTMLInputElement
+      fireEvent.change(searchInput, { target: { value: "railing" } })
+
+      expect(searchInput.value).toBe("railing")
+    })
+  })
+
+  // Round 9/10 efficiency finding: this hook is called with no `role`,
+  // wasting a fetch for VIEWER/LIGHT_USER despite `role` already being
+  // resolved locally and the hook's own skip param existing for exactly
+  // this case (see useMyAssignedInspectionIds's own doc comment).
+  it("passes the resolved role to useMyAssignedInspectionIds so VIEWER/LIGHT_USER can skip the assignments fetch", () => {
+    mockRole = "VIEWER"
+    render(<AllFindingsPage />, withRouter)
+
+    expect(mockUseMyAssignedInspectionIds).toHaveBeenCalledWith("VIEWER")
   })
 
   // Regression (aexa-frontend round-9 audit #469): the per-row Edit/Delete
@@ -225,6 +293,52 @@ describe("AllFindingsPage", () => {
       "organization.findings.noFindingsYet"
     ).closest("td")!
     expect(emptyCell).toHaveAttribute("colspan", String(headerCells.length))
+  })
+
+  // Round 9/10 review finding: the empty-state copy used to branch on the
+  // raw (undebounced) search value, so it could read "no results, adjust
+  // your search" for a beat before the debounced query for a freshly-typed
+  // term had even fired -- out of sync with what's actually being shown.
+  it("keeps the empty-state copy in sync with the debounced query, not the raw keystroke", () => {
+    vi.useFakeTimers()
+    try {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: { data: [], meta: { page: 1, limit: 20, total: 0, totalPage: 0 } },
+        isLoading: false,
+        refetch: vi.fn(),
+      })
+      render(<AllFindingsPage />, withRouter)
+
+      expect(
+        screen.getByText("organization.findings.noFindingsYet")
+      ).toBeInTheDocument()
+
+      const searchInput = screen.getByPlaceholderText(
+        "organization.findings.searchPlaceholder"
+      )
+      act(() => {
+        fireEvent.change(searchInput, { target: { value: "railing" } })
+      })
+
+      // Still within the debounce window -- the copy must not have flipped
+      // to the "adjust your search" variant yet.
+      expect(
+        screen.getByText("organization.findings.noFindingsYet")
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.findings.noFindingsFound")
+      ).not.toBeInTheDocument()
+
+      act(() => {
+        vi.advanceTimersByTime(300)
+      })
+
+      expect(
+        screen.getByText("organization.findings.noFindingsFound")
+      ).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   // quality-bar-loop round 16 (resilience regression): this query never
