@@ -190,7 +190,18 @@ export default function SitesEntities() {
   // all). Unlike `useGetAllSitesQuery` above, which already handles its
   // own isError with a real error card, these two never got the same
   // treatment.
-  const { data: riskData, isError: riskError } = useGetAllRisksQuery(
+  // quality-bar-loop round 9 (resilience finding, open since round 1):
+  // isLoading was never destructured here -- while this query is
+  // in-flight, `riskData` is undefined, so `riskData?.data.length === 0`
+  // is false (undefined !== 0) and the map fallback is also empty. The
+  // expanded panel silently rendered nothing at all during a real
+  // multi-second load, not even a false "0" -- no spinner, no content,
+  // no indication anything was happening.
+  const {
+    data: riskData,
+    isError: riskError,
+    isLoading: isRiskLoading,
+  } = useGetAllRisksQuery(
     {
       siteId: expandedSite ?? "",
       page: 1,
@@ -466,6 +477,13 @@ export default function SitesEntities() {
         toast.success(t("organization.site&entities.siteDeletedSuccess"))
         setIsDeleteModalOpen(false)
         setDeleteSiteId(null)
+      } else {
+        // quality-bar-loop round 9 (resilience finding, open since round
+        // 1): a non-throwing `success: false` response fell through
+        // silently -- no toast, modal stayed open with no indication
+        // anything went wrong. handleConfirmRiskDelete already has this
+        // else branch; this brings the site-delete handler in line.
+        toast.error(t("organization.site&entities.deleteSiteFailed"))
       }
     } catch (error) {
       toast.error(t("organization.site&entities.deleteSiteFailed"))
@@ -1195,7 +1213,11 @@ export default function SitesEntities() {
                     <Check className="h-3 w-3" />
                     {t("organization.site&entities.confirmedRisksHeading")}
                   </p>
-                  {riskError ? (
+                  {isRiskLoading ? (
+                    <div className="flex justify-center py-3">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : riskError ? (
                     <p role="alert" className="py-3 text-xs text-muted-foreground">
                       {t("organization.site&entities.riskLoadFailed")}
                     </p>

@@ -1130,6 +1130,67 @@ describe("SitesEntities", () => {
     await waitFor(() => expect(mockDeleteSite).toHaveBeenCalledWith("site-1"))
   })
 
+  // quality-bar-loop round 9 (resilience finding, open since round 1):
+  // a non-throwing `success: false` response fell through silently --
+  // no toast, modal stayed open with no indication anything went wrong.
+  it("shows an error toast when site deletion resolves with success: false", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockDeleteSite.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: false }),
+    })
+
+    renderPage()
+    const deleteButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-trash2"))
+    await userEvent.click(deleteButtons[0])
+    await userEvent.click(
+      screen.getByRole("button", { name: /confirm delete/i })
+    )
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.site&entities.deleteSiteFailed"
+      )
+    )
+  })
+
+  // quality-bar-loop round 9 (resilience finding, open since round 1):
+  // isLoading was never destructured from this query -- while it was
+  // in-flight, the expanded panel rendered nothing at all (not even a
+  // false "0"), since riskData?.data.length === 0 is false when
+  // riskData is undefined.
+  it("shows a loading spinner, not a blank panel, while a site's risks are still loading", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockImplementation(
+      (args: { siteId?: string }) =>
+        args.siteId
+          ? { data: undefined, isError: false, isLoading: true }
+          : { data: { data: [] }, isError: false, isLoading: false }
+    )
+
+    renderPage()
+    const expandButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-chevron-down"))!
+    await userEvent.click(expandButton)
+
+    expect(document.querySelector("svg.animate-spin")).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.site&entities.noConfirmedRisks")
+    ).not.toBeInTheDocument()
+  })
+
   it("expands a site to show its confirmed risks", async () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,
