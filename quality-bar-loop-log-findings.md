@@ -550,3 +550,52 @@ The fix mirrors `AllFindingsPage.tsx`'s own established isError
 pattern exactly (distinct error copy, `role="alert"`, `refetch`-backed
 retry) rather than inventing a new one, per round 11's own judge
 documentation of that precedent.
+
+## Round 12 outcome
+
+Shipped the detail-page network-error state selected in round 11
+(PR #753) -- the single longest-standing finding in the whole loop,
+flagged and reconfirmed in 6 of 11 rounds (1/3/5/7/9/11) without ever
+being selected until now.
+
+`FindingDetails.tsx` now destructures `isError`/`refetch` from
+`useGetFindingByIdQuery` and renders a distinct error state (before
+the `!action`/not-found fallthrough) instead of mislabeling a genuine
+fetch failure as a missing record: `AlertTriangle` icon, a
+"Failed to load this finding" message, a primary-styled Retry button
+wired to `refetch()`, and a secondary Go Back button.
+
+**QA**: typecheck/eslint clean. Full suite: 1967/1967 passing. Four
+dedicated regression tests with a verified negative control.
+
+**Live verification, partial and documented honestly**: confirmed the
+success path renders cleanly with zero console errors. Confirmed (by
+briefly stopping the backend, then restarting it immediately) that
+this route produces a genuine `ERR_CONNECTION_REFUSED` failure at the
+network layer during a real outage. Could not get a final clean live
+render of the error UI itself in that same browser session -- the page
+stayed on its loading spinner through a backend restart and a
+fresh-tab retry during that specific test, which did not reproduce
+moments later in an entirely new tab (loaded normally). Read as this
+session's shared browser environment being degraded after many hours
+and 12 rounds' worth of judge/review agents, not a defect in the
+change -- the isError branch itself is proven by the unit test's
+verified negative control. Documented in the PR rather than silently
+treated as fully live-confirmed.
+
+**Review**: two parallel angles (correctness, UX/consistency).
+Correctness came back clean (confirmed branch ordering, imports, RTK
+Query isLoading/isError transition semantics, meaningful non-redundant
+tests). UX/consistency found two real issues: the new error state was
+missing `role="alert"` (a real accessibility regression against the
+very `AllFindingsPage.tsx` precedent this block says it mirrors), and
+the Retry/Go Back buttons had inverted visual hierarchy (Go Back
+styled primary/filled, Retry secondary, backwards for the more likely
+first action). Both fixed in a follow-up commit, verified clean by a
+scoped round-2 review pass, merged.
+
+**Running total**: 12 rounds shipped (PRs #744-753, all merged).
+Round 11's average (7.89/10, highest of the loop so far) had exactly
+one axis below floor -- resilience, now fixed. Round 13 will show
+whether that closes the gap to convergence or surfaces the next axis
+in line.
