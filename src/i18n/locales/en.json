@@ -1299,6 +1299,7 @@
       "loading": "Loading classification board...",
       "loadFailed": "Failed to load the classification board. Please try again.",
       "retry": "Retry",
+      "retrying": "Retrying...",
       "empty": "No items in this line yet",
       "itemCount_one": "{{count}} item",
       "itemCount_other": "{{count}} items",

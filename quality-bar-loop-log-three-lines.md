@@ -392,3 +392,43 @@ Other axes' findings (informational, not selected this round):
 **Next fix (mechanically selected):** resilience's `groupByLine` crash
 bug -- a data-correctness finding at/below floor, top priority
 regardless of other axes' scores or streaks.
+
+## Round 8 (resilience re-score after PR #800's crash-guard fix)
+
+| Axis | Round 7 | Round 8 |
+|---|---|---|
+| Industry-standards | 7.5/10 | 7.5/10 (unchanged) |
+| UX | 8/10 | 8/10 (unchanged) |
+| Efficiency | 9/10 | 9/10 (unchanged) |
+| Accessibility | 8/10 | 8/10 (unchanged) |
+| Visual polish | 9/10 | 9/10 (unchanged) |
+| Resilience | 5/10 | **6/10** (below floor) |
+| Code quality | 8/10 | 8/10 (unchanged) |
+| Mobile | 7/10 | 7/10 (unchanged) |
+| Security | 9/10 | 9/10 (unchanged) |
+
+**Average: 7.94/10.** Not converged -- resilience still below floor.
+
+The `groupByLine` crash bug (PR #800) is confirmed genuinely fixed by the
+resilience judge, with the regression test's negative control verified.
+No other axis regressed or improved -- the diff was narrowly scoped to
+one function with zero UX/visual/a11y/mobile surface.
+
+Resilience's two remaining findings (both from round 7, still open,
+unfixed):
+- **Rapid-reassign race**: a single global `pendingId` state means
+  clicking "move" on row B before row A's mutation resolves flips
+  `pendingId` to B, re-enabling row A's disabled button mid-flight --
+  risking a duplicate reassignment request for row A.
+- **Silent retry**: the error-state retry button calls `refetch()` but
+  the component only branches on `isLoading`/`isError`, never
+  `isFetching`, so a slow/hung retry gives no visual feedback and looks
+  like a no-op.
+
+**Next fix:** resilience is the only axis below floor, so it's the
+mechanical pick regardless of other axes' streaks/scores. Both remaining
+findings are in the same file and belong to the same axis/fix effort, so
+they'll be shipped together in one round rather than split (the
+batching rule's "disjoint files" requirement is about combining
+different candidates/axes, not splitting one axis's own findings across
+rounds unnecessarily).

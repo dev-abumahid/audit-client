@@ -1299,6 +1299,7 @@
       "loading": "Chargement du tableau de classification...",
       "loadFailed": "Échec du chargement du tableau de classification. Veuillez réessayer.",
       "retry": "Réessayer",
+      "retrying": "Nouvelle tentative...",
       "empty": "Aucun élément dans cette ligne pour le moment",
       "itemCount_one": "{{count}} élément",
       "itemCount_other": "{{count}} éléments",

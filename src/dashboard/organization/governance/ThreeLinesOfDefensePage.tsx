@@ -221,7 +221,7 @@ interface ItemRowProps {
 // React.memo -- combined with `onReassign` now being the single stable
 // top-level `reassign` callback (see useCallback below) instead of a fresh
 // per-item closure, clicking one row's reassign button (which only changes
-// `pendingId`) now re-renders just that row and the row leaving pending
+// `pendingIds`) now re-renders just that row and the row leaving pending
 // state, not all 20-30+ rows on the board.
 const ItemRow = memo(function ItemRow({
   entityType,
@@ -478,14 +478,26 @@ export default function ThreeLinesOfDefensePage() {
   const canReassignAudit = canReassignEntity("audit", role)
   const canReassignAction = canReassignEntity("action", role)
 
-  const { data, isLoading, isError, refetch } = useGetThreeLinesOfDefenseQuery()
+  const { data, isLoading, isFetching, isError, refetch } =
+    useGetThreeLinesOfDefenseQuery()
   const [updateRisk] = useUpdateRiskMutation()
   const [updateFindingById] = useUpdateFindingByIdMutation()
   const [updateKri] = useUpdateKriMutation()
   const [updateCompliance] = useUpdateComplianceMutation()
   const [updateAuditEngagement] = useUpdateAuditEngagementMutation()
 
-  const [pendingId, setPendingId] = useState<string | null>(null)
+  // quality-bar-loop round 8 (resilience, round-7 finding): a single
+  // `string | null` let a second reassign (row B) overwrite the first
+  // (row A) before row A's mutation settled, re-enabling row A's button
+  // while its request was still in flight -- risking a duplicate
+  // reassignment. A Set tracks every in-flight id independently; each
+  // row's own `isPending` (`pendingIds.has(id)`) only flips when that
+  // row's own request starts/ends, so ItemRow's React.memo (above) still
+  // skips re-rendering unrelated rows -- same optimization, just correct
+  // for concurrent reassigns now.
+  const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  )
 
   useEffect(() => {
     if (isError) {
@@ -497,7 +509,7 @@ export default function ThreeLinesOfDefensePage() {
   // fallback creates a fresh array reference every render (matching the
   // same gap found on KriDashboardPage round 3) -- memoized here so
   // `groupByLine` below only recomputes when `data` itself changes, not on
-  // every unrelated re-render (e.g. a pendingId update from an unrelated
+  // every unrelated re-render (e.g. a pendingIds update from an unrelated
   // row's reassign click).
   const risks = useMemo(() => data?.data?.risks ?? [], [data])
   const actions = useMemo(() => data?.data?.actions ?? [], [data])
@@ -585,7 +597,7 @@ export default function ThreeLinesOfDefensePage() {
   // identity only changes if `t` changes (i18n language switch).
   const reassign = useCallback(
     async (entityType: EntityKind, id: string, line: LineOfDefense) => {
-      setPendingId(id)
+      setPendingIds((prev) => new Set(prev).add(id))
       try {
         switch (entityType) {
           case "risk":
@@ -624,7 +636,11 @@ export default function ThreeLinesOfDefensePage() {
           )
         )
       } finally {
-        setPendingId(null)
+        setPendingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
       }
     },
     [
@@ -661,9 +677,13 @@ export default function ThreeLinesOfDefensePage() {
           <button
             type="button"
             onClick={() => refetch()}
-            className="flex h-11 items-center rounded-md border border-destructive/30 px-3 text-xs font-medium text-destructive hover:bg-destructive/10"
+            disabled={isFetching}
+            className="flex h-11 items-center gap-1.5 rounded-md border border-destructive/30 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {t("organization.threeLinesOfDefense.retry")}
+            {isFetching && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {isFetching
+              ? t("organization.threeLinesOfDefense.retrying")
+              : t("organization.threeLinesOfDefense.retry")}
           </button>
         </div>
       ) : (
@@ -728,7 +748,7 @@ export default function ThreeLinesOfDefensePage() {
                           }
                           currentLine={risk.line_of_defense}
                           canReassign={canReassignRisk}
-                          isPending={pendingId === risk.id}
+                          isPending={pendingIds.has(risk.id)}
                           onReassign={reassign}
                           linkTo={`/organization/risks/${risk.id}`}
                         />
@@ -755,7 +775,7 @@ export default function ThreeLinesOfDefensePage() {
                           }
                           currentLine={action.line_of_defense}
                           canReassign={canReassignAction}
-                          isPending={pendingId === action.id}
+                          isPending={pendingIds.has(action.id)}
                           onReassign={reassign}
                           linkTo={`/organization/finding/${action.id}`}
                         />
@@ -782,7 +802,7 @@ export default function ThreeLinesOfDefensePage() {
                           }
                           currentLine={kri.line_of_defense}
                           canReassign={canReassignKri}
-                          isPending={pendingId === kri.id}
+                          isPending={pendingIds.has(kri.id)}
                           onReassign={reassign}
                           linkTo={`/organization/kri?highlight=${encodeURIComponent(kri.id)}`}
                         />
@@ -810,7 +830,7 @@ export default function ThreeLinesOfDefensePage() {
                           }
                           currentLine={obligation.line_of_defense}
                           canReassign={canReassignCompliance}
-                          isPending={pendingId === obligation.id}
+                          isPending={pendingIds.has(obligation.id)}
                           onReassign={reassign}
                           // aexa-frontend#561: this was the only one of the
                           // 5 entity sections on this board with no linkTo
@@ -844,7 +864,7 @@ export default function ThreeLinesOfDefensePage() {
                           }
                           currentLine={engagement.line_of_defense}
                           canReassign={canReassignAudit}
-                          isPending={pendingId === engagement.id}
+                          isPending={pendingIds.has(engagement.id)}
                           onReassign={reassign}
                           // AuditPage has no per-engagement URL/route -- it
                           // opens engagements in an edit modal driven by
@@ -893,7 +913,7 @@ export default function ThreeLinesOfDefensePage() {
                     }
                     currentLine={null}
                     canReassign={canReassignAction}
-                    isPending={pendingId === action.id}
+                    isPending={pendingIds.has(action.id)}
                     onReassign={reassign}
                     linkTo={`/organization/finding/${action.id}`}
                   />

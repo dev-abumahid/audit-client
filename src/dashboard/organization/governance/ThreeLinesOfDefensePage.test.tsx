@@ -653,6 +653,66 @@ describe("ThreeLinesOfDefensePage", () => {
     await waitFor(() => expect(trigger).not.toBeDisabled())
   })
 
+  // quality-bar-loop round 8 (resilience, round-7 finding): a single
+  // `pendingId` state meant starting a second row's reassign overwrote
+  // the first row's pending id, re-enabling the first row's trigger
+  // while its own mutation was still in flight -- risking a duplicate
+  // reassignment on the first row. Each row's pending state must now be
+  // tracked independently.
+  it("keeps an earlier row's trigger disabled while a second, unrelated row's reassign is also in flight", async () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData(),
+      isLoading: false,
+    })
+    let resolveRisk: (value: { success: true }) => void = () => {}
+    mockUpdateRisk.mockReturnValue({
+      unwrap: () =>
+        new Promise((resolve) => {
+          resolveRisk = resolve
+        }),
+    })
+    let resolveKri: (value: { success: true }) => void = () => {}
+    mockUpdateKri.mockReturnValue({
+      unwrap: () =>
+        new Promise((resolve) => {
+          resolveKri = resolve
+        }),
+    })
+
+    renderPage()
+
+    const riskTrigger = within(
+      rowFor("Supply chain disruption")
+    ).getByRole("button", { name: "organization.threeLinesOfDefense.moveItem" })
+    await moveViaDropdown(
+      riskTrigger,
+      "organization.threeLinesOfDefense.moveToSecond"
+    )
+    await waitFor(() => expect(riskTrigger).toBeDisabled())
+
+    // Start a second, unrelated row's reassign while the risk's is still
+    // pending. With a single shared pendingId, this would incorrectly
+    // re-enable riskTrigger.
+    const kriTrigger = within(
+      rowFor("Supplier Lead Time")
+    ).getByRole("button", { name: "organization.threeLinesOfDefense.moveItem" })
+    await moveViaDropdown(
+      kriTrigger,
+      "organization.threeLinesOfDefense.moveToFirst"
+    )
+    await waitFor(() => expect(kriTrigger).toBeDisabled())
+    expect(riskTrigger).toBeDisabled()
+
+    resolveRisk({ success: true })
+    await waitFor(() => expect(riskTrigger).not.toBeDisabled())
+    // The still-in-flight kri mutation must remain unaffected by the
+    // risk mutation resolving.
+    expect(kriTrigger).toBeDisabled()
+
+    resolveKri({ success: true })
+    await waitFor(() => expect(kriTrigger).not.toBeDisabled())
+  })
+
   it("calls updateFindingById with line_of_defense when reassigning an unclassified action", async () => {
     mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
       data: makeData(),
@@ -1022,6 +1082,27 @@ describe("ThreeLinesOfDefensePage", () => {
 
     await userEvent.click(retryButton)
     expect(mockRefetch).toHaveBeenCalled()
+  })
+
+  // quality-bar-loop round 8 (resilience, round-7 finding): the retry
+  // button used to give no visual feedback while a retry was in flight
+  // (only isLoading/isError were branched on, never isFetching), so a
+  // slow/hung retry looked like a no-op inviting repeated clicks.
+  it("disables the retry button and shows retrying feedback while a retry is in flight", () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isFetching: true,
+      isError: true,
+      refetch: vi.fn(),
+    })
+
+    renderPage()
+
+    const retryButton = screen.getByRole("button", {
+      name: "organization.threeLinesOfDefense.retrying",
+    })
+    expect(retryButton).toBeDisabled()
   })
 
   it("shows empty-state text for a line with no items", () => {
