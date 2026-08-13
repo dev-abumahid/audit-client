@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type { IAction } from "@/types/finding"
+import type { OrgRole } from "@/types/organizationMember"
 import FindingClosureControls from "./FindingClosureControls"
 
 // Controllable `i18n.language` for the locale-formatting test below. `t()`
@@ -48,10 +49,12 @@ let mockAssignedInspectionIds: Set<string> | undefined = undefined
 let mockActiveFindingAssignmentIds: Set<string> | undefined = undefined
 // Round 9/10 efficiency finding -- spied so a test can assert this
 // component actually passes its resolved role through.
-const mockUseMyAssignedInspectionIds = vi.fn(() => mockAssignedInspectionIds)
+const mockUseMyAssignedInspectionIds = vi.fn<(role?: OrgRole) => typeof mockAssignedInspectionIds>(
+  () => mockAssignedInspectionIds
+)
 vi.mock("@/hooks/useMyAssignments", () => ({
-  useMyAssignedInspectionIds: (...args: unknown[]) =>
-    mockUseMyAssignedInspectionIds(...args),
+  useMyAssignedInspectionIds: (role?: OrgRole) =>
+    mockUseMyAssignedInspectionIds(role),
   useMyActiveFindingAssignmentIds: () => mockActiveFindingAssignmentIds,
 }))
 

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
+import type { OrgRole } from "@/types/organizationMember"
 import AllFindingsPage from "./AllFindingsPage"
 
 // aexa-frontend#562: the Site column is now a real <Link>, so every
@@ -52,10 +53,12 @@ let mockAssignedInspectionIds: Set<string> | undefined = new Set()
 // that already knows its role skip a wasted fetch -- spied (not just
 // stubbed) so a test below can assert this page actually passes it, not
 // just that the hook is called at all.
-const mockUseMyAssignedInspectionIds = vi.fn(() => mockAssignedInspectionIds)
+const mockUseMyAssignedInspectionIds = vi.fn<(role?: OrgRole) => typeof mockAssignedInspectionIds>(
+  () => mockAssignedInspectionIds
+)
 vi.mock("@/hooks/useMyAssignments", () => ({
-  useMyAssignedInspectionIds: (...args: unknown[]) =>
-    mockUseMyAssignedInspectionIds(...args),
+  useMyAssignedInspectionIds: (role?: OrgRole) =>
+    mockUseMyAssignedInspectionIds(role),
   useMyActiveFindingAssignmentIds: () => new Set(),
 }))
 

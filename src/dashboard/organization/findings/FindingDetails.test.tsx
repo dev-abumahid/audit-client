@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
+import type { OrgRole } from "@/types/organizationMember"
 import FindingDetails from "./FindingDetails"
 
 // Controllable `i18n.language` for the locale-formatting test below, while
@@ -36,10 +37,12 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
 let mockAssignedInspectionIds: Set<string> | undefined = new Set()
 // Round 9/10 efficiency finding -- spied so a test can assert this page
 // actually passes its resolved role through, not just that the hook fires.
-const mockUseMyAssignedInspectionIds = vi.fn(() => mockAssignedInspectionIds)
+const mockUseMyAssignedInspectionIds = vi.fn<(role?: OrgRole) => typeof mockAssignedInspectionIds>(
+  () => mockAssignedInspectionIds
+)
 vi.mock("@/hooks/useMyAssignments", () => ({
-  useMyAssignedInspectionIds: (...args: unknown[]) =>
-    mockUseMyAssignedInspectionIds(...args),
+  useMyAssignedInspectionIds: (role?: OrgRole) =>
+    mockUseMyAssignedInspectionIds(role),
   useMyActiveFindingAssignmentIds: () => new Set(),
 }))
 
