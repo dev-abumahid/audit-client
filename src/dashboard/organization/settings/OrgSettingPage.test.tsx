@@ -170,4 +170,18 @@ describe("OrgSettingPage", () => {
     expect(profileTab).toHaveFocus()
     expect(profileTab).toHaveAttribute("aria-selected", "true")
   })
+
+  // Raw <button>s default to type="submit" per HTML spec, which is a latent
+  // bug if this page ever ends up inside a <form>. Every button rendered by
+  // this page (the three tab buttons; child tab content is mocked out above)
+  // is a raw <button>.
+  it("gives every button an explicit type", () => {
+    render(<OrgSettingPage />)
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
 })

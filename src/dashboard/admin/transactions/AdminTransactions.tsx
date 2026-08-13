@@ -183,6 +183,7 @@ const AdminTransactions: React.FC = () => {
           {/* No export endpoint exists yet -- this tells the admin honestly
               rather than claiming a request was sent to the backend. */}
           <button
+            type="button"
             onClick={() => toast.success(t("admin.transactions.exportSent"))}
             className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >

@@ -101,6 +101,7 @@ export default function OrgSettingPage() {
           >
             {tabs.map((tab, index) => (
               <button
+                type="button"
                 key={tab.key}
                 ref={(el) => {
                   tabRefs.current[tab.key] = el

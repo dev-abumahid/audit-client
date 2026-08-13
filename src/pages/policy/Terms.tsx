@@ -138,7 +138,10 @@ const TermsAndConditions = () => {
                 {t("pages.policy.terms.footer.body")}
               </p>
 
-              <button className="rounded-xl bg-primary px-10 py-3.5 font-medium text-primary-foreground transition-all hover:bg-primary/90">
+              <button
+                type="button"
+                className="rounded-xl bg-primary px-10 py-3.5 font-medium text-primary-foreground transition-all hover:bg-primary/90"
+              >
                 {t("pages.policy.terms.footer.cta")}
               </button>
             </div>

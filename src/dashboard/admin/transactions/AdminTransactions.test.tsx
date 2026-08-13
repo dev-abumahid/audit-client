@@ -51,4 +51,22 @@ describe("AdminTransactions", () => {
       expect(screen.getAllByText(expected).length).toBeGreaterThan(0)
     })
   })
+
+  // Raw <button>s default to type="submit" per HTML spec, which is a latent
+  // bug if this page ever ends up inside a <form>. Scoped to the Export PDF
+  // button rather than a full sweep because the page also renders the
+  // shared Pagination component's shadcn Button-based Prev/Next/page
+  // controls (out of scope here, covered by Pagination's own tests) once
+  // totalPages > 1.
+  it("gives the Export PDF button an explicit type", () => {
+    render(<AdminTransactions />)
+
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "admin.transactions.exportPdf",
+        }) as HTMLButtonElement
+      ).type
+    ).toBe("button")
+  })
 })

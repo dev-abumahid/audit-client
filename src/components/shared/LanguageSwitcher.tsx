@@ -14,6 +14,7 @@ export default function LanguageSwitcher() {
         {LANGUAGES.map((lang) => (
           <button
             key={lang.code}
+            type="button"
             onClick={() => i18n.changeLanguage(lang.code)}
             className={`focus-ring px-4 py-3 text-[10px] font-semibold transition-colors ${
               i18n.language?.startsWith(lang.code)

@@ -288,4 +288,24 @@ describe("KnowledgeBaseUploadingForm", () => {
       expect(clickSpy).toHaveBeenCalled()
     })
   })
+
+  // Raw <button>s default to type="submit" per HTML spec, which is a latent
+  // bug if this form ever ends up inside a <form>. The only real <button>
+  // element rendered here is the per-document delete button (the dropzone
+  // is a role="button" <div>, not a <button>).
+  it("gives every button an explicit type", () => {
+    mockUseGetAllFilesFromPineconeQuery.mockReturnValue({
+      data: { data: [makeDoc()], meta: { total: 1 } },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+
+    render(<KnowledgeBaseUploadingForm />)
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
 })

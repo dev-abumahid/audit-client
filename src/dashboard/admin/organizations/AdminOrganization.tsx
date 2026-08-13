@@ -91,6 +91,7 @@ const AdminOrganization: React.FC = () => {
           </div>
 
           <button
+            type="button"
             onClick={() => setIsWizardOpen(true)}
             className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >

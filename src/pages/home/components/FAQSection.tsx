@@ -66,6 +66,7 @@ const FAQSection: React.FC = () => {
             >
               {/* Question Button */}
               <button
+                type="button"
                 onClick={() => toggleAccordion(index)}
                 aria-expanded={openIndex === index}
                 aria-controls={`faq-answer-${index}`}

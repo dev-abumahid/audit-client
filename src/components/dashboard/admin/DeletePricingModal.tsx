@@ -70,6 +70,7 @@ const DeletePricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
         {/* Actions */}
         <div className="flex gap-3">
           <button
+            type="button"
             onClick={() => setOpen(false)}
             className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-muted"
           >
@@ -77,6 +78,7 @@ const DeletePricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
           </button>
 
           <button
+            type="button"
             onClick={handleDelete}
             disabled={isDeleting}
             className="text-destructive-foreground flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive py-3 text-sm font-medium transition-colors hover:bg-destructive/90 disabled:opacity-60"

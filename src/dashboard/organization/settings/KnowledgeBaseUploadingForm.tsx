@@ -328,6 +328,7 @@ const KnowledgeBaseUploadingForm = () => {
               </div>
               <div className="flex flex-shrink-0 items-center gap-1">
                 <button
+                  type="button"
                   onClick={() => {
                     // DELETE /ai/delete-file-from-pinecone matches by
                     // fileName -- a null fileName has nothing to key the

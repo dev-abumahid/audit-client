@@ -149,4 +149,17 @@ describe("EditPricingModal", () => {
 
     expect(setOpen).toHaveBeenCalledWith(false)
   })
+
+  // Raw <button>s default to type="submit" per HTML spec, which is a latent
+  // bug if this modal ever ends up inside a <form>. Every button here is a
+  // raw <button>, so it's safe to sweep all of them.
+  it("gives every button an explicit type", () => {
+    render(<EditPricingModal open={true} setOpen={vi.fn()} plan={plan} />)
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
 })

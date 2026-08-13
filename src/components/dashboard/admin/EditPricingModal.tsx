@@ -253,6 +253,7 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
         {/* Action Buttons */}
         <div className="mt-8 flex gap-3">
           <button
+            type="button"
             onClick={() => setOpen(false)}
             className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-muted"
           >
@@ -260,6 +261,7 @@ const EditPricingModal: React.FC<Props> = ({ open, setOpen, plan }) => {
           </button>
 
           <button
+            type="button"
             onClick={handleUpdate}
             disabled={isSubmitting}
             className="flex-1 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"

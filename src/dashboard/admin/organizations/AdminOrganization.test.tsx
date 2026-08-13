@@ -246,4 +246,23 @@ describe("AdminOrganization", () => {
       ).toBeInTheDocument()
     })
   })
+
+  // Raw <button>s default to type="submit" per HTML spec, which is a latent
+  // bug if this page ever ends up inside a <form>. Scoped to this button
+  // rather than a full sweep because the page also renders the shared
+  // Pagination component's Prev/Next buttons, which are covered by
+  // Pagination's own test file.
+  it("gives the Add Organization button an explicit type", () => {
+    mockList([makeOrg()])
+
+    render(<AdminOrganization />)
+
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "admin.organizations.addOrganization",
+        }) as HTMLButtonElement
+      ).type
+    ).toBe("button")
+  })
 })

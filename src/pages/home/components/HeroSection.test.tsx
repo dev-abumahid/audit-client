@@ -171,4 +171,17 @@ describe("HeroSection", () => {
       expect.stringContaining("mailto:hello@qiyrix.com")
     )
   })
+
+  // Raw <button>s default to type="submit" per HTML spec, which is a latent
+  // bug if this section ever ends up inside a <form>. Both buttons rendered
+  // by HeroSection itself (before any modal is opened) are raw <button>s.
+  it("gives every button an explicit type", () => {
+    renderHero()
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
 })

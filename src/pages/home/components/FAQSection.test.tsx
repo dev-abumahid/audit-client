@@ -88,4 +88,17 @@ describe("FAQSection", () => {
       expect(panel).toHaveAttribute("hidden")
     }
   })
+
+  // Raw <button>s default to type="submit" per HTML spec, which is a latent
+  // bug if this section ever ends up inside a <form>. Every button here
+  // (the 5 accordion toggles) is a raw <button>.
+  it("gives every button an explicit type", () => {
+    render(<FAQSection />)
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
 })

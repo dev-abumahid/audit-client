@@ -118,6 +118,7 @@ const HeroSection = () => {
 
               <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:gap-5">
                 <button
+                  type="button"
                   onClick={handleGetStartedClick}
                   className="focus-ring flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md sm:text-base"
                 >
@@ -126,6 +127,7 @@ const HeroSection = () => {
                 </button>
 
                 <button
+                  type="button"
                   onClick={handleBookDemoClick}
                   className="focus-ring flex items-center justify-center rounded-md border border-input bg-card px-6 py-3 text-sm font-medium text-foreground transition-all hover:-translate-y-0.5 hover:bg-accent/10 sm:text-base"
                 >

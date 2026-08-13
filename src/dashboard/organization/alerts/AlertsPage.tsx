@@ -293,6 +293,7 @@ export default function AlertsPage() {
                     )}
                     {!alert.is_read && (
                       <button
+                        type="button"
                         onClick={() => handleMarkRead(alert.id)}
                         disabled={isMarkingRead}
                         className="focus-ring flex h-11 items-center rounded-md px-2 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
