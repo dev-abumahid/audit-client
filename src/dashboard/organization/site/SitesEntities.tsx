@@ -1232,21 +1232,27 @@ export default function SitesEntities() {
 
               {/* Expanded Risks Section */}
               {isExpanded && (
-                <div className="border-t border-border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
+                <div className="border-t border-border bg-muted/30 p-5 text-sm text-muted-foreground">
                   <p className="mb-4 flex items-center justify-start gap-1.5 text-start text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
                     <Check className="h-3 w-3" />
                     {t("organization.site&entities.confirmedRisksHeading")}
                   </p>
+                  {/* quality-bar-loop round 13 (visual-polish finding,
+                      open since round 1): the wrapper's own text-center
+                      wasn't overridden by these three states (only the
+                      heading above explicitly opts back to text-start),
+                      so loading/error/empty text visibly centered under
+                      a left-aligned heading. Left-aligned to match. */}
                   {isRiskLoading ? (
-                    <div className="flex justify-center py-3">
+                    <div className="flex justify-start py-3">
                       <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     </div>
                   ) : riskError ? (
-                    <p role="alert" className="py-3 text-xs text-muted-foreground">
+                    <p role="alert" className="py-3 text-start text-xs text-muted-foreground">
                       {t("organization.site&entities.riskLoadFailed")}
                     </p>
                   ) : riskData?.data.length === 0 ? (
-                    <p className="py-3 text-xs text-muted-foreground">
+                    <p className="py-3 text-start text-xs text-muted-foreground">
                       {t("organization.site&entities.noConfirmedRisks")}
                     </p>
                   ) : (
@@ -1400,7 +1406,12 @@ export default function SitesEntities() {
       {/* Create / Edit Modal */}
       {showForm && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          // quality-bar-loop round 13 (visual-polish finding, open since
+          // round 1): this overlay used a flat bg-black/70 with no blur,
+          // diverging from RiskRegisterPage.tsx's established frosted-
+          // glass treatment (bg-black/40 backdrop-blur-sm) for the same
+          // kind of full-screen modal overlay.
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
           onClick={closeSiteForm}
         >
           <div

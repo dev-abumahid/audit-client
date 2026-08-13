@@ -512,6 +512,37 @@ describe("SitesEntities", () => {
     ).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 13 (visual-polish finding, open since round
+  // 1): the expanded panel's wrapper had text-center, but only the
+  // heading opted back out with text-start -- loading/error/empty text
+  // visibly centered under a left-aligned heading. Now explicitly
+  // left-aligned.
+  it("left-aligns the empty-risks state text to match the left-aligned heading, not centered", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [] },
+      isError: false,
+      isLoading: false,
+    })
+
+    renderPage()
+    const [expandButton] = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-chevron-down"))
+    await userEvent.click(expandButton)
+
+    const emptyState = screen.getByText(
+      "organization.site&entities.noConfirmedRisks"
+    )
+    expect(emptyState).toHaveClass("text-start")
+    expect(emptyState.parentElement).not.toHaveClass("text-center")
+  })
+
   // getRiskSeverityLevel silently maps a missing/malformed residual_score
   // to 0 ("low"), so filtering the critical-risks tile straight off its
   // result would silently exclude a risk whose real severity is unknown
@@ -810,6 +841,31 @@ describe("SitesEntities", () => {
 
     await userEvent.keyboard("{Escape}")
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 13 (visual-polish finding, open since round
+  // 1): this overlay used a flat bg-black/70 with no blur, diverging
+  // from RiskRegisterPage.tsx's established frosted-glass treatment for
+  // the same kind of full-screen modal overlay.
+  it("gives the Create/Edit Site modal overlay the same frosted-glass treatment as RiskRegisterPage's modals", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+
+    const overlay = screen.getByRole("dialog").parentElement!
+    expect(overlay).toHaveClass("bg-black/40")
+    expect(overlay).toHaveClass("backdrop-blur-sm")
+    expect(overlay).not.toHaveClass("bg-black/70")
   })
 
   // Regression (audit round 3): the Location, Country and Revenue field
