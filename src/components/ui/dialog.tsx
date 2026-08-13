@@ -135,7 +135,7 @@ function DialogFooter({
               finding): the default Button size (h-7) is well under the
               44px touch-target guideline -- same shared-component fix
               as DialogContent's own close button above. */}
-          <Button variant="outline" className="h-11">
+          <Button variant="outline" size="touch">
             {t("common.close")}
           </Button>
         </DialogPrimitive.Close>

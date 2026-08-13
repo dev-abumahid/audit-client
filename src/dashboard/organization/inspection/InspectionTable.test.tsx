@@ -116,12 +116,16 @@ vi.mock("@/components/ui/button", () => ({
     onClick,
     disabled,
     className,
+    variant,
+    size,
     ...rest
   }: React.ComponentProps<"button"> & { variant?: string; size?: string }) => (
     <button
       onClick={onClick}
       disabled={disabled}
       className={className}
+      data-variant={variant}
+      data-size={size}
       {...rest}
     >
       {children}
@@ -336,8 +340,7 @@ describe("InspectionTable", () => {
     })
 
     for (const button of [viewButton, editButton, deleteButton]) {
-      expect(button.className).toMatch(/\bh-11\b/)
-      expect(button.className).toMatch(/\bw-11\b/)
+      expect(button).toHaveAttribute("data-size", "icon-touch")
     }
     expect(viewButton.getAttribute("aria-label")).not.toBe(
       editButton.getAttribute("aria-label")
@@ -358,8 +361,8 @@ describe("InspectionTable", () => {
     expect(
       screen.getByRole("button", {
         name: /organization\.inspection\.startNew/i,
-      }).className
-    ).toMatch(/\bh-11\b/)
+      })
+    ).toHaveAttribute("data-size", "touch")
     expect(
       screen.getByPlaceholderText(
         "organization.inspection.searchPlaceholder"

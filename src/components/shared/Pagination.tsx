@@ -54,10 +54,9 @@ export default function Pagination({
           fix corrects it for every one of this component's 9 consumer
           pages at once (AuditPage/TemplatesPage/InspectionTable/
           CompliancePage/AllFindingsPage/SitesEntities/RiskRegisterPage/
-          AdminOrganization/AdminTransactions). `h-11 w-11` overrides the
-          variant's size classes via tailwind-merge (Button's `cn()`
-          puts `className` last), same override pattern already used on
-          every other page's icon-only buttons this session. */}
+          AdminOrganization/AdminTransactions). Later promoted to the
+          shared `size="icon-touch"` variant (44x44px) instead of an ad
+          hoc `h-11 w-11` className override, once that variant existed. */}
       {/* flex-wrap: the 44px touch-target buttons above (7 of them at
           MAX_VISIBLE_PAGES=5) need ~332px, which can exceed the available
           width on a narrow phone inside a padded container -- wrapping
@@ -66,11 +65,10 @@ export default function Pagination({
       <div className="flex flex-wrap items-center justify-center gap-1">
         <Button
           variant="outline"
-          size="icon-sm"
+          size="icon-touch"
           disabled={page === 1}
           onClick={() => onPageChange(page - 1)}
           aria-label={prevAriaLabel}
-          className="h-11 w-11"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -79,10 +77,9 @@ export default function Pagination({
           <Button
             key={pageNum}
             variant={pageNum === page ? "default" : "ghost"}
-            size="icon-sm"
+            size="icon-touch"
             onClick={() => onPageChange(pageNum)}
             aria-current={pageNum === page ? "page" : undefined}
-            className="h-11 w-11"
           >
             {pageNum}
           </Button>
@@ -90,11 +87,10 @@ export default function Pagination({
 
         <Button
           variant="outline"
-          size="icon-sm"
+          size="icon-touch"
           disabled={page === totalPages}
           onClick={() => onPageChange(page + 1)}
           aria-label={nextAriaLabel}
-          className="h-11 w-11"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>

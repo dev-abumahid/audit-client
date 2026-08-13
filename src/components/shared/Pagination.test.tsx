@@ -44,12 +44,9 @@ describe("Pagination", () => {
     const next = screen.getByRole("button", { name: "Next page" })
     const pageTwo = screen.getByRole("button", { name: "2" })
 
-    expect(prev.className).toMatch(/\bh-11\b/)
-    expect(prev.className).toMatch(/\bw-11\b/)
-    expect(next.className).toMatch(/\bh-11\b/)
-    expect(next.className).toMatch(/\bw-11\b/)
-    expect(pageTwo.className).toMatch(/\bh-11\b/)
-    expect(pageTwo.className).toMatch(/\bw-11\b/)
+    expect(prev).toHaveAttribute("data-size", "icon-touch")
+    expect(next).toHaveAttribute("data-size", "icon-touch")
+    expect(pageTwo).toHaveAttribute("data-size", "icon-touch")
   })
 
   it("navigates via prev/next and page-number clicks", async () => {

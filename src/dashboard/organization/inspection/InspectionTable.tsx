@@ -327,7 +327,7 @@ const InspectionTable = () => {
             // shared Button component's default size (h-7) is well under
             // the 44px touch-target guideline, same bug class fixed on
             // 9+ pages this session.
-            <Button onClick={() => setOpen(true)} className="h-11">
+            <Button onClick={() => setOpen(true)} size="touch">
               <Plus className="mr-2 h-4 w-4" />
               {t("organization.inspection.startNew")}
             </Button>
@@ -446,16 +446,14 @@ const InspectionTable = () => {
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-11"
+                size="touch"
                 onClick={() => setSelectedIds(new Set())}
               >
                 {t("organization.inspection.clearSelection")}
               </Button>
               <Button
                 variant="destructive"
-                size="sm"
-                className="h-11"
+                size="touch"
                 onClick={() => setBulkDeleteModalOpen(true)}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
@@ -642,28 +640,26 @@ const InspectionTable = () => {
                       <div className="flex justify-end gap-1">
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon-touch"
                           onClick={() => handleViewReport(item.id)}
                           aria-label={t("organization.inspection.viewButtonLabel", {
                             name:
                               item.template?.templateName ||
                               t("organization.inspection.orgFallback"),
                           })}
-                          className="h-11 w-11"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
                         {canWriteThisInspection && (
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon-touch"
                             onClick={() => handleEdit(item.id)}
                             aria-label={t("organization.inspection.editButtonLabel", {
                               name:
                                 item.template?.templateName ||
                                 t("organization.inspection.orgFallback"),
                             })}
-                            className="h-11 w-11"
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
@@ -671,14 +667,14 @@ const InspectionTable = () => {
                         {canWriteThisInspection && (
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon-touch"
                             onClick={() => handleDeleteConfirmModal(item.id)}
                             aria-label={t("organization.inspection.deleteButtonLabel", {
                               name:
                                 item.template?.templateName ||
                                 t("organization.inspection.orgFallback"),
                             })}
-                            className="h-11 w-11 text-destructive hover:text-destructive"
+                            className="text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

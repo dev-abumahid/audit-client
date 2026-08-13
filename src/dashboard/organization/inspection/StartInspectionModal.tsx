@@ -346,14 +346,14 @@ export default function StartInspectionModal({ open, setOpen }: Props) {
 
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline" className="h-11">
+              <Button type="button" variant="outline" size="touch">
                 {t("organization.inspection.cancel")}
               </Button>
             </DialogClose>
             <Button
               type="submit"
               disabled={!selectedSiteId || !selectedTemplateId}
-              className="h-11"
+              size="touch"
             >
               {t("organization.inspection.startInspection")}
             </Button>

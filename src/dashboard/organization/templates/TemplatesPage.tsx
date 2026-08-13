@@ -248,7 +248,7 @@ export default function TemplatesPage() {
           {canWrite && (
             <Button
               onClick={() => setCreateTemplateModalOpen(true)}
-              className="h-11"
+              size="touch"
             >
               <Brain className="mr-2 h-4 w-4" />
               {t("organization.templates.list.generateTemplate")}
@@ -257,7 +257,7 @@ export default function TemplatesPage() {
 
           {canWrite && (
             <Link to="/organization/audit/template/create">
-              <Button className="h-11">
+              <Button size="touch">
                 <Plus className="mr-2 h-4 w-4" />
                 {t("organization.templates.list.createTemplate")}
               </Button>
@@ -365,21 +365,20 @@ export default function TemplatesPage() {
                           finding): `size="sm"` resolves to `h-6` (24px
                           tall), well under the 44px touch-target
                           guideline -- same bug class fixed on 9+ pages
-                          this session. `h-11 w-11` overrides via
-                          tailwind-merge, matching every other page's
-                          icon-only-button fix pattern. */}
+                          this session. Promoted to the shared
+                          `size="icon-touch"` variant instead of an ad hoc
+                          `h-11 w-11` className override. */}
                       <div className="flex justify-end gap-1">
                         {canWrite && (
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon-touch"
                             onClick={() => handleDuplicateClick(template.id)}
                             disabled={duplicatingId === template.id}
                             aria-label={t(
                               "organization.templates.list.duplicateButtonLabel",
                               { name: template.templateName }
                             )}
-                            className="h-11 w-11"
                           >
                             <Copy className="h-4 w-4" />
                           </Button>
@@ -393,25 +392,25 @@ export default function TemplatesPage() {
                             >
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon-touch"
                                 disabled
                                 aria-label={t(
                                   "organization.templates.list.editButtonLabel",
                                   { name: template.templateName }
                                 )}
-                                className="h-11 w-11 cursor-not-allowed opacity-40"
+                                className="cursor-not-allowed opacity-40"
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon-touch"
                                 disabled
                                 aria-label={t(
                                   "organization.templates.list.deleteButtonLabel",
                                   { name: template.templateName }
                                 )}
-                                className="h-11 w-11 cursor-not-allowed text-destructive opacity-40"
+                                className="cursor-not-allowed text-destructive opacity-40"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -423,12 +422,11 @@ export default function TemplatesPage() {
                               >
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon-touch"
                                   aria-label={t(
                                     "organization.templates.list.editButtonLabel",
                                     { name: template.templateName }
                                   )}
-                                  className="h-11 w-11"
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
@@ -436,13 +434,13 @@ export default function TemplatesPage() {
 
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon-touch"
                                 onClick={() => handleDeleteClick(template.id)}
                                 aria-label={t(
                                   "organization.templates.list.deleteButtonLabel",
                                   { name: template.templateName }
                                 )}
-                                className="h-11 w-11 text-destructive"
+                                className="text-destructive"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

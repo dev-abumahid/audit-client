@@ -282,7 +282,7 @@ export default function UploadNotesModal({
               <Button
                 onClick={() => setIsDeleteModalOpen(true)}
                 variant="destructive"
-                className="h-11"
+                size="touch"
               >
                 {t("organization.inspection.deleteNote")}
               </Button>
@@ -290,7 +290,7 @@ export default function UploadNotesModal({
                 disabled={isSplitting}
                 onClick={handleSplitNote}
                 variant="secondary"
-                className="h-11"
+                size="touch"
               >
                 {isSplitting
                   ? t("organization.inspection.splitting")
@@ -299,7 +299,7 @@ export default function UploadNotesModal({
               <Button
                 onClick={handleUpdate}
                 disabled={isUpdating || !extractedText.trim()}
-                className="h-11"
+                size="touch"
               >
                 {isUpdating
                   ? t("organization.inspection.updating")
@@ -510,7 +510,7 @@ export default function UploadNotesModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} className="h-11">
+          <Button variant="outline" onClick={handleClose} size="touch">
             {t("organization.inspection.cancel")}
           </Button>
           <Button
@@ -521,7 +521,7 @@ export default function UploadNotesModal({
               (mode === "text" && !extractedText.trim()) ||
               (mode === "file" && !file)
             }
-            className="h-11"
+            size="touch"
           >
             {isLoading
               ? t("organization.inspection.extracting")

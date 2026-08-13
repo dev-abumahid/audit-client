@@ -417,9 +417,8 @@ const QuestionCard = memo(
         <div className="flex gap-3">
           <Button
             variant="outline"
-            size="sm"
+            size="touch"
             onClick={() => onToggleNote(question.id)}
-            className="h-11"
           >
             <FileText className="mr-2 h-4 w-4" />
             {hasNote
@@ -1388,7 +1387,7 @@ export default function UpdateInspection() {
             <Button
               variant="ghost"
               onClick={() => navigate(-1)}
-              className="h-11"
+              size="touch"
             >
               <ArrowLeft className="mr-2 h-5 w-5" />{" "}
               {t("organization.inspection.back")}
@@ -1528,7 +1527,7 @@ export default function UpdateInspection() {
               </div>
             </div>
           </div>
-          <Button onClick={() => setOpenUploadNoteModal(true)} className="h-11">
+          <Button onClick={() => setOpenUploadNoteModal(true)} size="touch">
             {inspection?.note?.id ? (
               <>
                 <Eye /> {t("organization.inspection.viewNote")}

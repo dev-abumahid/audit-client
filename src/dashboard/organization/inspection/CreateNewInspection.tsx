@@ -404,9 +404,8 @@ const QuestionCard = memo(
         <div className="mt-6 flex gap-3">
           <Button
             variant="outline"
-            size="sm"
+            size="touch"
             onClick={() => onToggleNote(question.id)}
-            className="h-11"
           >
             <FileText className="mr-2 h-4 w-4" />
             {hasNote
@@ -928,7 +927,7 @@ export default function CreateNewInspection() {
             <Button
               variant="ghost"
               onClick={() => navigate(-1)}
-              className="h-11"
+              size="touch"
             >
               <ArrowLeft className="mr-2 h-5 w-5" />{" "}
               {t("organization.inspection.back")}
@@ -1037,7 +1036,7 @@ export default function CreateNewInspection() {
               variant="outline"
               onClick={() => scrollToPage(currentPageIndex - 1)}
               disabled={currentPageIndex === 0}
-              className="h-11"
+              size="touch"
             >
               <ChevronLeft className="mr-2" />{" "}
               {t("organization.inspection.previous")}
@@ -1046,9 +1045,8 @@ export default function CreateNewInspection() {
             {currentPageIndex === pages.length - 1 ? (
               <Button
                 onClick={handleSubmit}
-                size="lg"
+                size="touch"
                 disabled={isSubmitting}
-                className="h-11"
               >
                 {isSubmitting
                   ? t("organization.inspection.submitting")
@@ -1057,8 +1055,7 @@ export default function CreateNewInspection() {
             ) : (
               <Button
                 onClick={() => scrollToPage(currentPageIndex + 1)}
-                size="lg"
-                className="h-11"
+                size="touch"
               >
                 {t("organization.inspection.nextPage")}
                 <ChevronRight className="ml-2" />

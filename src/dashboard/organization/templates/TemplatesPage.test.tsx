@@ -217,10 +217,8 @@ describe("TemplatesPage", () => {
       .getAllByRole("button")
       .find((b) => b.querySelector("svg.lucide-trash2"))!
 
-    expect(editButton.className).toMatch(/\bh-11\b/)
-    expect(editButton.className).toMatch(/\bw-11\b/)
-    expect(deleteButton.className).toMatch(/\bh-11\b/)
-    expect(deleteButton.className).toMatch(/\bw-11\b/)
+    expect(editButton).toHaveAttribute("data-size", "icon-touch")
+    expect(deleteButton).toHaveAttribute("data-size", "icon-touch")
   })
 
   it("gives the disabled system-template Edit and Delete buttons a 44px touch target too", () => {
@@ -247,10 +245,8 @@ describe("TemplatesPage", () => {
       .getAllByRole("button")
       .find((b) => b.querySelector("svg.lucide-trash2"))!
 
-    expect(editButton.className).toMatch(/\bh-11\b/)
-    expect(editButton.className).toMatch(/\bw-11\b/)
-    expect(deleteButton.className).toMatch(/\bh-11\b/)
-    expect(deleteButton.className).toMatch(/\bw-11\b/)
+    expect(editButton).toHaveAttribute("data-size", "icon-touch")
+    expect(deleteButton).toHaveAttribute("data-size", "icon-touch")
   })
 
   // aexa-server PR #324 / quality-bar-loop round 5 (industry-standards):
@@ -486,8 +482,7 @@ describe("TemplatesPage", () => {
         .getAllByRole("button")
         .find((b) => b.querySelector("svg.lucide-copy"))!
 
-      expect(duplicateButton.className).toMatch(/\bh-11\b/)
-      expect(duplicateButton.className).toMatch(/\bw-11\b/)
+      expect(duplicateButton).toHaveAttribute("data-size", "icon-touch")
       expect(duplicateButton).toHaveAccessibleName()
     })
   })
