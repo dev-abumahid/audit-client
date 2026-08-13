@@ -886,6 +886,41 @@ describe("SitesEntities", () => {
     expect(mockCreateNewSite).not.toHaveBeenCalled()
   })
 
+  // quality-bar-loop round 17 (accessibility finding, fresh audit): every
+  // label in this form was a plain sibling <label> with no htmlFor, and
+  // its input/select/textarea had no id -- 7 controls here with no
+  // programmatic name at all (WCAG 1.3.1/4.1.2). getByLabelText only
+  // succeeds when a real label/control association exists (via htmlFor/
+  // id, aria-labelledby, or wrapping), so this exercises the actual fix,
+  // not just a visual proximity check.
+  it("programmatically associates every Create/Edit Site field with its label", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+
+    for (const label of [
+      /organization\.site&entities\.siteName/,
+      "organization.site&entities.siteLocationLabel",
+      "organization.site&entities.siteCountryLabel",
+      "organization.site&entities.siteType",
+      "organization.site&entities.activity",
+      "organization.site&entities.revenueLabel",
+      "organization.site&entities.employees",
+    ]) {
+      expect(screen.getByLabelText(label)).toBeInTheDocument()
+    }
+  })
+
   // Regression (round 12 audit, aexa-frontend#498): RHF's `required` rule
   // only checks truthiness, so a whitespace-only name used to pass it and
   // silently fail an `if (!values.name.trim()) return` guard in handleSave
@@ -1651,6 +1686,35 @@ describe("SitesEntities", () => {
       name: "Power outage",
       site_id: "site-1",
     })
+  })
+
+  // quality-bar-loop round 17 (accessibility finding, fresh audit): every
+  // label in this form was a plain sibling <label> with no htmlFor, and
+  // its input/select/textarea had no id -- 4 controls here with no
+  // programmatic name at all (WCAG 1.3.1/4.1.2).
+  it("programmatically associates every manual risk form field with its label", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.addRisk/i,
+      })
+    )
+
+    for (const label of [
+      /organization\.site&entities\.riskNameLabel/,
+      /organization\.site&entities\.statusLabel/,
+      "organization.site&entities.categoryLabel",
+      "organization.site&entities.descriptionLabel",
+    ]) {
+      expect(screen.getByLabelText(label)).toBeInTheDocument()
+    }
   })
 
   // Regression (audit round 3): the manual risk form's "Risk Name *",

@@ -53,7 +53,7 @@ import {
   Trash2,
   X,
 } from "lucide-react"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
@@ -149,6 +149,28 @@ export default function SitesEntities() {
   // aexa-frontend#217
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
+
+  // quality-bar-loop round 17 (accessibility finding, fresh audit): every
+  // label in both the site form and the inline risk form was a plain
+  // sibling <label> with no htmlFor, paired with an input/select/textarea
+  // with no id -- 11 form controls total with no programmatic name at
+  // all (WCAG 1.3.1/4.1.2, both Level A). A screen reader announced them
+  // with no label when tabbed to, and clicking the label text did
+  // nothing. Both forms render at most one visible instance at a time
+  // (gated by editingSite/showForm and showRiskForm === site.id
+  // respectively), so calling useId() once here rather than per-row is
+  // safe and avoids re-generating ids on every render.
+  const siteNameId = useId()
+  const siteLocationId = useId()
+  const siteCountryId = useId()
+  const siteTypeId = useId()
+  const siteActivityId = useId()
+  const siteRevenueId = useId()
+  const siteEmployeesId = useId()
+  const riskNameId = useId()
+  const riskStatusId = useId()
+  const riskCategoryId = useId()
+  const riskDescriptionId = useId()
 
   // aexa-frontend#533: a ?siteId=&search= link (from FindingDetails.tsx)
   // pre-fills the search box with the target site's name so it's on page 1
@@ -1047,11 +1069,15 @@ export default function SitesEntities() {
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">
+                      <label
+                        htmlFor={riskNameId}
+                        className="text-xs font-medium text-muted-foreground"
+                      >
                         {t("organization.site&entities.riskNameLabel")}{" "}
                         <span className="text-destructive">*</span>
                       </label>
                       <input
+                        id={riskNameId}
                         {...riskForm.register("name", {
                           required: t(
                             "organization.site&entities.riskNameRequired",
@@ -1079,11 +1105,15 @@ export default function SitesEntities() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">
+                      <label
+                        htmlFor={riskStatusId}
+                        className="text-xs font-medium text-muted-foreground"
+                      >
                         {t("organization.site&entities.statusLabel")}{" "}
                         <span className="text-destructive">*</span>
                       </label>
                       <select
+                        id={riskStatusId}
                         {...riskForm.register("status", {
                           required: t(
                             "organization.site&entities.riskStatusRequired",
@@ -1112,10 +1142,14 @@ export default function SitesEntities() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">
+                      <label
+                        htmlFor={riskCategoryId}
+                        className="text-xs font-medium text-muted-foreground"
+                      >
                         {t("organization.site&entities.categoryLabel")}
                       </label>
                       <select
+                        id={riskCategoryId}
                         {...riskForm.register("category")}
                         className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm transition-colors hover:border-primary/30 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                       >
@@ -1129,10 +1163,14 @@ export default function SitesEntities() {
                   </div>
 
                   <div className="mt-4 space-y-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor={riskDescriptionId}
+                      className="text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.site&entities.descriptionLabel")}
                     </label>
                     <textarea
+                      id={riskDescriptionId}
                       {...riskForm.register("description")}
                       placeholder={t(
                         "organization.site&entities.describeRiskPlaceholder",
@@ -1493,10 +1531,14 @@ export default function SitesEntities() {
             <form onSubmit={siteForm.handleSubmit(handleSave)}>
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor={siteNameId}
+                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.site&entities.siteName")} *
                   </label>
                   <input
+                    id={siteNameId}
                     {...siteForm.register("name", {
                       required: t("organization.site&entities.nameRequired"),
                       // RHF's `required` rule only checks truthiness, so a
@@ -1522,10 +1564,14 @@ export default function SitesEntities() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor={siteLocationId}
+                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.site&entities.siteLocationLabel")}
                   </label>
                   <input
+                    id={siteLocationId}
                     {...siteForm.register("location")}
                     className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
                   />
@@ -1533,19 +1579,27 @@ export default function SitesEntities() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor={siteCountryId}
+                      className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.site&entities.siteCountryLabel")}
                     </label>
                     <input
+                      id={siteCountryId}
                       {...siteForm.register("country")}
                       className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor={siteTypeId}
+                      className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.site&entities.siteType")}
                     </label>
                     <select
+                      id={siteTypeId}
                       {...siteForm.register("site_type")}
                       className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
                     >
@@ -1566,10 +1620,14 @@ export default function SitesEntities() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor={siteActivityId}
+                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  >
                     {t("organization.site&entities.activity")}
                   </label>
                   <textarea
+                    id={siteActivityId}
                     rows={4}
                     {...siteForm.register("activity")}
                     className="w-full rounded-lg border border-input bg-background p-2 text-sm"
@@ -1578,20 +1636,28 @@ export default function SitesEntities() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor={siteRevenueId}
+                      className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.site&entities.revenueLabel")}
                     </label>
                     <input
+                      id={siteRevenueId}
                       type="number"
                       {...siteForm.register("revenue", { valueAsNumber: true })}
                       className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    <label
+                      htmlFor={siteEmployeesId}
+                      className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                    >
                       {t("organization.site&entities.employees")}
                     </label>
                     <input
+                      id={siteEmployeesId}
                       type="number"
                       {...siteForm.register("employees_count", {
                         valueAsNumber: true,
