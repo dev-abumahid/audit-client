@@ -747,40 +747,52 @@ export default function SitesEntities() {
       </div>
 
       {/* Summary strip */}
+      {/* quality-bar-loop round 15 (visual-polish finding, open since
+          round 1): these tiles used a smaller hand-rolled scale (h-9
+          icon box, p-4, text-xl value, text-xs label) than the shared
+          MetricCard component (h-10, p-5, text-2xl, text-sm). Matching
+          MetricCard's scale here rather than swapping to the component
+          itself -- MetricCard hardcodes bg-primary/10 with no per-
+          instance color override and uses a vertical icon-above-text
+          layout, while this strip needs the critical tile's semantic
+          red accent (SEVERITY_STYLES.critical) and an existing
+          horizontal icon-beside-text layout; a full swap would either
+          regress the critical-risk color signal or require widening
+          MetricCard's own API for a single caller. */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            <Building className="h-4 w-4 text-primary" />
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <Building className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="font-mono-data text-xl font-bold text-foreground">
+            <p className="font-mono-data text-2xl font-bold text-foreground">
               {meta.total}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {t("organization.site&entities.summary.totalSites")}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            <Shield className="h-4 w-4 text-primary" />
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <Shield className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="font-mono-data text-xl font-bold text-foreground">
+            <p className="font-mono-data text-2xl font-bold text-foreground">
               {allRisksError ? "—" : (allRisksData?.meta?.total ?? allRisks.length)}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {t("organization.site&entities.summary.totalRisks")}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-risk-critical/10">
-            <AlertTriangle className={`h-4 w-4 ${SEVERITY_STYLES.critical.text}`} />
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-risk-critical/10">
+            <AlertTriangle className={`h-5 w-5 ${SEVERITY_STYLES.critical.text}`} />
           </div>
           <div>
             <p
-              className={`font-mono-data text-xl font-bold ${SEVERITY_STYLES.critical.text}`}
+              className={`font-mono-data text-2xl font-bold ${SEVERITY_STYLES.critical.text}`}
               title={
                 isRiskSummaryCapped
                   ? t("organization.site&entities.summary.cappedHint")
@@ -798,18 +810,18 @@ export default function SitesEntities() {
                 </>
               )}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {t("organization.site&entities.summary.criticalRisks")}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            <Bot className="h-4 w-4 text-primary" />
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <Bot className="h-5 w-5 text-primary" />
           </div>
           <div>
             <p
-              className="font-mono-data text-xl font-bold text-foreground"
+              className="font-mono-data text-2xl font-bold text-foreground"
               title={
                 isRiskSummaryCapped
                   ? t("organization.site&entities.summary.cappedHint")
@@ -825,7 +837,7 @@ export default function SitesEntities() {
                 </>
               )}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {t("organization.site&entities.summary.aiGeneratedRisks")}
             </p>
           </div>
@@ -1185,18 +1197,25 @@ export default function SitesEntities() {
                             className="mt-1 h-4 w-4 shrink-0"
                           />
                           <div className="min-w-0 flex-1">
+                            {/* quality-bar-loop round 15 (visual-polish
+                                finding, open since round 1): this metadata
+                                (category, description, inherent/residual/
+                                probability/velocity/trend/owner) was
+                                text-[10px], below the app's text-xs (12px)
+                                type-scale floor used everywhere else in
+                                this file -- bumped to text-xs. */}
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-sm font-medium text-foreground">
                                 {suggestion.title}
                               </p>
-                              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                                 {suggestion.category}
                               </span>
                             </div>
-                            <p className="mt-1 text-[10px] text-muted-foreground">
+                            <p className="mt-1 text-xs text-muted-foreground">
                               {suggestion.description}
                             </p>
-                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               <span>
                                 {t("organization.site&entities.inherentLabel")}{" "}
                                 {suggestion.inherent_risk_score}
@@ -1290,7 +1309,7 @@ export default function SitesEntities() {
                             >
                               {risk.name}
                             </Link>
-                            <p className="w-full truncate text-[10px] text-muted-foreground">
+                            <p className="w-full truncate text-xs text-muted-foreground">
                               {risk.description?.slice(0, 120)}
                             </p>
                           </div>

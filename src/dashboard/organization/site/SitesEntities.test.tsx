@@ -496,6 +496,29 @@ describe("SitesEntities", () => {
     ).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 15 (visual-polish finding, open since round
+  // 1): the summary tiles used a smaller scale (h-9 icon box, p-4,
+  // text-xl value, text-xs label) than the shared MetricCard component
+  // (h-10, p-5, text-2xl, text-sm).
+  it("scales the summary tiles to match MetricCard's icon/padding/typography", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 3 } },
+      error: undefined,
+    })
+
+    renderPage()
+    const totalSitesValue = screen.getByText("3")
+    const tile = totalSitesValue.closest(".rounded-xl")!
+    expect(tile).toHaveClass("p-5")
+    expect(totalSitesValue).toHaveClass("text-2xl")
+    expect(
+      screen.getByText("organization.site&entities.summary.totalSites")
+    ).toHaveClass("text-sm")
+    expect(tile.querySelector(".h-10.w-10")).toBeInTheDocument()
+  })
+
   it("shows an error state when the sites query fails", () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,
@@ -2151,6 +2174,43 @@ describe("SitesEntities", () => {
         )
       ).toBeInTheDocument()
     }
+  })
+
+  // quality-bar-loop round 15 (visual-polish finding, open since round
+  // 1): this metadata (category, description, and the inherent/
+  // residual/probability/velocity/trend row) was text-[10px], below the
+  // app's text-xs (12px) type-scale floor used everywhere else.
+  it("renders the AI-suggestion metadata at text-xs, not below the app's type-scale floor", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockAnalyzeSiteRisks.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+    )
+
+    expect(screen.getByText("Operational")).toHaveClass("text-xs")
+    expect(
+      screen.getByText("Single supplier for a critical part")
+    ).toHaveClass("text-xs")
+    expect(
+      screen
+        .getByText(/organization\.site&entities\.inherentLabel/)
+        .closest("div")
+    ).toHaveClass("text-xs")
   })
 
   it("hides the Import selected button for a VIEWER even with suggestions shown", async () => {
