@@ -1203,3 +1203,118 @@ No further round would find NEW mechanical bugs the way rounds 1-8 did
 -- every fresh finding from here would either restate an already-logged
 item or require exactly the kind of scoping conversation this loop is
 designed to escalate rather than absorb.
+
+## Rounds 9-18 — reopened under lowered 8.5 target
+
+Round 8 had been treated as a natural stopping point at 7.67/10 average
+-- deferring the remaining findings as "product/design decisions" or
+"larger deliberate refactors." That framing is superseded by the current
+standing instruction ("keep working with /quality-bar-loop until every
+tab is at least 8.5") and by standing feedback that "needs a product
+decision" is not itself a stop condition -- the remaining findings were
+re-examined and, where genuinely mechanical (not requiring a product
+decision), fixed as real feature work across 10 further rounds.
+
+**Round 9** (PR #789, merged): resilience -- the expanded-site risk
+query never destructured `isLoading`, so the panel rendered nothing at
+all (not even a false "0") during a real load; added a loading spinner.
+`handleConfirmDelete` (site delete) lacked the else-branch its
+risk-delete sibling had for a non-throwing `success: false` response.
+Resilience 7->8.
+
+**Round 10** (PR #790, merged): code quality -- removed two file-level
+eslint-disable comments by fixing the 6 real errors they hid (2 unused
+catch bindings -> `catch {}`, 4 `any`-typed catches -> a properly typed
+error assertion matching this codebase's own convention). Deduped a
+7-field blank site-form-defaults literal into one constant. Code
+quality 7->8.
+
+**Round 11** (PR #791, merged): UX -- the risk-name field lacked the
+whitespace-guard the site-name field already had (identical bug,
+different field). `handleImportSuggestions` evicted every ATTEMPTED
+suggestion from the list, not just successful ones -- a failed import
+silently vanished alongside its error toast. UX 8->9.
+
+**Round 12** (PR #792, merged): a fresh full UX re-score found round
+9's `handleConfirmDelete` fix had a sibling gap it didn't cover --
+`handleSave` (site create/update) still lacked the else-branch for a
+non-throwing `success: false`. Fixed to match. Visual polish -- the
+confirmed-risk row's bespoke AI/Manual badge duplicated the
+already-imported `SourceBadge` component; swapped in (Risk has a real
+`is_edited` field, so SourceBadge's three-state logic applies cleanly).
+
+**Round 13** (PR #793, merged): visual polish -- the expanded-risks
+panel's text-center wrapper wasn't overridden by its loading/error/
+empty states (only the heading was), so that text visibly centered
+under a left-aligned heading; left-aligned to match. The Create/Edit
+modal's overlay used a flat `bg-black/70` with no blur, diverging from
+`RiskRegisterPage.tsx`'s established frosted-glass treatment; matched.
+
+**Round 14** (PR #794, merged): mobile -- the search box's `w-80`
+(320px) was a fixed, non-responsive width; matched the `w-full sm:w-80`
+pattern already used elsewhere in the app. The Create/Edit modal had no
+scroll safety net, live-reproduced clipping at 375x812; matched
+`RiskRegisterPage.tsx`'s `max-h-[90vh]`/`overflow-y-auto` pattern. The
+modal's close button was a 24px visible-and-clickable area, under the
+44px touch-target guideline; added the same hit-slop technique already
+established elsewhere in this file. Mobile 8->10 (fresh full re-score
+found zero other gaps across the whole page).
+
+**Round 15** (PR #795, merged): visual polish -- the summary tiles used
+a smaller hand-rolled scale than the shared `MetricCard` component;
+matched `MetricCard`'s scale values directly rather than swapping to
+the component itself (which hardcodes a single color with no per-
+instance override and uses a different layout, and would have either
+regressed the critical-tile's semantic red accent or required widening
+a shared component's API for one caller). AI-suggestion metadata was
+`text-[10px]`, below the app's `text-xs` type-scale floor; bumped.
+Visual polish 8->9.
+
+**Round 16** (PR #796, merged): industry-standards -- the whole-page
+error state had no retry button, unlike every other error state in the
+app; added one wired to the query's own `refetch()`. (Score held at 7
+this round -- 5 larger, genuinely feature-scoped findings, out of scope
+for a single round, still outweighed the one fix.)
+
+**Rounds 17-18** (PRs #797-798, merged): a FRESH full accessibility
+audit (not just a re-check) found a real, below-floor regression --
+none of the prior 16 rounds' more targeted checks had caught that
+every label in both forms was a plain sibling `<label>` with no
+`htmlFor`, paired with a control with no `id`: 11 form fields with no
+programmatic name at all (WCAG 1.3.1/4.1.2, Level A), dropping this
+axis to 6/10. Fixed with `useId()`-generated ids and `htmlFor`/`id`
+pairs across all 11 fields (round 17). The same audit separately named
+required fields (Site Name, Risk Name, Status) as lacking native
+`required`/`aria-required`; fixed with `aria-required="true"` matching
+their visual asterisks (round 18). Accessibility 8->6 (regression,
+fixed same sweep)->8->9.
+
+| Axis | R8 | R18 |
+|---|---|---|
+| Industry-standards | 7 | 7 *(unchanged -- accordion, 100-row cap, bulk ops, sort/filter, editable AI suggestions all remain genuinely feature-scoped)* |
+| UX | 7 | 9 |
+| Efficiency | 7 | 8 *(unchanged this sweep, not re-audited beyond baseline)* |
+| Accessibility | 8 | 9 *(dipped to 6 mid-sweep on a fresh audit finding 11 real unassociated labels, fully fixed and re-verified live)* |
+| Visual polish | 7 | 9 |
+| Resilience | 7 | 8 |
+| Code quality | 7 | 8 |
+| Mobile | 8 | 10 |
+| Security | 10 | 10 |
+| **Average** | **7.67** | **8.56** |
+
+Convergence check: 8.56 >= 8.5 target, every axis >= 7 floor.
+**Converged.**
+
+Still open (real, not blocking convergence, and each requiring either
+larger feature scope or a genuine product/design decision -- unlike
+everything fixed this sweep, which was mechanical): industry-standards'
+single-row-expansion accordion, the invisible 100-row cap on the nested
+risk list, no bulk operations (multi-select/multi-delete/CSV import-
+export), no sort/filter beyond free-text search, AI suggestions not
+editable before import; two minor accessibility gaps named in round 17's
+audit but out of that round's scope (site names/section titles aren't
+real headings; no heading-level navigation between site cards).
+
+Sites is done for this sweep -- the largest single-feature effort in
+this session's sweep (18 total rounds, starting furthest behind of any
+feature re-scored so far at 7.67).
