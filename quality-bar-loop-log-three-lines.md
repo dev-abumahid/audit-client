@@ -330,3 +330,65 @@ is a natural pause point for the Three Lines Model loop: 3 rounds
 shipped (mobile touch targets, efficiency/memoization, and a same-round
 review fix), the three remaining gaps need product input this loop
 shouldn't make unilaterally.
+
+## Round 7 (fresh full-panel re-score, new 8.5 target)
+
+Session-wide target lowered/unified to 8.5 average (floor stays 7) per
+standing instruction: "keep working with /quality-bar-loop until every
+tab is at least 8.5." The prior stopping point above never recorded a
+final numeric re-score, so a fresh full 9-axis panel was dispatched
+rather than assuming stale round-1/round-N-partial numbers carried
+forward.
+
+| Axis | Score |
+|---|---|
+| Industry-standards | 7.5/10 |
+| UX | 8/10 |
+| Efficiency | 9/10 |
+| Accessibility | 8/10 |
+| Visual polish | 9/10 |
+| Resilience | 5/10 (below floor) |
+| Code quality | 8/10 |
+| Mobile | 7/10 |
+| Security | 9/10 |
+
+**Average: 7.83/10.** Not converged -- resilience is below floor.
+
+Resilience findings (fresh audit, first resilience score since round 1's
+baseline):
+- **Crash bug (data-correctness, top priority per rule 5c.1):**
+  `groupByLine` (lines ~178-191) does
+  `grouped[item.line_of_defense].push(item)` with no bounds check
+  against the 4 recognized `LINES` keys. Any record carrying a
+  `line_of_defense` value outside that set (legacy data, a typo, a new
+  line added server-side before the client's `LINES` array catches up)
+  makes `grouped[...]` `undefined`, and `.push()` throws a `TypeError`
+  with no error boundary in this file -- one malformed record crashes
+  the entire board, not just its own section.
+- Global `pendingId` state allows a rapid-reassign race: clicking
+  "move" on row B before row A's mutation resolves flips `pendingId` to
+  B, re-enabling row A's disabled button mid-flight.
+- No loading feedback on retry -- the error-state retry button calls
+  `refetch()` but the component only branches on `isLoading`/`isError`,
+  never `isFetching`, so a slow/hung retry looks like a no-op.
+- Positive: `getEnumLabel` and severity-lookup fallbacks (`?? "neutral"`)
+  already degrade gracefully for unrecognized values elsewhere; empty
+  states are handled per-section; the "unclassified actions" card
+  already explicitly handles `line_of_defense: null`. The bug above is
+  specifically `groupByLine`'s unguarded direct index, not a systemic
+  gap.
+
+Other axes' findings (informational, not selected this round):
+- Industry-standards 7.5, UX 8, accessibility 8 (color-only severity
+  dot, retry button missing `.focus-ring`, no `aria-live` on
+  loading/error transitions), visual polish 9 (no divider between
+  adjacent coverage-bar segments, unexplained "+2" notation), mobile 7
+  (dropdown menu items ~35px tall, under the 44px minimum -- round 2's
+  touch-target fix only covered the trigger button), code quality 8,
+  efficiency 9, security 9 -- all above floor, none selected this round
+  per the loop's mechanical priority order (data-correctness at/below
+  floor outranks everything else regardless of stuck_streak).
+
+**Next fix (mechanically selected):** resilience's `groupByLine` crash
+bug -- a data-correctness finding at/below floor, top priority
+regardless of other axes' scores or streaks.

@@ -185,7 +185,15 @@ function groupByLine<T extends { line_of_defense: LineOfDefense | null }>(
     GOVERNING_BODY: [],
   }
   for (const item of items) {
-    if (item.line_of_defense) grouped[item.line_of_defense].push(item)
+    // Bounds-check before indexing: a legacy/typo'd/not-yet-recognized
+    // line_of_defense value would otherwise index `grouped` with a key it
+    // doesn't have, and `.push()` on `undefined` throws -- crashing the
+    // whole board over one malformed record instead of just omitting it.
+    // Object.hasOwn (not `in`) so an inherited Object.prototype key like
+    // "constructor" can never match.
+    if (item.line_of_defense && Object.hasOwn(grouped, item.line_of_defense)) {
+      grouped[item.line_of_defense].push(item)
+    }
   }
   return grouped
 }

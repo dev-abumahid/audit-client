@@ -221,6 +221,54 @@ describe("ThreeLinesOfDefensePage", () => {
     expect(screen.getByText("Q3 internal audit")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 7 (resilience, fresh-audit finding): an
+  // unrecognized line_of_defense value (legacy data, a typo, a new line
+  // added server-side before the client's LINES array catches up) used to
+  // throw inside groupByLine's unguarded `grouped[item.line_of_defense]`
+  // index, crashing the whole board over one malformed record. It should
+  // now be safely omitted from its line instead.
+  it("does not crash when a record has an unrecognized line_of_defense value", () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData({
+        risks: [
+          {
+            id: "risk-bad-line",
+            title: "Malformed legacy risk",
+            category: "supply_chain",
+            status: "open",
+            line_of_defense: "FOURTH_LINE_THAT_DOES_NOT_EXIST",
+          },
+          // A valid sibling record alongside the malformed one, to prove
+          // the bounds-check guard only skips the bad record and doesn't
+          // disturb grouping for everything else.
+          {
+            id: "risk-good-line",
+            title: "Well-formed risk",
+            category: "supply_chain",
+            status: "open",
+            line_of_defense: "SECOND",
+          },
+        ],
+      }),
+      isLoading: false,
+    })
+
+    expect(() => renderPage()).not.toThrow()
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "organization.threeLinesOfDefense.lines.first",
+      })
+    ).toBeInTheDocument()
+    // The malformed record has nowhere valid to land, so it's omitted
+    // rather than crashing or silently appearing in the wrong line.
+    expect(screen.queryByText("Malformed legacy risk")).not.toBeInTheDocument()
+    // The valid sibling record still lands in its correct line.
+    expect(
+      within(rowFor("Well-formed risk")).getByText("Well-formed risk")
+    ).toBeInTheDocument()
+  })
+
   // quality-bar-loop round 6 (industry-standards, round-1 finding): the
   // IIA Three Lines Model's central diagnostic question -- "is 3rd line
   // reviewing enough of what 1st/2nd line own" -- was previously only
