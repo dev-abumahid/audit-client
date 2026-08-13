@@ -704,10 +704,20 @@ export default function RiskMatrixPage() {
                               )
                             }
                             aria-pressed={isSelected}
+                            // quality-bar-loop round 16 (accessibility
+                            // finding, fresh audit): the accessible name
+                            // gave a screen reader/keyboard user the
+                            // likelihood, impact, and risk count, but
+                            // never the band score itself -- the same
+                            // bold number every sighted user scans all 25
+                            // cells by. Added so a non-visual user gets
+                            // the same relative-severity signal without
+                            // first selecting the cell.
                             aria-label={t("organization.riskMatrix.cellAriaLabel", {
                               count: cellRisks.length,
                               likelihood: label,
                               impact: labels.impact[col],
+                              score: (row + 1) * (col + 1),
                             })}
                             className={`${getMatrixColor(row, col, matrixSize)} relative flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-black hover:z-20 hover:scale-105 dark:text-white transition-all ${isSelected ? "z-20 scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-75"}`}
                             title={`${label} × ${labels.impact[col]} : ${t("organization.riskMatrix.cellCount", { count: cellRisks.length })}`}

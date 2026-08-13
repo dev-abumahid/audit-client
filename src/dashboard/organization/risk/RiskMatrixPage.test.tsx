@@ -90,7 +90,7 @@ vi.mock("react-i18next", async (importOriginal) => {
         if (key === "organization.riskMatrix.cellAriaLabel") {
           const count = Number(opts?.count ?? 0)
           const suffix = count === 1 ? "risk" : "risks"
-          return `${opts?.likelihood} × ${opts?.impact}: ${count} ${suffix}`
+          return `${opts?.likelihood} × ${opts?.impact}, band ${opts?.score}: ${count} ${suffix}`
         }
         const shortKey = key.replace("organization.riskMatrix.", "")
         if (shortKey in AXIS_LABEL_TEXT) {
@@ -1382,7 +1382,28 @@ describe("RiskMatrixPage", () => {
       const cell = screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
       expect(cell).toHaveAttribute(
         "aria-label",
-        "Very Unlikely × Negligible: 1 risk"
+        "Very Unlikely × Negligible, band 1: 1 risk"
+      )
+    })
+
+    // quality-bar-loop round 16 (accessibility finding, fresh audit): the
+    // accessible name gave likelihood/impact/count but never the band
+    // score itself -- the same bold number every sighted user scans all
+    // 25 cells by, so a non-visual user had no severity signal pre-
+    // selection.
+    it("includes the cell's own band score in its aria-label, not just likelihood/impact/count", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      renderPage()
+
+      // Very Likely x Catastrophic is row=4, col=4 -> band (4+1)*(4+1) = 25,
+      // the matrix's own highest-severity corner.
+      const cell = screen.getByTitle(/Very Likely × Catastrophic : 0 risks/)
+      expect(cell).toHaveAttribute(
+        "aria-label",
+        "Very Likely × Catastrophic, band 25: 0 risks"
       )
     })
   })
