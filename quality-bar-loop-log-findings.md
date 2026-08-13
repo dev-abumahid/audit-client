@@ -646,3 +646,28 @@ already did for the same reason) and selecting mobile instead --
 streak=2 tied for highest among currently-actionable axes, with a
 concrete, cheap (`overflow-x-auto`/`shrink-0`), already-diagnosed fix
 sitting unaddressed for 4 rounds.
+
+## Round 14 outcome
+
+Shipped the mobile tab-bar overflow fix selected in round 13 (PR #755)
+-- `overflow-x-auto` on the tab row, `shrink-0`/`whitespace-nowrap` on
+each tab button, closing a finding that had sat flat at floor for 4
+consecutive rounds (5/7/9/11/13).
+
+**QA**: typecheck/eslint clean. Full suite: 1968/1968 passing.
+Dedicated regression test with a verified negative control.
+
+**Live verification**: confirmed at a real 375px viewport in a fresh
+tab -- genuine scrollbar present (`scrollWidth` 401px vs `clientWidth`
+329px, was silently clipping before), scrolling reveals the full,
+uncut "Attachments" label, no console errors.
+
+**Review**: one angle (a small, low-risk, single-file pure-CSS change
+didn't need a second). Came back clean -- confirmed no desktop-width
+regression risk, `shrink-0` doesn't interfere with the active-tab
+underline, test logic sound. One out-of-scope observation not acted on
+in this PR: `AdminSettings.tsx` has a visually similar tab-navigation
+pattern that was never checked for the same issue -- flagged as a
+separate follow-up task rather than pulled into this feature's loop.
+
+**Running total**: 14 rounds shipped (PRs #744-755, all merged).
