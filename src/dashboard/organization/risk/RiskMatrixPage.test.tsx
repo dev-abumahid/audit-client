@@ -92,6 +92,9 @@ vi.mock("react-i18next", async (importOriginal) => {
           const suffix = count === 1 ? "risk" : "risks"
           return `${opts?.likelihood} × ${opts?.impact}, band ${opts?.score}: ${count} ${suffix}`
         }
+        if (key === "organization.riskMatrix.groupedByTypeSuffix") {
+          return ", grouped by type"
+        }
         const shortKey = key.replace("organization.riskMatrix.", "")
         if (shortKey in AXIS_LABEL_TEXT) {
           return AXIS_LABEL_TEXT[shortKey]
@@ -1046,6 +1049,37 @@ describe("RiskMatrixPage", () => {
       screen.getByText("organization.riskMatrix.noRiskSelected")
     ).toBeInTheDocument()
     expect(screen.queryByText(/score 9/)).not.toBeInTheDocument()
+  })
+
+  // quality-bar-loop round 17 (accessibility finding, fresh audit):
+  // toggling "By type" while a cell is already selected changed the
+  // panel's content with no accessible signal -- the heading text itself
+  // didn't even reflect the grouping state, so there was nothing for an
+  // aria-live region to announce even if one existed. The heading now
+  // includes a grouped-by-type suffix, and carries aria-live="polite" so
+  // a screen reader announces the change without a focus move.
+  it("reflects the grouped-by-type state in the live-announced panel heading", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    const cell = screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    await userEvent.click(cell)
+
+    const heading = screen.getByText("1 risk — band 1")
+    expect(heading).toHaveAttribute("aria-live", "polite")
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.groupByType",
+      })
+    )
+
+    expect(
+      screen.getByText("1 risk — band 1, grouped by type")
+    ).toBeInTheDocument()
   })
 
   // Same class of bug, different trigger: a site filter narrowing the

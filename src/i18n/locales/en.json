@@ -1354,6 +1354,7 @@
       "impactAxis": "Impact →",
       "selectedCellHeading_one": "{{count}} risk — band {{score}}",
       "selectedCellHeading_other": "{{count}} risks — band {{score}}",
+      "groupedByTypeSuffix": ", grouped by type",
       "likelihoodRare": "Rare",
       "likelihoodUnlikely": "Unlikely",
       "likelihoodPossible": "Possible",

@@ -818,6 +818,25 @@ export default function RiskMatrixPage() {
             <h2
               ref={panelHeadingRef}
               tabIndex={-1}
+              // quality-bar-loop round 17 (accessibility finding, fresh
+              // audit): a group-mode toggle or site-filter change made
+              // while a cell is already selected changes this heading's
+              // own text (risk count, now also the grouping state below)
+              // with no focus move and no announcement -- a screen reader
+              // user got no signal the panel's content had changed under
+              // them. aria-live="polite" fixes that case: a group-mode
+              // toggle doesn't move focus (the focus effect below only
+              // depends on effectiveSelectedCell's row/col/size, not
+              // groupMode), so this is the only mechanism announcing it.
+              // Round 8's own initial-selection .focus() call is
+              // unaffected -- its deps are untouched by this change --
+              // but live browser/screen-reader verification of exactly
+              // how that combination (a live region that also receives
+              // programmatic focus) sounds in practice was blocked this
+              // round by dev-server load (see the PR); real AT behavior
+              // for that specific overlap is unconfirmed, flagged as a
+              // follow-up rather than asserted here.
+              aria-live="polite"
               className="rounded text-sm font-semibold outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
             >
               {/* Round 2 fix: was gated on selectedCell alone, so a site
@@ -832,7 +851,10 @@ export default function RiskMatrixPage() {
                     score:
                       (effectiveSelectedCell.row + 1) *
                       (effectiveSelectedCell.col + 1),
-                  })
+                  }) +
+                  (groupMode === "category"
+                    ? t("organization.riskMatrix.groupedByTypeSuffix")
+                    : "")
                 : t("organization.riskMatrix.noRiskSelected")}
             </h2>
             {/* Round 8 (UX): Escape now clears the selection (see the
