@@ -469,3 +469,49 @@ related fixes from the same selected axis in the same file
 sequentially within one round's own diff -- there's no simultaneous-
 edit merge-conflict risk since it's one continuous diff, not two
 independently-developed branches being combined.
+
+## Round 9/10 outcome
+
+Shipped both efficiency fixes selected in round 9 (PR #751).
+
+1. **Search debounce** (`AllFindingsPage.tsx`): added `useDebouncedValue`
+   (300ms, the same shared hook 2 of 3 sibling pages already use for
+   this exact problem) between the raw input-bound `search` state and
+   the query's `searchTerm`, so the input stays visually instant while
+   the backend only sees one request per pause in typing rather than
+   one per keystroke.
+2. **`role` param propagation**: `useMyAssignedInspectionIds(role)` now
+   passed at all 3 Findings call sites (`AllFindingsPage.tsx`,
+   `FindingDetails.tsx`, `FindingClosureControls.tsx`), letting
+   VIEWER/LIGHT_USER skip a structurally-always-empty fetch, matching
+   the migration `InspectionTable.tsx`/`InspectionReport.tsx` already
+   made for the same hook.
+
+**QA**: typecheck/eslint clean. Full suite: 1963/1963 passing.
+Dedicated regression tests for both fixes with verified negative
+controls.
+
+**Live verification**: confirmed on a clean page load that typing a
+search term correctly filters after the debounce delay (matching term
+-> 1 row, non-matching -> 0, clear -> resets to all 3), with a single
+request per typed value. One methodology note worth keeping: an
+initial attempt showed a stuck, unfiltered render despite a correct
+0-result backend response -- traced to this specific browser tab's
+degraded state after extremely heavy reuse across this whole session
+(misfired clicks landing on wrong elements, a transient 0x0 viewport),
+not an app defect; did not reproduce after a clean navigate. Real
+per-round takeaway: when a live-verification result looks wrong,
+re-test on a clean reload before concluding it's a genuine bug,
+especially late in a long session that has reused the same tab
+heavily.
+
+**Review**: two parallel angles (correctness, UX/completeness).
+Correctness came back clean. UX/completeness found one real, minor
+issue the debounce change newly exposed: the empty-state heading/
+subtext branched on the raw (undebounced) `search` value while the
+empty state itself is driven by the debounced query -- during the
+~300ms window, typing a new character into an already-empty results
+table could flip the copy to "no results, adjust your search" a beat
+before the query for that new term had even fired. Fixed in a
+follow-up commit (both conditionals now read `debouncedSearch`),
+verified clean by a scoped round-2 review pass, merged.
