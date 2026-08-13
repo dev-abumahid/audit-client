@@ -67,3 +67,35 @@ matching `FindingDetails.tsx`'s established pattern exactly; (2) add
 `isError`/`refetch` handling to `useGetAllReportsQuery`, rendering a
 distinct load-error state instead of the empty-state fallthrough,
 mirroring `FindingDetails.tsx`'s round-12 fix.
+
+## Round 2 outcome
+
+Shipped both fixes selected in round 1 (PR #758).
+
+1. **`isHttpUrl()` guard** added to `openPdf` (`window.open`) and
+   `downloadReport` (`link.href`), matching the pattern already used
+   in 6 other files across the codebase.
+2. **Load-error state**: `useGetAllReportsQuery` now destructures
+   `isError`/`refetch`; a distinct `role="alert"` error block with a
+   Retry button renders before the empty-state fallthrough.
+
+**QA**: typecheck/eslint clean. Full suite: 1975/1975 passing. 7 new
+regression tests with a verified negative control (5/7 failed without
+the fix, 2 correctly-passing control cases).
+
+**Live verification**: the load-error fix fully confirmed end-to-end
+(stopped the backend, saw the distinct error state, restarted, Retry
+recovered the list without a reload). The URL-guard fix could not be
+live-click-tested on a real READY report -- this preview environment's
+report generation has a 100% failure rate (confirmed via a fresh
+generation attempt during this verification, unrelated to the fix,
+likely a missing AI-service credential in this account) -- relied on
+the unit tests' verified negative control instead, documented rather
+than silently skipped.
+
+**Review**: two parallel angles (correctness, security-completeness).
+Both came back clean -- correctness confirmed mutually-exclusive JSX
+branches and sound polling interaction; security-completeness
+independently re-traced every field on the `Report` type and confirmed
+no third URL sink was missed, and confirmed the guard won't block real
+Cloudinary-backed report URLs.
