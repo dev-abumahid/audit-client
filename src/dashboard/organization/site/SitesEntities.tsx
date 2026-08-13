@@ -545,7 +545,14 @@ export default function SitesEntities() {
     if (toImport.length === 0) return
 
     setImportingIds(new Set(toImport.map((s) => s.risk_id)))
-    let importedCount = 0
+    // quality-bar-loop round 11 (UX finding, open since round 1): this
+    // used to build the below "remove from list" set from every
+    // ATTEMPTED suggestion (toImport), not just the ones that actually
+    // succeeded -- a failed import (network error, backend rejection)
+    // still got silently evicted from the list alongside a real error
+    // toast, with no way to retry it short of re-running AI analysis
+    // from scratch. Now tracks successes explicitly.
+    const importedIds = new Set<string>()
     for (const suggestion of toImport) {
       try {
         const payload = {
@@ -564,7 +571,7 @@ export default function SitesEntities() {
         }
         const res = await createNewRisk(payload).unwrap()
         if (res?.success) {
-          importedCount += 1
+          importedIds.add(suggestion.risk_id)
         }
       } catch {
         toast.error(
@@ -575,18 +582,22 @@ export default function SitesEntities() {
       }
     }
     setImportingIds(new Set())
-    if (importedCount > 0) {
+    if (importedIds.size > 0) {
       toast.success(
-        importedCount === 1
+        importedIds.size === 1
           ? t("organization.site&entities.riskImportedSingle")
           : t("organization.site&entities.riskImportedMultiple", {
-              count: importedCount,
+              count: importedIds.size,
             })
       )
     }
-    // Remove imported suggestions from the list; leave unselected ones
-    // visible in case the user wants to review them further.
-    const importedIds = new Set(toImport.map((s) => s.risk_id))
+    // Remove only the suggestions that actually imported successfully;
+    // a failed one stays visible in the list so the user can find and
+    // re-select it to retry, instead of a genuinely failed attempt
+    // silently vanishing the same as a successful one. Selection itself
+    // is still cleared below (matching this handler's pre-existing
+    // behavior for a fully-successful import) -- retrying means
+    // re-checking the box, not an auto-preserved selection.
     setSuggestions((prev) => prev.filter((s) => !importedIds.has(s.risk_id)))
     setSelectedSuggestionIds(new Set())
   }
@@ -1008,6 +1019,15 @@ export default function SitesEntities() {
                           required: t(
                             "organization.site&entities.riskNameRequired",
                           ),
+                          // quality-bar-loop round 11 (UX finding, open
+                          // since round 1): RHF's `required` rule only
+                          // checks truthiness, so a whitespace-only name
+                          // passed it -- unlike the site-name field's own
+                          // fix for the identical bug (aexa-frontend#425/
+                          // PR #455).
+                          validate: (v) =>
+                            v.trim().length > 0 ||
+                            t("organization.site&entities.riskNameRequired"),
                         })}
                         placeholder={t(
                           "organization.site&entities.enterRiskNamePlaceholder",

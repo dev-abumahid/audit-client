@@ -1855,6 +1855,42 @@ describe("SitesEntities", () => {
     expect(mockCreateNewRisk).not.toHaveBeenCalled()
   })
 
+  // quality-bar-loop round 11 (UX finding, open since round 1): the risk
+  // name field's `required` rule only checked truthiness, so a
+  // whitespace-only name passed it -- unlike the site-name field's own
+  // fix for the identical bug (aexa-frontend#425/PR #455).
+  it("shows an inline error for a whitespace-only risk name instead of silently calling the API", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.addRisk/i,
+      })
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "organization.site&entities.enterRiskNamePlaceholder"
+      ),
+      "   "
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.site&entities.add" })
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.site&entities.riskNameRequired")
+      ).toBeInTheDocument()
+    )
+    expect(mockCreateNewRisk).not.toHaveBeenCalled()
+  })
+
   function makeSuggestion(overrides = {}) {
     return {
       risk_id: "sugg-1",
@@ -2065,6 +2101,58 @@ describe("SitesEntities", () => {
     // never be forwarded, not even as unparsed strings.
     expect(payload).not.toHaveProperty("financial_impact_min")
     expect(payload).not.toHaveProperty("financial_impact_max")
+  })
+
+  // quality-bar-loop round 11 (UX finding, open since round 1):
+  // handleImportSuggestions used to evict every ATTEMPTED suggestion from
+  // the list, not just the ones that actually succeeded -- a failed
+  // import (still shown as an error toast) silently vanished from the
+  // list too, with no way to retry it short of re-running AI analysis.
+  it("keeps a suggestion whose import fails visible in the list, while removing the one that succeeded", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockAnalyzeSiteRisks.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: [
+            makeSuggestion({ risk_id: "sugg-ok", title: "Succeeds fine" }),
+            makeSuggestion({ risk_id: "sugg-fail", title: "Fails to import" }),
+          ],
+        }),
+    })
+    mockCreateNewRisk
+      .mockReturnValueOnce({ unwrap: () => Promise.resolve({ success: true }) })
+      .mockReturnValueOnce({ unwrap: () => Promise.reject(new Error("boom")) })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+    )
+    await waitFor(() =>
+      expect(screen.getByText("Succeeds fine")).toBeInTheDocument()
+    )
+
+    const checkboxes = screen.getAllByRole("checkbox")
+    await userEvent.click(checkboxes[0])
+    await userEvent.click(checkboxes[1])
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.site&entities\.importSelected/i,
+      })
+    )
+
+    await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalledTimes(2))
+    await waitFor(() =>
+      expect(screen.queryByText("Succeeds fine")).not.toBeInTheDocument()
+    )
+    expect(screen.getByText("Fails to import")).toBeInTheDocument()
   })
 
   it("falls back to the raw AI category string when it doesn't match a known category", async () => {
