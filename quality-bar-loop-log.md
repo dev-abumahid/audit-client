@@ -1105,3 +1105,38 @@ PageRank duplicate-number contradiction, alerts read-only), mobile's
 risk-detail-page routing bug — all still correctly deferred pending
 product/design input or a larger scoping decision than this loop should
 make unilaterally.
+
+## Round 18 (re-score under lowered target — 8.5) — CONVERGED
+
+Target lowered from 9/10 to 8.5/10 per updated instruction (floor stays 7/10).
+No code changes this round — pure re-score to check whether round 17's state
+already clears the new bar before committing to further fix-work.
+
+| Axis | Score | Note |
+|---|---|---|
+| Industry-standards | 7/10 | unchanged, at floor — fabricated EBITDA data (needs real backend endpoint) and no time-range/freshness control both still open |
+| UX | 8/10 | unchanged — all-or-nothing loading, and PageRank duplicate-number contradiction (Overview shows 100.0, risk detail page shows 0 for the same risk) both still open |
+| Efficiency | 10/10 | unchanged |
+| Accessibility | 9/10 | unchanged, no regressions |
+| Visual/design polish | 9/10 | unchanged, no regressions |
+| Resilience & edge cases | 9/10 | unchanged |
+| Code quality/maintainability | 8/10 | regressed from 9 — 17+ rounds of inline "quality-bar-loop round N" changelog comments now cluttering the 738-line file, monolithic 7-hooks-in-one-component structure, residual file-level `any`-disable |
+| Mobile/responsive | 8/10 | unchanged — `MetricCard` still has zero responsive classes but the parent grid already collapses to 1 column at narrow widths so it's a code-consistency gap, not a visible defect |
+| **Average** | **8.5/10** | **(7+8+10+9+9+9+8+8)/8** |
+
+**stuck_streak** (rounds at-or-below floor, unchanged): industry-standards = 2
+(round 17, round 18 — both exactly 7/10, same two findings each time).
+
+### Convergence check
+
+Average = 8.5 >= target (8.5). Every active axis >= floor (7/10) — industry-
+standards sits exactly at 7, which satisfies `>= floor`, not below it.
+**Converged.** No fix needed this round.
+
+Genuinely open findings remain (industry-standards' 2, UX's PageRank
+contradiction + all-or-nothing loading + read-only alerts, mobile's
+`MetricCard` responsive-class gap, code quality's comment-clutter/monolith
+structure) — none blocks convergence under the 8.5 bar, but they're real and
+would be the natural starting point if the target is ever raised again.
+
+Org Dashboard is done for this sweep. Moving to the next feature.
