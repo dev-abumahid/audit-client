@@ -1,8 +1,8 @@
 import {
+  CircleAlertIcon,
   CircleCheckIcon,
   InfoIcon,
   Loader2Icon,
-  OctagonXIcon,
   TriangleAlertIcon,
 } from "lucide-react"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
@@ -15,11 +15,16 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      closeButton
+      // Error uses CircleAlert (a circle with "!") rather than an X-shaped
+      // icon (e.g. OctagonX/CircleX) -- with `closeButton` now enabled,
+      // an X-shaped type icon sitting right next to the actual close "X"
+      // button read as a duplicate close control.
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
         warning: <TriangleAlertIcon className="size-4" />,
-        error: <OctagonXIcon className="size-4" />,
+        error: <CircleAlertIcon className="size-4" />,
         loading: <Loader2Icon className="size-4 animate-spin" />,
       }}
       style={
