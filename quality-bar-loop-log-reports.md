@@ -564,3 +564,65 @@ authorization. Every shipped fix carried a genuine negative-control
 regression test; two false-positive investigations (a stale-tab
 industry-standards finding in R5, an initially-weak regression test
 in R6) were caught and corrected rather than accepted at face value.
+
+## Round 12-14 — reopened under lowered 8.5 target
+
+The loop had been deliberately stopped after round 11 at 8.00/10 average
+per an earlier user instruction to stop in the 8-8.5 range. That
+instruction is superseded by the current standing instruction ("keep
+working with /quality-bar-loop until every tab is at least 8.5"), which
+reopens this loop. Three rounds shipped in sequence to close the gap.
+
+**Round 12** (PR #780, merged): mechanically selected per stuck_streak --
+code quality had held at the 7 floor for 2 consecutive rounds (R9, R11)
+after the `ReportCard` extraction was deferred twice as disproportionate
+to a single round. Extracted the ~135-line inline report-card JSX into
+`ReportCard.tsx`, pulled the duplicated `canOpenReport()` helper into its
+own module, and (same JSX block) fixed the loop's longest-standing
+finding: `Report.error_message` -- typed, populated server-side, never
+rendered -- now shown (prefixed "Reason:") instead of the same generic
+hint on every FAILED card, open since round 3 (7 rounds running).
+Code quality 7->9 (live-verified: clean single-responsibility component,
+shared helper, no leftover duplication). Resilience 8->9 (live-verified:
+real error text renders end-to-end from the API, correct null fallback,
+two dedicated regression tests).
+
+**Round 13** (PR #781, merged): visual polish's two remaining findings,
+both open since round 3 -- FAILED badge hardcoded its own destructive
+color pairing instead of routing through `severityBadgeClasses()` like
+every other status; AI badge and status pill had mismatched corner-radius
+shapes (`rounded` vs `rounded-full`). Fixed both (FAILED -> `"critical"`
+mapping, AI badge -> `rounded-full`). Visual polish 8->9 (live-verified:
+consistent severity-family color, matching pill shapes, no layout
+regression).
+
+**Round 14** (PR #782, merged): UX's search box had no clear/x button,
+open since round 3 -- added one, shown only once there's a search term,
+clears the input and disappears. UX 8->9 (live-verified: button appears/
+disappears correctly, clears on click; the sibling "no in-flight
+debounce indicator" half of the original finding remains open/accepted,
+same as before -- not penalized).
+
+| Axis | R11 | R14 |
+|---|---|---|
+| Industry-standards | 8 | 8 *(unchanged -- remaining gaps confirmed backend-blocked, cross-repo work)* |
+| UX | 8 | **9** |
+| Efficiency | 8 | 8 *(unchanged, not touched)* |
+| Accessibility | 8 | 8 *(unchanged, not touched)* |
+| Visual polish | 8 | **9** |
+| Resilience | 8 | **9** |
+| Code quality | 7 | **9** |
+| Mobile | 8 | 8 *(unchanged, not touched)* |
+| Security | 9 | 9 *(unchanged, not touched)* |
+| **Average** | **8.00** | **8.56** |
+
+Convergence check: 8.56 >= 8.5 target, every axis >= 7 floor.
+**Converged.**
+
+Still open (real, but not blocking convergence): industry-standards'
+status/type filtering and provenance/audit-trail display remain
+genuinely backend-blocked (would need real `aexa-server` work, not a
+frontend gap); efficiency/accessibility/mobile's previously-noted minor
+gaps are unchanged from round 11.
+
+Board Reports is done for this sweep.
