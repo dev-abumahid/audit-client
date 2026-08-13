@@ -1610,6 +1610,7 @@
       "filteredByOpenStatus": "Showing open actions only",
       "clearStatusFilter": "Clear filter",
       "loadError": "Failed to load findings. Please try again later.",
+      "detailLoadError": "Failed to load this finding. Please try again.",
       "searchPlaceholder": "Search findings...",
       "filter": "Filter",
       "filterBySite": "Filter by Site",

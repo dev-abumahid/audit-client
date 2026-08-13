@@ -515,3 +515,38 @@ table could flip the copy to "no results, adjust your search" a beat
 before the query for that new term had even fired. Fixed in a
 follow-up commit (both conditionals now read `debouncedSearch`),
 verified clean by a scoped round-2 review pass, merged.
+
+## Round 11 — fresh 9-judge panel
+
+Round 9/10's diff touched real logic (debounce timing, conditional
+fetch skipping) across 3 files, not eligible for the scoped-shortcut --
+full panel re-run.
+
+| Axis | R9 | R11 | Note |
+|---|---|---|---|
+| Industry-standards | 7 | 7 | Same three gaps (no bulk actions, no sorting, no multi-field filtering beyond site) confirmed unchanged, live-verified. |
+| UX | 9 | 9 | Empty-state debounce fix confirmed working live (typed a non-matching term, count correctly dropped to 0 with no stale-text flash). Only remaining note: Inspection card shows a raw ID not a name, still marked as a known placeholder in code. |
+| Efficiency | 6 | **9** | Both round 9/10 fixes independently re-verified: live-tested typing "ext" produced exactly 2 requests total (initial load + final debounced value), zero per-keystroke firing; role-param propagation confirmed correct at all 3 call sites with the hook's own skip condition traced. No new findings. |
+| Accessibility | 8 | 8 | Same two findings (unlabeled search/compose inputs; unannounced form errors) confirmed live, unchanged -- round 9/10's diff didn't touch this markup. |
+| Visual polish | 8 | 8 | Same title/site Link color inconsistency confirmed in both themes. New minor note: the table shows a horizontal scrollbar even at full 1280px desktop width -- not yet a selected finding, logged for a future round. |
+| Resilience | 8 | **6** | `FindingDetails.tsx`'s `isError` gap confirmed unaddressed for a sixth consecutive scored round (1/3/5/7/9/11). Judge documented `AllFindingsPage.tsx`'s existing isError-handling pattern in detail (role="alert" row, `loadError` copy, `refetch`-backed retry) as the precedent round 12's fix should mirror. |
+| Code quality | 8 | 8 | Round 9/10's own diff (useDebouncedValue reuse, role-param threading) assessed clean, no new debt. The three standing findings (god component, `any` usage, Controller dual-source-of-truth) unchanged. |
+| Mobile | 7 | 7 | Same tab-bar clipping confirmed with precise live measurement (label's right edge at x=400 vs. a 375px viewport). Debounced search confirmed working correctly via real touch input at mobile width, no new regression. |
+| Security | 9 | 9 | Round 9/10's diff confirmed to have zero security surface. Attachment-URL guard re-confirmed intact via a fresh, focused read. |
+
+**Average: 7.89/10** ((7+9+9+8+8+6+8+7+9)/9). **One axis below floor**
+(resilience, 6) -- not converged, loop continues. Highest average of
+the loop so far (previous best was 7.56 in rounds 5 and 9).
+
+**Round 12 selection**: resilience is the only axis at/below floor,
+and its finding (`FindingDetails.tsx` missing `isError` handling on
+`useGetFindingByIdQuery`) is both `broken-functionality`-adjacent (a
+genuine network error is actively mislabeled as a 404, a false and
+misleading signal to the user) and the single longest-standing
+unaddressed finding in the entire loop -- flagged and reconfirmed in
+6 of 11 rounds without ever being selected, since a lower-scoring axis
+always won priority first. No axis-selection ambiguity this round.
+The fix mirrors `AllFindingsPage.tsx`'s own established isError
+pattern exactly (distinct error copy, `role="alert"`, `refetch`-backed
+retry) rather than inventing a new one, per round 11's own judge
+documentation of that precedent.

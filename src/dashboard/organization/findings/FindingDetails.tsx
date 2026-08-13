@@ -353,7 +353,17 @@ export default function FindingDetails() {
   // useMyAssignedInspectionIds's own comment.
   const assignedInspectionIds = useMyAssignedInspectionIds(role)
   const { id } = useParams<{ id: string }>()
-  const { data, isLoading } = useGetFindingByIdQuery(id as string)
+  // Round 11/12 resilience finding: this query never checked isError,
+  // unlike AllFindingsPage.tsx's own useGetAllFindingsQuery -- a genuine
+  // network/server failure fell through to the `!action` branch below and
+  // rendered the same "Finding Not Found" UI as an actual missing record,
+  // mislabeling a fetch failure as a 404.
+  const {
+    data,
+    isLoading,
+    isError: findingError,
+    refetch,
+  } = useGetFindingByIdQuery(id as string)
   const [deleteFinding, { isLoading: isDeleting }] =
     useDeleteFindingByIdMutation()
   const [updateFinding] = useUpdateFindingByIdMutation()
@@ -437,6 +447,43 @@ export default function FindingDetails() {
           <p className="text-sm text-muted-foreground">
             {t("organization.findings.loading")}
           </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (findingError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        {/* Round 12 review finding: AllFindingsPage.tsx's own isError state
+            (the precedent this block is meant to mirror) uses role="alert"
+            so screen readers announce the failure on mount -- this block
+            had dropped that. Retry is also now the primary-styled action
+            (Go Back was filled/primary before, pointing visual weight at
+            the less likely first move for someone who just hit a network
+            blip on a direct link). */}
+        <div role="alert" className="text-center">
+          <AlertTriangle className="mx-auto mb-4 h-16 w-16 text-destructive" />
+          <h2 className="mb-2 text-xl font-semibold text-foreground">
+            {t("organization.findings.detailLoadError")}
+          </h2>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              {t("organization.findings.retryLoad")}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 rounded-lg border border-input px-5 py-2 text-foreground transition-colors hover:bg-muted"
+            >
+              <ChevronLeft className="h-4 w-4" />{" "}
+              {t("organization.findings.goBack")}
+            </button>
+          </div>
         </div>
       </div>
     )

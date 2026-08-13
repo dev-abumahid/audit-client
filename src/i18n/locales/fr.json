@@ -1610,6 +1610,7 @@
       "filteredByOpenStatus": "Affichage des actions ouvertes uniquement",
       "clearStatusFilter": "Effacer le filtre",
       "loadError": "Échec du chargement des constats. Veuillez réessayer plus tard.",
+      "detailLoadError": "Échec du chargement de ce constat. Veuillez réessayer.",
       "searchPlaceholder": "Rechercher des constats...",
       "filter": "Filtrer",
       "filterBySite": "Filtrer par site",

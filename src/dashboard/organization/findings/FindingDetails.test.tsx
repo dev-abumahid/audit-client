@@ -170,6 +170,80 @@ describe("FindingDetails", () => {
     ).toBeInTheDocument()
   })
 
+  // Round 11/12 resilience finding: a genuine fetch failure used to fall
+  // through to the same "Finding Not Found" UI as an actual missing
+  // record, since this query never checked isError -- the same bug class
+  // AllFindingsPage.tsx's own list query was already fixed for (round 16).
+  describe("query failure vs. genuinely missing record (round 11/12)", () => {
+    it("shows a distinct load-error state, not Finding Not Found, when the query fails", () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        refetch: vi.fn(),
+      })
+      renderPage()
+
+      expect(
+        screen.getByText("organization.findings.detailLoadError")
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.findings.notFound")
+      ).not.toBeInTheDocument()
+    })
+
+    // Round 12 review finding: this block had no role="alert", unlike
+    // AllFindingsPage.tsx's own isError state (the precedent it mirrors),
+    // so a screen reader user got no announcement that the load failed.
+    it("announces the load-error state to screen readers via role=alert", () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        refetch: vi.fn(),
+      })
+      renderPage()
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "organization.findings.detailLoadError"
+      )
+    })
+
+    it("still shows Finding Not Found for a genuinely missing record (isError false, data undefined)", () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      })
+      renderPage()
+
+      expect(
+        screen.getByText("organization.findings.notFound")
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.findings.detailLoadError")
+      ).not.toBeInTheDocument()
+    })
+
+    it("retries the query when Retry is clicked on the load-error state", async () => {
+      const mockRefetch = vi.fn()
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        refetch: mockRefetch,
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.findings.retryLoad" })
+      )
+
+      expect(mockRefetch).toHaveBeenCalled()
+    })
+  })
+
   // Round 9/10 efficiency finding: this hook was called with no `role`,
   // wasting a fetch for VIEWER/LIGHT_USER despite `role` already being
   // resolved locally and the hook's own skip param existing for exactly
