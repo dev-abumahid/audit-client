@@ -975,6 +975,7 @@
       "deleteRiskConfirmDescription": "This will permanently remove this risk from the register.",
       "errorLoadingSitesTitle": "Error loading sites",
       "errorLoadingSitesDescription": "Please try again later",
+      "retryLoadingSites": "Retry",
       "riskNameLabel": "Risk Name",
       "statusLabel": "Status",
       "categoryLabel": "Category",

@@ -975,6 +975,7 @@
       "deleteRiskConfirmDescription": "Cette action supprimera définitivement ce risque du registre.",
       "errorLoadingSitesTitle": "Erreur lors du chargement des sites",
       "errorLoadingSitesDescription": "Veuillez réessayer plus tard",
+      "retryLoadingSites": "Réessayer",
       "riskNameLabel": "Nom du risque",
       "statusLabel": "Statut",
       "categoryLabel": "Catégorie",

@@ -184,6 +184,7 @@ export default function SitesEntities() {
     isLoading,
     isFetching,
     error,
+    refetch: refetchSites,
   } = useGetAllSitesQuery({
     page,
     limit,
@@ -688,6 +689,12 @@ export default function SitesEntities() {
   if (error) {
     return (
       <div className="flex h-64 items-center justify-center">
+        {/* quality-bar-loop round 16 (industry-standards finding, open
+            since round 1): this whole-page error state had no retry
+            button -- the user's only recourse was a full page reload/
+            re-navigation, unlike every other error state in the app
+            (ReportsPage.tsx, RiskMatrixPage.tsx) which already offer
+            one. */}
         <div className="text-center">
           <p className="text-lg font-medium text-destructive">
             {t("organization.site&entities.errorLoadingSitesTitle")}
@@ -695,6 +702,13 @@ export default function SitesEntities() {
           <p className="mt-2 text-sm text-muted-foreground">
             {t("organization.site&entities.errorLoadingSitesDescription")}
           </p>
+          <button
+            type="button"
+            onClick={() => refetchSites()}
+            className="mx-auto mt-4 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            {t("organization.site&entities.retryLoadingSites")}
+          </button>
         </div>
       </div>
     )

@@ -545,6 +545,30 @@ describe("SitesEntities", () => {
     expect(screen.queryByText("Error loading sites")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 16 (industry-standards finding, open since
+  // round 1): this whole-page error state had no retry button -- the
+  // user's only recourse was a full page reload/re-navigation, unlike
+  // every other error state in the app.
+  it("retries the sites query when the error state's retry button is clicked", async () => {
+    const mockRefetch = vi.fn()
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: undefined,
+      error: { status: 500 },
+      refetch: mockRefetch,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.site&entities.retryLoadingSites",
+      })
+    )
+
+    expect(mockRefetch).toHaveBeenCalled()
+  })
+
   // quality-bar-loop round 1 (resilience): the org-wide risk query never
   // checked isError -- a genuine fetch failure fell through to
   // `allRisksData?.data ?? []`, rendering the summary tiles identically to
