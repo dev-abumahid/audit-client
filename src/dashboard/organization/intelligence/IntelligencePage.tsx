@@ -1,4 +1,14 @@
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
@@ -75,6 +85,13 @@ export default function IntelligencePage() {
   const [filterSeverity, setFilterSeverity] = useState<SeverityFilter>("all")
   const [page, setPage] = useState(1)
   const [creatingRiskId, setCreatingRiskId] = useState<string | null>(null)
+  // Round-4 UX finding: Create Risk used to fire the mutation directly on
+  // click, with zero chance to review the AI's analysis (severity,
+  // summary, recommended actions) before a real risk record was created
+  // from it. Holds the item awaiting confirmation; null means the dialog
+  // is closed.
+  const [confirmRiskItem, setConfirmRiskItem] =
+    useState<IntelligenceItem | null>(null)
 
   // Reset to page 1 whenever the debounced search term changes, same
   // convention as SitesEntities.tsx.
@@ -944,7 +961,7 @@ export default function IntelligencePage() {
                         ) : (
                           <button
                             type="button"
-                            onClick={() => handleCreateRisk(item)}
+                            onClick={() => setConfirmRiskItem(item)}
                             disabled={creatingRiskId === item.id}
                             className="flex h-11 items-center gap-1 rounded-md border border-primary/40 px-2 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
                           >
@@ -992,6 +1009,74 @@ export default function IntelligencePage() {
           </div>
         )}
       </div>
+
+      {/* Round-4 UX finding: Create Risk fired the mutation directly on
+          click with zero chance to review the AI's own analysis first --
+          a formal risk record was created from a summary the user hadn't
+          actually read. Surfaces the item's severity/summary/impact/
+          recommended-actions before the real creation happens. */}
+      <AlertDialog
+        open={confirmRiskItem !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmRiskItem(null)
+        }}
+      >
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("organization.intelligence.createRiskConfirm.title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-left">
+                <p>{t("organization.intelligence.createRiskConfirm.description")}</p>
+                {confirmRiskItem && (
+                  <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3 text-xs">
+                    <div className="flex items-center gap-2">
+                      {confirmRiskItem.severity && (
+                        <RiskBadge level={confirmRiskItem.severity} />
+                      )}
+                      <span className="font-semibold text-foreground">
+                        {confirmRiskItem.title}
+                      </span>
+                    </div>
+                    {confirmRiskItem.risk_summary && (
+                      <p className="text-muted-foreground">
+                        {confirmRiskItem.risk_summary}
+                      </p>
+                    )}
+                    {confirmRiskItem.potential_impact && (
+                      <p>
+                        <span className="font-medium text-foreground">
+                          {t(
+                            "organization.intelligence.createRiskConfirm.potentialImpact"
+                          )}
+                          :{" "}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {confirmRiskItem.potential_impact}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {t("organization.intelligence.createRiskConfirm.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmRiskItem) handleCreateRisk(confirmRiskItem)
+                setConfirmRiskItem(null)
+              }}
+            >
+              {t("organization.intelligence.createRiskConfirm.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

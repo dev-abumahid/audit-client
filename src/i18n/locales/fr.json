@@ -1591,6 +1591,13 @@
         "viewRisk": "Voir le risque",
         "createRisk": "Créer un risque"
       },
+      "createRiskConfirm": {
+        "title": "Créer un risque à partir de cette analyse ?",
+        "description": "Cela créera un véritable enregistrement de risque dans le registre à partir de l'analyse de l'IA ci-dessous.",
+        "potentialImpact": "Impact potentiel",
+        "cancel": "Annuler",
+        "confirm": "Créer un risque"
+      },
       "pagination": {
         "previous": "Précédent",
         "next": "Suivant",

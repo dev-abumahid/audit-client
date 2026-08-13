@@ -1591,6 +1591,13 @@
         "viewRisk": "View Risk",
         "createRisk": "Create Risk"
       },
+      "createRiskConfirm": {
+        "title": "Create a risk from this analysis?",
+        "description": "This will create a real risk record in the register from the AI's analysis below.",
+        "potentialImpact": "Potential impact",
+        "cancel": "Cancel",
+        "confirm": "Create Risk"
+      },
       "pagination": {
         "previous": "Previous",
         "next": "Next",

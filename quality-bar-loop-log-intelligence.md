@@ -232,3 +232,50 @@ report metadata), two remaining below-floor axes both need product/
 design decisions this loop shouldn't make unilaterally. Per the
 standing "scope ambiguous things, keep going down the list of tabs"
 instruction, moving to the next sidebar tab: Alerts.
+
+## Confirming re-score
+
+Resumed per the standing "resume the work on the floor gap ones"
+instruction. Re-verified via source read and live-testing where
+possible: **industry-standards 5/10, UX 6/10 -- both still below the
+7 floor.** Generation date + confidence (round 4's fix) confirmed
+still shown. Run-history UI and source citations confirmed still
+missing (all 4 `useGetIntelligenceRunsQuery` calls still hardcode
+`limit: 1`, only ever showing the single latest run per type). The
+create-risk flow was confirmed still direct/no-preview (no Modal/
+Dialog/confirm reference anywhere in the file).
+
+## Round 4 (UX -- create-risk confirmation dialog, PR TBD)
+
+Selected the most concretely-scoped, self-contained finding from
+UX's gap: Create Risk fired `createRiskFromItem` directly on click,
+with zero chance to review the AI's own analysis (severity, risk
+summary, potential impact) before a real risk record was created
+from it. Added a confirm dialog (the same shadcn/Radix AlertDialog
+pattern used elsewhere in the codebase, e.g. Board Reports' Publish
+confirmation) surfacing that context before the actual creation
+mutation fires.
+
+Industry-standards' remaining gaps (run-history UI, source citations,
+several other dropped AI-output fields, export) and UX's other open
+item (no visibility into a multi-minute AI run's actual progress)
+are still real feature-shaped work, not addressed this round --
+picked the one item concrete enough to ship cleanly in a single round
+rather than attempting all of it at once.
+
+4 tests updated/added for the new two-step flow, verified against a
+negative control (genuinely fails on the pre-fix source).
+
+**QA**: lint clean, typecheck clean repo-wide. Full suite:
+2003/2003 passing.
+
+**Live verification**: could not be completed this round -- the
+shared dev backend's API rate limiter (aexa-server's `apiLimiter`,
+Redis-backed, 300 req/15min) is currently exhausted from this
+session's own heavy concurrent judge/review-agent usage across many
+features tonight. Confirmed via direct inspection of
+`aexa-server/src/app.ts` that the store is Redis-backed, not
+in-memory, so restarting the dev server process (tried twice) does
+not reset it -- it will only clear once the real 15-minute window
+elapses. Relied on the unit tests (with their own genuine negative
+control) instead, documented rather than silently skipped.

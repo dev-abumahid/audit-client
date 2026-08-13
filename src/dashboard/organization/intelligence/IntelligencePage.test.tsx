@@ -586,6 +586,13 @@ describe("IntelligencePage", () => {
         name: "organization.intelligence.item.createRisk",
       })
     )
+    // Round-4 UX finding: Create Risk now opens a confirm dialog instead
+    // of firing the mutation directly on click.
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.createRiskConfirm.confirm",
+      })
+    )
 
     await waitFor(() =>
       expect(mockCreateRiskFromItem).toHaveBeenCalledWith({
@@ -593,6 +600,35 @@ describe("IntelligencePage", () => {
       })
     )
     expect(mockToastSuccess).toHaveBeenCalled()
+  })
+
+  it("does not call createRiskFromItem if the confirm dialog is cancelled", async () => {
+    mockRole = "ADMIN"
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem()],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+              },
+            }
+    )
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.item.createRisk",
+      })
+    )
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.createRiskConfirm.cancel",
+      })
+    )
+
+    expect(mockCreateRiskFromItem).not.toHaveBeenCalled()
   })
 
   // Round-1 review gap: only scrape's rejection path was tested. Every
@@ -686,6 +722,11 @@ describe("IntelligencePage", () => {
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.intelligence.item.createRisk",
+      })
+    )
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.createRiskConfirm.confirm",
       })
     )
 
@@ -784,6 +825,11 @@ describe("IntelligencePage", () => {
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.intelligence.item.createRisk",
+      })
+    )
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.intelligence.createRiskConfirm.confirm",
       })
     )
     await waitFor(() => expect(mockCreateRiskFromItem).toHaveBeenCalled())
