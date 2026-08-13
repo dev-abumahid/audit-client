@@ -371,3 +371,42 @@ sub-component in `FindingDetails.tsx`. Tier 1/2 (contained
 refactor, single file, no behavior change) -- not batching in another
 axis's finding this round to keep the refactor's own diff easy to
 review in isolation.
+
+## Round 8 outcome
+
+Shipped the `AttachmentActions` extraction selected in round 7 (PR #749).
+
+A single component now covers both the images-grid and other-files-list
+Preview/Download/Remove button clusters, with a `variant: "overlay" |
+"inline"` prop covering the one real visual difference between them.
+Pure refactor -- event handlers, conditional logic, and rendered output
+unchanged.
+
+**QA**: typecheck/eslint clean. Full suite: 1957/1957 passing, zero
+test changes needed -- every pre-existing attachment-rendering test
+already exercised this code through its real call sites.
+
+**Live verification**: page renders cleanly against real preview data
+with zero console errors. Documented an honest gap rather than
+overclaiming: no finding in the current preview account has real
+attachments, and this session's browser tooling has no file-upload
+capability, so the populated image-grid/file-list variants weren't
+independently click-tested live -- relied on the unchanged, passing
+pre-existing test suite for that coverage instead.
+
+**Review**: two parallel angles (correctness/behavior-preservation,
+code-quality/design). Correctness came back clean (confirmed
+behavior-identical, one cosmetic class-order nitpick with zero
+computed-style effect). Design review rated the initial extraction
+"acceptable, not good": found unnecessary `t` prop-drilling (the
+component could call `useTranslation()` itself) and noted the 4
+`variant === "overlay" ? ... : ...` ternaries just relocated the
+duplication into branching logic rather than eliminating it. Both
+fixed in a follow-up commit (dropped the prop, replaced the ternaries
+with a single `ATTACHMENT_ACTIONS_VARIANTS` config object keyed by
+variant), verified clean by a scoped round-2 review pass, merged.
+
+Deferred, not fixed: the review's larger suggestion to converge these
+raw `<button>` elements onto the codebase's shared `cva`-based `Button`
+component -- real visual-regression risk, pre-existing debt this
+refactor didn't introduce, disproportionate to a contained round.
