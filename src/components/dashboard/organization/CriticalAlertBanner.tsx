@@ -65,6 +65,7 @@ export default function CriticalAlertBanner() {
             </span>
           </div>
           <button
+            type="button"
             onClick={() => setErrorDismissed(true)}
             aria-label={t("common.close")}
             className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
@@ -99,6 +100,7 @@ export default function CriticalAlertBanner() {
         </div>
 
         <button
+          type="button"
           onClick={() => setDismissed(true)}
           aria-label={t("common.close")}
           className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"

@@ -173,6 +173,7 @@ export default function OrganizationLayout() {
         )}
 
         <button
+          type="button"
           onClick={() => setMobileOpen(false)}
           aria-label={t("organization.nav.closeSidebar")}
           className="focus-ring-sidebar rounded p-1.5 text-sidebar-foreground hover:text-sidebar-accent-foreground lg:hidden"
@@ -242,6 +243,7 @@ export default function OrganizationLayout() {
         </Link>
 
         <button
+          type="button"
           onClick={logOutHandler}
           className="focus-ring-sidebar flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           title={collapsed ? t("organization.nav.logout") : undefined}
@@ -252,6 +254,7 @@ export default function OrganizationLayout() {
 
         {/* Collapse Toggle (Desktop) */}
         <button
+          type="button"
           onClick={() => setCollapsed(!collapsed)}
           aria-label={
             collapsed
@@ -304,6 +307,7 @@ export default function OrganizationLayout() {
         <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 lg:px-6">
           <div className="flex items-center gap-4">
             <button
+              type="button"
               onClick={() => setMobileOpen(true)}
               aria-label={t("organization.nav.openSidebar")}
               className="focus-ring rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"

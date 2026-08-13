@@ -108,4 +108,29 @@ describe("GeneralInformation (aexa-frontend#369, #370, #371)", () => {
       await screen.findByRole("button", { name: "Remove logo" })
     ).toBeInTheDocument()
   })
+
+  // Raw <button>s with no explicit type default to type="submit" per the
+  // HTML spec -- a latent bug if this form ever ends up inside a <form>
+  // (it renders standalone today, but nothing stops a future settings page
+  // from wrapping it in one). No shadcn <Button> usage here, so a full
+  // sweep is safe -- but the remove-logo button only mounts after a logo
+  // is uploaded, so the file is uploaded first, same as the accessible-name
+  // test above, to make sure that button is covered too.
+  it("gives every button an explicit type so none default to implicit submit", async () => {
+    const user = userEvent.setup()
+    render(<GeneralInformation />)
+
+    const file = new File(["logo"], "logo.png", { type: "image/png" })
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+    await user.upload(fileInput, file)
+    await screen.findByRole("button", { name: "Remove logo" })
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
 })

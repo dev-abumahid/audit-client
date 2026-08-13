@@ -308,7 +308,10 @@ const AdminOverview = () => {
               </h3>
               <div className="space-y-3">
                 <Link to="/admin/settings">
-                  <button className="flex w-full items-center gap-3 rounded-xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 rounded-xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted"
+                  >
                     <Settings className="h-5 w-5 text-muted-foreground" />
                     <span className="font-medium text-foreground">
                       {t("admin.overview.managePlans")}
@@ -317,7 +320,10 @@ const AdminOverview = () => {
                 </Link>
 
                 <Link to="/admin/transaction">
-                  <button className="flex w-full items-center gap-3 rounded-xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 rounded-xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted"
+                  >
                     <File className="h-5 w-5 text-muted-foreground" />
                     <span className="font-medium text-foreground">
                       {t("admin.overview.viewTransactions")}
@@ -347,7 +353,10 @@ const AdminOverview = () => {
               {t("admin.overview.recentPayments")}
             </h2>
             <Link to="/admin/transaction">
-              <button className="rounded-xl border border-border bg-background px-5 py-2 text-sm font-medium transition-colors hover:bg-muted">
+              <button
+                type="button"
+                className="rounded-xl border border-border bg-background px-5 py-2 text-sm font-medium transition-colors hover:bg-muted"
+              >
                 {t("admin.overview.viewAll")}
               </button>
             </Link>
@@ -459,7 +468,10 @@ const AdminOverview = () => {
                       year: "numeric",
                     })}
                   </span>
-                  <button className="text-primary hover:underline">
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                  >
                     {t("admin.overview.viewDetails")}
                   </button>
                 </div>

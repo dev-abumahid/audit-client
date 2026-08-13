@@ -75,4 +75,30 @@ describe("CreateTemplateWithAIDialog", () => {
       expect(mockToastError).toHaveBeenCalledWith("organization.templates.ai.createFailed")
     )
   })
+
+  // Raw <button>s with no explicit type default to type="submit" per the
+  // HTML spec -- a latent bug if this dialog ever ends up inside a <form>.
+  // Scoped assertions (not a full sweep) since the dialog footer also
+  // renders shadcn <Button>s with no explicit type prop -- a separate,
+  // pre-existing gap out of scope for this fix -- so a sweep would either
+  // fail on those or silently miss them.
+  it("gives the three mode-select cards an explicit type=\"button\"", () => {
+    render(<CreateTemplateWithAIDialog open setOpen={vi.fn()} />)
+
+    expect(
+      screen
+        .getByText("organization.templates.ai.promptOption.title")
+        .closest("button")!.type
+    ).toBe("button")
+    expect(
+      screen
+        .getByText("organization.templates.ai.fileOption.title")
+        .closest("button")!.type
+    ).toBe("button")
+    expect(
+      screen
+        .getByText("organization.templates.ai.riskOption.title")
+        .closest("button")!.type
+    ).toBe("button")
+  })
 })

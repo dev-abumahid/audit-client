@@ -25,6 +25,15 @@ vi.mock("react-i18next", () => ({
 // ── sonner ────────────────────────────────────────────────────────────────────
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+// LanguageSwitcher's own type="button" fix lives in a separate PR (batch
+// 4 of the app-wide sweep) -- mocked out here as a black box so this
+// file's own button-type sweep test below isn't cross-coupled to a
+// different PR's file, matching TeamMembersTab.test.tsx's convention of
+// mocking out ExternalMembersSection.
+vi.mock("@/components/shared/LanguageSwitcher", () => ({
+  default: () => <div data-testid="language-switcher" />,
+}))
+
 // ── theme provider (ModeToggle's dependency) ────────────────────────────────────
 vi.mock("@/components/theme-provider", () => ({
   useTheme: () => ({ theme: "system", setTheme: vi.fn() }),
@@ -225,6 +234,23 @@ describe("AdminLayout (aexa-frontend#248)", () => {
         name: "Logout",
       })
       expect(logoutControl).toBeInTheDocument()
+    })
+  })
+
+  // Raw <button>s with no explicit type default to type="submit" per the
+  // HTML spec -- a latent bug if this layout's sidebar/header ever ends up
+  // inside a <form>. Every button this layout renders is a raw <button> (no
+  // shadcn <Button> usage here), and all of them render unconditionally in
+  // the default fixture, so a full sweep covers all of them. Same pattern
+  // as InspectionActions.test.tsx's "gives every button an explicit type"
+  // test.
+  it("gives every button an explicit type so none default to implicit submit", () => {
+    renderAdminLayout()
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
     })
   })
 })

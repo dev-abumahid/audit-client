@@ -1376,4 +1376,31 @@ describe("RiskMatrixPage", () => {
     expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument()
     expect(screen.queryByRole("heading", { level: 3 })).not.toBeInTheDocument()
   })
+
+  // Raw <button>s with no explicit type default to type="submit" per the
+  // HTML spec -- a latent bug if this component ever ends up inside a
+  // <form>. Fixed on the three raw buttons that were still missing it: the
+  // matrix-size toggle, the group-mode toggle, and a matrix cell. Scoped
+  // assertions (not a full sweep) since several other raw buttons in this
+  // file already had type="button" before this fix and asserting on all of
+  // them in one go would be redundant with those buttons' own dedicated
+  // tests above.
+  it("gives the matrix-size toggle, group-mode toggle, and a matrix cell an explicit type=\"button\"", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    const sizeToggle = screen.getByRole("button", { name: "3×3" })
+    expect((sizeToggle as HTMLButtonElement).type).toBe("button")
+
+    const groupToggle = screen.getByRole("button", {
+      name: "organization.correlationMatrix.groupByType",
+    })
+    expect((groupToggle as HTMLButtonElement).type).toBe("button")
+
+    const cell = screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    expect((cell as HTMLButtonElement).type).toBe("button")
+  })
 })

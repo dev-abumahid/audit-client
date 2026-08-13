@@ -461,6 +461,7 @@ export default function RiskMatrixPage() {
             {[3, 4, 5].map((s) => (
               <button
                 key={s}
+                type="button"
                 onClick={() => {
                   setMatrixSize(s as MatrixSize)
                   // Round-1 review finding: effectiveSelectedCell only
@@ -493,6 +494,7 @@ export default function RiskMatrixPage() {
             ].map(([mode, label]) => (
               <button
                 key={mode}
+                type="button"
                 onClick={() => setGroupMode(mode as GroupMode)}
                 aria-pressed={groupMode === mode}
                 className={`flex h-11 items-center justify-center px-3 text-xs font-medium transition-colors ${
@@ -667,6 +669,7 @@ export default function RiskMatrixPage() {
                           // outranking it the rest of the time.
                           <button
                             key={col}
+                            type="button"
                             onClick={() =>
                               setSelectedCell(
                                 cellRisks.length

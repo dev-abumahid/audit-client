@@ -105,4 +105,19 @@ describe("AdminOverview", () => {
       "admin.overview.periodSelectorDisabledHint"
     )
   })
+
+  // Raw <button>s with no explicit type default to type="submit" per the
+  // HTML spec -- a latent bug if this page ever ends up inside a <form>.
+  // Every button rendered by this page's default fixture is a raw
+  // <button> (no shadcn <Button> usage here), and none are gated behind
+  // extra interaction/data, so a full sweep covers all of them.
+  it("gives every button an explicit type so none default to implicit submit", () => {
+    renderPage()
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
 })

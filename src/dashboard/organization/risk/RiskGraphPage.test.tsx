@@ -2935,4 +2935,69 @@ describe("RiskGraphPage", () => {
       expect(getMainCircle(node).getAttribute("cx")).toBe(startCx)
     })
   })
+
+  // Raw <button>s with no explicit type default to type="submit" per the
+  // HTML spec -- a latent bug if this ever ends up inside a <form>. Fixed on
+  // the three raw buttons that were still missing it: the domino-chain ref
+  // button, the "clear selection" chip, and the Domino Scenarios collapse
+  // toggle. Scoped assertions (not a full sweep) since this file's shadcn
+  // <Button> usage isn't in scope here -- there is none in this component,
+  // but many of its ~10 raw buttons already had type="button" before this
+  // fix, and the remaining unfixed ones only render behind specific
+  // state/data, so asserting on the three fixed controls directly is more
+  // reliable than trying to mount every button in one fixture.
+  describe("explicit button type (submit-in-form regression)", () => {
+    it("gives the domino-chain ref button and the Domino Scenarios toggle an explicit type=\"button\"", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({ id: "a", ref: "RISK-A" }),
+            makeRisk({ id: "b", ref: "RISK-B" }),
+            makeRisk({ id: "c", ref: "RISK-C" }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockUseGetCorrelationMatrixDataQuery.mockReturnValue({
+        data: {
+          data: {
+            riskLinks: [
+              { source_ref: "RISK-A", target_ref: "RISK-B", link_type: "CAUSES" },
+              { source_ref: "RISK-B", target_ref: "RISK-C", link_type: "CAUSES" },
+            ],
+          },
+        },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const toggle = screen.getByRole("button", {
+        name: /organization\.riskGraph\.dominoScenarios/,
+      })
+      expect((toggle as HTMLButtonElement).type).toBe("button")
+
+      const dominoPanel = toggle.closest(".rounded-xl") as HTMLElement
+      const refButton = within(dominoPanel).getByTitle("RISK-A")
+      expect((refButton as HTMLButtonElement).type).toBe("button")
+    })
+
+    it("gives the 'clear selection' chip an explicit type=\"button\"", async () => {
+      const { default: userEvent } = await import("@testing-library/user-event")
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ ref: "RSK-001" })] },
+        isLoading: false,
+      })
+      render(<RiskGraphPage />, withRouter)
+
+      const nodeLabel = screen
+        .getAllByText("RSK-001")
+        .find((el) => el.tagName.toLowerCase() === "text")!
+      await userEvent.click(nodeLabel)
+
+      const clearButton = screen.getByRole("button", {
+        name: "organization.riskGraph.clearSelection",
+      })
+      expect((clearButton as HTMLButtonElement).type).toBe("button")
+    })
+  })
 })

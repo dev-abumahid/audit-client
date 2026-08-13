@@ -161,6 +161,7 @@ const GeneralInformation = () => {
               )}
               {logoFile && (
                 <button
+                  type="button"
                   onClick={handleRemoveLogo}
                   className="text-destructive-foreground absolute -top-2 -right-2 rounded-full bg-destructive p-1 hover:bg-destructive/90"
                 >
@@ -291,6 +292,7 @@ const GeneralInformation = () => {
       {/* Save Button */}
       <div className="flex justify-end border-t border-border pt-6">
         <button
+          type="button"
           onClick={handleSubmit}
           disabled={isSubmitting}
           className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"

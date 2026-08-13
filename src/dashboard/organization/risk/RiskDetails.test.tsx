@@ -276,4 +276,42 @@ describe("RiskDetails", () => {
 
     expect(mockNavigate).toHaveBeenCalledWith("/organization/risks")
   })
+
+  // Raw <button>s with no explicit type default to type="submit" per the
+  // HTML spec -- a latent bug if this page ever ends up inside a <form>.
+  // Every button this page renders is a raw <button> (no shadcn <Button>
+  // usage here, and RiskApprovalControls is stubbed out above so it can't
+  // contribute any). The not-found and found states are mutually exclusive
+  // early returns, so each gets its own sweep to cover the button(s) that
+  // state actually mounts, rather than one sweep silently missing the
+  // other branch's button.
+  it("gives the not-found state's back button an explicit type so it doesn't default to implicit submit", () => {
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
+
+  it("gives every button in the found state an explicit type so none default to implicit submit", () => {
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: { data: makeRisk() },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
 })

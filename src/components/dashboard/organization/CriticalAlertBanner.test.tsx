@@ -200,4 +200,36 @@ describe("CriticalAlertBanner", () => {
 
     expect(container).toBeEmptyDOMElement()
   })
+
+  // Raw <button>s with no explicit type default to type="submit" per the
+  // HTML spec -- a latent bug if this banner ever ends up inside a <form>.
+  // No shadcn <Button> usage here. The error and normal-banner dismiss
+  // buttons are mutually exclusive early returns, so each state gets its
+  // own sweep to cover the button it actually mounts.
+  it("gives the error notice's dismiss button an explicit type so it doesn't default to implicit submit", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+    })
+    render(<CriticalAlertBanner />)
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
+
+  it("gives the normal banner's dismiss button an explicit type so it doesn't default to implicit submit", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert({ severity: "critical" })] },
+    })
+    render(<CriticalAlertBanner />)
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
 })

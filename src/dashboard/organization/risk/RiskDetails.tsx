@@ -113,6 +113,7 @@ export default function RiskDetails() {
             {t("organization.riskRegister.detailsNotFound")}
           </h2>
           <button
+            type="button"
             onClick={() => navigate(-1)}
             className="focus-ring mx-auto flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-primary-foreground transition-colors hover:bg-primary/90"
           >
@@ -134,6 +135,7 @@ export default function RiskDetails() {
     <div className="min-h-screen space-y-6 bg-background p-6">
       <div>
         <button
+          type="button"
           onClick={() => navigate(-1)}
           className="focus-ring mb-4 flex items-center gap-1.5 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
@@ -187,6 +189,7 @@ export default function RiskDetails() {
           </div>
 
           <button
+            type="button"
             onClick={() => navigate("/organization/risks")}
             className="focus-ring shrink-0 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >

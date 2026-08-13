@@ -450,6 +450,7 @@ const DominoChainRefButton = memo(function DominoChainRefButton({
 }: DominoChainRefButtonProps) {
   return (
     <button
+      type="button"
       onClick={() => onSelect(riskRef)}
       onMouseEnter={() => onHoverChange(riskRef)}
       onMouseLeave={() => onHoverChange(null)}
@@ -1972,6 +1973,7 @@ export default function RiskGraphPage() {
         </div>
         {selectedRisk && (
           <button
+            type="button"
             onClick={() => setSelectedRisk(null)}
             className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
           >
@@ -2488,6 +2490,7 @@ export default function RiskGraphPage() {
           {/* Domino chains */}
           <div className="rounded-xl border border-border bg-card p-4">
             <button
+              type="button"
               onClick={() => setShowDomino(!showDomino)}
               aria-expanded={showDomino}
               className="flex w-full items-center justify-between text-sm font-semibold text-foreground"
