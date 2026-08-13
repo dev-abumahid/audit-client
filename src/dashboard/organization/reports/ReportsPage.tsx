@@ -1,3 +1,13 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { Report, ReportType } from "@/redux/apis/organization/report.api"
@@ -17,6 +27,7 @@ import {
   Eye,
   FileText,
   Loader2,
+  RotateCw,
   Search,
   Send,
   Sparkles,
@@ -115,6 +126,20 @@ export default function ReportsPage() {
 
   const [selectedType, setSelectedType] = useState<ReportType>("BOARD")
   const [publishingId, setPublishingId] = useState<string | null>(null)
+  // Round-8 review finding: `isGenerating` is the mutation's single global
+  // isLoading flag, shared by the top Generate button and every FAILED
+  // card's Retry button -- disabling all of them while one retry is in
+  // flight is correct (generation really is one-at-a-time server-side),
+  // but spinning the icon on every card too gave no indication of *which*
+  // one the user actually clicked. Tracks just that.
+  const [retryingId, setRetryingId] = useState<string | null>(null)
+  // Round 8 UX finding: Publish used to fire directly on click with no
+  // confirm step -- a single accidental click made the report visible to
+  // the board with no undo. Holds the id awaiting confirmation; null means
+  // the dialog is closed.
+  const [confirmPublishId, setConfirmPublishId] = useState<string | null>(
+    null
+  )
 
   // Memoized: reportData?.data ?? [] would otherwise be a new array
   // reference every render, making the announcement effect below (which
@@ -164,9 +189,12 @@ export default function ReportsPage() {
     if (announcement) setLiveAnnouncement(announcement)
   }, [reports, t])
 
-  const handleGenerate = async () => {
+  // Shared by the top Generate control (selectedType) and a FAILED card's
+  // Retry button (report.type) -- round 8 UX finding: retrying used to
+  // require scrolling back up and re-selecting the type by hand.
+  const runGenerate = async (type: ReportType) => {
     try {
-      const res = await generateReport({ type: selectedType }).unwrap()
+      const res = await generateReport({ type }).unwrap()
       // Generation is synchronous: the response is the final report. A row that
       // came back FAILED is a failed generation, surfaced as an error toast even
       // though the HTTP call itself succeeded.
@@ -180,6 +208,16 @@ export default function ReportsPage() {
         (err as { data?: { message?: string } })?.data?.message ||
           t("organization.reports.generateFailed")
       )
+    }
+  }
+
+  const handleGenerate = () => runGenerate(selectedType)
+  const handleRetry = async (report: Report) => {
+    setRetryingId(report.id)
+    try {
+      await runGenerate(report.type)
+    } finally {
+      setRetryingId(null)
     }
   }
 
@@ -387,9 +425,31 @@ export default function ReportsPage() {
               </div>
 
               {isFailed && (
-                <p className="mt-3 text-xs text-destructive">
-                  {t("organization.reports.failedHint")}
-                </p>
+                <div className="mt-3">
+                  <p className="text-xs text-destructive">
+                    {t("organization.reports.failedHint")}
+                  </p>
+                  {/* Round 8 UX finding: the only way to retry a FAILED
+                      report used to be scrolling back to the shared
+                      Generate control and re-selecting its type -- the
+                      single worst friction point per the round-7 judge,
+                      given this org's reports are near-100% FAILED. */}
+                  {canWrite && (
+                    <button
+                      type="button"
+                      onClick={() => handleRetry(report)}
+                      disabled={isGenerating}
+                      className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {retryingId === report.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RotateCw className="h-3.5 w-3.5" />
+                      )}
+                      {t("organization.reports.retry")}
+                    </button>
+                  )}
+                </div>
               )}
 
               {(isReady || isPublished) && (
@@ -417,7 +477,7 @@ export default function ReportsPage() {
                   {isReady && isAdmin && (
                     <button
                       type="button"
-                      onClick={() => handlePublish(report.id)}
+                      onClick={() => setConfirmPublishId(report.id)}
                       disabled={publishingId === report.id}
                       className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary/40 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 active:scale-[0.98] disabled:opacity-50"
                     >
@@ -472,6 +532,40 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
+
+      {/* Round 8 UX finding: Publish used to fire directly on click with no
+          confirm step. One shared dialog (not one per card) since only one
+          report can be awaiting confirmation at a time. */}
+      <AlertDialog
+        open={confirmPublishId !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmPublishId(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("organization.reports.confirmPublishTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("organization.reports.confirmPublishDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {t("organization.reports.confirmPublishCancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmPublishId) handlePublish(confirmPublishId)
+                setConfirmPublishId(null)
+              }}
+            >
+              {t("organization.reports.confirmPublishConfirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

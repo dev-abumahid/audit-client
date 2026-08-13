@@ -310,3 +310,37 @@ spuriously announcing, since generation is synchronous in this app
 polling-recovery transition this region exists for is covered by the
 unit tests instead, since this preview environment has no way to
 trigger it live.
+
+## Round 7 -- fresh 9-judge panel
+
+Round 6's diff (the 3-pass accessibility fix) touched real logic
+(a new effect, a memo) in one file -- not eligible for the scoped
+shortcut, full panel re-run.
+
+| Axis | R1 | R3 | R5 | R7 | Note |
+|---|---|---|---|---|---|
+| Industry-standards | 6 | 5 | 7* | **7** | Search (round 4) re-confirmed correct at the API level (direct `searchTerm=` calls verified 200/0-results). Status/type filtering and provenance display re-confirmed still backend-blocked. New minor note: `generated_by` is captured server-side and typed on the frontend but never rendered -- same backend-data-quality gap as the already-known provenance finding (still just a raw ID, not a joined name), not treated as newly frontend-fixable. |
+| UX | 6 | 7 | 7 | **7** | Unchanged, 3rd consecutive round at floor. Same 4 friction items: no per-card retry on FAILED (the judge called this "the single worst friction point" given this org's 8/8 FAILED reports), no Publish confirmation, indeterminate generation indicator, no search clear/x button. |
+| Efficiency | 8 | 8 | 8 | **8** | Round 6's new status-diffing effect assessed as genuinely negligible at scale (single O(n) loop, cheap object construction). The `useMemo([reportData])` dependency (vs. `[reportData?.data]`) re-executes the memo body more often than strictly needed, but RTK Query's structural sharing keeps the *output* array reference stable regardless -- imprecise, not a functional or measurable-perf regression. |
+| Accessibility | 7 | 7 | 7 | **8** | First move off the floor since the loop started. All 4 round-6 fixes independently re-verified live (accessible name via the a11y tree, scoped `role="status"`, `aria-describedby` timing around a real Generate click, the live-region's mount-safe diffing logic). One new, narrow edge case found and accepted at floor-ding severity rather than a blocking finding: if a report is GENERATING while filtered out of view by an active search term, and resolves while still filtered out, the diffing effect (which only iterates the *searched* `reports` list) drops its id from the ref with no announcement ever firing for that transition -- same spirit as the already-documented "simultaneous transitions" limitation. |
+| Visual polish | 8 | 8 | 8 | **8** | Both R3 findings (hardcoded FAILED badge, AI-badge/status-pill shape mismatch) reconfirmed unchanged. Round 6's sr-only live region independently confirmed visually inert (standard Tailwind `sr-only`, outside the flex/grid flow, no layout shift observed live). |
+| Resilience | 6 | 8 | 8 | **8** | Round 6's `previousStatusesRef` checked for unbounded growth/staleness -- confirmed bounded and the staleness is actually beneficial (a report hidden then reappearing still triggers correctly). Round 2's error/retry path confirmed untouched by round 6's diff. `Report.error_message` still never rendered -- now open 4+ consecutive rounds (R3-R7). |
+| Code quality | 8 | 8 | 8 | **8** | Round 6's final state assessed as clean despite its 4-commit/3-review-pass history -- the accepted limitation's reasoning is explicitly commented, not left implicit. File now 477 lines; the report-card JSX block (~105 lines) is now assessed as a real should-fix for subcomponent extraction, not just "worth considering" as in R5. `isHttpUrl` duplication still open, unchanged. |
+| Mobile | 8 | 8 | 8 | **8** | Round 6's diff independently confirmed layout-inert via `getBoundingClientRect()` on the live region (1x1px, absolute, overflow hidden -- the standard sr-only footprint). Search/no-results and Generate-section stacking reconfirmed correct at 375px. Card-button-height finding remains unverifiable live (org still 100% FAILED). |
+| Security | 5 | 9 | 9 | **9** | Round 6's new `t()` interpolation of `report.title` into the live region confirmed safe -- rendered as React text content (never `dangerouslySetInnerHTML`), i18next's `escapeValue: false` is the standard/correct React config since React itself escapes text children. Round 2's `isHttpUrl` guard reconfirmed untouched. |
+
+**Average: 7.89/10** ((7+7+8+8+8+8+8+8+9)/9). **No axis below floor**
+-- 2nd consecutive round with everything at/above the 7 floor. Not
+yet at the user's 8-8.5 target band, but within 0.11 of it -- the
+closest this loop has come.
+
+**Round 8 selection**: no `data-correctness`/`security` finding at or
+below floor. Highest `stuck_streak`: UX, unchanged at exactly its
+floor score (7) for 3 consecutive full-panel rounds (R3, R5, R7) --
+wins selection outright now that accessibility (previously tied at a
+2-round streak) moved to 8 this round. Selected fix: the judge's own
+explicit ranking calls per-card FAILED retry "the single worst
+friction point" for this org's current data (8/8 FAILED) -- paired
+with a Publish confirmation step (same file, same tier, no overlap
+risk), both Tier 2 (contained interaction logic, no new page/route),
+batched into one round per the batching rule.
