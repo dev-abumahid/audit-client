@@ -970,4 +970,17 @@ describe("AllFindingsPage", () => {
         .type
     ).toBe("button")
   })
+
+  // quality-bar-loop (Findings, round 16 accessibility finding): the search
+  // input relied solely on its placeholder for a label, so a screen reader
+  // announced it with no name at all.
+  it("labels the search input with an aria-label matching its placeholder", () => {
+    render(<AllFindingsPage />, withRouter)
+
+    expect(
+      screen.getByRole("textbox", {
+        name: "organization.findings.searchPlaceholder",
+      })
+    ).toBeInTheDocument()
+  })
 })

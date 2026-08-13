@@ -959,6 +959,7 @@ export default function FindingDetails() {
                         }
                       }}
                       placeholder={t("organization.findings.addUpdatePlaceholder")}
+                      aria-label={t("organization.findings.addUpdatePlaceholder")}
                       disabled={isSendingMessage}
                       className="flex-1 rounded-lg border border-input bg-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50"
                     />

@@ -112,6 +112,17 @@ export default function CreateNewFindingModal({
   const inspectionSelectId = useId()
   const priorityId = useId()
   const statusId = useId()
+  // quality-bar-loop (Findings, round 16 accessibility finding): none of
+  // these fields' error <p>s were wired to their control via
+  // aria-describedby/aria-invalid, so a screen reader user tabbing into an
+  // invalid field never heard why -- the visible red text was the only
+  // signal. role="alert" on the <p> also means an error that appears
+  // without a focus change (e.g. submit-time validation) still gets
+  // announced.
+  const actionTitleErrorId = useId()
+  const inspectionErrorId = useId()
+  const lineOfDefenseErrorId = useId()
+  const dueDateErrorId = useId()
   // Separate from statusId (the <select>'s own id, referenced by the
   // label's htmlFor when open): the closed/read-only <span> combines both
   // this label id and its own state-text id via aria-labelledby, matching
@@ -590,6 +601,10 @@ export default function CreateNewFindingModal({
                   t("organization.findings.actionTitleRequired"),
               })}
               placeholder={t("organization.findings.actionTitlePlaceholder")}
+              aria-invalid={!!errors.actionTitle}
+              aria-describedby={
+                errors.actionTitle ? actionTitleErrorId : undefined
+              }
               className={`w-full rounded-lg border px-4 py-3 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none ${
                 errors.actionTitle
                   ? "border-destructive bg-destructive/10"
@@ -597,7 +612,11 @@ export default function CreateNewFindingModal({
               }`}
             />
             {errors.actionTitle && (
-              <p className="mt-1.5 flex items-center gap-1.5 text-sm text-destructive">
+              <p
+                id={actionTitleErrorId}
+                role="alert"
+                className="mt-1.5 flex items-center gap-1.5 text-sm text-destructive"
+              >
                 <AlertCircle size={14} /> {errors.actionTitle.message}
               </p>
             )}
@@ -646,6 +665,10 @@ export default function CreateNewFindingModal({
                   id={inspectionSelectId}
                   value={selectedInspectionId}
                   aria-required={!isEdit}
+                  aria-invalid={!!errors.inspectionId}
+                  aria-describedby={
+                    errors.inspectionId ? inspectionErrorId : undefined
+                  }
                   onChange={(e) => {
                     field.onChange(e.target.value)
                     handleInspectionChange(e.target.value)
@@ -685,7 +708,11 @@ export default function CreateNewFindingModal({
               </p>
             )}
             {errors.inspectionId && (
-              <p className="mt-1.5 flex items-center gap-1.5 text-sm text-destructive">
+              <p
+                id={inspectionErrorId}
+                role="alert"
+                className="mt-1.5 flex items-center gap-1.5 text-sm text-destructive"
+              >
                 <AlertCircle size={14} /> {errors.inspectionId.message}
               </p>
             )}
@@ -830,6 +857,12 @@ export default function CreateNewFindingModal({
                       {...field}
                       id="line-of-defense-select"
                       aria-required={!isEdit}
+                      aria-invalid={!!errors.line_of_defense}
+                      aria-describedby={
+                        errors.line_of_defense
+                          ? lineOfDefenseErrorId
+                          : undefined
+                      }
                       // Pre-#97 Actions have line_of_defense: null (see
                       // IAction's own doc comment) -- an HTML <select>'s
                       // value can't be null, only a string, so this falls
@@ -866,7 +899,11 @@ export default function CreateNewFindingModal({
                 />
               </div>
               {errors.line_of_defense && (
-                <p className="mt-1.5 flex items-center justify-end gap-1.5 text-sm text-destructive">
+                <p
+                  id={lineOfDefenseErrorId}
+                  role="alert"
+                  className="mt-1.5 flex items-center justify-end gap-1.5 text-sm text-destructive"
+                >
                   <AlertCircle size={14} /> {errors.line_of_defense.message}
                 </p>
               )}
@@ -900,6 +937,10 @@ export default function CreateNewFindingModal({
                       )
                     },
                   })}
+                  aria-invalid={!!errors.dueDate}
+                  aria-describedby={
+                    errors.dueDate ? dueDateErrorId : undefined
+                  }
                   className={`w-full rounded-lg border px-3 py-2 text-sm focus:ring-1 focus:ring-primary focus:outline-none ${
                     errors.dueDate
                       ? "border-destructive bg-destructive/10"
@@ -907,7 +948,11 @@ export default function CreateNewFindingModal({
                   }`}
                 />
                 {errors.dueDate && (
-                  <p className="flex items-center gap-1 text-xs text-destructive">
+                  <p
+                    id={dueDateErrorId}
+                    role="alert"
+                    className="flex items-center gap-1 text-xs text-destructive"
+                  >
                     <AlertCircle size={12} /> {errors.dueDate.message}
                   </p>
                 )}

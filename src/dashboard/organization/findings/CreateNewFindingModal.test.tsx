@@ -737,6 +737,30 @@ describe("CreateNewFindingModal", () => {
     expect(mockCreateNewFinding).not.toHaveBeenCalled()
   })
 
+  // quality-bar-loop (Findings, round 16 accessibility finding): the error
+  // <p> was a visual-only sibling of the input, with no aria-describedby/
+  // aria-invalid wiring and no role="alert" -- a screen reader user never
+  // heard why the field was invalid.
+  it("wires the Action Title error to the input via aria-invalid/aria-describedby and announces it", async () => {
+    render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+    const input = screen.getByPlaceholderText(
+      "organization.findings.actionTitlePlaceholder"
+    )
+    expect(input).toHaveAttribute("aria-invalid", "false")
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
+    )
+
+    const error = screen.getByText("organization.findings.actionTitleRequired")
+    expect(error.closest("p")).toHaveAttribute("role", "alert")
+    expect(input).toHaveAttribute("aria-invalid", "true")
+    expect(input.getAttribute("aria-describedby")).toBe(
+      error.closest("p")!.id
+    )
+  })
+
   // quality-bar-loop (Inspections, round 29 resilience finding): a failed
   // fetch on any of these three queries used to silently show just the
   // placeholder/empty state, with nothing distinguishing "no data" from
@@ -1821,6 +1845,46 @@ describe("CreateNewFindingModal", () => {
       expect(mockUpdateFindingById).not.toHaveBeenCalled()
     })
 
+    // quality-bar-loop (Findings, round 16 accessibility finding)
+    it("wires the dueDatePast error to the input via aria-invalid/aria-describedby and announces it", async () => {
+      mockUpdateFindingById.mockReturnValue({
+        unwrap: () => Promise.resolve({}),
+      })
+
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ dueDate: pastDueDate }) as any}
+        />
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByDisplayValue("Fix broken railing")
+        ).toBeInTheDocument()
+      )
+
+      const dueDateInput = document.querySelector(
+        'input[type="datetime-local"]'
+      ) as HTMLInputElement
+      expect(dueDateInput).toHaveAttribute("aria-invalid", "false")
+
+      fireEvent.change(dueDateInput, { target: { value: "2020-06-15T10:00" } })
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.findings.updateFindingBtn",
+        })
+      )
+
+      const error = await screen.findByText("organization.findings.dueDatePast")
+      expect(error.closest("p")).toHaveAttribute("role", "alert")
+      expect(dueDateInput).toHaveAttribute("aria-invalid", "true")
+      expect(dueDateInput.getAttribute("aria-describedby")).toBe(
+        error.closest("p")!.id
+      )
+    })
+
     it("still requires a future due date when creating a new finding (unaffected control case)", async () => {
       render(<CreateNewFindingModal open onClose={vi.fn()} />)
 
@@ -1866,6 +1930,31 @@ describe("CreateNewFindingModal", () => {
         await screen.findByText("organization.findings.lineOfDefenseRequired")
       ).toBeInTheDocument()
       expect(mockCreateNewFinding).not.toHaveBeenCalled()
+    })
+
+    // quality-bar-loop (Findings, round 16 accessibility finding)
+    it("wires the line-of-defense error to the select via aria-invalid/aria-describedby and announces it", async () => {
+      render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+      const select = document.getElementById("line-of-defense-select")!
+      expect(select).toHaveAttribute("aria-invalid", "false")
+
+      await userEvent.type(
+        screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
+        "New finding"
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
+      )
+
+      const error = await screen.findByText(
+        "organization.findings.lineOfDefenseRequired"
+      )
+      expect(error.closest("p")).toHaveAttribute("role", "alert")
+      expect(select).toHaveAttribute("aria-invalid", "true")
+      expect(select.getAttribute("aria-describedby")).toBe(
+        error.closest("p")!.id
+      )
     })
 
     // Round 2 UX finding: submitting with Line of Defense empty used to
@@ -2048,6 +2137,37 @@ describe("CreateNewFindingModal", () => {
         await screen.findByText("organization.findings.inspectionRequired")
       ).toBeInTheDocument()
       expect(mockCreateNewFinding).not.toHaveBeenCalled()
+    })
+
+    // quality-bar-loop (Findings, round 16 accessibility finding)
+    it("wires the error to the select via aria-invalid/aria-describedby and announces it", async () => {
+      render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+      const select = screen.getByLabelText(
+        /organization\.findings\.inspectionLabel/
+      )
+      expect(select).toHaveAttribute("aria-invalid", "false")
+
+      await userEvent.type(
+        screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
+        "New finding"
+      )
+      await userEvent.selectOptions(
+        screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
+        "FIRST"
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
+      )
+
+      const error = await screen.findByText(
+        "organization.findings.inspectionRequired"
+      )
+      expect(error.closest("p")).toHaveAttribute("role", "alert")
+      expect(select).toHaveAttribute("aria-invalid", "true")
+      expect(select.getAttribute("aria-describedby")).toBe(
+        error.closest("p")!.id
+      )
     })
 
     it("marks Inspection as required on create, not on edit", () => {

@@ -307,6 +307,7 @@ export default function AllFindingsPage() {
               <input
                 type="text"
                 placeholder={t("organization.findings.searchPlaceholder")}
+                aria-label={t("organization.findings.searchPlaceholder")}
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value)

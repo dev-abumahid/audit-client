@@ -482,6 +482,24 @@ describe("FindingDetails", () => {
       await waitFor(() => expect(input).toHaveValue(""))
     })
 
+    // quality-bar-loop (Findings, round 16 accessibility finding): the
+    // compose input relied solely on its placeholder for a label, unlike
+    // the identical pattern in CreateNewFindingModal.tsx which already had
+    // an aria-label.
+    it("labels the compose input with an aria-label matching its placeholder", async () => {
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /tabMessages/ })
+      )
+
+      expect(
+        screen.getByRole("textbox", {
+          name: "organization.findings.addUpdatePlaceholder",
+        })
+      ).toBeInTheDocument()
+    })
+
     it("does not call addFindingMessage for a blank/whitespace-only message", async () => {
       renderPage()
 
