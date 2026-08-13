@@ -270,3 +270,39 @@ resilience judge's own citation of both files' due-date rendering
 code), and the tab-bar fix also touches `FindingDetails.tsx` --
 same-file simultaneous edits stay sequential per the skill's batching
 rule, so mobile's fix is deferred to a later round instead.
+
+## Round 6 outcome
+
+Shipped the SLA/overdue visual treatment selected in round 5 (PR #747).
+
+New shared helper `src/utils/findingOverdue.ts` (`isFindingOverdue`,
+false for COMPLETE/CANT_DO regardless of due date, otherwise true once
+`dueDate < now`), wired into `AllFindingsPage.tsx`'s Due Date column
+and `FindingDetails.tsx`'s Timeline section -- critical-colored bold
+date text plus an "Overdue" label with a warning icon, explicitly
+modeled on `CompliancePage.tsx`'s existing identical treatment for the
+same underlying concept rather than inventing a new visual language.
+
+**QA**: typecheck/eslint clean. Full suite: 1957/1957 passing. The
+helper has its own unit tests (past/future due dates, COMPLETE/CANT_DO
+exemption, an exactly-now boundary case) plus dedicated regression
+tests in both feature files, with a verified negative control.
+
+**Live verification**: confirmed both list and detail pages render the
+overdue treatment correctly against real preview-account data (two
+genuinely past-due findings showed it, one not-yet-due finding didn't),
+no console errors.
+
+**Review**: two parallel angles (correctness, visual/i18n). Correctness
+came back clean. Visual/i18n found one minor issue -- the list page's
+overdue date used `font-semibold` where `CompliancePage.tsx`'s pattern
+(this PR's own explicitly-cited model) uses `font-bold` -- fixed in a
+follow-up commit on the same PR and merged without a second review
+round, since it was a single-line Tailwind-class change with the
+underlying logic already independently confirmed sound by the
+correctness pass.
+
+**Regression check**: `AllFindingsPage.tsx` and `FindingDetails.tsx`
+both touched, but purely additive (a new derived boolean plus
+conditional styling) with no removed/changed prior behavior on any
+other axis's surface.
