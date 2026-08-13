@@ -739,7 +739,7 @@ export default function CreateNewFindingModal({
                   <select
                     {...field}
                     id={priorityId}
-                    className={`w-full max-w-55 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:outline-none ${PRIORITY_STYLES[field.value]}`}
+                    className={`w-full max-w-55 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:outline-none ${PRIORITY_STYLES[field.value]}`}
                   >
                     <option className={`${PRIORITY_STYLES["Low"]}`} value="Low">
                       {t("organization.findings.priorityLow")}

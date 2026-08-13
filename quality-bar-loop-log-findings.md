@@ -756,3 +756,71 @@ their paired docs-only log-entry PRs), all merged. Loop stopped by
 deliberate user instruction at 8.44/10 average, zero axes below floor
 -- a genuine, live-verified, test-covered quality improvement from the
 6.67/10 baseline this loop started at.
+
+## Round 16 — reopened under lowered 8.5 target, accessibility fix
+
+The loop had been deliberately stopped after round 15 at 8.44/10 average
+per an earlier user instruction to stop in the 8-8.5 range. That
+instruction is superseded by the current standing instruction ("keep
+working with /quality-bar-loop until every tab is at least 8.5"), which
+reopens this loop.
+
+**Fix shipped** (PR #778, merged): closed the accessibility axis's two
+longest-open findings, both flagged since round 3 and never selected
+because a lower-scoring axis always won priority first:
+- `AllFindingsPage.tsx`'s search box and `FindingDetails.tsx`'s
+  Messages-tab compose input relied solely on `placeholder` for their
+  accessible name -- both now carry a matching `aria-label`.
+- `CreateNewFindingModal.tsx`'s four validated fields (actionTitle,
+  inspectionId, line_of_defense, dueDate) rendered their error text with
+  no `aria-invalid`/`aria-describedby` wiring and no `role="alert"` --
+  now wired via `useId()`-generated ids, matching this file's existing
+  id-association convention. No existing app-wide pattern for this
+  existed to follow (checked `PasswordChangeForm.tsx`/
+  `RiskRegisterPage.tsx`, same gap) -- this establishes the pattern
+  within this feature; back-porting elsewhere is out of scope here.
+
+Review loop: round 1 found zero major/minor issues, one cosmetic nit
+(two new tests sharing an identical title in different describe blocks).
+Fixed inline. Round 2 came back clean. QA gate: typecheck clean, lint
+clean, full suite 2020/2020 (one pre-existing unrelated jsdom timing
+artifact in `ForgotPasswordModal.test.tsx`). Live-verified in browser:
+both `aria-label`s resolve correctly in the accessibility tree, and all
+four form fields' `aria-invalid`/`aria-describedby`/`role="alert"`
+wiring confirmed live by submitting the modal empty and inspecting the
+DOM directly.
+
+**Accessibility re-scored** (dedicated live judge, not self-assessed):
+8 -> **9/10**. Both fixes confirmed live via the accessibility tree and
+DOM inspection; a fresh sweep of both list/detail pages found zero
+remaining placeholder-only inputs. No regressions found elsewhere (Radix
+Dialog primitive unchanged, existing icon-button aria-labels intact).
+
+| Axis | R15 | R16 |
+|---|---|---|
+| Industry-standards | 7 | 7 *(unchanged, not touched)* |
+| UX | 9 | 9 *(unchanged, not touched)* |
+| Efficiency | 9 | 9 *(unchanged, not touched)* |
+| Accessibility | 8 | **9** |
+| Visual polish | 8 | 8 *(unchanged, not touched)* |
+| Resilience | 9 | 9 *(unchanged, not touched)* |
+| Code quality | 8 | 8 *(unchanged, not touched)* |
+| Mobile | 9 | 9 *(unchanged, not touched)* |
+| Security | 9 | 9 *(unchanged, not touched)* |
+| **Average** | **8.44** | **8.56** |
+
+Convergence check: 8.56 >= 8.5 target, every axis >= 7 floor.
+**Converged.**
+
+**Bonus visual-polish fix, same round**: the user spotted a live
+misalignment in the Priority/Status/Line of Defense dropdown arrows
+while this round was wrapping up. Root cause: Priority's `<select>` used
+`px-3` while its two sibling selects used `px-4` -- since these are
+native `<select>` elements (`appearance: auto`), the browser draws the
+dropdown arrow relative to padding-right, so the 4px difference visibly
+shifted Priority's arrow left of the other two. Fixed by matching
+Priority to `px-4`, confirmed live via `getBoundingClientRect()`: all
+four selects in the modal (Inspection, Priority, Status, Line of
+Defense) now share an identical 16px `paddingRight` and right edge.
+
+Findings is done for this sweep.
