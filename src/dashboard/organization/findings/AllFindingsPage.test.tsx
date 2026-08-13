@@ -473,9 +473,33 @@ describe("AllFindingsPage", () => {
   it("navigates to the detail page when a row (not the action buttons) is clicked", async () => {
     render(<AllFindingsPage />, withRouter)
 
-    await userEvent.click(screen.getByText("Fix broken railing"))
+    // Round 2 accessibility fix: the title itself is now a real <Link>
+    // (see AllFindingsPage.tsx) with its own stopPropagation, so clicking
+    // the title specifically no longer reaches this row's onClick at all
+    // -- that's the intended fix (a real keyboard-accessible link), tested
+    // separately below. This test now covers the row's own click-anywhere-
+    // else fallback, via a plain text cell that isn't part of any link or
+    // button.
+    await userEvent.click(screen.getByText("Railing on level 2 is loose."))
 
     expect(mockNavigate).toHaveBeenCalledWith(
+      "/organization/finding/finding-1"
+    )
+  })
+
+  // Round 2 accessibility finding: list rows had zero keyboard path into a
+  // finding's detail page for accounts with no per-row Edit button (WCAG
+  // 2.1.1) -- fixed by making the title a real <Link>, not just relying on
+  // the row's onClick. useNavigate is mocked out in this file (see above),
+  // so a real <Link>'s click doesn't route through it -- asserting on the
+  // link's own href is what actually proves it's a genuine, keyboard-
+  // reachable anchor rather than another onClick-only div.
+  it("gives the finding title a real, keyboard-reachable link to the detail page", () => {
+    render(<AllFindingsPage />, withRouter)
+
+    const titleLink = screen.getByRole("link", { name: "Fix broken railing" })
+    expect(titleLink).toHaveAttribute(
+      "href",
       "/organization/finding/finding-1"
     )
   })

@@ -263,6 +263,12 @@ export default function CreateNewFindingModal({
     []
   )
 
+  // Round 2 UX finding: see the comment above the Line of Defense field
+  // itself for why this exists -- scrolls that field into view when it's
+  // the reason a submit attempt was rejected, since its error message
+  // otherwise renders below the fold behind the fixed footer button.
+  const lineOfDefenseFieldRef = useRef<HTMLDivElement>(null)
+
   // ── react-hook-form ────────────────────────────────────────────────────────
   const {
     register,
@@ -743,8 +749,19 @@ export default function CreateNewFindingModal({
             </div>
 
             {/* Line of Defense -- aexa-server#97: required on create (see
-                onSubmit's payload comment for why), optional on edit. */}
-            <div>
+                onSubmit's payload comment for why), optional on edit.
+
+                Round 2 UX finding: the label had no asterisk unlike this
+                form's other required fields ("Action Title *", "Due Date
+                *"), and this field sits low enough in the form that its
+                error message (below) renders below the fold behind the
+                fixed Create/Update footer button -- submitting with it
+                empty looked like the button silently did nothing, since
+                the only visible feedback was scrolled out of view. The
+                asterisk is conditional on `!isEdit` since the field is
+                genuinely optional when editing. `lineOfDefenseFieldRef`
+                pairs with the scroll-into-view in `onInvalid` below. */}
+            <div ref={lineOfDefenseFieldRef}>
               <div className="flex items-center justify-between gap-4">
                 <label
                   htmlFor="line-of-defense-select"
@@ -752,6 +769,14 @@ export default function CreateNewFindingModal({
                 >
                   <AlertCircle size={16} />{" "}
                   {t("organization.findings.lineOfDefenseLabel")}
+                  {!isEdit && (
+                    <span
+                      className="ml-1 text-destructive"
+                      aria-hidden="true"
+                    >
+                      *
+                    </span>
+                  )}
                 </label>
                 <Controller
                   control={control}
@@ -765,6 +790,7 @@ export default function CreateNewFindingModal({
                     <select
                       {...field}
                       id="line-of-defense-select"
+                      aria-required={!isEdit}
                       // Pre-#97 Actions have line_of_defense: null (see
                       // IAction's own doc comment) -- an HTML <select>'s
                       // value can't be null, only a string, so this falls
@@ -1160,7 +1186,21 @@ export default function CreateNewFindingModal({
           </div>
           <button
             type="button"
-            onClick={handleSubmit(onSubmit)}
+            onClick={handleSubmit(onSubmit, (invalidFields) => {
+              // Round 2 UX finding: a rejected submit used to give zero
+              // visible feedback whenever the only invalid field was
+              // Line of Defense, since its error text renders below the
+              // fold behind this fixed footer button -- scroll it into
+              // view so the rejection is actually visible, matching
+              // Inspections' established scrollToPage-on-missing-required
+              // pattern for the same class of problem.
+              if (invalidFields.line_of_defense) {
+                lineOfDefenseFieldRef.current?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                })
+              }
+            })}
             disabled={isSaving}
             className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >

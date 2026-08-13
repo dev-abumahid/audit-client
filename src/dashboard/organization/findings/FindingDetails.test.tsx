@@ -616,6 +616,24 @@ describe("FindingDetails", () => {
       expect(mockToastSuccess).toHaveBeenCalledWith("organization.findings.attachmentUploaded")
     })
 
+    // Round 2 accessibility finding: this used to be a hidden
+    // <input type="file"> inside a <label> -- display:none removes an
+    // element from the tab order entirely, and a bare <label> has no
+    // default tabIndex of its own either, so there was no keyboard path
+    // to open the file picker at all. Now a real <button>, so it must be
+    // reachable via getByRole("button", { name }) and actually focusable.
+    it("gives the Upload File control a real, keyboard-focusable button", async () => {
+      renderPage()
+      await openFilesTab()
+
+      const uploadButton = screen.getByRole("button", {
+        name: "organization.findings.uploadFile",
+      })
+      expect(uploadButton.tagName).toBe("BUTTON")
+      uploadButton.focus()
+      expect(uploadButton).toHaveFocus()
+    })
+
     it("appends the new URL to existing attachments rather than replacing them", async () => {
       mockUseGetFindingByIdQuery.mockReturnValue({
         data: {

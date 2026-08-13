@@ -451,6 +451,24 @@ export default function AllFindingsPage() {
                         assignedInspectionIds
                       )
                       return (
+                      // Round 2 accessibility finding: this row's onClick
+                      // navigation had no keyboard equivalent -- for an
+                      // account with no per-row Edit button (canWriteThisFinding
+                      // false), there was zero keyboard path from the list
+                      // into any finding's detail page at all (WCAG 2.1.1).
+                      // An earlier version of this fix added tabIndex/
+                      // role="button"/onKeyDown to the <tr> itself, but that
+                      // makes the row an interactive widget CONTAINING other
+                      // real interactive widgets (the Edit/Delete buttons
+                      // nested inside it) -- invalid ARIA nesting, and it
+                      // broke this file's own tests that query for those
+                      // buttons via getAllByRole("button"), since the row
+                      // now matched too. Fixed instead by making the title
+                      // itself a real <Link>, mirroring the Site column's
+                      // link two cells over in this same row -- the row's
+                      // onClick stays as a mouse-only convenience/larger-
+                      // hit-area enhancement, now redundant-but-harmless
+                      // rather than the only way in.
                       <tr
                         key={action.id}
                         className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/30"
@@ -461,9 +479,22 @@ export default function AllFindingsPage() {
                         {/* Title */}
                         <td className="px-4 py-3">
                           <div>
-                            <div className="text-sm font-medium text-foreground">
+                            {/* Round 2 accessibility finding: real <Link>
+                                so the row's navigation has a genuine
+                                keyboard path -- see the row's own comment
+                                above for why this replaced an earlier
+                                tabIndex/role="button" attempt on the <tr>
+                                itself. stopPropagation for the same reason
+                                the Site link below already needs it: the
+                                row's own onClick would otherwise also fire
+                                and race this Link's navigation. */}
+                            <Link
+                              to={`/organization/finding/${action.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="focus-ring rounded text-sm font-medium text-foreground hover:text-primary hover:underline"
+                            >
                               {action.actionTitle}
-                            </div>
+                            </Link>
                             {action.actionDisc && (
                               <div className="mt-1 max-w-md truncate text-xs text-muted-foreground">
                                 {action.actionDisc}

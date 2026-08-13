@@ -37,7 +37,7 @@ import {
   Video,
   X,
 } from "lucide-react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
@@ -277,6 +277,11 @@ export default function FindingDetails() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false)
+  // Round 2 accessibility finding: see the Upload File control below --
+  // this ref pairs with a real <button onClick={... .click()}>, matching
+  // CreateNewFindingModal.tsx's own media-upload button, which already
+  // used this pattern correctly.
+  const attachmentFileInputRef = useRef<HTMLInputElement>(null)
   const [removingAttachmentUrl, setRemovingAttachmentUrl] = useState<
     string | null
   >(null)
@@ -790,24 +795,41 @@ export default function FindingDetails() {
                 {activeTab === "files" && (
                   <div className="space-y-6">
                     <div className="flex justify-end">
-                      <label className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+                      {/* Round 2 accessibility finding: this used to be a
+                          hidden <input type="file"> inside a <label> --
+                          display:none removes an element from the tab
+                          order entirely, and a bare <label> has no default
+                          tabIndex of its own either, so there was no
+                          keyboard path to open the file picker at all
+                          (which also blocked the closure workflow, since
+                          FindingClosureControls requires at least one
+                          attachment). Real <button> + ref-triggered hidden
+                          input, matching CreateNewFindingModal.tsx's own
+                          upload button, which already got this right. */}
+                      <input
+                        ref={attachmentFileInputRef}
+                        type="file"
+                        className="hidden"
+                        disabled={isMutatingAttachments}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) handleUploadAttachment(file)
+                          e.target.value = ""
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => attachmentFileInputRef.current?.click()}
+                        disabled={isMutatingAttachments}
+                        className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
                         {isUploadingAttachment ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Upload className="h-4 w-4" />
                         )}
                         {t("organization.findings.uploadFile")}
-                        <input
-                          type="file"
-                          className="hidden"
-                          disabled={isMutatingAttachments}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) handleUploadAttachment(file)
-                            e.target.value = ""
-                          }}
-                        />
-                      </label>
+                      </button>
                     </div>
 
                     {action.attachments.length === 0 ? (

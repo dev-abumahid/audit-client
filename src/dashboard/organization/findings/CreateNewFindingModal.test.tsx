@@ -4,6 +4,11 @@ import userEvent from "@testing-library/user-event"
 import CreateNewFindingModal from "./CreateNewFindingModal"
 import { toLocalDatetimeInputValue } from "./dueDateInput"
 
+// jsdom has no scrollIntoView; the round-2 accessibility fix's
+// scroll-to-invalid-field-on-submit behavior calls it on a real ref.
+// Same polyfill convention as CreateNewInspection.test.tsx's identical gap.
+HTMLElement.prototype.scrollIntoView = vi.fn()
+
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }))
@@ -246,7 +251,7 @@ describe("CreateNewFindingModal", () => {
     // Line of Defense was already correctly associated before this round --
     // included here as a same-pattern sanity check, not a new fix.
     expect(
-      screen.getByLabelText("organization.findings.lineOfDefenseLabel")
+      screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/)
     ).toBeInTheDocument()
   })
 
@@ -311,7 +316,7 @@ describe("CreateNewFindingModal", () => {
       "New finding"
     )
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
     )
     await userEvent.click(
@@ -342,7 +347,7 @@ describe("CreateNewFindingModal", () => {
 
     // Title comes pre-filled from additionalData — no typing needed.
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
     )
     await userEvent.click(
@@ -409,7 +414,7 @@ describe("CreateNewFindingModal", () => {
     await waitFor(() => expect(mockUploadFile).toHaveBeenCalled())
 
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
     )
     await userEvent.click(
@@ -503,7 +508,7 @@ describe("CreateNewFindingModal", () => {
       "Bare inspectionId finding"
     )
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
     )
     await userEvent.click(
@@ -705,7 +710,7 @@ describe("CreateNewFindingModal", () => {
       "   "
     )
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
     )
     await userEvent.click(
@@ -926,7 +931,7 @@ describe("CreateNewFindingModal", () => {
       "Finding with real member shape"
     )
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
     )
     await userEvent.click(
@@ -1036,7 +1041,7 @@ describe("CreateNewFindingModal", () => {
       "Plain remediation task"
     )
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
     )
     await userEvent.click(
@@ -1083,7 +1088,7 @@ describe("CreateNewFindingModal", () => {
       "Increased fall risk"
     )
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
     )
     await userEvent.click(
@@ -1295,7 +1300,7 @@ describe("CreateNewFindingModal", () => {
       "First comment"
     )
     await userEvent.selectOptions(
-      screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+      screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
     )
     await userEvent.click(
@@ -1833,6 +1838,84 @@ describe("CreateNewFindingModal", () => {
       expect(mockCreateNewFinding).not.toHaveBeenCalled()
     })
 
+    // Round 2 UX finding: submitting with Line of Defense empty used to
+    // give zero visible feedback -- the validation itself already
+    // rejected the submit (see the test above), but its error text
+    // renders low enough in the modal's own scrollable content that it
+    // sits below the fold behind the fixed Create/Update footer button,
+    // so a user saw no indication anything was wrong. Two fixes: the
+    // label gets an asterisk like this form's other required fields, and
+    // a rejected submit scrolls the field into view so the rejection is
+    // actually visible.
+    it("marks Line of Defense as required on create, not on edit", () => {
+      const { unmount } = render(
+        <CreateNewFindingModal open onClose={vi.fn()} />
+      )
+      const createLabel = screen.getByText(
+        "organization.findings.lineOfDefenseLabel"
+      ).parentElement!
+      expect(createLabel.textContent).toContain("*")
+      unmount()
+
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ line_of_defense: "SECOND" }) as any}
+        />
+      )
+      const editLabel = screen.getByText(
+        "organization.findings.lineOfDefenseLabel"
+      ).parentElement!
+      expect(editLabel.textContent).not.toContain("*")
+    })
+
+    it("backs the visual asterisk with aria-required so screen readers get the same signal", () => {
+      const { unmount } = render(
+        <CreateNewFindingModal open onClose={vi.fn()} />
+      )
+      expect(
+        screen.getByRole("combobox", {
+          name: "organization.findings.lineOfDefenseLabel",
+        })
+      ).toHaveAttribute("aria-required", "true")
+      unmount()
+
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ line_of_defense: "SECOND" }) as any}
+        />
+      )
+      expect(
+        screen.getByRole("combobox", {
+          name: "organization.findings.lineOfDefenseLabel",
+        })
+      ).toHaveAttribute("aria-required", "false")
+    })
+
+    it("scrolls Line of Defense into view when it's the only reason a submit was rejected", async () => {
+      const scrollSpy = HTMLElement.prototype
+        .scrollIntoView as ReturnType<typeof vi.fn>
+      scrollSpy.mockClear()
+
+      render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+      await userEvent.type(
+        screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
+        "New finding"
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
+      )
+
+      await screen.findByText("organization.findings.lineOfDefenseRequired")
+      expect(scrollSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: "smooth", block: "center" })
+      )
+    })
+
     it("sends the selected line_of_defense on create", async () => {
       mockCreateNewFinding.mockReturnValue({ unwrap: () => Promise.resolve({}) })
 
@@ -1843,7 +1926,7 @@ describe("CreateNewFindingModal", () => {
         "New finding"
       )
       await userEvent.selectOptions(
-        screen.getByLabelText("organization.findings.lineOfDefenseLabel"),
+        screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
         "THIRD"
       )
       await userEvent.click(
