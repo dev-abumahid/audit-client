@@ -423,6 +423,68 @@ describe("OnboardingWizard", () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  // Regression: none of this file's raw <button> elements declared
+  // type="button", defaulting to the implicit type="submit" -- harmless only
+  // because this wizard's markup never sits inside a <form>, but a latent
+  // footgun if it ever does. Same convention as InspectionActions.test.tsx's
+  // "gives every button an explicit type" test. Each step (entry/confirm/
+  // review/done) is mutually exclusive with the others, so this checks
+  // every button as it mounts on each step walked through, rather than a
+  // single final snapshot.
+  it("gives every button on every step an explicit type so none default to implicit submit", async () => {
+    mockIdentify.mockReturnValue(okUnwrap(profile))
+    mockGenerate.mockReturnValue(okUnwrap(draft))
+    mockCommit.mockReturnValue(
+      okUnwrap({
+        account: { id: "acc-1", email: "admin@acme.test" },
+        organization: { id: "org-1", name: "Acme" },
+        counts: { sites: 1, risks: 1, kris: 1 },
+      })
+    )
+    render(<OnboardingWizard onClose={vi.fn()} />)
+
+    function expectEveryButtonTyped() {
+      const buttons = document.querySelectorAll("button")
+      expect(buttons.length).toBeGreaterThan(0)
+      buttons.forEach((button) => {
+        expect(button.type).toBe("button")
+      })
+    }
+
+    // Entry step: header close X, Cancel, Analyze.
+    expectEveryButtonTyped()
+    await fillEntry()
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.entry.analyze" })
+    )
+    await waitFor(() =>
+      screen.getByText("admin.onboarding.confirm.discoveredSites")
+    )
+
+    // Confirm step: header close X, Add site, Back, Continue.
+    expectEveryButtonTyped()
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.confirm.continue" })
+    )
+    await waitFor(() => screen.getByDisplayValue("Supplier concentration"))
+
+    // Review step: header close X, per-risk exclude (Trash2), Back, commit.
+    expectEveryButtonTyped()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "admin.onboarding.review.createOrganization",
+      })
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByText("admin.onboarding.done.title")
+      ).toBeInTheDocument()
+    )
+
+    // Done step: header close X, close button.
+    expectEveryButtonTyped()
+  })
+
   it("shows a toast and stays on entry when identify fails", async () => {
     mockIdentify.mockReturnValue({
       unwrap: () => Promise.reject({ data: { message: "boom" } }),

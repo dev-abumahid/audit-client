@@ -342,6 +342,7 @@ export default function KriDashboardPage() {
         </div>
         {canWrite && (
           <button
+            type="button"
             onClick={() => {
               setForm(EMPTY_KRI)
               setShowForm(true)
@@ -516,6 +517,7 @@ export default function KriDashboardPage() {
                     the wrapper gets the full touch target while the icon
                     inside stays visually small. */}
                 <button
+                  type="button"
                   onClick={() => setTrendKriId(kri.id)}
                   className="ml-auto flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title={t("organization.kri.trend.viewTooltip")}
@@ -525,6 +527,7 @@ export default function KriDashboardPage() {
                 </button>
                 {canWrite && (
                   <button
+                    type="button"
                     onClick={() => openUpdateValue(kri)}
                     className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     title={t("organization.kri.updateValueTooltip")}
@@ -599,6 +602,7 @@ export default function KriDashboardPage() {
                 {t("organization.kri.updateValueTitle")}
               </h2>
               <button
+                type="button"
                 onClick={() => setUpdatingKriId(null)}
                 aria-label={t("organization.kri.cancel")}
                 // quality-bar-loop round 2 (mobile, round-1 finding):
@@ -618,12 +622,14 @@ export default function KriDashboardPage() {
             />
             <div className="mt-5 flex justify-end gap-2">
               <button
+                type="button"
                 onClick={() => setUpdatingKriId(null)}
                 className="rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
               >
                 {t("organization.kri.cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleUpdateValue}
                 disabled={isUpdatingValue}
                 className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
@@ -662,6 +668,7 @@ export default function KriDashboardPage() {
                 {t("organization.kri.newKri")}
               </h2>
               <button
+                type="button"
                 onClick={() => setShowForm(false)}
                 aria-label={t("organization.kri.cancel")}
                 // quality-bar-loop round 2 (mobile, round-1 finding):
@@ -849,12 +856,14 @@ export default function KriDashboardPage() {
 
             <div className="mt-5 flex justify-end gap-2">
               <button
+                type="button"
                 onClick={() => setShowForm(false)}
                 className="rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
               >
                 {t("organization.kri.cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={isSaving || !form.name || !form.risk_id}
                 className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
@@ -895,6 +904,7 @@ export default function KriDashboardPage() {
                 })}
               </h2>
               <button
+                type="button"
                 onClick={() => setTrendKriId(null)}
                 aria-label={t("organization.kri.cancel")}
                 // quality-bar-loop round 2 (mobile, round-1 finding):

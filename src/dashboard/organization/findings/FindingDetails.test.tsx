@@ -828,6 +828,45 @@ describe("FindingDetails", () => {
     })
   })
 
+  // Regression: none of this file's raw <button> elements declared
+  // type="button", defaulting to the implicit type="submit" -- harmless only
+  // because this page's markup never sits inside a <form>, but a latent
+  // footgun if it ever does. Same convention as InspectionActions.test.tsx's
+  // "gives every button an explicit type" test. Attachments include one
+  // image and one non-image file so both the image-grid and file-list
+  // preview/download/remove buttons mount, and the attachment preview
+  // modal is opened so its download/close buttons mount too -- otherwise a
+  // sweep here could silently skip buttons that only render with specific
+  // data/state.
+  it("gives every rendered button an explicit type so none default to implicit submit", async () => {
+    mockUseGetFindingByIdQuery.mockReturnValue({
+      data: {
+        data: makeAction({
+          attachments: [
+            "https://cdn.example.com/photo.png",
+            "https://cdn.example.com/report.pdf",
+          ],
+        }),
+      },
+      isLoading: false,
+    })
+    renderPage()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /tabAttachments/ })
+    )
+    await userEvent.click(
+      screen.getAllByTitle("organization.findings.preview")[0]
+    )
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
+
   describe("site back-link (aexa-frontend#533)", () => {
     it("links the site name to SitesEntities with siteId and search pre-filled", () => {
       mockUseGetFindingByIdQuery.mockReturnValue({

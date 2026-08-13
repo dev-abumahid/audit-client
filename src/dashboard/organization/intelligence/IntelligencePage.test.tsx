@@ -1231,4 +1231,35 @@ describe("IntelligencePage", () => {
       })
     ).toBeInTheDocument()
   })
+
+  // Regression: none of this file's raw <button> elements declared
+  // type="button", defaulting to the implicit type="submit" -- harmless only
+  // because this page's markup never sits inside a <form>, but a latent
+  // footgun if it ever does. Same convention as InspectionActions.test.tsx's
+  // "gives every button an explicit type" test. Role ADMIN + an analyzed,
+  // not-yet-promoted item mounts the Create Risk button, and totalPage: 2
+  // mounts the pagination Previous/Next buttons -- otherwise a sweep here
+  // could silently skip buttons that only render with specific data/state.
+  it("gives every rendered button an explicit type so none default to implicit submit", () => {
+    mockRole = "ADMIN"
+    mockUseGetIntelligenceItemsQuery.mockImplementation(
+      (args: { analyzed?: boolean }) =>
+        args.analyzed === false
+          ? emptyItemsResult
+          : {
+              data: {
+                data: [makeItem()],
+                meta: { page: 1, limit: 20, total: 1, totalPage: 2 },
+              },
+            }
+    )
+
+    renderPage()
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
 })

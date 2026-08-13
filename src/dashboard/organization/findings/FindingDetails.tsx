@@ -164,6 +164,7 @@ const PreviewModal = ({
           </div>
           <div className="ml-4 flex shrink-0 items-center gap-2">
             <button
+              type="button"
               onClick={() => downloadFile(url)}
               className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90"
             >
@@ -171,6 +172,7 @@ const PreviewModal = ({
               {t("organization.findings.download")}
             </button>
             <button
+              type="button"
               onClick={onClose}
               aria-label={t("organization.findings.closePreview")}
               className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -212,6 +214,7 @@ const PreviewModal = ({
                 {t("organization.findings.downloadToView")}
               </p>
               <button
+                type="button"
                 onClick={() => downloadFile(url)}
                 className="mx-auto mt-4 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90"
               >
@@ -363,6 +366,7 @@ export default function FindingDetails() {
             {t("organization.findings.notFound")}
           </h2>
           <button
+            type="button"
             onClick={() => navigate(-1)}
             className="mx-auto flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-primary-foreground transition-colors hover:bg-primary/90"
           >
@@ -471,6 +475,7 @@ export default function FindingDetails() {
         <div className="flex items-start justify-between">
           <div>
             <button
+              type="button"
               onClick={() => navigate(-1)}
               className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
@@ -529,6 +534,7 @@ export default function FindingDetails() {
           {canWrite && (
             <div className="flex gap-2">
               <button
+                type="button"
                 onClick={handleEdit}
                 disabled={isDeleting}
                 className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
@@ -536,6 +542,7 @@ export default function FindingDetails() {
                 <Edit size={18} /> {t("organization.findings.edit")}
               </button>
               <button
+                type="button"
                 onClick={handleDelete}
                 disabled={isDeleting}
                 className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
@@ -557,6 +564,7 @@ export default function FindingDetails() {
               <div className="flex border-b border-border px-4">
                 {TABS.map((tab) => (
                   <button
+                    type="button"
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key)}
                     className={`-mb-px flex items-center gap-2 border-b-2 px-3 py-3.5 text-sm font-medium transition-colors ${
@@ -836,6 +844,7 @@ export default function FindingDetails() {
                                     />
                                     <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/0 transition-colors group-hover:bg-black/40">
                                       <button
+                                        type="button"
                                         onClick={() => setPreviewUrl(url)}
                                         className="rounded-lg bg-background p-2 transition-colors hover:bg-muted"
                                         title={t("organization.findings.preview")}
@@ -843,6 +852,7 @@ export default function FindingDetails() {
                                         <Eye className="h-4 w-4 text-foreground" />
                                       </button>
                                       <button
+                                        type="button"
                                         onClick={() => downloadFile(url)}
                                         className="rounded-lg bg-background p-2 transition-colors hover:bg-muted"
                                         title={t("organization.findings.download")}
@@ -850,6 +860,7 @@ export default function FindingDetails() {
                                         <Download className="h-4 w-4 text-foreground" />
                                       </button>
                                       <button
+                                        type="button"
                                         onClick={() =>
                                           handleRemoveAttachment(url)
                                         }
@@ -899,6 +910,7 @@ export default function FindingDetails() {
                                     </div>
                                     <div className="ml-3 flex shrink-0 items-center gap-2">
                                       <button
+                                        type="button"
                                         onClick={() => setPreviewUrl(url)}
                                         className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                                         title={t("organization.findings.preview")}
@@ -906,6 +918,7 @@ export default function FindingDetails() {
                                         <Eye className="h-4 w-4" />
                                       </button>
                                       <button
+                                        type="button"
                                         onClick={() => downloadFile(url)}
                                         className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                                         title={t("organization.findings.download")}
@@ -913,6 +926,7 @@ export default function FindingDetails() {
                                         <Download className="h-4 w-4" />
                                       </button>
                                       <button
+                                        type="button"
                                         onClick={() =>
                                           handleRemoveAttachment(url)
                                         }

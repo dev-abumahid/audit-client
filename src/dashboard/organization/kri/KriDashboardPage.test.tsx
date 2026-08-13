@@ -864,6 +864,39 @@ describe("KriDashboardPage", () => {
     })
   })
 
+  // Regression: none of this file's raw <button> elements declared
+  // type="button", defaulting to the implicit type="submit" -- harmless only
+  // because this page's markup never sits inside a <form>, but a latent
+  // footgun if it ever does. Same convention as InspectionActions.test.tsx's
+  // "gives every button an explicit type" test. The New KRI, Update Value,
+  // and Trend modals are independent state (not mutually exclusive), so
+  // opening all three mounts every button this page can render -- otherwise
+  // a sweep here could silently skip buttons that only render with specific
+  // state.
+  it("gives every rendered button an explicit type so none default to implicit submit", async () => {
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: { data: [makeKri()] },
+      isLoading: false,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+    )
+    await userEvent.click(
+      screen.getByTitle("organization.kri.updateValueTooltip")
+    )
+    await userEvent.click(
+      screen.getByTitle("organization.kri.trend.viewTooltip")
+    )
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
+
   describe("overdue badge", () => {
     it("shows the overdue badge when the server reports overdue", () => {
       mockUseGetAllKriQuery.mockReturnValue({

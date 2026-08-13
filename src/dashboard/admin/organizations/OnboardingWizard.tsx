@@ -388,6 +388,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             </DialogTitle>
           </div>
           <button
+            type="button"
             onClick={() => {
               // Same guard as the Dialog's onEscapeKeyDown/onInteractOutside
               // below — the visible X must not be able to silently discard
@@ -482,12 +483,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               )}
               <div className="flex justify-end gap-3 pt-2">
                 <button
+                  type="button"
                   onClick={onClose}
                   className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
                 >
                   {t("admin.onboarding.cancel")}
                 </button>
                 <button
+                  type="button"
                   onClick={handleAnalyze}
                   disabled={isIdentifying}
                   className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
@@ -564,6 +567,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     {t("admin.onboarding.confirm.discoveredSites")}
                   </h3>
                   <button
+                    type="button"
                     onClick={addConfirmSite}
                     className="flex items-center gap-1 text-xs text-primary hover:underline"
                   >
@@ -690,12 +694,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
               <div className="flex justify-between gap-3 pt-2">
                 <button
+                  type="button"
                   onClick={() => setStep("entry")}
                   className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
                 >
                   {t("admin.onboarding.back")}
                 </button>
                 <button
+                  type="button"
                   onClick={handleGenerate}
                   disabled={selectedConfirmSites.length === 0 || isGenerating}
                   className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
@@ -853,6 +859,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                               )}
                             </div>
                             <button
+                              type="button"
                               onClick={() =>
                                 updateRisk(si, ri, { selected: false })
                               }
@@ -884,12 +891,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 </div>
                 <div className="flex gap-3">
                   <button
+                    type="button"
                     onClick={() => setStep("confirm")}
                     className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium hover:bg-muted"
                   >
                     {t("admin.onboarding.back")}
                   </button>
                   <button
+                    type="button"
                     onClick={handleCommit}
                     disabled={isCommitting}
                     className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
@@ -929,6 +938,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 })}
               </div>
               <button
+                type="button"
                 onClick={onClose}
                 className="rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >

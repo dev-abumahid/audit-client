@@ -330,6 +330,7 @@ export default function IntelligencePage() {
           session. */}
       <div className="animate-slide-up flex flex-wrap items-center gap-3">
         <button
+          type="button"
           onClick={handleScrape}
           disabled={isScraping}
           className="flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-40"
@@ -345,6 +346,7 @@ export default function IntelligencePage() {
         </button>
 
         <button
+          type="button"
           onClick={handleAnalyze}
           disabled={isAnalyzing || unanalyzedCount === 0}
           className="flex h-11 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-40"
@@ -369,6 +371,7 @@ export default function IntelligencePage() {
           </span>
 
           <button
+            type="button"
             onClick={handlePredict}
             disabled={isPredicting}
             className="flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
@@ -384,6 +387,7 @@ export default function IntelligencePage() {
           </button>
 
           <button
+            type="button"
             onClick={handleMitigations}
             disabled={isGeneratingMitigations}
             className="flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
@@ -399,6 +403,7 @@ export default function IntelligencePage() {
           </button>
 
           <button
+            type="button"
             onClick={handleRcsa}
             disabled={isGeneratingRcsa}
             className="flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
@@ -414,6 +419,7 @@ export default function IntelligencePage() {
           </button>
 
           <button
+            type="button"
             onClick={handleResilienceScan}
             disabled={isScanningResilience}
             className="flex h-11 items-center gap-1.5 rounded-md bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-40"
@@ -937,6 +943,7 @@ export default function IntelligencePage() {
                           </Link>
                         ) : (
                           <button
+                            type="button"
                             onClick={() => handleCreateRisk(item)}
                             disabled={creatingRiskId === item.id}
                             className="flex h-11 items-center gap-1 rounded-md border border-primary/40 px-2 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
@@ -961,6 +968,7 @@ export default function IntelligencePage() {
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 pt-2">
             <button
+              type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
               className="flex h-11 items-center rounded-md border border-border px-3 text-xs disabled:opacity-40"
@@ -974,6 +982,7 @@ export default function IntelligencePage() {
               })}
             </span>
             <button
+              type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
               className="flex h-11 items-center rounded-md border border-border px-3 text-xs disabled:opacity-40"
