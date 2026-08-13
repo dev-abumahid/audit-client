@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import ReportsPage from "./ReportsPage"
 
@@ -153,6 +153,95 @@ describe("ReportsPage", () => {
     render(<ReportsPage />)
 
     expect(screen.getByText("organization.reports.empty")).toBeInTheDocument()
+  })
+
+  // Round 3/4 industry-standards finding: the backend already supports a
+  // real title/reference search via searchTerm, this page just never
+  // exposed a control for it.
+  describe("search (round 3/4)", () => {
+    it("does not refetch on every keystroke -- only after the debounce delay", () => {
+      vi.useFakeTimers()
+      try {
+        mockUseGetAllReportsQuery.mockReturnValue({
+          data: { data: [] },
+          isLoading: false,
+        })
+        render(<ReportsPage />)
+
+        const callsBeforeTyping = mockUseGetAllReportsQuery.mock.calls.length
+        const searchInput = screen.getByPlaceholderText(
+          "organization.reports.searchPlaceholder"
+        )
+        act(() => {
+          fireEvent.change(searchInput, { target: { value: "Q3" } })
+        })
+
+        expect(
+          mockUseGetAllReportsQuery.mock.calls
+            .slice(callsBeforeTyping)
+            .some((call) => (call[0] as { searchTerm?: string })?.searchTerm === "Q3")
+        ).toBe(false)
+
+        act(() => {
+          vi.advanceTimersByTime(300)
+        })
+
+        expect(
+          mockUseGetAllReportsQuery.mock.calls.some(
+            (call) => (call[0] as { searchTerm?: string })?.searchTerm === "Q3"
+          )
+        ).toBe(true)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it("keeps the search input responsive (uncontrolled by the debounce) while typing", () => {
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      render(<ReportsPage />)
+
+      const searchInput = screen.getByPlaceholderText(
+        "organization.reports.searchPlaceholder"
+      ) as HTMLInputElement
+      fireEvent.change(searchInput, { target: { value: "Q3" } })
+
+      expect(searchInput.value).toBe("Q3")
+    })
+
+    it("shows a distinct no-results message (not the zero-reports empty state) when a search returns nothing", () => {
+      vi.useFakeTimers()
+      try {
+        mockUseGetAllReportsQuery.mockReturnValue({
+          data: { data: [] },
+          isLoading: false,
+        })
+        render(<ReportsPage />)
+
+        expect(
+          screen.getByText("organization.reports.empty")
+        ).toBeInTheDocument()
+
+        const searchInput = screen.getByPlaceholderText(
+          "organization.reports.searchPlaceholder"
+        )
+        act(() => {
+          fireEvent.change(searchInput, { target: { value: "nonexistent" } })
+          vi.advanceTimersByTime(300)
+        })
+
+        expect(
+          screen.getByText("organization.reports.noSearchResults")
+        ).toBeInTheDocument()
+        expect(
+          screen.queryByText("organization.reports.empty")
+        ).not.toBeInTheDocument()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
   })
 
   // aexa-frontend round-3 audit bug #3: report.createdAt was hardcoded to
@@ -467,6 +556,62 @@ describe("ReportsPage", () => {
     await waitFor(() => {
       const lastArgs = mockUseGetAllReportsQuery.mock.calls.at(-1)
       expect(lastArgs?.[1]).toMatchObject({ pollingInterval: 0 })
+    })
+  })
+
+  // Round 4 review finding: hasGenerating used to derive from the same
+  // (searched) list rendered on screen -- a search term that happened to
+  // filter out the one GENERATING report made polling look done and stop
+  // it, even though generation was still running server-side. Simulates
+  // the backend's real filtering behavior via searchTerm so the two
+  // useGetAllReportsQuery calls (unfiltered probe vs. searched display)
+  // genuinely diverge, the way they would against the real API.
+  it("keeps polling for a GENERATING report even when the active search filters it out of the displayed list (#220 regression)", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllReportsQuery.mockImplementation((args: unknown) => {
+      const { searchTerm } = args as { searchTerm: string }
+      return {
+        data: {
+          data:
+            searchTerm === ""
+              ? [makeReport({ status: "GENERATING", file_url: null })]
+              : [],
+        },
+        isLoading: false,
+      }
+    })
+
+    render(<ReportsPage />)
+
+    // Confirm polling starts while unfiltered.
+    await waitFor(() => {
+      const lastArgs = mockUseGetAllReportsQuery.mock.calls.at(-1)
+      expect(lastArgs?.[1]).toMatchObject({ pollingInterval: 5000 })
+    })
+
+    // Now search for something that filters the GENERATING report out of
+    // the displayed list -- the mock returns [] for any non-empty
+    // searchTerm, simulating the real backend's title/reference filter.
+    await user.type(
+      screen.getByPlaceholderText("organization.reports.searchPlaceholder"),
+      "nonexistent report title"
+    )
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("organization.reports.noSearchResults")
+      ).toBeInTheDocument()
+    })
+
+    // Polling must still be on -- the report is still GENERATING
+    // server-side, the search just filtered it out of view. Wrapped in
+    // waitFor: the hasGenerating effect fires on a render after the
+    // debounced text above, so asserting synchronously here would race it
+    // and read a stale pollingInterval before a regression has a chance to
+    // turn polling off.
+    await waitFor(() => {
+      const lastArgs = mockUseGetAllReportsQuery.mock.calls.at(-1)
+      expect(lastArgs?.[1]).toMatchObject({ pollingInterval: 5000 })
     })
   })
 

@@ -99,3 +99,47 @@ branches and sound polling interaction; security-completeness
 independently re-traced every field on the `Report` type and confirmed
 no third URL sink was missed, and confirmed the guard won't block real
 Cloudinary-backed report URLs.
+
+## Round 3 — fresh 9-judge panel
+
+Round 2's diff touched real logic in one file (isHttpUrl guard, isError
+handling) -- not eligible for the scoped shortcut, full panel re-run.
+
+| Axis | R1 | R3 | Note |
+|---|---|---|---|
+| Industry-standards | 6 | **5** | Live-confirmed the provenance gap unchanged: `Report` carries `version`/`generated_by`/`reviewed_by`/`reviewed_at` server-side, still never rendered on any card. No status/type filter despite `searchTerm` already being accepted by the API. No version linkage between generations, no scheduling, PDF-only export. Scored slightly stricter this round given generation's ongoing 100% failure rate compounds the missing audit trail (a reviewer can't see who attempted generation or why it failed). |
+| UX | 6 | **7** | Round 2's load-error fix confirmed genuinely working live (distinct state, working Retry, clean recovery after a real backend outage). Three round-1 findings unchanged: no per-card retry on a FAILED report (especially painful right now since 100% of this org's reports are FAILED), no generation progress indicator, no Publish confirmation step. |
+| Efficiency | 8 | 8 | Polling still correctly implemented, no change. New minor finding: the round-2 Retry button has no `isFetching`-based guard against rapid double-clicks (unlike Publish/Generate, which both guard re-entrancy) -- low severity, bounded/user-paced, not a real regression. |
+| Accessibility | 7 | 7 | Round 2's new `role="alert"` confirmed correctly implemented and live-verified to announce properly. Both round-1 findings unchanged: no `aria-live` on the GENERATING->READY/FAILED poll transition, `generatingHint` text not wired via `aria-describedby` to the Generate button. |
+| Visual polish | 8 | 8 | Both round-1 findings (hardcoded FAILED badge bypassing the audited `severityBadgeClasses` contrast, AI-badge/status-pill shape mismatch) confirmed still present via a fresh live screenshot. Round 2's new error-state block assessed as a clean, well-executed visual match to the existing empty-state pattern. |
+| Resilience | 6 | **8** | Round 2's fix independently reconfirmed live for a third time this session (stop backend -> distinct error state -> restart -> Retry recovers). Generation-failure handling and dual transport-vs-logical-failure error paths assessed as genuinely well done. New minor finding: `Report.error_message` exists on the type and presumably carries the real backend failure reason, but is never read/rendered -- every FAILED card shows the same generic hint regardless of cause. |
+| Code quality | 8 | 8 | Round 2's diff assessed clean and consistent with the file's existing style. One minor nit: the `isHttpUrl` guard is duplicated verbatim (inverted) across `openPdf`/`downloadReport` rather than factored into a one-line helper -- cheap, not currently worth a dedicated round. File grew 341->376 lines, still not clearly past the point where extraction is warranted. |
+| Mobile | 8 | 8 | Grid reflow and form stacking confirmed correct, unchanged. Card action buttons still ~34px tall (above the WCAG floor, under the comfort target) -- still unverifiable live since every report in this org remains FAILED. Round 2's error-state block structurally matches the already-mobile-verified empty-state pattern; judge was blocked from directly triggering it live this round by a sandbox restriction on stopping the shared backend process, so this is a code-read assessment, not a fresh live one. |
+| Security | 5 | **9** | Round 2's fix independently re-verified complete for a second time this session (correct guard order at both sinks, no TOCTOU gap, no second URL-shaped field on the `Report` type missed, no other injection surface in the file). |
+
+**Average: 7.56/10** ((5+7+8+7+8+8+8+8+9)/9). **One axis below floor**
+(industry-standards, 5) -- not converged (target 8), loop continues.
+
+**Round 4 selection**: industry-standards is the only axis at/below
+floor -- wins automatically, no stuck_streak tiebreak needed. Within
+its findings, checked feasibility before committing (same discipline
+the Findings loop used for its own industry-standards gaps): the
+provenance/audit-trail finding (`generated_by`/`reviewed_by`) is
+**not** cleanly frontend-fixable -- those fields are raw account IDs
+with no joined name/profile data returned by the backend, so rendering
+them as-is would replace no-information with worse information (a raw
+UUID), not a real improvement. Status/type filtering also needs
+backend work: confirmed via a fresh check against the sibling
+`aexa-server` repo that `status`/`type` are accepted by neither the
+route's (nonexistent) query validator nor `get_all_report_from_db`'s
+`whereCondition` construction.
+
+**What IS cleanly frontend-fixable**: `searchTerm` is already fully
+implemented server-side (`get_all_report_from_db` builds a real,
+case-insensitive Prisma `OR` match against `title`/`reference`) --
+`ReportsPage.tsx` just hardcodes `searchTerm: ""` and never exposes a
+search box. This directly addresses part of the "no way to narrow a
+growing library" finding without any backend change. Selected as round
+4's fix: add a debounced search input, matching the established
+`useDebouncedValue` pattern already used across the Findings loop and
+elsewhere in this codebase.

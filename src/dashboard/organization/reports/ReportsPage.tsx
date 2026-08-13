@@ -1,3 +1,4 @@
+import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { Report, ReportType } from "@/redux/apis/organization/report.api"
 import {
@@ -16,6 +17,7 @@ import {
   Eye,
   FileText,
   Loader2,
+  Search,
   Send,
   Sparkles,
 } from "lucide-react"
@@ -62,6 +64,14 @@ export default function ReportsPage() {
   // Reactive polling interval: driven off the data below. 0 = no polling.
   const [pollingInterval, setPollingInterval] = useState(0)
 
+  // Round 3/4 industry-standards finding: the backend's get_all_report_from_db
+  // already implements a real, case-insensitive title/reference match on
+  // searchTerm -- this page just never exposed a search box and hardcoded
+  // "". Debounced the same way AllFindingsPage.tsx's search is, so typing
+  // stays visually instant while the query only fires once per pause.
+  const [search, setSearch] = useState("")
+  const debouncedSearch = useDebouncedValue(search, 300)
+
   // Round 1/2 resilience finding: this query never checked isError, the
   // same bug class FindingDetails.tsx was fixed for this session -- a
   // genuine fetch failure silently fell through to the same "No reports
@@ -76,10 +86,29 @@ export default function ReportsPage() {
     {
       page: 1,
       limit: 100,
+      searchTerm: debouncedSearch,
+    },
+    { pollingInterval },
+  )
+
+  // Round 4 review finding: hasGenerating used to derive from the same
+  // (searched) `reports` list rendered below -- a search term that
+  // happened to filter out the one report currently GENERATING made
+  // polling look done and stop it, even though generation was still
+  // running server-side. This unfiltered probe (searchTerm always "")
+  // drives polling independently of what the user is searching for. When
+  // no search is active the two calls share identical args, so RTK Query
+  // dedupes them into a single request/cache entry -- no extra network
+  // cost in the common case.
+  const { data: pollProbeData } = useGetAllReportsQuery(
+    {
+      page: 1,
+      limit: 100,
       searchTerm: "",
     },
     { pollingInterval },
   )
+
   const [generateReport, { isLoading: isGenerating }] =
     useGenerateReportMutation()
   const [publishReport] = usePublishReportMutation()
@@ -89,8 +118,12 @@ export default function ReportsPage() {
 
   const reports: Report[] = reportData?.data || []
 
-  // Turn polling on only while at least one report is GENERATING, off otherwise.
-  const hasGenerating = reports.some((r) => r.status === "GENERATING")
+  // Turn polling on only while at least one report is GENERATING, off
+  // otherwise -- checked against the unfiltered probe, not the searched
+  // display list (see the comment above).
+  const hasGenerating = (pollProbeData?.data || []).some(
+    (r) => r.status === "GENERATING"
+  )
   useEffect(() => {
     setPollingInterval(hasGenerating ? GENERATING_POLL_INTERVAL_MS : 0)
   }, [hasGenerating])
@@ -229,6 +262,20 @@ export default function ReportsPage() {
       </div>
       )}
 
+      {/* Search -- round 3/4 industry-standards finding: the backend already
+          supports a real title/reference search via searchTerm, this page
+          just never exposed a control for it. */}
+      <div className="relative w-full sm:w-80">
+        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("organization.reports.searchPlaceholder")}
+          className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm text-foreground focus:ring-2 focus:ring-ring focus:outline-none"
+        />
+      </div>
+
       {/* Reports Grid */}
       <div className="animate-slide-up stagger-2 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         <h2 className="sr-only col-span-full">
@@ -366,7 +413,9 @@ export default function ReportsPage() {
           <div className="col-span-full py-12 text-center">
             <FileText className="mx-auto h-8 w-8 text-muted-foreground/50" />
             <p className="mt-2 text-sm text-muted-foreground">
-              {t("organization.reports.empty")}
+              {debouncedSearch
+                ? t("organization.reports.noSearchResults")
+                : t("organization.reports.empty")}
             </p>
           </div>
         )}

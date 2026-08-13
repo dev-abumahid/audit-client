@@ -798,6 +798,8 @@
       },
       "aiBadge": "AI",
       "listHeading": "Board Reports",
+      "searchPlaceholder": "Search reports...",
+      "noSearchResults": "No reports match your search.",
       "reference": "Reference",
       "preview": "Preview",
       "download": "Download PDF",

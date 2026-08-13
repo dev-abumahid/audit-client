@@ -798,6 +798,8 @@
       },
       "aiBadge": "IA",
       "listHeading": "Rapports au conseil",
+      "searchPlaceholder": "Rechercher des rapports...",
+      "noSearchResults": "Aucun rapport ne correspond à votre recherche.",
       "reference": "Référence",
       "preview": "Aperçu",
       "download": "Télécharger le PDF",
