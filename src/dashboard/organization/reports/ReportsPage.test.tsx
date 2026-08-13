@@ -231,6 +231,40 @@ describe("ReportsPage", () => {
       expect(searchInput.value).toBe("Q3")
     })
 
+    // quality-bar-loop (Board Reports, round 14 UX finding, open since
+    // round 3): the search box had no clear/x button -- the only way to
+    // reset a search term was selecting and deleting it by hand.
+    it("shows a clear button only once there is a search term, and clicking it resets the input", () => {
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      render(<ReportsPage />)
+
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.reports.clearSearch",
+        })
+      ).not.toBeInTheDocument()
+
+      const searchInput = screen.getByPlaceholderText(
+        "organization.reports.searchPlaceholder"
+      ) as HTMLInputElement
+      fireEvent.change(searchInput, { target: { value: "Q3" } })
+
+      const clearButton = screen.getByRole("button", {
+        name: "organization.reports.clearSearch",
+      })
+      fireEvent.click(clearButton)
+
+      expect(searchInput.value).toBe("")
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.reports.clearSearch",
+        })
+      ).not.toBeInTheDocument()
+    })
+
     it("shows a distinct no-results message (not the zero-reports empty state) when a search returns nothing", () => {
       vi.useFakeTimers()
       try {

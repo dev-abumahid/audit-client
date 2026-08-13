@@ -808,6 +808,7 @@
       "aiBadge": "AI",
       "listHeading": "Board Reports",
       "searchPlaceholder": "Search reports...",
+      "clearSearch": "Clear search",
       "noSearchResults": "No reports match your search.",
       "statusChanged": "{{title}} is now {{status}}.",
       "reference": "Reference",

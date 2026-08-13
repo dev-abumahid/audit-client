@@ -22,6 +22,7 @@ import {
   Loader2,
   Search,
   Sparkles,
+  X,
 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -342,8 +343,21 @@ export default function ReportsPage() {
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t("organization.reports.searchPlaceholder")}
           aria-label={t("organization.reports.searchPlaceholder")}
-          className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm text-foreground focus:ring-2 focus:ring-ring focus:outline-none"
+          className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-8 text-sm text-foreground focus:ring-2 focus:ring-ring focus:outline-none"
         />
+        {/* quality-bar-loop (Board Reports, round 14 UX finding, open since
+            round 3): the search box had no clear/x button -- the only way
+            to reset a search term was selecting and deleting it by hand. */}
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            aria-label={t("organization.reports.clearSearch")}
+            className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Reports Grid */}

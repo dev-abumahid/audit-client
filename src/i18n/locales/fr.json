@@ -808,6 +808,7 @@
       "aiBadge": "IA",
       "listHeading": "Rapports au conseil",
       "searchPlaceholder": "Rechercher des rapports...",
+      "clearSearch": "Effacer la recherche",
       "noSearchResults": "Aucun rapport ne correspond à votre recherche.",
       "statusChanged": "{{title}} est maintenant {{status}}.",
       "reference": "Référence",
