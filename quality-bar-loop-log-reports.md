@@ -344,3 +344,42 @@ friction point" for this org's current data (8/8 FAILED) -- paired
 with a Publish confirmation step (same file, same tier, no overlap
 risk), both Tier 2 (contained interaction logic, no new page/route),
 batched into one round per the batching rule.
+
+## Round 8 outcome
+
+Shipped via PR #764 (merged), across two commits:
+
+1. **Per-card Retry**: `handleGenerate`'s logic was extracted into a
+   shared `runGenerate(type)`, called by both the top Generate button
+   (`selectedType`) and a new Retry button shown on every FAILED card
+   for write-capable roles, using that report's own `type`. No more
+   scrolling back to the shared control and re-selecting the type by
+   hand.
+2. **Publish confirmation dialog**: a shared `AlertDialog` (the same
+   shadcn/Radix primitive used elsewhere in the codebase, e.g.
+   `DeleteAlertModal.tsx`) now gates the publish mutation behind an
+   explicit confirm/cancel instead of firing directly on click.
+3. **Review-fix**: a review pass caught two real issues in the first
+   commit -- (a) every FAILED card's Retry icon spun together whenever
+   a generation was in flight (the shared global `isGenerating` flag),
+   with no indication of which card was actually clicked; fixed with a
+   `retryingId` tracking just the clicked card, while correctly
+   leaving the shared-disable behavior alone (generation really is
+   one-at-a-time server-side). (b) The original regression test used a
+   FAILED report with the same type as `selectedType`'s own default,
+   so it would have passed even against a broken implementation that
+   retried with the wrong type -- fixed by using a distinguishing type.
+   A second review pass confirmed the fix clean.
+
+**QA**: lint clean, typecheck clean (same pre-existing, unrelated
+TS2556 failure on `main`). Full suite: 1991/1991 passing, including 5
+new/updated regression tests, each with a genuine negative control.
+
+**Live verification**: Retry confirmed end-to-end against the real
+backend -- clicked Retry on a FAILED card, confirmed a real
+`POST /api/report/generate` fired with the report's own type. Publish
+confirmation could not be live-click-tested against a real READY
+report -- this preview environment's report generation still has a
+~100% failure rate (the same pre-existing, unrelated limitation noted
+in earlier rounds) -- relied on the unit tests instead, documented
+rather than silently skipped.
