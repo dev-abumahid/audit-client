@@ -143,3 +143,50 @@ growing library" finding without any backend change. Selected as round
 4's fix: add a debounced search input, matching the established
 `useDebouncedValue` pattern already used across the Findings loop and
 elsewhere in this codebase.
+
+## Round 4 outcome
+
+Shipped via PR #760 (merged), across two commits:
+
+1. **Search box**: added a debounced (`useDebouncedValue`, 300ms) text
+   input wired to the existing `searchTerm` query param, with a
+   distinct "no results" empty-state message that stays in sync with
+   the debounced (not raw) search value.
+2. **Review-fix follow-up**: an independent review pass caught a real
+   interaction bug the initial implementation missed -- `hasGenerating`
+   (the flag that turns GENERATING-report polling on/off) was derived
+   from the same *searched/filtered* report list rendered in the UI,
+   so an active search term that filtered out the one GENERATING
+   report would incorrectly stop polling, even though generation was
+   still running server-side. Fixed by adding a second, always-unfiltered
+   `useGetAllReportsQuery` probe (`searchTerm: ""` always) to drive
+   `hasGenerating` independently of the search. RTK Query's default
+   `serializeQueryArgs` dedupes this against the main query into a
+   single request/cache entry whenever no search is active (verified:
+   no `serializeQueryArgs`/`keepUnusedDataFor` override anywhere in the
+   API slice or base API) -- no extra network cost in the common case;
+   while a search *is* active, two independent 5s-interval polling
+   queries run concurrently, an accepted bounded tradeoff, not a defect.
+
+**QA**: typecheck/eslint clean on this branch (a pre-existing,
+unrelated TS2556 typecheck failure on `main` in three Findings test
+files was investigated, confirmed unrelated to this work via isolated
+checkout, and flagged separately rather than fixed here). Full suite:
+1979/1979 passing, including a corrected regression test for the
+polling/search interaction bug.
+
+**Negative control discipline paid off here**: the first version of
+the polling regression test passed even against the genuinely buggy
+pre-fix code, because it never actually simulated a user typing into
+the search box. Traced to a second, subtler bug in the test itself
+once the search *was* simulated -- the final assertion ran
+synchronously right after the debounced UI update, racing ahead of the
+`hasGenerating` `useEffect`'s own re-render and reading a stale
+`pollingInterval` value. Wrapping the final assertion in `waitFor`
+fixed the race; re-verified the test now genuinely fails against the
+pre-fix intermediate source and passes against the fix.
+
+**Review**: one scoped angle on the follow-up commit (RTK Query dedup
+correctness, race/stale-closure check, regression-test soundness).
+Came back clean -- no real bugs, the double-polling-while-searching
+tradeoff explicitly assessed as acceptable rather than a defect.
