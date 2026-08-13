@@ -1387,6 +1387,91 @@ describe("CompliancePage", () => {
       ).toBeInTheDocument()
     })
 
+    // Round-3 industry-standards finding: line_of_defense was already
+    // returned/settable by the backend (Issue #97) but had no field
+    // anywhere in this form and was never displayed in the list.
+    describe("line of defense (round 3)", () => {
+      it("displays the obligation's line of defense in the list", () => {
+        mockUseGetAllComplianceQuery.mockReturnValue({
+          data: {
+            data: [makeObligation({ line_of_defense: "THIRD" })],
+          },
+          isLoading: false,
+        })
+
+        renderPage()
+
+        expect(
+          screen.getByText(/organization\.threeLinesOfDefense\.lines\.third/)
+        ).toBeInTheDocument()
+      })
+
+      it("defaults the create form's line of defense to SECOND, matching the backend's own DB default", async () => {
+        const user = userEvent.setup()
+        mockUseGetAllComplianceQuery.mockReturnValue({
+          data: { data: [] },
+          isLoading: false,
+        })
+        mockCreateCompliance.mockReturnValue({
+          unwrap: () => Promise.resolve({ success: true }),
+        })
+
+        renderPage()
+        await user.click(
+          screen.getByRole("button", {
+            name: /organization\.compliance\.newObligation/i,
+          })
+        )
+        await user.type(titleInput(), "New obligation")
+        await user.click(
+          screen.getByRole("button", {
+            name: "organization.compliance.form.create",
+          })
+        )
+
+        await waitFor(() => expect(mockCreateCompliance).toHaveBeenCalled())
+        expect(mockCreateCompliance.mock.calls[0][0].line_of_defense).toBe(
+          "SECOND"
+        )
+      })
+
+      it("pre-fills and lets the user change line of defense on edit", async () => {
+        const user = userEvent.setup()
+        mockUseGetAllComplianceQuery.mockReturnValue({
+          data: {
+            data: [makeObligation({ line_of_defense: "FIRST" })],
+          },
+          isLoading: false,
+        })
+        mockUpdateCompliance.mockReturnValue({
+          unwrap: () => Promise.resolve({ success: true }),
+        })
+
+        renderPage()
+        const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+        await user.click(
+          within(row).getByText("organization.compliance.editObligation")
+        )
+
+        const lineSelect = screen
+          .getByText("organization.compliance.form.lineOfDefense")
+          .parentElement!.querySelector("select")!
+        expect(lineSelect).toHaveValue("FIRST")
+
+        await user.selectOptions(lineSelect, "THIRD")
+        await user.click(
+          screen.getByRole("button", {
+            name: "organization.compliance.form.update",
+          })
+        )
+
+        await waitFor(() => expect(mockUpdateCompliance).toHaveBeenCalled())
+        expect(
+          mockUpdateCompliance.mock.calls[0][0].data.line_of_defense
+        ).toBe("THIRD")
+      })
+    })
+
     it("shows an overdue badge driven by the server-computed overdue flag, not a client-side due_date check", () => {
       // due_date is in the future, but the server says overdue anyway (e.g. a
       // recurring obligation whose next_review_date has lapsed) -- if the

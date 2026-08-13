@@ -1233,7 +1233,8 @@
         "owner": "RESPONSABLE",
         "source": "SOURCE",
         "regulationRefShort": "Rég.",
-        "nextReviewShort": "Prochain examen"
+        "nextReviewShort": "Prochain examen",
+        "lineOfDefenseShort": "Ligne"
       },
       "overdueLabel": "En retard",
       "recurrence": {
@@ -1267,6 +1268,7 @@
         "description": "Description",
         "regulationReference": "Source réglementaire",
         "regulationReferencePlaceholder": "ex. RGPD Art. 30(1)",
+        "lineOfDefense": "Ligne de défense",
         "status": "Statut",
         "dueDate": "Échéance",
         "owner": "Responsable",

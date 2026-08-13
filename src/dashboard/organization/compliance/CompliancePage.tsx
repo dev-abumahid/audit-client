@@ -24,6 +24,7 @@ import {
   useUpdateComplianceMutation,
 } from "@/redux/apis/organization/compliance.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
+import type { LineOfDefense } from "@/types/organization"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useModalA11y } from "@/hooks/useModalA11y"
@@ -107,6 +108,23 @@ const EMPTY_FORM = {
   attachments: [] as string[],
   regulation_reference: "",
   recurrence: "" as string,
+  // Round-3 industry-standards finding: `line_of_defense` was already
+  // returned by every /compliance response (Issue #97, DB-defaulted to
+  // SECOND) and freely settable through createCompliance/updateCompliance
+  // (both accept Partial<ComplianceObligation>, no backend field-strip
+  // unlike KRI's update schema) -- just never surfaced anywhere in this
+  // UI. Default mirrors the backend's own DB default for a new row.
+  line_of_defense: "SECOND" as LineOfDefense,
+}
+
+// Same mapping/i18n namespace as RiskDetails.tsx's own line_of_defense
+// display, reused rather than re-invented -- one shared vocabulary for
+// this org-wide concept (Issue #97) instead of a second, page-local one.
+const LINE_OF_DEFENSE_KEY: Record<LineOfDefense, string> = {
+  FIRST: "organization.threeLinesOfDefense.lines.first",
+  SECOND: "organization.threeLinesOfDefense.lines.second",
+  THIRD: "organization.threeLinesOfDefense.lines.third",
+  GOVERNING_BODY: "organization.threeLinesOfDefense.lines.governingBody",
 }
 
 export default function CompliancePage() {
@@ -297,6 +315,7 @@ export default function CompliancePage() {
       regulation_reference: obl.regulation_reference || "",
       recurrence:
         obl.recurrence && obl.recurrence !== "one_time" ? obl.recurrence : "",
+      line_of_defense: obl.line_of_defense,
     })
     setShowForm(true)
   }
@@ -348,6 +367,7 @@ export default function CompliancePage() {
       attachments: form.attachments,
       regulation_reference: form.regulation_reference || null,
       recurrence: form.recurrence || null,
+      line_of_defense: form.line_of_defense,
     }
 
     try {
@@ -773,6 +793,16 @@ export default function CompliancePage() {
                         {obl.regulation_reference}
                       </p>
                     )}
+                    {/* Round-3 industry-standards finding: line_of_defense
+                        was already returned by the backend (Issue #97) but
+                        never surfaced anywhere in this UI -- same compact,
+                        conditional treatment as regulation_reference above,
+                        not a new table column (this table's mobile columns
+                        were already tightened in round 2). */}
+                    <p className="hidden max-w-xs truncate text-[10px] text-muted-foreground/80 sm:block">
+                      {t("organization.compliance.col.lineOfDefenseShort")}:{" "}
+                      {t(LINE_OF_DEFENSE_KEY[obl.line_of_defense])}
+                    </p>
                   </td>
                   <td className="hidden px-3 py-3 text-xs text-muted-foreground sm:table-cell">
                     {domainLabel(obl.domain)}
@@ -1099,6 +1129,33 @@ export default function CompliancePage() {
                   )}
                   className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
+              </div>
+
+              {/* Round-3 industry-standards finding: line_of_defense was
+                  already returned/settable by the backend (Issue #97) but
+                  had no field anywhere in this form. */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("organization.compliance.form.lineOfDefense")}
+                </label>
+                <select
+                  value={form.line_of_defense}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      line_of_defense: e.target.value as LineOfDefense,
+                    }))
+                  }
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  {(
+                    Object.keys(LINE_OF_DEFENSE_KEY) as LineOfDefense[]
+                  ).map((line) => (
+                    <option key={line} value={line}>
+                      {t(LINE_OF_DEFENSE_KEY[line])}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* quality-bar-loop round 2 (mobile, round-1 finding):

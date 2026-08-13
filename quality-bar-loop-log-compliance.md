@@ -163,3 +163,42 @@ the Regulatory Compliance loop: 2 rounds shipped (a genuinely thorough
 touch-target sweep across the largest page looped this session, plus a
 real width-squeeze bug caught mid-review), the two remaining gaps need
 product input this loop shouldn't make unilaterally.
+
+## Round 3 (industry-standards -- surface line_of_defense, PR TBD)
+
+Resumed per the standing "resume the work on the floor gap ones"
+instruction. Investigated both open industry-standards items for
+feasibility before picking one: `attested_by` resolving to a real
+attester name is confirmed genuinely backend-blocked -- re-verified
+`OrgMember`'s type shape (`src/types/organizationMember.d.ts`) has no
+`accountId` field to join `attested_by` against, matching the
+existing code comment's claim exactly, not stale. `line_of_defense`,
+by contrast, is a clean win: already returned on every
+`ComplianceObligation` (Issue #97, DB-defaulted to SECOND) and freely
+settable through `createCompliance`/`updateCompliance` (both accept
+`Partial<ComplianceObligation>`, no backend field-strip unlike KRI's
+update schema) -- just never surfaced anywhere in this UI. Same "wire
+up already-available data" pattern as the KRI Dashboard round above.
+
+Added a Line of Defense select to the create/edit form (reusing
+`RiskDetails.tsx`'s own `LINE_OF_DEFENSE_KEY` i18n mapping rather than
+inventing a second one) and a compact, conditional display in the
+obligation list row -- same treatment as the existing
+`regulation_reference` line, not a new table column (this table's
+mobile columns were already deliberately tightened in round 2).
+
+The remaining industry-standards items (edit-history/versioning,
+structured framework taxonomy, approval routing) and code-quality's
+item (1449-line monolith split, 3x duplicated request/toast pattern)
+are still real design/refactor-scoped work, not addressed this round.
+
+3 new regression tests, verified against a negative control
+(genuinely fail on the pre-fix source).
+
+**QA**: lint clean, typecheck clean repo-wide. Full suite:
+2014/2014 passing.
+
+**Live verification**: could not be completed this round -- same
+shared-backend rate-limit exhaustion documented in the Threat
+Intelligence and KRI Dashboard rounds above. Relied on the unit tests
+(with a genuine negative control) instead.

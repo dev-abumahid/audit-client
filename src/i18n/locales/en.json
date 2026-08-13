@@ -1233,7 +1233,8 @@
         "owner": "OWNER",
         "source": "SOURCE",
         "regulationRefShort": "Reg",
-        "nextReviewShort": "Next review"
+        "nextReviewShort": "Next review",
+        "lineOfDefenseShort": "Line"
       },
       "overdueLabel": "Overdue",
       "recurrence": {
@@ -1267,6 +1268,7 @@
         "description": "Description",
         "regulationReference": "Regulatory Source",
         "regulationReferencePlaceholder": "e.g. GDPR Art. 30(1)",
+        "lineOfDefense": "Line of Defense",
         "status": "Status",
         "dueDate": "Due Date",
         "owner": "Owner",
