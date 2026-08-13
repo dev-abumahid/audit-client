@@ -68,6 +68,41 @@ describe("ForgotPasswordModal", () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  // type=button sweep finding: the close button had no explicit type,
+  // defaulting to type="submit" -- inconsistent with every other non-
+  // submit button in this file (form's own back-link, success-state
+  // back-link), which already declared type="button" correctly. Covers
+  // both mutually-exclusive states (form vs. success) so a sweep of only
+  // the default render can't silently skip the success-state button.
+  it("gives every non-submit button an explicit type in both the form and success states", async () => {
+    const user = userEvent.setup()
+    mockForgetPasswordTrigger.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+    const { unmount } = render(<ForgotPasswordModal {...defaultProps} />)
+
+    const sweep = () => {
+      const buttons = document.querySelectorAll("button")
+      expect(buttons.length).toBeGreaterThan(0)
+      buttons.forEach((button) => {
+        const isRealSubmit = button.textContent === "Send Reset Link"
+        expect(button.type).toBe(isRealSubmit ? "submit" : "button")
+      })
+    }
+
+    sweep() // form state: close, back-to-sign-in link, submit
+    unmount()
+
+    render(<ForgotPasswordModal {...defaultProps} />)
+    await user.type(screen.getByLabelText("Email"), "person@test.com")
+    await user.click(screen.getByRole("button", { name: "Send Reset Link" }))
+    await screen.findByText(
+      "If that email is registered, a reset link has been sent."
+    )
+
+    sweep() // success state: close, back-to-sign-in link
+  })
+
   it("submits the entered email and shows the success state", async () => {
     const user = userEvent.setup()
     mockForgetPasswordTrigger.mockReturnValue({

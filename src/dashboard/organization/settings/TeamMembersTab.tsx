@@ -210,6 +210,7 @@ export default function TeamMembersTab() {
         </div>
         {canWrite && (
           <button
+            type="button"
             onClick={openInvite}
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
@@ -274,6 +275,7 @@ export default function TeamMembersTab() {
                   <td className="px-5 py-3">
                     {canWrite && (
                       <button
+                        type="button"
                         onClick={() => handleToggleStatus(member)}
                         disabled={isMutating || reactivateBlockedByExpiry}
                         title={
@@ -376,6 +378,7 @@ export default function TeamMembersTab() {
                     <td className="px-5 py-3">
                       {canWrite && (
                         <button
+                          type="button"
                           onClick={() => handleResend(invite)}
                           disabled={resendingId === invite.id}
                           className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${

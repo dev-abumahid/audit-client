@@ -139,6 +139,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
 
   const closeButton = (
     <button
+      type="button"
       onClick={handleClose}
       aria-label={t("common.close")}
       className="absolute top-3 right-3 z-10 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -198,6 +199,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                     {t("auth.verifyOtp.verifiedSubTitle")}
                   </DialogDescription>
                   <button
+                    type="button"
                     onClick={() => {
                       handleClose()
                       onLoginClick()
@@ -265,6 +267,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                   <p className="mt-4 text-center text-xs text-muted-foreground">
                     {t("auth.verifyOtp.noCodeText")}{" "}
                     <button
+                      type="button"
                       onClick={handleResendOtp}
                       disabled={isResending || resendCooldown > 0}
                       className="font-medium text-primary hover:underline disabled:opacity-50"
@@ -432,7 +435,18 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
               <div className="mt-4 border-t border-border pt-4">
                 <p className="text-center text-xs text-muted-foreground">
                   {t("auth.signUp.hintText")}{" "}
+                  {/* Round: type=button sweep finding -- this button sits
+                      inside <form onSubmit={handleSubmit(onSubmit)}> above
+                      (see the closing </form> further down) and had no
+                      explicit type, so it defaulted to type="submit" -- a
+                      real, live bug: clicking "Sign In" here could trigger
+                      the signup form's own submit handler (if the fields
+                      happened to pass validation) before onLoginClick()
+                      ever navigated away, not just style inconsistency.
+                      SignInModal.tsx's equivalent "Sign Up" link already
+                      gets this right. */}
                   <button
+                    type="button"
                     onClick={() => {
                       handleClose()
                       onLoginClick()

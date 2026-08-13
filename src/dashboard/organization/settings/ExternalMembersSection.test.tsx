@@ -85,6 +85,36 @@ describe("ExternalMembersSection", () => {
     expect(screen.getByText("reviewer@partnerfirm.com")).toBeInTheDocument()
   })
 
+  // type=button sweep finding: 2 non-submit buttons (Invite trigger,
+  // per-member Copy Link) had no explicit type, defaulting to
+  // type="submit" -- a real footgun since this file also renders a real
+  // <form> (the invite dialog), whose own Cancel/Submit buttons already
+  // declared their type correctly. Full sweep since this file has no
+  // shadcn <Button> usage; mounts a member row + the open invite dialog
+  // so every button renders.
+  it("gives every non-submit button an explicit type=\"button\"", async () => {
+    const user = userEvent.setup()
+    mockUseGetExternalMembersQuery.mockReturnValue({
+      data: { data: [makeMember()] },
+      isLoading: false,
+    })
+    render(<ExternalMembersSection />)
+    await user.click(
+      screen.getByRole("button", {
+        name: "organization.externalMembers.inviteButton",
+      })
+    )
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      const isRealSubmit = button.textContent?.includes(
+        "organization.externalMembers.sendInvite"
+      )
+      expect(button.type).toBe(isRealSubmit ? "submit" : "button")
+    })
+  })
+
   it("copies the org's /external-login/:organizationId link to the clipboard", async () => {
     const user = userEvent.setup()
     const writeText = mockClipboardWriteText()

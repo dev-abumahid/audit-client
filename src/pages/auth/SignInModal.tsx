@@ -107,6 +107,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
       >
         {/* Close Button */}
         <button
+          type="button"
           onClick={onClose}
           aria-label={t("common.close")}
           className="absolute top-3 right-3 z-10 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"

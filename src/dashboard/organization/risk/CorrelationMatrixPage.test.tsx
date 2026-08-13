@@ -835,6 +835,131 @@ describe("CorrelationMatrixPage", () => {
     ).not.toBeInTheDocument()
   })
 
+  // type=button sweep finding: 12 non-submit buttons across this file had
+  // no explicit type, defaulting to type="submit" -- a real footgun since
+  // this page also renders a real <form> (the "Add Link" form, further
+  // down this same file) whose own Cancel/Submit buttons already declared
+  // their type correctly; every OTHER button in the file is scoped here
+  // rather than swept, since none of them sit inside that form and a full
+  // sweep would need to separately re-verify every conditionally-rendered
+  // button this page has (out of scope for this fix).
+  it("gives every non-submit button an explicit type=\"button\", covering matrix toggles, a matrix cell, link add/delete, and both bucket views", async () => {
+    mockRole = "LEAD_AUDITOR"
+    setMatrixData({
+      risks: [makeRisk()],
+      riskLinks: [makeLink()],
+      actions: [
+        makeAction({ id: "a1", priority: "High" }),
+        makeAction({
+          id: "a2",
+          priority: "High",
+          actionTitle: "Unencrypted data",
+        }),
+      ],
+    })
+    mockRunRootCauseBucketing.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          message: "ok",
+          data: {
+            methodology: "PageRank clustering",
+            riskBuckets: [],
+            findingBuckets: [],
+          },
+        }),
+    })
+
+    render(<CorrelationMatrixPage />, withRouter)
+
+    // Matrix-size, group-mode, view-mode toggles + a matrix cell.
+    expect(
+      screen.getByRole("button", { name: "5×5" }).getAttribute("type")
+    ).toBe("button")
+    expect(
+      screen
+        .getByRole("button", {
+          name: "organization.correlationMatrix.groupAll",
+        })
+        .getAttribute("type")
+    ).toBe("button")
+    expect(
+      screen
+        .getByRole("button", {
+          name: "organization.correlationMatrix.viewRisks",
+        })
+        .getAttribute("type")
+    ).toBe("button")
+    const cellButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.className.includes("h-16"))
+    expect(cellButtons.length).toBeGreaterThan(0)
+    cellButtons.forEach((b) => expect(b.getAttribute("type")).toBe("button"))
+
+    // Add Link trigger + Delete Link.
+    expect(
+      screen
+        .getByRole("button", {
+          name: "organization.correlationMatrix.addLink",
+        })
+        .getAttribute("type")
+    ).toBe("button")
+    expect(
+      screen
+        .getByRole("button", {
+          name: /organization\.correlationMatrix\.deleteLinkLabel/,
+        })
+        .getAttribute("type")
+    ).toBe("button")
+
+    // Findings-buckets view (real Action rows, "findings" view mode):
+    // bucket toggle.
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewFindings",
+      })
+    )
+    expect(
+      screen
+        .getByText("organization.findings.priorityHigh priority")
+        .closest("button")!
+        .getAttribute("type")
+    ).toBe("button")
+
+    // AI-buckets view: run-analysis button.
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewAiBuckets",
+      })
+    )
+    expect(
+      screen
+        .getByRole("button", {
+          name: "organization.correlationMatrix.aiRunAnalysis",
+        })
+        .getAttribute("type")
+    ).toBe("button")
+  })
+
+  // AI risk-bucket toggle + "Send to Finding" button, via the shared helper.
+  it("gives the AI risk-bucket toggle and Send to Finding button an explicit type=\"button\"", async () => {
+    mockRole = "LEAD_AUDITOR"
+    await renderWithExpandedAiBucket()
+
+    const toggleButton = screen
+      .getByText("Supplier concentration")
+      .closest("button")
+    expect(toggleButton?.getAttribute("type")).toBe("button")
+
+    expect(
+      screen
+        .getByRole("button", {
+          name: "organization.correlationMatrix.sendToFinding",
+        })
+        .getAttribute("type")
+    ).toBe("button")
+  })
+
   it("rejects a self-referencing link client-side without calling the mutation", async () => {
     setMatrixData({
       risks: [makeRisk({ id: "r1", ref: "CYB-001" })],

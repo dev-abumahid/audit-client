@@ -168,6 +168,47 @@ describe("TeamMembersTab", () => {
     expect(screen.getByText("noname@test.com")).toBeInTheDocument()
   })
 
+  // type=button sweep finding: 3 non-submit buttons (Invite Member trigger,
+  // per-member suspend/reactivate, per-invitation resend) had no explicit
+  // type, defaulting to type="submit" -- a real footgun since this file
+  // also renders a real <form> (the invite dialog), whose own Cancel/Submit
+  // buttons already declared their type correctly. Full sweep since this
+  // file has no shadcn <Button> usage; mounts a member + a pending
+  // invitation + the open invite dialog so every button renders.
+  it("gives every non-submit button an explicit type=\"button\"", async () => {
+    mockUseGetAllOrgUsersQuery.mockReturnValue({
+      data: { data: [member()] },
+      isLoading: false,
+    })
+    mockUseGetPendingInvitationsQuery.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "inv-1",
+            email: "pending@test.com",
+            role: "VIEWER",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<TeamMembersTab />)
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.teamMembers.inviteMember" })
+    )
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      const isRealSubmit = button.textContent?.includes(
+        "organization.teamMembers.sendInvitation"
+      )
+      expect(button.type).toBe(isRealSubmit ? "submit" : "button")
+    })
+  })
+
   it("shows pending invitations in a separate section", () => {
     mockUseGetAllOrgUsersQuery.mockReturnValue({
       data: { data: [] },

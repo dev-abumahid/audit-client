@@ -292,6 +292,34 @@ describe("RiskRegisterPage", () => {
     ).toBe(true)
   })
 
+  // type=button sweep finding: the row-level Edit/Delete icon buttons and
+  // the "Add New Risk" button had no explicit type, defaulting to
+  // type="submit" -- scoped to just these three (not a full sweep) since
+  // this large file has many other buttons (SortableHeader, pagination,
+  // the risk modal's form) not audited as part of this fix.
+  it("gives the Edit, Delete, and Add New Risk buttons an explicit type=\"button\"", () => {
+    mockRole = "ADMIN"
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+
+    renderPage()
+
+    expect(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      }).getAttribute("type")
+    ).toBe("button")
+
+    const editButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-pencil"))
+    expect(editButton?.getAttribute("type")).toBe("button")
+
+    const deleteButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-trash2"))
+    expect(deleteButton?.getAttribute("type")).toBe("button")
+  })
+
   it("hides Add/Edit/Delete controls for a VIEWER", () => {
     mockRole = "VIEWER"
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })

@@ -697,6 +697,7 @@ export default function SitesEntities() {
           </div>
           {canWrite && (
             <button
+              type="button"
               onClick={openCreate}
               className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
@@ -854,6 +855,7 @@ export default function SitesEntities() {
                 <div className="flex flex-wrap items-center gap-3">
                   {canWrite && (
                     <button
+                      type="button"
                       onClick={() => {
                         setShowRiskForm(site.id)
                         riskForm.reset({
@@ -871,6 +873,7 @@ export default function SitesEntities() {
                   )}
 
                   <button
+                    type="button"
                     onClick={() => handleAnalyzeSite(site)}
                     disabled={isAnalyzing && analyzingSiteId === site.id}
                     className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary hover:bg-primary/20 disabled:opacity-50"
@@ -887,6 +890,7 @@ export default function SitesEntities() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
+                          type="button"
                           aria-label={t(
                             "organization.site&entities.moreActionsLabel",
                             { name: site.name }
@@ -937,6 +941,7 @@ export default function SitesEntities() {
                   )}
 
                   <button
+                    type="button"
                     onClick={() => setExpandedSite(isExpanded ? null : site.id)}
                     aria-expanded={isExpanded}
                     aria-label={t(
@@ -1096,6 +1101,7 @@ export default function SitesEntities() {
                       </p>
                       {canWrite && (
                         <button
+                          type="button"
                           onClick={() => handleImportSuggestions(site.id)}
                           disabled={
                             selectedSuggestionIds.size === 0 ||
@@ -1366,6 +1372,7 @@ export default function SitesEntities() {
                   : t("organization.site&entities.addNewSiteTitle")}
               </h2>
               <button
+                type="button"
                 onClick={closeSiteForm}
                 aria-label={t("organization.site&entities.closeModalLabel")}
                 className="text-muted-foreground hover:text-foreground"

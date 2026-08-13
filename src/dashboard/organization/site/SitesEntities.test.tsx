@@ -264,6 +264,99 @@ describe("SitesEntities", () => {
     )
   })
 
+  // type=button sweep finding: 7 non-submit buttons had no explicit type,
+  // defaulting to type="submit" -- a real footgun since this file also
+  // renders two real <form>s (Add Risk, and the site create/edit modal),
+  // whose own Cancel/Submit buttons already declared their type correctly.
+  // Scoped to just these 7 (not a full sweep) since this file also renders
+  // shadcn <Button> components (a separate, pre-existing gap, out of
+  // scope here).
+  it("gives every non-submit non-shadcn button an explicit type=\"button\"", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+
+    renderPage()
+
+    // New Site trigger.
+    expect(
+      screen
+        .getByRole("button", { name: "organization.site&entities.newSite" })
+        .getAttribute("type")
+    ).toBe("button")
+
+    // Analyze AI.
+    expect(
+      screen
+        .getByRole("button", { name: /organization.site&entities.analyzeAi/i })
+        .getAttribute("type")
+    ).toBe("button")
+
+    // "More actions" kebab trigger.
+    const moreActionsButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-ellipsis-vertical"))!
+    expect(moreActionsButton.getAttribute("type")).toBe("button")
+
+    // Expand/collapse chevron.
+    const expandButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg.lucide-chevron-down"))!
+    expect(expandButton.getAttribute("type")).toBe("button")
+
+    // "Add Risk" trigger (opens the risk form).
+    expect(
+      screen
+        .getByRole("button", { name: "organization.site&entities.addRisk" })
+        .getAttribute("type")
+    ).toBe("button")
+
+    // Site create/edit modal's close button.
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.site&entities.newSite" })
+    )
+    expect(
+      screen
+        .getByRole("button", {
+          name: "organization.site&entities.closeModalLabel",
+        })
+        .getAttribute("type")
+    ).toBe("button")
+  })
+
+  it("gives the AI-suggestions 'Import selected' button an explicit type=\"button\"", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockAnalyzeSiteRisks.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+    )
+    await waitFor(() =>
+      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+    )
+
+    expect(
+      screen
+        .getByRole("button", {
+          name: /organization\.site&entities\.importSelected/i,
+        })
+        .getAttribute("type")
+    ).toBe("button")
+  })
+
   it("gives the create/edit modal's close button an accessible name", async () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,

@@ -312,6 +312,48 @@ describe("SignUpModal", () => {
     expect(screen.getByText("admin@acme.com")).toBeInTheDocument()
   })
 
+  // type=button sweep finding: several non-submit buttons had no explicit
+  // type, defaulting to type="submit" -- most critically the "Sign In"
+  // link (auth.signIn.btnSignIn), which sits INSIDE this component's own
+  // <form onSubmit={handleSubmit(onSubmit)}>. Without an explicit type,
+  // clicking it would submit the signup form itself (if the fields
+  // happened to pass validation) before onLoginClick() ever navigated
+  // away -- a real, live bug, not just style inconsistency. Covers all
+  // three mutually-exclusive screens (signup form, OTP entry, verified)
+  // so a sweep of only the default render can't silently skip a button
+  // that only mounts after a state transition.
+  it("gives every non-submit button an explicit type across all three screens, so none default to implicit submit", async () => {
+    const user = userEvent.setup()
+    const { unmount } = renderModal()
+
+    const sweep = (realSubmitLabels: string[]) => {
+      const buttons = document.querySelectorAll("button")
+      expect(buttons.length).toBeGreaterThan(0)
+      buttons.forEach((button) => {
+        const isRealSubmit = realSubmitLabels.some((label) =>
+          button.textContent?.includes(label)
+        )
+        expect(button.type).toBe(isRealSubmit ? "submit" : "button")
+      })
+    }
+
+    sweep(["Sign Up"]) // signup-form screen: close, Sign In link, Clear, Sign Up submit
+
+    await signUpAndReachOtpScreen(user)
+    sweep(["Verify Email"]) // OTP screen: close, Resend Code, Verify Email submit
+
+    mockVerifyOtpTrigger.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+    await user.type(screen.getByLabelText("Verification Code"), "A1b2C3")
+    await user.click(screen.getByRole("button", { name: "Verify Email" }))
+    await screen.findByText("Email Verified")
+
+    sweep([]) // verified screen: close, Sign In (no real form left to submit)
+
+    unmount()
+  })
+
   it("submits the entered OTP with the pending email and shows the verified state on success", async () => {
     const user = userEvent.setup()
     renderModal()

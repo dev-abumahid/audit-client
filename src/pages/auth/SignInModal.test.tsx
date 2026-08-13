@@ -211,6 +211,22 @@ describe("SignInModal", () => {
     ).toBeInTheDocument()
   })
 
+  // type=button sweep finding: the close button had no explicit type,
+  // defaulting to type="submit" -- harmless only because it happens to sit
+  // outside the <form>, but inconsistent with every other non-submit
+  // button in this same form (Forgot Password, Sign Up link), which
+  // already declared type="button" correctly.
+  it("gives every non-submit button an explicit type, leaving only the real Sign In submit as type=submit", () => {
+    renderModal()
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThanOrEqual(4)
+    buttons.forEach((button) => {
+      const isRealSubmit = button.textContent === "Sign In"
+      expect(button.type).toBe(isRealSubmit ? "submit" : "button")
+    })
+  })
+
   it("closes on Escape key press", async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()

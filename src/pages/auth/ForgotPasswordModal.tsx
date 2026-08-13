@@ -79,6 +79,7 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
         className="w-full max-w-sm gap-0 overflow-hidden rounded-xl border border-border bg-card p-0 text-card-foreground shadow-2xl ring-0 md:max-w-md"
       >
         <button
+          type="button"
           onClick={handleClose}
           className="absolute top-3 right-3 z-10 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           disabled={isSubmitting}

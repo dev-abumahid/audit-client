@@ -571,6 +571,7 @@ export default function CorrelationMatrixPage() {
             {[3, 4, 5].map((s) => (
               <button
                 key={s}
+                type="button"
                 onClick={() => setMatrixSize(s as MatrixSize)}
                 aria-pressed={matrixSize === s}
                 className={`flex h-11 min-w-11 items-center justify-center px-3 text-xs font-medium ${matrixSize === s ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
@@ -588,6 +589,7 @@ export default function CorrelationMatrixPage() {
             ].map(([mode, labelKey]) => (
               <button
                 key={mode}
+                type="button"
                 onClick={() => setGroupMode(mode as GroupMode)}
                 aria-pressed={groupMode === mode}
                 className={`flex h-11 items-center justify-center px-3 text-xs font-medium ${groupMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
@@ -607,6 +609,7 @@ export default function CorrelationMatrixPage() {
             ].map(([mode, labelKey]) => (
               <button
                 key={mode}
+                type="button"
                 onClick={() => setViewMode(mode as ViewMode)}
                 aria-pressed={viewMode === mode}
                 className={`flex h-11 items-center justify-center px-3 text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
@@ -708,6 +711,7 @@ export default function CorrelationMatrixPage() {
                           // RiskMatrixPage.
                           <button
                             key={col}
+                            type="button"
                             onClick={() =>
                               setSelectedCell(
                                 cellRisks.length ? { row, col } : null
@@ -789,6 +793,7 @@ export default function CorrelationMatrixPage() {
               </h3>
               {canManageLinks && !showLinkForm && (
                 <button
+                  type="button"
                   onClick={() => setShowLinkForm(true)}
                   className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
                 >
@@ -930,6 +935,7 @@ export default function CorrelationMatrixPage() {
                     </span>
                     {canManageLinks && (
                       <button
+                        type="button"
                         onClick={() => openDeleteLinkModal(link)}
                         aria-label={t(`${NS}.deleteLinkLabel`, {
                           source: link.source_ref,
@@ -1027,6 +1033,7 @@ export default function CorrelationMatrixPage() {
                       className="rounded-lg border bg-background"
                     >
                       <button
+                        type="button"
                         onClick={() => toggleBucket(bucket.name)}
                         aria-expanded={expandedBucket === bucket.name}
                         className="flex w-full items-center justify-between p-3 text-left hover:bg-muted/50"
@@ -1087,6 +1094,7 @@ export default function CorrelationMatrixPage() {
                   </h3>
                 </div>
                 <button
+                  type="button"
                   onClick={runAIBucketing}
                   disabled={isAILoading}
                   className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
@@ -1281,6 +1289,7 @@ function BucketList({
       {buckets.map((bucket) => (
         <div key={bucket.name} className="rounded-lg border bg-background">
           <button
+            type="button"
             onClick={() => toggleBucket(bucket.name)}
             aria-expanded={expandedBucket === bucket.name}
             className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
@@ -1363,6 +1372,7 @@ function AIRiskBucketCard({
   return (
     <div className="rounded-lg border bg-background">
       <button
+        type="button"
         onClick={onToggle}
         aria-expanded={expanded}
         className="flex w-full justify-between p-3 text-left hover:bg-muted/50"
@@ -1418,6 +1428,7 @@ function AIRiskBucketCard({
           {canSendToFinding && (
             <div className="flex justify-end pt-1">
               <button
+                type="button"
                 onClick={onSendToFinding}
                 disabled={isSending || isSent}
                 className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
@@ -1457,6 +1468,7 @@ function AIFindingBucketCard({
   return (
     <div className="rounded-lg border bg-background">
       <button
+        type="button"
         onClick={onToggle}
         aria-expanded={expanded}
         className="flex w-full justify-between p-3 text-left hover:bg-muted/50"

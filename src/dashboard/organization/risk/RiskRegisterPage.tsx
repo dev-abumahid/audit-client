@@ -285,6 +285,7 @@ const RiskRow = memo(function RiskRow({
           // 20x20 rather than a false claim of full 44x44.
           <div className="flex gap-4">
             <button
+              type="button"
               onClick={() => onEdit(risk)}
               className="relative rounded p-1 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:bg-muted"
               aria-label={t("organization.riskRegister.editRisk")}
@@ -292,6 +293,7 @@ const RiskRow = memo(function RiskRow({
               <Pencil className="h-3 w-3" />
             </button>
             <button
+              type="button"
               onClick={() => onDelete(risk.id)}
               className="relative rounded p-1 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:bg-destructive/10 hover:text-destructive"
               aria-label={t("organization.riskRegister.deleteRisk")}
@@ -1541,6 +1543,7 @@ export default function RiskRegisterPage() {
           </button>
           {canWrite && (
             <button
+              type="button"
               onClick={openCreate}
               className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
             >
