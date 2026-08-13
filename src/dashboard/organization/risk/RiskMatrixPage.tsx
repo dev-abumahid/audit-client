@@ -689,11 +689,18 @@ export default function RiskMatrixPage() {
                           <button
                             key={col}
                             type="button"
+                            // quality-bar-loop round 15 (UX finding, open
+                            // since round 5's full-panel re-score): re-
+                            // clicking an already-selected cell used to be
+                            // a no-op -- Escape was the only way to
+                            // deselect. Clicking a selected cell now
+                            // toggles it off, matching how a toggle
+                            // control conventionally behaves.
                             onClick={() =>
                               setSelectedCell(
-                                cellRisks.length
-                                  ? { row, col, size: matrixSize }
-                                  : null
+                                !cellRisks.length || isSelected
+                                  ? null
+                                  : { row, col, size: matrixSize }
                               )
                             }
                             aria-pressed={isSelected}

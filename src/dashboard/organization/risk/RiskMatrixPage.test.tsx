@@ -728,6 +728,31 @@ describe("RiskMatrixPage", () => {
     expect(screen.getByText("Casablanca HQ")).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 15 (UX finding, open since round 5's
+  // full-panel re-score): re-clicking an already-selected cell used to be
+  // a no-op -- Escape was the only way to deselect.
+  it("deselects a cell when it's clicked again while already selected", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ probability: 0, inherent_score: 0 })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    const cell = screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
+    await userEvent.click(cell)
+
+    expect(screen.getByText("Casablanca HQ")).toBeInTheDocument()
+    expect(cell).toHaveAttribute("aria-pressed", "true")
+
+    await userEvent.click(cell)
+
+    expect(screen.queryByText("Casablanca HQ")).not.toBeInTheDocument()
+    expect(cell).toHaveAttribute("aria-pressed", "false")
+    expect(
+      screen.getByText("organization.riskMatrix.selectRiskHint")
+    ).toBeInTheDocument()
+  })
+
   // aexa-frontend#548: the selected-cell RiskCard showed risk name and site
   // name as plain text even though risk.id/site_id were already on the card's
   // data -- dead-ending the matrix instead of cross-linking into Risk/Sites.
