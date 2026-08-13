@@ -744,6 +744,51 @@ describe("ReportsPage", () => {
     ).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop (Board Reports, round 12 resilience finding, open
+  // since round 3): Report.error_message is populated server-side but was
+  // never rendered -- every FAILED card showed the same generic hint
+  // regardless of actual cause.
+  it("shows the report's real error_message instead of the generic hint when one is present", () => {
+    mockUseGetAllReportsQuery.mockReturnValue({
+      data: {
+        data: [
+          makeReport({
+            status: "FAILED",
+            file_url: null,
+            error_message: "AI provider timed out after 30s",
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<ReportsPage />)
+
+    expect(
+      screen.getByText("AI provider timed out after 30s")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.reports.failedHint")
+    ).not.toBeInTheDocument()
+  })
+
+  it("falls back to the generic failedHint when error_message is null", () => {
+    mockUseGetAllReportsQuery.mockReturnValue({
+      data: {
+        data: [
+          makeReport({ status: "FAILED", file_url: null, error_message: null }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<ReportsPage />)
+
+    expect(
+      screen.getByText("organization.reports.failedHint")
+    ).toBeInTheDocument()
+  })
+
   it("opens the PDF in a new tab when Preview is clicked on a READY report", async () => {
     const user = userEvent.setup()
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null)

@@ -821,6 +821,7 @@
       "retry": "Retry",
       "retryFor": "Retry generating {{title}}",
       "failedHint": "Generation failed. Please try generating again.",
+      "failedReasonPrefix": "Reason:",
       "generateSuccess": "Report generated successfully.",
       "generateFailed": "Failed to generate report. Please try again.",
       "publishSuccess": "Report published.",
