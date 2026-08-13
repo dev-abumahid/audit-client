@@ -599,3 +599,50 @@ Round 11's average (7.89/10, highest of the loop so far) had exactly
 one axis below floor -- resilience, now fixed. Round 13 will show
 whether that closes the gap to convergence or surfaces the next axis
 in line.
+
+## Round 13 — fresh 9-judge panel
+
+Round 12's diff added a whole new conditional branch/UI to
+`FindingDetails.tsx` (not a zero-behavior-change refactor), so this
+round re-ran the full panel rather than using the scoped shortcut.
+
+| Axis | R11 | R13 | Note |
+|---|---|---|---|
+| Industry-standards | 7 | 7 | Same three gaps confirmed, now also verified absent at the API layer itself (`GetAllFindingsArgs` has no status/priority/assignee/dueDate params at all) -- not just a frontend wiring gap. |
+| UX | 9 | 9 | Same Inspection-ID-vs-name gap, unchanged for a 4th round. Round 12's error state assessed as good UX live (correct Go Back behavior, live-verified against a real 404). |
+| Efficiency | 9 | 9 | Round 12's Retry button live-tested: 3 clicks -> exactly 3 requests, no runaway/duplicate firing. |
+| Accessibility | 8 | 8 | Same two findings, 5th consecutive flat round. Round 12's new `role="alert"` independently confirmed live to be a real, correctly-scoped DOM node, not just present in source. |
+| Visual polish | 8 | 8 | Same two findings (title/site Link inconsistency, desktop-width horizontal scroll) confirmed live. Round 12's error state assessed clean and on-brand. |
+| Resilience | 6 | **9** | Round 12's fix independently reconfirmed **live** this time (a fresh session avoided the browser-tab degradation that blocked round 12's own live check) -- stopped the backend, reproduced the exact expected error UI, restarted the backend, confirmed full recovery. One new minor finding: `AllFindingsPage.tsx`'s site-filter dropdown query has no isError handling (low severity, not a floor concern). |
+| Code quality | 8 | 8 | Round 12's addition assessed as clean in isolation, but noted a new observation: `FindingDetails.tsx` now has three near-identical full-screen state blocks (loading/error/not-found) that could consolidate into one shared component -- not yet selected as a finding, logged for a future round. |
+| Mobile | 7 | 7 | Same tab-bar clipping, 4th consecutive flat round at floor. This round's judge supplied a specific suggested fix (`overflow-x-auto` + `shrink-0` on the tab buttons, or narrower padding/labels at small breakpoints). |
+| Security | 9 | 9 | Round 12's diff confirmed to have zero security surface. Attachment-URL guard re-confirmed intact. |
+
+**Average: 8.22/10** ((7+9+9+8+8+9+8+7+9)/9). **Zero axes below floor**
+for the first time in the loop -- highest average by a wide margin
+(previous best 7.89). Not yet converged (target average is 9, current
+is 8.22).
+
+**Round 14 selection, with a documented deviation from the mechanical
+rule**: `stuck_streak` (extending the R7/R9/R11/R13 sequence) ties
+industry-standards and mobile at streak=2 (both flat-at-floor for two
+consecutive comparisons), with industry-standards winning the
+roster-order tiebreak per rule 5c.2. However: industry-standards' only
+three remaining findings (bulk actions, column sorting, multi-field
+filtering) were confirmed this round to be genuinely blocked, not just
+disproportionate -- a quick research pass into the sibling `aexa-server`
+repo confirmed the list endpoint's backend handler (`get_all_action_from_db`)
+hardcodes `orderBy: { createdAt: 'desc' }` and only reads
+`searchTerm`/`siteId`/`inspectionId`/`page`/`limit` from the request;
+status/priority/assignee/dueDate filtering and any sort param are
+absent server-side entirely, not merely unused by the frontend.
+Implementing any of these three findings properly would require
+backend changes outside this repo's (and this session's) scope --
+faking client-side-only sort against a server-paginated, 20-row-page
+dataset would silently sort just the visible page while implying the
+whole list is sorted, a real correctness/trust bug worse than the gap
+it claims to fix. Deferring industry-standards again (as rounds 5/7
+already did for the same reason) and selecting mobile instead --
+streak=2 tied for highest among currently-actionable axes, with a
+concrete, cheap (`overflow-x-auto`/`shrink-0`), already-diagnosed fix
+sitting unaddressed for 4 rounds.

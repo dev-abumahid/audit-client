@@ -273,6 +273,23 @@ describe("FindingDetails", () => {
     ).not.toBeInTheDocument()
   })
 
+  // Round 13/14 mobile finding: the tab bar had no overflow handling, so
+  // "Attachments" got visually clipped past the card's edge at 375px with
+  // no scroll affordance -- flagged and reconfirmed live across 4
+  // consecutive rounds (5/7/9/11/13).
+  it("lets the tab bar scroll horizontally instead of clipping a tab label", () => {
+    renderPage()
+
+    const attachmentsTab = screen.getByRole("button", {
+      name: /organization\.findings\.tabAttachments/,
+    })
+    const tabBar = attachmentsTab.parentElement!
+
+    expect(tabBar).toHaveClass("overflow-x-auto")
+    expect(attachmentsTab).toHaveClass("shrink-0")
+    expect(attachmentsTab).toHaveClass("whitespace-nowrap")
+  })
+
   it("hides Edit and Delete for a VIEWER", () => {
     mockRole = "VIEWER"
     renderPage()

@@ -716,14 +716,22 @@ export default function FindingDetails() {
           {/* Left: Tabs Content */}
           <div className="space-y-4 lg:col-span-2">
             <div className="rounded-xl border border-border bg-card">
-              {/* Tab Navigation */}
-              <div className="flex border-b border-border px-4">
+              {/* Tab Navigation -- round 13/14 mobile finding: this row had
+                  no overflow handling, so the "Attachments" label got
+                  visually clipped past the card's right edge at 375px with
+                  no scroll affordance and no ellipsis, flagged and
+                  reconfirmed live in 4 consecutive rounds (5/7/9/11/13).
+                  overflow-x-auto lets the row scroll instead of clipping;
+                  shrink-0 stops flex from individually squishing each
+                  button's icon+label+count before the row would ever need
+                  to scroll. */}
+              <div className="flex overflow-x-auto border-b border-border px-4">
                 {TABS.map((tab) => (
                   <button
                     type="button"
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key)}
-                    className={`-mb-px flex items-center gap-2 border-b-2 px-3 py-3.5 text-sm font-medium transition-colors ${
+                    className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-3.5 text-sm font-medium whitespace-nowrap transition-colors ${
                       activeTab === tab.key
                         ? "border-primary text-primary"
                         : "border-transparent text-muted-foreground hover:text-foreground"
