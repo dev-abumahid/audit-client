@@ -334,3 +334,26 @@ than what's already shipped and could be picked up in a future round.
 accessibility, visual polish, industry-standards, and UX all had real
 work; this is a natural, comprehensive stopping point covering every
 axis round 1 flagged below floor.
+
+## Confirming re-score (industry-standards, UX)
+
+Round 7 left this loop paused without a fresh full panel confirming
+the cumulative effect of rounds 2-7. Resumed per the standing
+"resume the work on the floor gap ones" instruction -- dispatched a
+targeted judge to re-verify just the two axes round 1 originally
+flagged lowest (industry-standards 3, UX 6).
+
+**Result: both confirmed at 8/10, comfortably above the 7 floor.**
+Live-verified: the lead-auditor autocomplete (round 6) and status
+filter (round 7) both work correctly against the real backend
+(status filter correctly switches the query to limit=100 and hides
+the pager; edit modal's Lead Auditor field pre-fills and the
+datalist is wired correctly in source). Rounds 2-5's fixes (44px
+touch targets, isError handling, label associations, unified
+severity colors) all spot-checked still present.
+
+**This loop is now treated as converged** -- every axis round 1
+flagged below floor has been independently reconfirmed at or above
+it. Remaining items (status-transition shortcut on the card, org-wide
+stats beyond page scope) are smaller residual gaps already noted as
+future-round candidates, not floor concerns.

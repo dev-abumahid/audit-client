@@ -238,3 +238,24 @@ four rounds combined). This is a natural, comprehensive stopping point
 for the Templates page's own loop; the "keep going down the list of
 tabs" instruction now points to Inspections, Findings, Board Reports,
 and Settings.
+
+## Confirming re-score (industry-standards)
+
+Resumed per the standing "resume the work on the floor gap ones"
+instruction -- dispatched a targeted judge to re-verify
+industry-standards' cumulative state after rounds 3-5 (cloning,
+categories/tags, draft/publish), since no fresh full panel had run
+since PR #677 merged.
+
+**Result: 8/10, comfortably above the 7 floor** (round 1 was 3/10).
+Live-verified: cloning creates a real "(copy)" row against the actual
+backend; the new copy correctly starts DRAFT with a Publish button
+regardless of the source template's status. Categories/tags and the
+system-template protection confirmed present in source, consistent
+with prior rounds' own live verification.
+
+**This loop is now treated as converged on industry-standards** --
+the only genuinely open item is full version history/changelog/
+rollback, already characterized as a materially larger feature than
+the rest of this loop combined, and still the right thing to defer
+rather than force into a mechanical fix round.
