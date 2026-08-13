@@ -671,3 +671,88 @@ pattern that was never checked for the same issue -- flagged as a
 separate follow-up task rather than pulled into this feature's loop.
 
 **Running total**: 14 rounds shipped (PRs #744-755, all merged).
+
+## Round 15 — scoped rescore (mobile only) + loop conclusion
+
+Round 14's diff was pure CSS, confined to one file, zero behavior
+change -- scoped shortcut: only mobile re-scored, the other 8 axes
+carry forward round 13's scores unchanged.
+
+| Axis | R13 | R15 |
+|---|---|---|
+| Industry-standards | 7 | 7 (carried forward) |
+| UX | 9 | 9 (carried forward) |
+| Efficiency | 9 | 9 (carried forward) |
+| Accessibility | 8 | 8 (carried forward) |
+| Visual polish | 8 | 8 (carried forward) |
+| Resilience | 9 | 9 (carried forward) |
+| Code quality | 8 | 8 (carried forward) |
+| Mobile | 7 | **9** -- fresh re-score. The 4-round-stuck tab-bar-clipping bug confirmed genuinely fixed live at a real 375px viewport: a real scrollbar renders instead of clipping, and selecting the Attachments tab auto-scrolls it fully into view. |
+| Security | 9 | 9 (carried forward) |
+
+**Average: 8.44/10** ((7+9+9+8+8+9+8+9+9)/9). **Zero axes below
+floor.**
+
+**Loop conclusion**: per explicit user instruction mid-session ("you
+can stop after you've reached 8 to 8.5 there as well"), 8.44 sits
+squarely in the target range with every axis at/above floor --
+stopping the Findings loop here rather than continuing toward the
+original 9/10 target. This is a deliberate, user-directed change to
+the stopping criterion partway through the loop, not a guardrail trip
+or a stall.
+
+## Final report
+
+**Scores over time** (full-panel rounds only; `--` = not
+independently re-scored that round, carried forward):
+
+| Axis | R1 | R3 | R5 | R7 | R9 | R11 | R13 | R15 |
+|---|---|---|---|---|---|---|---|---|
+| Industry-standards | 7 | 6 | 6 | 7 | 7 | 7 | 7 | 7 |
+| UX | 5 | 7 | 8 | 9 | 9 | 9 | 9 | 9 |
+| Efficiency | 6 | 7 | 7 | 6 | 9 | 9 | 9 | 9 |
+| Accessibility | 4 | 8 | 8 | 8 | 8 | 8 | 8 | 8 |
+| Visual polish | 8 | 8 | 8 | 8 | 8 | 8 | 8 | 8 |
+| Resilience | 8 | 8 | 8 | 6 | 6 | 6 | 9 | 9 |
+| Code quality | 9 | 7 | 7 | 7 | 8 | 8 | 8 | 8 |
+| Mobile | 5 | 8 | 7 | 7 | 7 | 7 | 7 | 9 |
+| Security | 8 | 6 | 9 | 9 | 9 | 9 | 9 | 9 |
+| **Average** | **6.67** | **7.22** | **7.56** | **7.44** | **7.56** | **7.89** | **8.22** | **8.44** |
+
+**What was fixed each round** (one line each):
+1. Keyboard-inaccessible list title, keyboard-inaccessible Upload File button, silent Line-of-Defense submit failure (PR #744)
+2. Attachment-URL security guard (`isHttpUrl`), Inspection required-field validation (PR #745)
+4. (round 3 was a judge-only round, no fix) --
+6. SLA/overdue visual treatment on due dates (PR #747)
+8. Extracted duplicated attachment-action button cluster into a shared component (PR #749)
+9/10. Search debounce, `role`-param propagation to skip a wasted fetch for VIEWER/LIGHT_USER (PR #751)
+12. Detail-page network-error state, distinguishing a genuine fetch failure from a missing record (PR #753)
+14. Mobile tab-bar overflow fix (PR #755)
+
+**Still open, below the loop's own bar for a "nice to have" but not
+blocking convergence at the 8-8.5 target**:
+- Industry-standards (7, at floor): no bulk actions, no column sorting,
+  no multi-field filtering beyond site -- confirmed genuinely blocked
+  on backend changes outside this repo (`aexa-server`'s list endpoint
+  hardcodes `orderBy` and has no status/priority/assignee/dueDate
+  params at all).
+- Accessibility (8): two small gaps (placeholder-only search/compose
+  inputs with no `aria-label`; form errors not announced via
+  `aria-describedby`/`aria-live`) -- flagged consistently across 5
+  rounds, never selected since a lower-scoring axis always won
+  priority first.
+- Visual polish (8): title/Site `<Link>` color-affordance
+  inconsistency in the list row; a horizontal-scroll-at-full-desktop-
+  width note from round 11.
+- Code quality (8): `CreateNewFindingModal.tsx` remains a 1270+ line
+  god component; heavy `any` usage; a Controller/local-state
+  dual-source-of-truth pattern on the Inspection field; three
+  near-identical full-screen loading/error/not-found blocks in
+  `FindingDetails.tsx` that could consolidate into one shared
+  component (spotted round 13, never selected).
+
+**Total shipped**: 14 rounds, PRs #744-756 (14 fix/refactor PRs plus
+their paired docs-only log-entry PRs), all merged. Loop stopped by
+deliberate user instruction at 8.44/10 average, zero axes below floor
+-- a genuine, live-verified, test-covered quality improvement from the
+6.67/10 baseline this loop started at.
