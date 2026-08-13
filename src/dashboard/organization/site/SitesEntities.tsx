@@ -51,7 +51,6 @@ import {
   Shield,
   Sparkles,
   Trash2,
-  User,
   X,
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -455,6 +454,13 @@ export default function SitesEntities() {
             : t("organization.site&entities.siteCreatedSuccess")
         )
         closeSiteForm()
+      } else {
+        // quality-bar-loop round 12 (UX finding, open since round 1 --
+        // round 9/PR #789 fixed this same pattern for handleConfirmDelete
+        // but missed this handler): a non-throwing `success: false`
+        // response fell through silently -- no toast, modal stayed open
+        // with no indication anything went wrong.
+        toast.error(t("organization.site&entities.saveSiteFailed"))
       }
     } catch {
       toast.error(t("organization.site&entities.saveSiteFailed"))
@@ -1292,18 +1298,18 @@ export default function SitesEntities() {
                           ) : (
                             <UnscoredBadge />
                           )}
-                          <span
-                            className={`flex items-center gap-1 rounded p-1.5 text-[9px] font-medium ${risk.ai_generated ? "bg-accent/20 text-accent" : "bg-primary/10 text-primary"}`}
-                          >
-                            {risk.ai_generated ? (
-                              <Bot className="h-2.5 w-2.5" />
-                            ) : (
-                              <User className="h-2.5 w-2.5" />
-                            )}
-                            {risk.ai_generated
-                              ? t("organization.site&entities.aiGeneratedBadge")
-                              : t("organization.site&entities.manualBadge")}
-                          </span>
+                          {/* quality-bar-loop round 12 (visual-polish
+                              finding, open since round 1): this was a
+                              bespoke AI/Manual badge (its own color
+                              pairing, its own Bot/User icon swap)
+                              duplicating the already-imported SourceBadge
+                              component, which every other AI-sourced
+                              entity in the app (AuditPage, CompliancePage)
+                              already renders through. */}
+                          <SourceBadge
+                            aiGenerated={risk.ai_generated}
+                            isEdited={risk.is_edited}
+                          />
                           {canWrite && (
                             // quality-bar-loop round 5 (mobile): size="sm"
                             // resolves to h-6 (24px), roughly half the 44px

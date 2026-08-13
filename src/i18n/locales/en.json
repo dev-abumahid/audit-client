@@ -995,8 +995,6 @@
       "confirmedRisksHeading": "Confirmed risks (in the register)",
       "noConfirmedRisks": "No confirmed risks yet for this site.",
       "riskLoadFailed": "Failed to load risks for this site. Please try again later.",
-      "aiGeneratedBadge": "AI",
-      "manualBadge": "Manual",
       "deleteButton": "Delete",
       "addNewSiteTitle": "Add New Site",
       "editSiteTitle": "Edit Site Information",

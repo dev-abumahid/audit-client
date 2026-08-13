@@ -995,8 +995,6 @@
       "confirmedRisksHeading": "Risques confirmés (dans le registre)",
       "noConfirmedRisks": "Aucun risque confirmé pour ce site pour le moment.",
       "riskLoadFailed": "Échec du chargement des risques pour ce site. Veuillez réessayer plus tard.",
-      "aiGeneratedBadge": "IA",
-      "manualBadge": "Manuel",
       "deleteButton": "Supprimer",
       "addNewSiteTitle": "Ajouter un nouveau site",
       "editSiteTitle": "Modifier les informations du site",

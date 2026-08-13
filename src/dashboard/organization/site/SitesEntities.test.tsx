@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import React from "react"
 import { MemoryRouter } from "react-router"
@@ -876,6 +876,43 @@ describe("SitesEntities", () => {
     })
   })
 
+  // quality-bar-loop round 12 (UX finding, open since round 1 -- round 9
+  // fixed this same pattern for handleConfirmDelete but missed this
+  // handler): a non-throwing success: false response fell through
+  // silently -- no toast, modal stayed open with no indication anything
+  // went wrong.
+  it("shows an error toast when creating a site resolves with success: false", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+    mockCreateNewSite.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: false }),
+    })
+
+    const { container } = renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+    await userEvent.type(
+      container.querySelector('[name="name"]')!,
+      "New Factory"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.site&entities.add" })
+    )
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.site&entities.saveSiteFailed"
+      )
+    )
+  })
+
   it("pre-fills the edit form with existing site data", async () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,
@@ -1232,26 +1269,31 @@ describe("SitesEntities", () => {
         /organization\.site&entities\.confirmedRisksHeading/
       )
     ).toBeInTheDocument()
-    // Regression (audit round 3): the ai_generated/manual badge text
-    // ("🤖 AI" / "👤 Manual") was hardcoded English apart from the emoji.
-    expect(
-      screen.getByText(/organization\.site&entities\.manualBadge/)
-    ).toBeInTheDocument()
+    // quality-bar-loop round 12 (visual-polish finding, open since round
+    // 1): the bespoke ai_generated/manual badge was replaced with the
+    // shared SourceBadge component (common.sourceBadge.manual/ai), the
+    // same one AuditPage.tsx/CompliancePage.tsx already render through.
+    // Scoped to the confirmed-risk row (not the site-level SourceBadge
+    // rendered elsewhere on the same page, which also matches this same
+    // text) by finding the badge that's actually a descendant of the
+    // ref's own row container.
+    const riskRefRow = screen
+      .getByText("RSK-2026-0142")
+      .closest(".border-accent\\/30") as HTMLElement
+    const manualBadge = within(riskRefRow).getByText(
+      "common.sourceBadge.manual"
+    )
+    expect(manualBadge).toBeInTheDocument()
     // Regression (audit round 4 / #344): the ref/name row used gap-16
     // (a much larger gap than sibling rows in this file); confirmed risks
     // now use gap-2, matching the badge row directly below it.
     expect(screen.getByText("RSK-2026-0142").parentElement).toHaveClass(
       "gap-2"
     )
-    // Regression (#424): the manual (non-AI) badge paired bg-primary/10 with
-    // text-base -- a font-size utility, not a color -- so the badge never
-    // actually got colored. Assert the real color class is applied instead.
-    const manualBadge = screen.getByText(
-      /organization\.site&entities\.manualBadge/
-    )
-    expect(manualBadge).toHaveClass("bg-primary/10")
-    expect(manualBadge).toHaveClass("text-primary")
-    expect(manualBadge).not.toHaveClass("text-base")
+    // SourceBadge's own manual variant: bg-muted/text-muted-foreground,
+    // matching its established coloring everywhere else it's used.
+    expect(manualBadge).toHaveClass("bg-muted")
+    expect(manualBadge).toHaveClass("text-muted-foreground")
     // quality-bar-loop round 5 (mobile) first fixed this row's Delete
     // button (size="sm" = h-6, 24px tall) with a plain h-11 override, but
     // round 6 (visual-polish) found a 44px-tall button next to this row's
