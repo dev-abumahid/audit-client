@@ -425,3 +425,36 @@ validity checks (`canOpen`, and the independent re-checks inside
 `ReportCard` extraction is deferred -- a real Tier 3 refactor,
 disproportionate to a single round given the smaller fixes address
 this round's actual regressions directly.
+
+## Round 10 outcome
+
+Shipped via PR #766 (merged), single commit, review pass came back
+clean (no findings -- both TS-narrowing-artifact questions about
+"redundant" guards and the new test-mock flag were confirmed correct
+by design, not bugs):
+
+1. **Per-report Retry aria-label**: every FAILED card's Retry button
+   now gets `aria-label={t("organization.reports.retryFor", { title:
+   report.title })}` instead of relying on identical visible text
+   ("Retry") across every card.
+2. **Consolidated `file_url` validity check**: a new module-level
+   `canOpenReport(report)` replaces three previously-independent
+   checks (`canOpen`, `openPdf`'s guard, `downloadReport`'s guard) --
+   also fixes `canOpen` never having checked `isHttpUrl` at all, so
+   Preview/Download now correctly disable for a non-http(s) `file_url`
+   instead of looking clickable and silently no-op'ing.
+
+**QA**: lint clean, typecheck clean (same pre-existing, unrelated
+TS2556 failure on `main`). Full suite: 1992/1992 passing, including 2
+new regression tests with genuine negative controls. The aria-label
+test needed a small addition to the test file's shared i18n mock (a
+togglable `mockInterpolate` flag) since the file's usual raw-key-echo
+`t()` can't distinguish two different interpolated report titles.
+
+**Live verification**: confirmed in a fresh tab -- the Retry button's
+accessible name now reads "Retry generating Board Risk Report" via
+the accessibility tree (real i18next interpolation in production).
+All reports in this preview org happen to share that exact title, so
+they still look identical here, but that's a data coincidence, not a
+bug -- the unit test (with two deliberately distinct titles) proves
+the per-report mechanism itself works correctly.
