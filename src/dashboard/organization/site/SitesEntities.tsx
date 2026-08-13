@@ -1078,6 +1078,12 @@ export default function SitesEntities() {
                       </label>
                       <input
                         id={riskNameId}
+                        // quality-bar-loop round 18 (accessibility
+                        // finding, fresh audit): required fields had no
+                        // native required/aria-required -- validation was
+                        // JS-only, surfaced after submit rather than
+                        // announced up front to assistive tech.
+                        aria-required="true"
                         {...riskForm.register("name", {
                           required: t(
                             "organization.site&entities.riskNameRequired",
@@ -1114,6 +1120,7 @@ export default function SitesEntities() {
                       </label>
                       <select
                         id={riskStatusId}
+                        aria-required="true"
                         {...riskForm.register("status", {
                           required: t(
                             "organization.site&entities.riskStatusRequired",
@@ -1539,6 +1546,12 @@ export default function SitesEntities() {
                   </label>
                   <input
                     id={siteNameId}
+                    // quality-bar-loop round 18 (accessibility finding,
+                    // fresh audit): required fields had no native
+                    // required/aria-required -- validation was JS-only,
+                    // surfaced after submit rather than announced up
+                    // front to assistive tech.
+                    aria-required="true"
                     {...siteForm.register("name", {
                       required: t("organization.site&entities.nameRequired"),
                       // RHF's `required` rule only checks truthiness, so a

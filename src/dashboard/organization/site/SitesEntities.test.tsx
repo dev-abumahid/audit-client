@@ -921,6 +921,30 @@ describe("SitesEntities", () => {
     }
   })
 
+  // quality-bar-loop round 18 (accessibility finding, fresh audit):
+  // required fields had no native required/aria-required -- validation
+  // was JS-only, surfaced after submit rather than announced up front to
+  // assistive tech.
+  it("marks the Site Name field as aria-required", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+
+    expect(
+      screen.getByLabelText(/organization\.site&entities\.siteName/)
+    ).toHaveAttribute("aria-required", "true")
+  })
+
   // Regression (round 12 audit, aexa-frontend#498): RHF's `required` rule
   // only checks truthiness, so a whitespace-only name used to pass it and
   // silently fail an `if (!values.name.trim()) return` guard in handleSave
@@ -1715,6 +1739,31 @@ describe("SitesEntities", () => {
     ]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument()
     }
+  })
+
+  // quality-bar-loop round 18 (accessibility finding, fresh audit):
+  // required fields had no native required/aria-required.
+  it("marks the Risk Name and Status fields as aria-required", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.addRisk/i,
+      })
+    )
+
+    expect(
+      screen.getByLabelText(/organization\.site&entities\.riskNameLabel/)
+    ).toHaveAttribute("aria-required", "true")
+    expect(
+      screen.getByLabelText(/organization\.site&entities\.statusLabel/)
+    ).toHaveAttribute("aria-required", "true")
   })
 
   // Regression (audit round 3): the manual risk form's "Risk Name *",
