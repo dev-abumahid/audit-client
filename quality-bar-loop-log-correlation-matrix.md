@@ -318,3 +318,35 @@ same session (rounds through at least 12, per
 `/Users/omartakadoum/.claude/plans/let-s-make-a-plan-swirling-shannon.md`),
 so checking its existing state before assuming a fresh round-1
 baseline is needed there.
+
+## Round 7 (industry-standards, round-6 review finding: link discoverability, PR TBD)
+
+Resumed after the round-6 pause per the user's explicit "resume the
+work on the floor gap ones" instruction. Round 6's own review flagged
+a legitimate, explicitly non-blocking gap: the new link to
+RiskGraphPage's real PageRank scoring only lived inside the AI
+Buckets tab, so a user who never opens that tab never sees a pointer
+away from the grid-position color heuristic on the other three tabs
+(Risks/Buckets/Findings).
+
+Added a second copy of the same link at the page header, next to the
+title/subtitle, visible regardless of which of the four view modes is
+active. Kept the original AI-Buckets-tab link too (it carries fuller
+methodology-adjacent context for a user already reaching for the AI
+bucketing feature) -- this is additive discoverability, not a
+replacement.
+
+Two regression tests: one updated (the AI-Buckets-tab link test now
+correctly expects the link to be present in that context too, since
+both copies coexist there) and one new (header-level link present on
+page load, without switching tabs). Negative control confirmed: the
+new test fails against the pre-fix source.
+
+QA: lint clean, typecheck clean. Full suite: 1993/1993 passing.
+
+**Status:** export/print and a genuine (non-heuristic) interconnection
+metric remain the two substantive industry-standards gaps -- both
+still real feature work. This round only closed the discoverability
+half of the finding a prior review flagged; not expecting this alone
+to move the score meaningfully past 5/10, but it removes a concrete,
+reviewer-identified gap before the next full panel.

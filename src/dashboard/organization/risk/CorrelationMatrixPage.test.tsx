@@ -1238,12 +1238,28 @@ describe("CorrelationMatrixPage", () => {
     )
   })
 
-  // quality-bar-loop round 6 (industry-standards, round-1 finding): a
-  // matrix cell's color is a pure function of grid position, not a real
-  // interconnection metric -- while a genuine PageRank-based network
-  // view already exists at /organization/risk-graph, unreferenced from
-  // this page. This link surfaces it from the AI Buckets tab.
-  it("links to the full network analysis (PageRank graph) from the AI Buckets tab", async () => {
+  // quality-bar-loop round 7 (industry-standards, round-6 review finding):
+  // round 6's link to the real PageRank network view only lived inside the
+  // AI Buckets tab -- a user who never opens that tab never sees a pointer
+  // to the real interconnection metric. A header-level link is visible
+  // regardless of which of the four view modes is active.
+  it("links to the full network analysis from the page header, regardless of the active tab", () => {
+    render(<CorrelationMatrixPage />, withRouter)
+
+    // Default tab is "risks", not "ai-buckets" -- the header link must
+    // still be present without switching tabs.
+    const link = screen.getByRole("link", {
+      name: "organization.correlationMatrix.viewFullNetworkAnalysis",
+    })
+    expect(link).toHaveAttribute("href", "/organization/risk-graph")
+  })
+
+  // Round 7's second review pass: the AI Buckets tab used to carry its own
+  // (now-removed) copy of this same link, which became a duplicate once the
+  // header link covered every tab. Only one instance should ever render at
+  // a time -- a regression here would mean the in-tab copy silently crept
+  // back in alongside the header one.
+  it("does not duplicate the network-analysis link when the AI Buckets tab is active", async () => {
     render(<CorrelationMatrixPage />, withRouter)
 
     await userEvent.click(
@@ -1252,10 +1268,11 @@ describe("CorrelationMatrixPage", () => {
       })
     )
 
-    const link = screen.getByRole("link", {
+    const links = screen.getAllByRole("link", {
       name: "organization.correlationMatrix.viewFullNetworkAnalysis",
     })
-    expect(link).toHaveAttribute("href", "/organization/risk-graph")
+    expect(links).toHaveLength(1)
+    expect(links[0]).toHaveAttribute("href", "/organization/risk-graph")
   })
 
   it("triggers the AI root-cause bucketing mutation and renders real buckets", async () => {

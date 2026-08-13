@@ -558,6 +558,21 @@ export default function CorrelationMatrixPage() {
             )}
           </div>
           <p className="text-sm text-muted-foreground">{t(`${NS}.subtitle`)}</p>
+          {/* quality-bar-loop round 7 (industry-standards, round-6 review
+              finding): round 6's link to the real PageRank network view
+              only lived inside the AI Buckets tab -- a user who never opens
+              that tab never sees it, and every OTHER tab's cell colors are
+              still the grid-position heuristic with no visible pointer to
+              the real metric. Header-level placement is visible regardless
+              of which of the four view modes (Risks/Buckets/Findings/AI
+              Buckets) is active. */}
+          <Link
+            to="/organization/risk-graph"
+            className="mt-1 flex w-fit items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+          >
+            {t(`${NS}.viewFullNetworkAnalysis`)}
+            <ArrowRight className="h-3 w-3" />
+          </Link>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -1114,19 +1129,13 @@ export default function CorrelationMatrixPage() {
                   finding): a cell's color here is a pure function of grid
                   position, not a real interconnection metric -- while a
                   genuine PageRank-based network view already exists at
-                  /organization/risk-graph, unreferenced from this page.
-                  Surfaced here (the AI Buckets tab, this page's own
-                  closest concept to "real" interconnection scoring)
-                  rather than buried lower, since a user reaching for AI
-                  bucketing is already looking for the same thing the
-                  graph page answers more directly. */}
-              <Link
-                to="/organization/risk-graph"
-                className="mb-4 flex w-fit items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-              >
-                {t(`${NS}.viewFullNetworkAnalysis`)}
-                <ArrowRight className="h-3 w-3" />
-              </Link>
+                  /organization/risk-graph. Round 6 put a link to it here;
+                  round 7 review flagged that as invisible on the other 3
+                  tabs, so round 7 added a second copy at the page header
+                  (visible on every tab, see above) and removed this one --
+                  two identical, visually-adjacent "View full network
+                  analysis" links on this one tab read as accidental
+                  duplication, not a deliberate second CTA. */}
 
               {aiResult ? (
                 <div className="space-y-4">
