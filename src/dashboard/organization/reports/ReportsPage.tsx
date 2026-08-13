@@ -6,6 +6,7 @@ import {
   usePublishReportMutation,
 } from "@/redux/apis/organization/report.api"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { isHttpUrl } from "@/utils/isHttpUrl"
 import { severityBadgeClasses } from "@/utils/severityStyles"
 import {
   AlertTriangle,
@@ -61,7 +62,17 @@ export default function ReportsPage() {
   // Reactive polling interval: driven off the data below. 0 = no polling.
   const [pollingInterval, setPollingInterval] = useState(0)
 
-  const { data: reportData, isLoading } = useGetAllReportsQuery(
+  // Round 1/2 resilience finding: this query never checked isError, the
+  // same bug class FindingDetails.tsx was fixed for this session -- a
+  // genuine fetch failure silently fell through to the same "No reports
+  // yet" empty state as a real zero-reports org, live-reproduced by
+  // briefly stopping the backend.
+  const {
+    data: reportData,
+    isLoading,
+    isError: reportsError,
+    refetch: refetchReports,
+  } = useGetAllReportsQuery(
     {
       page: 1,
       limit: 100,
@@ -124,8 +135,16 @@ export default function ReportsPage() {
     }
   }
 
+  // Round 1/2 security finding: report.file_url is server-returned data
+  // reaching window.open()/an anchor href with no scheme guard -- the
+  // exact bug class isHttpUrl() exists to prevent (already applied in
+  // FindingDetails.tsx, MediaThumbnail.tsx, InspectionReport.tsx, and
+  // others), just never imported here. noopener alone only blocks
+  // reverse-tabnabbing, not a javascript:/data: URL reaching the sink.
   const openPdf = (report: Report) => {
-    if (report.file_url) window.open(report.file_url, "_blank", "noopener")
+    if (report.file_url && isHttpUrl(report.file_url)) {
+      window.open(report.file_url, "_blank", "noopener")
+    }
   }
 
   // Preview and Download used to share openPdf(), which only ever opens the
@@ -140,7 +159,7 @@ export default function ReportsPage() {
   // would otherwise be read as path separators and mangle/truncate the
   // downloaded filename. Strip filesystem-unsafe characters first.
   const downloadReport = (report: Report) => {
-    if (!report.file_url) return
+    if (!report.file_url || !isHttpUrl(report.file_url)) return
     const safeTitle = report.title
       .replace(/[\\/:*?"<>|]+/g, "_")
       .trim()
@@ -327,7 +346,23 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {!isLoading && reports.length === 0 && (
+        {!isLoading && reportsError && (
+          <div role="alert" className="col-span-full py-12 text-center">
+            <AlertTriangle className="mx-auto h-8 w-8 text-destructive" />
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t("organization.reports.loadError")}
+            </p>
+            <button
+              type="button"
+              onClick={() => refetchReports()}
+              className="mx-auto mt-4 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              {t("organization.reports.retryLoad")}
+            </button>
+          </div>
+        )}
+
+        {!isLoading && !reportsError && reports.length === 0 && (
           <div className="col-span-full py-12 text-center">
             <FileText className="mx-auto h-8 w-8 text-muted-foreground/50" />
             <p className="mt-2 text-sm text-muted-foreground">

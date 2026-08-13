@@ -491,4 +491,152 @@ describe("ReportsPage", () => {
       expect(button.type).toBe("button")
     })
   })
+
+  // Round 1/2 security finding: report.file_url is server-returned data
+  // reaching window.open()/an anchor href with no scheme guard, the same
+  // bug class isHttpUrl() already guards against in FindingDetails.tsx.
+  describe("attachment URL guard (round 1/2)", () => {
+    it("does not open a non-http(s) file_url in a new tab when Preview is clicked", async () => {
+      const user = userEvent.setup()
+      const openSpy = vi.spyOn(window, "open").mockImplementation(() => null)
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeReport({ status: "READY", file_url: "javascript:alert(1)" }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<ReportsPage />)
+
+      await user.click(
+        screen.getByRole("button", { name: /organization\.reports\.preview/i })
+      )
+
+      expect(openSpy).not.toHaveBeenCalled()
+      openSpy.mockRestore()
+    })
+
+    it("does not build a download link from a non-http(s) file_url when Download is clicked", async () => {
+      const user = userEvent.setup()
+      const clickSpy = vi
+        .spyOn(HTMLAnchorElement.prototype, "click")
+        .mockImplementation(() => {})
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeReport({ status: "READY", file_url: "javascript:alert(1)" }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<ReportsPage />)
+
+      await user.click(
+        screen.getByRole("button", { name: /organization\.reports\.download/i })
+      )
+
+      expect(clickSpy).not.toHaveBeenCalled()
+      clickSpy.mockRestore()
+    })
+
+    it("still opens a legitimate https file_url in a new tab (control case)", async () => {
+      const user = userEvent.setup()
+      const openSpy = vi.spyOn(window, "open").mockImplementation(() => null)
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: { data: [makeReport({ status: "READY" })] },
+        isLoading: false,
+      })
+
+      render(<ReportsPage />)
+
+      await user.click(
+        screen.getByRole("button", { name: /organization\.reports\.preview/i })
+      )
+
+      expect(openSpy).toHaveBeenCalledWith(
+        "https://cdn.example/report.pdf",
+        "_blank",
+        "noopener"
+      )
+      openSpy.mockRestore()
+    })
+  })
+
+  // Round 1/2 resilience finding: this query never checked isError, the
+  // same bug class FindingDetails.tsx was fixed for -- a genuine fetch
+  // failure fell through to the same empty-state UI as zero real reports.
+  describe("list load-error state (round 1/2)", () => {
+    it("shows a distinct load-error state, not the empty state, when the query fails", () => {
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        refetch: vi.fn(),
+      })
+
+      render(<ReportsPage />)
+
+      expect(
+        screen.getByText("organization.reports.loadError")
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.reports.empty")
+      ).not.toBeInTheDocument()
+    })
+
+    it("still shows the empty state for a genuinely empty org (isError false)", () => {
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      })
+
+      render(<ReportsPage />)
+
+      expect(
+        screen.getByText("organization.reports.empty")
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.reports.loadError")
+      ).not.toBeInTheDocument()
+    })
+
+    it("announces the load-error state to screen readers via role=alert", () => {
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        refetch: vi.fn(),
+      })
+
+      render(<ReportsPage />)
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "organization.reports.loadError"
+      )
+    })
+
+    it("retries the query when Retry is clicked on the load-error state", async () => {
+      const user = userEvent.setup()
+      const mockRefetch = vi.fn()
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        refetch: mockRefetch,
+      })
+
+      render(<ReportsPage />)
+
+      await user.click(
+        screen.getByRole("button", { name: "organization.reports.retryLoad" })
+      )
+
+      expect(mockRefetch).toHaveBeenCalled()
+    })
+  })
 })

@@ -804,6 +804,8 @@
       "publish": "Publier",
       "publishing": "Publication...",
       "empty": "Aucun rapport pour le moment. Générez-en un avec l'IA ci-dessus.",
+      "loadError": "Échec du chargement des rapports. Veuillez réessayer.",
+      "retryLoad": "Réessayer",
       "failedHint": "La génération a échoué. Veuillez réessayer.",
       "generateSuccess": "Rapport généré avec succès.",
       "generateFailed": "Échec de la génération du rapport. Veuillez réessayer.",

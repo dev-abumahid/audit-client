@@ -804,6 +804,8 @@
       "publish": "Publish",
       "publishing": "Publishing...",
       "empty": "No reports yet. Generate one with AI above.",
+      "loadError": "Failed to load reports. Please try again.",
+      "retryLoad": "Retry",
       "failedHint": "Generation failed. Please try generating again.",
       "generateSuccess": "Report generated successfully.",
       "generateFailed": "Failed to generate report. Please try again.",
