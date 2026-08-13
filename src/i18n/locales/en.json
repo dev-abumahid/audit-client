@@ -1604,6 +1604,7 @@
       }
     },
     "findings": {
+      "overdueLabel": "Overdue",
       "allTitle": "All Findings",
       "totalCount": "{{count}} total",
       "filteredByOpenStatus": "Showing open actions only",

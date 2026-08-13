@@ -213,3 +213,60 @@ Round 1's finding review (2 parallel angles: correctness, security-
 completeness) both came back with zero findings -- the security-
 completeness pass specifically traced every attachment-URL sink in the
 file end to end and confirmed no residual unfiltered path exists.
+
+## Round 5 — fresh 9-judge panel
+
+Round 4's diff touched real logic in two files (a security guard, a
+form-validation rewrite), so this round re-ran the full panel.
+
+| Axis | R3 | R5 | Note |
+|---|---|---|---|
+| Industry-standards | 6 | 6 | Unchanged. Same four gaps confirmed still live: no column sorting, no bulk actions, no status/priority/assignee/due-date filtering beyond site, no SLA/overdue visual treatment (a finding well past due renders identically to one not yet due), audit trail still free-text Messages only. None of round 4's fixes touch this axis's surface. |
+| UX | 7 | 8 | Round 4's Inspection fix confirmed correct by code (exact mirror of the already-live-verified Line of Defense pattern) but the judge's own live click-through was blocked by the shared dev server's 429 rate limiter -- docked one point for partial-only live confirmation, not a code defect. No new UX friction found. |
+| Efficiency | 7 | 7 | Unchanged, live-reproduced. Both R3 findings (no search debounce; `useMyAssignedInspectionIds()` called without its opt-in `role` param at all 3 call sites despite `role` already being resolved locally in each) confirmed still present and unaddressed -- neither was in round 4's scope. |
+| Accessibility | 8 | 8 | R3's aria-label gap (search input, Messages compose input) still open, unaddressed. R4's new Inspection field got the asterisk/`aria-required` half of the established pattern right (matches Line of Defense exactly) but not the missing half: neither Inspection's nor Line of Defense's inline error has `aria-describedby`/`aria-live`, so a screen-reader user gets no announcement on a rejected submit -- not a regression (R4 replicated a pre-existing gap, didn't introduce a new one), but real. |
+| Visual polish | 8 | 8 | R3's title-Link-vs-Site-Link color inconsistency confirmed still present (screenshotted live). R4's Inspection asterisk is byte-identical to Line of Defense's -- no new inconsistency introduced. One new minor note: Inspection is a stacked full-width field while its Action Details siblings are horizontal label-left/select-right rows -- pre-existing, not R4's scope. |
+| Resilience | 8 | 8 | R3's `isError` gap in `FindingDetails.tsx` confirmed still present and live-reproduced this round via an actual 429 response rendering the same "Finding Not Found" UI as a genuine missing record. `safeAttachments` (R4's own addition) verified resilient -- `isHttpUrl` safely handles non-strings, and the code path can't reach it with malformed `data` anyway (early-returns at the `!action` guard first). |
+| Code quality | 7 | 7 | Unchanged/still at floor. God component and attachment-UI duplication persist and slightly grew (1224→1270 lines). New finding: R4's Inspection field is dual-source-of-truth -- `value` is bound to `selectedInspectionId` local state, not Controller's `field.value`, kept in sync only by convention across `field.onChange` + `handleInspectionChange`'s own `setValue` call. R4's own review called this "harmless redundancy"; this round's judge flags it as a real smell regardless of harm-so-far. |
+| Mobile | 8 | **7** | Regressed one point, stays at/above floor (7 = floor exactly) -- not a hard-stop guardrail trip. R3's tab-bar-clipping finding (`FindingDetails.tsx`, no `overflow-x-auto`/`flex-wrap` on the Details/Messages/Attachments tab row) confirmed still unfixed by code; judge's own live mobile screenshot was blocked by the same 429 rate-limiting that hit several judges this round. Held down partly for the two-round-unaddressed issue, partly for incomplete live confirmation. |
+| Security | 6 | **9** | R4's `isHttpUrl()` fix independently re-verified end-to-end by a fresh judge instance -- every attachment-URL sink (images grid, files list, tab badge, `PreviewModal`, `downloadFile`) confirmed routed through `safeAttachments`, no residual gap. Noted `CreateNewFindingModal.tsx`'s own equivalent guard is unchanged and still correct, confirming the pattern is now applied consistently across both files. Upload-validation asymmetry (still open, correctly out of scope) re-confirmed as low-severity, not blocking. |
+
+**Average: 7.56/10** ((6+8+7+8+8+8+7+7+9)/9). **One axis below floor**
+(industry-standards, 6) -- not converged, loop continues.
+
+**Regression check (guardrail)**: mobile dropped 8→7, which per the
+skill's tiered guardrail is "regressed but stays at/above floor" (7 =
+floor exactly, not below it) -- logged, gets one round's selection
+priority per step 5c.3, but does NOT trip the hard-stop guardrail
+(which only fires on a drop *below* floor). No axis dropped below its
+own floor this round. Security's 6→9 jump and industry-standards'
+flat 6→6 both read as expected given round 4's actual diff (security
+fix landed and is confirmed complete; industry-standards' surface was
+never touched).
+
+**Round 6 selection:** industry-standards is the only axis at/below
+floor this round. `stuck_streak` computation (per the log's R1/R3/R5
+full-panel history, R2/R4 didn't re-score this axis): R1→R3 changed
+(7→6, streak resets), R3→R5 unchanged AND at/below floor (6→6, both
+<7) → `stuck_streak = 1`. No `data-correctness`/`security` finding
+sits at/below floor this round (security is now 9), so selection falls
+to highest `stuck_streak` -- industry-standards, the only nonzero
+candidate, wins by rule 5c.2 outright (mobile's regressed-but-
+above-floor tier only applies "otherwise," after this check).
+
+**Fix selection within the axis**: of industry-standards' four
+open gaps (no sorting, no bulk actions, no SLA/overdue treatment, no
+structured audit trail), sorting and bulk actions are Tier 3
+(new interaction model, selection state, toolbar) and a structured
+audit trail is a genuine new data concept (a change-history entity
+distinct from Messages) -- both disproportionate to a single round.
+SLA/overdue visual treatment is Tier 2: `dueDate` already exists on
+every finding, so this is purely derived-and-rendered, no new field or
+endpoint. Selected as this round's fix. Not batching in mobile's
+regressed tab-bar finding despite its own selection-priority bump --
+the overdue treatment touches due-date rendering in both
+`AllFindingsPage.tsx` AND `FindingDetails.tsx` (confirmed by the
+resilience judge's own citation of both files' due-date rendering
+code), and the tab-bar fix also touches `FindingDetails.tsx` --
+same-file simultaneous edits stay sequential per the skill's batching
+rule, so mobile's fix is deferred to a later round instead.

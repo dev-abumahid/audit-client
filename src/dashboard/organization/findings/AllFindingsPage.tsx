@@ -13,10 +13,12 @@ import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { IAction } from "@/types/finding"
 import { canWriteInspection } from "@/utils/assignmentScope"
+import { isFindingOverdue } from "@/utils/findingOverdue"
 import { formatLocaleDate } from "@/utils/formatDate"
-import { severityBadgeClasses } from "@/utils/severityStyles"
+import { severityBadgeClasses, SEVERITY_STYLES } from "@/utils/severityStyles"
 import type { TFunction } from "i18next"
 import {
+  AlertTriangle,
   ChevronsUpDown,
   Clock,
   Edit2,
@@ -450,6 +452,7 @@ export default function AllFindingsPage() {
                         action.inspectionId,
                         assignedInspectionIds
                       )
+                      const overdue = isFindingOverdue(action)
                       return (
                       // Round 2 accessibility finding: this row's onClick
                       // navigation had no keyboard equivalent -- for an
@@ -560,17 +563,35 @@ export default function AllFindingsPage() {
                           </span>
                         </td>
 
-                        {/* Due Date */}
+                        {/* Due Date -- round 6 industry-standards finding:
+                            a finding past its due date used to render
+                            identically to one not yet due. Same critical-
+                            text-plus-label treatment CompliancePage.tsx
+                            already established for the same concept there. */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
                             <Clock
                               size={14}
-                              className="text-muted-foreground"
+                              className={
+                                overdue
+                                  ? SEVERITY_STYLES.critical.text
+                                  : "text-muted-foreground"
+                              }
                             />
-                            <span className="text-sm text-foreground">
+                            <span
+                              className={`text-sm ${overdue ? `font-bold ${SEVERITY_STYLES.critical.text}` : "text-foreground"}`}
+                            >
                               {formatDate(action.dueDate, i18n.language)}
                             </span>
                           </div>
+                          {overdue && (
+                            <span
+                              className={`mt-0.5 flex items-center gap-1 text-[10px] font-medium ${SEVERITY_STYLES.critical.text}`}
+                            >
+                              <AlertTriangle className="h-2.5 w-2.5" />
+                              {t("organization.findings.overdueLabel")}
+                            </span>
+                          )}
                         </td>
 
                         {/* Messages */}

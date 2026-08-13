@@ -288,6 +288,52 @@ describe("FindingDetails", () => {
     })
   })
 
+  // Round 6 industry-standards finding: an overdue finding used to render
+  // identically to one not yet due in the Timeline section.
+  describe("overdue due dates (round 6)", () => {
+    it("shows an Overdue label for a TO_DO finding whose due date has passed", () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            status: "TO_DO",
+            dueDate: "2020-01-01T00:00:00.000Z",
+          }),
+        },
+        isLoading: false,
+      })
+      renderPage()
+
+      expect(
+        screen.getByText("organization.findings.overdueLabel")
+      ).toBeInTheDocument()
+    })
+
+    it("does not show an Overdue label for a finding whose due date is in the future", () => {
+      renderPage()
+
+      expect(
+        screen.queryByText("organization.findings.overdueLabel")
+      ).not.toBeInTheDocument()
+    })
+
+    it("does not show an Overdue label for a CANT_DO finding even with a past due date", () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            status: "CANT_DO",
+            dueDate: "2020-01-01T00:00:00.000Z",
+          }),
+        },
+        isLoading: false,
+      })
+      renderPage()
+
+      expect(
+        screen.queryByText("organization.findings.overdueLabel")
+      ).not.toBeInTheDocument()
+    })
+  })
+
   it("renders actionDisc as literal text and does not execute injected HTML (XSS regression, #107)", async () => {
     const payload = "<img src=x onerror=alert(1)>"
     mockUseGetFindingByIdQuery.mockReturnValue({

@@ -4,7 +4,8 @@ import { useMyAssignedInspectionIds } from "@/hooks/useMyAssignments"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteInspection } from "@/utils/assignmentScope"
-import { severityBadgeClasses } from "@/utils/severityStyles"
+import { isFindingOverdue } from "@/utils/findingOverdue"
+import { severityBadgeClasses, SEVERITY_STYLES } from "@/utils/severityStyles"
 import {
   useAddFindingMessageMutation,
   useDeleteFindingByIdMutation,
@@ -14,6 +15,7 @@ import {
 } from "@/redux/apis/organization/findings.api"
 import {
   AlertCircle,
+  AlertTriangle,
   Calendar,
   CheckCircle,
   ChevronLeft,
@@ -392,6 +394,7 @@ export default function FindingDetails() {
   // button, and PreviewModal, since previewUrl only ever gets set from an
   // already-filtered url).
   const safeAttachments = action.attachments.filter(isHttpUrl)
+  const overdue = isFindingOverdue(action)
 
   const handleUploadAttachment = async (file: File) => {
     setIsUploadingAttachment(true)
@@ -686,17 +689,46 @@ export default function FindingDetails() {
                         {t("organization.findings.timeline")}
                       </p>
                       <div className="space-y-3">
+                        {/* Round 6 industry-standards finding: an overdue
+                            finding used to render identically to one not
+                            yet due. Same treatment AllFindingsPage.tsx's
+                            due-date column and CompliancePage.tsx's own
+                            overdue column already use. */}
                         <div className="flex items-center gap-3 text-sm">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                            <Calendar className="h-4 w-4 text-primary" />
+                          <div
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                              overdue ? "bg-destructive/10" : "bg-primary/10"
+                            }`}
+                          >
+                            <Calendar
+                              className={`h-4 w-4 ${
+                                overdue
+                                  ? SEVERITY_STYLES.critical.text
+                                  : "text-primary"
+                              }`}
+                            />
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">
                               {t("organization.findings.dueDate")}
                             </p>
-                            <p className="font-medium text-foreground">
+                            <p
+                              className={`font-medium ${
+                                overdue
+                                  ? SEVERITY_STYLES.critical.text
+                                  : "text-foreground"
+                              }`}
+                            >
                               {formatDate(action.dueDate)}
                             </p>
+                            {overdue && (
+                              <span
+                                className={`mt-0.5 flex items-center gap-1 text-[10px] font-medium ${SEVERITY_STYLES.critical.text}`}
+                              >
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                {t("organization.findings.overdueLabel")}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-3 text-sm">

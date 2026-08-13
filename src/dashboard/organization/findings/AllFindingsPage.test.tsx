@@ -291,6 +291,71 @@ describe("AllFindingsPage", () => {
     expect(screen.getByText(expected)).toBeInTheDocument()
   })
 
+  // Round 6 industry-standards finding: a finding past its due date used
+  // to render identically to one not yet due -- no visual distinction at
+  // all, unlike every reference GRC tool in this category.
+  describe("overdue due dates (round 6)", () => {
+    it("shows an Overdue label for a TO_DO finding whose due date has passed", () => {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAction({ status: "TO_DO", dueDate: "2020-01-01T00:00:00.000Z" }),
+          ],
+          meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+        refetch: vi.fn(),
+      })
+
+      render(<AllFindingsPage />, withRouter)
+
+      expect(
+        screen.getByText("organization.findings.overdueLabel")
+      ).toBeInTheDocument()
+    })
+
+    it("does not show an Overdue label for a finding whose due date is in the future", () => {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAction({ status: "TO_DO", dueDate: "2099-07-01T00:00:00.000Z" }),
+          ],
+          meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+        refetch: vi.fn(),
+      })
+
+      render(<AllFindingsPage />, withRouter)
+
+      expect(
+        screen.queryByText("organization.findings.overdueLabel")
+      ).not.toBeInTheDocument()
+    })
+
+    it("does not show an Overdue label for a COMPLETE finding even with a past due date", () => {
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAction({
+              status: "COMPLETE",
+              dueDate: "2020-01-01T00:00:00.000Z",
+            }),
+          ],
+          meta: { page: 1, limit: 20, total: 1, totalPage: 1 },
+        },
+        isLoading: false,
+        refetch: vi.fn(),
+      })
+
+      render(<AllFindingsPage />, withRouter)
+
+      expect(
+        screen.queryByText("organization.findings.overdueLabel")
+      ).not.toBeInTheDocument()
+    })
+  })
+
   it("hides Create Finding, Edit and Delete for a VIEWER", () => {
     mockRole = "VIEWER"
     render(<AllFindingsPage />, withRouter)

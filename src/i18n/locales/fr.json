@@ -1604,6 +1604,7 @@
       }
     },
     "findings": {
+      "overdueLabel": "En retard",
       "allTitle": "Tous les constats",
       "totalCount": "{{count}} au total",
       "filteredByOpenStatus": "Affichage des actions ouvertes uniquement",
