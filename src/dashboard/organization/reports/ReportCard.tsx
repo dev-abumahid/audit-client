@@ -15,11 +15,17 @@ import {
 import { useTranslation } from "react-i18next"
 import { canOpenReport } from "./canOpenReport"
 
+// quality-bar-loop (Board Reports, round 13 visual-polish finding, open
+// since round 3): FAILED hardcoded its own bg-destructive/10 pairing
+// instead of routing through severityBadgeClasses() like every other
+// status here -- "critical" is the closest semantic match, and (per this
+// util's own header comment) is verified to clear 4.5:1 contrast in both
+// themes, unlike the raw destructive token this replaces.
 const STATUS_STYLES: Record<Report["status"], string> = {
   GENERATING: severityBadgeClasses("info"),
   READY: severityBadgeClasses("medium"),
   PUBLISHED: severityBadgeClasses("low"),
-  FAILED: "bg-destructive/10 text-destructive",
+  FAILED: severityBadgeClasses("critical"),
 }
 
 interface ReportCardProps {
@@ -95,8 +101,13 @@ export function ReportCard({
         </div>
 
         <div className="flex flex-col items-end gap-1">
+          {/* quality-bar-loop (Board Reports, round 13 visual-polish
+              finding, open since round 3): this badge used `rounded`
+              (small radius) while the status pill right below it uses
+              `rounded-full` -- two badges stacked in the same corner with
+              mismatched shapes. Matched to `rounded-full`. */}
           {report.ai_generated && (
-            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
               {t("organization.reports.aiBadge")}
             </span>
           )}
