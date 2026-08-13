@@ -78,12 +78,16 @@ const mockUseGetAllKriQuery = vi.fn()
 const mockUseGetAllRisksQuery = vi.fn()
 const mockCreateKri = vi.fn()
 const mockSubmitKriValue = vi.fn()
+const mockUpdateKri = vi.fn()
+const mockDeleteKri = vi.fn()
 const mockUseGetKriReadingsQuery = vi.fn()
 
 vi.mock("@/redux/apis/organization/kri.api", () => ({
   useGetAllKriQuery: (...args: unknown[]) => mockUseGetAllKriQuery(...args),
   useCreateNewKriMutation: () => [mockCreateKri],
   useSubmitKriValueMutation: () => [mockSubmitKriValue],
+  useUpdateKriMutation: () => [mockUpdateKri],
+  useDeleteKriMutation: () => [mockDeleteKri],
   useGetKriReadingsQuery: (...args: unknown[]) =>
     mockUseGetKriReadingsQuery(...args),
 }))
@@ -162,6 +166,8 @@ describe("KriDashboardPage", () => {
     mockUseGetAllAlertsQuery.mockReset()
     mockCreateKri.mockReset()
     mockSubmitKriValue.mockReset()
+    mockUpdateKri.mockReset()
+    mockDeleteKri.mockReset()
     mockUseGetKriReadingsQuery.mockReset()
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
@@ -706,6 +712,190 @@ describe("KriDashboardPage", () => {
 
     expect(mockToastError).toHaveBeenCalledWith("organization.kri.toast.enterValidNumber")
     expect(mockSubmitKriValue).not.toHaveBeenCalled()
+  })
+
+  // Round-5 industry-standards finding: updateKri/deleteKri existed
+  // server-side with zero frontend consumer -- a KRI's own fields could
+  // never be corrected, and a mistakenly created one could never be
+  // removed, without going around the UI.
+  describe("edit KRI (round 5)", () => {
+    it("shows the Edit button for a write-capable role", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      renderPage()
+
+      expect(
+        screen.getByTitle("organization.kri.editTooltip")
+      ).toBeInTheDocument()
+    })
+
+    it("hides the Edit and Delete buttons for a read-only role", () => {
+      mockRole = "VIEWER"
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      renderPage()
+
+      expect(
+        screen.queryByTitle("organization.kri.editTooltip")
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTitle("organization.kri.deleteTooltip")
+      ).not.toBeInTheDocument()
+    })
+
+    it("pre-fills the edit form with the KRI's current fields and saves the changes", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: {
+          data: [
+            makeKri({
+              name: "Failed Login Attempts",
+              unit: "count",
+              alert_threshold: 50,
+              target_value: 10,
+              frequency: "weekly",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockUpdateKri.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      renderPage()
+      await userEvent.click(screen.getByTitle("organization.kri.editTooltip"))
+
+      const nameInput = screen.getByDisplayValue("Failed Login Attempts")
+      await userEvent.clear(nameInput)
+      await userEvent.type(nameInput, "Failed Logins")
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.kri\.save/i })
+      )
+
+      await waitFor(() =>
+        expect(mockUpdateKri).toHaveBeenCalledWith({
+          id: "kri-1",
+          data: {
+            name: "Failed Logins",
+            unit: "count",
+            alert_threshold: 50,
+            target_value: 10,
+            frequency: "weekly",
+          },
+        })
+      )
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        "organization.kri.toast.edited"
+      )
+    })
+
+    it("rejects saving when target and alert threshold are equal, same rule as create", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ alert_threshold: 80, target_value: 10 })] },
+        isLoading: false,
+      })
+
+      renderPage()
+      await userEvent.click(screen.getByTitle("organization.kri.editTooltip"))
+
+      const targetInput = screen.getByDisplayValue("10")
+      await userEvent.clear(targetInput)
+      await userEvent.type(targetInput, "80")
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.kri\.save/i })
+      )
+
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.kri.toast.thresholdMustDiffer"
+      )
+      expect(mockUpdateKri).not.toHaveBeenCalled()
+    })
+
+    it("shows an error toast when the edit mutation fails", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      mockUpdateKri.mockReturnValue({
+        unwrap: () =>
+          Promise.reject({ data: { message: "edit backend error" } }),
+      })
+
+      renderPage()
+      await userEvent.click(screen.getByTitle("organization.kri.editTooltip"))
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.kri\.save/i })
+      )
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith("edit backend error")
+      )
+    })
+  })
+
+  describe("delete KRI (round 5)", () => {
+    it("deletes the KRI after confirming in the dialog", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ id: "kri-9", name: "Stale KRI" })] },
+        isLoading: false,
+      })
+      mockDeleteKri.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByTitle("organization.kri.deleteTooltip")
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "common.deleteAlertModal.delete" })
+      )
+
+      await waitFor(() => expect(mockDeleteKri).toHaveBeenCalledWith("kri-9"))
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        "organization.kri.toast.deleted"
+      )
+    })
+
+    it("does not delete the KRI if the confirm dialog is cancelled", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByTitle("organization.kri.deleteTooltip")
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "common.deleteAlertModal.cancel" })
+      )
+
+      expect(mockDeleteKri).not.toHaveBeenCalled()
+    })
+
+    it("shows an error toast when the delete mutation fails", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      mockDeleteKri.mockReturnValue({
+        unwrap: () =>
+          Promise.reject({ data: { message: "delete backend error" } }),
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByTitle("organization.kri.deleteTooltip")
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "common.deleteAlertModal.delete" })
+      )
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith("delete backend error")
+      )
+    })
   })
 
   // aexa-server#242 / aexa-frontend#211

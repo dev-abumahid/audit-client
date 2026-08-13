@@ -301,6 +301,11 @@
       "overdueLabel": "Overdue",
       "updateValueTitle": "Update value",
       "updateValueTooltip": "Update current value",
+      "editTooltip": "Edit KRI",
+      "deleteTooltip": "Delete KRI",
+      "editKriTitle": "Edit KRI",
+      "deleteConfirmTitle": "Delete this KRI?",
+      "deleteConfirmDescription": "This will permanently delete \"{{name}}\" and its full reading history. This cannot be undone.",
       "trend": {
         "viewTooltip": "View trend",
         "modalTitle": "Trend — {{name}}",
@@ -337,7 +342,11 @@
         "createFailed": "Failed to create KRI",
         "enterValidNumber": "Enter a valid number",
         "valueUpdated": "KRI value updated",
-        "updateFailed": "Failed to update KRI value"
+        "updateFailed": "Failed to update KRI value",
+        "edited": "KRI updated successfully",
+        "editFailed": "Failed to update KRI",
+        "deleted": "KRI deleted",
+        "deleteFailed": "Failed to delete KRI"
       }
     },
     "templates": {

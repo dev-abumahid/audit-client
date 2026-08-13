@@ -230,3 +230,42 @@ full-panel re-score to confirm the exact current average, not yet run
 since round 4 was type-only). Per the standing "scope ambiguous things,
 keep going down the list of tabs" instruction, moving to the next
 sidebar tab: Threat Intelligence.
+
+## Round 5 (industry-standards -- expose already-backend-supported edit/delete, PR TBD)
+
+Resumed per the standing "resume the work on the floor gap ones"
+instruction. Selected the most concrete item from industry-standards'
+open findings: `updateKri`/`deleteKri` mutations already existed
+server-side (`kri.api.ts` exported `useUpdateKriMutation`/
+`useDeleteKriMutation`) with zero frontend consumer -- a KRI's own
+fields (name/unit/thresholds/frequency) could never be corrected
+after creation, and a mistakenly created KRI could never be removed,
+without going around the UI entirely. Confirmed via a fresh read of
+`kri.api.ts` and `KriDashboardPage.tsx` (no Edit/Delete UI existed at
+all, only "update value" which submits a new *reading*, a different
+concept).
+
+Added an Edit button/modal (mirrors the New KRI modal's fields minus
+`risk_id`/`current_value`, which `update_kri`'s own backend schema
+doesn't accept) and a Delete button wired to the shared
+`DeleteAlertModal` confirm component already used elsewhere in the
+codebase. Both gated behind the existing `canWrite` check, same as
+the other write actions on this page.
+
+The larger remaining industry-standards items (threshold-direction
+config, export) and the code-quality item (892-line file, no
+React.memo-able card component) are unaddressed -- this round picked
+the one item that was genuinely just "wire up an existing backend
+capability," not new feature/design work.
+
+7 new regression tests, verified against a negative control
+(genuinely fail on the pre-fix source).
+
+**QA**: lint clean, typecheck clean repo-wide. Full suite:
+2011/2011 passing.
+
+**Live verification**: could not be completed this round -- same
+shared-backend rate-limit exhaustion documented in the Threat
+Intelligence round above (aexa-server's Redis-backed `apiLimiter`,
+300 req/15min, from this session's own heavy concurrent agent usage).
+Relied on the unit tests (with a genuine negative control) instead.

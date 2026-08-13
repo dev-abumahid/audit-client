@@ -1,10 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   useCreateNewKriMutation,
+  useDeleteKriMutation,
   useGetAllKriQuery,
   useGetKriReadingsQuery,
   useSubmitKriValueMutation,
+  useUpdateKriMutation,
 } from "@/redux/apis/organization/kri.api"
+import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import FilteredByNotice from "@/components/shared/FilteredByNotice"
 import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
@@ -26,6 +29,8 @@ import {
   Pencil,
   Plus,
   Save,
+  Settings2,
+  Trash2,
   TrendingUp,
   X,
 } from "lucide-react"
@@ -48,6 +53,20 @@ const EMPTY_KRI = {
   risk_id: "",
   unit: "",
   current_value: 0,
+  target_value: 0,
+  alert_threshold: 0,
+  frequency: "monthly",
+}
+
+// Round-5 industry-standards finding: the backend's updateKri/deleteKri
+// endpoints existed with zero frontend consumer -- a KRI's name, unit, or
+// thresholds could never be corrected after creation, and a mistakenly
+// created KRI could never be removed, without going around the UI
+// entirely. Mirrors EMPTY_KRI's shape minus risk_id/current_value, which
+// update_kri's own zod schema on aexa-server explicitly doesn't accept.
+const EMPTY_EDIT_KRI = {
+  name: "",
+  unit: "",
   target_value: 0,
   alert_threshold: 0,
   frequency: "monthly",
@@ -96,6 +115,8 @@ export default function KriDashboardPage() {
   const { data: alertsResponse } = useGetAllAlertsQuery(undefined)
   const [createKri] = useCreateNewKriMutation()
   const [submitKriValue] = useSubmitKriValueMutation()
+  const [updateKri] = useUpdateKriMutation()
+  const [deleteKri] = useDeleteKriMutation()
 
   // quality-bar-loop round 3 (efficiency, review finding): `?? []` creates
   // a fresh array reference every render when data is still undefined,
@@ -172,6 +193,19 @@ export default function KriDashboardPage() {
   const [updateValue, setUpdateValue] = useState("")
   const [isUpdatingValue, setIsUpdatingValue] = useState(false)
 
+  // Round-5 industry-standards finding: no edit UI existed for a KRI's own
+  // fields (name/unit/thresholds/frequency) -- only its current *value*
+  // could be updated (the Pencil button/modal above).
+  const [editingKriId, setEditingKriId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState(EMPTY_EDIT_KRI)
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+
+  // Round-5 industry-standards finding: no delete UI existed either -- a
+  // mistakenly created KRI (wrong risk, typo'd name) could never be
+  // removed short of a direct database edit.
+  const [deletingKri, setDeletingKri] = useState<KRI | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   // aexa-server#242 / aexa-frontend#211 — GET /kri/:id/readings existed with
   // no frontend consumer at all; this is the trend view. Only fetched while
   // the modal is actually open for a given KRI (skip otherwise).
@@ -190,6 +224,9 @@ export default function KriDashboardPage() {
   )
   const newKriModalRef = useModalA11y(showForm, () => setShowForm(false))
   const trendModalRef = useModalA11y(!!trendKriId, () => setTrendKriId(null))
+  const editKriModalRef = useModalA11y(!!editingKriId, () =>
+    setEditingKriId(null)
+  )
 
   const handleSave = async () => {
     if (!form.name || !form.risk_id) return
@@ -255,6 +292,61 @@ export default function KriDashboardPage() {
       )
     } finally {
       setIsUpdatingValue(false)
+    }
+  }
+
+  const openEdit = (kri: KRI) => {
+    setEditingKriId(kri.id)
+    setEditForm({
+      name: kri.name,
+      unit: kri.unit,
+      target_value: Number(kri.target_value),
+      alert_threshold: Number(kri.alert_threshold),
+      frequency: kri.frequency ?? "monthly",
+    })
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingKriId || !editForm.name) return
+    if (editForm.target_value === editForm.alert_threshold) {
+      toast.error(t("organization.kri.toast.thresholdMustDiffer"))
+      return
+    }
+
+    setIsSavingEdit(true)
+    try {
+      await updateKri({
+        id: editingKriId,
+        data: {
+          name: editForm.name,
+          unit: editForm.unit,
+          alert_threshold: editForm.alert_threshold,
+          target_value: editForm.target_value,
+          frequency: editForm.frequency,
+        },
+      }).unwrap()
+      toast.success(t("organization.kri.toast.edited"))
+      setEditingKriId(null)
+    } catch (err: any) {
+      toast.error(err?.data?.message || t("organization.kri.toast.editFailed"))
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deletingKri) return
+    setIsDeleting(true)
+    try {
+      await deleteKri(deletingKri.id).unwrap()
+      toast.success(t("organization.kri.toast.deleted"))
+      setDeletingKri(null)
+    } catch (err: any) {
+      toast.error(
+        err?.data?.message || t("organization.kri.toast.deleteFailed")
+      )
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -536,6 +628,33 @@ export default function KriDashboardPage() {
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                 )}
+                {/* Round-5 industry-standards finding: updateKri/deleteKri
+                    existed server-side with zero frontend consumer -- a
+                    KRI's own fields (name/unit/thresholds/frequency)
+                    could never be corrected, and a mistakenly created one
+                    could never be removed, without going around the UI. */}
+                {canWrite && (
+                  <button
+                    type="button"
+                    onClick={() => openEdit(kri)}
+                    className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    title={t("organization.kri.editTooltip")}
+                    aria-label={t("organization.kri.editTooltip")}
+                  >
+                    <Settings2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {canWrite && (
+                  <button
+                    type="button"
+                    onClick={() => setDeletingKri(kri)}
+                    className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    title={t("organization.kri.deleteTooltip")}
+                    aria-label={t("organization.kri.deleteTooltip")}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
 
               <div className="mt-1 flex items-center gap-4 text-[11px] text-muted-foreground">
@@ -645,6 +764,192 @@ export default function KriDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Round-5 industry-standards finding: no way to edit a KRI's own
+          fields (name/unit/thresholds/frequency) after creation existed
+          at all -- only its current value (the modal above). Mirrors the
+          New KRI modal's fields minus risk_id/current_value, which
+          update_kri's own backend schema doesn't accept. */}
+      {editingKriId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setEditingKriId(null)}
+        >
+          <div
+            ref={editKriModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="kri-edit-title"
+            className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 id="kri-edit-title" className="text-lg font-bold text-foreground">
+                {t("organization.kri.editKriTitle")}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEditingKriId(null)}
+                aria-label={t("organization.kri.cancel")}
+                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label
+                  htmlFor="kri-edit-name"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  {t("organization.kri.form.name")} *
+                </label>
+                <input
+                  id="kri-edit-name"
+                  value={editForm.name}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, name: e.target.value }))
+                  }
+                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  placeholder={t("organization.kri.form.namePlaceholder")}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="kri-edit-unit"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  {t("organization.kri.form.unit")}
+                </label>
+                <input
+                  id="kri-edit-unit"
+                  value={editForm.unit}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, unit: e.target.value }))
+                  }
+                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  placeholder={t("organization.kri.form.unitPlaceholder")}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="kri-edit-alert-threshold"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
+                    {t("organization.kri.form.alertThreshold")}
+                  </label>
+                  <input
+                    id="kri-edit-alert-threshold"
+                    type="number"
+                    value={editForm.alert_threshold}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        alert_threshold: Number(e.target.value),
+                      }))
+                    }
+                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="kri-edit-target"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
+                    {t("organization.kri.form.target")}
+                  </label>
+                  <input
+                    id="kri-edit-target"
+                    type="number"
+                    value={editForm.target_value}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        target_value: Number(e.target.value),
+                      }))
+                    }
+                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="kri-edit-frequency"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  {t("organization.kri.form.frequency")}
+                </label>
+                <select
+                  id="kri-edit-frequency"
+                  value={editForm.frequency}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, frequency: e.target.value }))
+                  }
+                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="daily">
+                    {t("organization.kri.frequency.daily")}
+                  </option>
+                  <option value="weekly">
+                    {t("organization.kri.frequency.weekly")}
+                  </option>
+                  <option value="monthly">
+                    {t("organization.kri.frequency.monthly")}
+                  </option>
+                  <option value="quarterly">
+                    {t("organization.kri.frequency.quarterly")}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingKriId(null)}
+                className="rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+              >
+                {t("organization.kri.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={isSavingEdit || !editForm.name}
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              >
+                {isSavingEdit ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {t("organization.kri.save")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <DeleteAlertModal
+        title={t("organization.kri.deleteConfirmTitle")}
+        description={
+          deletingKri
+            ? t("organization.kri.deleteConfirmDescription", {
+                name: deletingKri.name,
+              })
+            : undefined
+        }
+        open={!!deletingKri}
+        setOpen={(open) => {
+          if (!open) setDeletingKri(null)
+        }}
+        onConfirm={handleDelete}
+        loading={isDeleting}
+      />
 
       {/* New KRI Modal */}
       {showForm && (

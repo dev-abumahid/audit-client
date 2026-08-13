@@ -301,6 +301,11 @@
       "overdueLabel": "En retard",
       "updateValueTitle": "Mettre à jour la valeur",
       "updateValueTooltip": "Mettre à jour la valeur actuelle",
+      "editTooltip": "Modifier l'ICR",
+      "deleteTooltip": "Supprimer l'ICR",
+      "editKriTitle": "Modifier l'ICR",
+      "deleteConfirmTitle": "Supprimer cet ICR ?",
+      "deleteConfirmDescription": "Ceci supprimera définitivement « {{name}} » et tout son historique de mesures. Cette action est irréversible.",
       "trend": {
         "viewTooltip": "Voir la tendance",
         "modalTitle": "Tendance — {{name}}",
@@ -337,7 +342,11 @@
         "createFailed": "Échec de la création de l'ICR",
         "enterValidNumber": "Saisissez un nombre valide",
         "valueUpdated": "Valeur de l'ICR mise à jour",
-        "updateFailed": "Échec de la mise à jour de la valeur de l'ICR"
+        "updateFailed": "Échec de la mise à jour de la valeur de l'ICR",
+        "edited": "ICR mis à jour avec succès",
+        "editFailed": "Échec de la mise à jour de l'ICR",
+        "deleted": "ICR supprimé",
+        "deleteFailed": "Échec de la suppression de l'ICR"
       }
     },
     "templates": {
