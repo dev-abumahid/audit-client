@@ -152,3 +152,64 @@ pattern exactly). Both are Tier 2, and the two files (`FindingDetails.tsx`,
 resilience's `FindingDetails.tsx` findings are NOT batched in this round
 since they'd share that file with the security fix; efficiency's
 findings are deferred to a later round to keep this one reviewable.
+
+## Round 4 outcome
+
+Shipped the batched fix selected in round 3: security's attachment-URL
+guard plus UX's Inspection-required-field finding, across two disjoint
+files (PR #745).
+
+1. **`FindingDetails.tsx` -- attachment rendering had no `isHttpUrl()`
+   guard.** `action.attachments` (server-returned data) fed directly into
+   `img`/`video`/`iframe` `src` and a download anchor's `href` with no
+   scheme check. Added `const safeAttachments = action.attachments
+   .filter(isHttpUrl)` once, right after the `action` guard, and switched
+   every downstream sink (images grid, other-files list, tab-count badge,
+   and transitively `PreviewModal`/`downloadFile`, since both only ever
+   receive an already-filtered url) to read from it. The two remaining
+   raw `action.attachments` uses (the upload-mutation PATCH body, the
+   remove-attachment filter) were deliberately left unfiltered -- both
+   are write paths to persisted state, not render sinks, and filtering
+   there would silently drop pre-existing malicious DB entries on an
+   unrelated write, out of scope for this fix.
+
+2. **`CreateNewFindingModal.tsx` -- Inspection had no client-side
+   validation.** Same silent-submit-failure pattern round 2 fixed for
+   Line of Defense, on a sibling field: submitting with Inspection unset
+   sent `inspectionId: undefined`, which the backend 400s on with a
+   generic toast naming no field. The select was previously plain
+   local-state-driven with no react-hook-form registration at all --
+   wrapped in a `Controller` with `rules={{ required: isEdit ? false :
+   ... }}`, given the same asterisk/`aria-required`/inline-error/
+   scroll-into-view treatment as Line of Defense.
+
+**QA**: typecheck/eslint clean. Full suite: 1945/1945 passing. Both
+fixes have dedicated regression tests with verified negative controls
+(temporarily reverted, confirmed the test fails for the right reason,
+restored) -- the security test specifically checks the malicious entry
+is excluded from the tab count and file list (an `img[src^="javascript:"]`
+non-existence check alone turned out to be a false-negative-prone
+assertion during drafting, since `fileType()` classifies an
+extensionless url as "file", not "image", routing it to the file list
+instead, which has no `src`/`href` attribute at all to assert against --
+caught and fixed before shipping, worth remembering for any future
+attachment-rendering test).
+
+**Live verification**: after finding the shared dev server's Redis-backed
+rate limiter (15 min window, keyed by IP, persists across a plain
+process restart since the store lives in Redis not memory) was still
+tripping from this session's earlier concurrent judge-panel load,
+cleared it with a scoped `redis-cli del rl:api:127.0.0.1` (not a broader
+flush) rather than waiting out the window. Confirmed both fixes live: a
+finding with no attachments renders its empty state cleanly with zero
+console errors; the Create Finding modal genuinely blocks submit with a
+visible asterisk/red border/inline error when Inspection is unset, clears
+on selection, and a real submit succeeds once one is picked. Verification
+finding created via the live UI was deleted afterward to keep the preview
+account clean.
+
+**Regression check**: two disjoint files, no shared-file edit conflicts.
+Round 1's finding review (2 parallel angles: correctness, security-
+completeness) both came back with zero findings -- the security-
+completeness pass specifically traced every attachment-URL sink in the
+file end to end and confirmed no residual unfiltered path exists.
