@@ -714,7 +714,12 @@ export default function SitesEntities() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-80 sm:block">
+          {/* quality-bar-loop round 14 (mobile finding, open since round
+              1): w-80 (320px) was a fixed, non-responsive width -- wider
+              than a real mobile viewport, forcing horizontal scroll.
+              Matches the same w-full sm:w-80 pattern already used by
+              ReportsPage.tsx/TemplatesPage.tsx's search boxes. */}
+          <div className="relative w-full sm:w-80">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
@@ -1419,7 +1424,14 @@ export default function SitesEntities() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="site-form-modal-title"
-            className="w-full max-w-lg rounded-2xl border border-border bg-card p-6"
+            // quality-bar-loop round 14 (mobile finding, open since round
+            // 1): no scroll safety net -- this form's real content height
+            // exceeds a real mobile viewport (live-reproduced, 375x600),
+            // clipping the bottom fields/buttons with no way to reach
+            // them. Matches RiskRegisterPage.tsx's established
+            // max-h-[90vh]/overflow-y-auto pattern for the same kind of
+            // tall modal.
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-card p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
@@ -1428,11 +1440,18 @@ export default function SitesEntities() {
                   ? t("organization.site&entities.editSiteTitle")
                   : t("organization.site&entities.addNewSiteTitle")}
               </h2>
+              {/* quality-bar-loop round 14 (mobile finding, open since
+                  round 1): the visible h-6 w-6 (24px) icon was also the
+                  entire clickable area -- well under the 44px touch-
+                  target guideline. Same hit-slop technique already
+                  established elsewhere in this file (round 5-7): visible
+                  size stays the same, invisible clickable area extended
+                  via a before: pseudo-element. */}
               <button
                 type="button"
                 onClick={closeSiteForm}
                 aria-label={t("organization.site&entities.closeModalLabel")}
-                className="text-muted-foreground hover:text-foreground"
+                className="relative text-muted-foreground before:absolute before:-inset-2.5 before:content-[''] hover:text-foreground"
               >
                 <X className="h-6 w-6" />
               </button>

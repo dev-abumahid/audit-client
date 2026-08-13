@@ -377,6 +377,69 @@ describe("SitesEntities", () => {
     ).toBeInTheDocument()
   })
 
+  // quality-bar-loop round 14 (mobile findings, open since round 1)
+  describe("mobile findings (round 14)", () => {
+    it("makes the search box responsive (w-full sm:w-80) instead of a fixed 320px width", () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+        error: undefined,
+      })
+
+      renderPage()
+      const search = screen.getByLabelText(
+        "organization.site&entities.searchSitesLabel"
+      )
+      expect(search.parentElement).toHaveClass("w-full")
+      expect(search.parentElement).toHaveClass("sm:w-80")
+      expect(search.parentElement).not.toHaveClass("w-80")
+    })
+
+    it("gives the Create/Edit Site modal a scroll safety net (max-h-[90vh] overflow-y-auto)", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+        error: undefined,
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.site&entities.newSite",
+        })
+      )
+
+      const dialog = screen.getByRole("dialog")
+      expect(dialog).toHaveClass("max-h-[90vh]")
+      expect(dialog).toHaveClass("overflow-y-auto")
+    })
+
+    it("gives the Create/Edit Site modal's close button a 44px hit-slop without growing its visible size", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+        error: undefined,
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.site&entities.newSite",
+        })
+      )
+
+      const closeButton = screen.getByRole("button", {
+        name: "organization.site&entities.closeModalLabel",
+      })
+      expect(closeButton).toHaveClass("before:-inset-2.5")
+      expect(closeButton.querySelector("svg")).toHaveClass("h-6")
+      expect(closeButton.querySelector("svg")).toHaveClass("w-6")
+    })
+  })
+
   it("hides New Site, Add Risk, Edit and Delete for a VIEWER but keeps Analyze", () => {
     mockRole = "VIEWER"
     mockUseGetAllSitesQuery.mockReturnValue({
