@@ -383,3 +383,45 @@ report -- this preview environment's report generation still has a
 ~100% failure rate (the same pre-existing, unrelated limitation noted
 in earlier rounds) -- relied on the unit tests instead, documented
 rather than silently skipped.
+
+## Round 9 -- fresh 9-judge panel
+
+Round 8's diff (Retry + Publish confirm) touched real logic -- not
+eligible for the scoped shortcut, full panel re-run.
+
+| Axis | R1 | R3 | R5 | R7 | R9 | Note |
+|---|---|---|---|---|---|---|
+| Industry-standards | 6 | 5 | 7* | 7 | **8** | Off the floor. Per-card Retry independently assessed as a genuine, positive industry-standards signal -- inline recovery from a failed item on the card itself matches the DocuSign/Drive/Vanta document-center pattern, live-verified (`POST /api/report/generate` fired with the card's own type, no manual re-selection). Search, backend-blocked filtering/provenance, and other previously-praised items all reconfirmed unchanged. |
+| UX | 6 | 7 | 7 | 7 | **8** | Off the floor after 3 consecutive rounds. Both round-8 fixes independently live-verified as real, working, network-confirmed paths (Retry fired a genuine backend call; Publish-confirm gates the mutation behind Cancel/Confirm per the unit tests, live-unreachable only because this org has no READY report). Two findings remain open, unaffected by this round: indeterminate generation indicator, no search clear/x button. |
+| Efficiency | 8 | 8 | 8 | 8 | **8** | Round 8's `retryingId`/`confirmPublishId` state additions ride the same not-fully-scoped full-component-re-render pattern the codebase has carried since R1 (no per-card memoization) -- efficiency-neutral, not a fresh regression. The single shared `AlertDialog` (vs. one per card) was confirmed the right call. |
+| Accessibility | 7 | 7 | 7 | 8 | **7** | **Regressed (at/above floor)**. Real finding: every FAILED card's new Retry button shares the identical accessible name "Retry" with no per-report disambiguation -- confirmed by the feature's own test suite, which explicitly asserts two buttons with the same name coexist. A screen reader user tabbing the list can't tell which report a given Retry button belongs to. Round 7's live-region/label fixes all reconfirmed unaffected. |
+| Visual polish | 8 | 8 | 8 | 8 | **8** | Round 8's Retry button confirmed to reuse the exact same secondary-button classes as the existing Preview button, no layout awkwardness. AlertDialog confirmed to use the shared primitive with zero bespoke overrides. Both R3 findings (FAILED badge, AI-badge shape mismatch) reconfirmed unchanged. |
+| Resilience | 6 | 8 | 8 | 8 | **8** | Retry's network-failure path (not just a FAILED-status response, but a true rejected `unwrap()`) traced and confirmed sound -- `retryingId` cleared in a `finally` regardless of outcome. New minor gap noted: zero tests exercise an actual `unwrap()` rejection for generate/publish (all use `Promise.resolve`), a real coverage gap given this org's near-100% FAILED reality. `error_message` still unread, now 5 rounds open. |
+| Code quality | 8 | 8 | 8 | 8 | **7** | **Regressed (at/above floor)**. File grew from 477 to 571 lines since R7's flag; the report-card JSX block is now clearly past the point where `ReportCard` extraction is a real should-fix, not just worth considering. `isHttpUrl` duplication finding sharpened: three overlapping validity checks now exist for one concept (`canOpen`, and independent re-checks in both `openPdf` and `downloadReport`). The `runGenerate`/`retryingId`/confirm-dialog refactor itself was assessed as clean, not seamy, despite its 2-commit/2-review-pass history. |
+| Mobile | 8 | 8 | 8 | 8 | **8** | Retry button live-verified via a real touch-event sequence at 375px -- fired the real backend call, no layout clipping. Touch-target height (34px, under the 44px guideline) reconfirmed unchanged/inherited from the pre-existing Preview/Download pattern, not a fresh round-8 regression. AlertDialog's mobile behavior (stacked footer, capped width) confirmed low-risk via the shared primitive. |
+| Security | 5 | 9 | 9 | 9 | **9** | `report.type` (server-controlled) passed into the retry mutation confirmed safe -- no client-side interpolation, backend owns validation. Retry correctly gated behind `canWrite`; Publish-confirm doesn't bypass the existing `isAdmin` gate, it layers on top of it. |
+
+**Average: 7.89/10** ((8+8+8+7+8+8+7+8+9)/9) -- identical to R7's
+average, since UX and industry-standards each moved up by exactly as
+much as accessibility and code quality moved down. **No axis below
+floor** -- 3rd consecutive round with everything at/above 7. Still
+short of the user's 8-8.5 target band.
+
+**Round 10 selection**: no `data-correctness`/`security` finding at
+or below floor. Two axes regressed this round while staying at/above
+floor (accessibility, code quality) -- per the guardrail, a
+same-round regression carries one round's selection priority, ahead
+of the "furthest below target" fallback (no axis currently has a
+`stuck_streak` above 0, since both of this round's floor-scores are
+newly arrived at, not repeats). Selected: both regressions' findings
+are Tier 1/2, cheap, and touch the same file with no batching
+conflict --
+(1) accessibility: give each Retry button a per-report `aria-label`
+(the pattern already exists two lines away for the live-region
+announcement, just wasn't applied to the button itself);
+(2) code quality: consolidate the three overlapping `file_url`
+validity checks (`canOpen`, and the independent re-checks inside
+`openPdf`/`downloadReport`) into one shared check. The larger
+`ReportCard` extraction is deferred -- a real Tier 3 refactor,
+disproportionate to a single round given the smaller fixes address
+this round's actual regressions directly.

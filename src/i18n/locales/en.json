@@ -810,6 +810,7 @@
       "loadError": "Failed to load reports. Please try again.",
       "retryLoad": "Retry",
       "retry": "Retry",
+      "retryFor": "Retry generating {{title}}",
       "failedHint": "Generation failed. Please try generating again.",
       "generateSuccess": "Report generated successfully.",
       "generateFailed": "Failed to generate report. Please try again.",

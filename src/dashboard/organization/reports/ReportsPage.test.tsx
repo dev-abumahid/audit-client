@@ -7,13 +7,27 @@ import ReportsPage from "./ReportsPage"
 // react-i18next t(), which just echoes the raw key back -- same technique
 // as TeamMembersTab.test.tsx.
 let mockLanguage: string | undefined = undefined
+// Off by default (preserves the raw-key-echo behavior every other test in
+// this file relies on). One test below (per-report Retry aria-label) needs
+// to actually see interpolated values, since the raw/uninitialized t()
+// ignores interpolation options entirely -- flipping this on for just that
+// test makes t() substitute {{var}} manually instead.
+let mockInterpolate = false
 vi.mock("react-i18next", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-i18next")>()
   return {
     ...mod,
     useTranslation: () => {
       const real = mod.useTranslation()
-      return { ...real, i18n: { ...real.i18n, language: mockLanguage } }
+      const t = ((key: string, options?: Record<string, unknown>) => {
+        if (mockInterpolate && options) {
+          return `${key}:${Object.entries(options)
+            .map(([k, v]) => `${k}=${v}`)
+            .join(",")}`
+        }
+        return real.t(key, options)
+      }) as typeof real.t
+      return { ...real, t, i18n: { ...real.i18n, language: mockLanguage } }
     },
   }
 })
@@ -73,6 +87,7 @@ function makeReport(overrides = {}) {
 describe("ReportsPage", () => {
   beforeEach(() => {
     mockLanguage = undefined
+    mockInterpolate = false
     mockIsGenerating = false
     mockUseGetAllReportsQuery.mockReset()
     mockGenerate.mockReset()
@@ -585,7 +600,7 @@ describe("ReportsPage", () => {
       render(<ReportsPage />)
 
       const retryBtn = screen.getByRole("button", {
-        name: /^organization\.reports\.retry$/i,
+        name: /^organization\.reports\.retryFor/i,
       })
       await user.click(retryBtn)
 
@@ -603,8 +618,51 @@ describe("ReportsPage", () => {
       render(<ReportsPage />)
 
       expect(
-        screen.queryByRole("button", { name: /^organization\.reports\.retry$/i })
+        screen.queryByRole("button", { name: /^organization\.reports\.retryFor/i })
       ).not.toBeInTheDocument()
+    })
+
+    // Round-9 review finding: with multiple FAILED cards on the page,
+    // every Retry button used to share the identical accessible name
+    // "Retry" -- a screen reader user tabbing the list couldn't tell which
+    // report a given button belonged to.
+    it("gives each FAILED card's Retry button a distinct, per-report accessible name", () => {
+      mockUseMyOrgRole.mockReturnValue("ADMIN")
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeReport({
+              id: "rep-a",
+              title: "Q1 2026 Board Risk Report",
+              status: "FAILED",
+              file_url: null,
+            }),
+            makeReport({
+              id: "rep-b",
+              title: "Q2 2026 Board Risk Report",
+              status: "FAILED",
+              file_url: null,
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+      // The raw/uninitialized t() every other test in this file relies on
+      // ignores interpolation options entirely (it just echoes the key),
+      // so it can't distinguish "Retry for rep-a" from "Retry for rep-b" --
+      // this flag makes t() actually substitute {{title}} for this one test.
+      mockInterpolate = true
+
+      render(<ReportsPage />)
+
+      const retryButtons = screen.getAllByRole("button", {
+        name: /^organization\.reports\.retryFor:/i,
+      })
+      expect(retryButtons).toHaveLength(2)
+      const labels = retryButtons.map((btn) => btn.getAttribute("aria-label"))
+      expect(labels[0]).toContain("Q1 2026 Board Risk Report")
+      expect(labels[1]).toContain("Q2 2026 Board Risk Report")
+      expect(labels[0]).not.toBe(labels[1])
     })
 
     // Round-8 review finding: isGenerating (the mutation's single global
@@ -629,7 +687,7 @@ describe("ReportsPage", () => {
       render(<ReportsPage />)
 
       const retryButtons = screen.getAllByRole("button", {
-        name: /^organization\.reports\.retry$/i,
+        name: /^organization\.reports\.retryFor/i,
       })
       expect(retryButtons).toHaveLength(2)
 

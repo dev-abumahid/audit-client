@@ -810,6 +810,7 @@
       "loadError": "Échec du chargement des rapports. Veuillez réessayer.",
       "retryLoad": "Réessayer",
       "retry": "Réessayer",
+      "retryFor": "Réessayer de générer {{title}}",
       "failedHint": "La génération a échoué. Veuillez réessayer.",
       "generateSuccess": "Rapport généré avec succès.",
       "generateFailed": "Échec de la génération du rapport. Veuillez réessayer.",

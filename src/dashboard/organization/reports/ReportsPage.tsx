@@ -63,6 +63,22 @@ const STATUS_STYLES: Record<Report["status"], string> = {
   FAILED: "bg-destructive/10 text-destructive",
 }
 
+// Round 9 review finding: `canOpen` (gating the Preview/Download buttons),
+// openPdf's guard, and downloadReport's guard each independently
+// re-derived "is this report's file safely openable" -- three overlapping
+// checks for one concept, and `canOpen` was the weakest of the three since
+// it never checked isHttpUrl at all (only openPdf/downloadReport did,
+// internally, as a silent no-op rather than a disabled button). One
+// shared check now; the button is correctly disabled for a non-http(s)
+// file_url instead of looking clickable and silently doing nothing.
+function canOpenReport(report: Report): boolean {
+  return (
+    (report.status === "READY" || report.status === "PUBLISHED") &&
+    !!report.file_url &&
+    isHttpUrl(report.file_url)
+  )
+}
+
 export default function ReportsPage() {
   const { t, i18n } = useTranslation()
   const role = useMyOrgRole()
@@ -249,7 +265,7 @@ export default function ReportsPage() {
   // others), just never imported here. noopener alone only blocks
   // reverse-tabnabbing, not a javascript:/data: URL reaching the sink.
   const openPdf = (report: Report) => {
-    if (report.file_url && isHttpUrl(report.file_url)) {
+    if (report.file_url && canOpenReport(report)) {
       window.open(report.file_url, "_blank", "noopener")
     }
   }
@@ -266,7 +282,7 @@ export default function ReportsPage() {
   // would otherwise be read as path separators and mangle/truncate the
   // downloaded filename. Strip filesystem-unsafe characters first.
   const downloadReport = (report: Report) => {
-    if (!report.file_url || !isHttpUrl(report.file_url)) return
+    if (!report.file_url || !canOpenReport(report)) return
     const safeTitle = report.title
       .replace(/[\\/:*?"<>|]+/g, "_")
       .trim()
@@ -370,7 +386,7 @@ export default function ReportsPage() {
           const isPublished = report.status === "PUBLISHED"
           const isFailed = report.status === "FAILED"
           const isGen = report.status === "GENERATING"
-          const canOpen = (isReady || isPublished) && !!report.file_url
+          const canOpen = canOpenReport(report)
 
           return (
             <div
@@ -439,6 +455,14 @@ export default function ReportsPage() {
                       type="button"
                       onClick={() => handleRetry(report)}
                       disabled={isGenerating}
+                      // Round-9 review finding: with multiple FAILED cards
+                      // on the page, every Retry button shared the same
+                      // "Retry" accessible name -- a screen reader user
+                      // tabbing the list couldn't tell which report a
+                      // given button belonged to.
+                      aria-label={t("organization.reports.retryFor", {
+                        title: report.title,
+                      })}
                       className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted active:scale-[0.98] disabled:opacity-50"
                     >
                       {retryingId === report.id ? (
