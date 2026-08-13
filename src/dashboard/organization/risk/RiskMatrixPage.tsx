@@ -1,11 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SiteFilter from "@/components/dashboard/organization/SiteFilter"
 import UnscoredBadge from "@/components/dashboard/organization/UnscoredBadge"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { Risk } from "@/types/organization"
-import { RISK_CATEGORIES } from "@/utils/riskConfig"
+import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
 import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { AlertCircle, Grid3X3, Info, Loader2, MapPin } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -112,11 +111,21 @@ const LABEL_KEYS: Record<
 // (see the src/index.css comment for the full composite-math table) --
 // this page's own small-text contrast: medium/50 4.90:1->4.54:1 (still
 // real margin above the 4.5:1 floor), high/63 4.62:1->5.02:1 (improved).
+// quality-bar-loop round 14 (code quality finding, open since round 1):
+// these were unnamed magic numbers -- named here as what they actually are,
+// the normalized-score cutoffs a cell's row/col position maps to.
+const CRITICAL_SCORE_THRESHOLD = 0.64
+const HIGH_SCORE_THRESHOLD = 0.36
+const MEDIUM_SCORE_THRESHOLD = 0.16
+
 function getMatrixColor(row: number, col: number, size: MatrixSize): string {
   const score = ((row + 1) / size) * ((col + 1) / size)
-  if (score >= 0.64) return "bg-risk-critical/90 dark:bg-risk-critical/85"
-  if (score >= 0.36) return "bg-risk-high/80 dark:bg-risk-high/63"
-  if (score >= 0.16) return "bg-risk-medium/75 dark:bg-risk-medium/50"
+  if (score >= CRITICAL_SCORE_THRESHOLD)
+    return "bg-risk-critical/90 dark:bg-risk-critical/85"
+  if (score >= HIGH_SCORE_THRESHOLD)
+    return "bg-risk-high/80 dark:bg-risk-high/63"
+  if (score >= MEDIUM_SCORE_THRESHOLD)
+    return "bg-risk-medium/75 dark:bg-risk-medium/50"
   return "bg-risk-low/55"
 }
 
@@ -293,7 +302,7 @@ export default function RiskMatrixPage() {
   }, [risks, siteFilter])
 
   const riskGrid = useMemo(() => {
-    const grid: Record<string, any[]> = {}
+    const grid: Record<string, Risk[]> = {}
     filteredRisks.forEach((risk) => {
       const { row, col } = mapRiskToCell(risk, matrixSize)
       const key = `${row}-${col}`
@@ -320,7 +329,7 @@ export default function RiskMatrixPage() {
 
   const groupedSelectedRisks = useMemo(() => {
     if (groupMode === "none") return null
-    const groups: Record<string, any[]> = {}
+    const groups: Record<string, Risk[]> = {}
     selectedRisks.forEach((risk) => {
       const key = risk.category
       if (!groups[key]) groups[key] = []
@@ -386,13 +395,23 @@ export default function RiskMatrixPage() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [])
 
+  // quality-bar-loop round 14 (efficiency finding, open since round 1):
+  // this was a plain object literal, rebuilt (two new arrays) on every
+  // render regardless of whether matrixSize actually changed. `t` itself
+  // is a sufficient dependency for language changes -- react-i18next
+  // gives `t` a new reference whenever the active language changes, so
+  // this still recomputes correctly on an EN/FR switch without needing
+  // i18n.language listed separately.
   const labelKeys = LABEL_KEYS[matrixSize]
-  const labels = {
-    likelihood: labelKeys.likelihood.map((k) =>
-      t(`organization.riskMatrix.${k}`)
-    ),
-    impact: labelKeys.impact.map((k) => t(`organization.riskMatrix.${k}`)),
-  }
+  const labels = useMemo(
+    () => ({
+      likelihood: labelKeys.likelihood.map((k) =>
+        t(`organization.riskMatrix.${k}`)
+      ),
+      impact: labelKeys.impact.map((k) => t(`organization.riskMatrix.${k}`)),
+    }),
+    [labelKeys, t]
+  )
 
   if (isLoading) {
     return (
@@ -827,16 +846,7 @@ export default function RiskMatrixPage() {
                           }}
                         />
                         <span className="text-xs font-semibold">
-                          {(() => {
-                            const labelKey =
-                              RISK_CATEGORIES[
-                                cat as keyof typeof RISK_CATEGORIES
-                              ]?.labelKey
-                            return labelKey
-                              ? t(`organization.riskCategories.${labelKey}`)
-                              : cat
-                          })()}{" "}
-                          ({catRisks.length})
+                          {riskCategoryLabel(t, cat)} ({catRisks.length})
                         </span>
                       </div>
                       {catRisks.map((risk) => (
@@ -952,14 +962,7 @@ function RiskCard({
                   ?.color,
             }}
           />
-          {(() => {
-            const labelKey =
-              RISK_CATEGORIES[risk.category as keyof typeof RISK_CATEGORIES]
-                ?.labelKey
-            return labelKey
-              ? t(`organization.riskCategories.${labelKey}`)
-              : risk.category
-          })()}
+          {riskCategoryLabel(t, risk.category)}
         </span>
         <span>
           {t("organization.riskMatrix.pagerankAbbrLabel")}{" "}
