@@ -731,3 +731,74 @@ color-token rework already filed as a separate follow-up -- is real
 feature/architecture work, not more small bug-shaped fixes, and is
 better scoped as deliberate next efforts than squeezed into "one more
 round" of this loop.
+
+## Rounds 14-17 — reopened under lowered 8.5 target
+
+The loop had reached a strong stopping point after round 13 at 7.89/10
+average. That was a natural pause, not a hard stop -- the current
+standing instruction ("keep working with /quality-bar-loop until every
+tab is at least 8.5") reopens this loop. Four rounds shipped in
+sequence to close the gap, closing the 13-round-stuck efficiency/code
+quality debt plus three real accessibility/UX findings.
+
+**Round 14** (PR #784, merged): mechanically selected per stuck_streak
+-- efficiency and code quality had both held at the 7 floor for 13
+consecutive rounds while unrelated fixes landed around them. Memoized
+the `labels` object (was rebuilt every render), typed
+`riskGrid`/`groupedSelectedRisks` as `Record<string, Risk[]>` instead
+of `any[]` (removing the file-level eslint-disable entirely), and
+named `getMatrixColor`'s magic-number thresholds. A review round
+caught that the extracted category-label helper duplicated an
+already-existing shared `riskCategoryLabel(t, category)` utility in
+`riskConfig.ts` -- fixed to reuse it instead. Efficiency 7->9,
+code quality 7->9 (both live-verified).
+
+**Round 15** (PR #785, merged): UX finding open since round 5's
+full-panel re-score -- re-clicking an already-selected cell was a
+no-op, Escape was the only way to deselect. Fixed: clicking a selected
+cell now toggles it off. UX 8->9 (live-verified).
+
+**Round 16** (PR #786, merged): a FRESH full accessibility audit (not
+just a re-check) found two real findings never previously surfaced,
+landing the axis at 7/10 -- a real regression from the 8/10 prior
+score, though not below floor, so no guardrail stop. Finding 1: matrix
+cells' `aria-label` gave likelihood/impact/count but never the band
+score, the same bold number every sighted user scans all 25 cells by.
+Fixed: added `score` to `cellAriaLabel`.
+
+**Round 17** (PR #787, merged): finding 2 from the same fresh audit --
+toggling "By type" grouping while a cell was already selected changed
+the panel's content with no accessible signal (no focus move, no live
+region, heading text didn't even reflect grouping state). Fixed:
+`aria-live="polite"` on the panel heading, plus a "grouped by type"
+suffix appended to its text when active, so the one region covers
+every state that affects the heading. Live browser verification was
+initially blocked by heavy concurrent dev-server load from this
+session's parallel judges -- documented honestly in the PR rather than
+skipped, and confirmed live once load eased during re-scoring.
+Accessibility 7->9 (live-verified end-to-end, both round-16 and
+round-17 fixes confirmed together).
+
+| Axis | R13 | R17 |
+|---|---|---|
+| Industry-standards | 7 | 7 *(unchanged -- export/hover-preview remain unshipped)* |
+| UX | 8 | **9** |
+| Efficiency | 7 | **9** |
+| Accessibility | 8 | **9** *(dipped to 7 mid-sweep on a fresh audit finding 2 real gaps, both fixed same sweep)* |
+| Visual polish | 8 | 8 *(unchanged, not touched -- toggle-button style deliberately assessed as not a defect)* |
+| Resilience | 9 | 9 *(unchanged, not touched)* |
+| Code quality | 7 | **9** |
+| Mobile | 8 | 8 *(unchanged, not touched)* |
+| Security | 9 | 9 *(unchanged, not touched)* |
+| **Average** | **7.89** | **8.56** |
+
+Convergence check: 8.56 >= 8.5 target, every axis >= 7 floor.
+**Converged.**
+
+Still open (real, not blocking convergence): industry-standards'
+matrix export and hover-preview remain unshipped; visual polish's
+toggle-button-style non-finding stays closed; UX's arrow-key
+roving-tabindex grid navigation (a real Tier 3 feature, out of scope
+for a bug-shaped round) remains the one named gap on that axis.
+
+Risk Matrix is done for this sweep.
