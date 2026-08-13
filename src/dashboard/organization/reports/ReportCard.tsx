@@ -185,7 +185,7 @@ export function ReportCard({
             type="button"
             onClick={() => onDownload(report)}
             disabled={!canOpen}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
+            className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" />{" "}
             {t("organization.reports.download")}
@@ -197,7 +197,7 @@ export function ReportCard({
               type="button"
               onClick={() => onPublishRequest(report.id)}
               disabled={publishingId === report.id}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary/40 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 active:scale-[0.98] disabled:opacity-50"
+              className="focus-ring flex w-full items-center justify-center gap-2 rounded-lg border border-primary/40 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 active:scale-[0.98] disabled:opacity-50"
             >
               <Send className="h-3.5 w-3.5" />
               {publishingId === report.id

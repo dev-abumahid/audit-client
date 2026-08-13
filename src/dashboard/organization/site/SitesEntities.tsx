@@ -727,7 +727,7 @@ export default function SitesEntities() {
           <button
             type="button"
             onClick={() => refetchSites()}
-            className="mx-auto mt-4 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="focus-ring mx-auto mt-4 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             {t("organization.site&entities.retryLoadingSites")}
           </button>
@@ -773,7 +773,7 @@ export default function SitesEntities() {
             <button
               type="button"
               onClick={openCreate}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />{" "}
               {t("organization.site&entities.newSite")}
@@ -962,7 +962,7 @@ export default function SitesEntities() {
                     type="button"
                     onClick={() => handleAnalyzeSite(site)}
                     disabled={isAnalyzing && analyzingSiteId === site.id}
-                    className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary hover:bg-primary/20 disabled:opacity-50"
+                    className="focus-ring flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary hover:bg-primary/20 disabled:opacity-50"
                   >
                     {isAnalyzing && analyzingSiteId === site.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1036,7 +1036,7 @@ export default function SitesEntities() {
                         : "organization.site&entities.expandSiteLabel",
                       { name: site.name }
                     )}
-                    className="relative rounded-lg p-2 text-muted-foreground before:absolute before:-inset-1 before:content-[''] hover:bg-muted"
+                    className="focus-ring relative rounded-lg p-2 text-muted-foreground before:absolute before:-inset-1 before:content-[''] hover:bg-muted"
                   >
                     {/* quality-bar-loop round 5/6 (mobile/visual-polish): see
                         the "more actions" trigger's comment above -- same
@@ -1225,7 +1225,7 @@ export default function SitesEntities() {
                             selectedSuggestionIds.size === 0 ||
                             importingIds.size > 0
                           }
-                          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                          className="focus-ring flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                         >
                           {importingIds.size > 0 ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1529,7 +1529,7 @@ export default function SitesEntities() {
                 type="button"
                 onClick={closeSiteForm}
                 aria-label={t("organization.site&entities.closeModalLabel")}
-                className="relative text-muted-foreground before:absolute before:-inset-2.5 before:content-[''] hover:text-foreground"
+                className="focus-ring relative text-muted-foreground before:absolute before:-inset-2.5 before:content-[''] hover:text-foreground"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -1692,7 +1692,7 @@ export default function SitesEntities() {
                 <button
                   type="submit"
                   disabled={isSiteCreating || isSiteUpdating}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                  className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
                 >
                   {isSiteCreating || isSiteUpdating ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

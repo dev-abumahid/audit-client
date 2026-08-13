@@ -287,7 +287,7 @@ const RiskRow = memo(function RiskRow({
             <button
               type="button"
               onClick={() => onEdit(risk)}
-              className="relative rounded p-1 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:bg-muted"
+              className="focus-ring relative rounded p-1 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:bg-muted"
               aria-label={t("organization.riskRegister.editRisk")}
             >
               <Pencil className="h-3 w-3" />
@@ -295,7 +295,7 @@ const RiskRow = memo(function RiskRow({
             <button
               type="button"
               onClick={() => onDelete(risk.id)}
-              className="relative rounded p-1 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:bg-destructive/10 hover:text-destructive"
+              className="focus-ring relative rounded p-1 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:bg-destructive/10 hover:text-destructive"
               aria-label={t("organization.riskRegister.deleteRisk")}
             >
               <Trash2 className="h-3 w-3" />
@@ -1545,7 +1545,7 @@ export default function RiskRegisterPage() {
             <button
               type="button"
               onClick={openCreate}
-              className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
+              className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
             >
               <Plus className="h-3.5 w-3.5" />{" "}
               {t("organization.riskRegister.addNewRisk")}
@@ -1623,7 +1623,7 @@ export default function RiskRegisterPage() {
           type="button"
           aria-pressed={pendingApprovalOnly}
           onClick={() => setPendingApprovalOnly((prev) => !prev)}
-          className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${
+          className={`focus-ring flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${
             pendingApprovalOnly
               ? severityBadgeClasses("medium", { border: true })
               : "border-input bg-card text-muted-foreground hover:bg-muted"
@@ -1882,7 +1882,7 @@ export default function RiskRegisterPage() {
                   <button
                     type="submit"
                     disabled={isRiskCreating || isRiskUpdating}
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                    className="focus-ring rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
                   >
                     {(isRiskCreating || isRiskUpdating) && <Loader />}
                     {editId

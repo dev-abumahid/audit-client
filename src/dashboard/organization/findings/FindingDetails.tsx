@@ -693,7 +693,7 @@ export default function FindingDetails() {
                 type="button"
                 onClick={handleEdit}
                 disabled={isDeleting}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
                 <Edit size={18} /> {t("organization.findings.edit")}
               </button>
@@ -701,7 +701,7 @@ export default function FindingDetails() {
                 type="button"
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
+                className="focus-ring flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
               >
                 <Trash2 size={18} /> {t("organization.findings.delete")}
               </button>
@@ -731,7 +731,7 @@ export default function FindingDetails() {
                     type="button"
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key)}
-                    className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-3.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                    className={`focus-ring -mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-3.5 text-sm font-medium whitespace-nowrap transition-colors ${
                       activeTab === tab.key
                         ? "border-primary text-primary"
                         : "border-transparent text-muted-foreground hover:text-foreground"
@@ -968,7 +968,7 @@ export default function FindingDetails() {
                       onClick={handleSendMessage}
                       disabled={isSendingMessage || !newMessageText.trim()}
                       aria-label={t("organization.findings.sendMessage")}
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                      className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                     >
                       {isSendingMessage ? (
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
@@ -1010,7 +1010,7 @@ export default function FindingDetails() {
                         type="button"
                         onClick={() => attachmentFileInputRef.current?.click()}
                         disabled={isMutatingAttachments}
-                        className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="focus-ring flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {isUploadingAttachment ? (
                           <Loader2 className="h-4 w-4 animate-spin" />

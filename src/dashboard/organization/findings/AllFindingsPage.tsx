@@ -281,7 +281,7 @@ export default function AllFindingsPage() {
             <button
               type="button"
               onClick={() => setModalState({ open: true, editData: null })}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               <Plus size={18} /> {t("organization.findings.createTitle")}
             </button>
@@ -324,7 +324,7 @@ export default function AllFindingsPage() {
                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                 aria-haspopup="true"
                 aria-expanded={showFilterDropdown}
-                className="flex items-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                className="focus-ring flex items-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
               >
                 <Filter size={16} />
                 {t("organization.findings.filter")}

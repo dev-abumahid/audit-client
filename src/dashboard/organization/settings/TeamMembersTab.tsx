@@ -212,7 +212,7 @@ export default function TeamMembersTab() {
           <button
             type="button"
             onClick={openInvite}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             <UserPlus className="h-4 w-4" />
             {t("organization.teamMembers.inviteMember")}
@@ -283,7 +283,7 @@ export default function TeamMembersTab() {
                             ? t("organization.teamMembers.reactivateBlocked")
                             : undefined
                         }
-                        className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                        className="focus-ring flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {isMutating ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -480,14 +480,14 @@ export default function TeamMembersTab() {
                 <button
                   type="button"
                   onClick={() => setShowInviteForm(false)}
-                  className="rounded-lg px-5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted"
+                  className="focus-ring rounded-lg px-5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted"
                 >
                   {t("organization.teamMembers.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={isInviting}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                  className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
                 >
                   {isInviting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
