@@ -458,3 +458,109 @@ All reports in this preview org happen to share that exact title, so
 they still look identical here, but that's a data coincidence, not a
 bug -- the unit test (with two deliberately distinct titles) proves
 the per-report mechanism itself works correctly.
+
+## Round 11 -- fresh 9-judge panel (convergence check)
+
+Round 10's diff (aria-label + canOpenReport consolidation) touched
+real logic -- not eligible for the scoped shortcut, full panel re-run.
+
+| Axis | R7 | R9 | R11 | Note |
+|---|---|---|---|---|
+| Industry-standards | 7 | 8 | **8** | Search and Retry both re-confirmed working live (real network calls, correct empty/error states). No new ground gained this round (round 10 was a11y/code-quality focused), held flat at 8. |
+| UX | 7 | 8 | **8** | Retry and search-clear round-trip both re-verified live with no regression from round 10's diff (confirmed orthogonal -- a11y/code-quality only). Same two open findings (indeterminate generation indicator, no search clear/x button) unchanged. |
+| Efficiency | 8 | 8 | **8** | `canOpenReport()` confirmed O(1) per call, zero behavioral or perf delta from the three checks it replaced. |
+| Accessibility | 8 | 7 | **8** | Fix confirmed genuinely working live in the exact same-title scenario that caused the R9 regression -- all Retry buttons now read "Retry generating Board Risk Report" (title-driven, not a static string; distinct titles would disambiguate). Round 7's other fixes (scoped role=status, persistent live region, aria-describedby, search label) all reconfirmed unaffected. |
+| Visual polish | 8 | 8 | **8** | Round 10's diff confirmed to contain zero className/layout changes (aria-label + logic-only). Both R3 findings (FAILED badge, AI-badge shape) reconfirmed still open, unchanged. |
+| Resilience | 8 | 8 | **8** | `canOpenReport()`'s added isHttpUrl check confirmed a genuine improvement, not a regression -- a non-http(s) file_url now correctly disables Preview/Download instead of looking clickable and silently no-op'ing. `error_message` still unrendered, now 7 rounds open (since R3). |
+| Code quality | 8 | 7 | **7** | **Held at floor, deliberately.** The 3-way file_url duplication is genuinely fixed (verified via grep -- no stray isHttpUrl/file_url re-derivation remains), but the judge held the score rather than crediting it back to 8, since the *other* half of R9's finding -- the report-card JSX being a real should-fix for `ReportCard` extraction -- was not addressed this round and has gotten stronger (file now 595 lines), now deferred across 2 rounds. |
+| Mobile | 8 | 8 | **8** | Round 10's diff confirmed to contain zero layout-relevant changes; aria-label is non-rendering. |
+| Security | 9 | 9 | **9** | isHttpUrl consolidation confirmed to strengthen (not weaken) the existing URL-scheme guard across all three call sites. `report.title` interpolated into aria-label confirmed safe (React attribute escaping, no dangerouslySetInnerHTML-class sink). |
+
+**Average: 8.00/10** ((8+8+8+8+8+8+7+8+9)/9). **No axis below
+floor** -- 4th consecutive round with everything at/above 7, and this
+round crosses into the user's 8-8.5 target band for the first time.
+**Converged.**
+
+## Final report
+
+Board Reports quality-bar-loop concludes at round 11, average 8.00/10,
+zero axes below floor, within the user's 8-8.5 target band.
+
+**Scores over time (every full-panel round):**
+
+| Axis | R1 | R3 | R5 | R7 | R9 | R11 |
+|---|---|---|---|---|---|---|
+| Industry-standards | 6 | 5 | 7* | 7 | 8 | **8** |
+| UX | 6 | 7 | 7 | 7 | 8 | **8** |
+| Efficiency | 8 | 8 | 8 | 8 | 8 | **8** |
+| Accessibility | 7 | 7 | 7 | 8 | 7 | **8** |
+| Visual polish | 8 | 8 | 8 | 8 | 8 | **8** |
+| Resilience | 6 | 8 | 8 | 8 | 8 | **8** |
+| Code quality | 8 | 8 | 8 | 8 | 7 | **7** |
+| Mobile | 8 | 8 | 8 | 8 | 8 | **8** |
+| Security | 5 | 9 | 9 | 9 | 9 | **9** |
+| **Average** | 6.89 | 7.56 | 7.78 | 7.89 | 7.89 | **8.00** |
+
+*R5's judge-reported 6 was corrected to 7 after a false-positive
+investigation traced to a stale, HMR-corrupted browser tab, not a
+real app bug (see R5's own section above).
+
+**What was fixed, round by round:**
+- R2: `isHttpUrl()` guard on both `file_url` sinks (window.open,
+  link.href); distinguished a genuine load failure from a real
+  zero-reports empty state (isError/refetch handling + retry UI).
+- R4: added a debounced search box wired to the backend's real
+  title/reference search, closing part of the "no way to narrow a
+  growing library" industry-standards gap; a review pass caught and
+  fixed a real polling/search interaction bug (an active search term
+  could silently stop the GENERATING-report recovery poll).
+- R6: closed 4 accessibility findings (search input's accessible
+  name, scoped no-results announcement, a persistent live region for
+  status transitions, aria-describedby on Generate) -- took 4 commits
+  across 3 review passes, each catching a real, progressively
+  subtler bug in the aria-live approach before landing on the correct
+  pattern.
+- R8: added per-card Retry on FAILED reports (closing the UX judges'
+  explicitly-named "single worst friction point") and a Publish
+  confirmation dialog -- a review pass caught a real UX regression
+  (every card's retry icon spinning together) and a weak regression
+  test, both fixed in a follow-up commit.
+- R10: fixed two regressions R9's judges found -- a per-report
+  aria-label on Retry (every card previously shared one accessible
+  name) and consolidated three overlapping file_url validity checks
+  into one `canOpenReport()` helper (which also fixed a latent bug:
+  Preview/Download could look clickable but silently no-op on a
+  non-http(s) URL).
+
+**Still open (known, accepted, or deferred -- not blocking
+convergence):**
+- Industry-standards (8): status/type filtering and per-card
+  provenance/audit-trail display are backend-blocked (confirmed via
+  the sibling `aexa-server` repo) -- would need real backend work,
+  not a frontend gap.
+- UX (8): generation progress is an indeterminate spinner only (no
+  real percentage/step); search has no clear/x button and no
+  in-flight indicator during the debounce window.
+- Resilience (8): `Report.error_message` (typed, populated
+  server-side) is never rendered -- every FAILED card shows the same
+  generic hint regardless of actual cause. Open since R3, 7 rounds
+  running -- the single longest-standing open finding in this loop.
+- Code quality (7, at floor): the report-card JSX (~135 lines inside
+  one `reports.map`) is a real, increasingly-warranted case for a
+  `ReportCard` subcomponent extraction -- deferred twice now (R9,
+  R11) as a Tier 3 refactor disproportionate to a single round's
+  scope, but the strongest remaining candidate for a future round if
+  this loop is picked back up.
+- Visual polish (8): the FAILED badge still hardcodes its color
+  classes instead of routing through `severityBadgeClasses()`; the AI
+  badge and status pill have mismatched corner-radius shapes. Both
+  open since R3, cosmetic, low-cost if ever prioritized.
+
+**Total shipped this loop**: 10 fix/review rounds (R2, R4, R6, R8,
+R10 full rounds, several with 2-4 commits each after review passes),
+PRs #757-767 (fix PRs #758, #760, #762, #764, #766; docs PRs #759,
+#761, #763, #765, #767), all merged via the standing merge
+authorization. Every shipped fix carried a genuine negative-control
+regression test; two false-positive investigations (a stale-tab
+industry-standards finding in R5, an initially-weak regression test
+in R6) were caught and corrected rather than accepted at face value.
