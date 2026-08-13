@@ -7,7 +7,7 @@ import {
 import { getEnumLabel } from "@/utils/enumLabel"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
-import { Bell, Clock, Loader2 } from "lucide-react"
+import { Bell, CheckCheck, Clock, Loader2, RotateCw } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
@@ -45,9 +45,26 @@ export default function AlertsPage() {
     data: alertResponse,
     isLoading,
     error,
+    refetch,
   } = useGetAllAlertsQuery(undefined)
-  const [markAlertRead, { isLoading: isMarkingRead }] =
-    useMarkAlertReadMutation()
+  const [markAlertRead] = useMarkAlertReadMutation()
+  // Round-4 review finding: `isMarkingRead` used to be the mutation
+  // hook's own single shared isLoading flag -- clicking "Mark as read" on
+  // one alert disabled every OTHER unread alert's button too, with no
+  // indication why (they just looked broken). Tracked per-id instead so
+  // only the row actually being marked read shows as busy.
+  const [markingReadIds, setMarkingReadIds] = useState<Set<string>>(
+    new Set()
+  )
+  // Round-4 industry-standards finding: no bulk action existed at all
+  // (not even mark-all-read) despite there being no per-org limit on how
+  // many unread alerts can pile up. No bulk endpoint exists server-side
+  // (aexa-server's alert.route.ts only has a per-id PATCH /:id/read), so
+  // this fires the same per-id mutation in parallel across every
+  // currently-unread, currently-*visible* alert (respecting the active
+  // severity filter, same as a user would expect "mark all as read" to
+  // mean "in what I'm looking at," not silently reach outside it).
+  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false)
   // quality-bar-loop round 14 (industry-standards): the dashboard's
   // "Critical Alerts" KPI card used to be a static, non-clickable number --
   // it now links here with ?severity=critical, seeding the same
@@ -101,11 +118,70 @@ export default function AlertsPage() {
     }
   }, [allAlerts])
 
+  // Round-4 UX finding: the header's "N active alerts" stat is the true
+  // org-wide total regardless of read state (deliberately, per the round-14
+  // comment above) -- but that also meant there was no unread count
+  // anywhere on the page at all, in a header stat or otherwise.
+  const unreadCount = useMemo(
+    () => allAlerts.filter((a: any) => !a.is_read).length,
+    [allAlerts]
+  )
+  // Round-4 review finding: the mark-all-read button's visibility used to
+  // be gated on the org-wide `unreadCount` above, while the action itself
+  // only ever operates on the currently-*filtered* `alerts` list -- a
+  // severity filter that hides every unread alert (while unread ones
+  // exist under a DIFFERENT severity) left the button visible but
+  // clicking it silently did nothing (the `unreadIds.length === 0` early
+  // return, with no toast or explanation). Gating visibility on this
+  // filtered count instead keeps the button and its action in sync.
+  const filteredUnreadCount = useMemo(
+    () => alerts.filter((a: any) => !a.is_read).length,
+    [alerts]
+  )
+
   const handleMarkRead = async (id: string) => {
+    setMarkingReadIds((prev) => new Set(prev).add(id))
     try {
       await markAlertRead(id).unwrap()
     } catch (err: any) {
       toast.error(err?.data?.message || t("organization.alerts.markReadFailed"))
+    } finally {
+      setMarkingReadIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }
+  }
+
+  const handleMarkAllRead = async () => {
+    const unreadIds = alerts
+      .filter((a: any) => !a.is_read)
+      .map((a: any) => a.id as string)
+    if (unreadIds.length === 0) return
+
+    setIsMarkingAllRead(true)
+    setMarkingReadIds((prev) => new Set([...prev, ...unreadIds]))
+    // allSettled, not all: one failed alert (e.g. deleted mid-flight)
+    // shouldn't stop the rest of the batch from marking read.
+    const results = await Promise.allSettled(
+      unreadIds.map((id) => markAlertRead(id).unwrap())
+    )
+    setMarkingReadIds((prev) => {
+      const next = new Set(prev)
+      unreadIds.forEach((id) => next.delete(id))
+      return next
+    })
+    setIsMarkingAllRead(false)
+
+    const failedCount = results.filter((r) => r.status === "rejected").length
+    if (failedCount > 0) {
+      toast.error(
+        t("organization.alerts.markAllReadPartialFailure", {
+          failed: failedCount,
+          total: unreadIds.length,
+        })
+      )
     }
   }
 
@@ -120,8 +196,22 @@ export default function AlertsPage() {
   if (error) {
     return (
       <div className="p-6">
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-center text-sm text-destructive">
-          {t("organization.alerts.loadFailed")}
+        {/* Round-4 UX finding: this error state had no way to recover
+            short of a full page reload -- a real backend 429 live-hit
+            this state with no retry action anywhere. */}
+        <div
+          role="alert"
+          className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-center text-sm text-destructive"
+        >
+          <span>{t("organization.alerts.loadFailed")}</span>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="flex items-center gap-1.5 rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+          >
+            <RotateCw className="h-3.5 w-3.5" />
+            {t("organization.alerts.retry")}
+          </button>
         </div>
       </div>
     )
@@ -129,7 +219,7 @@ export default function AlertsPage() {
 
   return (
     <div className="space-y-5 p-6">
-      <div className="animate-fade-in flex items-center justify-between">
+      <div className="animate-fade-in flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
             {t("organization.alerts.title")}
@@ -139,8 +229,42 @@ export default function AlertsPage() {
                 count below -- a severity filter narrows what's *shown*, it
                 shouldn't make the header lie about how many alerts exist. */}
             {t("organization.alerts.activeCount", { count: allAlerts.length })}
+            {/* Round-4 UX finding: no unread indicator existed anywhere on
+                the page, despite unread being the one status this page's
+                whole job is to surface. */}
+            {unreadCount > 0 && (
+              <>
+                {" "}
+                &middot;{" "}
+                <span className="font-medium text-foreground">
+                  {t("organization.alerts.unreadCount", { count: unreadCount })}
+                </span>
+              </>
+            )}
           </p>
         </div>
+
+        {/* Round-4 industry-standards finding: no bulk action existed at
+            all, not even mark-all-read -- every alert had to be
+            individually clicked. No backend bulk endpoint exists
+            (alert.route.ts only has a per-id PATCH), so this fires the
+            same per-id mutation in parallel across every unread alert in
+            the *currently filtered* view. */}
+        {filteredUnreadCount > 0 && (
+          <button
+            type="button"
+            onClick={handleMarkAllRead}
+            disabled={isMarkingAllRead}
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+          >
+            {isMarkingAllRead ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <CheckCheck className="h-3.5 w-3.5" />
+            )}
+            {t("organization.alerts.markAllRead")}
+          </button>
+        )}
       </div>
 
       {/* Severity Quick Filters
@@ -295,9 +419,12 @@ export default function AlertsPage() {
                       <button
                         type="button"
                         onClick={() => handleMarkRead(alert.id)}
-                        disabled={isMarkingRead}
-                        className="focus-ring flex h-11 items-center rounded-md px-2 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+                        disabled={markingReadIds.has(alert.id)}
+                        className="focus-ring flex h-11 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
                       >
+                        {markingReadIds.has(alert.id) && (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        )}
                         {t("organization.alerts.markAsRead")}
                       </button>
                     )}

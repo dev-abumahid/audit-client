@@ -168,3 +168,49 @@ three remaining gaps are feature-shaped work needing product input this
 loop shouldn't make unilaterally. Per the standing "scope ambiguous
 things, keep going down the list of tabs" instruction, moving to the
 next sidebar tab: Regulatory Compliance.
+
+## Round 4 (industry-standards, UX, code quality -- bulk mark-all-read, per-row loading, retry, unread indicator, PR TBD)
+
+Resumed per the standing "resume the work on the floor gap ones"
+instruction. Batched the highest-leverage, concretely-scoped findings
+across all three below-floor axes into one round since they're all
+Tier 2, same file, no overlap risk:
+
+1. **Industry-standards -- bulk mark-all-read.** No bulk endpoint
+   exists server-side (aexa-server's alert.route.ts only has a per-id
+   PATCH /:id/read) -- fires the same per-id mutation in parallel
+   across every currently-unread, currently-*filtered* alert via
+   Promise.allSettled (one failure doesn't block the rest of the
+   batch; a partial-failure toast reports how many failed).
+2. **UX -- unread count + retry.** Header now shows "N unread"
+   alongside the pre-existing org-wide "N active alerts" stat. The
+   error state gets a Retry button wired to the query's own refetch.
+3. **Code quality / resilience -- per-row loading state.** The
+   `isMarkingRead` shared mutation-hook flag used to disable every
+   unread alert's button the instant any ONE was clicked, with no
+   indication why. Replaced with a `markingReadIds: Set<string>`
+   tracking exactly which row(s) are in flight.
+
+7 new regression tests, all with a genuine negative control (6/6
+newly-added assertions confirmed to fail against the pre-fix source
+when reverted).
+
+**QA**: lint clean, typecheck clean repo-wide. Full suite:
+1999/1999 passing.
+
+**Live verification**: Retry confirmed fully end-to-end against the
+real backend (stopped aexa-server, hit the error state, restarted,
+clicked Retry, confirmed the real alert list reloaded). Mark-all-read
+and the unread-count indicator could **not** be live-verified against
+real data -- this preview org's only alert is already `is_read: true`
+(confirmed via the actual network response), and there's no
+mark-unread endpoint to manufacture an unread state. Relied on the
+unit tests (with their own verified negative control) for these two
+features instead, documented rather than silently skipped.
+
+**Status:** the remaining industry-standards gaps (snooze/dismiss/
+archive as a real lifecycle beyond binary is_read, sorting, deep-links
+for non-KRI sources, pagination UI) and the file-wide `any`-disable
+code-quality gap are still larger, product-scoped work -- this round
+picked off the clearest, most concretely-actionable items from each
+axis rather than the full remaining list.

@@ -272,6 +272,219 @@ describe("AlertsPage", () => {
     )
   })
 
+  // Round-4 review finding: the mutation hook's own shared `isLoading`
+  // used to disable EVERY unread alert's "Mark as read" button the moment
+  // any one of them was clicked, with no way to tell which one was
+  // actually in flight. Per-id tracking means only the clicked row shows
+  // as busy.
+  describe("per-row mark-as-read loading state (round 4)", () => {
+    it("only disables the clicked alert's button, not every unread alert's button", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAlert({ id: "a1", is_read: false }),
+            makeAlert({ id: "a2", is_read: false }),
+          ],
+        },
+        isLoading: false,
+      })
+      // Never resolves -- keeps a1's button in the "marking read" state
+      // long enough to assert a2's button is unaffected.
+      mockMarkAlertRead.mockReturnValue({ unwrap: () => new Promise(() => {}) })
+
+      renderPage()
+      const [buttonA1, buttonA2] = screen.getAllByRole("button", {
+        name: "organization.alerts.markAsRead",
+      })
+      await userEvent.click(buttonA1)
+
+      expect(buttonA1).toBeDisabled()
+      expect(buttonA2).not.toBeDisabled()
+    })
+  })
+
+  // Round-4 industry-standards finding: no bulk action existed at all --
+  // every alert had to be marked read one at a time, with no way to clear
+  // a backlog in one action.
+  describe("mark all as read (round 4)", () => {
+    it("shows a mark-all-read button only when there are unread alerts", () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert({ is_read: true })] },
+        isLoading: false,
+      })
+      renderPage()
+
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.alerts.markAllRead",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("marks every currently-visible unread alert as read, but not already-read ones", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAlert({ id: "a1", is_read: false }),
+            makeAlert({ id: "a2", is_read: false }),
+            makeAlert({ id: "a3", is_read: true }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockMarkAlertRead.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.alerts.markAllRead" })
+      )
+
+      await waitFor(() => expect(mockMarkAlertRead).toHaveBeenCalledTimes(2))
+      expect(mockMarkAlertRead).toHaveBeenCalledWith("a1")
+      expect(mockMarkAlertRead).toHaveBeenCalledWith("a2")
+      expect(mockMarkAlertRead).not.toHaveBeenCalledWith("a3")
+    })
+
+    it("respects the active severity filter -- only marks alerts currently visible under it", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAlert({ id: "a1", severity: "critical", is_read: false }),
+            makeAlert({ id: "a2", severity: "low", is_read: false }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockMarkAlertRead.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: /riskLevel\.critical/ })
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.alerts.markAllRead" })
+      )
+
+      await waitFor(() => expect(mockMarkAlertRead).toHaveBeenCalledTimes(1))
+      expect(mockMarkAlertRead).toHaveBeenCalledWith("a1")
+      expect(mockMarkAlertRead).not.toHaveBeenCalledWith("a2")
+    })
+
+    // Round-4 review finding: the button's visibility used to be gated on
+    // the org-wide unread count while the action only ever touches the
+    // filtered list -- a filter that hides every unread alert (while
+    // unread ones exist under a DIFFERENT severity) left the button
+    // visible but clicking it silently did nothing.
+    it("shows the mark-all-read button with no filter active when any alert is unread", () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAlert({ id: "a1", severity: "critical", is_read: true }),
+            makeAlert({ id: "a2", severity: "low", is_read: false }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+      // No filter active: alerts === allAlerts, so this baseline case
+      // can't itself distinguish the fix from the pre-fix bug -- see the
+      // next test for the actual regression guard (filtered to a
+      // severity with zero unread, while another severity still has some).
+      expect(
+        screen.getByRole("button", { name: "organization.alerts.markAllRead" })
+      ).toBeInTheDocument()
+    })
+
+    it("hides the mark-all-read button once filtered to a severity where every visible alert is already read", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAlert({ id: "a1", severity: "critical", is_read: true }),
+            makeAlert({ id: "a2", severity: "low", is_read: false }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: /riskLevel\.critical/ })
+      )
+
+      // Filtered to critical, whose only alert (a1) is already read -- the
+      // button must NOT be visible even though a2 (low, unread) exists.
+      expect(
+        screen.queryByRole("button", { name: "organization.alerts.markAllRead" })
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows a partial-failure toast when some alerts fail to mark read, without blocking the rest", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAlert({ id: "a1", is_read: false }),
+            makeAlert({ id: "a2", is_read: false }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockMarkAlertRead.mockImplementation((id: string) => ({
+        unwrap: () =>
+          id === "a1"
+            ? Promise.reject({ data: { message: "failed" } })
+            : Promise.resolve({}),
+      }))
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.alerts.markAllRead" })
+      )
+
+      await waitFor(() => expect(mockToastError).toHaveBeenCalled())
+      expect(mockMarkAlertRead).toHaveBeenCalledWith("a1")
+      expect(mockMarkAlertRead).toHaveBeenCalledWith("a2")
+    })
+  })
+
+  // Round-4 UX finding: the error state had no way to recover short of a
+  // full page reload -- a real backend 429 hit this state live with no
+  // retry action anywhere.
+  it("shows a retry button on the error state that refetches the alerts list", async () => {
+    const mockRefetch = vi.fn()
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: { status: 500 },
+      refetch: mockRefetch,
+    })
+    renderPage()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.alerts.retry" })
+    )
+
+    expect(mockRefetch).toHaveBeenCalled()
+  })
+
+  // Round-4 UX finding: no unread indicator existed anywhere on the page.
+  it("shows an unread count alongside the active-alerts stat", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: {
+        data: [
+          makeAlert({ id: "a1", is_read: false }),
+          makeAlert({ id: "a2", is_read: true }),
+        ],
+      },
+      isLoading: false,
+    })
+    renderPage()
+
+    expect(
+      screen.getByText("organization.alerts.unreadCount")
+    ).toBeInTheDocument()
+  })
+
   it("counts alerts by severity into the quick filter row", () => {
     mockUseGetAllAlertsQuery.mockReturnValue({
       data: {
@@ -286,7 +499,18 @@ describe("AlertsPage", () => {
     })
     renderPage()
 
-    expect(screen.getByText("organization.alerts.activeCount")).toBeInTheDocument()
+    // Round-4 UX finding added an unread-count fragment as a sibling text
+    // node inside the same <p>, so its full textContent is no longer just
+    // the activeCount string -- match on the containing paragraph instead
+    // of an exact equal string.
+    expect(
+      screen.getByText((_, element) =>
+        element?.tagName === "P" &&
+        (element.textContent ?? "").includes(
+          "organization.alerts.activeCount"
+        )
+      )
+    ).toBeInTheDocument()
   })
 
   // aexa-frontend round-3 audit bug #5: `alert.type` used to render the raw
