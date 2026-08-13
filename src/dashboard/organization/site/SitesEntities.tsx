@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
 import UnscoredBadge from "@/components/dashboard/organization/UnscoredBadge"
@@ -131,6 +129,20 @@ interface RiskFormValues {
   name: string
   category: string
   description: string
+}
+
+// quality-bar-loop round 10 (code quality finding, open since round 1):
+// this exact 7-field blank literal was duplicated at the useForm() default
+// and at openCreate's reset() call -- one source of truth for "what does an
+// empty site form look like."
+const EMPTY_SITE_FORM_VALUES: SiteFormValues = {
+  name: "",
+  location: "",
+  country: "",
+  activity: "",
+  revenue: 0,
+  employees_count: 0,
+  site_type: "production",
 }
 
 export default function SitesEntities() {
@@ -299,15 +311,7 @@ export default function SitesEntities() {
 
   // React Hook Form setup for site form
   const siteForm = useForm<SiteFormValues>({
-    defaultValues: {
-      name: "",
-      location: "",
-      country: "",
-      activity: "",
-      revenue: 0,
-      employees_count: 0,
-      site_type: "production",
-    },
+    defaultValues: EMPTY_SITE_FORM_VALUES,
   })
 
   // React Hook Form setup for risk form
@@ -362,15 +366,7 @@ export default function SitesEntities() {
     latestEditRequestRef.current = null
     setEditingSite(null)
     setIsLoadingEditSite(false)
-    siteForm.reset({
-      name: "",
-      location: "",
-      country: "",
-      activity: "",
-      revenue: 0,
-      employees_count: 0,
-      site_type: "production",
-    })
+    siteForm.reset(EMPTY_SITE_FORM_VALUES)
     setShowForm(true)
   }
 
@@ -460,7 +456,7 @@ export default function SitesEntities() {
         )
         closeSiteForm()
       }
-    } catch (error: any) {
+    } catch {
       toast.error(t("organization.site&entities.saveSiteFailed"))
     }
   }
@@ -485,7 +481,7 @@ export default function SitesEntities() {
         // else branch; this brings the site-delete handler in line.
         toast.error(t("organization.site&entities.deleteSiteFailed"))
       }
-    } catch (error) {
+    } catch {
       toast.error(t("organization.site&entities.deleteSiteFailed"))
     }
   }
@@ -511,7 +507,7 @@ export default function SitesEntities() {
       if (risks.length === 0) {
         toast(t("organization.site&entities.noAdditionalRisks"))
       }
-    } catch (error: any) {
+    } catch (error) {
       if (latestAnalysisRequestRef.current !== site.id) return
       // Prefer the translated fallback over the raw backend message: the
       // backend always responds in English regardless of the UI's active
@@ -520,7 +516,7 @@ export default function SitesEntities() {
       // (aexa-frontend#399).
       toast.error(
         t("organization.site&entities.aiRiskAnalysisFailed") ||
-          error?.data?.message,
+          (error as { data?: { message?: string } })?.data?.message,
       )
       setAnalyzingSiteId(null)
     } finally {
@@ -616,13 +612,14 @@ export default function SitesEntities() {
       } else {
         toast.error(t("organization.site&entities.createRiskFailed"))
       }
-    } catch (error: any) {
+    } catch (error) {
       // Keep the inline risk form open on failure so the user doesn't lose
       // what they typed and can retry, same as handleSave above. Translated
       // fallback takes precedence over the raw backend message -- see the
       // comment in handleAnalyzeSite's catch block (aexa-frontend#399).
       toast.error(
-        t("organization.site&entities.createRiskFailed") || error?.data?.message,
+        t("organization.site&entities.createRiskFailed") ||
+          (error as { data?: { message?: string } })?.data?.message,
       )
     }
   }
@@ -643,11 +640,12 @@ export default function SitesEntities() {
       } else {
         toast.error(t("organization.site&entities.deleteRiskFailed"))
       }
-    } catch (error: any) {
+    } catch (error) {
       // Translated fallback takes precedence over the raw backend message --
       // see the comment in handleAnalyzeSite's catch block (aexa-frontend#399).
       toast.error(
-        t("organization.site&entities.deleteRiskFailed") || error?.data?.message,
+        t("organization.site&entities.deleteRiskFailed") ||
+          (error as { data?: { message?: string } })?.data?.message,
       )
     }
   }
