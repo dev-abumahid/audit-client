@@ -231,7 +231,7 @@ describe("CreateNewFindingModal", () => {
       screen.getByLabelText("organization.findings.descriptionOptional")
     ).toBeInTheDocument()
     expect(
-      screen.getByLabelText("organization.findings.inspectionLabel")
+      screen.getByLabelText(/organization\.findings\.inspectionLabel/)
     ).toBeInTheDocument()
     expect(
       screen.getByLabelText("organization.findings.priority")
@@ -307,7 +307,13 @@ describe("CreateNewFindingModal", () => {
       <CreateNewFindingModal
         open
         onClose={vi.fn()}
-        additionalData={{ questionId: "question-42" }}
+        // A questionId always belongs to a specific inspection in practice
+        // -- a caller wiring one in also wires the matching inspectionId,
+        // so both come pre-filled here rather than making the test pick an
+        // inspection through the dropdown, which would reset questionId
+        // back to "" (see handleInspectionChange's own questionId reset,
+        // correct for the real user-driven-change case this test isn't).
+        additionalData={{ questionId: "question-42", inspectionId: "insp-1" }}
       />
     )
 
@@ -346,6 +352,10 @@ describe("CreateNewFindingModal", () => {
     )
 
     // Title comes pre-filled from additionalData — no typing needed.
+    await userEvent.selectOptions(
+      screen.getByLabelText(/organization\.findings\.inspectionLabel/),
+      "insp-1"
+    )
     await userEvent.selectOptions(
       screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
@@ -413,6 +423,10 @@ describe("CreateNewFindingModal", () => {
 
     await waitFor(() => expect(mockUploadFile).toHaveBeenCalled())
 
+    await userEvent.selectOptions(
+      screen.getByLabelText(/organization\.findings\.inspectionLabel/),
+      "insp-1"
+    )
     await userEvent.selectOptions(
       screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
@@ -931,6 +945,10 @@ describe("CreateNewFindingModal", () => {
       "Finding with real member shape"
     )
     await userEvent.selectOptions(
+      screen.getByLabelText(/organization\.findings\.inspectionLabel/),
+      "insp-1"
+    )
+    await userEvent.selectOptions(
       screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
     )
@@ -1041,6 +1059,10 @@ describe("CreateNewFindingModal", () => {
       "Plain remediation task"
     )
     await userEvent.selectOptions(
+      screen.getByLabelText(/organization\.findings\.inspectionLabel/),
+      "insp-1"
+    )
+    await userEvent.selectOptions(
       screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
       "FIRST"
     )
@@ -1086,6 +1108,10 @@ describe("CreateNewFindingModal", () => {
     await userEvent.type(
       screen.getByPlaceholderText("organization.findings.effectPlaceholder"),
       "Increased fall risk"
+    )
+    await userEvent.selectOptions(
+      screen.getByLabelText(/organization\.findings\.inspectionLabel/),
+      "insp-1"
     )
     await userEvent.selectOptions(
       screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
@@ -1298,6 +1324,10 @@ describe("CreateNewFindingModal", () => {
     await userEvent.type(
       screen.getByPlaceholderText("organization.findings.addUpdatePlaceholder"),
       "First comment"
+    )
+    await userEvent.selectOptions(
+      screen.getByLabelText(/organization\.findings\.inspectionLabel/),
+      "insp-1"
     )
     await userEvent.selectOptions(
       screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
@@ -1926,6 +1956,10 @@ describe("CreateNewFindingModal", () => {
         "New finding"
       )
       await userEvent.selectOptions(
+        screen.getByLabelText(/organization\.findings\.inspectionLabel/),
+        "insp-1"
+      )
+      await userEvent.selectOptions(
         screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
         "THIRD"
       )
@@ -1986,6 +2020,129 @@ describe("CreateNewFindingModal", () => {
       await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
       const payload = mockUpdateFindingById.mock.calls[0][0].body
       expect(payload.line_of_defense).toBeUndefined()
+    })
+  })
+
+  // Round 4 UX finding: same silent-submit-failure pattern as Line of
+  // Defense above, on a sibling field -- Inspection had no client-side
+  // validation at all, so submitting with it unset sent
+  // `inspectionId: undefined`, which the backend rejects with a generic
+  // Zod 400 and no field-level feedback.
+  describe("inspection (round 4 UX finding)", () => {
+    it("blocks create and shows a validation error when no inspection is selected", async () => {
+      render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+      await userEvent.type(
+        screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
+        "New finding"
+      )
+      await userEvent.selectOptions(
+        screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
+        "FIRST"
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
+      )
+
+      expect(
+        await screen.findByText("organization.findings.inspectionRequired")
+      ).toBeInTheDocument()
+      expect(mockCreateNewFinding).not.toHaveBeenCalled()
+    })
+
+    it("marks Inspection as required on create, not on edit", () => {
+      const { unmount } = render(
+        <CreateNewFindingModal open onClose={vi.fn()} />
+      )
+      const createLabel = screen.getByText(
+        "organization.findings.inspectionLabel"
+      ).parentElement!
+      expect(createLabel.textContent).toContain("*")
+      unmount()
+
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ inspectionId: "insp-1" }) as any}
+        />
+      )
+      const editLabel = screen.getByText(
+        "organization.findings.inspectionLabel"
+      ).parentElement!
+      expect(editLabel.textContent).not.toContain("*")
+    })
+
+    it("backs the visual asterisk with aria-required so screen readers get the same signal", () => {
+      const { unmount } = render(
+        <CreateNewFindingModal open onClose={vi.fn()} />
+      )
+      expect(
+        screen.getByRole("combobox", {
+          name: "organization.findings.inspectionLabel",
+        })
+      ).toHaveAttribute("aria-required", "true")
+      unmount()
+
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ inspectionId: "insp-1" }) as any}
+        />
+      )
+      expect(
+        screen.getByRole("combobox", {
+          name: "organization.findings.inspectionLabel",
+        })
+      ).toHaveAttribute("aria-required", "false")
+    })
+
+    it("scrolls Inspection into view when it's the only reason a submit was rejected", async () => {
+      const scrollSpy = HTMLElement.prototype
+        .scrollIntoView as ReturnType<typeof vi.fn>
+      scrollSpy.mockClear()
+
+      render(<CreateNewFindingModal open onClose={vi.fn()} />)
+
+      await userEvent.type(
+        screen.getByPlaceholderText("organization.findings.actionTitlePlaceholder"),
+        "New finding"
+      )
+      await userEvent.selectOptions(
+        screen.getByLabelText(/organization\.findings\.lineOfDefenseLabel/),
+        "FIRST"
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.findings.createFindingBtn" })
+      )
+
+      await screen.findByText("organization.findings.inspectionRequired")
+      expect(scrollSpy).toHaveBeenCalledWith({
+        behavior: "smooth",
+        block: "center",
+      })
+    })
+
+    it("does not require an inspection on edit", async () => {
+      mockUpdateFindingById.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      render(
+        <CreateNewFindingModal
+          open
+          onClose={vi.fn()}
+          editData={makeEditData({ inspectionId: undefined }) as any}
+        />
+      )
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.findings.updateFindingBtn" })
+      )
+
+      await waitFor(() => expect(mockUpdateFindingById).toHaveBeenCalled())
+      expect(
+        screen.queryByText("organization.findings.inspectionRequired")
+      ).not.toBeInTheDocument()
     })
   })
 })

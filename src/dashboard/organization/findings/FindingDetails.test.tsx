@@ -493,6 +493,49 @@ describe("FindingDetails", () => {
       expect(screen.getByText("organization.findings.noAttachments")).toBeInTheDocument()
     })
 
+    // Round 4 security finding: this page rendered action.attachments
+    // straight into img/video/iframe src and an anchor href (via
+    // downloadFile's dynamically-created, synchronously-clicked-and-removed
+    // <a>, so it's never queryable in the DOM after the fact) with no
+    // guard, unlike CreateNewFindingModal.tsx's own media renderer, which
+    // already filters non-http(s) URLs (e.g. a javascript: URL) via
+    // isHttpUrl() before rendering. safeAttachments applies that same
+    // filter here, so a malicious entry is excluded from rendering
+    // entirely -- checked by its absence from the file list and the tab
+    // count, not by asserting on a transient src/href attribute a fixed
+    // page would never expose anyway.
+    it("excludes a non-http(s) attachment URL from the file list and the tab count", async () => {
+      mockUseGetFindingByIdQuery.mockReturnValue({
+        data: {
+          data: makeAction({
+            attachments: [
+              "javascript:alert(1)",
+              "https://cdn.example.com/photo.png",
+            ],
+          }),
+        },
+        isLoading: false,
+      })
+      renderPage()
+
+      // safeAttachments filters the malicious entry before the tab-count
+      // badge is computed -- only the one legitimate attachment counts.
+      expect(
+        screen.getByRole("button", { name: /tabAttachments/ })
+      ).toHaveTextContent("1")
+
+      await openFilesTab()
+
+      expect(
+        document.querySelector(
+          'img[src="https://cdn.example.com/photo.png"]'
+        )
+      ).toBeInTheDocument()
+      // attachmentFileName("javascript:alert(1)") (no "/" to split on)
+      // would render that literal string in the file list if unfiltered.
+      expect(screen.queryByText("javascript:alert(1)")).not.toBeInTheDocument()
+    })
+
     it("renders existing attachments split into images and files", async () => {
       mockUseGetFindingByIdQuery.mockReturnValue({
         data: {

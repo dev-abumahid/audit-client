@@ -45,6 +45,7 @@ import type { IAction } from "@/types/finding"
 import { attachmentFileName } from "@/utils/attachmentFileName"
 import { fileType } from "@/utils/fileType"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { isHttpUrl } from "@/utils/isHttpUrl"
 import CreateNewFindingModal from "./CreateNewFindingModal"
 import FindingClosureControls from "./FindingClosureControls"
 
@@ -383,6 +384,15 @@ export default function FindingDetails() {
     )
   }
 
+  // Round 4 security finding: action.attachments is server-returned,
+  // pre-existing-record data (same category CreateNewFindingModal.tsx's own
+  // isHttpUrl() guard was added for) -- this page rendered it into
+  // img/video/iframe src and an anchor href without that guard. Filtering
+  // once here covers every downstream sink (grid, file list, download
+  // button, and PreviewModal, since previewUrl only ever gets set from an
+  // already-filtered url).
+  const safeAttachments = action.attachments.filter(isHttpUrl)
+
   const handleUploadAttachment = async (file: File) => {
     setIsUploadingAttachment(true)
     try {
@@ -469,7 +479,7 @@ export default function FindingDetails() {
       key: "files",
       label: t("organization.findings.tabAttachments"),
       icon: <Paperclip className="h-4 w-4" />,
-      count: action.attachments.length,
+      count: safeAttachments.length,
     },
   ]
 
@@ -832,7 +842,7 @@ export default function FindingDetails() {
                       </button>
                     </div>
 
-                    {action.attachments.length === 0 ? (
+                    {safeAttachments.length === 0 ? (
                       <div className="py-12 text-center">
                         <Paperclip className="mx-auto mb-3 h-12 w-12 text-muted-foreground/30" />
                         <p className="text-sm text-muted-foreground">
@@ -842,7 +852,7 @@ export default function FindingDetails() {
                     ) : (
                       <div className="space-y-4">
                         {/* Images Grid */}
-                        {action.attachments.filter(
+                        {safeAttachments.filter(
                           (url) => fileType(url) === "image"
                         ).length > 0 && (
                           <div>
@@ -850,7 +860,7 @@ export default function FindingDetails() {
                               <ImageIcon className="h-4 w-4" /> {t("organization.findings.images")}
                             </p>
                             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                              {action.attachments
+                              {safeAttachments
                                 .filter((url) => fileType(url) === "image")
                                 .map((url, i) => (
                                   <div
@@ -904,7 +914,7 @@ export default function FindingDetails() {
                         )}
 
                         {/* Other Files List */}
-                        {action.attachments.filter(
+                        {safeAttachments.filter(
                           (url) => fileType(url) !== "image"
                         ).length > 0 && (
                           <div>
@@ -912,7 +922,7 @@ export default function FindingDetails() {
                               <File className="h-4 w-4" /> {t("organization.findings.files")}
                             </p>
                             <div className="space-y-2">
-                              {action.attachments
+                              {safeAttachments
                                 .filter((url) => fileType(url) !== "image")
                                 .map((url, i) => (
                                   <div

@@ -95,3 +95,60 @@ each other. No existing test broke that wasn't already accounted for
 and fixed as part of implementing the change (the two AllFindingsPage
 tests that referenced the old click-only-onClick assumption were
 updated to match the new, more accessible behavior, not weakened).
+
+## Round 3 — fresh 9-judge panel
+
+Round 2's diff (a `Link` conversion, a button conversion, an
+asterisk/aria-required/scroll addition) touched 3 files with real
+logic/behavior changes across 3 different axes' concerns, so this round
+re-ran the full panel rather than using the scoped-carry-forward
+shortcut.
+
+| Axis | R1 | R3 | Note |
+|---|---|---|---|
+| Industry-standards | 7 | 6 | No bulk actions, no column sorting, no status/priority/assignee/due-date filtering beyond a single site filter. No SLA/overdue visual treatment -- a finding well past its due date renders identically to one not yet due. Audit trail is only free-text Messages, no structured change-history timeline. Same category of gap R1 flagged, scored more strictly this round. |
+| UX | 5 → **7** | 7 | R2's Line of Defense fix confirmed genuinely fixed live. **New finding, same failure pattern on a sibling field**: the Inspection `<select>` in `CreateNewFindingModal.tsx` has no `required` rule, no asterisk, and no client-side validation -- submitting with it unset sends `inspectionId: undefined`, the backend 400s with a Zod error, and the user sees only a generic "Validation Error" toast with no field highlighted. Tagged `broken-functionality`. |
+| Efficiency | 6 | 7 | R2 didn't touch this axis's surface (confirmed no re-render/effect regression from its 3 fixes). Still below target: search input has no debounce (`AllFindingsPage.tsx`, matches R1's finding, still unfixed), and `useMyAssignedInspectionIds()` is called without its opt-in `role` param at all 3 Findings call sites, wasting a fetch for VIEWER/LIGHT_USER roles despite the skip param already existing in the shared hook for exactly this case. |
+| Accessibility | 4 → **8** | 8 | **Both R1 CRITICAL findings confirmed fixed live** via real DOM/tab-order inspection (title is a genuine `<a href>` in natural tab order; Upload File is a real `<button>`, tab-index 0, Enter/Space-activatable). New minor finding: the Messages-tab compose input (`FindingDetails.tsx`) and the list search input (`AllFindingsPage.tsx`) are placeholder-only with no `aria-label`, unlike the identical-purpose input in `CreateNewFindingModal.tsx` which already has one. |
+| Visual polish | 8 | 8 | R2's Link, button, and asterisk all visually match their respective established precedents (Site-column Link styling was *not* copied for color, see finding below; Upload File matches the primary-action pill convention; asterisk is byte-identical to the Inspection module's). New finding: the R2 title `Link` (`text-foreground`, invisible until hover) and the pre-existing Site `Link` two cells over (`text-primary`, always visibly a link) give two links in the same row different default affordance. |
+| Resilience | 8 | 8 | R2's 3 fixes hold up under edge cases (null-safe ref in scroll-into-view, empty-title Link doesn't crash). Same gap R1 flagged and R2 didn't target: `FindingDetails.tsx` still doesn't check `isError` on its detail query, so a real network failure renders the same "Finding not found" UI as an actual 404. |
+| Code quality | 9 | 7 | R2's additions integrate cleanly as first-class code, not patches. New findings not previously scored: `CreateNewFindingModal.tsx` is a 1224-line god component with no sub-component extraction; round-finding comments are accumulating faster than they're pruned; `FindingDetails.tsx`'s image-grid and other-files-list attachment UIs duplicate the same preview/download/remove button cluster nearly verbatim; 45 `any` occurrences across the three main files, several avoidable. Scored more strictly than R1 for issues R1's judge didn't surface. |
+| Mobile | 5 → **8** | 8 | Table `overflow-x-auto` scrolling and modal reflow confirmed working live at 375px. One R1 finding NOT yet fixed: the detail page's tab bar still clips the "Attachments" label with no overflow handling -- still tappable, just illegible. Closure CTA touch-target-size finding from R1 not independently re-verified this round. |
+| Security | 8 | 6 | **Same underlying gap R1 already flagged** (`FindingDetails.tsx`'s attachment rendering -- image grid, video, PDF iframe, download link -- never applies the `isHttpUrl()` guard `CreateNewFindingModal.tsx` already established in this codebase for exactly this data), scored more severely this round: R3's judge traced concrete `javascript:`-URL-on-click/load exploitability through the iframe/anchor sinks specifically, which R1's judge didn't call out. Also newly flagged: `FindingDetails.tsx`'s upload flow skips the client-side file-type/size validation `CreateNewFindingModal.tsx`'s equivalent flow already does. |
+
+**Average: 7.22/10** ((6+7+7+8+8+8+7+8+6)/9). **Two axes below floor**
+(industry-standards 6, security 6) -- not converged, loop continues.
+
+**Regression note, not a guardrail stop**: security (8→6) and
+industry-standards (7→6) both read as score drops between rounds, which
+the skill's guardrail defines as a hard-stop trigger. Read the actual
+findings before treating it as one: round 2's shipped diff never
+touched `FindingDetails.tsx`'s attachment-rendering code (only its
+Upload File *button*) or any industry-standards-relevant surface (list
+filtering/sorting/bulk-actions/SLA display) at all -- both axes'
+findings this round describe the same pre-existing, never-touched gaps
+R1's judge already named, just scored ~1-2 points more strictly by an
+independent judge instance. This is judge-scoring variance on
+untouched code, not a fix-introduced regression, which is what the
+guardrail exists to catch ("a fix that helps one axis while pushing
+another out of bounds"). Proceeding without escalation; logging the
+reasoning explicitly per the guardrail's own spirit rather than
+silently reclassifying it.
+
+**Round 4 selection:** security's `isHttpUrl()` gap in
+`FindingDetails.tsx` is a `security`-tagged finding sitting at/below its
+own floor (6 < 7) -- by selection rule 5c.1 this wins outright over
+industry-standards' gaps (which are `cosmetic/convention`-tier
+feature-completeness gaps, not security/data-correctness), regardless
+of `stuck_streak`.
+
+**Batching**: the security fix (Tier 2 -- import and apply the existing
+`isHttpUrl()` helper to `FindingDetails.tsx`'s 4 attachment-rendering
+sinks) is batched with UX's Inspection-required-field finding (Tier 2 --
+add a `required` rule + asterisk + error display to
+`CreateNewFindingModal.tsx`, mirroring the already-fixed Line of Defense
+pattern exactly). Both are Tier 2, and the two files (`FindingDetails.tsx`,
+`CreateNewFindingModal.tsx`) are disjoint. Accessibility's and
+resilience's `FindingDetails.tsx` findings are NOT batched in this round
+since they'd share that file with the security fix; efficiency's
+findings are deferred to a later round to keep this one reviewable.

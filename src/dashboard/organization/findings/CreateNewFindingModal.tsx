@@ -268,6 +268,13 @@ export default function CreateNewFindingModal({
   // the reason a submit attempt was rejected, since its error message
   // otherwise renders below the fold behind the fixed footer button.
   const lineOfDefenseFieldRef = useRef<HTMLDivElement>(null)
+  // Round 4 UX finding: same silent-submit-failure pattern as Line of
+  // Defense, on a sibling field -- Inspection had no client-side
+  // validation at all, so submitting with it unset sent
+  // `inspectionId: undefined`, which the backend rejects with a generic
+  // Zod 400 (aexa-server's create_action schema has no default for this
+  // field). The only feedback was an untargeted "Validation Error" toast.
+  const inspectionFieldRef = useRef<HTMLDivElement>(null)
 
   // ── react-hook-form ────────────────────────────────────────────────────────
   const {
@@ -614,33 +621,60 @@ export default function CreateNewFindingModal({
           </div>
 
           {/* Inspection */}
-          <div>
+          <div ref={inspectionFieldRef}>
             <label
               htmlFor={inspectionSelectId}
               className="mb-1.5 block text-sm font-medium text-foreground"
             >
               {t("organization.findings.inspectionLabel")}
-            </label>
-            <select
-              id={inspectionSelectId}
-              value={selectedInspectionId}
-              onChange={(e) => handleInspectionChange(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-            >
-              <option value="">
-                {t("organization.findings.selectInspection")}
-              </option>
-              {inspectionsLoading ? (
-                <option disabled>{t("organization.findings.loading")}</option>
-              ) : (
-                inspectionList.map((ins) => (
-                  <option key={ins.id} value={ins.id}>
-                    {ins?.template?.templateName ||
-                      t("organization.findings.unnamedInspection")}
-                  </option>
-                ))
+              {!isEdit && (
+                <span className="ml-1 text-destructive" aria-hidden="true">
+                  *
+                </span>
               )}
-            </select>
+            </label>
+            <Controller
+              control={control}
+              name="inspectionId"
+              rules={{
+                required: isEdit
+                  ? false
+                  : t("organization.findings.inspectionRequired"),
+              }}
+              render={({ field }) => (
+                <select
+                  id={inspectionSelectId}
+                  value={selectedInspectionId}
+                  aria-required={!isEdit}
+                  onChange={(e) => {
+                    field.onChange(e.target.value)
+                    handleInspectionChange(e.target.value)
+                  }}
+                  onBlur={field.onBlur}
+                  className={`w-full rounded-lg border px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none ${
+                    errors.inspectionId
+                      ? "border-destructive bg-destructive/10"
+                      : "border-input bg-background"
+                  }`}
+                >
+                  <option value="">
+                    {t("organization.findings.selectInspection")}
+                  </option>
+                  {inspectionsLoading ? (
+                    <option disabled>
+                      {t("organization.findings.loading")}
+                    </option>
+                  ) : (
+                    inspectionList.map((ins) => (
+                      <option key={ins.id} value={ins.id}>
+                        {ins?.template?.templateName ||
+                          t("organization.findings.unnamedInspection")}
+                      </option>
+                    ))
+                  )}
+                </select>
+              )}
+            />
             {/* quality-bar-loop (Inspections, round 29 resilience finding):
                 this dropdown used to silently show just the placeholder
                 option on a failed fetch, with no indication anything went
@@ -648,6 +682,11 @@ export default function CreateNewFindingModal({
             {inspectionsError && (
               <p className="mt-1 text-xs text-destructive">
                 {t("organization.findings.inspectionsLoadFailed")}
+              </p>
+            )}
+            {errors.inspectionId && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-sm text-destructive">
+                <AlertCircle size={14} /> {errors.inspectionId.message}
               </p>
             )}
           </div>
@@ -1196,6 +1235,13 @@ export default function CreateNewFindingModal({
               // pattern for the same class of problem.
               if (invalidFields.line_of_defense) {
                 lineOfDefenseFieldRef.current?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                })
+              } else if (invalidFields.inspectionId) {
+                // Round 4 UX finding: same rejected-submit-invisible-error
+                // pattern as Line of Defense, just on Inspection instead.
+                inspectionFieldRef.current?.scrollIntoView({
                   behavior: "smooth",
                   block: "center",
                 })

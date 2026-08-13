@@ -1652,6 +1652,7 @@
       "descriptionOptional": "Description (facultatif)",
       "descriptionPlaceholder": "Ajouter une description",
       "inspectionLabel": "Inspection",
+      "inspectionRequired": "L'inspection est requise",
       "selectInspection": "Sélectionnez une inspection...",
       "loading": "Chargement...",
       "unnamedInspection": "Inspection sans nom",
