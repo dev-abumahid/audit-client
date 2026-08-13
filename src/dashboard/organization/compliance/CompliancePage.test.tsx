@@ -134,7 +134,7 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
     onClick?: (e: React.MouseEvent) => void
     variant?: string
   }) => (
-    <button onClick={onClick} data-variant={variant}>
+    <button type="button" onClick={onClick} data-variant={variant}>
       {children}
     </button>
   ),
@@ -2142,5 +2142,69 @@ describe("CompliancePage", () => {
         })
       ).toBeInTheDocument()
     })
+  })
+
+  // quality-bar-loop-derived fix: none of this file's raw <button> elements
+  // declared type="button", defaulting to the implicit type="submit" --
+  // harmless only because this page's markup doesn't currently sit inside a
+  // <form>, but a real footgun if it ever does. This file renders no shadcn
+  // <Button> (that gap is scoped elsewhere), so a full sweep is safe here --
+  // every interaction below mounts a different conditional button/modal so
+  // the sweep actually covers them, not just whatever's visible by default.
+  it("gives every button an explicit type so none default to implicit submit", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [
+          makeObligation({
+            status: "non_compliant",
+            attachments: ["https://files.example.com/evidence-1.pdf"],
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const sweep = () => {
+      const buttons = document.querySelectorAll("button")
+      expect(buttons.length).toBeGreaterThan(0)
+      buttons.forEach((button) => {
+        expect(button.type).toBe("button")
+      })
+    }
+
+    // Default render: New Obligation, Create Action, row "more actions"
+    // trigger, and the mocked dropdown's Edit/Attest/History/Delete items.
+    sweep()
+
+    // Create/Edit form modal: Close (X), remove-attachment, Cancel, Create.
+    await user.click(
+      screen.getByRole("button", {
+        name: /organization\.compliance\.newObligation/i,
+      })
+    )
+    sweep()
+    await user.click(
+      screen.getByRole("button", { name: "organization.compliance.form.close" })
+    )
+
+    // Re-attest confirm modal: Cancel, Confirm.
+    await user.click(
+      screen.getByRole("button", {
+        name: "organization.compliance.attest.button",
+      })
+    )
+    sweep()
+    await user.keyboard("{Escape}")
+
+    // Attestation history modal: Close (X).
+    await user.click(
+      screen.getByRole("button", {
+        name: "organization.compliance.attest.historyButton",
+      })
+    )
+    sweep()
   })
 })

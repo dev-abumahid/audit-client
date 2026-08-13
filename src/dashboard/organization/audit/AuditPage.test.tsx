@@ -1411,4 +1411,57 @@ describe("AuditPage", () => {
       ).not.toBeInTheDocument()
     })
   })
+
+  // quality-bar-loop-derived fix: none of this file's raw <button> elements
+  // declared type="button", defaulting to the implicit type="submit" --
+  // harmless only because this page's markup doesn't currently sit inside a
+  // <form>, but a real footgun if it ever does. This file renders no shadcn
+  // <Button> (that gap is scoped elsewhere), so a full sweep is safe here.
+  it("gives every button an explicit type so none default to implicit submit", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: {
+        data: [makeEngagement({ report_url: "https://example.com/report.pdf" })],
+      },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    const sweep = () => {
+      const buttons = document.querySelectorAll("button")
+      expect(buttons.length).toBeGreaterThan(0)
+      buttons.forEach((button) => {
+        expect(button.type).toBe("button")
+      })
+    }
+
+    // Default render: New Mission, Report download, Edit, Delete, and the
+    // linked-risk name button.
+    sweep()
+
+    // Create/Edit form modal: Cancel, Create.
+    await user.click(
+      screen.getByRole("button", { name: /organization\.audit\.newMission/i })
+    )
+    sweep()
+  })
+
+  // aexa-frontend#337 -- the retry button on the error state also had no
+  // explicit type, exercised separately since it only mounts on isError.
+  it("gives the error state's retry button an explicit type", () => {
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: vi.fn(),
+    })
+
+    render(<AuditPage />)
+
+    expect(
+      (screen.getByRole("button", { name: "organization.audit.retry" }) as HTMLButtonElement)
+        .type
+    ).toBe("button")
+  })
 })

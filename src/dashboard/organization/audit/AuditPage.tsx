@@ -425,6 +425,7 @@ export default function AuditPage() {
         </div>
         {canWrite && (
           <button
+            type="button"
             onClick={openCreate}
             // quality-bar-loop round 2 (mobile, round-1 finding): 44px
             // touch target, same fix pattern shipped on 7 sibling pages
@@ -605,6 +606,7 @@ export default function AuditPage() {
                     // SEVERITY_STYLES.low used everywhere else on this
                     // page now.
                     <button
+                      type="button"
                       onClick={() => handleDownloadReport(eng.report_url!)}
                       className={`flex h-11 items-center gap-1 rounded-md px-2 text-[10px] font-medium hover:opacity-80 ${SEVERITY_STYLES.low.bg} ${SEVERITY_STYLES.low.text}`}
                     >
@@ -635,6 +637,7 @@ export default function AuditPage() {
                   {canWrite && (
                     <>
                       <button
+                        type="button"
                         onClick={() => openEdit(eng)}
                         aria-label={t("organization.audit.editMission", {
                           title: eng.title,
@@ -644,6 +647,7 @@ export default function AuditPage() {
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDelete(eng.id)}
                         aria-label={t("organization.audit.deleteMission", {
                           title: eng.title,
@@ -1023,12 +1027,14 @@ export default function AuditPage() {
 
             <div className="flex justify-end gap-2 pt-2">
               <button
+                type="button"
                 onClick={closeAuditModal}
                 className="flex h-11 items-center rounded-lg px-4 text-sm text-muted-foreground hover:bg-muted"
               >
                 {t("organization.audit.cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={!form.title || isCreating || isUpdating}
                 className="flex h-11 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"

@@ -717,4 +717,51 @@ describe("AllFindingsPage", () => {
       ).toBeInTheDocument()
     })
   })
+
+  // quality-bar-loop-derived fix: this file's raw <button> elements (Create
+  // Finding, Filter toggle, site-filter items, Clear filters) had no
+  // explicit type, defaulting to the implicit type="submit" -- harmless
+  // only because this page's markup doesn't currently sit inside a <form>,
+  // but a real footgun if it ever does. Scoped to just these raw buttons
+  // (not a full sweep) since this file also renders shadcn <Button>s (the
+  // per-row Edit/Delete controls) with their own separate, pre-existing
+  // type gap outside this fix's scope.
+  it("gives every raw <button> an explicit type=\"button\"", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      data: { data: [{ id: "site-1", name: "HQ Casablanca" }] },
+    })
+    render(<AllFindingsPage />, withRouter)
+
+    expect(
+      screen.getByText("organization.findings.createTitle").closest("button")!
+        .type
+    ).toBe("button")
+
+    const filterButton = screen.getByRole("button", {
+      name: /organization\.findings\.filter/i,
+    }) as HTMLButtonElement
+    expect(filterButton.type).toBe("button")
+
+    await userEvent.click(filterButton)
+
+    expect(
+      screen.getByText("organization.findings.allSites").closest("button")!
+        .type
+    ).toBe("button")
+    // "HQ Casablanca" also appears as the table row's site link -- the
+    // filter dropdown's own copy is the one inside a <button>.
+    const siteFilterButton = screen
+      .getAllByText("HQ Casablanca")
+      .map((el) => el.closest("button"))
+      .find((btn): btn is HTMLButtonElement => btn !== null)!
+    expect(siteFilterButton.type).toBe("button")
+
+    await userEvent.click(siteFilterButton)
+    await userEvent.click(filterButton)
+
+    expect(
+      screen.getByText("organization.findings.clearFilters").closest("button")!
+        .type
+    ).toBe("button")
+  })
 })

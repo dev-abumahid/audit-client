@@ -264,6 +264,7 @@ export default function AllFindingsPage() {
           </div>
           {canWrite && (
             <button
+              type="button"
               onClick={() => setModalState({ open: true, editData: null })}
               className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
@@ -303,6 +304,7 @@ export default function AllFindingsPage() {
             {/* Filter Dropdown */}
             <div className="relative">
               <button
+                type="button"
                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                 aria-haspopup="true"
                 aria-expanded={showFilterDropdown}
@@ -332,6 +334,7 @@ export default function AllFindingsPage() {
                     </div>
                     <div className="max-h-64 overflow-y-auto p-2">
                       <button
+                        type="button"
                         onClick={() => handleSiteFilter("")}
                         className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
                           !selectedSiteId
@@ -343,6 +346,7 @@ export default function AllFindingsPage() {
                       </button>
                       {sites.map((site: any) => (
                         <button
+                          type="button"
                           key={site.id}
                           onClick={() => handleSiteFilter(site.id)}
                           className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
@@ -358,6 +362,7 @@ export default function AllFindingsPage() {
                     {(search || selectedSiteId) && (
                       <div className="border-t border-border p-2">
                         <button
+                          type="button"
                           onClick={clearFilters}
                           className="w-full rounded-md px-3 py-2 text-center text-sm text-destructive hover:bg-destructive/10"
                         >

@@ -187,6 +187,7 @@ export default function ReportsPage() {
         </select>
 
         <button
+          type="button"
           onClick={handleGenerate}
           disabled={isGenerating}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-transform hover:scale-[0.98] active:scale-95 disabled:opacity-50"
@@ -282,6 +283,7 @@ export default function ReportsPage() {
               {(isReady || isPublished) && (
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
+                    type="button"
                     onClick={() => openPdf(report)}
                     disabled={!canOpen}
                     className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-background py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted active:scale-[0.98] disabled:opacity-50"
@@ -290,6 +292,7 @@ export default function ReportsPage() {
                     {t("organization.reports.preview")}
                   </button>
                   <button
+                    type="button"
                     onClick={() => downloadReport(report)}
                     disabled={!canOpen}
                     className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
@@ -301,6 +304,7 @@ export default function ReportsPage() {
                       report still awaiting review. Re-checked server-side. */}
                   {isReady && isAdmin && (
                     <button
+                      type="button"
                       onClick={() => handlePublish(report.id)}
                       disabled={publishingId === report.id}
                       className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary/40 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 active:scale-[0.98] disabled:opacity-50"

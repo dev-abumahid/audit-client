@@ -102,6 +102,7 @@ const NavBar: React.FC = () => {
                 ) : (
                   <>
                     <button
+                      type="button"
                       onClick={(e) => {
                         authTriggerRef.current = e.currentTarget
                         setIsSignInModalOpen(true)
@@ -112,6 +113,7 @@ const NavBar: React.FC = () => {
                     </button>
 
                     <button
+                      type="button"
                       onClick={(e) => {
                         authTriggerRef.current = e.currentTarget
                         setIsSignUpModalOpen(true)
@@ -127,6 +129,7 @@ const NavBar: React.FC = () => {
 
             {/* Mobile Menu Button */}
             <button
+              type="button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="focus-ring relative flex h-9 w-9 items-center justify-center rounded-md text-foreground transition-colors hover:bg-accent/10 lg:hidden"
               aria-label={t("home.navbar.toggleMenu")}
@@ -200,6 +203,7 @@ const NavBar: React.FC = () => {
                   ) : (
                     <>
                       <button
+                        type="button"
                         onClick={(e) => {
                           authTriggerRef.current = e.currentTarget
                           closeMobileMenu()
@@ -211,6 +215,7 @@ const NavBar: React.FC = () => {
                       </button>
 
                       <button
+                        type="button"
                         onClick={(e) => {
                           authTriggerRef.current = e.currentTarget
                           closeMobileMenu()

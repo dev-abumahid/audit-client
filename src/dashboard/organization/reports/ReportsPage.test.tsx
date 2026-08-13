@@ -469,4 +469,26 @@ describe("ReportsPage", () => {
       expect(lastArgs?.[1]).toMatchObject({ pollingInterval: 0 })
     })
   })
+
+  // quality-bar-loop-derived fix: none of this file's raw <button> elements
+  // (Generate, Preview, Download, Publish) declared type="button",
+  // defaulting to the implicit type="submit" -- harmless only because this
+  // page's markup doesn't currently sit inside a <form>, but a real footgun
+  // if it ever does. This file renders no shadcn <Button>, so a full sweep
+  // is safe here -- an ADMIN viewing a READY report mounts all four at once.
+  it("gives every button an explicit type so none default to implicit submit", () => {
+    mockUseMyOrgRole.mockReturnValue("ADMIN")
+    mockUseGetAllReportsQuery.mockReturnValue({
+      data: { data: [makeReport({ status: "READY" })] },
+      isLoading: false,
+    })
+
+    render(<ReportsPage />)
+
+    const buttons = document.querySelectorAll("button")
+    expect(buttons.length).toBeGreaterThan(0)
+    buttons.forEach((button) => {
+      expect(button.type).toBe("button")
+    })
+  })
 })

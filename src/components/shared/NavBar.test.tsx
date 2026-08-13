@@ -59,4 +59,47 @@ describe("NavBar", () => {
     expect(screen.getAllByText("EN")).toHaveLength(2)
     expect(screen.getAllByText("FR")).toHaveLength(2)
   })
+
+  // quality-bar-loop-derived fix: this file's raw <button> elements (desktop
+  // and mobile Login/Sign up, and the mobile hamburger toggle) had no
+  // explicit type, defaulting to the implicit type="submit" -- harmless
+  // only because this markup doesn't currently sit inside a <form>, but a
+  // real footgun if it ever does. Scoped to just these five (not a full
+  // sweep) since NavBar also mounts ModeToggle, which renders a shadcn
+  // <Button> with its own separate, pre-existing type gap outside this
+  // fix's scope.
+  it("gives the Login/Sign up buttons and the hamburger toggle an explicit type=\"button\"", async () => {
+    const user = userEvent.setup()
+    renderNavBar()
+
+    const desktopLogin = screen
+      .getAllByText("home.navbar.login")
+      .map((el) => el.closest("button"))
+      .find((btn): btn is HTMLButtonElement => btn !== null)!
+    expect(desktopLogin.type).toBe("button")
+
+    const desktopSignUp = screen
+      .getAllByText("home.navbar.signUp")
+      .map((el) => el.closest("button"))
+      .find((btn): btn is HTMLButtonElement => btn !== null)!
+    expect(desktopSignUp.type).toBe("button")
+
+    expect(
+      (screen.getByLabelText("home.navbar.toggleMenu") as HTMLButtonElement)
+        .type
+    ).toBe("button")
+
+    await user.click(screen.getByLabelText("home.navbar.toggleMenu"))
+
+    screen
+      .getAllByText("home.navbar.login")
+      .map((el) => el.closest("button"))
+      .filter((btn): btn is HTMLButtonElement => btn !== null)
+      .forEach((btn) => expect(btn.type).toBe("button"))
+    screen
+      .getAllByText("home.navbar.signUp")
+      .map((el) => el.closest("button"))
+      .filter((btn): btn is HTMLButtonElement => btn !== null)
+      .forEach((btn) => expect(btn.type).toBe("button"))
+  })
 })
