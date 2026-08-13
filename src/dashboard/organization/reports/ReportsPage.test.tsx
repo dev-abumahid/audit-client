@@ -26,12 +26,16 @@ const mockToastError = vi.mocked(toast.error)
 const mockUseGetAllReportsQuery = vi.fn()
 const mockGenerate = vi.fn()
 const mockPublish = vi.fn()
+// Reactive (not a static return), so the round-6 aria-describedby test can
+// flip it mid-test to exercise the real isGenerating-derived UI, the same
+// way mockLanguage below is used for the locale test.
+let mockIsGenerating = false
 
 vi.mock("@/redux/apis/organization/report.api", () => ({
   useGetAllReportsQuery: (...args: unknown[]) =>
     mockUseGetAllReportsQuery(...args),
   useGetReportByIdQuery: () => ({ data: undefined }),
-  useGenerateReportMutation: () => [mockGenerate, { isLoading: false }],
+  useGenerateReportMutation: () => [mockGenerate, { isLoading: mockIsGenerating }],
   usePublishReportMutation: () => [mockPublish, { isLoading: false }],
 }))
 
@@ -69,6 +73,7 @@ function makeReport(overrides = {}) {
 describe("ReportsPage", () => {
   beforeEach(() => {
     mockLanguage = undefined
+    mockIsGenerating = false
     mockUseGetAllReportsQuery.mockReset()
     mockGenerate.mockReset()
     mockPublish.mockReset()
@@ -241,6 +246,162 @@ describe("ReportsPage", () => {
       } finally {
         vi.useRealTimers()
       }
+    })
+  })
+
+  // Round 5 accessibility findings, open since round 1 (poll transition,
+  // generatingHint) or introduced by round 4's search (missing label,
+  // silent no-results state) -- closed together in round 6 since they're
+  // all small, same-file attribute additions.
+  describe("accessibility (round 6)", () => {
+    it("gives the search input an accessible name beyond just a placeholder", () => {
+      mockUseGetAllReportsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+
+      render(<ReportsPage />)
+
+      expect(
+        screen.getByRole("textbox", {
+          name: "organization.reports.searchPlaceholder",
+        })
+      ).toBeInTheDocument()
+    })
+
+    it("announces the no-results state to screen readers via role=status", () => {
+      vi.useFakeTimers()
+      try {
+        mockUseGetAllReportsQuery.mockReturnValue({
+          data: { data: [] },
+          isLoading: false,
+        })
+        render(<ReportsPage />)
+
+        const searchInput = screen.getByPlaceholderText(
+          "organization.reports.searchPlaceholder"
+        )
+        act(() => {
+          fireEvent.change(searchInput, { target: { value: "nonexistent" } })
+          vi.advanceTimersByTime(300)
+        })
+
+        expect(
+          screen.getByText("organization.reports.noSearchResults")
+        ).toHaveAttribute("role", "status")
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    // Round-6 review finding (2nd pass): an earlier version of this fix put
+    // aria-live directly on the per-card badge span, gated on isGen -- but
+    // isGen flips false in the SAME commit the status text changes, so the
+    // live region is removed in the same mutation batch it's meant to
+    // announce, risking a silently-swallowed announcement on some AT. A
+    // single always-present live region (never toggles live-ness, only its
+    // text, updated a render after the transition via its own effect)
+    // avoids that race.
+    it("does not put aria-live on any per-card status badge", () => {
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeReport({ status: "GENERATING", file_url: null }),
+            makeReport({ id: "rep-2", status: "READY" }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<ReportsPage />)
+
+      expect(
+        screen.getByText("organization.reports.status.GENERATING")
+      ).not.toHaveAttribute("aria-live")
+      expect(
+        screen.getByText("organization.reports.status.READY")
+      ).not.toHaveAttribute("aria-live")
+    })
+
+    it("announces a GENERATING -> READY transition via the persistent live region", () => {
+      const generating = makeReport({
+        id: "rep-x",
+        title: "Q3 Board Report",
+        status: "GENERATING",
+        file_url: null,
+      })
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: { data: [generating] },
+        isLoading: false,
+      })
+
+      const { rerender } = render(<ReportsPage />)
+
+      const liveRegion = screen.getByRole("status") as HTMLElement
+      expect(liveRegion).toHaveAttribute("aria-live", "polite")
+      expect(liveRegion).toHaveTextContent("")
+
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: { data: [{ ...generating, status: "READY" }] },
+        isLoading: false,
+      })
+      rerender(<ReportsPage />)
+
+      expect(liveRegion).toHaveTextContent(
+        "organization.reports.statusChanged"
+      )
+    })
+
+    it("does not announce anything when a report's status hasn't actually transitioned out of GENERATING", () => {
+      const generating = makeReport({ status: "GENERATING", file_url: null })
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: { data: [generating] },
+        isLoading: false,
+      })
+
+      const { rerender } = render(<ReportsPage />)
+      // Same status, e.g. a routine poll refetch with no real change.
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: { data: [{ ...generating }] },
+        isLoading: false,
+      })
+      rerender(<ReportsPage />)
+
+      expect(screen.getByRole("status")).toHaveTextContent("")
+    })
+
+    // Round-6 review finding: role="status" was originally shared by both
+    // the search-driven "no results" text and the static "you have no
+    // reports yet" org-empty text -- only the former is a real state
+    // change worth announcing.
+    it("does not mark the static zero-reports-in-org empty state role=status", () => {
+      mockUseGetAllReportsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+
+      render(<ReportsPage />)
+
+      expect(
+        screen.getByText("organization.reports.empty")
+      ).not.toHaveAttribute("role", "status")
+    })
+
+    it("does not describedby a nonexistent hint while idle", () => {
+      mockUseGetAllReportsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+
+      render(<ReportsPage />)
+
+      expect(
+        screen.getByRole("button", { name: /organization\.reports\.generate/i })
+      ).not.toHaveAttribute("aria-describedby")
+    })
+
+    it("wires the Generate button to the in-progress hint via aria-describedby while generating", () => {
+      mockUseGetAllReportsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+      mockIsGenerating = true
+
+      render(<ReportsPage />)
+
+      const hint = screen.getByText("organization.reports.generatingHint")
+      expect(hint).toHaveAttribute("id", "generating-hint")
+      expect(
+        screen.getByRole("button", { name: /organization\.reports\.generating/i })
+      ).toHaveAttribute("aria-describedby", "generating-hint")
     })
   })
 

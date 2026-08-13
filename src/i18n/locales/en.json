@@ -800,6 +800,7 @@
       "listHeading": "Board Reports",
       "searchPlaceholder": "Search reports...",
       "noSearchResults": "No reports match your search.",
+      "statusChanged": "{{title}} is now {{status}}.",
       "reference": "Reference",
       "preview": "Preview",
       "download": "Download PDF",

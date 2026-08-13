@@ -800,6 +800,7 @@
       "listHeading": "Rapports au conseil",
       "searchPlaceholder": "Rechercher des rapports...",
       "noSearchResults": "Aucun rapport ne correspond à votre recherche.",
+      "statusChanged": "{{title}} est maintenant {{status}}.",
       "reference": "Référence",
       "preview": "Aperçu",
       "download": "Télécharger le PDF",

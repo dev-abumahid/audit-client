@@ -190,3 +190,65 @@ pre-fix intermediate source and passes against the fix.
 correctness, race/stale-closure check, regression-test soundness).
 Came back clean -- no real bugs, the double-polling-while-searching
 tradeoff explicitly assessed as acceptable rather than a defect.
+
+## Round 5 -- fresh 9-judge panel
+
+Round 4's diff touched real logic (search feature + a follow-up
+polling-derivation fix) in one file -- not eligible for the scoped
+shortcut, full panel re-run.
+
+| Axis | R1 | R3 | R5 | Note |
+|---|---|---|---|---|
+| Industry-standards | 6 | 5 | **7*** | *Corrected -- see false-positive note below. Search box (round 4) confirmed genuinely narrowing the report library, closing part of the long-standing "no way to narrow a growing library" gap. Provenance/audit-trail and status/type filtering re-confirmed still backend-blocked (not re-investigated further per standing note). Round 2's isHttpUrl guard, the round-4 real `<a download>` anchor (vs. just reopening the PDF), the ADMIN-only Publish gate, and disabled-type tooltips all independently re-confirmed as solid, still-standing improvements. |
+| UX | 6 | 7 | **7** | Unchanged, at floor -- same three highest-friction gaps as R3 (no per-card retry on a FAILED report, no Publish confirmation step, indicator granularity). Search itself assessed as smooth and well-debounced (2 requests for a multi-char typed string, not one per keystroke) with two new minor frictions of its own: no clear/x button, no in-flight loading indicator while a search is debouncing/fetching (component reads `isLoading`, not `isFetching`). |
+| Efficiency | 8 | 8 | **8** | Live-verified (not just read) both halves of round 4's dedup claim: a single matched request pair when the search box is empty, and two independent concurrent polling queries while a search *is* active -- confirmed negligible at this feature's realistic scale (limit=100, 5s interval, only while something is simultaneously GENERATING and searched). Debounce confirmed genuinely working via live network capture. |
+| Accessibility | 7 | 7 | **7** | Unchanged, at floor, third consecutive round -- the same two round-1 findings (no aria-live on the poll transition, generatingHint not wired via aria-describedby) plus two new ones from round 4's search: the input has no accessible label (placeholder-only isn't WCAG-conforming per 1.3.1/3.3.2 -- confirmed via DOM inspection, `ariaLabel: null`), and the "no results" message change is silent to screen readers (no aria-live/role="status", confirmed via DOM). |
+| Visual polish | 8 | 8 | **8** | Unchanged. Round 4's search input assessed live as a clean, well-integrated addition (matching height/radius/border/focus-ring tokens of the existing type-select, correct icon centering, no layout awkwardness). The two round-3 findings (hardcoded FAILED badge bypassing severityBadgeClasses, AI-badge/status-pill shape mismatch) both reconfirmed still open via a fresh live screenshot. |
+| Resilience | 6 | 8 | **8** | Round 4's polling fix independently re-verified live via network trace (single deduped request with no search active, confirming the dedup claim end-to-end, not just by reading code). No other "derived from the filtered list" bugs found elsewhere in the file. Empty-vs-no-results distinction confirmed correct and debounce-safe. Round-3's minor open item (`Report.error_message` never rendered) reconfirmed unchanged, now open three rounds running. |
+| Code quality | 8 | 8 | **8** | The new two-query pattern (`reportData`/`pollProbeData`) assessed as deliberate and well-commented, not confusing duplication -- the comment gives the causal "why," not just a description. File now 425 lines; report-card JSX and the generate-section JSX are each large enough to be worth extracting into subcomponents, though not yet forcing a score drop. Round-3's `isHttpUrl` duplication finding reconfirmed unchanged, still cheap. |
+| Mobile | 8 | 8 | **8** | Live-verified at 375px: round 4's search input fits cleanly with no clipping, correct icon/placeholder rendering, and a correctly distinct no-results empty state. Round-3's card-button-height finding remains unverifiable live (every report in this org's preview stays FAILED). A fresh attempt to force a real live error state via a post-load `fetch` monkey-patch was correctly recognized as the known dedicated pitfall (RTK Query's `fetchBaseQuery` captures its own reference before a patch can apply) and abandoned in favor of not risking the shared dev server other judges were using concurrently -- unchanged from R3, code-read-verified only. |
+| Security | 5 | 9 | **9** | Re-confirmed: no `dangerouslySetInnerHTML` anywhere, the search term is only ever used as a controlled input value and a boolean condition, transported to the backend via `URLSearchParams` (no client-side injection surface), and round 2's `isHttpUrl` guard on both URL sinks is untouched by round 4's diff. |
+
+**Average (corrected): 7.78/10** ((7+7+8+7+8+8+8+8+9)/9). **No axis
+below floor** -- all nine axes are now at or above the 7 floor for the
+first time this loop. Not yet converged (target 8), loop continues.
+
+**False-positive investigation (industry-standards judge's initial
+6/10 -- corrected to 7/10 above):** the dispatched industry-standards
+judge reported a "regression": typing a non-matching search term
+correctly hit the backend (confirmed via its own network capture,
+`GET .../report?searchTerm=nomatch12345` returning `{"data":[]}`) but
+claimed the UI kept showing all 6 unfiltered report cards, with no
+"no results" state ever appearing. This directly contradicted three
+other judges (mobile, accessibility, and UX) who each independently
+live-verified the exact same no-results state rendering correctly.
+Per the skill's own guidance to verify anything "surprising,
+high-stakes, or contradicting your own understanding" before
+forwarding an agent's claim, reproduced this myself: the failure
+*did* initially reproduce in a long-lived, heavily-reused browser tab
+(the same one several prior rounds' live-verification work had run
+through, evidenced by a stray Vite HMR module-reload request in its
+network log) -- but immediately stopped reproducing in a genuinely
+fresh tab, where the backend request, the empty response, and the
+correct "No reports match your search." text all confirmed clean.
+This is exactly the known "long-running dev server accumulates
+hot-reload module-state corruption" pitfall the panel's own judge
+prompts warn about, just caught here on the judge side rather than
+the app side. Industry-standards' score corrected from the judge's
+reported 6 to 7, reflecting its otherwise-accurate assessment (the
+search genuinely does close part of the "no way to narrow" gap; the
+other backend-blocked findings and prior improvements are all
+accurately characterized) with the false regression removed.
+
+**Round 6 selection**: no `data-correctness`/`security` finding at or
+below floor. Highest `stuck_streak`: accessibility, unchanged at
+exactly its floor score (7) for 3 consecutive full-panel rounds (R1,
+R3, R5) -- wins selection. UX is close behind (streak 2, R3/R5 both
+7) but accessibility's longer streak takes priority per the
+mechanical tiebreak. Selected fix: close all four open accessibility
+findings on this axis in one round (same file, no cross-file batching
+concern) -- an `aria-live`/`role="status"` region for the
+GENERATING->READY/FAILED poll transition and the no-results-state
+change, `aria-describedby` wiring `generatingHint` to the Generate
+button, and a proper accessible label (not just a placeholder) on the
+search input.

@@ -21,7 +21,7 @@ import {
   Send,
   Sparkles,
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -116,7 +116,11 @@ export default function ReportsPage() {
   const [selectedType, setSelectedType] = useState<ReportType>("BOARD")
   const [publishingId, setPublishingId] = useState<string | null>(null)
 
-  const reports: Report[] = reportData?.data || []
+  // Memoized: reportData?.data ?? [] would otherwise be a new array
+  // reference every render, making the announcement effect below (which
+  // depends on `reports`) re-run and re-diff every render instead of only
+  // when the actual query result changes.
+  const reports: Report[] = useMemo(() => reportData?.data || [], [reportData])
 
   // Turn polling on only while at least one report is GENERATING, off
   // otherwise -- checked against the unfiltered probe, not the searched
@@ -127,6 +131,38 @@ export default function ReportsPage() {
   useEffect(() => {
     setPollingInterval(hasGenerating ? GENERATING_POLL_INTERVAL_MS : 0)
   }, [hasGenerating])
+
+  // Round-6 review finding: putting aria-live directly on a per-card badge
+  // span removes the attribute in the exact same commit that changes the
+  // text (isGen flips false the instant a report leaves GENERATING) --
+  // some screen readers evaluate whether a node is *still* live when they
+  // process the mutation, so that "same commit" removal can silently
+  // swallow the announcement. A single, always-present live region --
+  // updated a render *after* the transition, via its own effect -- avoids
+  // that race: the region never toggles live-ness, only its text changes.
+  const previousStatusesRef = useRef<Record<string, Report["status"]>>({})
+  const [liveAnnouncement, setLiveAnnouncement] = useState("")
+  useEffect(() => {
+    const previous = previousStatusesRef.current
+    const next: Record<string, Report["status"]> = {}
+    // Known, accepted limitation: if two reports transition out of
+    // GENERATING in the same reports update, only the last one found here
+    // is announced -- generation is one-at-a-time in practice (single
+    // Generate button, no bulk-generate), so this is a rare edge case, not
+    // worth the extra complexity of a queue for this round.
+    let announcement: string | null = null
+    for (const report of reports) {
+      next[report.id] = report.status
+      if (previous[report.id] === "GENERATING" && report.status !== "GENERATING") {
+        announcement = t("organization.reports.statusChanged", {
+          title: report.title,
+          status: t(`organization.reports.status.${report.status}`),
+        })
+      }
+    }
+    previousStatusesRef.current = next
+    if (announcement) setLiveAnnouncement(announcement)
+  }, [reports, t])
 
   const handleGenerate = async () => {
     try {
@@ -209,6 +245,14 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6 p-6">
+      {/* Always-present live region for report status transitions (see the
+          effect above) -- never toggles live-ness itself, only its text,
+          so a GENERATING -> READY/FAILED poll transition is reliably
+          announced instead of racing a same-commit aria-live removal. */}
+      <div aria-live="polite" role="status" className="sr-only">
+        {liveAnnouncement}
+      </div>
+
       <div className="animate-fade-in flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
@@ -242,6 +286,7 @@ export default function ReportsPage() {
           type="button"
           onClick={handleGenerate}
           disabled={isGenerating}
+          aria-describedby={isGenerating ? "generating-hint" : undefined}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-transform hover:scale-[0.98] active:scale-95 disabled:opacity-50"
         >
           {isGenerating ? (
@@ -255,7 +300,7 @@ export default function ReportsPage() {
         </button>
 
         {isGenerating && (
-          <span className="text-xs text-muted-foreground">
+          <span id="generating-hint" className="text-xs text-muted-foreground">
             {t("organization.reports.generatingHint")}
           </span>
         )}
@@ -272,6 +317,7 @@ export default function ReportsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t("organization.reports.searchPlaceholder")}
+          aria-label={t("organization.reports.searchPlaceholder")}
           className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm text-foreground focus:ring-2 focus:ring-ring focus:outline-none"
         />
       </div>
@@ -412,7 +458,13 @@ export default function ReportsPage() {
         {!isLoading && !reportsError && reports.length === 0 && (
           <div className="col-span-full py-12 text-center">
             <FileText className="mx-auto h-8 w-8 text-muted-foreground/50" />
-            <p className="mt-2 text-sm text-muted-foreground">
+            {/* role="status" only for the search-driven case -- the
+                genuinely-empty-org message is static at mount, not a state
+                change worth announcing. */}
+            <p
+              role={debouncedSearch ? "status" : undefined}
+              className="mt-2 text-sm text-muted-foreground"
+            >
               {debouncedSearch
                 ? t("organization.reports.noSearchResults")
                 : t("organization.reports.empty")}
