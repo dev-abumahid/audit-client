@@ -297,6 +297,29 @@ export default function KriDashboardPage() {
     setEditingKriId(null)
   )
 
+  // Round 15 (fresh full-panel re-score, accessibility finding): none of
+  // these five open-state setters closed any of the others, so e.g.
+  // clicking "New KRI" and then a card's "Update value" button mounted
+  // TWO useModalA11y dialogs at once -- deterministically reproduced live.
+  // Each hook's own Tab-trap only walks its own container, so with two
+  // active, keyboard focus could escape both into the background page
+  // chrome entirely, exposing two full sets of dialog controls plus the
+  // live page to a screen reader at the same time. Every "open a modal"
+  // action below now closes every other modal first.
+  const closeAllModals = () => {
+    setShowForm(false)
+    setUpdatingKriId(null)
+    setEditingKriId(null)
+    setDeletingKri(null)
+    setTrendKriId(null)
+  }
+
+  const openNewKriForm = () => {
+    closeAllModals()
+    setForm(EMPTY_KRI)
+    setShowForm(true)
+  }
+
   const handleSave = async () => {
     if (!form.name || !form.risk_id) return
     if (form.target_value === form.alert_threshold) {
@@ -328,6 +351,7 @@ export default function KriDashboardPage() {
   }
 
   const openUpdateValue = (kri: KRI) => {
+    closeAllModals()
     setUpdatingKriId(kri.id)
     setUpdateValue(String(kri.current_value))
   }
@@ -365,6 +389,7 @@ export default function KriDashboardPage() {
   }
 
   const openEdit = (kri: KRI) => {
+    closeAllModals()
     setEditingKriId(kri.id)
     setEditForm({
       name: kri.name,
@@ -542,10 +567,7 @@ export default function KriDashboardPage() {
         {canWrite && (
           <button
             type="button"
-            onClick={() => {
-              setForm(EMPTY_KRI)
-              setShowForm(true)
-            }}
+            onClick={openNewKriForm}
             // quality-bar-loop round 2 (mobile, round-1 finding): measured
             // 343x32px at 375px width -- full-width but only 32px tall,
             // under the 44px touch-target guideline.
@@ -768,7 +790,10 @@ export default function KriDashboardPage() {
                     inside stays visually small. */}
                 <button
                   type="button"
-                  onClick={() => setTrendKriId(kri.id)}
+                  onClick={() => {
+                    closeAllModals()
+                    setTrendKriId(kri.id)
+                  }}
                   className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title={t("organization.kri.trend.viewTooltip")}
                   aria-label={t("organization.kri.trend.viewTooltip")}
@@ -805,7 +830,10 @@ export default function KriDashboardPage() {
                 {canWrite && (
                   <button
                     type="button"
-                    onClick={() => setDeletingKri(kri)}
+                    onClick={() => {
+                      closeAllModals()
+                      setDeletingKri(kri)
+                    }}
                     className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                     title={t("organization.kri.deleteTooltip")}
                     aria-label={t("organization.kri.deleteTooltip")}
@@ -864,10 +892,7 @@ export default function KriDashboardPage() {
             {canWrite && !statusParam && (
               <button
                 type="button"
-                onClick={() => {
-                  setForm(EMPTY_KRI)
-                  setShowForm(true)
-                }}
+                onClick={openNewKriForm}
                 className="focus-ring mt-4 inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-medium text-primary-foreground"
               >
                 <Plus className="h-3.5 w-3.5" />{" "}

@@ -1664,6 +1664,81 @@ describe("KriDashboardPage", () => {
       // typed input to a single character.
       expect(nameInput).toHaveValue("New KRI")
     })
+
+    // Round 15 (fresh full-panel re-check finding): none of the 5 open-state
+    // setters closed the others, so e.g. opening "New KRI" then a card's
+    // "Update value" button mounted two useModalA11y dialogs at once --
+    // each hook's own Tab-trap only walks its own container, so focus
+    // could escape both into the background page entirely.
+    it("closes the New KRI modal when the Update Value modal is opened from a card", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+      )
+      expect(screen.getAllByRole("dialog")).toHaveLength(1)
+
+      await userEvent.click(
+        screen.getByTitle("organization.kri.updateValueTooltip")
+      )
+
+      const dialogs = screen.getAllByRole("dialog")
+      expect(dialogs).toHaveLength(1)
+      expect(dialogs[0]).toHaveAccessibleName(
+        "organization.kri.updateValueTitle"
+      )
+    })
+
+    it("closes the Update Value modal when the trend modal is opened for the same card", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      mockUseGetKriReadingsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByTitle("organization.kri.updateValueTooltip")
+      )
+      expect(screen.getAllByRole("dialog")).toHaveLength(1)
+
+      await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
+
+      expect(screen.getAllByRole("dialog")).toHaveLength(1)
+      expect(
+        screen.queryByLabelText("organization.kri.form.currentValue")
+      ).not.toBeInTheDocument()
+    })
+
+    it("closes the Edit KRI modal when the Delete confirmation is opened for the same card", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.click(screen.getByTitle("organization.kri.editTooltip"))
+      expect(screen.getAllByRole("dialog")).toHaveLength(1)
+
+      await userEvent.click(
+        screen.getByTitle("organization.kri.deleteTooltip")
+      )
+
+      // DeleteAlertModal is a separate (Radix-based) component -- still
+      // gets closeAllModals()'d away from alongside the other four.
+      expect(
+        screen.queryByLabelText("organization.kri.form.name", {
+          exact: false,
+        })
+      ).not.toBeInTheDocument()
+    })
   })
 
   // aexa-frontend#483 -- the Update Value modal's number input had no

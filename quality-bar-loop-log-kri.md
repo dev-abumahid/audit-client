@@ -689,3 +689,39 @@ truncated-name overflow lookup correctly.
 Code quality's remaining items (component decomposition, form
 duplication) and accessibility's remaining item (modal
 mutual-exclusion) are both left open for future rounds.
+
+## Round 15 (accessibility, PR #854)
+
+Fixed accessibility's remaining item: none of the page's 5 open-state
+setters (`showForm`, `updatingKriId`, `editingKriId`, `deletingKri`,
+`trendKriId`) closed the others, so opening "New KRI" then a card's
+"Update value" button mounted two `useModalA11y` dialogs at once --
+deterministically reproduced live. Each hook's own Tab-trap only walks
+its own container, so with two active, keyboard focus could escape
+both into the background page chrome entirely.
+
+Added a shared `closeAllModals()` called at the start of every "open a
+modal" action (`openNewKriForm` -- a new function replacing two
+duplicated inline handlers, `openUpdateValue`, `openEdit`, and the
+trend/delete inline triggers). Page-local fix scoped to this
+component's own 5 state variables, not a change to the shared
+`useModalA11y` hook -- no other page using that hook is affected.
+
+Round-1 review came back with zero findings -- review loop converged
+immediately. Reviewer specifically verified React 18 batching safety
+(closeAllModals's `setTrendKriId(null)` followed by `setTrendKriId(kri.id)`
+in the same handler correctly coalesces to the final value, no
+await-boundary risk anywhere), confirmed exhaustive coverage of all 5
+"open" call sites, ruled out clobbering legitimate in-progress state
+(a modal's full-viewport backdrop makes it physically impossible to
+reach another trigger while one is open -- by the time a different
+trigger fires, the user explicitly closed the first), and confirmed
+`DeleteAlertModal`'s Radix-controlled `open`/`onOpenChange` integrates
+correctly (not a bolt-on visual hide). Full QA gate clean (typecheck,
+lint, 2155/2155 test suite), 3 new regression tests
+negative-control-verified against pre-fix source (all 3 genuinely
+reproduce 2 simultaneous dialogs), live-verified in the dev preview
+reproducing the exact bug scenario and confirming the fix.
+
+Accessibility's remaining known items: none currently open after this
+round -- re-scoring next to confirm.
