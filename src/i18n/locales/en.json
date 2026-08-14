@@ -290,6 +290,7 @@
       "newKri": "New KRI",
       "createKri": "Create KRI",
       "loadError": "Failed to load KRIs. Please try again later.",
+      "relatedDataLoadError": "Some related risk or alert data failed to load -- linked risk names and alert counts below may be incomplete.",
       "noKris": "No KRIs yet",
       "unknownRisk": "Unknown risk",
       "relatedAlertsTooltip_one": "{{count}} related alert",
@@ -309,6 +310,8 @@
       "trend": {
         "viewTooltip": "View trend",
         "modalTitle": "Trend — {{name}}",
+        "loadError": "Failed to load trend readings. Please try again later.",
+        "refetchFailedStale": "Failed to refresh readings -- showing the last successfully loaded data.",
         "empty": "No readings recorded yet"
       },
       "status": {

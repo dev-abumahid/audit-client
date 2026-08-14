@@ -136,7 +136,14 @@ export default function KriDashboardPage() {
     isLoading: krisLoading,
     error: krisError,
   } = useGetAllKriQuery(undefined)
-  const { data: riskResponse } = useGetAllRisksQuery({
+  // Fresh full-panel re-score (resilience finding): neither secondary
+  // query below checked isError -- a genuine fetch failure fell through
+  // to the same `?? []` empty-array fallback every KRI card already uses
+  // when a risk/alert genuinely doesn't exist, so a real outage looked
+  // identical to "this KRI has no related risk/alerts." Same
+  // isError-omission bug class already fixed on Alerts/Intelligence/etc.
+  // this session.
+  const { data: riskResponse, isError: risksError } = useGetAllRisksQuery({
     page: 1,
     limit: 100,
     searchTerm: "",
@@ -146,7 +153,8 @@ export default function KriDashboardPage() {
   // aexa-frontend#530: drives the per-card alert-count badge below -- the
   // other, already-shipped half of this cross-link is AlertsPage.tsx's
   // "View KRI" link, which lands here with a ?highlight= param.
-  const { data: alertsResponse } = useGetAllAlertsQuery(undefined)
+  const { data: alertsResponse, isError: alertsError } =
+    useGetAllAlertsQuery(undefined)
   const [createKri] = useCreateNewKriMutation()
   const [submitKriValue] = useSubmitKriValueMutation()
   const [updateKri] = useUpdateKriMutation()
@@ -247,11 +255,14 @@ export default function KriDashboardPage() {
   // no frontend consumer at all; this is the trend view. Only fetched while
   // the modal is actually open for a given KRI (skip otherwise).
   const [trendKriId, setTrendKriId] = useState<string | null>(null)
-  const { data: readingsResponse, isLoading: isLoadingReadings } =
-    useGetKriReadingsQuery(
-      { id: trendKriId ?? "", page: 1, limit: 50 },
-      { skip: !trendKriId }
-    )
+  const {
+    data: readingsResponse,
+    isLoading: isLoadingReadings,
+    isError: readingsError,
+  } = useGetKriReadingsQuery(
+    { id: trendKriId ?? "", page: 1, limit: 50 },
+    { skip: !trendKriId }
+  )
 
   // aexa-frontend#471 -- role="dialog"/focus-trap/Escape for all three
   // modals below, via the shared hook (see useModalA11y.ts for why this
@@ -485,6 +496,23 @@ export default function KriDashboardPage() {
           </button>
         )}
       </div>
+
+      {/* Fresh full-panel re-score (resilience finding): a failed risks/
+          alerts fetch used to fall through to the same `?? []` empty-array
+          fallback every KRI card already uses when a risk/alert genuinely
+          doesn't exist -- a real outage looked identical to "nothing to
+          show," with no indication card data (risk names, alert counts)
+          might be incomplete. Non-blocking (the KRI list itself already
+          loaded successfully at this point), so a dismissible-style
+          notice rather than the full-page error state above. */}
+      {(risksError || alertsError) && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+        >
+          {t("organization.kri.relatedDataLoadError")}
+        </div>
+      )}
 
       {/* Status Summary Cards */}
       <div className="animate-slide-up flex flex-wrap gap-3">
@@ -1258,9 +1286,37 @@ export default function KriDashboardPage() {
               </div>
             )}
 
-            {!isLoadingReadings && trendChartData.length === 0 && (
+            {/* Fresh full-panel re-score (resilience finding): a failed
+                readings fetch fell through to the same empty-state
+                message as "this KRI genuinely has no readings yet" --
+                indistinguishable from a real outage.
+                Round-1 review of PR #847: gated on trendChartData.length
+                === 0 too -- getKriReadings' providesTags: ["KRI"] means a
+                background refetch (e.g. triggered by submitting a new
+                value while this modal is open) can fail while the prior
+                successful fetch's chart data is still cached. The
+                original version hid that still-valid stale chart behind
+                this error message unconditionally, the same
+                stale-but-valid-data anti-pattern already fixed on
+                Alerts/Intelligence this session. */}
+            {!isLoadingReadings && readingsError && trendChartData.length === 0 && (
+              <p
+                role="alert"
+                className="py-8 text-center text-sm text-destructive"
+              >
+                {t("organization.kri.trend.loadError")}
+              </p>
+            )}
+
+            {!isLoadingReadings && !readingsError && trendChartData.length === 0 && (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 {t("organization.kri.trend.empty")}
+              </p>
+            )}
+
+            {!isLoadingReadings && readingsError && trendChartData.length > 0 && (
+              <p role="alert" className="mb-2 text-xs text-destructive">
+                {t("organization.kri.trend.refetchFailedStale")}
               </p>
             )}
 

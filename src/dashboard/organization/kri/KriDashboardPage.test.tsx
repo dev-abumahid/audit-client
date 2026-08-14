@@ -221,6 +221,65 @@ describe("KriDashboardPage", () => {
     ).toBe(true)
   })
 
+  // Fresh full-panel re-score (resilience finding): a failed risks/alerts
+  // fetch fell through to the same `?? []` empty-array fallback every KRI
+  // card already uses when a risk/alert genuinely doesn't exist -- a real
+  // outage looked identical to "nothing to show," with no indication card
+  // data (risk names, alert counts) might be incomplete.
+  describe("secondary-query resilience (fresh full-panel finding)", () => {
+    it("shows a warning banner when the risks fetch fails, without blocking the KRI list itself", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: undefined,
+        isError: true,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("organization.kri.relatedDataLoadError")
+      ).toBeInTheDocument()
+      // The KRI list itself still rendered -- this is a non-blocking
+      // notice, not the full-page error state.
+      expect(
+        screen.queryByText("organization.kri.loadError")
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows a warning banner when the alerts fetch fails", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: undefined,
+        isError: true,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("organization.kri.relatedDataLoadError")
+      ).toBeInTheDocument()
+    })
+
+    it("shows no warning banner when risks and alerts both load successfully", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.queryByText("organization.kri.relatedDataLoadError")
+      ).not.toBeInTheDocument()
+    })
+  })
+
   it("hides New KRI and update-value controls for a VIEWER but keeps the trend button", () => {
     mockRole = "VIEWER"
     mockUseGetAllKriQuery.mockReturnValue({
@@ -978,6 +1037,32 @@ describe("KriDashboardPage", () => {
       ).toBeInTheDocument()
     })
 
+    // Fresh full-panel re-score (resilience finding): a failed readings
+    // fetch fell through to the same empty-state message as "this KRI
+    // genuinely has no readings yet" -- indistinguishable from a real
+    // outage.
+    it("shows a distinct error message, not the empty state, when the readings fetch fails", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      mockUseGetKriReadingsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      })
+
+      renderPage()
+      await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
+
+      expect(
+        screen.getByText("organization.kri.trend.loadError")
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.kri.trend.empty")
+      ).not.toBeInTheDocument()
+    })
+
     it("renders a chart (not the empty state) once readings resolve", async () => {
       mockUseGetAllKriQuery.mockReturnValue({
         data: { data: [makeKri()] },
@@ -1004,6 +1089,40 @@ describe("KriDashboardPage", () => {
         screen.queryByText("organization.kri.trend.empty")
       ).not.toBeInTheDocument()
       expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument()
+    })
+
+    // Round-1 review of PR #847: getKriReadings' providesTags: ["KRI"]
+    // means a background refetch (e.g. from submitting a new value while
+    // this modal is open) can fail while the prior successful fetch's
+    // chart data is still cached -- the original fix hid that still-valid
+    // stale chart behind the error message unconditionally, the same
+    // stale-but-valid-data anti-pattern already fixed on Alerts/
+    // Intelligence this session.
+    it("keeps showing the stale chart, not the error state, when isError is true but readings data is still present", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      mockUseGetKriReadingsQuery.mockReturnValue({
+        data: {
+          data: [
+            { id: "r-1", kri_id: "kri-1", value: 50, recorded_at: "2026-05-15T00:00:00.000Z" },
+          ],
+        },
+        isLoading: false,
+        isError: true,
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
+
+      expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.kri.trend.loadError")
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByText("organization.kri.trend.refetchFailedStale")
+      ).toBeInTheDocument()
     })
 
     // Issue #461: the trend chart's date labels were built via a local

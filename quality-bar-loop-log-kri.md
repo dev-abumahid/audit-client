@@ -339,3 +339,30 @@ session's other pages' logs, from this session's own heavy concurrent
 agent usage. Relied on the unchanged 58-test suite (a stronger proof
 for a pure refactor than a single live click-through would be) plus a
 clean typecheck instead.
+
+## Round 7 (code quality re-score after PR #846)
+
+| Axis | Round 6 | Round 7 | Delta |
+|---|---|---|---|
+| Code quality | 6 | **7** | +1, clears floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.67/10.** Up from 7.56. **No axis remains below floor.**
+Not yet converged (target 8.5). Judge credited the status-mapping
+consolidation as genuinely closing the riskiest duplication (logic
+that silently drifts) and explicitly credited the same-round
+prototype-pollution catch/fix, while still correctly noting the two
+deliberately-deferred findings (file-level any-disable, near-duplicate
+modals) remain real and unaddressed.
+
+**Next fix:** industry-standards, UX, accessibility, resilience, and
+code quality are all tied at 7 (furthest below target). Roster order
+would nominally pick industry-standards, but its own remaining items
+(threshold-direction config, export) are the ones this loop's log has
+repeatedly flagged as needing real product/design scoping, not a
+mechanical fix. Resilience's own open finding is concrete and
+mechanical instead: the secondary queries (risks/alerts/readings) have
+zero isError handling, the same isError-omission bug class already
+fixed on 4+ sibling pages this session (Alerts, Intelligence, etc.) --
+picking that as the highest-leverage tractable fix among the tied
+axes.

@@ -290,6 +290,7 @@
       "newKri": "Nouvel ICR",
       "createKri": "Créer un ICR",
       "loadError": "Échec du chargement des ICR. Veuillez réessayer plus tard.",
+      "relatedDataLoadError": "Certaines données de risque ou d'alerte n'ont pas pu être chargées -- les noms de risques liés et le nombre d'alertes ci-dessous peuvent être incomplets.",
       "noKris": "Aucun ICR pour le moment",
       "unknownRisk": "Risque inconnu",
       "relatedAlertsTooltip_one": "{{count}} alerte associée",
@@ -309,6 +310,8 @@
       "trend": {
         "viewTooltip": "Voir la tendance",
         "modalTitle": "Tendance — {{name}}",
+        "loadError": "Échec du chargement des mesures de tendance. Veuillez réessayer plus tard.",
+        "refetchFailedStale": "Échec de l'actualisation des mesures -- affichage des dernières données chargées avec succès.",
         "empty": "Aucune mesure enregistrée pour le moment"
       },
       "status": {
