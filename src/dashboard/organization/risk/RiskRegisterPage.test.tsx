@@ -1,7 +1,9 @@
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { Profiler } from "react"
+import { FormProvider, useForm } from "react-hook-form"
 import { MemoryRouter } from "react-router"
-import RiskRegisterPage from "./RiskRegisterPage"
+import RiskRegisterPage, { RiskScoresSection } from "./RiskRegisterPage"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
@@ -2136,6 +2138,103 @@ describe("RiskRegisterPage", () => {
           "organization.riskRegister.exportFailedToast"
         )
       )
+    })
+  })
+
+  // quality-bar-loop efficiency workstream: RiskScoresSection used to read
+  // its override toggle/staleness values via react-hook-form's `watch()`,
+  // which re-renders the calling component on ANY field change in the
+  // shared form -- not just the fields it actually reads. Converting to
+  // `useWatch({ control, name: [...] })` scopes that subscription down to
+  // just the 8 fields this section displays. RiskScoresSection is exported
+  // specifically so this can be verified in isolation, with a sibling field
+  // from the *same* form driving the unrelated change -- a render count
+  // captured via React's own <Profiler>, not a stand-in/approximation.
+  describe("useWatch scoping (efficiency workstream)", () => {
+    function ScoresSectionHarness({ onRender }: { onRender: () => void }) {
+      const methods = useForm({
+        defaultValues: {
+          name: "",
+          inherent_is_override: false,
+          inherent_override_reason: "",
+          residual_is_override: false,
+          residual_override_reason: "",
+          inherent_score: 0,
+          residual_score: 0,
+          pagerank_score: 0,
+        },
+      })
+
+      return (
+        <FormProvider {...methods}>
+          {/* A field RiskScoresSection never reads -- same role
+              RiskBasicInfoFields' "name" input plays in the real modal.
+              Typing here is the "unrelated keystroke" this test drives. */}
+          <input
+            data-testid="unrelated-field"
+            {...methods.register("name")}
+          />
+          {/* onRender fires once per commit of the profiled subtree -- the
+              count itself is tracked by the test's own `renderCounts` array
+              (via the length of pushed entries), not a variable mutated
+              inside this component. */}
+          <Profiler id="scores-section" onRender={onRender}>
+            <RiskScoresSection editId={null} />
+          </Profiler>
+        </FormProvider>
+      )
+    }
+
+    it("does not re-render when an unrelated field in the same form changes", async () => {
+      const renderCounts: number[] = []
+      render(
+        <ScoresSectionHarness
+          onRender={() => renderCounts.push(renderCounts.length + 1)}
+        />
+      )
+
+      // useWatch's own mount subscription settles with 1-2 commits
+      // (react-hook-form's initial-value sync effect) before any user
+      // interaction -- wait for that to stabilize before measuring the
+      // baseline this test actually cares about.
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      const baseline = renderCounts.length
+
+      await userEvent.type(
+        screen.getByTestId("unrelated-field"),
+        "New risk name"
+      )
+
+      // If this were still plain `watch()`, each of the 13 keystrokes above
+      // would have re-rendered RiskScoresSection -- the exact regression
+      // this test guards against reintroducing.
+      expect(renderCounts.length).toBe(baseline)
+    })
+
+    it("still re-renders when a field it actually reads changes", async () => {
+      const renderCounts: number[] = []
+      render(
+        <ScoresSectionHarness
+          onRender={() => renderCounts.push(renderCounts.length + 1)}
+        />
+      )
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      const baseline = renderCounts.length
+
+      await userEvent.click(
+        screen.getByLabelText("organization.riskRegister.inherentOverrideLabel")
+      )
+
+      await waitFor(() =>
+        expect(renderCounts.length).toBeGreaterThan(baseline)
+      )
+      // The override reason field only renders once this section itself
+      // has re-rendered with the new toggle value.
+      expect(
+        screen.getByPlaceholderText(
+          "organization.riskRegister.inherentOverrideReasonPlaceholder"
+        )
+      ).toBeInTheDocument()
     })
   })
 })

@@ -39,7 +39,7 @@ import {
 } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
-import { FormProvider, useForm, useFormContext } from "react-hook-form"
+import { FormProvider, useForm, useFormContext, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
 import { toast } from "sonner"
@@ -486,15 +486,58 @@ function RiskBasicInfoFields() {
   )
 }
 
-function RiskScoresSection({ editId }: { editId: string | null }) {
+// quality-bar-loop efficiency workstream: this section used to read every
+// value it needs off `watch()` (react-hook-form's `useForm().watch`, not
+// the `useWatch` hook). `watch()` re-renders whichever component calls it
+// on EVERY field change anywhere in the form -- not just the named field --
+// because the name argument only filters the *returned* value, not the
+// re-render subscription itself. Round 12's decomposition into per-section
+// components (this file's own comment above RiskBasicInfoFields) narrowed
+// the blast radius from "the whole modal re-renders on every keystroke" to
+// "this section re-renders on every keystroke", but every keystroke in
+// RiskBasicInfoFields/RiskFinancialImpactSection/etc. -- fields this
+// section doesn't even display -- was still forcing a full re-render here.
+// `useWatch({ control, name })` is react-hook-form's documented fix for
+// exactly this: it subscribes at the individual-field level via its own
+// isolated render cycle, so this section now only re-renders when one of
+// the 8 fields it actually reads changes.
+const OVERRIDE_WATCH_FIELDS = [
+  "inherent_is_override",
+  "residual_is_override",
+  "inherent_override_stale",
+  "inherent_overridden_by",
+  "inherent_overridden_at",
+  "residual_override_stale",
+  "residual_overridden_by",
+  "residual_overridden_at",
+] as const
+
+// Exported (unlike this file's other per-section components) so the
+// scoped-re-render behavior the useWatch conversion above exists for can be
+// tested directly against just this component's render count, without the
+// rest of the modal's fields as noise -- see the "useWatch scoping" describe
+// block in RiskRegisterPage.test.tsx.
+export function RiskScoresSection({ editId }: { editId: string | null }) {
   const { t } = useTranslation()
   const {
     register,
-    watch,
+    control,
     formState: { errors },
   } = useFormContext<Risk>()
-  const inherentIsOverride = watch("inherent_is_override")
-  const residualIsOverride = watch("residual_is_override")
+  // A single useWatch call for all 8 fields this section reads, rather than
+  // one call per field -- useWatch batches an array of names into one
+  // subscription, so this is still one re-render per relevant change, not
+  // eight separate subscriptions each re-rendering independently.
+  const [
+    inherentIsOverride,
+    residualIsOverride,
+    inherentOverrideStale,
+    inherentOverriddenBy,
+    inherentOverriddenAt,
+    residualOverrideStale,
+    residualOverriddenBy,
+    residualOverriddenAt,
+  ] = useWatch({ control, name: OVERRIDE_WATCH_FIELDS })
 
   return (
     <div className="space-y-2">
@@ -559,11 +602,11 @@ function RiskScoresSection({ editId }: { editId: string | null }) {
           checked, mirroring the server's own conditional
           requirement (risk_scoring.ts's resolveInherentFields /
           resolveResidualFields: `*_override_reason` is required
-          only when `*_override === true`). RHF's `validate`
-          callback re-reads the live checkbox value on every
-          validation pass (via `watch`), so toggling the checkbox
-          off after typing a reason clears the requirement without
-          needing a manual re-validate call. */}
+          only when `*_override === true`). The `validate`
+          callback closes over the `useWatch`-derived override
+          flag, so toggling the checkbox off after typing a reason
+          clears the requirement without needing a manual
+          re-validate call. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5 rounded-lg border border-dashed p-2.5">
           <label className="flex items-center gap-2 text-xs font-medium">
@@ -641,16 +684,16 @@ function RiskScoresSection({ editId }: { editId: string | null }) {
         <div className="flex flex-wrap gap-2">
           <RiskOverrideBadge
             isOverride={!!inherentIsOverride}
-            isStale={!!watch("inherent_override_stale")}
-            overriddenBy={watch("inherent_overridden_by")}
-            overriddenAt={watch("inherent_overridden_at")}
+            isStale={!!inherentOverrideStale}
+            overriddenBy={inherentOverriddenBy}
+            overriddenAt={inherentOverriddenAt}
             label={t("organization.riskRegister.inherentScoreLabel")}
           />
           <RiskOverrideBadge
             isOverride={!!residualIsOverride}
-            isStale={!!watch("residual_override_stale")}
-            overriddenBy={watch("residual_overridden_by")}
-            overriddenAt={watch("residual_overridden_at")}
+            isStale={!!residualOverrideStale}
+            overriddenBy={residualOverriddenBy}
+            overriddenAt={residualOverriddenAt}
             label={t("organization.riskRegister.residualScoreLabel")}
           />
         </div>
