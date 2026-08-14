@@ -487,3 +487,30 @@ a backend error gets a generic toast but the tab silently reverts to
 "Click Run AI analysis to generate buckets" with no memory a run was
 attempted. Picking this as a contained, local-state fix (track
 "last run failed" separately from "never run").
+
+## Round 12 (UX re-score after PR #828, AI-run-failed state)
+
+| Axis | Round 11 | Round 12 | Delta |
+|---|---|---|---|
+| UX | 7/10 | **8/10** | +1, 3-round stuck_streak broken |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.89/10.** Up from 7.78. No axis below floor. Lowest are
+industry-standards and efficiency, both at 7.
+
+AI-run-failed fix verified via live test run (not just code reading):
+both the distinct-message test and the retry-clears-stale-message test
+(added in review round 2 after catching a real edge case -- the flag
+wasn't reset at the start of a retry, only on eventual success) pass.
+One finding remains open: mobile horizontal-scroll discoverability (no
+scroll-shadow/cue) -- real but narrower in scope than what was just
+fixed, correctly capping rather than sinking the score.
+
+**Next fix:** industry-standards has the highest stuck_streak (3
+rounds unchanged at 7, since round 9). Its remaining gap -- cell color
+still a grid-position heuristic, not a genuine interconnection metric
+-- needs either a new backend endpoint or a client-side port of
+RiskGraphPage's PageRank computation. Checking whether that
+computation is cleanly extractable before committing to this scope for
+the round; if not tractable in one round, falling back to efficiency's
+well-scoped O(risks x links) riskMetrics rewrite instead.

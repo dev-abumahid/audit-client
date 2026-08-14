@@ -2164,5 +2164,72 @@ describe("CorrelationMatrixPage", () => {
         revokeObjectURLSpy.mockRestore()
       }
     })
+
+    // Round 12 (efficiency): riskMetrics moved from an O(risks x links)
+    // nested-filter computation to a single pass that increments both
+    // endpoints of each qualifying link -- exercises the exact scenario a
+    // naive rewrite could get wrong (multiple links landing on the same
+    // risk, aggregation via increment rather than a fresh filter+count
+    // each time).
+    it("correctly counts multiple causal links landing on the same risk (round 12 riskMetrics rewrite)", async () => {
+      setMatrixData({
+        risks: [
+          makeRisk({ id: "r1", ref: "CYB-001" }),
+          makeRisk({ id: "r2", ref: "OPS-002" }),
+          makeRisk({ id: "r3", ref: "SUP-003" }),
+        ],
+        riskLinks: [
+          makeLink({
+            id: "l1",
+            source_ref: "OPS-002",
+            target_ref: "CYB-001",
+            link_type: "CAUSES",
+          }),
+          makeLink({
+            id: "l2",
+            source_ref: "SUP-003",
+            target_ref: "CYB-001",
+            link_type: "CAUSES",
+          }),
+        ],
+      })
+      render(<CorrelationMatrixPage />, withRouter)
+
+      let capturedBlob: Blob | undefined
+      const createObjectURLSpy = vi
+        .spyOn(URL, "createObjectURL")
+        .mockImplementation((blob) => {
+          capturedBlob = blob as Blob
+          return "blob:mock-url"
+        })
+      const revokeObjectURLSpy = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => {})
+
+      try {
+        fireEvent.click(
+          screen.getByRole("button", {
+            name: "organization.correlationMatrix.exportCsv",
+          })
+        )
+
+        const csvText = await capturedBlob!.text()
+        const cybRow = csvText
+          .split("\r\n")
+          .find((row) => row.startsWith("CYB-001,"))
+        // Round-1 review finding: arrayContaining(["2", "0"]) only proved
+        // those values appeared SOMEWHERE in the row, not in the Root
+        // Causes/Consequences columns specifically -- a bug that swapped
+        // which endpoint gets which increment would still pass. Header
+        // order is [Ref, Name, Category, Site, Root Causes, Consequences,
+        // Matrix Cell], so indices 4/5 pin the exact columns.
+        const cells = cybRow?.split(",")
+        expect(cells?.[4]).toBe("2") // Root Causes
+        expect(cells?.[5]).toBe("0") // Consequences
+      } finally {
+        createObjectURLSpy.mockRestore()
+        revokeObjectURLSpy.mockRestore()
+      }
+    })
   })
 })

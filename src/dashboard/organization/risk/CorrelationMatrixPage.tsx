@@ -355,23 +355,28 @@ export default function CorrelationMatrixPage() {
     [filteredRisks]
   )
 
+  // Round 12 (efficiency): this used to run two full `.filter()` passes
+  // over causalLinks for EVERY risk in filteredRisks -- O(risks x links).
+  // A single pass over links, incrementing both endpoints' counters at
+  // once when both sides are in filteredRefs, is O(risks + links) and
+  // produces the identical counts (a link only ever contributes to
+  // exactly one risk's rootCauses and one risk's consequences, so there's
+  // no aggregation-order dependency to get wrong here).
   const riskMetrics = useMemo(() => {
-    const causalLinks = links.filter(
-      (l) => l.link_type === "CAUSES" || l.link_type === "AMPLIFIES"
-    )
     const metrics: Record<
       string,
       { rootCauses: number; consequences: number }
     > = {}
     for (const risk of filteredRisks) {
-      metrics[risk.ref] = {
-        rootCauses: causalLinks.filter(
-          (l) => l.target_ref === risk.ref && filteredRefs.has(l.source_ref)
-        ).length,
-        consequences: causalLinks.filter(
-          (l) => l.source_ref === risk.ref && filteredRefs.has(l.target_ref)
-        ).length,
+      metrics[risk.ref] = { rootCauses: 0, consequences: 0 }
+    }
+    for (const l of links) {
+      if (l.link_type !== "CAUSES" && l.link_type !== "AMPLIFIES") continue
+      if (!filteredRefs.has(l.source_ref) || !filteredRefs.has(l.target_ref)) {
+        continue
       }
+      metrics[l.target_ref].rootCauses++
+      metrics[l.source_ref].consequences++
     }
     return metrics
   }, [filteredRisks, links, filteredRefs])
