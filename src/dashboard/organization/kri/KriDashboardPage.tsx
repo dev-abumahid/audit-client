@@ -1,18 +1,9 @@
-import {
-  useCreateNewKriMutation,
-  useDeleteKriMutation,
-  useGetAllKriQuery,
-  useGetKriReadingsQuery,
-  useSubmitKriValueMutation,
-  useUpdateKriMutation,
-} from "@/redux/apis/organization/kri.api"
+import { useGetKriReadingsQuery } from "@/redux/apis/organization/kri.api"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import FilteredByNotice from "@/components/shared/FilteredByNotice"
-import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
-import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { formatLocaleDate } from "@/utils/formatDate"
-import type { Alert, KRI, Risk } from "@/types/organization"
+import type { KRI } from "@/types/organization"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import {
   AlertTriangle,
@@ -43,6 +34,7 @@ import {
   KRI_STATUS_META,
   kriStatusMeta,
 } from "./kriConfig"
+import { useKriData } from "./useKriData"
 
 // Round 18 (code quality finding): handleSave, handleUpdateValue,
 // handleSaveEdit, and handleDelete each independently repeated the
@@ -78,64 +70,22 @@ export default function KriDashboardPage() {
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
   const {
-    data: kriResponse,
-    isLoading: krisLoading,
-    error: krisError,
-  } = useGetAllKriQuery(undefined)
-  // Fresh full-panel re-score (resilience finding): neither secondary
-  // query below checked isError -- a genuine fetch failure fell through
-  // to the same `?? []` empty-array fallback every KRI card already uses
-  // when a risk/alert genuinely doesn't exist, so a real outage looked
-  // identical to "this KRI has no related risk/alerts." Same
-  // isError-omission bug class already fixed on Alerts/Intelligence/etc.
-  // this session.
-  const { data: riskResponse, isError: risksError } = useGetAllRisksQuery({
-    page: 1,
-    limit: 100,
-    searchTerm: "",
-    siteId: "",
-    category: "",
-  })
-  // aexa-frontend#530: drives the per-card alert-count badge below -- the
-  // other, already-shipped half of this cross-link is AlertsPage.tsx's
-  // "View KRI" link, which lands here with a ?highlight= param.
-  const { data: alertsResponse, isError: alertsError } =
-    useGetAllAlertsQuery(undefined)
-  const [createKri] = useCreateNewKriMutation()
-  const [submitKriValue] = useSubmitKriValueMutation()
-  const [updateKri] = useUpdateKriMutation()
-  const [deleteKri] = useDeleteKriMutation()
-
-  // quality-bar-loop round 3 (efficiency, review finding): `?? []` creates
-  // a fresh array reference every render when data is still undefined,
-  // which would defeat every useMemo below keyed on these -- memoized so
-  // the empty-array fallback is referentially stable too.
-  const kris = useMemo(() => kriResponse?.data ?? [], [kriResponse])
-  const risks = useMemo(() => riskResponse?.data ?? [], [riskResponse])
-  const alerts = useMemo(() => alertsResponse?.data ?? [], [alertsResponse])
-  // quality-bar-loop round 3 (efficiency, round-1 finding): a plain
-  // `risks.find(...)` inside the KRI `.map()` below was an O(n*m) lookup
-  // instead of a pre-built index -- at "low hundreds of KRIs x low
-  // hundreds of risks" that's a few thousand redundant scans per render.
-  const risksById = useMemo(
-    () => new Map(risks.map((r: Risk) => [r.id, r])),
-    [risks]
-  )
-  // Unread only: a read alert no longer represents an outstanding issue on
-  // the KRI, so it shouldn't keep inflating this badge indefinitely.
-  // quality-bar-loop round 3 (efficiency, round-1 finding): recomputed
-  // every render before this, including on every keystroke in the New
-  // KRI form (unrelated state in the same component).
-  const unreadAlertsByKriId = useMemo(
-    () =>
-      alerts.reduce<Record<string, Alert[]>>((acc, alert: Alert) => {
-        if (alert.kri_id && !alert.is_read) {
-          acc[alert.kri_id] = [...(acc[alert.kri_id] ?? []), alert]
-        }
-        return acc
-      }, {}),
-    [alerts]
-  )
+    kris,
+    risks,
+    risksById,
+    unreadAlertsByKriId,
+    krisLoading,
+    krisError,
+    risksError,
+    alertsError,
+    alertCount,
+    warningCount,
+    okCount,
+    createKri,
+    submitKriValue,
+    updateKri,
+    deleteKri,
+  } = useKriData()
 
   // aexa-frontend#530: scrolls to and briefly highlights the KRI card an
   // AlertsPage "View KRI" link was clicked for. Only fires once the KRI
@@ -424,22 +374,6 @@ export default function KriDashboardPage() {
         : "",
     [trendChartData, t]
   )
-
-  // quality-bar-loop round 3 (efficiency, round-1 finding): three
-  // separate `.filter().length` passes over `kris` recomputed every
-  // render (same unrelated-state-triggers-rescan issue as above) --
-  // combined into a single pass.
-  const { alertCount, warningCount, okCount } = useMemo(() => {
-    let alert = 0
-    let warning = 0
-    let ok = 0
-    for (const k of kris) {
-      if (k.status === "ALERT") alert++
-      else if (k.status === "WARNING") warning++
-      else if (k.status === "OK") ok++
-    }
-    return { alertCount: alert, warningCount: warning, okCount: ok }
-  }, [kris])
 
   // quality-bar-loop round 14 (industry-standards): the dashboard's
   // "KRI Alerts" card used to be a static, non-clickable number -- it now
