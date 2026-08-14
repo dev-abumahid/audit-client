@@ -313,6 +313,7 @@
         "modalTitle": "Trend — {{name}}",
         "loadError": "Failed to load trend readings. Please try again later.",
         "refetchFailedStale": "Failed to refresh readings -- showing the last successfully loaded data.",
+        "summary": "{{count}} readings from {{first}} to {{last}}. Latest value: {{latestValue}}.",
         "empty": "No readings recorded yet"
       },
       "status": {

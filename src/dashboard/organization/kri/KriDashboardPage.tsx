@@ -607,10 +607,26 @@ export default function KriDashboardPage() {
             >
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">
+                  {/* Round 9 (accessibility finding): CSS truncate has no
+                      fallback for the cut-off portion -- a `title` gives
+                      the full name on hover (and to some screen readers'
+                      own tooltip behavior), same pattern already used for
+                      truncated risk names in the New KRI form's own
+                      select. */}
+                  <p
+                    title={kri.name}
+                    className="truncate text-sm font-semibold text-foreground"
+                  >
                     {kri.name}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  <p
+                    title={`${risk ? risk.name : t("organization.kri.unknownRisk")}${
+                      kri.frequency
+                        ? ` · ${t(`organization.kri.frequency.${kri.frequency}`, { defaultValue: kri.frequency })}`
+                        : ""
+                    }`}
+                    className="mt-0.5 truncate text-xs text-muted-foreground"
+                  >
                     {/* aexa-frontend#542: kri.risk_id is the same FK this
                         form uses to create the KRI -- a KRI's whole purpose
                         is tied to a specific risk, and there was previously
@@ -640,13 +656,21 @@ export default function KriDashboardPage() {
                       so it reads as "outstanding issues," not a permanent
                       all-time tally. */}
                   {alertCount > 0 && (
+                    // Round 9 (accessibility finding): `title` alone isn't
+                    // reliably exposed as an accessible name/description by
+                    // every screen reader or on touch devices (no hover) --
+                    // aria-label carries the same text through the
+                    // standard accessible-name computation instead.
                     <span
                       title={t("organization.kri.relatedAlertsTooltip", {
                         count: alertCount,
                       })}
+                      aria-label={t("organization.kri.relatedAlertsTooltip", {
+                        count: alertCount,
+                      })}
                       className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${severityBadgeClasses(highestSeverity(kriAlerts))}`}
                     >
-                      <AlertTriangle className="h-3 w-3" />
+                      <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                       {alertCount}
                     </span>
                   )}
@@ -1370,6 +1394,21 @@ export default function KriDashboardPage() {
 
             {!isLoadingReadings && trendChartData.length > 0 && (
               <div className="h-64">
+                {/* Round 9 (accessibility finding): Recharts renders a
+                    purely visual SVG with no text alternative for a
+                    screen-reader user -- a concise text summary conveys
+                    the same "what's the trend" signal the chart exists
+                    to show, without needing a full data-table fallback. */}
+                <p className="sr-only">
+                  {t("organization.kri.trend.summary", {
+                    count: trendChartData.length,
+                    first: trendChartData[0].recorded_at,
+                    last: trendChartData[trendChartData.length - 1]
+                      .recorded_at,
+                    latestValue:
+                      trendChartData[trendChartData.length - 1].value,
+                  })}
+                </p>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trendChartData}>
                     <XAxis

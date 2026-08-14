@@ -391,3 +391,60 @@ concrete and mechanical instead: the update-value modal is still a
 bare unlabeled number input with no KRI name/unit/threshold shown for
 context, and the empty state has no icon or CTA -- picking these as
 this round's fix.
+
+## Round 9 (UX re-score after PR #848)
+
+| Axis | Round 8 | Round 9 | Delta |
+|---|---|---|---|
+| UX | 7 | **9** | +2, clears floor with margin |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 8.11/10.** Up from 7.89. **No axis remains below floor.**
+Not yet converged (target 8.5). Judge live-verified both fixes against
+real seeded data across 2 different KRI cards (confirming per-KRI data
+binding, not a stale/fluke render) and credited the pre-filled current-
+value field as a nice unplanned touch.
+
+**Next fix:** industry-standards, accessibility, and code quality are
+all tied at 7 (furthest below target). Roster order would pick
+industry-standards, but its concrete items (threshold-direction
+config, export) are the ones this log has repeatedly flagged as
+needing real product/design scoping. Accessibility's own remaining
+items are concrete and mechanical instead (from this session's fresh
+full-panel re-score): no sr-only/text alternative for the Recharts
+trend chart, the alert-count badge conveys its tooltip via `title`
+only (not `aria-label`), and `kri.name` still truncates via CSS with
+no `title` fallback for the full name. Picking these as this round's
+fix.
+
+## Round 10 (accessibility fix, PR #849)
+
+Shipped the three items flagged above:
+- `title={kri.name}` on the truncated KRI-name `<p>`.
+- `aria-label` (mirroring the existing `title`) plus `aria-hidden="true"`
+  on the decorative icon, on the alert-count badge.
+- An `sr-only` text summary ("N readings from FIRST to LAST. Latest
+  value: V.") above the Recharts trend chart, which otherwise has no
+  built-in text alternative for screen reader users.
+
+Round-1 review (independent agent, PR #849) found two real issues,
+both fixed same-round:
+1. The risk-name/frequency line directly below the KRI name truncates
+   the same way, but had been left without its own `title` fallback --
+   same defect, same card, one line down. Fixed with a `title`
+   combining the risk name (or `unknownRisk` fallback) and frequency.
+2. Two of the three new regression tests only asserted on the mocked
+   `t()`'s echoed raw key string, which can't distinguish correct vs.
+   wrong interpolation args -- rewritten to assert against the file's
+   existing `tCalls` interpolation-recording array instead. Two more
+   tests added for the title-fallback fix itself.
+
+Round-2 review came back with zero findings -- review loop converged
+after 2 rounds. Full QA gate clean (typecheck, lint, 2143/2143 test
+suite), 5 new regression tests all negative-control-verified against
+pre-fix source, live-verified in the dev preview against real seeded
+KRI data (title fallback, `sr-only` summary rendering "2 readings from
+Aug 9 to Aug 9. Latest value: 60." with correct interpolated values).
+
+Re-scoring accessibility next to confirm the floor-clearing impact
+before picking round 11's fix.

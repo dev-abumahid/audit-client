@@ -1290,6 +1290,123 @@ describe("KriDashboardPage", () => {
     })
   })
 
+  describe("accessibility (round 9)", () => {
+    // A CSS-truncated name has no way to see the full text without a title
+    // fallback -- title is the same pattern already used for the risk-name
+    // dropdown truncation above.
+    it("exposes the full KRI name via a title attribute when the card's name is truncated", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: {
+          data: [makeKri({ name: "A very long key risk indicator name that overflows" })],
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByTitle("A very long key risk indicator name that overflows")
+      ).toBeInTheDocument()
+    })
+
+    // The alert-count badge previously conveyed its tooltip text only via
+    // `title`, which isn't reliably exposed to screen readers/touch
+    // devices -- aria-label carries the same text through the accessibility
+    // tree directly.
+    it("gives the alert-count badge an aria-label matching its tooltip text, with the real alert count interpolated", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ id: "kri-1" })] },
+        isLoading: false,
+      })
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            { id: "a1", kri_id: "kri-1" },
+            { id: "a2", kri_id: "kri-1" },
+          ],
+        },
+      })
+
+      renderPage()
+
+      const badge = screen.getByTitle("organization.kri.relatedAlertsTooltip")
+      expect(badge).toHaveAttribute(
+        "aria-label",
+        "organization.kri.relatedAlertsTooltip"
+      )
+      const tooltipCalls = tCalls.filter(
+        (call) => call[0] === "organization.kri.relatedAlertsTooltip"
+      )
+      // Both the title and the aria-label read from the same t() call site
+      // in source, so this stub's identical-string return doesn't by
+      // itself prove the real count was interpolated -- asserting on the
+      // recorded call args does.
+      expect(tooltipCalls.length).toBeGreaterThan(0)
+      for (const call of tooltipCalls) {
+        expect((call[1] as { count?: unknown })?.count).toBe(2)
+      }
+    })
+
+    // The trend chart is a purely visual Recharts SVG with no built-in text
+    // alternative -- an sr-only summary gives screen reader users the same
+    // count/range/latest-value information sighted users get from the chart.
+    it("renders an sr-only text summary of the trend chart's data", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      mockUseGetKriReadingsQuery.mockReturnValue({
+        data: {
+          data: [
+            { id: "r-2", kri_id: "kri-1", value: 60, recorded_at: "2026-06-15T00:00:00.000Z" },
+            { id: "r-1", kri_id: "kri-1", value: 50, recorded_at: "2026-05-15T00:00:00.000Z" },
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+      await userEvent.click(screen.getByTitle("organization.kri.trend.viewTooltip"))
+
+      const summary = screen.getByText("organization.kri.trend.summary")
+      expect(summary.className).toContain("sr-only")
+
+      // The mocked t() ignores interpolation options for this key (it just
+      // echoes the raw key string), so the rendered text alone can't prove
+      // the right count/dates/value were passed in -- asserting on the
+      // recorded call args does. Readings are reversed from the API's
+      // newest-first order, so the oldest reading (r-1, May) is `first`
+      // and the newest (r-2, June) is both `last` and `latestValue`.
+      const summaryCall = tCalls.find(
+        (call) => call[0] === "organization.kri.trend.summary"
+      )
+      expect(summaryCall).toBeDefined()
+      const summaryOpts = summaryCall?.[1] as {
+        count?: unknown
+        first?: unknown
+        last?: unknown
+        latestValue?: unknown
+      }
+      expect(summaryOpts.count).toBe(2)
+      expect(summaryOpts.latestValue).toBe(60)
+      // mockFormatLocaleDate wraps the real formatLocaleDate implementation
+      // (see the module mock near the top of this file), so calling it
+      // directly here gives the exact expected formatted-date strings.
+      expect(summaryOpts.first).toBe(
+        mockFormatLocaleDate("2026-05-15T00:00:00.000Z", "en", {
+          month: "short",
+          day: "numeric",
+        })
+      )
+      expect(summaryOpts.last).toBe(
+        mockFormatLocaleDate("2026-06-15T00:00:00.000Z", "en", {
+          month: "short",
+          day: "numeric",
+        })
+      )
+    })
+  })
+
   // Regression: none of this file's raw <button> elements declared
   // type="button", defaulting to the implicit type="submit" -- harmless only
   // because this page's markup never sits inside a <form>, but a latent
@@ -1509,6 +1626,46 @@ describe("KriDashboardPage", () => {
       expect(
         screen.queryByRole("link", { name: "Fire safety risk" })
       ).not.toBeInTheDocument()
+    })
+
+    // Round 9 (accessibility finding): this line is CSS-truncated the same
+    // way the KRI name above it is, but had no title fallback -- same
+    // defect, same card, left unaddressed when the name's own fallback was
+    // added.
+    it("exposes the full risk name and frequency via a title attribute when the risk/frequency line is truncated", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ risk_id: "risk-1", frequency: "monthly" })] },
+        isLoading: false,
+      })
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ id: "risk-1", name: "Fire safety risk" })] },
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByTitle("Fire safety risk · Monthly")
+      ).toBeInTheDocument()
+    })
+
+    it("falls back to the unknown-risk label in the title when risk_id matches nothing", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: {
+          data: [
+            makeKri({ risk_id: "risk-does-not-exist", frequency: "monthly" }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ id: "risk-1" })] },
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByTitle("organization.kri.unknownRisk · Monthly")
+      ).toBeInTheDocument()
     })
   })
 

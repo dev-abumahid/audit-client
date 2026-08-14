@@ -313,6 +313,7 @@
         "modalTitle": "Tendance — {{name}}",
         "loadError": "Échec du chargement des mesures de tendance. Veuillez réessayer plus tard.",
         "refetchFailedStale": "Échec de l'actualisation des mesures -- affichage des dernières données chargées avec succès.",
+        "summary": "{{count}} mesures du {{first}} au {{last}}. Dernière valeur : {{latestValue}}.",
         "empty": "Aucune mesure enregistrée pour le moment"
       },
       "status": {
