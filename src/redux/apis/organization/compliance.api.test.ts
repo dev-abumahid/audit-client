@@ -85,3 +85,33 @@ describe("complianceApi.attestCompliance request body (live-verify finding)", ()
     })
   })
 })
+
+// Quality-bar-loop industry-standards gap: edit-history endpoint, mirroring
+// the already-shipped attestation-history endpoint's URL shape exactly.
+describe("complianceApi.getComplianceEditHistory", () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  it("requests the /compliance/:id/edit-history endpoint with pagination params", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeResponse({ success: true, data: [], meta: { total: 0 } })
+    )
+
+    const store = setupStore()
+    await store.dispatch(
+      complianceApi.endpoints.getComplianceEditHistory.initiate({
+        id: "obl-1",
+        page: 1,
+        limit: 20,
+      })
+    )
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const [requestUrl] = mockFetch.mock.calls[0] as [RequestInfo]
+    const url = requestUrl instanceof Request ? requestUrl.url : String(requestUrl)
+    expect(url).toContain("/compliance/obl-1/edit-history")
+    expect(url).toContain("page=1")
+    expect(url).toContain("limit=20")
+  })
+})

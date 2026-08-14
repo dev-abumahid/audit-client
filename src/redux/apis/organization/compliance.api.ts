@@ -73,6 +73,29 @@ export interface ComplianceAttestation {
   createdAt: string
 }
 
+// Quality-bar-loop industry-standards gap: a permanent, append-only record
+// of "this field on this obligation was changed from X to Y, by this
+// person, at this time" -- distinct from ComplianceAttestation above, which
+// logs periodic re-confirmation events, not edits to the obligation's own
+// fields. `changes` is a field-level old/new diff, e.g.
+// { title: { old: "...", new: "..." } }, keyed by whichever tracked fields
+// actually changed in that PATCH (title/description/domain/site_id/status/
+// owner/due_date/regulation_reference/recurrence/line_of_defense --
+// attachments and meta fields like is_edited/next_review_date are
+// deliberately excluded, see the backend's TRACKED_HISTORY_FIELDS).
+export interface ComplianceEditHistoryEntry {
+  id: string
+  org_account_id: string
+  obligation_id: string
+  // accountId of whoever made the edit -- same raw-id-as-shown constraint as
+  // ComplianceAttestation.attested_by above (no name-resolution endpoint
+  // exists for this frontend to join against yet).
+  edited_by: string
+  edited_at: string
+  changes: Record<string, { old: unknown; new: unknown }>
+  createdAt: string
+}
+
 // Computed scorecard returned by GET /compliance/scorecard. A cell's `band`
 // follows the CDC 7.7 red/orange/green thresholds. The backend boundaries are
 // inclusive on the lower edge (`>=`), so the exact semantics are: green when
@@ -216,6 +239,18 @@ const complianceApi = baseApi.injectEndpoints({
       }),
       providesTags: ["COMPLIANCE"],
     }),
+    // Quality-bar-loop industry-standards gap: paginated edit-history read,
+    // mirroring getComplianceAttestations exactly.
+    getComplianceEditHistory: builder.query<
+      PaginatedApiResponse<ComplianceEditHistoryEntry>,
+      { id: string; page: number; limit: number }
+    >({
+      query: ({ id, page, limit }) => ({
+        url: `/compliance/${id}/edit-history?${buildQueryString({ page, limit })}`,
+        method: "GET",
+      }),
+      providesTags: ["COMPLIANCE"],
+    }),
   }),
 })
 
@@ -228,6 +263,7 @@ export const {
   useDeleteComplianceMutation,
   useAttestComplianceMutation,
   useGetComplianceAttestationsQuery,
+  useGetComplianceEditHistoryQuery,
 } = complianceApi
 
 export { complianceApi }

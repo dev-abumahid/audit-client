@@ -23,6 +23,7 @@ import {
   useDeleteComplianceMutation,
   useGetAllComplianceQuery,
   useGetComplianceAttestationsQuery,
+  useGetComplianceEditHistoryQuery,
   useGetComplianceScorecardQuery,
   useUpdateComplianceMutation,
 } from "@/redux/apis/organization/compliance.api"
@@ -282,6 +283,17 @@ export default function CompliancePage() {
     { id: historyObligation?.id ?? "", page: 1, limit: 20 },
     { skip: !historyObligation }
   )
+  // Quality-bar-loop industry-standards gap: fetched alongside attestations
+  // (same skip-until-open convention), backing the history modal's second
+  // "Edit History" tab.
+  const {
+    data: editHistoryData,
+    isLoading: isLoadingEditHistory,
+    isError: editHistoryError,
+  } = useGetComplianceEditHistoryQuery(
+    { id: historyObligation?.id ?? "", page: 1, limit: 20 },
+    { skip: !historyObligation }
+  )
 
   // Changing any filter resets to page 1 so the user never lands on an
   // out-of-range page for the newly-filtered result set.
@@ -307,6 +319,31 @@ export default function CompliancePage() {
 
   const siteName = (siteId: string | null) =>
     siteId ? (sites.find((s) => s.id === siteId)?.name ?? siteId) : null
+
+  // Quality-bar-loop industry-standards gap: label helpers for the edit-
+  // history tab's field-level diffs. site_id renders through siteName (same
+  // resolver the rest of the page already uses) rather than a raw UUID;
+  // domain/status/line_of_defense go through the page's own existing label
+  // helpers so the same translated vocabulary is used everywhere on this
+  // page, not a second parallel one.
+  const editHistoryFieldLabel = (field: string) =>
+    t(`organization.compliance.editHistory.field.${field}`, field)
+
+  const editHistoryValueLabel = (field: string, value: unknown): string => {
+    if (value === null || value === undefined || value === "") {
+      return t("organization.compliance.editHistory.emptyValue")
+    }
+    if (field === "due_date") {
+      return formatDateOnlyForDisplay(String(value), i18n.language)
+    }
+    if (field === "domain") return domainLabel(String(value))
+    if (field === "status") return statusLabel(String(value))
+    if (field === "site_id") return siteName(String(value)) ?? String(value)
+    if (field === "line_of_defense") {
+      return t(LINE_OF_DEFENSE_KEY[value as LineOfDefense] ?? String(value))
+    }
+    return String(value)
+  }
 
   const openCreate = () => {
     setEditingId(null)
@@ -1088,6 +1125,11 @@ export default function CompliancePage() {
           statusBadgeClass={(key) =>
             STATUS_BADGE[key] || "bg-muted text-muted-foreground"
           }
+          editEntries={editHistoryData?.data ?? []}
+          isLoadingEditHistory={isLoadingEditHistory}
+          isErrorEditHistory={editHistoryError}
+          editFieldLabel={editHistoryFieldLabel}
+          editValueLabel={editHistoryValueLabel}
         />
       )}
 

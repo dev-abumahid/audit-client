@@ -1263,7 +1263,29 @@
         "historyModalClose": "Close attestation history",
         "historyEmpty": "No attestations recorded yet",
         "historyLoadError": "Failed to load attestation history. Please try again later.",
-        "attestedByLabel": "Attested by: {{accountId}}"
+        "attestedByLabel": "Attested by: {{accountId}}",
+        "tabLabel": "Attestations"
+      },
+      "editHistory": {
+        "tabLabel": "Edit History",
+        "empty": "No edits recorded yet",
+        "loadError": "Failed to load edit history. Please try again later.",
+        "editedByLabel": "Edited by: {{accountId}}",
+        "emptyValue": "—",
+        "fieldsChangedLabel": "{{count}} field changed",
+        "fieldsChangedLabel_other": "{{count}} fields changed",
+        "field": {
+          "title": "Title",
+          "description": "Description",
+          "domain": "Domain",
+          "site_id": "Site",
+          "status": "Status",
+          "owner": "Owner",
+          "due_date": "Due date",
+          "regulation_reference": "Regulation reference",
+          "recurrence": "Recurrence",
+          "line_of_defense": "Line of defense"
+        }
       },
       "form": {
         "newTitle": "New Compliance Obligation",

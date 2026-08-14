@@ -77,6 +77,7 @@ const mockUpdateCompliance = vi.fn()
 const mockDeleteCompliance = vi.fn()
 const mockAttestCompliance = vi.fn()
 const mockUseGetComplianceAttestationsQuery = vi.fn()
+const mockUseGetComplianceEditHistoryQuery = vi.fn()
 
 vi.mock("@/redux/apis/organization/compliance.api", () => ({
   useGetAllComplianceQuery: (...args: unknown[]) =>
@@ -99,6 +100,8 @@ vi.mock("@/redux/apis/organization/compliance.api", () => ({
   ],
   useGetComplianceAttestationsQuery: (...args: unknown[]) =>
     mockUseGetComplianceAttestationsQuery(...args),
+  useGetComplianceEditHistoryQuery: (...args: unknown[]) =>
+    mockUseGetComplianceEditHistoryQuery(...args),
 }))
 
 const mockUseGetAllSitesQuery = vi.fn()
@@ -209,6 +212,7 @@ describe("CompliancePage", () => {
     mockDeleteCompliance.mockReset()
     mockAttestCompliance.mockReset()
     mockUseGetComplianceAttestationsQuery.mockReset()
+    mockUseGetComplianceEditHistoryQuery.mockReset()
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
     mockUseGetAllSitesQuery.mockReset()
@@ -219,6 +223,10 @@ describe("CompliancePage", () => {
     })
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [] } })
     mockUseGetComplianceAttestationsQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    mockUseGetComplianceEditHistoryQuery.mockReturnValue({
       data: { data: [] },
       isLoading: false,
     })
@@ -1800,6 +1808,162 @@ describe("CompliancePage", () => {
       expect(
         screen.queryByText("organization.compliance.attest.historyEmpty")
       ).not.toBeInTheDocument()
+    })
+
+    // Quality-bar-loop industry-standards gap: the history modal grew a
+    // second "Edit History" tab, fetched alongside attestations behind the
+    // same historyObligation-gated skip.
+    describe("edit history tab (quality-bar-loop)", () => {
+      it("fetches edit history scoped to the obligation once the history modal opens", async () => {
+        const user = userEvent.setup()
+        mockUseGetAllComplianceQuery.mockReturnValue({
+          data: { data: [makeObligation()] },
+          isLoading: false,
+        })
+
+        renderPage()
+
+        await user.click(
+          screen.getByRole("button", {
+            name: "organization.compliance.attest.historyButton",
+          })
+        )
+
+        expect(mockUseGetComplianceEditHistoryQuery).toHaveBeenCalledWith(
+          expect.objectContaining({ id: "comp-1" }),
+          expect.objectContaining({ skip: false })
+        )
+      })
+
+      it("shows the edit-history empty state on the Edit History tab, not mixed into the attestations tab", async () => {
+        const user = userEvent.setup()
+        mockUseGetAllComplianceQuery.mockReturnValue({
+          data: { data: [makeObligation()] },
+          isLoading: false,
+        })
+        mockUseGetComplianceEditHistoryQuery.mockReturnValue({
+          data: { data: [] },
+          isLoading: false,
+        })
+
+        renderPage()
+        await user.click(
+          screen.getByRole("button", {
+            name: "organization.compliance.attest.historyButton",
+          })
+        )
+        await user.click(
+          screen.getByRole("tab", {
+            name: "organization.compliance.editHistory.tabLabel",
+          })
+        )
+
+        expect(
+          screen.getByText("organization.compliance.editHistory.empty")
+        ).toBeInTheDocument()
+      })
+
+      it("renders a field-level diff for each edit-history entry", async () => {
+        const user = userEvent.setup()
+        mockUseGetAllComplianceQuery.mockReturnValue({
+          data: { data: [makeObligation()] },
+          isLoading: false,
+        })
+        mockUseGetComplianceEditHistoryQuery.mockReturnValue({
+          data: {
+            data: [
+              {
+                id: "edit-1",
+                org_account_id: "org-a",
+                obligation_id: "comp-1",
+                edited_by: "acct-9",
+                edited_at: "2026-06-01T10:00:00.000Z",
+                changes: {
+                  title: { old: "Old title", new: "New title" },
+                },
+                createdAt: "2026-06-01T10:00:00.000Z",
+              },
+            ],
+          },
+          isLoading: false,
+        })
+
+        renderPage()
+        await user.click(
+          screen.getByRole("button", {
+            name: "organization.compliance.attest.historyButton",
+          })
+        )
+        await user.click(
+          screen.getByRole("tab", {
+            name: "organization.compliance.editHistory.tabLabel",
+          })
+        )
+
+        expect(screen.getByText(/Old title/)).toBeInTheDocument()
+        expect(screen.getByText(/New title/)).toBeInTheDocument()
+        expect(
+          screen.getByText("organization.compliance.editHistory.editedByLabel")
+        ).toBeInTheDocument()
+      })
+
+      it("shows a distinct error message, not the empty state, when the edit-history fetch fails", async () => {
+        const user = userEvent.setup()
+        mockUseGetAllComplianceQuery.mockReturnValue({
+          data: { data: [makeObligation()] },
+          isLoading: false,
+        })
+        mockUseGetComplianceEditHistoryQuery.mockReturnValue({
+          data: undefined,
+          isLoading: false,
+          isError: true,
+        })
+
+        renderPage()
+        await user.click(
+          screen.getByRole("button", {
+            name: "organization.compliance.attest.historyButton",
+          })
+        )
+        await user.click(
+          screen.getByRole("tab", {
+            name: "organization.compliance.editHistory.tabLabel",
+          })
+        )
+
+        expect(
+          screen.getByText("organization.compliance.editHistory.loadError")
+        ).toBeInTheDocument()
+        expect(
+          screen.queryByText("organization.compliance.editHistory.empty")
+        ).not.toBeInTheDocument()
+      })
+
+      it("defaults to the Attestations tab when the history modal opens", async () => {
+        const user = userEvent.setup()
+        mockUseGetAllComplianceQuery.mockReturnValue({
+          data: { data: [makeObligation()] },
+          isLoading: false,
+        })
+
+        renderPage()
+        await user.click(
+          screen.getByRole("button", {
+            name: "organization.compliance.attest.historyButton",
+          })
+        )
+
+        expect(
+          screen.getByRole("tab", {
+            name: "organization.compliance.attest.tabLabel",
+          })
+        ).toHaveAttribute("aria-selected", "true")
+        expect(
+          screen.getByRole("tab", {
+            name: "organization.compliance.editHistory.tabLabel",
+          })
+        ).toHaveAttribute("aria-selected", "false")
+      })
     })
 
     // aexa-frontend round-4 audit bug #333: entry.attested_by was never

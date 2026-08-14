@@ -1263,7 +1263,29 @@
         "historyModalClose": "Fermer l'historique d'attestation",
         "historyEmpty": "Aucune attestation enregistrée pour le moment",
         "historyLoadError": "Échec du chargement de l'historique d'attestation. Veuillez réessayer plus tard.",
-        "attestedByLabel": "Attesté par : {{accountId}}"
+        "attestedByLabel": "Attesté par : {{accountId}}",
+        "tabLabel": "Attestations"
+      },
+      "editHistory": {
+        "tabLabel": "Historique des modifications",
+        "empty": "Aucune modification enregistrée pour le moment",
+        "loadError": "Échec du chargement de l'historique des modifications. Veuillez réessayer plus tard.",
+        "editedByLabel": "Modifié par : {{accountId}}",
+        "emptyValue": "—",
+        "fieldsChangedLabel": "{{count}} champ modifié",
+        "fieldsChangedLabel_other": "{{count}} champs modifiés",
+        "field": {
+          "title": "Titre",
+          "description": "Description",
+          "domain": "Domaine",
+          "site_id": "Site",
+          "status": "Statut",
+          "owner": "Propriétaire",
+          "due_date": "Date d'échéance",
+          "regulation_reference": "Référence réglementaire",
+          "recurrence": "Récurrence",
+          "line_of_defense": "Ligne de défense"
+        }
       },
       "form": {
         "newTitle": "Nouvelle obligation de conformité",
