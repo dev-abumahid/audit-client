@@ -1237,6 +1237,11 @@
         "noData": "Aucune obligation à évaluer pour l'instant",
         "loadError": "Échec du chargement du tableau de conformité. Veuillez réessayer plus tard."
       },
+      "frameworkCoverage": {
+        "title": "Couverture par référentiel",
+        "subtitle": "Obligations actuellement filtrées associées à un référentiel réglementaire reconnu -- pas un total pour toute l'organisation",
+        "compliantOf": "{{compliant}}/{{total}} conformes"
+      },
       "col": {
         "obligation": "OBLIGATION",
         "domain": "DOMAINE",

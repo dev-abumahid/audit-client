@@ -1237,6 +1237,11 @@
         "noData": "No obligations yet to score",
         "loadError": "Failed to load the scorecard. Please try again later."
       },
+      "frameworkCoverage": {
+        "title": "Framework Coverage",
+        "subtitle": "Currently filtered obligations mapped to a recognized regulatory framework -- not an org-wide total",
+        "compliantOf": "{{compliant}}/{{total}} compliant"
+      },
       "col": {
         "obligation": "OBLIGATION",
         "domain": "DOMAIN",

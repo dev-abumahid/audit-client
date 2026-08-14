@@ -5,6 +5,7 @@ import { formatDateOnlyForDisplay } from "@/dashboard/organization/findings/dueD
 import AttestConfirmModal from "./AttestConfirmModal"
 import AttestHistoryModal from "./AttestHistoryModal"
 import ComplianceFormModal from "./ComplianceFormModal"
+import ComplianceFrameworkCoverage from "./ComplianceFrameworkCoverage"
 import ComplianceObligationRow from "./ComplianceObligationRow"
 import ComplianceScorecardMatrix from "./ComplianceScorecardMatrix"
 import { useComplianceData } from "./useComplianceData"
@@ -693,6 +694,8 @@ export default function CompliancePage() {
           </p>
         </div>
       </div>
+
+      <ComplianceFrameworkCoverage obligations={obligations} />
 
       {/* Scorecard: site × domain matrix */}
       <div className="animate-slide-up stagger-1 overflow-hidden rounded-xl border border-border bg-card">

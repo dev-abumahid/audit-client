@@ -1537,6 +1537,77 @@ describe("CompliancePage", () => {
       ).toBeInTheDocument()
     })
 
+    // Round 16 (industry-standards finding, fresh full-panel re-score): the
+    // round-13 badge was per-row only -- nothing rolled catalog-matched
+    // obligations up to a framework-level readiness view the way reference
+    // GRC tools (Vanta, Drata) do ("SOC 2: 6/7 attested").
+    describe("framework coverage rollup (round 16)", () => {
+      it("tallies catalog-matched obligations per framework, ignoring custom references", () => {
+        mockUseGetAllComplianceQuery.mockReturnValue({
+          data: {
+            data: [
+              makeObligation({
+                id: "gdpr-1",
+                title: "GDPR obligation 1",
+                regulation_reference:
+                  "GDPR Art. 30 — Records of processing activities",
+                status: "compliant",
+              }),
+              makeObligation({
+                id: "gdpr-2",
+                title: "GDPR obligation 2",
+                regulation_reference:
+                  "GDPR Art. 32 — Security of processing",
+                status: "non_compliant",
+              }),
+              makeObligation({
+                id: "soc2-1",
+                title: "SOC 2 obligation",
+                regulation_reference:
+                  "SOC 2 CC6.1 — Logical and physical access controls",
+                status: "compliant",
+              }),
+              makeObligation({
+                id: "custom-ref",
+                title: "Custom-ref obligation",
+                regulation_reference: "Internal Policy 4.2",
+                status: "compliant",
+              }),
+            ],
+          },
+          isLoading: false,
+        })
+
+        renderPage()
+
+        const panel = screen
+          .getByText("organization.compliance.frameworkCoverage.title")
+          .closest("div")!
+        expect(within(panel).getByText("GDPR")).toBeInTheDocument()
+        expect(
+          within(panel).getAllByText(
+            "organization.compliance.frameworkCoverage.compliantOf"
+          )
+        ).toHaveLength(2)
+        expect(within(panel).getByText("SOC 2")).toBeInTheDocument()
+      })
+
+      it("hides the panel entirely when no loaded obligation matches the catalog", () => {
+        mockUseGetAllComplianceQuery.mockReturnValue({
+          data: {
+            data: [makeObligation({ regulation_reference: "Internal Policy 4.2" })],
+          },
+          isLoading: false,
+        })
+
+        renderPage()
+
+        expect(
+          screen.queryByText("organization.compliance.frameworkCoverage.title")
+        ).not.toBeInTheDocument()
+      })
+    })
+
     // Round-1 review of PR #859: the fix for CREATE's null-vs-undefined
     // 400 (below) must NOT be applied to UPDATE too -- fetchBaseQuery's
     // JSON.stringify drops `undefined` keys entirely, and Prisma treats an
