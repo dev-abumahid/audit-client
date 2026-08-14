@@ -1639,6 +1639,11 @@
       "new": "Nouveau",
       "markAsRead": "Marquer comme lu",
       "viewKri": "Voir l'ICR",
+      "dismiss": "Ignorer",
+      "dismissModalTitle": "Ignorer cette alerte ?",
+      "dismissModalDescription": "Cette action supprimera définitivement l'alerte. Cette action est irréversible.",
+      "dismissSuccess": "Alerte ignorée",
+      "dismissFailed": "Échec de la suppression de l'alerte",
       "empty": "Aucune alerte pour le moment",
       "emptyFiltered": "Aucune alerte ne correspond à ce filtre",
       "type": {

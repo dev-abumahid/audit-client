@@ -55,10 +55,39 @@ vi.mock("react-i18next", async (importOriginal) => {
 const mockUseGetAllAlertsQuery = vi.fn()
 const mockMarkAlertRead = vi.fn()
 
+const mockDeleteAlert = vi.fn()
+let mockIsDeletingAlert = false
+
+// Round 7 (industry-standards): dismiss uses the shared DeleteAlertModal --
+// same simplified stub convention as InspectionTable.test.tsx/
+// AllFindingsPage.test.tsx, exposing just enough of its contract
+// (open/onConfirm/loading) to drive the confirm flow without pulling in
+// Radix's real AlertDialog.
+vi.mock("@/components/shared/DeleteAlertModal", () => ({
+  default: ({
+    open,
+    onConfirm,
+    loading,
+  }: {
+    open: boolean
+    onConfirm: () => void
+    loading?: boolean
+  }) =>
+    open ? (
+      <button onClick={onConfirm} disabled={loading}>
+        Confirm dismiss
+      </button>
+    ) : null,
+}))
+
 vi.mock("@/redux/apis/organization/alert.api", () => ({
   useGetAllAlertsQuery: (...args: unknown[]) =>
     mockUseGetAllAlertsQuery(...args),
   useMarkAlertReadMutation: () => [mockMarkAlertRead, { isLoading: false }],
+  useDeleteAlertMutation: () => [
+    mockDeleteAlert,
+    { isLoading: mockIsDeletingAlert },
+  ],
 }))
 
 // Round 5 (security fix): mark-read/mark-all-read are now gated on
@@ -93,6 +122,8 @@ describe("AlertsPage", () => {
   beforeEach(() => {
     mockUseGetAllAlertsQuery.mockReset()
     mockMarkAlertRead.mockReset()
+    mockDeleteAlert.mockReset()
+    mockIsDeletingAlert = false
     mockToastError.mockReset()
     mockLanguage = undefined
     mockRole = "ADMIN"
@@ -843,6 +874,116 @@ describe("AlertsPage", () => {
     expect(buttons.length).toBeGreaterThan(0)
     buttons.forEach((button) => {
       expect(button.type).toBe("button")
+    })
+  })
+
+  // Round 7 (industry-standards): the alert lifecycle was binary is_read
+  // with no way to permanently clear noise -- unlike GitHub Notifications
+  // (mark-done) or PagerDuty (resolve). useDeleteAlertMutation already
+  // existed (a real server endpoint) but was never wired up.
+  describe("dismiss an alert (round 7 fix)", () => {
+    it("shows a Dismiss button for ADMIN, and calls the delete mutation on confirm", async () => {
+      mockRole = "ADMIN"
+      mockDeleteAlert.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true, message: "ok" }),
+      })
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert({ id: "alert-1" })] },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.alerts.dismiss" })
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "Confirm dismiss" })
+      )
+
+      await waitFor(() =>
+        expect(mockDeleteAlert).toHaveBeenCalledWith("alert-1")
+      )
+    })
+
+    it("hides the Dismiss button for a VIEWER", () => {
+      mockRole = "VIEWER"
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert()] },
+        isLoading: false,
+      })
+      renderPage()
+
+      expect(
+        screen.queryByRole("button", { name: "organization.alerts.dismiss" })
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows a success toast after a successful dismiss", async () => {
+      mockRole = "ADMIN"
+      mockDeleteAlert.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true, message: "ok" }),
+      })
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert({ id: "alert-1" })] },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.alerts.dismiss" })
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "Confirm dismiss" })
+      )
+
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith(
+          "organization.alerts.dismissSuccess"
+        )
+      )
+    })
+
+    it("shows an error toast when the dismiss mutation fails", async () => {
+      mockRole = "ADMIN"
+      mockDeleteAlert.mockReturnValue({
+        unwrap: () =>
+          Promise.reject({ data: { message: "Alert not found" } }),
+      })
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert({ id: "alert-1" })] },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.alerts.dismiss" })
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "Confirm dismiss" })
+      )
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith("Alert not found")
+      )
+    })
+
+    it("shows the Dismiss button for both read and unread alerts, unlike Mark as read", () => {
+      mockRole = "ADMIN"
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert({ id: "alert-1", is_read: true })] },
+        isLoading: false,
+      })
+      renderPage()
+
+      // A read alert has no "Mark as read" button, but dismiss should
+      // still be reachable -- there's no reason to force marking read
+      // before you can clear an alert entirely.
+      expect(
+        screen.queryByRole("button", { name: "organization.alerts.markAsRead" })
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole("button", { name: "organization.alerts.dismiss" })
+      ).toBeInTheDocument()
     })
   })
 })

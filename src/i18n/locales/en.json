@@ -1639,6 +1639,11 @@
       "new": "New",
       "markAsRead": "Mark as read",
       "viewKri": "View KRI",
+      "dismiss": "Dismiss",
+      "dismissModalTitle": "Dismiss this alert?",
+      "dismissModalDescription": "This will permanently remove the alert. This cannot be undone.",
+      "dismissSuccess": "Alert dismissed",
+      "dismissFailed": "Failed to dismiss alert",
       "empty": "No alerts yet",
       "emptyFiltered": "No alerts match this filter",
       "type": {

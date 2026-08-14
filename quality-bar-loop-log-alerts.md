@@ -314,3 +314,26 @@ despite a correctly-typed `Alert` interface already existing and used
 cleanly by a sibling component (CriticalAlertBanner.tsx) reading from
 the same query -- a mechanical, cheap fix already proven to work
 elsewhere in this codebase.
+
+## Round 7 (code quality re-score after PR #832)
+
+| Axis | Round 6 | Round 7 | Delta |
+|---|---|---|---|
+| Code quality | 5/10 | **8/10** | +3, no longer below floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.22/10.** Up from 6.89. Three axes remain below floor,
+all tied: industry-standards (6), accessibility (6), mobile (6).
+
+any-removal confirmed complete via grep (zero `: any`/`as any` left)
+and clean lint/typecheck. One minor leftover noted (2 now-redundant
+`as Severity` casts, harmless) but not blocking. Memoization discipline
+and per-id mutation-state/role-gating patterns all confirmed solid.
+
+**Next fix:** industry-standards/accessibility/mobile are tied on both
+stuck_streak (2, unchanged since round 5's baseline) and raw score
+(6) -- roster order picks industry-standards. Checking whether its
+"binary lifecycle" gap has a tractable slice: `useDeleteAlertMutation`
+already exists and is wired to a real server endpoint but is never
+called from AlertsPage -- wiring a dismiss/delete action reuses
+existing plumbing rather than needing new backend work.

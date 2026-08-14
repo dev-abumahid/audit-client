@@ -1,6 +1,8 @@
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
+import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
+  useDeleteAlertMutation,
   useGetAllAlertsQuery,
   useMarkAlertReadMutation,
 } from "@/redux/apis/organization/alert.api"
@@ -8,7 +10,14 @@ import type { Alert } from "@/types/organization"
 import { getEnumLabel } from "@/utils/enumLabel"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
-import { Bell, CheckCheck, Clock, Loader2, RotateCw } from "lucide-react"
+import {
+  Bell,
+  CheckCheck,
+  Clock,
+  Loader2,
+  RotateCw,
+  Trash2,
+} from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
@@ -59,6 +68,15 @@ export default function AlertsPage() {
     refetch,
   } = useGetAllAlertsQuery(undefined)
   const [markAlertRead] = useMarkAlertReadMutation()
+  // Round 7 (industry-standards): the alert lifecycle was binary is_read
+  // with no way to permanently clear noise -- unlike GitHub Notifications
+  // (mark-done) or PagerDuty (resolve). useDeleteAlertMutation already
+  // existed and is wired to a real server endpoint (DELETE /alert/:id)
+  // but was never called from this page. Reuses that existing plumbing
+  // rather than needing new backend work.
+  const [deleteAlert, { isLoading: isDeletingAlert }] =
+    useDeleteAlertMutation()
+  const [deletingAlertId, setDeletingAlertId] = useState<string | null>(null)
   // Round-4 review finding: `isMarkingRead` used to be the mutation
   // hook's own single shared isLoading flag -- clicking "Mark as read" on
   // one alert disabled every OTHER unread alert's button too, with no
@@ -165,6 +183,26 @@ export default function AlertsPage() {
         next.delete(id)
         return next
       })
+    }
+  }
+
+  const confirmDeleteAlert = async () => {
+    // Round-1 review finding: relying solely on DeleteAlertModal's own
+    // disabled={loading} on the Confirm button is the primary guard, but
+    // it depends on a re-render landing before a second invocation --
+    // same belt-and-suspenders check RiskRegisterPage's confirmDeleteRisk
+    // already added for the identical theoretical race.
+    if (!deletingAlertId || isDeletingAlert) return
+    try {
+      await deleteAlert(deletingAlertId).unwrap()
+      toast.success(t("organization.alerts.dismissSuccess"))
+    } catch (err: unknown) {
+      const message =
+        (err as { data?: { message?: string } })?.data?.message ||
+        t("organization.alerts.dismissFailed")
+      toast.error(message)
+    } finally {
+      setDeletingAlertId(null)
     }
   }
 
@@ -442,6 +480,16 @@ export default function AlertsPage() {
                         {t("organization.alerts.markAsRead")}
                       </button>
                     )}
+                    {canWrite && (
+                      <button
+                        type="button"
+                        onClick={() => setDeletingAlertId(alert.id)}
+                        className="focus-ring flex h-11 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        {t("organization.alerts.dismiss")}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -460,6 +508,17 @@ export default function AlertsPage() {
           </div>
         )}
       </div>
+
+      <DeleteAlertModal
+        title={t("organization.alerts.dismissModalTitle")}
+        description={t("organization.alerts.dismissModalDescription")}
+        open={deletingAlertId !== null}
+        setOpen={(value) => {
+          if (!value) setDeletingAlertId(null)
+        }}
+        onConfirm={confirmDeleteAlert}
+        loading={isDeletingAlert}
+      />
     </div>
   )
 }
