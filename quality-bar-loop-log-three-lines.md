@@ -563,3 +563,59 @@ selection priority instead.
 **Next fix:** resilience's confirm-button double-fire guard, per rule
 5c.3 (a regression that stayed at/above floor gets one round's
 priority).
+
+## Round 12 (resilience re-score after PR #812, scoped-diff carve-out) — CONVERGED
+
+PR #812's diff was confined to one function's logic (`requestReassign` /
+`AlertDialogAction`'s `onClick`) with zero UX/visual/accessibility/mobile
+surface change -- per the loop's scoping rule, only resilience was
+re-run; every other axis carries forward unchanged from round 11.
+
+| Axis | Round 11 | Round 12 |
+|---|---|---|
+| Industry-standards | 8.5/10 | 8.5/10 (carried forward) |
+| UX | 8/10 | 8/10 (carried forward) |
+| Efficiency | 9/10 | 9/10 (carried forward) |
+| Accessibility | 8/10 | 8/10 (carried forward) |
+| Visual polish | 9/10 | 9/10 (carried forward) |
+| Resilience | 8/10 | **9/10** |
+| Code quality | 8/10 | 8/10 (carried forward) |
+| Mobile | 8/10 | 8/10 (carried forward) |
+| Security | 9/10 | 9/10 (carried forward) |
+
+**Average: 8.5/10.** Converged against the session's governing target
+(average >= 8.5, floor 7) -- every axis >= 7, average exactly at bar.
+
+PR #812's `hasConfirmedRef` guard was verified live: rapid double-click
+on the confirm button produced exactly one `PATCH /api/risk/{id}`
+network request (previously two), plus correct UI-count/toast behavior.
+Code inspection confirms the fix mechanism (a `useRef` mutation is
+synchronous and unbatched, unlike the `setConfirmRequest`/`setPendingIds`
+state updates it replaces as the guard). No other axis's surface was
+touched by this diff and no regression was found on a fresh resilience
+sweep of loading/error/empty/malformed-data handling.
+
+## Final report
+
+| Round | Industry-std | UX | Efficiency | A11y | Visual | Resilience | Code qual | Mobile | Security | Average |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 9 | 7.5 | 8 | 9 | 8 | 9 | 9 | 8 | 7 | 9 | 8.28 |
+| 10 | 7.5 | 8 | 9 | 8 | 9 | 9 | 8 | 8 | 9 | 8.39 |
+| 11 | 8.5 | 8 | 9 | 8 | 9 | 8 | 8 | 8 | 9 | 8.39 |
+| 12 | 8.5 | 8 | 9 | 8 | 9 | 9 | 8 | 8 | 9 | **8.50** |
+
+What was fixed each round:
+- Round 9->10 (PR #810): reassign-menu `DropdownMenuItem` touch targets,
+  ~28px -> 44px (mobile stuck_streak fix).
+- Round 10->11 (PR #811): added a confirmation dialog before
+  reassignment fires, closing industry-standards' "no confirm/no
+  undo/no audit trail" gap (7.5 -> 8.5), at the cost of a new
+  resilience regression (double-click race on the new confirm button,
+  9 -> 8, stayed at/above floor).
+- Round 11->12 (PR #812): `hasConfirmedRef` guard closes the
+  double-click race, resilience back to 9 -- loop converges at exactly
+  8.5/10 average, no axis below floor.
+
+**Status: CONVERGED.** No guardrail stop. Three Lines of Defense meets
+the session's 8.5-average / 7-floor bar as of PR #812
+(merged 2026-08-13).
