@@ -14,6 +14,7 @@ import AttestConfirmModal from "./AttestConfirmModal"
 import AttestHistoryModal from "./AttestHistoryModal"
 import ComplianceFormModal from "./ComplianceFormModal"
 import type {
+  ComplianceMatrixCell,
   ComplianceObligation,
   ComplianceScoreBand,
 } from "@/redux/apis/organization/compliance.api"
@@ -207,7 +208,11 @@ export default function CompliancePage() {
   const meta = complianceData?.meta
   const totalPages = meta?.totalPage ?? 0
   const scorecard = scorecardData?.data
-  const sites = sitesData?.data || []
+  // Round 9 (efficiency finding, fresh full-panel re-score): `|| []` creates
+  // a fresh array reference every render when data is still undefined,
+  // which would defeat `sitesById` below's own memoization -- same
+  // efficiency-round-3 pattern already applied to `obligations` above.
+  const sites = useMemo(() => sitesData?.data ?? [], [sitesData])
 
   // aexa-frontend#265: deleting the last obligation on the last page shrinks
   // totalPages without a filter change (handleSearchChange/handleDomainChange/
@@ -317,8 +322,19 @@ export default function CompliancePage() {
   const statusLabel = (key: string) =>
     STATUS_ICONS[key] ? t(`organization.compliance.status.${key}`) : key
 
+  // Round 9 (efficiency finding): `sites.find(...)` re-scanned the full
+  // site list for every siteName() call -- called once per matrix row
+  // (site x domain grid) plus once per edit-history site_id diff entry,
+  // so a page with several sites and a long edit history re-scanned
+  // repeatedly on every render. Indexed once, same pattern as
+  // `risksById`/`sitesById`-style maps already used elsewhere in this
+  // session (e.g. KRI's own risksById).
+  const sitesById = useMemo(
+    () => new Map(sites.map((s) => [s.id, s])),
+    [sites]
+  )
   const siteName = (siteId: string | null) =>
-    siteId ? (sites.find((s) => s.id === siteId)?.name ?? siteId) : null
+    siteId ? (sitesById.get(siteId)?.name ?? siteId) : null
 
   // Quality-bar-loop industry-standards gap: label helpers for the edit-
   // history tab's field-level diffs. site_id renders through siteName (same
@@ -562,12 +578,20 @@ export default function CompliancePage() {
     const keys = new Set(scorecard.matrix.map((m) => m.site_id ?? "__org__"))
     return Array.from(keys)
   }, [scorecard])
-  const cellFor = (siteKey: string, domain: string) => {
-    const siteId = siteKey === "__org__" ? null : siteKey
-    return scorecard?.matrix.find(
-      (m) => (m.site_id ?? null) === siteId && m.domain === domain
-    )
-  }
+  // Round 9 (efficiency finding): `cellFor` did a linear `.find()` over
+  // `scorecard.matrix` inside a nested site x domain map below -- O(sites
+  // x domains x matrix.length) per render. Indexed once into a Map keyed
+  // by the exact same "__org__"-for-org-wide convention the render loop
+  // already uses, so cell lookup drops to O(1) per cell.
+  const matrixByKey = useMemo(() => {
+    const map = new Map<string, ComplianceMatrixCell>()
+    for (const m of scorecard?.matrix ?? []) {
+      map.set(`${m.site_id ?? "__org__"}|${m.domain}`, m)
+    }
+    return map
+  }, [scorecard])
+  const cellFor = (siteKey: string, domain: string) =>
+    matrixByKey.get(`${siteKey}|${domain}`)
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
