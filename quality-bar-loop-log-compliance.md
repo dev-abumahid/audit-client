@@ -690,3 +690,70 @@ axis below 8, and the only one keeping the average under target. Not
 yet confirmed converged without a fresh full panel -- due next given
 the average is now close to the 8.5 target and industry-standards is
 the last named gap of any real size.
+
+## Round 13 (industry-standards + accessibility: framework catalog, form label associations, PR #888)
+
+Two findings from round 12's fresh full panel, both cheap and both
+touching ComplianceFormModal.tsx, shipped together in one PR rather
+than two sequential rounds on the same file:
+
+**industry-standards (7/10, stuck across rounds 10-12):** the two
+named gaps were a structured regulatory-framework taxonomy and an
+approval/maker-checker routing workflow -- both large feature builds.
+Rather than continue deferring in favor of the bigger build, picked
+the cheaper, still-real slice: `regulation_reference` was pure free
+text with no controlled catalog, unlike reference GRC tools (Vanta,
+Drata, OneTrust). Added `src/utils/complianceFrameworks.ts`, a
+curated catalog of 38 real controls across GDPR, SOC 2, ISO 27001,
+HIPAA, PCI DSS, and CCPA, wired into the existing input via a native
+`<datalist>` -- no backend schema migration needed since
+regulation_reference stays a plain string, and free text still works
+for anything outside the catalog. A reference that exactly matches
+the catalog now renders a structured framework badge (e.g. "GDPR")
+in the obligations table. The larger approval-routing gap remains
+open for a future round.
+
+**accessibility (7/10, fresh finding, not a regression from this
+round's own code):** the round-12 judge surfaced that form labels
+across ComplianceFormModal.tsx and AttestConfirmModal.tsx had no
+`htmlFor`/`id` association -- a screen reader got no programmatic
+name for ~11 fields (WCAG 1.3.1/4.1.2), missed by every prior
+round's accessibility pass. Added id/htmlFor pairs to every
+single-control label in both files.
+
+3 new tests added (datalist wiring, label association via
+`getByLabelText`, framework-badge row-scoped rendering).
+Negative-control verified: stashed the source changes, confirmed all
+3 genuinely fail, restored, confirmed 81/81 pass. Full repo suite:
+2188/2188 passed. Live-verified in a fresh browser tab: confirmed the
+regulation reference field's accessible name resolves via its label
+(not placeholder fallback), confirmed the datalist carries all 38
+real catalog options, created a real obligation with a catalog-
+matched reference and confirmed the "GDPR" badge rendered in the
+table, then deleted the test obligation.
+
+Round-1 independent review came back clean: confirmed
+`frameworkForReference` safely handles null/undefined/empty
+references, confirmed the lookup Map is built once at module scope
+(no per-render rebuild), confirmed both modals are singleton-mounted
+(gated by a single boolean/nullable object, never a list) so the new
+static element IDs can't collide, and confirmed the badge test is
+correctly row-scoped via `within()`. One trivial nit noted (calling
+`frameworkForReference` twice in the same render block -- an O(1)
+Map lookup, not a real cost) did not warrant a fix round.
+
+**Round-13 re-scores: industry-standards 7 -> 8, accessibility 7 -> 8.**
+
+13 rounds, 10 code-changing PRs (#859, #862, #863, aexa-server#327,
+#864, #880, #882, #884, #886, #888) shipped and merged this session's
+Compliance work (plus several docs-only log PRs).
+
+**Current picture** (industry-standards 8, UX 9, efficiency 9,
+accessibility 8, visual polish 8, resilience 9, code quality 8,
+mobile 9, security 8 -- carrying round 12's fresh panel forward with
+this round's two re-scores substituted in): average = (8+9+9+8+8+9+8+
+9+8)/9 = 76/9 ~= 8.44/10. Every axis now clears its floor (7) with
+real margin; no axis below 8. Very close to the 8.5 target -- a
+fresh full panel is warranted next round to confirm exact
+convergence distance, since carrying forward this many axes at once
+risks missing a regression a full panel would catch.
