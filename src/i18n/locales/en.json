@@ -2022,6 +2022,7 @@
       "aiRootCauseLabel": "Root cause: {{cause}}",
       "aiActionLabel": "Action: {{action}}",
       "aiEmptyHint": "Click \"Run AI analysis\" to generate buckets",
+      "aiRunFailedHint": "The last analysis run failed. Click \"Run AI analysis\" to try again.",
       "viewFullNetworkAnalysis": "View full network analysis",
       "notEnoughRisks": "Not enough similar risks to form buckets",
       "bucketMeta_one": "{{count}} risk • {{impact}}M€",

@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -1354,6 +1355,101 @@ describe("CorrelationMatrixPage", () => {
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith("AI service error: 502")
     )
+  })
+
+  // Round 11 (UX finding): a failed run used to leave the tab visually
+  // identical to its never-run empty state -- the toast fires and
+  // disappears, but nothing on the tab itself distinguished "failed" from
+  // "never attempted."
+  it("shows a distinct failed-run message, not the generic empty-state hint, after a failed AI bucketing run", async () => {
+    mockRunRootCauseBucketing.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({ data: { message: "AI service error: 502" } }),
+    })
+
+    render(<CorrelationMatrixPage />, withRouter)
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewAiBuckets",
+      })
+    )
+    expect(
+      screen.getByText("organization.correlationMatrix.aiEmptyHint")
+    ).toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.aiRunAnalysis",
+      })
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.correlationMatrix.aiRunFailedHint")
+      ).toBeInTheDocument()
+    )
+    expect(
+      screen.queryByText("organization.correlationMatrix.aiEmptyHint")
+    ).not.toBeInTheDocument()
+  })
+
+  // Round-11 review finding: aiRunFailed used to only reset on a NEW
+  // success, not at the start of a retry -- the stale failed message
+  // would keep showing for the entire in-flight duration of a retry
+  // attempt instead of clearing once the user visibly acts on it.
+  it("clears the failed-run message as soon as a retry is triggered, not just once it resolves", async () => {
+    mockRunRootCauseBucketing.mockReturnValueOnce({
+      unwrap: () =>
+        Promise.reject({ data: { message: "AI service error: 502" } }),
+    })
+    render(<CorrelationMatrixPage />, withRouter)
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.viewAiBuckets",
+      })
+    )
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.aiRunAnalysis",
+      })
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.correlationMatrix.aiRunFailedHint")
+      ).toBeInTheDocument()
+    )
+
+    // Retry with a promise that doesn't resolve immediately -- if
+    // aiRunFailed were only cleared on resolution, the stale message
+    // would still be visible right after this click.
+    let resolveRetry: (value: unknown) => void = () => {}
+    mockRunRootCauseBucketing.mockReturnValueOnce({
+      unwrap: () => new Promise((resolve) => (resolveRetry = resolve)),
+    })
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.correlationMatrix.aiRunAnalysis",
+      })
+    )
+
+    expect(
+      screen.queryByText("organization.correlationMatrix.aiRunFailedHint")
+    ).not.toBeInTheDocument()
+
+    // Round-2 review finding: settle the in-flight promise and flush its
+    // resulting state updates before the test returns -- an unawaited
+    // resolve() left them firing after the test function had already
+    // ended, producing an act() warning and risking bleed into the next
+    // test.
+    await act(async () => {
+      resolveRetry({
+        success: true,
+        message: "ok",
+        data: { riskBuckets: [], findingBuckets: [], methodology: "" },
+      })
+    })
   })
 
   it("shows the Send to Finding button for ADMIN and calls the mutation with the bucket's groupedAction + riskRefs", async () => {

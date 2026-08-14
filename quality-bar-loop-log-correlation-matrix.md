@@ -456,3 +456,34 @@ inspection), light-mode critical-cell contrast still ~4.4:1 (flagged
 since round 5, still unfixed), no keyboard way to deselect a cell once
 chosen. Picking the aria-label severity fix and the contrast fix --
 both cheap, contained, and directly named.
+
+## Round 11 (accessibility re-score after PR #827)
+
+| Axis | Round 10 | Round 11 | Delta |
+|---|---|---|---|
+| Accessibility | 6/10 | **8/10** | +2, no longer below floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.78/10.** Up from 7.56. No axis below floor for the first
+time this session's re-score of this page. Lowest are industry-
+standards/UX/efficiency, all at 7 (the floor).
+
+Both fixed findings verified via an independent hand-recomputation of
+the WCAG math (not just trusting the code comment) -- confirmed
+correct: `getCellSeverityKey` is a genuine single source of truth for
+severity across color/text-color/aria-label, and the per-theme
+critical-cell text color assignment (white in light mode, black in
+dark mode) is exactly right for the actual `--risk-critical` HSL
+values in both themes. Two minor findings remain open but don't block
+the floor: no keyboard-only Escape-to-deselect (narrow, page-specific),
+long tab order to reach the matrix (confirmed shared-layout issue, not
+this page's own markup).
+
+**Next fix:** UX has the highest stuck_streak (3 consecutive rounds
+carried forward unchanged at 7, since round 8's fresh panel). Its
+concrete finding: the AI Buckets tab's failure state is visually
+indistinguishable from its empty (never-run) state -- a user who hits
+a backend error gets a generic toast but the tab silently reverts to
+"Click Run AI analysis to generate buckets" with no memory a run was
+attempted. Picking this as a contained, local-state fix (track
+"last run failed" separately from "never run").

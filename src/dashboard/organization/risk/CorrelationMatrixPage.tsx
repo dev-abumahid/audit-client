@@ -308,6 +308,14 @@ export default function CorrelationMatrixPage() {
   const [aiResult, setAiResult] = useState<RootCauseBucketingResult | null>(
     null
   )
+  // Round 11 (UX): a run that fails (backend error or a non-success
+  // response) left this tab visually identical to its never-run empty
+  // state -- the failure toast fires and disappears, but nothing on the
+  // tab itself remembers a run was attempted or hints at retrying.
+  // Tracked separately from aiResult so a subsequent successful run
+  // (which replaces aiResult, not this flag) doesn't need to also thread
+  // a "clear the failure" case through every success path.
+  const [aiRunFailed, setAiRunFailed] = useState(false)
   // "Send to Finding" per-bucket state (#191), riskBuckets only -- see the
   // comment above on why index instead of bucketName. Disables a bucket's
   // button after its own successful send, and resets whenever aiResult
@@ -501,6 +509,12 @@ export default function CorrelationMatrixPage() {
   }, [])
 
   const runAIBucketing = async () => {
+    // Round-11 review finding: this only reset aiRunFailed on a NEW
+    // success, not at the start of a retry -- a retry after a failure
+    // kept showing the stale failed-state message for the entire
+    // in-flight duration of the new request instead of clearing it
+    // once the user has visibly acted on the retry hint.
+    setAiRunFailed(false)
     try {
       const res = await runRootCauseBucketing().unwrap()
       if (res.success) {
@@ -510,9 +524,11 @@ export default function CorrelationMatrixPage() {
         setSentBucketIndexes(new Set())
         setViewMode("ai-buckets")
       } else {
+        setAiRunFailed(true)
         toast.error(res.message || t(`${NS}.aiBucketingFailed`))
       }
     } catch (err) {
+      setAiRunFailed(true)
       toast.error(errorMessage(err, t(`${NS}.aiBucketingFailed`)))
     }
   }
@@ -1294,6 +1310,17 @@ export default function CorrelationMatrixPage() {
                       ))}
                     </div>
                   </div>
+                </div>
+              ) : aiRunFailed ? (
+                // Round 11 (UX finding): this used to be visually identical
+                // to the never-run empty state below -- a user whose run
+                // failed had no way to tell "nothing attempted yet" from
+                // "something went wrong," and no retry hint.
+                <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                  <AlertCircle className="mb-3 h-12 w-12 text-destructive opacity-70" />
+                  <p className="text-foreground">
+                    {t(`${NS}.aiRunFailedHint`)}
+                  </p>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">

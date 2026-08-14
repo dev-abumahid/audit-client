@@ -2022,6 +2022,7 @@
       "aiRootCauseLabel": "Cause racine : {{cause}}",
       "aiActionLabel": "Action : {{action}}",
       "aiEmptyHint": "Cliquez sur \"Lancer analyse IA\" pour générer des buckets",
+      "aiRunFailedHint": "La dernière analyse a échoué. Cliquez sur \"Lancer analyse IA\" pour réessayer.",
       "viewFullNetworkAnalysis": "Voir l'analyse complète du réseau",
       "notEnoughRisks": "Pas assez de risques similaires pour former des buckets",
       "bucketMeta_one": "{{count}} risque • {{impact}}M€",
