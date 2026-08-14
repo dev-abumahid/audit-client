@@ -643,3 +643,68 @@ Dismiss confirmation dialog doesn't move focus in on open (WAI-ARIA
 APG dialog pattern violation), (2) read-alert (`opacity-60`)
 description/metadata text drops to ~2.95:1 contrast, under WCAG AA's
 4.5:1 floor for small text.
+
+## Round 16 (accessibility re-score after PR #839) -- CONVERGED
+
+| Axis | Round 15 | Round 16 | Delta |
+|---|---|---|---|
+| Accessibility | 7/10 | **9/10** | +2, no longer below floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 8.56/10.** Up from 8.33. **Every axis is at or above its
+7/10 floor, and the average clears the 8.5 target. CONVERGED.**
+
+Both round-9 findings confirmed closed: the Dismiss dialog's
+focus-on-open fix was live-verified in a real browser (via Sites &
+Entities' delete flow, since Alerts itself has 0 seeded alerts) --
+`document.activeElement` landed on Cancel immediately on open, closed
+via Escape without touching the seeded data. The read-alert contrast
+fix was confirmed via code (no `.opacity-60` ancestor wraps any text
+node) plus the passing test suite. A fresh spot-check of previously
+unexamined surface (severity chip keyboard operability, sort control's
+Radix-native keyboard support, icon-only element labeling, WCAG 2.5.7
+drag alternatives) found no new issues.
+
+## Final Report
+
+| Round | Industry-standards | UX | Efficiency | Accessibility | Visual polish | Resilience | Code quality | Mobile | Security | Average |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 4 | 6 | 5 | 8 | 8 | -- | -- | -- | -- | -- |
+| 5 (fresh baseline) | 6 | 7 | 7 | 6 | 8 | 8 | 5 | 6 | 5 | 6.44 |
+| 6 | 6 | 7 | 7 | 6 | 8 | 8 | 5 | 6 | **9** | 6.89 |
+| 7 | 6 | 7 | 7 | 6 | 8 | 8 | **8** | 6 | 9 | 7.22 |
+| 8 | **8** | 7 | 7 | 6 | 8 | 8 | 8 | 6 | 9 | 7.44 |
+| 9 | 8 | 7 | 7 | **7** | 8 | 8 | 8 | 6 | 9 | 7.56 |
+| 10 | 8 | 7 | 7 | 7 | 8 | 8 | 8 | **9** | 9 | 7.89 |
+| 11 | 8 | **6** | 7 | 7 | 8 | 8 | 8 | 9 | 9 | 7.78 |
+| 12 | 8 | **7** | 7 | 7 | 8 | 8 | 8 | 9 | 9 | 7.89 |
+| 13 | **9** | **8** | 7 | 7 | 8 | 8 | 8 | 9 | 9 | 8.11 |
+| 14 | 9 | 8 | **6** | 7 | 8 | 8 | 8 | 9 | 9 | 8.00 |
+| 15 | 9 | 8 | **9** | 7 | 8 | 8 | 8 | 9 | 9 | 8.33 |
+| 16 | 9 | 8 | 9 | **9** | 8 | 8 | 8 | 9 | 9 | **8.56** |
+
+**What was fixed, one line per round (this session's re-score onward):**
+- Round 6: role-gated mark-read/mark-all-read behind `canWriteOrgResource` (PR #831) -- security 5->9.
+- Round 7: removed file-wide `any`-disable, real `Alert` type (PR #832) -- code quality 5->8.
+- Round 8: added a Dismiss/delete lifecycle action (PR #833) -- industry-standards 6->8.
+- Round 9: focus management + success toasts on mark-read/mark-all-read (PR #834) -- accessibility 6->7.
+- Round 10: bulk mark-all-read button touch target 36px->44px (PR #835) -- mobile 6->9.
+- Round 11: Dismiss modal terminology consistency (PR #836) -- UX regressed to 6 (fresh assessment) then recovered to 7 after the fix.
+- Round 12: added a sort control (newest/oldest/unread-first/severity) (PR #837) -- UX 7->8, industry-standards 8->9.
+- Round 14: extracted memoized AlertRow, fixed ref-callback churn (PR #838) -- efficiency dropped to 6 (fresh assessment) then recovered to 9.
+- Round 15: dialog focus-on-open + read-row contrast fix (PR #839) -- accessibility 7->9.
+
+**Deliberately deferred, still open (product-scoped, out of this loop's
+mechanical-fix mandate):**
+- Pagination UI for the query's hardcoded 100-item fetch cap.
+- Click-through destinations for non-KRI alert types (no backend field
+  to link to for manually-created alerts).
+- Sort comparator's per-comparison `Date` parsing (explicitly judged
+  trivial at this page's own 100-item cap, not worth the complexity).
+
+Alerts page CONVERGED at 8.56/10 average, floor 7, after 16 rounds
+across this session (rounds 1-4 pre-dated this session; rounds 5-16
+were this session's work). All 9 PRs (#831-#839) merged, each through
+the full ship-with-review-loop (QA gate, negative-control tests,
+independent review, live verification where the seeded data allowed
+it -- documented gaps otherwise).
