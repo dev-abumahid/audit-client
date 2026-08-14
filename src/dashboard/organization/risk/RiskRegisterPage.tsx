@@ -1497,7 +1497,7 @@ export default function RiskRegisterPage() {
     <div className="space-y-5 p-4 lg:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-heading text-xl font-bold tracking-tight text-foreground lg:text-2xl">
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
             {t("organization.riskRegister.title")}
           </h1>
           <p

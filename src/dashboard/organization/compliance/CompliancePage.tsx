@@ -524,7 +524,7 @@ export default function CompliancePage() {
     <div className="space-y-5 p-4 lg:p-6">
       <div className="animate-fade-in flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-heading text-xl font-bold tracking-tight text-foreground lg:text-2xl">
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
             {t("organization.compliance.title")}
           </h1>
           <p
