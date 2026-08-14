@@ -196,51 +196,64 @@ export default function CompliancePage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // The obligation a remediation Action is being created for (#166). Non-null
-  // means the reused CreateNewFindingModal is open, pre-filled and carrying the
-  // real complianceObligationId FK the backend (aexa-server#226) links on save.
-  const [actionObligation, setActionObligation] =
-    useState<ComplianceObligation | null>(null)
+  // Round 17 (code quality finding, fresh full-panel re-score): this used
+  // to be three independent `useState<ComplianceObligation | null>` --
+  // actionObligation/attestObligation/historyObligation -- each backing
+  // its own always-mounted-when-set overlay, with every opener hand-
+  // rolling its own "null out the other two" boilerplate (see the
+  // round-11-derived comment that used to live here) to stop a user
+  // stacking two modals at once. A single discriminated union collapses
+  // all three into one state: opening any modal is inherently exclusive
+  // (setting a new value replaces the old one), so the "clear the other
+  // two" logic simply no longer exists to write.
+  type ActiveModal =
+    | { type: "action"; obligation: ComplianceObligation }
+    | { type: "attest"; obligation: ComplianceObligation }
+    | { type: "history"; obligation: ComplianceObligation }
+    | null
+  const [activeModal, setActiveModal] = useState<ActiveModal>(null)
+  const [attestNote, setAttestNote] = useState("")
 
   // aexa-server#250 -- the obligation currently open in the re-attest
-  // confirm dialog / attestation history modal, respectively. Non-null
-  // means that modal is open, same convention as actionObligation above.
-  const [attestObligation, setAttestObligation] =
-    useState<ComplianceObligation | null>(null)
-  const [attestNote, setAttestNote] = useState("")
-  const [historyObligation, setHistoryObligation] =
-    useState<ComplianceObligation | null>(null)
+  // confirm dialog / attestation history modal, respectively. Derived from
+  // activeModal rather than separate state now, but still named the same
+  // as the RTK Query hooks/JSX below that read them.
+  const attestObligation =
+    activeModal?.type === "attest" ? activeModal.obligation : null
+  const historyObligation =
+    activeModal?.type === "history" ? activeModal.obligation : null
+  const actionObligation =
+    activeModal?.type === "action" ? activeModal.obligation : null
+
   // Round-11 review: attestObligation/historyObligation are two of three
   // sibling-exclusive modals above, each mounting its own useModalA11y()
   // instance (now inside AttestConfirmModal/AttestHistoryModal
-  // respectively). openAttest/openHistory null out the sibling before
-  // opening the new one, so React runs both the closing modal's unmount
-  // cleanup and the opening modal's mount setup in the same commit --
-  // cleanup always runs before setup, so the closing modal's cleanup
-  // (useModalA11y.ts returning focus to ITS OWN trigger) steals
-  // document.activeElement away from the just-clicked button before the
-  // opening modal's setup captures it as its own trigger. Without this
-  // ref, closing the newly opened modal would return focus to the OTHER
-  // modal's trigger button instead of the one actually clicked.
-  // pendingFocusRef captures the real trigger synchronously in each row
-  // button's onClick (before the sibling-clearing state updates run); the
-  // two effects below run after the children (and their useModalA11y
-  // hooks) mount/unmount in the same commit, letting this correction win.
+  // respectively). Switching activeModal directly from one to the other
+  // (e.g. Re-attest -> History without closing) still unmounts one
+  // component and mounts the other in the same commit -- cleanup always
+  // runs before setup, so the closing modal's cleanup (useModalA11y.ts
+  // returning focus to ITS OWN trigger) would steal document.activeElement
+  // away from the just-clicked button before the opening modal's setup
+  // captures it as its own trigger. Without this ref, closing the newly
+  // opened modal would return focus to the OTHER modal's trigger button
+  // instead of the one actually clicked. pendingFocusRef captures the real
+  // trigger synchronously in each row button's onClick (before
+  // setActiveModal runs); this single effect (one instead of the former
+  // two, since there's now one state instead of two) runs after the
+  // children (and their useModalA11y hooks) mount/unmount in the same
+  // commit, letting this correction win. Only attest/history participate
+  // -- the action modal (CreateNewFindingModal) never used this
+  // convention, so it's excluded here exactly as it always was.
   const pendingFocusRef = useRef<HTMLElement | null>(null)
   useEffect(() => {
-    if (!attestObligation) return
+    if (activeModal?.type !== "attest" && activeModal?.type !== "history") {
+      return
+    }
     const trigger = pendingFocusRef.current
     return () => {
       trigger?.focus()
     }
-  }, [attestObligation])
-  useEffect(() => {
-    if (!historyObligation) return
-    const trigger = pendingFocusRef.current
-    return () => {
-      trigger?.focus()
-    }
-  }, [historyObligation])
+  }, [activeModal])
   // Only fetched while the history modal is actually open for a given
   // obligation (skip otherwise), same idle-until-opened convention as the
   // reused CreateNewFindingModal below.
@@ -473,31 +486,25 @@ export default function CompliancePage() {
     setIsDeleting(false)
   }
 
-  // Found in review: actionObligation/attestObligation/historyObligation are
-  // three independent state variables, each backing its own always-mounted-
-  // when-set overlay -- opening one without clearing the other two let a
-  // user stack two modals (e.g. Re-attest on one row, then History on
-  // another without dismissing the first), leaving a stale dialog hidden
-  // underneath. Every opener below clears the other two first.
+  // Opening any one modal is inherently exclusive now -- setting
+  // activeModal to a new variant replaces whichever was open before, so
+  // there's no "clear the other two" step left to write (a user stacking
+  // Re-attest on one row then History on another can no longer leave a
+  // stale dialog hidden underneath, the same guarantee the old three-state
+  // version had to hand-roll on every opener).
   const openCreateAction = (obl: ComplianceObligation) => {
-    setAttestObligation(null)
-    setHistoryObligation(null)
-    setActionObligation(obl)
+    setActiveModal({ type: "action", obligation: obl })
   }
 
   const openAttest = (obl: ComplianceObligation, trigger: HTMLElement) => {
     pendingFocusRef.current = trigger
-    setActionObligation(null)
-    setHistoryObligation(null)
-    setAttestObligation(obl)
+    setActiveModal({ type: "attest", obligation: obl })
     setAttestNote("")
   }
 
   const openHistory = (obl: ComplianceObligation, trigger: HTMLElement) => {
     pendingFocusRef.current = trigger
-    setActionObligation(null)
-    setAttestObligation(null)
-    setHistoryObligation(obl)
+    setActiveModal({ type: "history", obligation: obl })
   }
 
   const confirmAttest = async () => {
@@ -511,7 +518,7 @@ export default function CompliancePage() {
       t("organization.compliance.toast.attestSuccess"),
       t("organization.compliance.toast.attestFailed"),
       () => {
-        setAttestObligation(null)
+        setActiveModal(null)
         setAttestNote("")
       }
     )
@@ -842,7 +849,7 @@ export default function CompliancePage() {
       {actionObligation && (
         <CreateNewFindingModal
           open
-          onClose={() => setActionObligation(null)}
+          onClose={() => setActiveModal(null)}
           additionalData={{
             actionTitle: `Remediate: ${actionObligation.title}`,
             actionDisc: actionObligation.description
@@ -858,7 +865,7 @@ export default function CompliancePage() {
           obligation={attestObligation}
           note={attestNote}
           onNoteChange={setAttestNote}
-          onClose={() => setAttestObligation(null)}
+          onClose={() => setActiveModal(null)}
           onConfirm={confirmAttest}
           isSubmitting={isAttesting}
         />
@@ -867,7 +874,7 @@ export default function CompliancePage() {
       {historyObligation && (
         <AttestHistoryModal
           obligation={historyObligation}
-          onClose={() => setHistoryObligation(null)}
+          onClose={() => setActiveModal(null)}
           entries={attestationsData?.data ?? []}
           isLoading={isLoadingAttestations}
           isError={attestationsError}
