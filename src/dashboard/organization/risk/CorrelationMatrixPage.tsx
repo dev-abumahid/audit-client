@@ -218,6 +218,14 @@ export default function CorrelationMatrixPage() {
     searchTerm: "",
   })
   const sites = useMemo(() => sitesResponse?.data ?? [], [sitesResponse])
+  // Round 9 (efficiency): sites.find(s => s.id === risk.site_id) was
+  // repeated at 4 call sites below (each an O(sites) linear scan per
+  // rendered risk) -- same pattern riskByRef above already exists for,
+  // just not reused for sites until now.
+  const sitesById = useMemo(
+    () => new Map(sites.map((s) => [s.id, s])),
+    [sites]
+  )
 
   const [createRiskLink, { isLoading: isCreatingLink }] =
     useCreateRiskLinkMutation()
@@ -350,7 +358,7 @@ export default function CorrelationMatrixPage() {
       const m = riskMetrics[risk.ref] ?? { rootCauses: 0, consequences: 0 }
       const row = mapToAxis(m.rootCauses, matrixSize)
       const col = mapToAxis(m.consequences, matrixSize)
-      const siteName = sites.find((s) => s.id === risk.site_id)?.name ?? ""
+      const siteName = sitesById.get(risk.site_id)?.name ?? ""
       return [
         csvTextField(risk.ref),
         csvTextField(risk.name),
@@ -367,14 +375,13 @@ export default function CorrelationMatrixPage() {
     const csv = [header, ...rows].map((r) => r.join(",")).join("\r\n")
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
     triggerDownload(blob, "correlation-matrix.csv")
-  }, [filteredRisks, riskMetrics, matrixSize, sites, t])
+  }, [filteredRisks, riskMetrics, matrixSize, sitesById, t])
 
   const riskBuckets = useMemo<RiskBucket[]>(() => {
     const bucketMap: Record<string, Risk[]> = {}
     for (const risk of filteredRisks) {
       const siteName =
-        sites.find((s) => s.id === risk.site_id)?.name ||
-        t(`${NS}.groupFallback`)
+        sitesById.get(risk.site_id)?.name || t(`${NS}.groupFallback`)
       const key = `${risk.category}::${siteName}`
       if (!bucketMap[key]) bucketMap[key] = []
       bucketMap[key].push(risk)
@@ -392,8 +399,7 @@ export default function CorrelationMatrixPage() {
             ...new Set(
               rs.map(
                 (r) =>
-                  sites.find((s) => s.id === r.site_id)?.name ||
-                  t(`${NS}.groupFallback`)
+                  sitesById.get(r.site_id)?.name || t(`${NS}.groupFallback`)
               )
             ),
           ],
@@ -404,7 +410,7 @@ export default function CorrelationMatrixPage() {
         }
       })
       .sort((a, b) => b.totalImpact - a.totalImpact)
-  }, [filteredRisks, sites, t])
+  }, [filteredRisks, sitesById, t])
 
   const findingBuckets = useMemo<FindingBucket[]>(() => {
     const bucketMap: Record<string, IAction[]> = {}
@@ -1051,7 +1057,7 @@ export default function CorrelationMatrixPage() {
                             <RiskDetailCard
                               key={risk.id}
                               risk={risk}
-                              sites={sites}
+                              sitesById={sitesById}
                               riskMetrics={riskMetrics}
                             />
                           ))}
@@ -1061,7 +1067,7 @@ export default function CorrelationMatrixPage() {
                         <RiskDetailCard
                           key={risk.id}
                           risk={risk}
-                          sites={sites}
+                          sitesById={sitesById}
                           riskMetrics={riskMetrics}
                         />
                       ))}
@@ -1080,7 +1086,7 @@ export default function CorrelationMatrixPage() {
               buckets={riskBuckets}
               expandedBucket={expandedBucket}
               toggleBucket={toggleBucket}
-              sites={sites}
+              sitesById={sitesById}
             />
           )}
 
@@ -1268,15 +1274,15 @@ export default function CorrelationMatrixPage() {
 // Risk Detail Card
 function RiskDetailCard({
   risk,
-  sites,
+  sitesById,
   riskMetrics,
 }: {
   risk: Risk
-  sites: { id: string; name: string }[]
+  sitesById: Map<string, { id: string; name: string }>
   riskMetrics: Record<string, { rootCauses: number; consequences: number }>
 }) {
   const { t } = useTranslation()
-  const siteName = sites.find((s) => s.id === risk.site_id)?.name
+  const siteName = sitesById.get(risk.site_id)?.name
   const m = riskMetrics[risk.ref] || { rootCauses: 0, consequences: 0 }
 
   return (
@@ -1331,12 +1337,12 @@ function BucketList({
   buckets,
   expandedBucket,
   toggleBucket,
-  sites,
+  sitesById,
 }: {
   buckets: RiskBucket[]
   expandedBucket: string | null
   toggleBucket: (name: string) => void
-  sites: { id: string; name: string }[]
+  sitesById: Map<string, { id: string; name: string }>
 }) {
   const { t } = useTranslation()
   if (buckets.length === 0) {
@@ -1379,7 +1385,7 @@ function BucketList({
           {expandedBucket === bucket.name && (
             <div className="space-y-2 border-t p-3 text-xs">
               {bucket.risks.map((risk) => {
-                const siteName = sites.find((s) => s.id === risk.site_id)?.name
+                const siteName = sitesById.get(risk.site_id)?.name
                 return (
                   <div
                     key={risk.id}

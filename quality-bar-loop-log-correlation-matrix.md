@@ -403,3 +403,30 @@ same pattern RiskGraphPage already established) -- the genuine
 in-cell interconnection metric would require either a new backend
 endpoint or porting RiskGraphPage's PageRank computation client-side,
 a larger scope left for a later round.
+
+## Round 9 (industry-standards re-score after PR #825)
+
+| Axis | Round 8 | Round 9 | Delta |
+|---|---|---|---|
+| Industry-standards | 5/10 | **7/10** | +2, export closes cleanly, no longer below floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.44/10.** Up from 7.22. Two axes remain below floor:
+efficiency (6), accessibility (6).
+
+Export verified via passing tests (both new CSV tests pass) and code
+reading: correctly scoped to `filteredRisks` (respects the active site
+filter), reuses the shared `csvTextField`/`triggerDownload` helpers
+(same convention as RiskGraphPage/RiskRegister). The remaining gap
+(cell color still a pure grid-position heuristic, not a genuine
+interconnection metric) is unchanged and confirmed to need either a
+new backend endpoint or a client-side PageRank port -- correctly left
+open as a larger-scope item.
+
+**Next fix:** efficiency and accessibility are both first-round-stuck
+(streak 1 each) at the same raw score (6), tie-broken by roster order
+-> efficiency. Its concrete finding: `sites.find()` is repeated at 4+
+call sites (riskBuckets x2, RiskDetailCard, BucketList) instead of a
+`sitesById` Map -- the codebase already has this exact pattern for
+`riskByRef`, just not reused for sites. Picking this as a contained,
+mechanical fix.
