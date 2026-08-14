@@ -45,7 +45,7 @@ import {
   Scale,
   Shield,
 } from "lucide-react"
-import { memo, useCallback, useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 import { toast } from "sonner"
@@ -630,6 +630,17 @@ export default function ThreeLinesOfDefensePage() {
     line: LineOfDefense
   } | null>(null)
 
+  // quality-bar-loop round 11 (resilience, round-9 regression): a plain
+  // `if (confirmRequest)` check in the confirm button's onClick isn't
+  // enough to stop a genuine double-fire -- both `setConfirmRequest(null)`
+  // and `pendingIds`' own update are React state setters, batched to the
+  // next render, so a second physical click landing before that render
+  // commits still closes over the SAME pre-update `confirmRequest` and
+  // would call `doReassign` a second time. A ref is mutated synchronously
+  // (no render/batching involved), so it's the only thing that can
+  // actually block a second click within the same render frame.
+  const hasConfirmedRef = useRef(false)
+
   // Review round 1 finding on PR #811: opening the AlertDialog synchronously
   // from a DropdownMenuItem click is a known Radix footgun -- the closing
   // menu's focus-return and the new dialog's focus-trap can fight over
@@ -639,6 +650,7 @@ export default function ThreeLinesOfDefensePage() {
   // first, matching Radix's own documented workaround for this pattern.
   const requestReassign = useCallback(
     (entityType: EntityKind, id: string, title: string, line: LineOfDefense) => {
+      hasConfirmedRef.current = false
       requestAnimationFrame(() => {
         setConfirmRequest({ entityType, id, title, line })
       })
@@ -1016,7 +1028,8 @@ export default function ThreeLinesOfDefensePage() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (confirmRequest) {
+                if (confirmRequest && !hasConfirmedRef.current) {
+                  hasConfirmedRef.current = true
                   doReassign(
                     confirmRequest.entityType,
                     confirmRequest.id,

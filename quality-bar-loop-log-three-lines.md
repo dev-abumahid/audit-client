@@ -524,3 +524,42 @@ is furthest below the 8.5 target -- its one open finding (no
 confirmation step, no reason capture, and no backend audit-log entry
 for line_of_defense reclassification across any of the 5 entity types)
 is the next pick.
+
+## Round 11 (full re-score after PR #811, reassignment confirmation)
+
+| Axis | Round 9/10 | Round 11 |
+|---|---|---|
+| Industry-standards | 7.5/10 | **8.5/10** |
+| UX | 8/10 | 8/10 (unchanged) |
+| Efficiency | 9/10 | 9/10 (unchanged) |
+| Accessibility | 8/10 | 8/10 (unchanged) |
+| Visual polish | 9/10 | 9/10 (unchanged) |
+| Resilience | 9/10 | **8/10 (regressed, at/above floor)** |
+| Code quality | 8/10 | 8/10 (unchanged) |
+| Mobile | 8/10 | 8/10 (unchanged) |
+| Security | 9/10 | 9/10 (unchanged) |
+
+**Average: 8.39/10.** Not converged (target 8.5) -- industry-standards'
++1.0 gain from PR #811's confirmation dialog was exactly offset by
+resilience's -1.0 regression, netting zero average movement.
+
+PR #811's confirmation step is confirmed genuinely working by two
+independent judges (industry-standards live-tested Cancel/Confirm
+paths; UX confirmed the mutation is deferred to confirm-time via both
+code and the passing test suite). The rAF defer fix for the Radix
+dropdown/dialog focus conflict is confirmed by the accessibility judge
+to correctly avoid the footgun rather than introduce it.
+
+Resilience's regression (real, not spurious): the new AlertDialogAction
+confirm button has no `disabled` guard against a rapid double-click
+during its ~100ms exit animation, unlike the row's own reassign trigger
+button (which correctly disables via `pendingIds.has(id)`). A fast
+double-click could theoretically fire `doReassign` twice for the same
+id before `pendingIds` reflects the first call. This regressed the
+score but stayed at/above floor (8 vs floor 7), so per the loop's
+guardrail this doesn't trigger a hard stop -- it gets this round's
+selection priority instead.
+
+**Next fix:** resilience's confirm-button double-fire guard, per rule
+5c.3 (a regression that stayed at/above floor gets one round's
+priority).
