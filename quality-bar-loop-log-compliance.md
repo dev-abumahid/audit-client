@@ -636,3 +636,57 @@ efficiency/code-quality's fresh re-scores substituted in): rough
 average ~8.22/10. Industry-standards (7, the two larger feature gaps:
 structured framework taxonomy, approval routing) is now the sole
 sub-8 axis. Not yet confirmed converged without a fresh full panel.
+
+## Round 12 (accessibility: history modal tab keyboard nav, PR #886)
+
+Closed accessibility's last named gap from the round-11 fresh panel:
+`AttestHistoryModal`'s two-tab `role="tablist"`/`"tab"` pair had
+correct `aria-selected`/`aria-controls` but no roving-tabindex/
+arrow-key switching between tabs -- a real gap against the WAI-ARIA
+APG tabs pattern's "automatic activation" variant
+(https://www.w3.org/WAI/ARIA/apg/patterns/tabs/). A keyboard user
+could Tab into the tablist but had no way to move between tabs short
+of Tab-ing past both.
+
+Implemented the standard pattern: roving `tabIndex` (0 on the active
+tab, -1 on the inactive one) plus `ArrowRight`/`ArrowLeft`/`Home`/
+`End` handling that moves both focus and the active tab, wrapping at
+either end (correct per APG for automatic activation).
+
+New regression test added (`switches tabs with ArrowRight/ArrowLeft
+and moves focus with them`) -- negative-control verified: stashed
+`AttestHistoryModal.tsx` only, confirmed the test genuinely failed
+(`aria-selected` stayed `"false"` after ArrowRight), restored and
+confirmed 78/78 pass again. Full repo suite: 2185/2185 passed.
+Live-verified in a fresh browser tab against the real running app:
+focused the Attestations tab via JS, pressed a real ArrowRight key
+(confirmed focus + `aria-selected` moved to Edit History), pressed
+ArrowLeft (confirmed it moved back).
+
+Round-1 independent review came back clean: no functional bugs,
+confirmed no conflict between the new keydown handler and
+`useModalA11y`'s own Escape/Tab-trap handling (different keys, and
+the focus trap correctly re-derives its `[tabindex="-1"]`-excluded
+boundaries from the current roving-tabindex state on every Tab
+press). Two non-blocking nits noted (missing explicit
+`aria-orientation="horizontal"` -- ARIA default, not required; Home/
+End paths untested -- behaviorally identical to Arrow wrap-around for
+a 2-tab list, accepted as a low-risk gap). Neither required a fix
+round.
+
+**Round-12 accessibility re-score: 9/10, up from 8.**
+
+12 rounds, 9 code-changing PRs (#859, #862, #863, aexa-server#327,
+#864, #880, #882, #884, #886) shipped and merged this session's
+Compliance work (plus several docs-only log PRs).
+
+**Current picture** (industry-standards 7, UX 9, efficiency 9,
+accessibility 9, visual polish 8, resilience 9, code quality 8,
+mobile 8, security 8 -- carrying round 11's panel forward with this
+round's accessibility re-score substituted in): rough average
+~8.33/10. Industry-standards (7, the two larger feature gaps:
+structured framework taxonomy, approval routing) is now the sole
+axis below 8, and the only one keeping the average under target. Not
+yet confirmed converged without a fresh full panel -- due next given
+the average is now close to the 8.5 target and industry-standards is
+the last named gap of any real size.
