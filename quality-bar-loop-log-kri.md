@@ -493,3 +493,29 @@ Items 2 and 3 above are left for subsequent rounds. Item 2 touches the
 shared `useModalA11y` hook used across the whole app's modals, not just
 this page -- needs its own scoped round with wider blast-radius review,
 not bundled into this file-scoped accessibility sweep.
+
+## Round 12 (required-field markup, PR #851)
+
+Fixed item 3 from round 11's re-score: the New KRI/Edit KRI forms'
+required fields (Name, Risk) carried only a visual-only `*` in their
+label text, with no `required`/`aria-required="true"` on the
+input/select. Added both attributes to the New KRI modal's Name input
+and Risk select, and the Edit KRI modal's Name input. None of these
+fields sit inside a `<form>` (every button on this page is
+`type="button"`), so this is a pure accessibility signal with no
+native-validation side effect -- confirmed by review.
+
+Round-1 review came back with zero findings -- review loop converged
+immediately. Reviewer independently confirmed required-field coverage
+exactly matches both the JS-side validation (`handleSave`/
+`handleSaveEdit`'s guard clauses) and the submit buttons' `disabled`
+conditions, so the new `aria-required` markup isn't "lying" about what's
+actually enforced. Full QA gate clean (typecheck, lint, 2146/2146 test
+suite), 3 new regression tests negative-control-verified against
+pre-fix source, live-verified in the dev preview
+(`kri-form-name`/`kri-form-risk` both `required: true,
+aria-required: "true"`; `kri-form-unit` correctly `required: false`).
+
+Item 2 (focus order in the Update Value modal fighting `autoFocus`,
+via the shared `useModalA11y` hook) remains open for a future round
+scoped to that hook's app-wide blast radius.

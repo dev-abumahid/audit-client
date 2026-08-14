@@ -1591,6 +1591,66 @@ describe("KriDashboardPage", () => {
     })
   })
 
+  // Round 12 (fresh accessibility re-score): the Name/Risk fields carried
+  // only a visual "*" in their label text, with no `required`/
+  // `aria-required` on the input/select itself -- a screen-reader user got
+  // no non-visual signal of which fields are mandatory before hitting
+  // validation.
+  describe("required-field markup (round 12)", () => {
+    it("marks the New KRI modal's Name and Risk fields as required", async () => {
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+      )
+
+      const nameInput = screen.getByLabelText(
+        "organization.kri.form.name",
+        { exact: false }
+      )
+      expect(nameInput).toBeRequired()
+      expect(nameInput).toHaveAttribute("aria-required", "true")
+
+      const riskSelect = screen.getByLabelText(
+        "organization.kri.form.risk",
+        { exact: false }
+      )
+      expect(riskSelect).toBeRequired()
+      expect(riskSelect).toHaveAttribute("aria-required", "true")
+    })
+
+    it("does not mark the New KRI modal's optional fields as required", async () => {
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+      )
+
+      expect(
+        screen.getByLabelText("organization.kri.form.unit", { exact: false })
+      ).not.toBeRequired()
+    })
+
+    it("marks the Edit KRI modal's Name field as required", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByTitle("organization.kri.editTooltip")
+      )
+
+      const nameInput = screen.getByLabelText(
+        "organization.kri.form.name",
+        { exact: false }
+      )
+      expect(nameInput).toBeRequired()
+      expect(nameInput).toHaveAttribute("aria-required", "true")
+    })
+  })
+
   // aexa-frontend#542: a KRI card's underlying risk was shown by name only,
   // with no way to jump to it.
   describe("underlying-risk link (#542)", () => {

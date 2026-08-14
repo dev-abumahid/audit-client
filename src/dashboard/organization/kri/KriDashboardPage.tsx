@@ -959,6 +959,8 @@ export default function KriDashboardPage() {
                 </label>
                 <input
                   id="kri-edit-name"
+                  required
+                  aria-required="true"
                   value={editForm.name}
                   onChange={(e) =>
                     setEditForm((f) => ({ ...f, name: e.target.value }))
@@ -1146,6 +1148,8 @@ export default function KriDashboardPage() {
                 </label>
                 <input
                   id="kri-form-name"
+                  required
+                  aria-required="true"
                   value={form.name}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, name: e.target.value }))
@@ -1165,6 +1169,8 @@ export default function KriDashboardPage() {
                   </label>
                   <select
                     id="kri-form-risk"
+                    required
+                    aria-required="true"
                     value={form.risk_id}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, risk_id: e.target.value }))
