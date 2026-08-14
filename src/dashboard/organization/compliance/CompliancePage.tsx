@@ -13,22 +13,16 @@ import { formatDateOnlyForDisplay } from "@/dashboard/organization/findings/dueD
 import AttestConfirmModal from "./AttestConfirmModal"
 import AttestHistoryModal from "./AttestHistoryModal"
 import ComplianceFormModal from "./ComplianceFormModal"
+import { useComplianceData } from "./useComplianceData"
 import type {
   ComplianceMatrixCell,
   ComplianceObligation,
   ComplianceScoreBand,
 } from "@/redux/apis/organization/compliance.api"
 import {
-  useAttestComplianceMutation,
-  useCreateComplianceMutation,
-  useDeleteComplianceMutation,
-  useGetAllComplianceQuery,
   useGetComplianceAttestationsQuery,
   useGetComplianceEditHistoryQuery,
-  useGetComplianceScorecardQuery,
-  useUpdateComplianceMutation,
 } from "@/redux/apis/organization/compliance.api"
-import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { LineOfDefense } from "@/types/organization"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
@@ -155,64 +149,33 @@ export default function CompliancePage() {
 
   // Filtering, searching and pagination are all applied server-side (the
   // /compliance list endpoint supports searchTerm / status / domain + page /
-  // limit), so results are never silently capped at the first page.
-  // quality-bar-loop-derived fix: this query never checked isError before --
-  // a genuine fetch failure fell through to `complianceData?.data || []`,
-  // rendering the same empty-table state as "no obligations match this
-  // filter" (the same false-all-clear pattern already fixed for
-  // RiskRegisterPage/aexa-frontend#620's round-4). Also feeds the header
-  // subtitle below, which previously read "0 obligations tracked" during
-  // both loading and error states.
+  // limit), so results are never silently capped at the first page. See
+  // useComplianceData.ts for the data-fetching/mutation layer this page
+  // hands its filter/pagination UI state into.
   const {
-    data: complianceData,
+    obligations,
+    meta,
+    totalPages,
     isLoading,
-    isError: complianceError,
-  } = useGetAllComplianceQuery({
+    complianceError,
+    scorecard,
+    scorecardError,
+    sites,
+    sitesError,
+    createCompliance,
+    isCreating,
+    updateCompliance,
+    isUpdating,
+    deleteCompliance,
+    attestCompliance,
+    isAttesting,
+  } = useComplianceData({
     page,
     limit: PAGE_SIZE,
     searchTerm: search,
     status: filterStatus || undefined,
     domain: filterDomain || undefined,
   })
-  // Same discarded-isError bug fixed for this page's own useGetAllComplianceQuery
-  // (aexa-frontend#625) -- this is a separate query, out of that PR's scope,
-  // but the same false-all-clear pattern: a fetch failure previously fell
-  // through to `scorecardData?.data` being undefined, which the summary cards
-  // and site x domain matrix below already treat identically to "no data
-  // yet" (a genuinely empty org), with zero visual distinction.
-  const { data: scorecardData, isError: scorecardError } =
-    useGetComplianceScorecardQuery()
-  // Round 4 (code quality finding): this query's own isError was
-  // discarded, same false-all-clear pattern the comment above already
-  // documents for scorecardError -- a fetch failure here previously fell
-  // through to the same `?? []` empty-array fallback the site select uses
-  // for a genuinely site-less org, with zero visual distinction.
-  const { data: sitesData, isError: sitesError } = useGetAllSitesQuery({
-    page: 1,
-    limit: 100,
-    searchTerm: "",
-  })
-
-  const [createCompliance, { isLoading: isCreating }] =
-    useCreateComplianceMutation()
-  const [updateCompliance, { isLoading: isUpdating }] =
-    useUpdateComplianceMutation()
-  const [deleteCompliance] = useDeleteComplianceMutation()
-  const [attestCompliance, { isLoading: isAttesting }] =
-    useAttestComplianceMutation()
-
-  const obligations: ComplianceObligation[] = useMemo(
-    () => complianceData?.data || [],
-    [complianceData]
-  )
-  const meta = complianceData?.meta
-  const totalPages = meta?.totalPage ?? 0
-  const scorecard = scorecardData?.data
-  // Round 9 (efficiency finding, fresh full-panel re-score): `|| []` creates
-  // a fresh array reference every render when data is still undefined,
-  // which would defeat `sitesById` below's own memoization -- same
-  // efficiency-round-3 pattern already applied to `obligations` above.
-  const sites = useMemo(() => sitesData?.data ?? [], [sitesData])
 
   // aexa-frontend#265: deleting the last obligation on the last page shrinks
   // totalPages without a filter change (handleSearchChange/handleDomainChange/
