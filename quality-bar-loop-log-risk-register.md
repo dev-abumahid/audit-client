@@ -1303,3 +1303,34 @@ shared `FormField`/`LabeledInput` wrapper, and the file is still
 ~2,000 lines mixing multiple concerns. Extracting a shared field
 component is the tractable piece of this -- picking it as the next
 fix.
+
+## Round 20 (code-quality re-score after PR #821, FormField extraction)
+
+| Axis | Round 19 | Round 20 | Delta |
+|---|---|---|---|
+| Code quality | 7/10 | 7/10 | unchanged -- 4th consecutive round at floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 8.22/10.** Unchanged from round 19 -- 1 round of no net
+improvement (guardrail is 2 consecutive; not tripped).
+
+FormField extraction confirmed genuinely complete (grep for the old
+inline label/error pattern outside the FormField definition returns
+zero leftover instances) and the scope decision to leave the 2
+checkbox+override blocks unconverted is judged as disciplined, not
+lazy -- their shape genuinely doesn't fit the wrapper. But this closed
+only a narrow slice of code quality's problem. The dominant remaining
+issue -- the file is ~2079 lines, with the main `RiskRegisterPage`
+component alone (~1160 lines) fusing table rendering, both modals,
+bulk-delete/status logic, and CSV export into one function -- is fully
+untouched and was already the larger, separate-scope issue named when
+this round's fix was picked.
+
+**Next fix:** code quality's stuck_streak is now 4 (rounds 17-20
+unchanged at 7), the highest of any axis, and no data-correctness/
+security finding exists at/below floor. Splitting the file by concern
+(table + row rendering, the Add/Edit modal, bulk-action logic, CSV
+export, all currently inlined in the ~1160-line page component) is the
+real fix for this finding -- a genuine structural refactor, comparable
+in scope to industry-standards' earlier "saved views" pick, not a
+same-round patch.

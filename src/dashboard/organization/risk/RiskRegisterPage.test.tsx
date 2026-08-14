@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event"
 import { Profiler } from "react"
 import { FormProvider, useForm } from "react-hook-form"
 import { MemoryRouter, useSearchParams } from "react-router"
-import RiskRegisterPage, { RiskScoresSection } from "./RiskRegisterPage"
+import RiskRegisterPage from "./RiskRegisterPage"
+import { RiskScoresSection } from "./RiskFormModal"
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
