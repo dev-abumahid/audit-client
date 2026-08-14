@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Profiler } from "react"
 import { FormProvider, useForm } from "react-hook-form"
-import { MemoryRouter } from "react-router"
+import { MemoryRouter, useSearchParams } from "react-router"
 import RiskRegisterPage, { RiskScoresSection } from "./RiskRegisterPage"
 
 vi.mock("sonner", () => ({
@@ -1813,6 +1813,139 @@ describe("RiskRegisterPage", () => {
 
       await userEvent.click(within(scoreHeader).getByRole("button"))
       expect(scoreHeader).toHaveAttribute("aria-sort", "descending")
+    })
+  })
+
+  // Round-18 fix (industry-standards): search/site/category/sort/pending-
+  // approval used to reset on every reload, with no way to bookmark or
+  // share a filtered/sorted view. Persisted to the URL's search params.
+  describe("URL-persisted view state (round 18 fix)", () => {
+    // MemoryRouter keeps its own in-memory history, not window.location --
+    // this probe reads the router's own current search string via
+    // useSearchParams so the "writes back to the URL" test can observe it.
+    function LocationProbe() {
+      const [params] = useSearchParams()
+      return <div data-testid="url-probe">{params.toString()}</div>
+    }
+    function renderPageWithProbe(initialPath = "/") {
+      return render(
+        <MemoryRouter initialEntries={[initialPath]}>
+          <LocationProbe />
+          <RiskRegisterPage />
+        </MemoryRouter>
+      )
+    }
+
+    it("restores search, category, and the pending-approval toggle from the URL on mount", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({
+              id: "risk-pending",
+              approvalStatus: "PENDING_APPROVAL",
+            }),
+          ],
+        },
+      })
+      renderPage("/?q=wastewater&category=supply_chain&pending=1")
+
+      expect(
+        screen.getByRole("textbox", {
+          name: "organization.riskRegister.searchLabel",
+        })
+      ).toHaveValue("wastewater")
+      expect(
+        screen.getByRole("combobox", {
+          name: "organization.riskRegister.categoryFilterLabel",
+        })
+      ).toHaveValue("supply_chain")
+      expect(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.filterPendingApproval",
+        })
+      ).toHaveAttribute("aria-pressed", "true")
+    })
+
+    it("restores sort key and direction from the URL on mount", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+      renderPage("/?sort=residual_score&dir=desc")
+
+      const scoreHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colScore",
+      })
+      expect(scoreHeader).toHaveAttribute("aria-sort", "descending")
+    })
+
+    it("ignores an invalid sort column in the URL rather than crashing", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+      renderPage("/?sort=not-a-real-column")
+
+      const scoreHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colScore",
+      })
+      expect(scoreHeader).toHaveAttribute("aria-sort", "none")
+    })
+
+    it("reflects a filter and sort change back into the URL", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+      renderPageWithProbe()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.filterPendingApproval",
+        })
+      )
+      const scoreHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colScore",
+      })
+      await userEvent.click(within(scoreHeader).getByRole("button"))
+
+      await waitFor(() => {
+        const probe = screen.getByTestId("url-probe").textContent ?? ""
+        expect(probe).toContain("pending=1")
+        expect(probe).toContain("sort=residual_score")
+        expect(probe).toContain("dir=asc")
+      })
+    })
+
+    // Round-18 review finding: clearHref on FilteredByNotice only ever
+    // stripped `status` from the URL -- with filters now persisted to the
+    // URL, the still-active category filter would silently write itself
+    // right back in on the next interaction, so "Clear filter" appeared to
+    // do nothing. onClear now resets every filter/sort field too.
+    it('resets category/search/sort in addition to status when "Clear filter" is clicked', async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ status: "open" })] },
+      })
+      renderPageWithProbe("/?status=open&category=supply_chain")
+
+      expect(
+        screen.getByRole("combobox", {
+          name: "organization.riskRegister.categoryFilterLabel",
+        })
+      ).toHaveValue("supply_chain")
+
+      await userEvent.click(
+        screen.getByRole("link", {
+          name: "organization.riskRegister.clearFilter",
+        })
+      )
+
+      expect(
+        screen.getByRole("combobox", {
+          name: "organization.riskRegister.categoryFilterLabel",
+        })
+      ).toHaveValue("")
+
+      // The category filter no longer being active (checked above) is
+      // what proves the fix -- this probe check just confirms the
+      // round-18 URL-sync effect (async, runs after commit -- same
+      // waitFor precedent as the "reflects a filter and sort change"
+      // test above) doesn't write the stale value back in.
+      await waitFor(() => {
+        const probe = screen.getByTestId("url-probe").textContent ?? ""
+        expect(probe).not.toContain("category=")
+      })
     })
   })
 

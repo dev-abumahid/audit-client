@@ -8,6 +8,14 @@ interface FilteredByNoticeProps {
   // Lets a caller wire aria-describedby from another control (e.g.
   // InspectionTable.tsx's disabled status dropdown) to this notice.
   id?: string
+  // Round-18 review finding (RiskRegisterPage): clearHref only ever
+  // strips this notice's own URL param -- a caller with additional
+  // client-state filters that aren't part of clearHref (search, sort,
+  // etc.) needs a chance to reset those too, or "Clear filter" silently
+  // fails to clear anything the user can see. Optional and additive so
+  // the other 3 existing callers (KriDashboardPage, AllFindingsPage,
+  // InspectionTable), which have no such extra state, are unaffected.
+  onClear?: () => void
 }
 
 // quality-bar-loop round 16 (code quality + accessibility regression fix):
@@ -25,6 +33,7 @@ export default function FilteredByNotice({
   clearHref,
   className = "",
   id,
+  onClear,
 }: FilteredByNoticeProps) {
   return (
     <div
@@ -35,6 +44,7 @@ export default function FilteredByNotice({
       <span>{label}</span>
       <Link
         to={clearHref}
+        onClick={onClear}
         className="focus-ring rounded text-primary hover:underline"
       >
         {clearLabel}

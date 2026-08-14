@@ -1237,3 +1237,33 @@ introduced, repeatedly named across resilience/UX/industry-standards
 rounds -- cheap, contained, and closes a real, oft-cited gap. The other
 four (multi-column sort, column resize/reorder/show-hide, saved views,
 cross-page bulk selection) each remain their own separate feature build.
+
+## Round 18 (scoped re-score after PR #818)
+
+| Axis | Round 17 | Round 18 | Delta |
+|---|---|---|---|
+| Industry-standards | 7/10 | 7/10 | unchanged -- 3rd consecutive round at floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 8.11/10.** Unchanged from round 17 -- 1 round of no net
+improvement (guardrail is 2 consecutive rounds; not tripped yet).
+
+Export-cap warning fix confirmed real and well-tested (positive/negative
+test pair, correct `result.data`-vs-`exportRows` ordering given the
+already-documented truncation-before-filter edge case). But it closed a
+UX-safety gap on an existing limitation, not a missing grid capability --
+industry-standards' core remaining gaps (multi-column sort, column
+resize/reorder/show-hide, saved views/persisted state, cross-page bulk
+selection) are all still fully untouched, so the axis correctly held at 7.
+stuck_streak is now 3.
+
+**Next fix:** of the four remaining gaps, multi-column sort and column
+management would need real new UI (drag handles, a column-config menu);
+cross-page bulk selection needs a new selection model entirely. Saved
+views / persisted filter-sort state is the most tractable: sort key/dir,
+search, site, category, and the status/pending-approval toggles are all
+already client state -- persisting them to the URL's search params
+(same mechanism the existing `status` query param already uses for the
+dashboard's "Active Risks" deep link) makes the current view
+shareable/bookmarkable and survives a reload, directly closing this
+gap without a new subsystem.

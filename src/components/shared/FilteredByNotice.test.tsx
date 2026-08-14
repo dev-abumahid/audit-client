@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import FilteredByNotice from "./FilteredByNotice"
 
@@ -44,5 +45,25 @@ describe("FilteredByNotice", () => {
       "id",
       "active-status-filter-notice"
     )
+  })
+
+  // Round-18 fix (RiskRegisterPage): clearHref only ever strips the
+  // caller's own URL param -- a caller with extra client-state filters
+  // that aren't part of clearHref needs a chance to reset those too.
+  it("calls onClear when the clear-filter link is clicked, in addition to navigating", async () => {
+    const onClear = vi.fn()
+    renderNotice({ onClear })
+
+    await userEvent.click(screen.getByRole("link", { name: "Clear filter" }))
+
+    expect(onClear).toHaveBeenCalledTimes(1)
+  })
+
+  it("still renders a working clear-filter link when onClear is omitted", () => {
+    renderNotice()
+
+    expect(
+      screen.getByRole("link", { name: "Clear filter" })
+    ).toHaveAttribute("href", "/organization/risks")
   })
 })
