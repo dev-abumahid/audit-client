@@ -2306,5 +2306,81 @@ describe("CorrelationMatrixPage", () => {
         revokeObjectURLSpy.mockRestore()
       }
     })
+
+    // Round 14 re-score (industry-standards, round-1 review finding): the
+    // export had no PageRank/Tipping Point columns at all, unlike
+    // RiskGraphPage's own exportDataAsCsv -- same fixture as the
+    // riskMetrics test above (2 incoming CAUSES links both land on
+    // CYB-001, giving it the clearly highest PageRank of the three).
+    it("includes PageRank and Tipping Point columns, correctly identifying the network-central risk", async () => {
+      setMatrixData({
+        risks: [
+          makeRisk({ id: "r1", ref: "CYB-001" }),
+          makeRisk({ id: "r2", ref: "OPS-002" }),
+          makeRisk({ id: "r3", ref: "SUP-003" }),
+        ],
+        riskLinks: [
+          makeLink({
+            id: "l1",
+            source_ref: "OPS-002",
+            target_ref: "CYB-001",
+            link_type: "CAUSES",
+          }),
+          makeLink({
+            id: "l2",
+            source_ref: "SUP-003",
+            target_ref: "CYB-001",
+            link_type: "CAUSES",
+          }),
+        ],
+      })
+      render(<CorrelationMatrixPage />, withRouter)
+
+      let capturedBlob: Blob | undefined
+      const createObjectURLSpy = vi
+        .spyOn(URL, "createObjectURL")
+        .mockImplementation((blob) => {
+          capturedBlob = blob as Blob
+          return "blob:mock-url"
+        })
+      const revokeObjectURLSpy = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => {})
+
+      try {
+        fireEvent.click(
+          screen.getByRole("button", {
+            name: "organization.correlationMatrix.exportCsv",
+          })
+        )
+
+        const csvText = await capturedBlob!.text()
+        const lines = csvText.split("\r\n")
+        expect(lines[0]).toBe(
+          "Ref,Name,Category,Site,Root Causes,Consequences,Matrix Cell,PageRank,Tipping Point"
+        )
+
+        const cybCells = lines
+          .find((row) => row.startsWith("CYB-001,"))
+          ?.split(",")
+        const opsCells = lines
+          .find((row) => row.startsWith("OPS-002,"))
+          ?.split(",")
+        const supCells = lines
+          .find((row) => row.startsWith("SUP-003,"))
+          ?.split(",")
+
+        // PageRank column (index 7): CYB-001 has two real incoming edges,
+        // so it's the highest-scored risk and normalizes to 100.
+        expect(cybCells?.[7]).toBe("100")
+        // Tipping Point column (index 8).
+        expect(cybCells?.[8]).toBe("Yes")
+        expect(opsCells?.[8]).toBe("No")
+        expect(supCells?.[8]).toBe("No")
+      } finally {
+        createObjectURLSpy.mockRestore()
+        revokeObjectURLSpy.mockRestore()
+      }
+    })
   })
 })

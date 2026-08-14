@@ -402,11 +402,36 @@ export default function CorrelationMatrixPage() {
   // for an empty cell (round-10's accessible-name test relies on exactly
   // that), while tipping-point status is a genuine data-driven fact about
   // specific risks, not a substitute axis.
-  const tippingPointRefs = useMemo(() => {
-    const refs = filteredRisks.map((r) => r.ref)
-    const scores = computePageRank(refs, buildRiskCorrelationEdges(links))
-    return new Set(topPercentileFromScores(refs, scores, 0.15))
-  }, [filteredRisks, links])
+  // Round 14 re-score (industry-standards, round-1 review finding): the
+  // raw scores were computed then immediately discarded down to Set
+  // membership -- RiskGraphPage.tsx keeps its own equivalent
+  // (pageRankScores/getNormalizedPageRank) and surfaces the actual
+  // number in its tooltip and CSV export, not just a binary badge. Kept
+  // here too so exportMatrixAsCsv below can include real PageRank and
+  // Tipping Point columns, matching that page's own export convention
+  // (same "PageRank" header, same 0-100 normalization) instead of a
+  // matrix-specific export with less depth than the sibling page's.
+  const { pageRankScores, maxPageRankScore, tippingPointRefs } =
+    useMemo(() => {
+      const refs = filteredRisks.map((r) => r.ref)
+      const scores = computePageRank(refs, buildRiskCorrelationEdges(links))
+      const max = Object.values(scores).reduce((m, s) => Math.max(m, s), 0)
+      return {
+        pageRankScores: scores,
+        maxPageRankScore: max,
+        tippingPointRefs: new Set(
+          topPercentileFromScores(refs, scores, 0.15)
+        ),
+      }
+    }, [filteredRisks, links])
+
+  const getNormalizedPageRank = useCallback(
+    (ref: string) =>
+      maxPageRankScore > 0
+        ? ((pageRankScores[ref] ?? 0) / maxPageRankScore) * 100
+        : 0,
+    [pageRankScores, maxPageRankScore]
+  )
 
   const riskGrid = useMemo(() => {
     const grid: Record<string, Risk[]> = {}
@@ -439,6 +464,14 @@ export default function CorrelationMatrixPage() {
       "Root Causes",
       "Consequences",
       "Matrix Cell",
+      // Round 14 re-score (industry-standards, round-1 review finding):
+      // this export previously had no way to tell a barely-qualifying
+      // tipping point apart from a dominant one, or a network-central
+      // risk from one that just has many direct links -- same two
+      // columns, same "PageRank" header, as RiskGraphPage's own
+      // exportDataAsCsv.
+      "PageRank",
+      "Tipping Point",
     ]
     const rows = filteredRisks.map((risk) => {
       const m = riskMetrics[risk.ref] ?? { rootCauses: 0, consequences: 0 }
@@ -456,12 +489,22 @@ export default function CorrelationMatrixPage() {
         // guard needed for the count columns (see csvTextField's own
         // comment on why negative numbers must stay unescaped).
         `${row + 1}-${col + 1}`,
+        getNormalizedPageRank(risk.ref).toFixed(0),
+        tippingPointRefs.has(risk.ref) ? "Yes" : "No",
       ]
     })
     const csv = [header, ...rows].map((r) => r.join(",")).join("\r\n")
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
     triggerDownload(blob, "correlation-matrix.csv")
-  }, [filteredRisks, riskMetrics, matrixSize, sitesById, t])
+  }, [
+    filteredRisks,
+    riskMetrics,
+    matrixSize,
+    sitesById,
+    t,
+    getNormalizedPageRank,
+    tippingPointRefs,
+  ])
 
   const riskBuckets = useMemo<RiskBucket[]>(() => {
     const bucketMap: Record<string, Risk[]> = {}

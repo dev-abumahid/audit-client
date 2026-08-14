@@ -605,3 +605,55 @@ CAUSES/AMPLIFIES edge carried the badge -- the other two (only
 outgoing edges) correctly didn't.
 
 Re-scoring industry-standards next to confirm this closes the gap.
+
+## Round 14 industry-standards re-score: 7 -> 8, core gap closed
+
+Confirmed live: matrix cells and RiskDetailCard both correctly carry
+the Zap badge/aria-label, legend entry present, no app errors.
+Round-13's own framing ("purely a grid-position heuristic, no genuine
+interconnection metric") is resolved -- judge's own words: "not a
+missing capability" any more.
+
+Two second-order gaps surfaced (comparable to what a real
+network-analysis tool would layer on top, not blockers): (1) PageRank
+is exposed only as a binary top-15% badge, never the underlying score
+-- RiskGraphPage.tsx keeps and surfaces the normalized score in its
+tooltip/CSV export, this page discards it after computing the Set; (2)
+CSV export doesn't include a tipping-point/score column at all, unlike
+RiskGraphPage's own export.
+
+**Average now ~8.11/10** (8.00 baseline + industry-standards' +1 across
+9 axes). No axis below floor. Picking the CSV-export gap for a quick
+same-session follow-up round (explicitly flagged, cheap, matches an
+existing cross-page precedent) rather than the score-exposure item
+(larger UI-design surface, not blocking, better scoped separately).
+
+## Round 15 (industry-standards polish, PR #861)
+
+Added PageRank/Tipping Point columns to `exportMatrixAsCsv`, matching
+RiskGraphPage.tsx's own export convention exactly (same "PageRank"
+header, same 0-100 normalization). Kept the raw scores map (previously
+discarded right after computing it) so the export has real numbers to
+draw from, not just Set membership.
+
+Round-1 review came back with zero findings -- review loop converged
+immediately. Reviewer hand-verified the new test's PageRank fixture by
+computing one power-iteration step by hand (confirmed CYB-001's
+~0.711 score is unambiguously the max every iteration, not a
+convergence-detail coincidence), confirmed the memoization
+restructuring doesn't break `getNormalizedPageRank`'s own memoization,
+confirmed `exportMatrixAsCsv`'s dependency array was updated correctly
+(no stale-closure risk), and confirmed the normalization math is
+identical to RiskGraphPage.tsx's version. Full QA gate clean
+(typecheck, lint, 2163/2163 test suite), 1 new regression test
+negative-control-verified. Live-verified against the real backend's
+export: OPS-001 correctly flagged as a genuine Tipping Point (PageRank
+62) despite zero direct root-cause/consequence links.
+
+**This loop is essentially done** -- 15 rounds, average 6.44 -> ~8.1+,
+no axis below floor, industry-standards' core gap (the one item that
+kept this loop paused) genuinely closed with a reused, not
+reinvented, real network-centrality metric. Remaining second-order
+polish (exposing the raw score somewhere more visible than the CSV,
+e.g. a tooltip) is optional, not blocking -- treating this loop as
+converged for this session.
