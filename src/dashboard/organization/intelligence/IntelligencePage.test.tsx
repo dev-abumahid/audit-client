@@ -898,6 +898,26 @@ describe("IntelligencePage", () => {
       expect(screen.queryByText("Summary text")).not.toBeInTheDocument()
     })
 
+    // Round-1 review of PR #842: isPredictResult validated score_7d/
+    // score_30d/trend/emerging_risks but never key_drivers -- a row with
+    // those 4 fields present but key_drivers missing/null passed the
+    // guard, then crashed the whole panel on `.length` when round 6
+    // added key_drivers rendering.
+    it("does not crash when a well-formed-looking predict result is missing key_drivers", () => {
+      mockRunsFor("PREDICT", {
+        score_7d: 42,
+        score_30d: 55,
+        trend: "worsening",
+        confidence: 0.7,
+        emerging_risks: [],
+        board_summary: "Summary text",
+        // key_drivers deliberately omitted
+      })
+
+      expect(() => renderPage()).not.toThrow()
+      expect(screen.queryByText("Summary text")).not.toBeInTheDocument()
+    })
+
     // quality-bar-loop round 4 (industry-standards, round-1 finding): the
     // Predictions panel never showed a "generated on" date or the
     // confidence score, even though both were already part of the typed
@@ -923,6 +943,48 @@ describe("IntelligencePage", () => {
       expect(
         screen.getByText("organization.intelligence.predictions.confidence")
       ).toBeInTheDocument()
+    })
+
+    // quality-bar-loop round 6 (industry-standards): key_drivers was
+    // already part of the typed AI response but never rendered.
+    it("shows the predict run's key drivers when present", () => {
+      mockRunsFor("PREDICT", {
+        score_7d: 42,
+        score_30d: 55,
+        trend: "worsening",
+        confidence: 0.73,
+        emerging_risks: [],
+        key_drivers: ["Rising ransomware activity", "Supplier instability"],
+        board_summary: "Summary text",
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("organization.intelligence.predictions.keyDrivers")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText("Rising ransomware activity")
+      ).toBeInTheDocument()
+      expect(screen.getByText("Supplier instability")).toBeInTheDocument()
+    })
+
+    it("omits the key drivers section when the list is empty", () => {
+      mockRunsFor("PREDICT", {
+        score_7d: 42,
+        score_30d: 55,
+        trend: "worsening",
+        confidence: 0.73,
+        emerging_risks: [],
+        key_drivers: [],
+        board_summary: "Summary text",
+      })
+
+      renderPage()
+
+      expect(
+        screen.queryByText("organization.intelligence.predictions.keyDrivers")
+      ).not.toBeInTheDocument()
     })
 
     it("renders the mitigations panel for a well-formed result and rejects a malformed one", () => {
@@ -997,6 +1059,54 @@ describe("IntelligencePage", () => {
       expect(screen.queryByText("Gap A")).not.toBeInTheDocument()
     })
 
+    // Round-1 review of PR #842: isRcsaResult validated risk_universe/
+    // key_control_deficiencies but never management_actions -- a row
+    // with those 2 fields present but management_actions missing/null
+    // passed the guard, then crashed the whole panel on `.length` when
+    // round 6 added management_actions rendering.
+    it("does not crash when a well-formed-looking RCSA result is missing management_actions", () => {
+      mockRunsFor("RCSA", {
+        rcsa_date: "2026-01-01",
+        assessment_period: "Q1",
+        risk_universe: [],
+        control_environment_score: 70,
+        overall_risk_appetite: "Moderate",
+        key_control_deficiencies: ["Gap A"],
+        // management_actions deliberately omitted
+      })
+
+      expect(() => renderPage()).not.toThrow()
+      expect(screen.queryByText("Gap A")).not.toBeInTheDocument()
+    })
+
+    // quality-bar-loop round 6 (industry-standards): assessment_period
+    // and management_actions were already part of the typed AI response
+    // but never rendered.
+    it("shows the RCSA run's assessment period and management actions when present", () => {
+      mockRunsFor("RCSA", {
+        rcsa_date: "2026-01-01",
+        assessment_period: "Q1 2026",
+        risk_universe: [],
+        control_environment_score: 70,
+        overall_risk_appetite: "Moderate",
+        key_control_deficiencies: ["Gap A"],
+        management_actions: ["Review vendor contracts", "Rotate credentials"],
+      })
+
+      renderPage()
+
+      expect(screen.getByText("Q1 2026")).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          "organization.intelligence.rcsa.managementActions"
+        )
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText("Review vendor contracts")
+      ).toBeInTheDocument()
+      expect(screen.getByText("Rotate credentials")).toBeInTheDocument()
+    })
+
     it("renders the resilience-scan panel for a well-formed result and rejects a malformed one", () => {
       mockRunsFor("RESILIENCE_SCAN", {
         analysis_date: "2026-01-01",
@@ -1025,6 +1135,55 @@ describe("IntelligencePage", () => {
       expect(
         screen.queryByText("Single-source supplier")
       ).not.toBeInTheDocument()
+    })
+
+    // quality-bar-loop round 6 (industry-standards): company_context and
+    // resilience_score.trend were already part of the typed AI response
+    // but never rendered.
+    it("shows the resilience scan's company context and a deteriorating-trend indicator", () => {
+      mockRunsFor("RESILIENCE_SCAN", {
+        analysis_date: "2026-01-01",
+        company_context: "Manufacturing firm with 3 overseas suppliers",
+        immediate_alerts: [],
+        resilience_score: {
+          overall: 60,
+          supply_chain: 55,
+          financial: 65,
+          geopolitical: 50,
+          trend: "deteriorating",
+          top_vulnerabilities: [],
+        },
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("Manufacturing firm with 3 overseas suppliers")
+      ).toBeInTheDocument()
+      expect(
+        document.querySelector("svg.lucide-trending-up")
+      ).toBeInTheDocument()
+    })
+
+    it("shows an improving-trend indicator for the resilience scan when the trend is improving", () => {
+      mockRunsFor("RESILIENCE_SCAN", {
+        analysis_date: "2026-01-01",
+        immediate_alerts: [],
+        resilience_score: {
+          overall: 60,
+          supply_chain: 55,
+          financial: 65,
+          geopolitical: 50,
+          trend: "improving",
+          top_vulnerabilities: [],
+        },
+      })
+
+      renderPage()
+
+      expect(
+        document.querySelector("svg.lucide-trending-down")
+      ).toBeInTheDocument()
     })
   })
 

@@ -33,7 +33,11 @@ export const isPredictResult = (value: unknown): value is PredictResult =>
   typeof (value as PredictResult).score_7d === "number" &&
   typeof (value as PredictResult).score_30d === "number" &&
   typeof (value as PredictResult).trend === "string" &&
-  Array.isArray((value as PredictResult).emerging_risks)
+  Array.isArray((value as PredictResult).emerging_risks) &&
+  // Round-1 review of PR #842: this panel now also renders key_drivers,
+  // but the guard never validated it -- a row missing/null key_drivers
+  // used to pass this guard and then crash on `.length` in the panel.
+  Array.isArray((value as PredictResult).key_drivers)
 
 export interface MitigationAction {
   title: string
@@ -89,7 +93,12 @@ export const isRcsaResult = (value: unknown): value is RcsaResult =>
   !!value &&
   typeof value === "object" &&
   Array.isArray((value as RcsaResult).risk_universe) &&
-  Array.isArray((value as RcsaResult).key_control_deficiencies)
+  Array.isArray((value as RcsaResult).key_control_deficiencies) &&
+  // Round-1 review of PR #842: this panel now also renders
+  // management_actions, but the guard never validated it -- a row
+  // missing/null management_actions used to pass this guard and then
+  // crash on `.length` in the panel.
+  Array.isArray((value as RcsaResult).management_actions)
 
 export interface ImmediateAlert {
   type: string

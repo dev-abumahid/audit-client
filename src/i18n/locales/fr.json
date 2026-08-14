@@ -1590,7 +1590,8 @@
         "trend_stable": "Stable",
         "trend_improving": "En amélioration",
         "emergingRisks": "Risques émergents détectés :",
-        "confidence": "Confiance"
+        "confidence": "Confiance",
+        "keyDrivers": "Facteurs clés"
       },
       "mitigations": {
         "empty": "Aucune mesure d'atténuation générée pour le moment",
@@ -1603,7 +1604,8 @@
         "inherent": "Inhérent",
         "residual": "Résiduel",
         "controlEffectiveness": "Efficacité du contrôle",
-        "deficiencies": "Principales lacunes de contrôle"
+        "deficiencies": "Principales lacunes de contrôle",
+        "managementActions": "Actions de gestion recommandées"
       },
       "resilience": {
         "overall": "Global",

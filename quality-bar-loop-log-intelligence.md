@@ -349,3 +349,38 @@ documented limitation of this dev environment, not a bug introduced
 here), so the actual modal content couldn't be exercised against a
 live AI report. Relied on the negative-control-verified unit tests
 for that behavior instead.
+
+## Round 6 (industry-standards re-score after PR #841)
+
+| Axis | Prior | Round 6 | Delta |
+|---|---|---|---|
+| Industry-standards | 5 | **6** | +1, still below floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.56/10.** Up from 7.44. Industry-standards remains the
+only axis below floor.
+
+Run-history fix confirmed closed via code + 52/52 tests passing,
+including the round-5 describe block's 8 tests. Live check: page
+renders structurally correct under sustained dev-server 429s (shared
+load, not a defect); the History feature itself couldn't be clicked
+live since no AI report has successfully generated in this environment
+(known limitation), verified via code + tests instead.
+
+Remaining gaps, re-confirmed via code: (b) no source citations from an
+AI finding back to a specific intelligence item -- still open, needs
+backend work (aexa-ai's response has no citation/source_ids field to
+surface). (c) several typed AI-response fields still dropped from
+rendering -- narrower than previously scored (confidence was already
+fixed round 4): `PredictResult.key_drivers`, `RcsaResult.
+assessment_period`, `RcsaResult.management_actions`,
+`ResilienceScanResult.company_context`, `ResilienceScore.trend` are
+all typed but never rendered. (d) no export/report-download -- still
+open, larger feature work.
+
+**Next fix:** industry-standards is the only below-floor axis, wins
+automatically. Among its 3 open gaps, (c) is the only one needing zero
+new backend work -- the data already exists in the typed response,
+purely a rendering gap, same spirit as round 4's confidence fix.
+Picking it as this round's fix; (b) citations and (d) export remain
+open, each needing either new backend fields or larger feature scope.

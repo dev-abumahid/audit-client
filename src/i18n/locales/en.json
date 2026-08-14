@@ -1590,7 +1590,8 @@
         "trend_stable": "Stable",
         "trend_improving": "Improving",
         "emergingRisks": "Emerging Risks Detected:",
-        "confidence": "Confidence"
+        "confidence": "Confidence",
+        "keyDrivers": "Key Drivers"
       },
       "mitigations": {
         "empty": "No mitigations generated yet",
@@ -1603,7 +1604,8 @@
         "inherent": "Inherent",
         "residual": "Residual",
         "controlEffectiveness": "Control Effectiveness",
-        "deficiencies": "Key Control Deficiencies"
+        "deficiencies": "Key Control Deficiencies",
+        "managementActions": "Recommended Management Actions"
       },
       "resilience": {
         "overall": "Overall",

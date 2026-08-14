@@ -640,6 +640,25 @@ export default function IntelligencePage() {
               </div>
             </div>
           )}
+
+          {/* quality-bar-loop round 6 (industry-standards): key_drivers
+              was already part of the typed AI response but never
+              rendered, alongside several other dropped fields across
+              the 4 panels -- surfacing what the AI report actually
+              cited as driving its own score, same as board_summary
+              above already does for the narrative. */}
+          {predictResult.result.key_drivers.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-2 text-xs font-semibold text-foreground">
+                {t("organization.intelligence.predictions.keyDrivers")}
+              </p>
+              <ul className="list-inside list-disc text-xs text-muted-foreground">
+                {predictResult.result.key_drivers.map((driver, i) => (
+                  <li key={i}>{driver}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
@@ -740,6 +759,15 @@ export default function IntelligencePage() {
             <h2 className="text-sm font-semibold text-foreground">
               {t("organization.intelligence.sections.rcsa")}
             </h2>
+            {/* quality-bar-loop round 6 (industry-standards): assessment_
+                period was already part of the typed AI response but never
+                rendered -- the period an RCSA covers is basic scope
+                context for reading the rest of the panel. */}
+            {rcsaResult.result.assessment_period && (
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {rcsaResult.result.assessment_period}
+              </span>
+            )}
             {/* rcsa_date (the assessment's own as-of date, already part
                 of the typed AI response) rather than the run row's
                 createdAt -- more meaningful for an RCSA specifically. */}
@@ -807,6 +835,22 @@ export default function IntelligencePage() {
               </ul>
             </div>
           )}
+          {/* quality-bar-loop round 6 (industry-standards): management_
+              actions was already part of the typed AI response but never
+              rendered -- the recommended next steps for the
+              deficiencies listed just above. */}
+          {rcsaResult.result.management_actions.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-1 text-xs font-semibold text-foreground">
+                {t("organization.intelligence.rcsa.managementActions")}
+              </p>
+              <ul className="list-inside list-disc text-xs text-muted-foreground">
+                {rcsaResult.result.management_actions.map((a, i) => (
+                  <li key={i}>{a}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
@@ -843,13 +887,43 @@ export default function IntelligencePage() {
               <History className="h-3.5 w-3.5" />
             </button>
           </div>
+          {/* quality-bar-loop round 6 (industry-standards): company_context
+              was already part of the typed AI response but never
+              rendered -- the scope note explaining what this specific
+              scan actually covers. */}
+          {resilienceResult.result.company_context && (
+            <p className="mb-3 text-xs text-muted-foreground">
+              {resilienceResult.result.company_context}
+            </p>
+          )}
           <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-lg border border-border p-3">
               <p className="text-xs text-muted-foreground">
                 {t("organization.intelligence.resilience.overall")}
               </p>
-              <p className="text-xl font-bold text-foreground">
+              <p className="flex items-center gap-1.5 text-xl font-bold text-foreground">
                 {resilienceResult.result.resilience_score.overall}
+                {/* quality-bar-loop round 6 (industry-standards):
+                    ResilienceScore.trend was already part of the typed AI
+                    response but never rendered. Its own 3-value union
+                    ("improving"/"stable"/"deteriorating") doesn't match
+                    TREND_DISPLAY's ("worsening"/"stable"/"improving") --
+                    a distinct scale for a distinct field, not reused
+                    directly to avoid conflating the two. */}
+                {resilienceResult.result.resilience_score.trend ===
+                  "deteriorating" && (
+                  <TrendingUp
+                    className={`h-4 w-4 ${SEVERITY_STYLES.high.text}`}
+                  />
+                )}
+                {resilienceResult.result.resilience_score.trend ===
+                  "improving" && (
+                  <TrendingDown
+                    className={`h-4 w-4 ${SEVERITY_STYLES.low.text}`}
+                  />
+                )}
+                {resilienceResult.result.resilience_score.trend ===
+                  "stable" && <Minus className="h-4 w-4 text-muted-foreground" />}
               </p>
             </div>
             <div className="rounded-lg border border-border p-3">
