@@ -1153,3 +1153,52 @@ re-score); efficiency/accessibility/visual polish/resilience/mobile
 still tied at 8 from that same panel, untouched this round. Rough
 average ~8.4/10 -- close to the 8.5 target but not confirmed
 converged without a fresh full panel. No axis below floor.
+
+## Round 22 (resilience: negative-value guard, PR #875)
+
+Fresh full-panel re-score before picking this round's fix: **average
+8.28/10** (industry-standards 8.5, UX 9, efficiency 8, accessibility
+8, visual polish 8, resilience 8, code quality 9, mobile 8, security
+9) -- down slightly from round-19's 8.33 estimate once re-scored
+fresh, since industry-standards' +0.5 was offset by resilience/
+accessibility not moving the way the round-21 log assumed. Every axis
+still clears the floor. The panel's single most concrete, cheaply-
+fixable gap: resilience's missing negative-number guard on
+current_value/alert_threshold/target_value -- `type="number"` alone
+doesn't stop a user entering -5.
+
+Added `min={0}` to `KriFormField` (new prop) across all 3 numeric
+entry points (New KRI, Edit KRI, Update Value) as a browser-native
+affordance, plus the real enforcement: a JS guard in
+`handleSave`/`handleSaveEdit`/`handleUpdateValue` that shows a toast
+and blocks the mutation call if any relevant field is negative (these
+modals are plain divs, not `<form>` elements, so there's no native
+browser submit-blocking for free). New
+`organization.kri.toast.valueCannotBeNegative` i18n key (en/fr).
+
+3 new regression tests (create-path, update-value-path, and a round-1-
+review-requested edit-path test), all negative-control-verified
+(genuinely fail against the pre-fix source, using `fireEvent.change`
+since `userEvent.type` can't reliably enter a leading "-" into a
+`type="number"` input in jsdom). Full QA gate clean (typecheck, lint,
+2181/2181 full suite). Live-verified in a fresh browser tab: `min="0"`
+confirmed on the live DOM, submitting -5 as an alert threshold
+correctly fired the new toast and zero API requests, and separately
+confirmed setting an existing KRI's Update Value to -5 was blocked the
+same way. Round-1 independent review found one real, cheap gap (the
+Edit KRI modal's own guard had no dedicated test) -- fixed same-round.
+
+**Round-22 resilience re-score: 8.5/10, up from 8.** The named gap is
+closed; remaining resilience items for a possible future round (no
+upper-bound sanity ceiling, no NaN guard on threshold/target inputs
+themselves, no concurrent-edit handling) are all more marginal, not
+concrete missing-guard bugs like this one was.
+
+22 rounds, 15 PRs (#849-857, #867, #869, #873, #875, aexa-server#328,
+aexa-frontend#871) shipped and merged this session.
+
+**Current picture:** industry-standards 8.5, resilience 8.5, code
+quality 9, UX 9, security 9; efficiency/accessibility/visual polish/
+mobile still tied at 8 (untouched since round 19's panel). Rough
+average ~8.44/10 -- within striking distance of the 8.5 target but
+not confirmed converged without a fresh full panel.
