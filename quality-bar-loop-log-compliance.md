@@ -917,3 +917,80 @@ page -- the next round should scope and build the smaller of the two
 as real feature work, per this session's "ship, don't defer on
 product-decision grounds" standing instruction, rather than
 continuing to defer both indefinitely.
+
+## Round 16 (industry-standards: per-framework coverage rollup, PR #894)
+
+Picked up the next concrete slice of industry-standards' remaining
+gap (7/10 in the round-15 final honest panel): the round-13 catalog
+gave a per-obligation framework badge, but nothing rolled catalog-
+matched obligations up to a framework-level readiness view --
+reference GRC tools (Vanta, Drata) surface exactly this ("SOC 2: 6/7
+attested"). Added `ComplianceFrameworkCoverage.tsx`: computed
+client-side from the already-fetched `obligations` (no new fetch),
+tallies compliant/total per framework, renders a compact panel
+between the summary cards and the site x domain scorecard, and
+renders nothing at all when no loaded obligation matches the
+catalog.
+
+Round-1 independent review caught a real, non-cosmetic finding: the
+panel silently reflected only the current page/filter's obligations,
+unlike the summary cards above it (which are usually org-wide-
+accurate via the scorecard endpoint's `statusCounts`, only falling
+back to page-scoped counting when that's missing). Filtering status
+to "Compliant" would make every visible framework read a misleading
+"N/N" (100%) purely as a filter artifact. Fixed same-round: reworded
+the subtitle in both locales to say explicitly this isn't an
+org-wide total, and corrected the component's own comment, which had
+incorrectly claimed parity with the summary cards' scoping. Also
+removed an unused `empty` i18n key the review flagged as dead code.
+Round-2 review confirmed the fix is accurate and appropriately
+scoped (a copy/disclosure fix, not a bigger behavioral change,
+correctly judged as the right-sized response to a UI-honesty
+finding rather than a deeper architecture problem).
+
+New tests: tallies compliant/total correctly across multiple
+obligations/frameworks while ignoring custom references, and the
+panel is entirely absent when nothing matches. Negative-control
+verified: removed the new component with source changes stashed,
+confirmed both new tests genuinely fail, restored, confirmed 84/84
+pass. Full repo suite: 2191/2191 passed. Live-verified against the
+real running backend in a fresh browser tab (after waiting out a
+transient 429 from earlier judge-panel load -- not an app bug):
+created a real obligation with a catalog-matched SOC 2 reference,
+confirmed the panel appeared with the correct "SOC 2 0/1 compliant"
+tally, deleted the test obligation, confirmed the panel disappears
+again when nothing matches.
+
+**Round-16 industry-standards re-score: 8/10, up from 7.** The
+judge's own framing: the specific named gap (no framework-level
+rollup) is genuinely closed, cleanly, with honest scoping -- real
+progress worth a point. The rollup still rides on the same 38-entry
+static catalog (exact-match only, no update mechanism), and the
+larger, structurally different gap -- an approval/maker-checker
+workflow on attestation status changes -- remains fully open and
+unaddressed. Both are why this holds at 8 rather than climbing
+higher.
+
+16 rounds, 14 code-changing PRs (#859, #862, #863, aexa-server#327,
+#864, #880, #882, #884, #886, #888, #890, #892, #894, plus this
+round's review-fix commit folded into #894) shipped and merged this
+session's Compliance work (plus several docs-only log PRs).
+
+**Current picture** (industry-standards 8, UX 9, efficiency 8,
+accessibility 8, visual polish 8, resilience 9, code quality 8,
+mobile 8, security 8): average = (8+9+8+8+8+9+8+8+8)/9 = 74/9 ~=
+8.22/10. **Still not converged** -- every axis now clears 8 (well
+above the 7 floor) with no axis below 8, but the average is still
+~0.28 short of the 8.5 target. Reaching 8.5 from here requires
+several of the seven axes currently sitting at exactly 8 to move to
+9, not one more single-axis rescue. The clearest remaining lever
+named by an independent judge this session: code quality's round-14
+extraction was honestly re-scored to 8, not 9, specifically because
+of a repeated pattern across the three mutually-exclusive modal
+states (actionObligation/attestObligation/historyObligation), each
+hand-rolling its own "clear the other two" logic plus the
+pendingFocusRef workaround for the sibling-modal focus-stealing
+race -- a discriminated-union `activeModal` state was named as the
+concrete fix that would collapse this into one opener and remove the
+ref workaround entirely. The next round should scope and build that
+refactor as the next highest-leverage lever toward 8.5.
