@@ -536,6 +536,33 @@ describe("ThreeLinesOfDefensePage", () => {
     expect(button.className).toContain("w-11")
   })
 
+  // quality-bar-loop round 9 (mobile, stuck at floor for 3 rounds): the
+  // trigger button was already a correct 44px target, but the dropdown
+  // menu items it opens inherited the shared DropdownMenuItem's default
+  // min-h-7 (28px) -- under the WCAG 2.5.5 minimum despite the trigger
+  // itself being compliant.
+  it("gives each reassignment destination in the dropdown a 44px touch target", async () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData(),
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const unclassifiedRow = rowFor("Legacy remediation item")
+    await userEvent.click(
+      within(unclassifiedRow).getByRole("button", {
+        name: "organization.threeLinesOfDefense.moveItem",
+      })
+    )
+
+    const menuItems = await screen.findAllByRole("menuitem")
+    expect(menuItems.length).toBeGreaterThan(0)
+    for (const item of menuItems) {
+      expect(item.className).toContain("min-h-11")
+    }
+  })
+
   it("shows reassignment controls for a LEAD_AUDITOR", () => {
     mockRole = "LEAD_AUDITOR"
     mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({

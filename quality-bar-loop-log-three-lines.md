@@ -432,3 +432,59 @@ they'll be shipped together in one round rather than split (the
 batching rule's "disjoint files" requirement is about combining
 different candidates/axes, not splitting one axis's own findings across
 rounds unnecessarily).
+
+## Round 9 (full re-score after PR #801/#802/#805/#806/#809)
+
+| Axis | Round 8 | Round 9 | stuck_streak (at/below floor) |
+|---|---|---|---|
+| Industry-standards | 7.5/10 | 7.5/10 (unchanged) | 0 |
+| UX | 8/10 | 8/10 (unchanged) | 0 |
+| Efficiency | 9/10 | 9/10 (unchanged) | 0 |
+| Accessibility | 8/10 | 8/10 (unchanged) | 0 |
+| Visual polish | 9/10 | 9/10 (unchanged) | 0 |
+| Resilience | 6/10 | **9/10** (both remaining findings fixed) | 0 |
+| Code quality | 8/10 | 8/10 (unchanged) | 0 |
+| Mobile | 7/10 | 7/10 (unchanged, at floor) | **2** (rounds 8,9) |
+| Security | 9/10 | 9/10 (unchanged) | 0 |
+
+**Average: 8.28/10.** Not converged (target 8.5) -- no axis below floor, but
+mobile sits exactly at floor with a stuck_streak of 2.
+
+PR #801's rapid-reassign-race fix and retry-loading-feedback fix are both
+confirmed genuinely resolved by the resilience judge -- resilience jumps
+5/10 (round 7) -> 6/10 (round 8, crash fix only) -> 9/10 (round 9, both
+remaining findings fixed). PR #806's app-wide focus-ring sweep also
+landed on this page's retry button, confirmed by the accessibility
+judge (one of that axis's three findings now resolved, though not
+enough alone to move the score). PR #802 (toaster) and PR #809 (wrapper
+spacing space-y-6 vs flex gap-4) were confirmed by multiple judges to
+be either neutral or mildly positive, no regressions.
+
+Findings still open, by axis:
+- Industry-standards (7.5): no audit trail on line_of_defense
+  reclassification -- no confirmation step, no reason capture, and the
+  backend's OrgAuditLog doesn't track this field for any of the 5
+  entity types. Verified server-side (aexa-server) still true.
+- UX (8): no confirm/undo on reassignment, no post-move visual
+  feedback, no search/filter control at scale (up to 22-26 items in
+  one line).
+- Accessibility (8): severity dot still color-only with no text
+  alternative; no aria-live/role="status" on loading/error
+  transitions. (Retry button's missing focus-ring, the third finding,
+  is now fixed.)
+- Mobile (7, stuck_streak=2): DropdownMenuItem rows inside the reassign
+  menu measure ~28px tall (the shared dropdown-menu.tsx component's
+  `min-h-7`), under the 44px touch-target minimum -- the trigger button
+  itself is a correct 44x44px, but the menu items it opens are not.
+  Unchanged for 3 consecutive rounds (7, 8, 9) now that streak counting
+  restarted at round 8 per the log's own convention.
+- Code quality (8): five near-identical ItemRow JSX blocks (one per
+  entity type) remain a known, previously-accepted duplication
+  tradeoff -- not re-flagged as a fix candidate.
+
+**Next fix (mechanically selected):** mobile's stuck_streak (2) is the
+highest of any axis this round, and no data-correctness/security
+finding exists at/below floor -- so mobile's DropdownMenuItem
+touch-target gap is the priority pick per the loop's rule 5c.2,
+overriding industry-standards' lower raw score (7.5) since that axis
+hasn't been sitting still at/below floor the way mobile has.

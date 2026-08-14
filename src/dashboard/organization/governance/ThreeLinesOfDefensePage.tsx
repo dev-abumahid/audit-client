@@ -303,9 +303,17 @@ const ItemRow = memo(function ItemRow({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {otherLines.map((line) => (
+              // quality-bar-loop (mobile, round-9 finding): the shared
+              // DropdownMenuItem defaults to min-h-7 (28px), under the
+              // 44px touch-target minimum -- scoped here via className
+              // rather than bumping the shared component's default,
+              // since 6 other pages use DropdownMenuItem for compact
+              // desktop-only menus (e.g. the theme toggle) that don't
+              // need the larger touch target.
               <DropdownMenuItem
                 key={line}
                 onClick={() => onReassign(entityType, id, line)}
+                className="min-h-11"
               >
                 {t(MOVE_TO_KEY[line])}
               </DropdownMenuItem>
