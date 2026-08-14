@@ -1,18 +1,12 @@
-import SourceBadge from "@/components/dashboard/organization/SourceBadge"
-import { Link } from "react-router"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import Pagination from "@/components/shared/Pagination"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import CreateNewFindingModal from "@/dashboard/organization/findings/CreateNewFindingModal"
 import { formatDateOnlyForDisplay } from "@/dashboard/organization/findings/dueDateInput"
 import AttestConfirmModal from "./AttestConfirmModal"
 import AttestHistoryModal from "./AttestHistoryModal"
 import ComplianceFormModal from "./ComplianceFormModal"
+import ComplianceObligationRow from "./ComplianceObligationRow"
+import ComplianceScorecardMatrix from "./ComplianceScorecardMatrix"
 import { useComplianceData } from "./useComplianceData"
 import type {
   ComplianceMatrixCell,
@@ -30,25 +24,16 @@ import {
   COMPLIANCE_DOMAINS,
   COMPLIANCE_STATUS_KEYS as STATUS_KEYS,
 } from "@/utils/complianceConfig"
-import { frameworkForReference } from "@/utils/complianceFrameworks"
 import { LINE_OF_DEFENSE_LABEL_KEY as LINE_OF_DEFENSE_KEY } from "@/utils/lineOfDefense"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import {
-  AlertTriangle,
-  ArrowUpRight,
   Ban,
   CheckCircle2,
   Clock,
-  History,
   Loader2,
   MinusCircle,
-  MoreVertical,
-  Paperclip,
-  Pencil,
   Plus,
-  RotateCw,
   Scale,
-  Trash2,
 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -479,14 +464,16 @@ export default function CompliancePage() {
     setActionObligation(obl)
   }
 
-  const openAttest = (obl: ComplianceObligation) => {
+  const openAttest = (obl: ComplianceObligation, trigger: HTMLElement) => {
+    pendingFocusRef.current = trigger
     setActionObligation(null)
     setHistoryObligation(null)
     setAttestObligation(obl)
     setAttestNote("")
   }
 
-  const openHistory = (obl: ComplianceObligation) => {
+  const openHistory = (obl: ComplianceObligation, trigger: HTMLElement) => {
+    pendingFocusRef.current = trigger
     setActionObligation(null)
     setAttestObligation(null)
     setHistoryObligation(obl)
@@ -697,80 +684,16 @@ export default function CompliancePage() {
             {t("organization.compliance.scorecard.subtitle")}
           </p>
         </div>
-        {scorecard && scorecard.matrix.length > 0 ? (
-          <div className="overflow-x-auto p-4">
-            <table className="w-full border-separate border-spacing-1 text-xs">
-              <thead>
-                <tr>
-                  <th className="px-2 py-1 text-left font-semibold text-muted-foreground">
-                    {t("organization.compliance.scorecard.site")}
-                  </th>
-                  {matrixDomains.map((d) => (
-                    <th
-                      key={d}
-                      className="px-2 py-1 text-center font-semibold text-muted-foreground"
-                    >
-                      {domainLabel(d)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {matrixSiteKeys.map((siteKey) => (
-                  <tr key={siteKey}>
-                    <td className="px-2 py-1 font-medium text-foreground">
-                      {/* aexa-frontend#553: siteKey (the real site id) was
-                          already available but rendered as plain text --
-                          reuses the established ?siteId=&search= pattern
-                          (#533/#541). "__org__" is a synthetic bucket, not a
-                          real site, so it's never linked. */}
-                      {siteKey === "__org__" ? (
-                        t("organization.compliance.scorecard.orgWide")
-                      ) : (
-                        <Link
-                          to={`/organization/sites?siteId=${encodeURIComponent(siteKey)}&search=${encodeURIComponent(siteName(siteKey) ?? "")}`}
-                          className="focus-ring text-primary hover:underline"
-                        >
-                          {siteName(siteKey)}
-                        </Link>
-                      )}
-                    </td>
-                    {matrixDomains.map((d) => {
-                      const cell = cellFor(siteKey, d)
-                      return (
-                        <td key={d} className="px-1 py-1 text-center">
-                          <span
-                            className={`font-mono-data inline-block min-w-12 rounded-md border px-2 py-1 ${
-                              BAND_CLASSES[cell?.band ?? "none"]
-                            }`}
-                            title={
-                              cell
-                                ? `${cell.compliant}/${cell.total}`
-                                : undefined
-                            }
-                          >
-                            {cell ? `${cell.compliant}/${cell.total}` : "—"}
-                          </span>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : scorecardError ? (
-          <div
-            role="alert"
-            className="p-6 text-center text-xs text-destructive"
-          >
-            {t("organization.compliance.scorecard.loadError")}
-          </div>
-        ) : (
-          <div className="p-6 text-center text-xs text-muted-foreground">
-            {t("organization.compliance.scorecard.noData")}
-          </div>
-        )}
+        <ComplianceScorecardMatrix
+          scorecard={scorecard}
+          scorecardError={scorecardError}
+          matrixDomains={matrixDomains}
+          matrixSiteKeys={matrixSiteKeys}
+          cellFor={cellFor}
+          domainLabel={domainLabel}
+          siteName={siteName}
+          bandClasses={BAND_CLASSES}
+        />
       </div>
 
       {/* Table */}
@@ -800,250 +723,22 @@ export default function CompliancePage() {
             </tr>
           </thead>
           <tbody>
-            {obligations.map((obl) => {
-              const StatusIcon = STATUS_ICONS[obl.status] || Clock
-              // aexa-server#250 -- `overdue` is computed server-side from
-              // next_review_date (falling back to due_date when unset), so a
-              // recurring obligation reconfirmed on schedule stops reading as
-              // overdue even though its original due_date already passed.
-              // Prefer this over re-deriving overdue-ness from due_date alone.
-              const isOverdue = obl.overdue
-
-              return (
-                <tr
-                  key={obl.id}
-                  className="group border-b border-border transition-colors hover:bg-muted/30"
-                >
-                  <td className="px-3 py-3 lg:px-4">
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-medium text-foreground">{obl.title}</p>
-                      {obl.attachments.length > 0 && (
-                        <Paperclip className="h-3 w-3 text-muted-foreground" />
-                      )}
-                    </div>
-                    <p className="hidden max-w-xs truncate text-[10px] text-muted-foreground sm:block">
-                      {obl.description}
-                    </p>
-                    {obl.regulation_reference && (
-                      <p className="hidden max-w-xs items-center gap-1 truncate text-[10px] text-muted-foreground/80 sm:flex">
-                        {t("organization.compliance.col.regulationRefShort")}:{" "}
-                        {/* Industry-standards finding: a regulation_reference
-                            that exactly matches the curated framework
-                            catalog (src/utils/complianceFrameworks.ts) gets
-                            a structured framework badge instead of plain
-                            text -- custom/free-text references still render
-                            as-is below, unchanged. */}
-                        {frameworkForReference(obl.regulation_reference) ? (
-                          <span className="inline-flex shrink-0 items-center rounded-full bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
-                            {
-                              frameworkForReference(obl.regulation_reference)!
-                                .framework
-                            }
-                          </span>
-                        ) : null}
-                        <span className="truncate">
-                          {obl.regulation_reference}
-                        </span>
-                      </p>
-                    )}
-                    {/* Round-3 industry-standards finding: line_of_defense
-                        was already returned by the backend (Issue #97) but
-                        never surfaced anywhere in this UI -- same compact,
-                        conditional treatment as regulation_reference above,
-                        not a new table column (this table's mobile columns
-                        were already tightened in round 2). */}
-                    <p className="hidden max-w-xs truncate text-[10px] text-muted-foreground/80 sm:block">
-                      {t("organization.compliance.col.lineOfDefenseShort")}:{" "}
-                      {t(LINE_OF_DEFENSE_KEY[obl.line_of_defense])}
-                    </p>
-                    {/* Round 9 (UX finding, fresh full-panel re-score): the
-                        Due Date column (with the only overdue indicator on
-                        this table) is hidden below `md` -- a real mobile
-                        triage loss for a compliance user, since "which
-                        obligations are overdue" is exactly the thing you'd
-                        want to see on a phone. `md:hidden` (round-1 review
-                        of PR #882: the original version had no breakpoint
-                        gate at all, duplicating the exact same "Overdue"
-                        signal in both this compact line AND the Due Date
-                        column's own badge once the column becomes visible
-                        at `md`+) makes this fill only the real gap -- below
-                        `md`, where the column is absent -- and disappear
-                        once the full column takes over, same "don't show
-                        the same fact twice" discipline the sm:block-gated
-                        lines above it already follow. Round-2's own "don't
-                        widen the table back out" discipline still holds --
-                        this is the compact-line pattern, not un-hiding the
-                        column. */}
-                    {isOverdue && (
-                      <p
-                        className={`mt-0.5 flex items-center gap-1 text-[10px] font-medium md:hidden ${SEVERITY_STYLES.critical.text}`}
-                      >
-                        <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
-                        {t("organization.compliance.overdueLabel")}
-                        {obl.due_date &&
-                          ` · ${formatDateOnlyForDisplay(obl.due_date, i18n.language)}`}
-                      </p>
-                    )}
-                  </td>
-                  <td className="hidden px-3 py-3 text-xs text-muted-foreground sm:table-cell">
-                    {domainLabel(obl.domain)}
-                  </td>
-                  <td className="hidden px-3 py-3 text-center md:table-cell">
-                    <span
-                      className={`font-mono-data text-xs ${
-                        isOverdue
-                          ? `font-bold ${SEVERITY_STYLES.critical.text}`
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      {obl.due_date
-                        ? formatDateOnlyForDisplay(obl.due_date, i18n.language)
-                        : "—"}
-                    </span>
-                    {isOverdue && (
-                      <span
-                        className={`mt-0.5 flex items-center justify-center gap-1 text-[10px] font-medium ${SEVERITY_STYLES.critical.text}`}
-                      >
-                        <AlertTriangle className="h-2.5 w-2.5" />
-                        {t("organization.compliance.overdueLabel")}
-                      </span>
-                    )}
-                    {obl.recurrence && obl.next_review_date && (
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">
-                        {t("organization.compliance.col.nextReviewShort")}:{" "}
-                        {formatDateOnlyForDisplay(
-                          obl.next_review_date,
-                          i18n.language
-                        )}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-3 py-3 text-center">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        STATUS_BADGE[obl.status] ||
-                        "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      <StatusIcon className="h-3 w-3" />
-                      {statusLabel(obl.status)}
-                    </span>
-                  </td>
-                  <td className="hidden px-3 py-3 text-xs text-muted-foreground lg:table-cell">
-                    {obl.owner || "—"}
-                  </td>
-                  <td className="px-3 py-3 text-center">
-                    <SourceBadge
-                      aiGenerated={obl.ai_generated}
-                      isEdited={obl.is_edited}
-                    />
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      {/* Remediation path for a failing obligation (#166):
-                          only non-compliant rows are a dead end that needs a
-                          "Create Action" affordance. Kept always-visible-on-hover
-                          -group (not further hover-gated like edit/delete) so the
-                          remediation nudge is actually discoverable -- but #217
-                          still gates it on canWrite since it creates a Finding,
-                          the same write action gated everywhere else.
-                          aexa-server#531: once one exists, show "View Action"
-                          instead -- the obligation's `actions` list is now
-                          populated on read, so this no longer risks offering
-                          to create a duplicate for an obligation that already
-                          has an open remediation. Links to the first one:
-                          an obligation practically has at most one live
-                          remediation action, and the UI has no way to create
-                          a second from this button anyway.
-                          `?.` on `obl.actions` even though the type says
-                          it's always an array: this frontend and
-                          aexa-server#531 (which starts actually populating
-                          it) can deploy independently, so a rollback or
-                          out-of-order release must not crash this row. */}
-                      {obl.status === "non_compliant" &&
-                        canWrite &&
-                        (obl.actions?.length ? (
-                          <Link
-                            to={`/organization/finding/${obl.actions[0].id}`}
-                            className="focus-ring flex h-11 shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 text-[10px] font-medium text-primary hover:bg-primary/20"
-                          >
-                            <ArrowUpRight className="h-3 w-3" />
-                            {t("organization.compliance.viewAction.button")}
-                          </Link>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => openCreateAction(obl)}
-                            className="focus-ring flex h-11 shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 text-[10px] font-medium text-primary hover:bg-primary/20"
-                          >
-                            <Plus className="h-3 w-3" />
-                            {t("organization.compliance.createAction.button")}
-                          </button>
-                        ))}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            aria-label={t(
-                              "organization.compliance.moreActionsLabel",
-                              { title: obl.title }
-                            )}
-                            className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {canWrite && (
-                            <DropdownMenuItem onClick={() => openEdit(obl)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                              {t("organization.compliance.editObligation")}
-                            </DropdownMenuItem>
-                          )}
-                          {/* aexa-server#250: re-attest is legitimate for
-                              any obligation, recurring or not -- the
-                              history entry itself is a real audit-trail
-                              fact independent of whether there's a
-                              cadence to advance. Same write gate as
-                              edit/delete (assertCanWriteOrgResource). */}
-                          {canWrite && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                pendingFocusRef.current =
-                                  e.currentTarget as unknown as HTMLElement
-                                openAttest(obl)
-                              }}
-                            >
-                              <RotateCw className="h-3.5 w-3.5" />
-                              {t("organization.compliance.attest.button")}
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              pendingFocusRef.current =
-                                e.currentTarget as unknown as HTMLElement
-                              openHistory(obl)
-                            }}
-                          >
-                            <History className="h-3.5 w-3.5" />
-                            {t("organization.compliance.attest.historyButton")}
-                          </DropdownMenuItem>
-                          {canWrite && (
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => handleDelete(obl.id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              {t("organization.compliance.deleteObligation")}
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
+            {obligations.map((obl) => (
+              <ComplianceObligationRow
+                key={obl.id}
+                obligation={obl}
+                canWrite={canWrite}
+                domainLabel={domainLabel}
+                statusLabel={statusLabel}
+                statusIcons={STATUS_ICONS}
+                statusBadgeClass={STATUS_BADGE}
+                onEdit={openEdit}
+                onAttest={openAttest}
+                onHistory={openHistory}
+                onDelete={handleDelete}
+                onCreateAction={openCreateAction}
+              />
+            ))}
           </tbody>
         </table>
 
