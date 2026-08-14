@@ -313,3 +313,66 @@ Remaining open, unchanged: industry-standards' bigger items
 (edit-history/versioning, structured framework taxonomy, approval
 routing) and code quality's one remaining bigger item (monolith
 split) are still real design/refactor-scoped work for a future round.
+
+## Round 6 (code quality: monolith decomposition, PR #863)
+
+Picked up code quality's one remaining bigger item: the 1570-line
+`CompliancePage.tsx` monolith (14 `useState`, 8 RTK Query hooks, 3
+`useMemo`s, 2 `useEffect`s, 4 custom hooks, 5 modals all in one
+function body, per this round's fresh re-score before picking a fix).
+
+Extracted the three largest, most self-contained JSX blocks into their
+own components -- `ComplianceFormModal` (create/edit, ~330 lines),
+`AttestConfirmModal` (~85 lines), `AttestHistoryModal` (~125 lines) --
+each now owning its own `useModalA11y()` call instead of the parent
+holding 3 separate refs. Moved `STATUS_KEYS`/`RECURRENCE_KEYS` into
+`complianceConfig.ts` so both the page and the new form modal can
+import them without an eslint `react-refresh/only-export-components`
+violation. `CompliancePage.tsx` itself drops from 1570 to well under
+900 lines; the sibling-modal-clearing coordination
+(`openCreateAction`/`openAttest`/`openHistory`) and the
+`pendingFocusRef` cross-modal focus-correction effects (Round-11
+review's fix) both stayed in the parent unchanged, since they
+genuinely need to coordinate across siblings.
+
+**Live-verification-only bug found and fixed in the same PR** (in
+`compliance.api.ts`, unrelated to the decomposition itself):
+attesting an obligation *without* typing a note sent no HTTP body at
+all (`body: note ? { note } : undefined`) -- the backend's
+`z.object({ note: optional })` schema (compliance.validation.ts)
+rejects a missing body outright ("expected object, received
+undefined") even though `note` itself is optional. This is the
+single most common attest case (most re-attestations have no note)
+and was silently broken until this round's live click-through caught
+it via a real 400 in the network tab. Fixed to always send `{ note }`,
+which `JSON.stringify` degrades to `{}` for the no-note case -- a
+shape the same schema accepts. New `compliance.api.test.ts` covers
+it, negative-control-verified against the pre-fix line.
+
+Full QA gate clean (typecheck, lint, 2165/2165 full suite -- 2 new
+tests for the attest-body fix). Live-verified end-to-end against the
+real backend in a fresh browser tab (a stale tab repeatedly hit
+session-expiry/HMR-corruption noise unrelated to this diff, matching
+this loop's own documented environment-artifact caveat): created an
+obligation via the extracted `ComplianceFormModal`, re-attested it
+*without* a note via the extracted `AttestConfirmModal` (previously a
+400, now a real 200 with a real attestation row), and confirmed the
+entry rendered in the extracted `AttestHistoryModal` on a second open
+(the first open showed a stale loading spinner -- a render-timing
+artifact of the browser-automation tooling itself, not the app, per
+the same environment-artifact caveat; the backend request had already
+returned 200 with data both times). Cleaned up test data via a direct
+API delete after the Radix "more actions" dropdown was again not
+reliably clickable via automation (same pre-existing flakiness as
+every prior round). Round-1 independent review came back with zero
+findings -- specifically traced `useModalA11y`'s cleanup semantics
+(unmount-cleanup vs isOpen-false-cleanup equivalence) rather than
+taking this round's own comment claims at face value, and confirmed
+the cross-modal `pendingFocusRef` ordering still holds under React's
+children-before-parent effect-commit ordering.
+
+Remaining open: industry-standards' bigger items (edit-history/
+versioning, structured framework taxonomy, approval routing) are
+still real design/refactor-scoped work. Code quality's monolith-split
+item is now substantially addressed; re-score next round to confirm
+where it lands.

@@ -194,7 +194,15 @@ const complianceApi = baseApi.injectEndpoints({
       query: ({ id, note }) => ({
         url: `/compliance/${id}/attest`,
         method: "POST",
-        body: note ? { note } : undefined,
+        // Found live-verifying the compliance decomposition round: an
+        // omitted `body` here isn't an empty request -- fetchBaseQuery
+        // still needs *something* to serialize, and `undefined` produces no
+        // body at all, which the backend's `z.object({ note: ... })` schema
+        // rejects outright ("expected object, received undefined") even
+        // though `note` itself is optional. Always sending `{ note }`
+        // degrades to `{}` for the common no-note case (JSON.stringify
+        // drops the undefined key), which the same schema accepts.
+        body: { note },
       }),
       invalidatesTags: ["COMPLIANCE"],
     }),
@@ -221,3 +229,5 @@ export const {
   useAttestComplianceMutation,
   useGetComplianceAttestationsQuery,
 } = complianceApi
+
+export { complianceApi }

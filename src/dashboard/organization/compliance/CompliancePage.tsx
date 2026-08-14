@@ -10,6 +10,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import CreateNewFindingModal from "@/dashboard/organization/findings/CreateNewFindingModal"
 import { formatDateOnlyForDisplay } from "@/dashboard/organization/findings/dueDateInput"
+import AttestConfirmModal from "./AttestConfirmModal"
+import AttestHistoryModal from "./AttestHistoryModal"
+import ComplianceFormModal from "./ComplianceFormModal"
 import type {
   ComplianceObligation,
   ComplianceScoreBand,
@@ -27,9 +30,10 @@ import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { LineOfDefense } from "@/types/organization"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
-import { useModalA11y } from "@/hooks/useModalA11y"
-import { COMPLIANCE_DOMAINS } from "@/utils/complianceConfig"
-import { formatLocaleDate } from "@/utils/formatDate"
+import {
+  COMPLIANCE_DOMAINS,
+  COMPLIANCE_STATUS_KEYS as STATUS_KEYS,
+} from "@/utils/complianceConfig"
 import { LINE_OF_DEFENSE_LABEL_KEY as LINE_OF_DEFENSE_KEY } from "@/utils/lineOfDefense"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import {
@@ -46,25 +50,14 @@ import {
   Pencil,
   Plus,
   RotateCw,
-  Save,
   Scale,
   Trash2,
-  Upload,
-  X,
 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ""
-
-// Loose string statuses matching the backend (Risk.status convention).
-const STATUS_KEYS = [
-  "compliant",
-  "in_progress",
-  "non_compliant",
-  "not_applicable",
-] as const
 
 const STATUS_ICONS: Record<string, React.ElementType> = {
   compliant: CheckCircle2,
@@ -79,10 +72,6 @@ const STATUS_BADGE: Record<string, string> = {
   non_compliant: severityBadgeClasses("critical"),
   not_applicable: "bg-muted text-muted-foreground",
 }
-
-// aexa-server#250 — declared re-attestation cadence. Empty string maps to
-// null (non-recurring) on submit, same convention as site_id's "" -> null.
-const RECURRENCE_KEYS = ["", "monthly", "quarterly", "annual"] as const
 
 // Red/orange/green banding from the scorecard endpoint (CDC 7.7 thresholds).
 const BAND_CLASSES: Record<ComplianceScoreBand, string> = {
@@ -117,6 +106,8 @@ const EMPTY_FORM = {
   // UI. Default mirrors the backend's own DB default for a new row.
   line_of_defense: "SECOND" as LineOfDefense,
 }
+
+export type ComplianceFormState = typeof EMPTY_FORM
 
 // Fresh full-panel re-score (code quality finding): handleSave,
 // handleConfirmDelete, and confirmAttest each independently repeated the
@@ -231,11 +222,6 @@ export default function CompliancePage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // aexa-frontend#490 -- role="dialog"/focus-trap/Escape for this page's
-  // three hand-rolled overlays, same pattern KriDashboardPage uses (round
-  // 10, #487).
-  const formModalRef = useModalA11y(showForm, () => setShowForm(false))
-
   // The obligation a remediation Action is being created for (#166). Non-null
   // means the reused CreateNewFindingModal is open, pre-filled and carrying the
   // real complianceObligationId FK the backend (aexa-server#226) links on save.
@@ -248,29 +234,24 @@ export default function CompliancePage() {
   const [attestObligation, setAttestObligation] =
     useState<ComplianceObligation | null>(null)
   const [attestNote, setAttestNote] = useState("")
-  const attestModalRef = useModalA11y(!!attestObligation, () =>
-    setAttestObligation(null)
-  )
   const [historyObligation, setHistoryObligation] =
     useState<ComplianceObligation | null>(null)
-  const historyModalRef = useModalA11y(!!historyObligation, () =>
-    setHistoryObligation(null)
-  )
   // Round-11 review: attestObligation/historyObligation are two of three
-  // sibling-exclusive modals above, each with its own useModalA11y()
-  // instance. openAttest/openHistory null out the sibling before opening
-  // the new one, so React runs both the closing modal's cleanup and the
-  // opening modal's setup in the same commit -- cleanup always runs before
-  // setup, so the closing modal's cleanup (useModalA11y.ts returning focus
-  // to ITS OWN trigger) steals document.activeElement away from the
-  // just-clicked button before the opening modal's setup captures it as
-  // its own trigger. Without this ref, closing the newly opened modal
-  // would return focus to the OTHER modal's trigger button instead of the
-  // one actually clicked. pendingFocusRef captures the real trigger
-  // synchronously in each row button's onClick (before the
-  // sibling-clearing state updates run); the two effects below are
-  // declared after the useModalA11y() calls, so their setups run after
-  // those hooks' in the same phase, letting this correction win.
+  // sibling-exclusive modals above, each mounting its own useModalA11y()
+  // instance (now inside AttestConfirmModal/AttestHistoryModal
+  // respectively). openAttest/openHistory null out the sibling before
+  // opening the new one, so React runs both the closing modal's unmount
+  // cleanup and the opening modal's mount setup in the same commit --
+  // cleanup always runs before setup, so the closing modal's cleanup
+  // (useModalA11y.ts returning focus to ITS OWN trigger) steals
+  // document.activeElement away from the just-clicked button before the
+  // opening modal's setup captures it as its own trigger. Without this
+  // ref, closing the newly opened modal would return focus to the OTHER
+  // modal's trigger button instead of the one actually clicked.
+  // pendingFocusRef captures the real trigger synchronously in each row
+  // button's onClick (before the sibling-clearing state updates run); the
+  // two effects below run after the children (and their useModalA11y
+  // hooks) mount/unmount in the same commit, letting this correction win.
   const pendingFocusRef = useRef<HTMLElement | null>(null)
   useEffect(() => {
     if (!attestObligation) return
@@ -1040,339 +1021,28 @@ export default function CompliancePage() {
         nextAriaLabel={t("organization.compliance.pagination.next")}
       />
 
-      {/* Create / Edit Modal */}
       {showForm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setShowForm(false)}
-        >
-          <div
-            ref={formModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="compliance-form-modal-title"
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2
-                id="compliance-form-modal-title"
-                className="text-lg font-bold text-foreground"
-              >
-                {editingId
-                  ? t("organization.compliance.form.editTitle")
-                  : t("organization.compliance.form.newTitle")}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                aria-label={t("organization.compliance.form.close")}
-                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-foreground">
-                  {t("organization.compliance.form.title")} *
-                </label>
-                <input
-                  value={form.title}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, title: e.target.value }))
-                  }
-                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                    {t("organization.compliance.form.domain")}
-                  </label>
-                  <select
-                    value={form.domain}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, domain: e.target.value }))
-                    }
-                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    {Object.keys(COMPLIANCE_DOMAINS).map((key) => (
-                      <option key={key} value={key}>
-                        {domainLabel(key)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                    {t("organization.compliance.form.site")}
-                  </label>
-                  <select
-                    value={form.site_id}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, site_id: e.target.value }))
-                    }
-                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    <option value="">
-                      {t("organization.compliance.form.orgWide")}
-                    </option>
-                    {sites.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                  {sitesError && (
-                    <p role="alert" className="mt-1 text-[11px] text-destructive">
-                      {t("organization.compliance.sitesLoadError")}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  {t("organization.compliance.form.description")}
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, description: e.target.value }))
-                  }
-                  rows={3}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  {t("organization.compliance.form.regulationReference")}
-                </label>
-                <input
-                  value={form.regulation_reference}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      regulation_reference: e.target.value,
-                    }))
-                  }
-                  placeholder={t(
-                    "organization.compliance.form.regulationReferencePlaceholder"
-                  )}
-                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-                />
-              </div>
-
-              {/* Round-3 industry-standards finding: line_of_defense was
-                  already returned/settable by the backend (Issue #97) but
-                  had no field anywhere in this form. */}
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  {t("organization.compliance.form.lineOfDefense")}
-                </label>
-                <select
-                  value={form.line_of_defense}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      line_of_defense: e.target.value as LineOfDefense,
-                    }))
-                  }
-                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  {(
-                    Object.keys(LINE_OF_DEFENSE_KEY) as LineOfDefense[]
-                  ).map((line) => (
-                    <option key={line} value={line}>
-                      {t(LINE_OF_DEFENSE_KEY[line])}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* quality-bar-loop round 2 (mobile, round-1 finding):
-                  this was an unconditional 3-column grid -- each cell
-                  measured only 92px wide at 375px, truncating the
-                  Status select ("In Progres") and overlapping the date
-                  input's calendar icon with its placeholder. Stacks to
-                  a single column below sm. */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                    {t("organization.compliance.form.status")}
-                  </label>
-                  <select
-                    value={form.status}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, status: e.target.value }))
-                    }
-                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    {STATUS_KEYS.map((key) => (
-                      <option key={key} value={key}>
-                        {statusLabel(key)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                    {t("organization.compliance.form.dueDate")}
-                  </label>
-                  <input
-                    type="date"
-                    value={form.due_date}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, due_date: e.target.value }))
-                    }
-                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                    {t("organization.compliance.form.owner")}
-                  </label>
-                  <input
-                    value={form.owner}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, owner: e.target.value }))
-                    }
-                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  {t("organization.compliance.form.recurrence")}
-                </label>
-                <select
-                  value={form.recurrence}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, recurrence: e.target.value }))
-                  }
-                  className="h-11 w-full max-w-50 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  {RECURRENCE_KEYS.map((key) => (
-                    <option key={key} value={key}>
-                      {key
-                        ? t(`organization.compliance.recurrence.${key}`)
-                        : t("organization.compliance.recurrence.oneTime")}
-                    </option>
-                  ))}
-                </select>
-                {/* next_review_date is derived server-side, never editable
-                    here -- see the ComplianceObligation type's own comment. */}
-                {editingId &&
-                  obligations.find((o) => o.id === editingId)
-                    ?.next_review_date && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {t("organization.compliance.form.nextReview")}:{" "}
-                      {formatDateOnlyForDisplay(
-                        obligations.find((o) => o.id === editingId)!
-                          .next_review_date!,
-                        i18n.language
-                      )}
-                    </p>
-                  )}
-              </div>
-
-              {/* aexa-server#243: status "compliant" is server-side hard-gated
-                  on at least one attachment. Client-side warning only -- the
-                  actual enforcement (and the source of truth for whether this
-                  would actually be rejected) is assertCompliantHasEvidence on
-                  the backend. */}
-              {form.status === "compliant" && form.attachments.length === 0 && (
-                <div
-                  className={`flex items-start gap-2 rounded-md px-3 py-2 text-xs ${severityBadgeClasses("medium", { border: true })}`}
-                >
-                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  {t("organization.compliance.form.evidenceRequiredWarning")}
-                </div>
-              )}
-
-              {/* Evidence attachments */}
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  {t("organization.compliance.form.attachments")}
-                </label>
-                <div className="space-y-1">
-                  {form.attachments.map((url) => (
-                    <div
-                      key={url}
-                      className="flex items-center justify-between gap-2 rounded-md border border-input bg-background px-2 py-1 text-xs"
-                    >
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex min-w-0 items-center gap-1 truncate text-primary"
-                      >
-                        <Paperclip className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{url.split("/").pop()}</span>
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => removeAttachment(url)}
-                        aria-label={t(
-                          "organization.compliance.form.removeAttachment"
-                        )}
-                        className="focus-ring shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <label className="mt-1 flex cursor-pointer items-center gap-1 rounded-md bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/80">
-                  {uploading ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Upload className="h-3 w-3" />
-                  )}
-                  {t("organization.compliance.form.uploadEvidence")}
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
-                    onChange={(e) =>
-                      e.target.files?.[0] && uploadAttachment(e.target.files[0])
-                    }
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="focus-ring flex h-11 items-center rounded-lg border border-input px-4 text-sm text-muted-foreground hover:bg-muted"
-              >
-                {t("organization.compliance.form.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={isCreating || isUpdating || !form.title.trim()}
-                className="focus-ring flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
-              >
-                {isCreating || isUpdating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                {editingId
-                  ? t("organization.compliance.form.update")
-                  : t("organization.compliance.form.create")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ComplianceFormModal
+          form={form}
+          setForm={setForm}
+          editingId={editingId}
+          editingNextReviewDate={
+            editingId
+              ? (obligations.find((o) => o.id === editingId)?.next_review_date ??
+                null)
+              : null
+          }
+          sites={sites}
+          sitesError={sitesError}
+          uploading={uploading}
+          onUploadAttachment={uploadAttachment}
+          onRemoveAttachment={removeAttachment}
+          onClose={() => setShowForm(false)}
+          onSave={handleSave}
+          isSaving={isCreating || isUpdating}
+          domainLabel={domainLabel}
+          statusLabel={statusLabel}
+        />
       )}
 
       {/* Remediation Action modal (#166). Reuses the Findings/Inspection
@@ -1396,166 +1066,29 @@ export default function CompliancePage() {
         />
       )}
 
-      {/* Re-attest confirm modal (aexa-server#250). Legal for any obligation,
-          recurring or not -- see the row action's own comment. */}
       {attestObligation && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setAttestObligation(null)}
-        >
-          <div
-            ref={attestModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="attest-modal-title"
-            className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2
-              id="attest-modal-title"
-              className="mb-1 text-lg font-bold text-foreground"
-            >
-              {t("organization.compliance.attest.modalTitle")}
-            </h2>
-            <p className="mb-3 text-sm text-muted-foreground">
-              {t("organization.compliance.attest.modalSubtitle", {
-                title: attestObligation.title,
-              })}
-            </p>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              {t("organization.compliance.attest.noteLabel")}
-            </label>
-            <textarea
-              value={attestNote}
-              onChange={(e) => setAttestNote(e.target.value)}
-              rows={3}
-              placeholder={t("organization.compliance.attest.notePlaceholder")}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setAttestObligation(null)}
-                className="focus-ring flex h-11 items-center rounded-lg border border-input px-4 text-sm text-muted-foreground hover:bg-muted"
-              >
-                {t("organization.compliance.form.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={confirmAttest}
-                disabled={isAttesting}
-                className="focus-ring flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
-              >
-                {isAttesting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RotateCw className="h-4 w-4" />
-                )}
-                {t("organization.compliance.attest.confirmButton")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AttestConfirmModal
+          obligation={attestObligation}
+          note={attestNote}
+          onNoteChange={setAttestNote}
+          onClose={() => setAttestObligation(null)}
+          onConfirm={confirmAttest}
+          isSubmitting={isAttesting}
+        />
       )}
 
-      {/* Attestation history modal (aexa-server#250). attested_by is shown
-          as-is (a raw accountId) -- OrgMember's own shape only exposes
-          account.email/profile, not the underlying accountId to resolve a
-          display name against, so name resolution isn't possible with the
-          endpoints this frontend currently has. Same constraint as
-          RiskOverrideBadge's overriddenBy rendering. */}
       {historyObligation && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setHistoryObligation(null)}
-        >
-          <div
-            ref={historyModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="attest-history-modal-title"
-            className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h2
-                id="attest-history-modal-title"
-                className="text-lg font-bold text-foreground"
-              >
-                {t("organization.compliance.attest.historyModalTitle", {
-                  title: historyObligation.title,
-                })}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setHistoryObligation(null)}
-                aria-label={t(
-                  "organization.compliance.attest.historyModalClose"
-                )}
-                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {isLoadingAttestations && (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-
-            {!isLoadingAttestations && attestationsError && (
-              <p role="alert" className="py-8 text-center text-sm text-destructive">
-                {t("organization.compliance.attest.historyLoadError")}
-              </p>
-            )}
-
-            {!isLoadingAttestations &&
-              !attestationsError &&
-              (attestationsData?.data?.length ?? 0) === 0 && (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  {t("organization.compliance.attest.historyEmpty")}
-                </p>
-              )}
-
-            <div className="space-y-2">
-              {attestationsData?.data?.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs"
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        STATUS_BADGE[entry.status_at_attestation] ||
-                        "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {statusLabel(entry.status_at_attestation)}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {formatLocaleDate(entry.attested_at, i18n.language, {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-muted-foreground">
-                    {t("organization.compliance.attest.attestedByLabel", {
-                      accountId: entry.attested_by,
-                    })}
-                  </p>
-                  {entry.note && (
-                    <p className="mt-1 text-muted-foreground">{entry.note}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <AttestHistoryModal
+          obligation={historyObligation}
+          onClose={() => setHistoryObligation(null)}
+          entries={attestationsData?.data ?? []}
+          isLoading={isLoadingAttestations}
+          isError={attestationsError}
+          statusLabel={statusLabel}
+          statusBadgeClass={(key) =>
+            STATUS_BADGE[key] || "bg-muted text-muted-foreground"
+          }
+        />
       )}
 
       <DeleteAlertModal

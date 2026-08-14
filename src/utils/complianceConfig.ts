@@ -21,3 +21,20 @@ export const COMPLIANCE_DOMAINS: Record<
     color: "hsl(280, 65%, 60%)",
   },
 }
+
+// Loose string statuses matching the backend (Risk.status convention).
+export const COMPLIANCE_STATUS_KEYS = [
+  "compliant",
+  "in_progress",
+  "non_compliant",
+  "not_applicable",
+] as const
+
+// aexa-server#250 — declared re-attestation cadence. Empty string maps to
+// null (non-recurring) on submit, same convention as site_id's "" -> null.
+export const COMPLIANCE_RECURRENCE_KEYS = [
+  "",
+  "monthly",
+  "quarterly",
+  "annual",
+] as const
