@@ -1267,3 +1267,39 @@ already client state -- persisting them to the URL's search params
 dashboard's "Active Risks" deep link) makes the current view
 shareable/bookmarkable and survives a reload, directly closing this
 gap without a new subsystem.
+
+## Round 19 (industry-standards final re-score after PR #819 + hotfix #820)
+
+| Axis | Round 18 | Round 19 | Delta |
+|---|---|---|---|
+| Industry-standards | 7/10 | **8/10** | +1, saved-views gap closed with a live-reproduced fix |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 8.22/10.** Up from 8.11. No axis below floor.
+
+Industry-standards' saved-views/persisted-state gap is now genuinely
+closed -- PR #819 shipped it, and a live judge caught a real regression
+in the companion "Clear filter" control (a race between two competing
+URL writes meant `status` sometimes failed to clear), which #820 fixed
+at the root: the URL-sync effect no longer reads a `prev` snapshot at
+all (rebuilds the full target from current render state every time),
+and "Clear filter" uses a permanent `statusCleared` latch instead of a
+one-shot flag that had the identical race via the debounce timer.
+Verified: the regression test now asserts `status=` is actually gone
+(the original, narrower version only checked `category=`, which is
+exactly why the bug shipped past review once already).
+
+Two gaps remain fully untouched: multi-column sort + column
+resize/reorder/show-hide, and cross-page bulk selection (`selectedIds`
+still resets on every page change, confirmed at the round-12 effect).
+Both are larger, more structurally significant gaps than what was just
+closed -- capping the axis at 8 rather than higher.
+
+**Next fix:** code quality has the highest stuck_streak (3 rounds
+unchanged at 7, since round 16's `runBulkAction` extraction). Its
+still-open finding (round 16 judge): the 5 form-section components in
+the Add/Edit modal duplicate label+input markup ~27+ times with no
+shared `FormField`/`LabeledInput` wrapper, and the file is still
+~2,000 lines mixing multiple concerns. Extracting a shared field
+component is the tractable piece of this -- picking it as the next
+fix.
