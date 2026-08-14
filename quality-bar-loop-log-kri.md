@@ -819,3 +819,32 @@ existing id/label/test-selector. Planning a careful, same-file local
 subcomponent extraction (not a new shared file, not a new visual
 design) that preserves every existing id/htmlFor/className exactly, to
 minimize regression risk on this larger-than-usual change.
+
+## Round 17 (code quality, PR #857) -- largest structural change this loop
+
+Extracted `KriFormField` (label+input) and `KriFrequencySelect` (the
+4-option frequency dropdown) as local subcomponents, deduplicating the
+New KRI and Edit KRI modals' repeated field blocks. Every id/className/
+`aria-required`/placeholder kept byte-identical to the prior inline
+JSX. Net -31 lines despite adding two new components. The New KRI
+form's risk `<select>` (with its truncated-name overflow note) stays
+inline -- genuinely unique to that modal, not duplicated.
+
+Given this was the largest structural change in this loop's history on
+this file, dispatched an especially thorough round-1 review (asked
+explicitly for a line-by-line diff of all 11 migrated fields, not just
+a general pass). Came back with zero findings: every id/htmlFor/
+required/type/placeholder/value/onChange semantic verified identical
+old-vs-new for all 11 fields, confirmed the asterisk-rendering
+ternary can't emit a stray "undefined"/"false" text node, confirmed
+both new components are module-scope (not nested inside the parent,
+which would cause remount-on-every-render), confirmed the numeric
+`Number(v)` conversions stayed in each call site's own onChange
+closure rather than leaking into the shared component. All 87
+pre-existing tests pass completely unchanged -- no test file was even
+touched, since this is a pure structural refactor with claimed (and
+now independently verified) zero behavior change. Full QA gate clean
+(typecheck, lint, 2156/2156 test suite). Live-verified end-to-end in
+the dev preview: created a real KRI through every extracted field,
+opened it in Edit KRI and confirmed every field pre-filled correctly,
+deleted it to restore the original seed state.

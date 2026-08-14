@@ -147,6 +147,97 @@ const highestSeverity = (
     "low" as SeverityLevel
   )
 
+// Round 17 (fresh full-panel re-score, code quality finding): the New KRI
+// and Edit KRI modals repeated this exact label+input block 4-6 times each
+// with only the id/value/onChange/type/required differing -- round 6's log
+// entry originally declined to extract this, citing layout divergence and
+// test-selector risk, but a fresh read found the two modals differ only in
+// New KRI's extra risk-select + current_value field, which composition
+// handles fine. Every id/className/aria attribute below is byte-identical
+// to what the two call sites rendered inline before this extraction, so no
+// existing id-based/label-based test selector changes.
+function KriFormField({
+  id,
+  label,
+  required,
+  type,
+  value,
+  onChange,
+  placeholder,
+}: {
+  id: string
+  label: string
+  required?: boolean
+  type?: "number"
+  value: string | number
+  onChange: (value: string) => void
+  placeholder?: string
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="text-xs font-medium text-muted-foreground"
+      >
+        {label}
+        {required && " *"}
+      </label>
+      <input
+        id={id}
+        type={type}
+        required={required}
+        aria-required={required ? "true" : undefined}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+        placeholder={placeholder}
+      />
+    </div>
+  )
+}
+
+// Round 17: the frequency <select> (options, className, structure) was
+// identical between New KRI and Edit KRI, only id/value/onChange differed.
+function KriFrequencySelect({
+  id,
+  value,
+  onChange,
+  t,
+}: {
+  id: string
+  value: string
+  onChange: (value: string) => void
+  t: (key: string) => string
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="text-xs font-medium text-muted-foreground"
+      >
+        {t("organization.kri.form.frequency")}
+      </label>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+      >
+        <option value="daily">{t("organization.kri.frequency.daily")}</option>
+        <option value="weekly">
+          {t("organization.kri.frequency.weekly")}
+        </option>
+        <option value="monthly">
+          {t("organization.kri.frequency.monthly")}
+        </option>
+        <option value="quarterly">
+          {t("organization.kri.frequency.quarterly")}
+        </option>
+      </select>
+    </div>
+  )
+}
+
 export default function KriDashboardPage() {
   const { t, i18n } = useTranslation()
   // aexa-frontend#217
@@ -1033,116 +1124,62 @@ export default function KriDashboardPage() {
             </div>
 
             <div className="space-y-3">
-              <div>
-                <label
-                  htmlFor="kri-edit-name"
-                  className="text-xs font-medium text-muted-foreground"
-                >
-                  {t("organization.kri.form.name")} *
-                </label>
-                <input
-                  id="kri-edit-name"
-                  required
-                  aria-required="true"
-                  value={editForm.name}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  placeholder={t("organization.kri.form.namePlaceholder")}
-                />
-              </div>
+              <KriFormField
+                id="kri-edit-name"
+                label={t("organization.kri.form.name")}
+                required
+                value={editForm.name}
+                onChange={(v) =>
+                  setEditForm((f) => ({ ...f, name: v }))
+                }
+                placeholder={t("organization.kri.form.namePlaceholder")}
+              />
 
-              <div>
-                <label
-                  htmlFor="kri-edit-unit"
-                  className="text-xs font-medium text-muted-foreground"
-                >
-                  {t("organization.kri.form.unit")}
-                </label>
-                <input
-                  id="kri-edit-unit"
-                  value={editForm.unit}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, unit: e.target.value }))
-                  }
-                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  placeholder={t("organization.kri.form.unitPlaceholder")}
-                />
-              </div>
+              <KriFormField
+                id="kri-edit-unit"
+                label={t("organization.kri.form.unit")}
+                value={editForm.unit}
+                onChange={(v) =>
+                  setEditForm((f) => ({ ...f, unit: v }))
+                }
+                placeholder={t("organization.kri.form.unitPlaceholder")}
+              />
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label
-                    htmlFor="kri-edit-alert-threshold"
-                    className="text-xs font-medium text-muted-foreground"
-                  >
-                    {t("organization.kri.form.alertThreshold")}
-                  </label>
-                  <input
-                    id="kri-edit-alert-threshold"
-                    type="number"
-                    value={editForm.alert_threshold}
-                    onChange={(e) =>
-                      setEditForm((f) => ({
-                        ...f,
-                        alert_threshold: Number(e.target.value),
-                      }))
-                    }
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="kri-edit-target"
-                    className="text-xs font-medium text-muted-foreground"
-                  >
-                    {t("organization.kri.form.target")}
-                  </label>
-                  <input
-                    id="kri-edit-target"
-                    type="number"
-                    value={editForm.target_value}
-                    onChange={(e) =>
-                      setEditForm((f) => ({
-                        ...f,
-                        target_value: Number(e.target.value),
-                      }))
-                    }
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  />
-                </div>
+                <KriFormField
+                  id="kri-edit-alert-threshold"
+                  label={t("organization.kri.form.alertThreshold")}
+                  type="number"
+                  value={editForm.alert_threshold}
+                  onChange={(v) =>
+                    setEditForm((f) => ({
+                      ...f,
+                      alert_threshold: Number(v),
+                    }))
+                  }
+                />
+                <KriFormField
+                  id="kri-edit-target"
+                  label={t("organization.kri.form.target")}
+                  type="number"
+                  value={editForm.target_value}
+                  onChange={(v) =>
+                    setEditForm((f) => ({
+                      ...f,
+                      target_value: Number(v),
+                    }))
+                  }
+                />
               </div>
 
-              <div>
-                <label
-                  htmlFor="kri-edit-frequency"
-                  className="text-xs font-medium text-muted-foreground"
-                >
-                  {t("organization.kri.form.frequency")}
-                </label>
-                <select
-                  id="kri-edit-frequency"
-                  value={editForm.frequency}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, frequency: e.target.value }))
-                  }
-                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="daily">
-                    {t("organization.kri.frequency.daily")}
-                  </option>
-                  <option value="weekly">
-                    {t("organization.kri.frequency.weekly")}
-                  </option>
-                  <option value="monthly">
-                    {t("organization.kri.frequency.monthly")}
-                  </option>
-                  <option value="quarterly">
-                    {t("organization.kri.frequency.quarterly")}
-                  </option>
-                </select>
-              </div>
+              <KriFrequencySelect
+                id="kri-edit-frequency"
+                value={editForm.frequency}
+                onChange={(v) =>
+                  setEditForm((f) => ({ ...f, frequency: v }))
+                }
+                t={t}
+              />
             </div>
 
             <div className="mt-5 flex justify-end gap-2">
@@ -1222,25 +1259,14 @@ export default function KriDashboardPage() {
             </div>
 
             <div className="space-y-3">
-              <div>
-                <label
-                  htmlFor="kri-form-name"
-                  className="text-xs font-medium text-muted-foreground"
-                >
-                  {t("organization.kri.form.name")} *
-                </label>
-                <input
-                  id="kri-form-name"
-                  required
-                  aria-required="true"
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  placeholder={t("organization.kri.form.namePlaceholder")}
-                />
-              </div>
+              <KriFormField
+                id="kri-form-name"
+                label={t("organization.kri.form.name")}
+                required
+                value={form.name}
+                onChange={(v) => setForm((f) => ({ ...f, name: v }))}
+                placeholder={t("organization.kri.form.namePlaceholder")}
+              />
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1288,117 +1314,60 @@ export default function KriDashboardPage() {
                     ) : null
                   })()}
                 </div>
-                <div>
-                  <label
-                    htmlFor="kri-form-unit"
-                    className="text-xs font-medium text-muted-foreground"
-                  >
-                    {t("organization.kri.form.unit")}
-                  </label>
-                  <input
-                    id="kri-form-unit"
-                    value={form.unit}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, unit: e.target.value }))
-                    }
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    placeholder={t("organization.kri.form.unitPlaceholder")}
-                  />
-                </div>
+                <KriFormField
+                  id="kri-form-unit"
+                  label={t("organization.kri.form.unit")}
+                  value={form.unit}
+                  onChange={(v) => setForm((f) => ({ ...f, unit: v }))}
+                  placeholder={t("organization.kri.form.unitPlaceholder")}
+                />
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label
-                    htmlFor="kri-form-current-value"
-                    className="text-xs font-medium text-muted-foreground"
-                  >
-                    {t("organization.kri.form.currentValue")}
-                  </label>
-                  <input
-                    id="kri-form-current-value"
-                    type="number"
-                    value={form.current_value}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        current_value: Number(e.target.value),
-                      }))
-                    }
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="kri-form-alert-threshold"
-                    className="text-xs font-medium text-muted-foreground"
-                  >
-                    {t("organization.kri.form.alertThreshold")}
-                  </label>
-                  <input
-                    id="kri-form-alert-threshold"
-                    type="number"
-                    value={form.alert_threshold}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        alert_threshold: Number(e.target.value),
-                      }))
-                    }
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="kri-form-target"
-                    className="text-xs font-medium text-muted-foreground"
-                  >
-                    {t("organization.kri.form.target")}
-                  </label>
-                  <input
-                    id="kri-form-target"
-                    type="number"
-                    value={form.target_value}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        target_value: Number(e.target.value),
-                      }))
-                    }
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  />
-                </div>
+                <KriFormField
+                  id="kri-form-current-value"
+                  label={t("organization.kri.form.currentValue")}
+                  type="number"
+                  value={form.current_value}
+                  onChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      current_value: Number(v),
+                    }))
+                  }
+                />
+                <KriFormField
+                  id="kri-form-alert-threshold"
+                  label={t("organization.kri.form.alertThreshold")}
+                  type="number"
+                  value={form.alert_threshold}
+                  onChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      alert_threshold: Number(v),
+                    }))
+                  }
+                />
+                <KriFormField
+                  id="kri-form-target"
+                  label={t("organization.kri.form.target")}
+                  type="number"
+                  value={form.target_value}
+                  onChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      target_value: Number(v),
+                    }))
+                  }
+                />
               </div>
 
-              <div>
-                <label
-                  htmlFor="kri-form-frequency"
-                  className="text-xs font-medium text-muted-foreground"
-                >
-                  {t("organization.kri.form.frequency")}
-                </label>
-                <select
-                  id="kri-form-frequency"
-                  value={form.frequency}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, frequency: e.target.value }))
-                  }
-                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="daily">
-                    {t("organization.kri.frequency.daily")}
-                  </option>
-                  <option value="weekly">
-                    {t("organization.kri.frequency.weekly")}
-                  </option>
-                  <option value="monthly">
-                    {t("organization.kri.frequency.monthly")}
-                  </option>
-                  <option value="quarterly">
-                    {t("organization.kri.frequency.quarterly")}
-                  </option>
-                </select>
-              </div>
+              <KriFrequencySelect
+                id="kri-form-frequency"
+                value={form.frequency}
+                onChange={(v) => setForm((f) => ({ ...f, frequency: v }))}
+                t={t}
+              />
             </div>
 
             <div className="mt-5 flex justify-end gap-2">
