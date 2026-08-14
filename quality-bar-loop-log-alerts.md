@@ -287,3 +287,30 @@ at/below floor, which per rule 5c.1 takes top priority regardless of
 any axis's stuck_streak. Picking it first: gate mark-read/mark-all-
 read behind `canWriteOrgResource(role)`, same convention every sibling
 org page already uses.
+
+## Round 6 (security re-score after PR #831)
+
+| Axis | Round 5 | Round 6 | Delta |
+|---|---|---|---|
+| Security | 5/10 | **9/10** | +4, no longer below floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 6.89/10.** Up from 6.44. Four axes remain below floor:
+industry-standards (6), accessibility (6), code quality (5), mobile (6).
+
+Gating verified to match the established `canWriteOrgResource`
+convention exactly (same shared helper every sibling page uses), both
+mutation entry points covered, informational "New" badge deliberately
+left visible for VIEWER, 37/37 tests passing. One caveat flagged and
+tracked separately (spawn_task): whether aexa-server's alert mark-read
+endpoint enforces this role check server-side is unverified from this
+repo -- correctly out of scope for a frontend-only judge.
+
+**Next fix:** all four remaining below-floor axes are first-round-
+observed (round 5's fresh baseline), tied on stuck_streak, tie-broken
+by lowest raw score -> code quality (5). Its finding: file-wide
+`@typescript-eslint/no-explicit-any` disable plus 6 `any` casts,
+despite a correctly-typed `Alert` interface already existing and used
+cleanly by a sibling component (CriticalAlertBanner.tsx) reading from
+the same query -- a mechanical, cheap fix already proven to work
+elsewhere in this codebase.

@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   useGetAllAlertsQuery,
   useMarkAlertReadMutation,
 } from "@/redux/apis/organization/alert.api"
+import type { Alert } from "@/types/organization"
 import { getEnumLabel } from "@/utils/enumLabel"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
@@ -100,7 +100,7 @@ export default function AlertsPage() {
   const alerts = useMemo(
     () =>
       severityFilter
-        ? allAlerts.filter((a: any) => a.severity === severityFilter)
+        ? allAlerts.filter((a: Alert) => a.severity === severityFilter)
         : allAlerts,
     [allAlerts, severityFilter]
   )
@@ -115,7 +115,7 @@ export default function AlertsPage() {
     let high = 0
     let medium = 0
     let low = 0
-    for (const a of allAlerts as any[]) {
+    for (const a of allAlerts) {
       if (a.severity === "critical") critical++
       else if (a.severity === "high") high++
       else if (a.severity === "medium") medium++
@@ -134,7 +134,7 @@ export default function AlertsPage() {
   // comment above) -- but that also meant there was no unread count
   // anywhere on the page at all, in a header stat or otherwise.
   const unreadCount = useMemo(
-    () => allAlerts.filter((a: any) => !a.is_read).length,
+    () => allAlerts.filter((a: Alert) => !a.is_read).length,
     [allAlerts]
   )
   // Round-4 review finding: the mark-all-read button's visibility used to
@@ -146,7 +146,7 @@ export default function AlertsPage() {
   // return, with no toast or explanation). Gating visibility on this
   // filtered count instead keeps the button and its action in sync.
   const filteredUnreadCount = useMemo(
-    () => alerts.filter((a: any) => !a.is_read).length,
+    () => alerts.filter((a: Alert) => !a.is_read).length,
     [alerts]
   )
 
@@ -154,8 +154,11 @@ export default function AlertsPage() {
     setMarkingReadIds((prev) => new Set(prev).add(id))
     try {
       await markAlertRead(id).unwrap()
-    } catch (err: any) {
-      toast.error(err?.data?.message || t("organization.alerts.markReadFailed"))
+    } catch (err: unknown) {
+      const message =
+        (err as { data?: { message?: string } })?.data?.message ||
+        t("organization.alerts.markReadFailed")
+      toast.error(message)
     } finally {
       setMarkingReadIds((prev) => {
         const next = new Set(prev)
@@ -167,8 +170,8 @@ export default function AlertsPage() {
 
   const handleMarkAllRead = async () => {
     const unreadIds = alerts
-      .filter((a: any) => !a.is_read)
-      .map((a: any) => a.id as string)
+      .filter((a: Alert) => !a.is_read)
+      .map((a: Alert) => a.id)
     if (unreadIds.length === 0) return
 
     setIsMarkingAllRead(true)
@@ -321,7 +324,7 @@ export default function AlertsPage() {
       {/* Alerts List */}
       <div className="animate-slide-up stagger-2 space-y-3">
         <h2 className="sr-only">{t("organization.alerts.listHeading")}</h2>
-        {alerts.map((alert: any) => (
+        {alerts.map((alert: Alert) => (
           <div
             key={alert.id}
             className={`group rounded-xl border bg-card p-5 transition-all hover:shadow-md ${
