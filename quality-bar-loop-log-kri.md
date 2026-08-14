@@ -945,3 +945,76 @@ No axis below floor. Not yet at the 8.5 target; the state/data-layer
 extraction is the clearest remaining lever if this loop resumes.
 
 18 rounds, 10 PRs (#849-857, #867) shipped and merged this session.
+
+## Round 19 (code quality: useKriData hook extraction, PR #869)
+
+Closed the remaining half of round-18's named gap: extracted the 3
+RTK Query hooks (`useGetAllKriQuery`, `useGetAllRisksQuery`,
+`useGetAllAlertsQuery`), all 4 mutations, and their derived useMemos
+(`kris`/`risks`/`alerts` stable-array wrapping, `risksById`,
+`unreadAlertsByKriId`, the alert/warning/ok summary) into a new
+`useKriData()` hook. `KriDashboardPage.tsx` drops from 887 to 821
+lines and now owns only UI state (modal open/close, form drafts,
+per-action loading flags) and the useMemos genuinely tied to that UI
+state (`trendKri`, `updatingKri`, `trendChartData`, `trendSummary`,
+`statusFilteredKris`). The trend-readings query deliberately stayed
+in the page (skip-gated on `trendKriId`, genuine UI state, not
+page-wide data) -- documented in the hook file's own comment rather
+than silently left out.
+
+All 87 pre-existing tests passed unchanged. Full QA gate clean
+(typecheck, lint, 2171/2171 full suite). Live-verified end-to-end
+against the real backend in a fresh browser tab: created a KRI
+through the full New KRI -> useKriData -> createKri mutation ->
+refetch path (real 200), confirmed via a direct API read it persisted
+correctly, cleaned up via API delete. Round-1 independent review came
+back with zero findings -- confirmed every useMemo/dependency array
+moved verbatim (not just relocated with subtly different deps),
+confirmed the still-inline page-level useMemos (`trendKri`/
+`updatingKri`) keyed on the hook's `kris` retain identical referential
+stability, confirmed the per-card local `alertCount` shadow (inside
+the `.map()` callback) doesn't conflict with the hook-sourced
+page-level `alertCount` used in the summary cards, and confirmed no
+unused imports or dead code left behind.
+
+**Round-19 code-quality re-score: 9/10, up from 8.** Both named halves
+of the original monolith complaint (modal JSX in round 18, data/
+mutation layer in round 19) are now resolved. One small residual
+inefficiency noted (the page hand-rolls its own isSaving/isDeleting
+flags instead of reading each mutation hook's own isLoading) but not
+disqualifying -- "glad to inherit" territory per this round's judge.
+
+19 rounds, 11 PRs (#849-857, #867, #869) shipped and merged this
+session.
+
+## Round 19 fresh full-panel convergence check
+
+Dispatched a genuine fresh 9-axis panel (not a carried-forward
+synthesis) post-round-19:
+
+| Axis | Score |
+|---|---|
+| Industry-standards | 8/10 |
+| UX | 9/10 |
+| Efficiency | 8/10 |
+| Accessibility | 8/10 |
+| Visual polish | 8/10 |
+| Resilience & edge cases | 8/10 |
+| Code quality | 9/10 |
+| Mobile/responsive | 8/10 |
+| Security | 9/10 |
+
+**Average: 8.33/10.** Every axis clears the floor (7) -- guardrail
+satisfied. Below the 8.5 target by 0.17, with six axes tied at 8/10
+and no single standout lever (industry-standards: no bulk actions/KRI
+ownership field; efficiency/accessibility/visual polish/resilience/
+mobile: solid but not exceptional, no fresh findings beyond what 19
+rounds already fixed).
+
+Pausing the KRI loop here as a natural checkpoint: no floor
+violations, real convergence on both structural code-quality gaps
+this session targeted, and the remaining 0.17 gap is spread thin
+across six tied axes rather than concentrated in one clear next round.
+
+19 rounds, 11 PRs (#849-857, #867, #869) shipped and merged this
+session.
