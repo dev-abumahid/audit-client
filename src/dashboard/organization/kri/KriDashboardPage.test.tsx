@@ -1611,6 +1611,29 @@ describe("KriDashboardPage", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     })
 
+    // Round 16 (fresh accessibility re-check finding): the input's
+    // `autoFocus` fired during React's commit, before useModalA11y's own
+    // effect ran -- so that effect captured the input itself (not the
+    // button that opened the modal) as "the trigger to restore focus to on
+    // close." Removed `autoFocus` (useModalA11y's own focusable[0]?.focus()
+    // already overrode where autoFocus put focus anyway, so this changes
+    // nothing about where focus lands on open).
+    it("returns focus to the trigger button when the Update Value modal closes, not the input autoFocus used to steal", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      renderPage()
+
+      const trigger = screen.getByTitle("organization.kri.updateValueTooltip")
+      await userEvent.click(trigger)
+      expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+      await userEvent.keyboard("{Escape}")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      expect(trigger).toHaveFocus()
+    })
+
     it("marks the New KRI modal as a labeled dialog and closes it on Escape", async () => {
       renderPage()
 

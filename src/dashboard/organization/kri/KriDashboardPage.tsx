@@ -955,13 +955,24 @@ export default function KriDashboardPage() {
             >
               {t("organization.kri.form.currentValue")}
             </label>
+            {/* Round 16 (accessibility finding): `autoFocus` here fired
+                during React's commit, before useModalA11y's own effect ran
+                -- so by the time that effect captured
+                `document.activeElement` as "the trigger to restore focus
+                to on close," it captured THIS input instead of the button
+                that actually opened the modal. useModalA11y's own
+                focusable[0]?.focus() already overrides autoFocus's target
+                anyway (focus visibly lands on the close button, not this
+                input), so autoFocus was never doing anything except
+                silently corrupting the trigger-restore ref. Removing it
+                changes nothing about where focus lands on open, only fixes
+                where it lands on close. */}
             <input
               id="kri-update-value-input"
               type="number"
               value={updateValue}
               onChange={(e) => setUpdateValue(e.target.value)}
               className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              autoFocus
             />
             <div className="mt-5 flex justify-end gap-2">
               <button

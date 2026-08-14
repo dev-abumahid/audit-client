@@ -725,3 +725,47 @@ reproducing the exact bug scenario and confirming the fix.
 
 Accessibility's remaining known items: none currently open after this
 round -- re-scoring next to confirm.
+
+## Round 16 re-score + fix (accessibility, PR #855)
+
+3-axis re-score of the axes previously at floor:
+
+| Axis | Prior | Now | Note |
+|---|---|---|---|
+| Industry-standards | 7 | **8** | Cleared floor -- PR #852's fix confirmed working in both EN/FR live; new minor gap found (trend summary + Y-axis tick labels bypass `formatKriNumber`) |
+| Code quality | 7 | 7 | Unchanged -- PR #853's typing/memoization fix is real progress, but the two structural weaknesses (monolithic 1400+ line component, ~90% duplicated New/Edit KRI form JSX) remain the dominant factor; judge explicitly re-evaluated round 6's "don't extract, layout diverges" reasoning and found it doesn't hold up under a fresh read |
+| Accessibility | 7 | 7 | PR #854's mutual-exclusion fix confirmed working live, but a fresh pass found a new WCAG dialog-pattern violation: focus doesn't return to the trigger element on close for what the judge characterized as "4 of 5 modals" |
+
+Investigated the accessibility finding with live `HTMLElement.prototype.focus`
+instrumentation before trusting the judge's scope claim. Root cause:
+the Update Value modal's `<input autoFocus>` fires during React's
+commit phase, before `useModalA11y`'s own effect runs in the passive
+phase to capture `document.activeElement` as "the trigger to restore
+focus to" -- so the hook captured the modal's own input instead of the
+real trigger button. Verified live that New KRI and Edit KRI (neither
+has `autoFocus`) already correctly restore focus with a real
+focus+click sequence -- the judge's broader "4 of 5" claim traced to a
+test-methodology artifact (testing with a bare synthetic `.click()`,
+which doesn't set `document.activeElement` the way a real pointer
+click does), not a real bug in those three modals. Scoped the fix to
+exactly the one broken modal instead of touching the shared
+`useModalA11y` hook itself.
+
+Round-1 review came back with zero findings -- review loop converged
+immediately. Reviewer independently confirmed the React commit-vs-passive-effect
+timing explanation against React internals, confirmed no other
+observable behavior change from removing `autoFocus` (the hook's own
+`focusable[0]?.focus()` already overrides it on the same tick, before
+paint), grepped all 14 `useModalA11y` call sites app-wide and found
+exactly one other `autoFocus` instance (`RiskMultiSelect.tsx` inside
+`AuditPage.tsx`'s modal) but confirmed it's a different, non-buggy
+pattern (mounts well after the modal's own open-transition effect
+already ran, so it can't corrupt the trigger ref). Full QA gate clean
+(typecheck, lint, 2156/2156 test suite), 1 new regression test
+negative-control-verified against pre-fix source (genuinely fails,
+confirming jsdom faithfully reproduces the real browser timing bug),
+live-verified in the dev preview.
+
+Accessibility genuinely fixed this round; not yet re-scored to confirm
+floor-clearing (unlike industry-standards/code-quality, which were
+freshly re-scored before picking this round's fix). Re-scoring next.
