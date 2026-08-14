@@ -1195,6 +1195,7 @@
       "empty": "No compliance obligations found",
       "loading": "Loading obligations…",
       "loadError": "Failed to load obligations. Please try again later.",
+      "sitesLoadError": "Failed to load sites. The site list below may be incomplete.",
       "deleteConfirm": "Delete this compliance obligation?",
       "editObligation": "Edit obligation",
       "deleteObligation": "Delete obligation",
@@ -1261,6 +1262,7 @@
         "historyModalTitle": "Attestation History — {{title}}",
         "historyModalClose": "Close attestation history",
         "historyEmpty": "No attestations recorded yet",
+        "historyLoadError": "Failed to load attestation history. Please try again later.",
         "attestedByLabel": "Attested by: {{accountId}}"
       },
       "form": {

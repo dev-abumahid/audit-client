@@ -5,7 +5,7 @@ import { formatLocaleDate } from "@/utils/formatDate"
 import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
 import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { severityBadgeClasses } from "@/utils/severityStyles"
-import type { LineOfDefense } from "@/types/organization"
+import { LINE_OF_DEFENSE_LABEL_KEY as LINE_OF_DEFENSE_KEY } from "@/utils/lineOfDefense"
 import {
   AlertCircle,
   Bot,
@@ -33,12 +33,6 @@ import RiskOverrideBadge from "./RiskOverrideBadge"
 // what #529 asked for. Approval actions ARE included (via the existing
 // RiskApprovalControls, unchanged) since those are a single self-contained
 // component, not a form to duplicate.
-const LINE_OF_DEFENSE_KEY: Record<LineOfDefense, string> = {
-  FIRST: "organization.threeLinesOfDefense.lines.first",
-  SECOND: "organization.threeLinesOfDefense.lines.second",
-  THIRD: "organization.threeLinesOfDefense.lines.third",
-  GOVERNING_BODY: "organization.threeLinesOfDefense.lines.governingBody",
-}
 
 // Round-1 review finding: velocity/trend/status were rendered as raw
 // backend enum values instead of going through the same translated labels

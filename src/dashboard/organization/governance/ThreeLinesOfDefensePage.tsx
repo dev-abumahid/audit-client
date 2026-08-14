@@ -34,6 +34,7 @@ import {
   FINDING_PRIORITY_LABEL_KEYS,
   FINDING_STATUS_LABEL_KEYS,
 } from "@/utils/findingLabels"
+import { LINE_OF_DEFENSE_LABEL_KEY as LINE_TITLE_KEY } from "@/utils/lineOfDefense"
 import { riskCategoryLabel } from "@/utils/riskConfig"
 import { SEVERITY_STYLES, type SeverityLevel } from "@/utils/severityStyles"
 import {
@@ -132,13 +133,6 @@ type EntityKind = "risk" | "action" | "kri" | "compliance" | "audit"
 // 2020 update's headline structural addition, an explicit governing body
 // sitting above the three lines.
 const LINES: LineOfDefense[] = ["FIRST", "SECOND", "THIRD", "GOVERNING_BODY"]
-
-const LINE_TITLE_KEY: Record<LineOfDefense, string> = {
-  FIRST: "organization.threeLinesOfDefense.lines.first",
-  SECOND: "organization.threeLinesOfDefense.lines.second",
-  THIRD: "organization.threeLinesOfDefense.lines.third",
-  GOVERNING_BODY: "organization.threeLinesOfDefense.lines.governingBody",
-}
 
 const MOVE_TO_KEY: Record<LineOfDefense, string> = {
   FIRST: "organization.threeLinesOfDefense.moveToFirst",

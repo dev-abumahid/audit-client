@@ -1320,7 +1320,7 @@ describe("CompliancePage", () => {
       expect(submitted.recurrence).toBe("annual")
     })
 
-    it("sends null recurrence for the default one-time option", async () => {
+    it("sends undefined recurrence for the default one-time option", async () => {
       const user = userEvent.setup()
       mockUseGetAllComplianceQuery.mockReturnValue({
         data: { data: [] },
@@ -1346,8 +1346,13 @@ describe("CompliancePage", () => {
 
       await waitFor(() => expect(mockCreateCompliance).toHaveBeenCalled())
       const submitted = mockCreateCompliance.mock.calls[0][0]
-      expect(submitted.recurrence).toBeNull()
-      expect(submitted.regulation_reference).toBeNull()
+      // Round 4 (industry-standards finding): the backend's zod schema
+      // types these as `z.string().optional()` (string | undefined), not
+      // string | null -- sending null failed validation with "expected
+      // string, received null", breaking the minimal-field (Title only)
+      // create path. Confirmed against compliance.validation.ts.
+      expect(submitted.recurrence).toBeUndefined()
+      expect(submitted.regulation_reference).toBeUndefined()
     })
 
     it("pre-fills regulation_reference and recurrence on edit, and shows next_review_date read-only", async () => {
@@ -1385,6 +1390,59 @@ describe("CompliancePage", () => {
       expect(
         screen.getByText(/organization\.compliance\.form\.nextReview/)
       ).toBeInTheDocument()
+    })
+
+    // Round-1 review of PR #859: the fix for CREATE's null-vs-undefined
+    // 400 (below) must NOT be applied to UPDATE too -- fetchBaseQuery's
+    // JSON.stringify drops `undefined` keys entirely, and Prisma treats an
+    // absent key as "leave this column unchanged," not "clear it." Clearing
+    // a previously-set field via edit must still send an explicit `null`,
+    // matching the backend's only currently-supported "clear a value on
+    // update" mechanism (the same one site_id already relies on).
+    it("sends explicit null (not undefined) when clearing a previously-set regulation_reference/recurrence on edit", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              regulation_reference: "GDPR Art. 30(1)",
+              recurrence: "annual",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockUpdateCompliance.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      renderPage()
+
+      const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+      await user.click(
+        within(row).getByText("organization.compliance.editObligation")
+      )
+
+      const regInput = screen
+        .getByText("organization.compliance.form.regulationReference")
+        .parentElement!.querySelector("input")!
+      await user.clear(regInput)
+
+      const recurrenceSelect = screen
+        .getByText("organization.compliance.form.recurrence")
+        .parentElement!.querySelector("select")!
+      await user.selectOptions(recurrenceSelect, "")
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.form.update",
+        })
+      )
+
+      await waitFor(() => expect(mockUpdateCompliance).toHaveBeenCalled())
+      const submitted = mockUpdateCompliance.mock.calls[0][0].data
+      expect(submitted.regulation_reference).toBeNull()
+      expect(submitted.recurrence).toBeNull()
     })
 
     // Round-3 industry-standards finding: line_of_defense was already
@@ -1712,6 +1770,38 @@ describe("CompliancePage", () => {
       ).toBeInTheDocument()
     })
 
+    // Round 4 (code quality finding): isError was previously discarded on
+    // this query, so a fetch failure fell through to the same "no
+    // attestations yet" empty state a genuinely never-attested obligation
+    // renders, indistinguishable from a real outage.
+    it("shows a distinct error message, not the empty state, when the attestation history fetch fails", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockUseGetComplianceAttestationsQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      })
+
+      renderPage()
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.attest.historyButton",
+        })
+      )
+
+      expect(
+        screen.getByText("organization.compliance.attest.historyLoadError")
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.compliance.attest.historyEmpty")
+      ).not.toBeInTheDocument()
+    })
+
     // aexa-frontend round-4 audit bug #333: entry.attested_by was never
     // rendered despite a comment claiming it was shown as-is.
     it("renders the attester's raw accountId for each history entry", async () => {
@@ -1879,6 +1969,64 @@ describe("CompliancePage", () => {
         screen.queryByRole("button", {
           name: "organization.compliance.attest.confirmButton",
         })
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  // Round 4 (code quality finding): isError was previously discarded on
+  // useGetAllSitesQuery, so a fetch failure fell through to the same empty
+  // site select a genuinely site-less org shows, indistinguishable from a
+  // real outage.
+  describe("sites query resilience (round 4)", () => {
+    it("shows a non-blocking error message under the site select when the sites fetch fails", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      mockUseGetAllSitesQuery.mockReturnValue({
+        data: undefined,
+        isError: true,
+      })
+
+      renderPage()
+
+      await user.click(
+        screen.getByRole("button", {
+          name: /organization\.compliance\.newObligation/i,
+        })
+      )
+
+      expect(
+        screen.getByText("organization.compliance.sitesLoadError")
+      ).toBeInTheDocument()
+      // Non-blocking: the form itself (and its site select) still renders.
+      expect(
+        screen.getByText("organization.compliance.form.orgWide")
+      ).toBeInTheDocument()
+    })
+
+    it("does not show the sites error message when the fetch succeeds", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      mockUseGetAllSitesQuery.mockReturnValue({
+        data: { data: [{ id: "site-1", name: "Casablanca HQ" }] },
+        isError: false,
+      })
+
+      renderPage()
+
+      await user.click(
+        screen.getByRole("button", {
+          name: /organization\.compliance\.newObligation/i,
+        })
+      )
+
+      expect(
+        screen.queryByText("organization.compliance.sitesLoadError")
       ).not.toBeInTheDocument()
     })
   })

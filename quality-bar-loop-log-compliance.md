@@ -202,3 +202,67 @@ are still real design/refactor-scoped work, not addressed this round.
 shared-backend rate-limit exhaustion documented in the Threat
 Intelligence and KRI Dashboard rounds above. Relied on the unit tests
 (with a genuine negative control) instead.
+
+## Round 4 re-score + fix (PR #859, #775 was merged despite the log's
+   "PR TBD" placeholder above)
+
+Re-scored the two below-floor axes before picking this round's fix.
+**Industry-standards: 6/10, unchanged.** Round 3's `line_of_defense`
+fix confirmed live and working end-to-end, but the judge found a new,
+comparably severe gap: creating an obligation with only the required
+Title field failed with a 400 (empty `regulation_reference`/
+`recurrence` sent as `null`, but the backend's zod schema types both
+`z.string().optional()` -- `string | undefined`, confirmed against
+`compliance.validation.ts`). **Code quality: 5/10, an actual
+regression from 6.** Round 3's PR grew the monolith to 1527 lines (up
+from 1449) and added a 4th byte-for-byte duplicate of a mapping
+already independently defined in `RiskDetails.tsx` and
+`ThreeLinesOfDefensePage.tsx`, despite a comment claiming it "reused"
+`RiskDetails.tsx`'s version -- nothing was actually imported. The 3
+duplicated request/toast patterns and missing `isError` on
+`useGetAllSitesQuery`/`useGetComplianceAttestationsQuery` also
+persisted unaddressed.
+
+Shipped three fixes in PR #859:
+1. Fixed the broken minimal-field create (send `undefined`, not
+   `null`, for empty `regulation_reference`/`recurrence` on CREATE).
+2. Extracted the 3-way-duplicated mapping into
+   `src/utils/lineOfDefense.ts` (`LINE_OF_DEFENSE_LABEL_KEY`), each
+   call site importing it aliased back to its own original local name
+   so no downstream usage changed.
+3. Added the missing `isError` handling on both queries, with a
+   non-blocking banner and a distinct error message (not the
+   empty-state message).
+
+**Round-1 review caught a real regression in fix #1**: applying the
+`undefined` fix to the UPDATE path too would have silently broken
+*clearing* a previously-set field -- `fetchBaseQuery`'s
+`JSON.stringify` drops `undefined` keys, and Prisma treats an absent
+key as "leave unchanged," not "clear." Unlike `site_id` (which
+`update_compliance`'s schema explicitly overrides to accept an
+explicit `null`-clears-the-column value), `regulation_reference`/
+`recurrence` have no such override on UPDATE -- sending `undefined`
+there would have turned a loud 400 into a silent no-op-but-reports-
+success regression, worse than the original bug. Fixed same-round:
+restored `null` specifically on the UPDATE payload, left CREATE's
+`undefined` fix untouched. Round-2 review (scoped to that fix) came
+back with zero findings -- confirmed the spread-then-override object
+literal semantics are correct, the CREATE path wasn't
+re-broken, and the new regression test genuinely exercises a
+user clearing a previously non-empty value via the real UPDATE branch
+(not just a blank fresh-form field).
+
+6 new/updated regression tests total, all negative-control-verified.
+Full QA gate clean (typecheck, lint, 2160/2160 test suite).
+Live-verified the CREATE fix end-to-end against the real backend
+(previously a 400, now succeeds); the UPDATE-clearing fix relied on
+the negative-control-verified unit test plus the backend schema
+reading instead, after repeated flaky Radix dropdown-menu interaction
+in the automated browser session blocked a live click-through
+verification of that specific sub-path.
+
+Remaining open: industry-standards' bigger items (edit-history/
+versioning, structured framework taxonomy, approval routing) and code
+quality's two bigger items (1527-line monolith split, 3x duplicated
+request/toast pattern) are both still real design/refactor-scoped
+work for a future round.

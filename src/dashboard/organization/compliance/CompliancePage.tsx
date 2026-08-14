@@ -30,6 +30,7 @@ import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { COMPLIANCE_DOMAINS } from "@/utils/complianceConfig"
 import { formatLocaleDate } from "@/utils/formatDate"
+import { LINE_OF_DEFENSE_LABEL_KEY as LINE_OF_DEFENSE_KEY } from "@/utils/lineOfDefense"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import {
   AlertTriangle,
@@ -117,16 +118,6 @@ const EMPTY_FORM = {
   line_of_defense: "SECOND" as LineOfDefense,
 }
 
-// Same mapping/i18n namespace as RiskDetails.tsx's own line_of_defense
-// display, reused rather than re-invented -- one shared vocabulary for
-// this org-wide concept (Issue #97) instead of a second, page-local one.
-const LINE_OF_DEFENSE_KEY: Record<LineOfDefense, string> = {
-  FIRST: "organization.threeLinesOfDefense.lines.first",
-  SECOND: "organization.threeLinesOfDefense.lines.second",
-  THIRD: "organization.threeLinesOfDefense.lines.third",
-  GOVERNING_BODY: "organization.threeLinesOfDefense.lines.governingBody",
-}
-
 export default function CompliancePage() {
   const { t, i18n } = useTranslation()
   // aexa-frontend#217
@@ -167,7 +158,12 @@ export default function CompliancePage() {
   // yet" (a genuinely empty org), with zero visual distinction.
   const { data: scorecardData, isError: scorecardError } =
     useGetComplianceScorecardQuery()
-  const { data: sitesData } = useGetAllSitesQuery({
+  // Round 4 (code quality finding): this query's own isError was
+  // discarded, same false-all-clear pattern the comment above already
+  // documents for scorecardError -- a fetch failure here previously fell
+  // through to the same `?? []` empty-array fallback the site select uses
+  // for a genuinely site-less org, with zero visual distinction.
+  const { data: sitesData, isError: sitesError } = useGetAllSitesQuery({
     page: 1,
     limit: 100,
     searchTerm: "",
@@ -262,11 +258,18 @@ export default function CompliancePage() {
   // Only fetched while the history modal is actually open for a given
   // obligation (skip otherwise), same idle-until-opened convention as the
   // reused CreateNewFindingModal below.
-  const { data: attestationsData, isLoading: isLoadingAttestations } =
-    useGetComplianceAttestationsQuery(
-      { id: historyObligation?.id ?? "", page: 1, limit: 20 },
-      { skip: !historyObligation }
-    )
+  // Round 4 (code quality finding): isError was previously discarded here
+  // too -- a fetch failure fell through to the same "no history yet" empty
+  // state a genuinely never-attested obligation renders, indistinguishable
+  // from a real outage.
+  const {
+    data: attestationsData,
+    isLoading: isLoadingAttestations,
+    isError: attestationsError,
+  } = useGetComplianceAttestationsQuery(
+    { id: historyObligation?.id ?? "", page: 1, limit: 20 },
+    { skip: !historyObligation }
+  )
 
   // Changing any filter resets to page 1 so the user never lands on an
   // out-of-range page for the newly-filtered result set.
@@ -365,8 +368,16 @@ export default function CompliancePage() {
       owner: form.owner,
       due_date: form.due_date || null,
       attachments: form.attachments,
-      regulation_reference: form.regulation_reference || null,
-      recurrence: form.recurrence || null,
+      // Round 4 (industry-standards finding): unlike site_id above (a real
+      // FK column, where NULL is the correct "no site" value), the CREATE
+      // schema types these as `z.string().optional()` -- `string |
+      // undefined`, not `string | null`. Sending `null` for an empty field
+      // failed validation with "expected string, received null", breaking
+      // the minimal-field create path (Title only) any reference
+      // obligation-tracker supports. `undefined` here is safe specifically
+      // because CREATE has no existing value that could need clearing.
+      regulation_reference: form.regulation_reference || undefined,
+      recurrence: form.recurrence || undefined,
       line_of_defense: form.line_of_defense,
     }
 
@@ -375,9 +386,28 @@ export default function CompliancePage() {
       if (editingId) {
         res = await updateCompliance({
           id: editingId,
-          // Mark as human-edited so the SourceBadge reflects the change,
-          // matching the prior local-state behaviour.
-          data: { ...payload, is_edited: true },
+          data: {
+            ...payload,
+            // Round-1 review of PR #859: `undefined` above is wrong for
+            // UPDATE specifically -- RTK Query's fetchBaseQuery
+            // JSON.stringifies the body, which drops `undefined` keys
+            // entirely, and Prisma treats an absent key as "leave this
+            // column unchanged," not "clear it." Unlike site_id (which the
+            // backend's update_compliance schema explicitly overrides to
+            // accept an explicit null-clears-the-column value, see
+            // compliance.validation.ts), regulation_reference/recurrence
+            // have no such override -- there is currently no way to
+            // explicitly clear either field via this endpoint. Restoring
+            // the pre-fix `null` here on UPDATE only keeps that limitation
+            // exactly as it already was (a loud 400 if you try to clear
+            // one) rather than turning it into this round's silent
+            // no-op-but-reports-success regression.
+            regulation_reference: form.regulation_reference || null,
+            recurrence: form.recurrence || null,
+            // Mark as human-edited so the SourceBadge reflects the change,
+            // matching the prior local-state behaviour.
+            is_edited: true,
+          },
         }).unwrap()
       } else {
         res = await createCompliance(payload).unwrap()
@@ -1095,6 +1125,11 @@ export default function CompliancePage() {
                       </option>
                     ))}
                   </select>
+                  {sitesError && (
+                    <p role="alert" className="mt-1 text-[11px] text-destructive">
+                      {t("organization.compliance.sitesLoadError")}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1468,7 +1503,14 @@ export default function CompliancePage() {
               </div>
             )}
 
+            {!isLoadingAttestations && attestationsError && (
+              <p role="alert" className="py-8 text-center text-sm text-destructive">
+                {t("organization.compliance.attest.historyLoadError")}
+              </p>
+            )}
+
             {!isLoadingAttestations &&
+              !attestationsError &&
               (attestationsData?.data?.length ?? 0) === 0 && (
                 <p className="py-8 text-center text-sm text-muted-foreground">
                   {t("organization.compliance.attest.historyEmpty")}
