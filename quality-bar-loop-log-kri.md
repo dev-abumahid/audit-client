@@ -648,3 +648,44 @@ actually reads per `src/i18n/i18n.ts`'s `lookupLocalStorage` config --
 worth remembering for future live-verification of language-dependent
 features). Seed data and language preference restored after each
 verification.
+
+## Round 14 (code quality, PR #853)
+
+Selected code quality over accessibility despite accessibility having
+the more severe remaining item (modal mutual-exclusion/focus-trap
+escape, found in round 11's re-check): code quality has sat unfixed at
+its floor score since round 7, several rounds longer than
+accessibility's fresh round 9/11/12 attention, and this round's fix
+needed no product/design input -- a genuine mechanical fix, unlike
+accessibility's item 2 (which touches the shared `useModalA11y` hook
+used across the whole app and needs its own wider-blast-radius round)
+or code quality's own bigger remaining items (component decomposition,
+New/Edit KRI form duplication, deliberately deferred per round 6's
+reasoning).
+
+Replaced `any` typing with the real `KRI`/`Risk` types (already
+imported and correctly used a few lines away) at all 5 flagged sites:
+`openUpdateValue`, `trendKri`/`updatingKri` lookups, the KRI card map,
+and the New KRI form's risk select/lookup. The file-level
+`eslint-disable @typescript-eslint/no-explicit-any` stays -- still
+needed for the 4 remaining `catch (err: any)` blocks. Also memoized
+`trendKri`/`updatingKri` while touching these exact lines, folding in
+this round's own efficiency judge's minor finding on the same code.
+
+Round-1 review came back with zero findings -- review loop converged
+immediately. Reviewer independently verified against `src/types/
+organization.d.ts` that every accessed property is a required
+(non-optional) field on the real types, confirmed `statusFilteredKris.
+map`'s change was purely cosmetic (the array was already `KRI[]`-typed
+upstream), and confirmed the new `useMemo` deps can't produce stale
+data (RTK Query always returns a fresh `kris` reference on any
+cache-invalidating mutation). Full QA gate clean (typecheck, lint,
+2152/2152 test suite). No new test needed -- pure type-annotation +
+memoization change with identical runtime behavior, already covered by
+the file's 83 existing tests. Live-verified in the dev preview: New
+KRI modal's risk select renders all real risks and resolves the
+truncated-name overflow lookup correctly.
+
+Code quality's remaining items (component decomposition, form
+duplication) and accessibility's remaining item (modal
+mutual-exclusion) are both left open for future rounds.
