@@ -438,3 +438,45 @@ round to confirm where the axis lands. Two of its three known gaps
 (structured framework taxonomy, approval routing) remain open,
 larger design/feature work for a future round if the axis still
 isn't at target after re-scoring this fix.
+
+## Round 8 (re-score + full-panel status check, no fix)
+
+Re-scored industry-standards fresh post-round-7: **7/10, up from 6,
+clears the floor** -- confirmed live (edit-history tab is real, wired
+to a real paginated backend endpoint, full en/fr i18n parity) that
+gap #1 (no edit-history) is genuinely closed; gaps #2 (structured
+regulatory-framework taxonomy) and #3 (approval/review routing)
+remain open and keep the axis below where a mature reference tool
+(OneTrust/Vanta/Drata) would sit.
+
+Full current 9-axis picture (industry-standards/code-quality freshly
+re-scored this round and round 7; UX/efficiency/accessibility/visual/
+resilience/security carried forward from round 1's baseline as
+untouched since; mobile from round 2's confirmed fix, no formal
+re-score logged):
+
+| Axis | Score | Basis |
+|---|---|---|
+| Industry-standards | 7/10 | round-8 re-score |
+| UX | 7/10 | round-1 baseline, untouched |
+| Efficiency | 7/10 | round-1 baseline, untouched |
+| Accessibility | 8/10 | round-1 baseline, untouched |
+| Visual polish | 8/10 | round-1 baseline, untouched |
+| Resilience & edge cases | 8/10 | round-1 baseline, untouched |
+| Code quality | 7/10 | round-7 re-score |
+| Mobile/responsive | 8/10 (est.) | round-2 fix, no formal re-score |
+| Security | 8/10 | round-1 baseline, untouched |
+
+**Average: 7.56/10** (68/9). No axis below floor (7) for the first
+time this loop -- the guardrail's below-floor hard-stop no longer
+applies. Still ~0.94 below the 8.5 target, driven by UX/efficiency
+sitting at exactly floor with no round yet spent on either, and
+industry-standards' two remaining open gaps.
+
+Pausing Compliance here to prioritize KRI Dashboard (session task
+#18), which was already at 8.0-8.1 average with zero floor
+violations before this round -- meaningfully closer to target with
+one well-understood next step (the same component/hook-decomposition
+pattern just proven twice on this page). Returning to Compliance's
+remaining UX/efficiency work (untouched since round 1) or
+industry-standards' two open gaps is the natural next round here.
