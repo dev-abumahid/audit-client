@@ -588,3 +588,51 @@ Not yet confirmed converged without a fresh full panel. Code quality
 (7, the 1145-line file) and industry-standards (7, the two larger
 feature gaps: structured framework taxonomy, approval routing) are
 the remaining below-8 axes.
+
+## Round 11 (code quality: useComplianceData hook extraction, PR #884)
+
+Closed code quality's last named gap: the 3 RTK Query hooks + 4
+mutations + their derived useMemos (obligations/sites array
+derivation) still inline in CompliancePage.tsx after round 6's modal
+decomposition. Extracted into `useComplianceData.ts`, following the
+exact same pattern already used and scored 9/10 on KRI Dashboard's
+`useKriData` earlier this session -- the hook takes filter/pagination
+args from the page rather than owning that UI state itself.
+`useGetComplianceAttestationsQuery`/`useGetComplianceEditHistoryQuery`
+deliberately stayed in the page (skip-gated on which history modal is
+open, genuinely UI-state-dependent), same boundary decision
+`useKriData` made for KRI's own skip-gated trend-readings query.
+
+File drops from 1197 to 1160 lines. All 77 pre-existing tests passed
+unchanged. Full QA gate clean (typecheck, lint, 2184/2184 full
+suite). Live-verified in a fresh browser tab: created and cleaned up
+a real obligation through the full New Obligation ->
+useComplianceData -> createCompliance mutation -> refetch path (real
+200). Round-1 independent review came back clean -- verified args
+threading (same PAGE_SIZE/`|| undefined` fallbacks), confirmed the
+skip-gate boundary decision, confirmed zero stragglers/stale
+references.
+
+**Round-11 code-quality re-score: 8/10, up from 7.** The judge noted
+the remaining line count (1197->1160, a smaller drop than the
+data-layer extraction alone would suggest) is real feature scope --
+two tables (site x domain matrix + obligations table) vs. KRI's one,
+plus documented sibling-modal focus-restoration logic -- not
+leftover data-layer debt of the same class just closed. A NEW,
+not-previously-flagged opportunity was named: extracting the
+~230-line obligation-row JSX and ~85-line matrix table into their own
+components, the same way round 6 extracted the modals. Noted as a
+legitimate candidate for a future round, not a reopening of this
+round's closed finding.
+
+11 rounds, 8 code-changing PRs (#859, #862, #863,
+aexa-server#327, #864, #880, #882, #884) shipped and merged this
+session's Compliance work (plus several docs-only log PRs).
+
+**Current picture** (industry-standards 7, UX 9, efficiency 9,
+accessibility 8, visual polish 8, resilience 9, code quality 8,
+mobile 8, security 8 -- carrying round 9's panel forward with UX/
+efficiency/code-quality's fresh re-scores substituted in): rough
+average ~8.22/10. Industry-standards (7, the two larger feature gaps:
+structured framework taxonomy, approval routing) is now the sole
+sub-8 axis. Not yet confirmed converged without a fresh full panel.
