@@ -519,3 +519,132 @@ aria-required: "true"`; `kri-form-unit` correctly `required: false`).
 Item 2 (focus order in the Update Value modal fighting `autoFocus`,
 via the shared `useModalA11y` hook) remains open for a future round
 scoped to that hook's app-wide blast radius.
+
+## Round 13 (fresh full-panel re-score after PRs #849-851)
+
+First full 9-judge panel dispatch since round 7-8's individual axis
+re-scores. Results:
+
+| Axis | Score | vs. last dedicated score |
+|---|---|---|
+| Industry-standards | 7 | unchanged (several rounds ago) |
+| UX | 9 | unchanged (round 9) |
+| Efficiency | 8 | unchanged (round 3-ish) |
+| Accessibility | **7** | unchanged (round 11) |
+| Visual polish | 8 | unchanged |
+| Resilience | 8 | down from round 8's fixes context, still above floor |
+| Code quality | **7** | unchanged (round 7) |
+| Mobile | 8 | unchanged (round 2) |
+| Security | 9 | unchanged (round 6) |
+
+**Average: 7.89/10** (71/9). **No axis below floor.** Not converged
+(target 8.5). Three axes tied at floor: industry-standards,
+accessibility, code quality.
+
+**stuck_streak read-back:** industry-standards and code quality have
+sat at 7 unchanged and untouched by any fix-round since round 5-7 --
+every intervening round (8-12) carried them forward without a single
+fix targeting either axis, while accessibility has had THREE dedicated
+fix-rounds in that same window (9, 11, 12) and just keeps surfacing
+fresh gaps as fast as old ones close. Industry-standards and
+code-quality's streaks are meaningfully longer than accessibility's.
+
+**Selection: industry-standards.** Tied with code-quality on raw score
+and streak length, but roster order (industry-standards is judge #1,
+code-quality is #7) breaks the tie per rule 5c.2. Critically, this
+round's industry-standards judge surfaced something new and different
+from the two previously-deferred product-decision items
+(threshold-direction config, export): **no thousands-grouping on
+numeric values** (`Number(kri.current_value)` etc. render "15000" not
+"15,000"), inconsistent with this file's own `formatLocaleDate`
+discipline already applied to dates. This is genuinely mechanical, not
+a product decision -- the first concrete, undeferred industry-standards
+item in a long time. Picking it for round 13's fix.
+
+Other findings from this round, queued for later rounds (not selected
+this round -- lower stuck_streak or already above floor):
+- Accessibility (still open, new + higher-severity this round): New
+  KRI / Edit KRI / Update Value modals have no mutual-exclusion guard
+  -- two `useModalA11y` dialogs can mount simultaneously
+  (deterministically reproduced), and with two Tab-traps active,
+  keyboard focus can escape both into the background page entirely.
+  This is a real architectural gap in the shared `useModalA11y` hook's
+  usage on this page, not a one-line fix -- needs its own scoped round.
+  Also still open: Update Value modal's `autoFocus` fighting the
+  hook's own forced initial focus.
+- Code quality (still open): component is 1495 lines doing everything
+  in one function (4 RTK Query hooks, 4 mutations, 13 useState, 9
+  useMemo, 5 modals); `any` typing still scattered in ~5 spots despite
+  real `KRI`/`Risk` types being imported and used elsewhere; New KRI
+  and Edit KRI modals remain ~90% duplicated JSX (previously and
+  deliberately not extracted, per round 6's log entry, due to layout
+  divergence and test-selector risk -- still a reasonable call, but
+  the duplication itself is real).
+- Efficiency (above floor, minor): `trendKri`/`updatingKri`
+  (`kris.find(...)`) and the New KRI modal's risk-name-overflow lookup
+  are unmemoized, re-scanning on every unrelated keystroke -- same bug
+  class this file has fixed multiple times, low severity at seeded
+  scale.
+- Resilience (above floor, minor): every numeric field render
+  (`Number(kri.current_value)` etc., ~5 call sites) has no NaN/null
+  guard -- malformed backend data would silently print literal "NaN".
+- Mobile (above floor, minor): New/Edit KRI form inputs measure 36px
+  tall, below the 44px guideline round 2 established for icon buttons
+  but never applied to form fields; `title`-attribute truncation
+  fallbacks (rounds 10-11) aren't reliably reachable via mobile
+  tap-and-hold.
+- Visual polish (above floor, minor): trend chart's threshold/target
+  `ReferenceLine` labels render directly on top of their own dashed
+  lines with no offset, in both themes.
+
+## Round 13 fix (thousands-grouping, PR #852)
+
+Added a shared `formatKriNumber()` helper and applied it at the 5
+display sites (card current-value, card threshold/target footer,
+update-value modal context). Chart `ReferenceLine y=` coordinates
+(numeric, not text) left untouched.
+
+Three real rounds of review, each catching something genuine (not
+stagnation -- each round fixed a distinct issue and converged):
+
+1. **Round-1 review**: no blocking issues, but flagged
+   `.toLocaleString(undefined, ...)`'s runtime-default locale as a
+   latent test-flakiness risk (current CI happens not to trigger it,
+   but a differently-configured environment could).
+2. **User-reported live bug** (screenshot, mid-review): a real KRI
+   with a 10-digit value -- now wider still with comma separators --
+   had nowhere to go but into the action-button row, shrinking the
+   44px touch targets round 2 established well below guideline. Fixed
+   by wrapping the value+unit in a `min-w-0 flex-1 truncate` container
+   (title fallback, same pattern as `kri.name`) and pinning all 4
+   buttons to `shrink-0`. First fix attempt for round-1's flakiness
+   concern also landed here: pinned to `"en-US"` explicitly.
+3. **Round-2 review** (of the combined fix above): the `"en-US"` pin
+   was itself wrong -- it would show a French-language user
+   English-convention grouping right next to dates already correctly
+   rendered in French via this file's own
+   `formatLocaleDate(date, i18n.language, ...)`. Fixed by threading
+   `i18n.language` through `formatKriNumber` and mirroring
+   `formatLocaleDate`'s exact `language?.startsWith("fr") ? "fr-FR" :
+   "en-US"` resolution -- this also fully closes round 1's original
+   flakiness concern, since the locale is now a deterministic function
+   of `i18n.language` rather than an ambient runtime default.
+4. **Round-3 review**: zero findings, all 6 call sites correctly
+   updated, locale ternary verified character-for-character identical
+   to `formatLocaleDate`'s, no ICU/CI flakiness risk (Node 22 ships
+   full ICU by default). Review loop converged.
+
+6 new regression tests total (thousands grouping x2, fractional
+precision, update-value modal context, large-value touch-target
+protection, French-locale formatting). All negative-control-verified
+against pre-fix source. Full QA gate clean throughout (typecheck,
+lint, 2152/2152 test suite). Live-verified in the dev preview at every
+stage, including reproducing the user's exact reported value
+(1,241,153,215 -- confirmed all 4 buttons hold 44x44px, value
+truncates with a full-value title) and French-locale output (`i18n`'s
+`aexa-lang` localStorage key set directly, since the app's persisted
+language store, not `i18nextLng`, is what `i18next-browser-languagedetector`
+actually reads per `src/i18n/i18n.ts`'s `lookupLocalStorage` config --
+worth remembering for future live-verification of language-dependent
+features). Seed data and language preference restored after each
+verification.

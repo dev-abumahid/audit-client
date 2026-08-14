@@ -1468,6 +1468,128 @@ describe("KriDashboardPage", () => {
     })
   })
 
+  // Round 13 (fresh full-panel re-score, industry-standards finding): every
+  // numeric readout rendered bare Number(...) with no thousands grouping,
+  // e.g. "15000" instead of "15,000" -- inconsistent with this file's own
+  // formatLocaleDate discipline already applied to dates.
+  describe("numeric formatting (round 13)", () => {
+    it("renders the current value with thousands grouping", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ current_value: 15000 })] },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(screen.getByText("15,000")).toBeInTheDocument()
+      expect(screen.queryByText("15000")).not.toBeInTheDocument()
+    })
+
+    it("renders the threshold and target with thousands grouping", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: {
+          data: [
+            makeKri({ alert_threshold: 250000, target_value: 1500 }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(screen.getByText("250,000")).toBeInTheDocument()
+      expect(screen.getByText("1,500")).toBeInTheDocument()
+    })
+
+    it("preserves a fractional value's precision instead of rounding it off", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ current_value: 12345.6789 })] },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(screen.getByText("12,345.6789")).toBeInTheDocument()
+    })
+
+    // Round-2 review of PR #852: an earlier version of this fix hardcoded
+    // "en-US" unconditionally, which would show a French-language user
+    // English-convention grouping right next to dates already correctly
+    // rendered in French via this file's own formatLocaleDate(i18n.language)
+    // call. Mirrors the "formats trend chart dates using the French locale"
+    // test above -- computing the expected string via the same
+    // toLocaleString call (rather than hardcoding the French group
+    // separator, a narrow no-break space distinct from a plain space)
+    // keeps this test independent of that Unicode detail.
+    it("formats the current value using the French locale when i18n.language starts with fr", () => {
+      mockLanguage = "fr-FR"
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ current_value: 12345.6789 })] },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // Matched via regex with a wildcard group separator rather than the
+      // exact literal string: fr-FR's thousands separator is a narrow
+      // no-break space (U+202F), whose exact glyph can differ across ICU
+      // data builds/environments -- the decimal comma is the stable,
+      // environment-independent signal that French formatting was
+      // actually applied (English would use a period).
+      expect(screen.getByText(/^12.345,6789$/)).toBeInTheDocument()
+      expect(screen.queryByText("12,345.6789")).not.toBeInTheDocument()
+    })
+
+    it("renders the update-value modal's threshold/target context with thousands grouping", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: {
+          data: [
+            makeKri({ alert_threshold: 80000, target_value: 12000 }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByTitle("organization.kri.updateValueTooltip")
+      )
+
+      const dialog = screen.getByRole("dialog")
+      expect(within(dialog).getByText(/80,000/)).toBeInTheDocument()
+      expect(within(dialog).getByText(/12,000/)).toBeInTheDocument()
+    })
+
+    // Spotted live right after the thousands-grouping fix shipped: a large
+    // value (now wider still with comma separators) had nowhere to go but
+    // into the action-button row's space, shrinking the 44px touch targets
+    // round 2 established. The value now truncates (with a title fallback)
+    // instead of compressing its siblings.
+    it("truncates a very large current value instead of shrinking the action buttons below their touch-target size", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ current_value: 1241153215 })] },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const value = screen.getByTitle("1,241,153,215")
+      expect(value.className).toContain("truncate")
+
+      for (const title of [
+        "organization.kri.trend.viewTooltip",
+        "organization.kri.updateValueTooltip",
+        "organization.kri.editTooltip",
+        "organization.kri.deleteTooltip",
+      ]) {
+        const button = screen.getByTitle(title)
+        expect(button.className).toContain("h-11")
+        expect(button.className).toContain("w-11")
+        expect(button.className).toContain("shrink-0")
+      }
+    })
+  })
+
   // aexa-frontend#471 -- KriDashboardPage's three modals were plain divs
   // with no role="dialog", no aria-modal, and no Escape handling.
   describe("modal accessibility", () => {

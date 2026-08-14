@@ -112,6 +112,27 @@ const KRI_STATUS_META: Record<
 const kriStatusMeta = (status: string) =>
   KRI_STATUS_META[status] ?? KRI_STATUS_META.OK
 
+// Round 13 (fresh full-panel re-score, industry-standards finding): every
+// numeric readout on this page used bare `Number(...)`, rendering e.g.
+// 15000 instead of 15,000. Round-2 review of PR #852: an unconditional
+// "en-US" pin (round 1's fix for round-1 review's flagged test-flakiness
+// risk from an *unpinned* locale) was itself wrong -- it would show a
+// French-language user English-convention "1,234.56" grouping right next
+// to dates already correctly rendered in French via this same file's
+// `formatLocaleDate(date, i18n.language, ...)` call. Mirrors that exact
+// same `language?.startsWith("fr") ? "fr-FR" : "en-US"` resolution (see
+// src/utils/formatDate.ts's own doc comment on why an unpinned/hardcoded
+// locale is a repeat of a past audit bug class) so numbers and dates on
+// this page always agree on which language they're speaking.
+// `maximumFractionDigits: 20` (the practical ceiling short of the spec's
+// 100) stops the default 3-fraction-digit rounding from silently
+// truncating a KRI value's real precision -- this only adds thousands
+// separators, it never changes what number is displayed.
+const formatKriNumber = (value: number, language: string | undefined) =>
+  value.toLocaleString(language?.startsWith("fr") ? "fr-FR" : "en-US", {
+    maximumFractionDigits: 20,
+  })
+
 // Fresh full-panel re-score (code quality finding): unnamed magic numbers.
 const HIGHLIGHT_DURATION_MS = 3000
 const RISK_NAME_TRUNCATE_LENGTH = 30
@@ -706,12 +727,28 @@ export default function KriDashboardPage() {
               </div>
 
               <div className="mt-3 flex items-baseline gap-2">
-                <span className="font-mono-data text-2xl font-bold text-foreground lg:text-3xl">
-                  {Number(kri.current_value)}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {kri.unit}
-                </span>
+                {/* Round 13 (layout finding, spotted live after the
+                    thousands-grouping fix): a large value (e.g. a
+                    9-10-digit KRI, now wider still with comma
+                    separators) had nowhere to go but into the button
+                    row's space -- flex's default shrink:1 let the 44px
+                    touch targets below compress well under the round-2
+                    guideline instead. Truncating the value (with a
+                    title fallback, same pattern used elsewhere on this
+                    page) and pinning the buttons to shrink-0 keeps the
+                    touch targets fixed-size no matter how wide the
+                    number gets. */}
+                <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                  <span
+                    title={formatKriNumber(Number(kri.current_value), i18n.language)}
+                    className="font-mono-data truncate text-2xl font-bold text-foreground lg:text-3xl"
+                  >
+                    {formatKriNumber(Number(kri.current_value), i18n.language)}
+                  </span>
+                  <span className="shrink-0 text-sm text-muted-foreground">
+                    {kri.unit}
+                  </span>
+                </div>
                 {/* quality-bar-loop round 2 (mobile, round-1 finding):
                     these buttons measured 22x22px -- under the 44px
                     touch-target guideline, and 2 of the 3 interactive
@@ -722,7 +759,7 @@ export default function KriDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setTrendKriId(kri.id)}
-                  className="focus-ring ml-auto flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title={t("organization.kri.trend.viewTooltip")}
                   aria-label={t("organization.kri.trend.viewTooltip")}
                 >
@@ -732,7 +769,7 @@ export default function KriDashboardPage() {
                   <button
                     type="button"
                     onClick={() => openUpdateValue(kri)}
-                    className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     title={t("organization.kri.updateValueTooltip")}
                     aria-label={t("organization.kri.updateValueTooltip")}
                   >
@@ -748,7 +785,7 @@ export default function KriDashboardPage() {
                   <button
                     type="button"
                     onClick={() => openEdit(kri)}
-                    className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     title={t("organization.kri.editTooltip")}
                     aria-label={t("organization.kri.editTooltip")}
                   >
@@ -759,7 +796,7 @@ export default function KriDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setDeletingKri(kri)}
-                    className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                     title={t("organization.kri.deleteTooltip")}
                     aria-label={t("organization.kri.deleteTooltip")}
                   >
@@ -774,7 +811,7 @@ export default function KriDashboardPage() {
                   <span
                     className={`font-mono-data font-medium ${SEVERITY_STYLES.critical.text}`}
                   >
-                    {Number(kri.alert_threshold)}
+                    {formatKriNumber(Number(kri.alert_threshold), i18n.language)}
                   </span>
                 </span>
                 <span>
@@ -782,7 +819,7 @@ export default function KriDashboardPage() {
                   <span
                     className={`font-mono-data font-medium ${SEVERITY_STYLES.low.text}`}
                   >
-                    {Number(kri.target_value)}
+                    {formatKriNumber(Number(kri.target_value), i18n.language)}
                   </span>
                 </span>
                 {/* aexa-server#242 — overdue is computed server-side from
@@ -870,9 +907,9 @@ export default function KriDashboardPage() {
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   {t("organization.kri.thresholdLabel")}{" "}
-                  {Number(updatingKri.alert_threshold)} ·{" "}
+                  {formatKriNumber(Number(updatingKri.alert_threshold), i18n.language)} ·{" "}
                   {t("organization.kri.targetLabel")}{" "}
-                  {Number(updatingKri.target_value)}
+                  {formatKriNumber(Number(updatingKri.target_value), i18n.language)}
                   {updatingKri.unit ? ` ${updatingKri.unit}` : ""}
                 </p>
               </div>
