@@ -430,3 +430,29 @@ call sites (riskBuckets x2, RiskDetailCard, BucketList) instead of a
 `sitesById` Map -- the codebase already has this exact pattern for
 `riskByRef`, just not reused for sites. Picking this as a contained,
 mechanical fix.
+
+## Round 10 (efficiency re-score after PR #826)
+
+| Axis | Round 9 | Round 10 | Delta |
+|---|---|---|---|
+| Efficiency | 6/10 | **7/10** | +1, sitesById fix closes cleanly, no longer below floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.56/10.** Up from 7.44. Only accessibility (6) remains
+below floor.
+
+sitesById confirmed via grep: zero remaining `sites.find()` call sites
+outside the explanatory comment. Applied uniformly across all 5
+consumers, not partially. Three findings remain open, correctly
+ordered by cost/impact per the judge: `riskMetrics`' O(risks x links)
+nested-filter pattern (cheapest real fix, still open), subcomponent
+memoization (blocked on stabilizing inline callback props first), list
+virtualization (largest scope, lowest priority).
+
+**Next fix:** accessibility is now the only axis below floor. Its
+concrete findings: cell `aria-label`s expose count and axis position
+but never severity (color-only signal, confirmed live via DOM
+inspection), light-mode critical-cell contrast still ~4.4:1 (flagged
+since round 5, still unfixed), no keyboard way to deselect a cell once
+chosen. Picking the aria-label severity fix and the contrast fix --
+both cheap, contained, and directly named.

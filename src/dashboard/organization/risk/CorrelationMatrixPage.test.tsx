@@ -54,11 +54,16 @@ vi.mock("react-i18next", async (importOriginal) => {
         if (key === "organization.correlationMatrix.cellRisksHeading") {
           const rootCause = opts?.rootCause
           const consequence = opts?.consequence
+          // Round 10 (accessibility): severity is now interpolated too, so
+          // a screen reader gets the same signal color alone used to give
+          // sighted users. Same undefined-leaves-the-placeholder technique
+          // as rootCause/consequence above.
+          const severity = opts?.severity
           return `${opts?.count} risk(s) — ${
             rootCause === undefined ? "{{rootCause}}" : String(rootCause)
           } / ${
             consequence === undefined ? "{{consequence}}" : String(consequence)
-          }`
+          } — ${severity === undefined ? "{{severity}}" : String(severity)}`
         }
         // aexa-frontend#376 -- same real-interpolation override, added so
         // the bucketMeta impact-in-M€ regression test below can assert on
@@ -1907,6 +1912,34 @@ describe("CorrelationMatrixPage", () => {
     cellButtons.forEach((btn) => {
       expect(btn.getAttribute("aria-label")).not.toBe("")
     })
+  })
+
+  // Round 10 (accessibility): each cell's severity was color-only -- a
+  // screen reader got the count and axis position but no severity
+  // signal, while a sighted user reads it instantly from hue. Confirms
+  // both the bottom-right cell (highest row+col in a 5x5 -> critical)
+  // and the top-left cell (lowest -> low) carry a distinct, non-{{...}}
+  // severity in their accessible name.
+  it("includes the cell's severity in its accessible name, not just count and axis position", () => {
+    setMatrixData({
+      risks: [makeRisk({ id: "r1", ref: "CYB-001" })],
+      riskLinks: [],
+    })
+    render(<CorrelationMatrixPage />, withRouter)
+
+    const cellButtons = screen
+      .getAllByRole("button")
+      .filter((btn) => /^\d+ risk\(s\) —/.test(btn.getAttribute("aria-label") || ""))
+    const severities = cellButtons.map(
+      (btn) => btn.getAttribute("aria-label")?.split(" — ")[2]
+    )
+
+    // No cell's severity segment is left as an un-interpolated placeholder.
+    expect(severities.every((s) => s !== "{{severity}}")).toBe(true)
+    // The bottom-right (row=4,col=4 in a 5x5) and top-left (row=0,col=0)
+    // cells sit at opposite ends of getCellSeverityKey's scale.
+    expect(severities).toContain("riskLevel.critical")
+    expect(severities).toContain("riskLevel.low")
   })
 
   // aexa-frontend#473 -- the finding-bucket, category-bucket, and both AI

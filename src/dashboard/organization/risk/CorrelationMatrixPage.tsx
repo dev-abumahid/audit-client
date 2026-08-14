@@ -161,12 +161,58 @@ const AXIS_LABELS_MAP: Record<
 // Same --risk-* solid-fill scale as RiskMatrixPage.tsx (both now reuse the
 // landing page's HeroProductVisual ramp) instead of this page's own
 // independently-invented red/orange/yellow/green-600 scale.
-function getCellColor(row: number, col: number, size: MatrixSize): string {
+// Round 10 (accessibility): the cell's severity was color-only -- a
+// screen-reader user got a count and axis position from the cell's
+// aria-label but zero severity signal, while a sighted user reads it
+// instantly from hue across all cells. getCellColor and the new
+// aria-label both derive from this single bucketing function now, so
+// they can't drift out of sync with each other (two functions each
+// re-deriving the same score/threshold math independently would risk
+// exactly that).
+function getCellSeverityKey(
+  row: number,
+  col: number,
+  size: MatrixSize
+): "critical" | "high" | "medium" | "low" {
   const score = (row + 1 + (col + 1)) / (size * 2)
-  if (score >= 0.8) return "bg-risk-critical"
-  if (score >= 0.6) return "bg-risk-high"
-  if (score >= 0.4) return "bg-risk-medium"
-  return "bg-risk-low"
+  if (score >= 0.8) return "critical"
+  if (score >= 0.6) return "high"
+  if (score >= 0.4) return "medium"
+  return "low"
+}
+
+function getCellColor(row: number, col: number, size: MatrixSize): string {
+  const severity = getCellSeverityKey(row, col, size)
+  return {
+    critical: "bg-risk-critical",
+    high: "bg-risk-high",
+    medium: "bg-risk-medium",
+    low: "bg-risk-low",
+  }[severity]
+}
+
+// Round 10 (accessibility): light-mode critical-cell text has been
+// black-on-solid-fill since round 5, computing to ~4.38:1 (fails the
+// 4.5:1 AA floor for this bold-but-small text) -- verified via HSL ->
+// sRGB -> relative-luminance math against --risk-critical's actual
+// light (0 72% 51%) and dark (0 72% 55%) theme values (src/index.css).
+// White text on the same light-theme fill computes to ~4.80:1 (passes),
+// but the dark-theme fill is enough lighter (L 55% vs 51%) that white
+// text there actually regresses to ~4.37:1 while black passes at
+// ~4.80:1 -- the two themes need OPPOSITE text colors for this one
+// severity, unlike high/medium/low (already AA-clean with black in
+// both themes per this loop's own prior measurements, left untouched).
+// Not a fix for the shared --risk-critical token itself (used by
+// RiskMatrixPage and others) -- scoped to this page's own solid-fill
+// cell text only.
+function getCellTextColorClass(
+  row: number,
+  col: number,
+  size: MatrixSize
+): string {
+  return getCellSeverityKey(row, col, size) === "critical"
+    ? "text-white dark:text-black"
+    : "text-black"
 }
 
 function mapToAxis(value: number, size: MatrixSize): number {
@@ -797,8 +843,11 @@ export default function CorrelationMatrixPage() {
                               count: cellRisks.length,
                               rootCause: label,
                               consequence: axisLabels.consequence[col],
+                              severity: t(
+                                `riskLevel.${getCellSeverityKey(row, col, matrixSize)}`
+                              ),
                             })}
-                            className={`focus-ring ${getCellColor(row, col, matrixSize)} relative flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-black transition-all hover:z-20 hover:scale-105 ${isSelected ? "z-20 scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-70"}`}
+                            className={`focus-ring ${getCellColor(row, col, matrixSize)} ${getCellTextColorClass(row, col, matrixSize)} relative flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold transition-all hover:z-20 hover:scale-105 ${isSelected ? "z-20 scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-70"}`}
                           >
                             {cellRisks.length > 0 && (
                               <>
@@ -1039,6 +1088,9 @@ export default function CorrelationMatrixPage() {
                       count: selectedRisks.length,
                       rootCause: axisLabels.rootCause[selectedCell.row],
                       consequence: axisLabels.consequence[selectedCell.col],
+                      severity: t(
+                        `riskLevel.${getCellSeverityKey(selectedCell.row, selectedCell.col, matrixSize)}`
+                      ),
                     })
                   : t(`${NS}.selectCellHeading`)}
               </h3>

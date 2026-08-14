@@ -296,15 +296,17 @@ describe("locale resource pluralization/interpolation", () => {
         count: 1,
         rootCause: "Human error",
         consequence: "Data loss",
+        severity: "Critical",
       })
-    ).toBe("1 risk — Human error / Data loss")
+    ).toBe("1 risk — Human error / Data loss — Critical interconnection")
     expect(
       t("organization.correlationMatrix.cellRisksHeading", {
         count: 3,
         rootCause: "Human error",
         consequence: "Data loss",
+        severity: "Critical",
       })
-    ).toBe("3 risks — Human error / Data loss")
+    ).toBe("3 risks — Human error / Data loss — Critical interconnection")
   })
 
   it("pluralizes the correlation matrix cell risks heading correctly in French", async () => {
@@ -318,15 +320,21 @@ describe("locale resource pluralization/interpolation", () => {
           count: 1,
           rootCause: "Erreur humaine",
           consequence: "Perte de données",
+          severity: "critique",
         })
-      ).toBe("1 risque — Erreur humaine / Perte de données")
+      ).toBe(
+        "1 risque — Erreur humaine / Perte de données — interconnexion critique"
+      )
       expect(
         t("organization.correlationMatrix.cellRisksHeading", {
           count: 3,
           rootCause: "Erreur humaine",
           consequence: "Perte de données",
+          severity: "critique",
         })
-      ).toBe("3 risques — Erreur humaine / Perte de données")
+      ).toBe(
+        "3 risques — Erreur humaine / Perte de données — interconnexion critique"
+      )
     } finally {
       await instance.changeLanguage("en")
     }
