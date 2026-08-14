@@ -1968,6 +1968,7 @@
     "correlationMatrix": {
       "title": "Matrice de Corrélation",
       "subtitle": "Causes racines × Conséquences — Bucketing et analyse",
+      "exportCsv": "Exporter en CSV",
       "matrixSectionHeading": "Matrice de corrélation",
       "detailSectionHeading": "Détails",
       "groupAll": "Tous",

@@ -350,3 +350,56 @@ still real feature work. This round only closed the discoverability
 half of the finding a prior review flagged; not expecting this alone
 to move the score meaningfully past 5/10, but it removes a concrete,
 reviewer-identified gap before the next full panel.
+
+## Round 8 (fresh full 9-judge panel, this session's re-score)
+
+Prior logged state ended at round 7 (industry-standards discoverability
+fix, PR #650) with no final tally recorded. Dispatching a fresh full
+panel to establish current state rather than assuming round-5/7's
+partial numbers still hold, per this session's standing "re-score
+recently-fixed features first since they may already clear it"
+instruction.
+
+| Axis | Score |
+|---|---|
+| Industry-standards | 5/10 |
+| UX | 7/10 |
+| Efficiency | 6/10 |
+| Accessibility | 6/10 |
+| Visual polish | 9/10 |
+| Resilience | 8/10 |
+| Code quality | 8/10 |
+| Mobile | 8/10 |
+| Security | 8/10 |
+
+**Average: 7.22/10.** Target 8.5, floor 7. Three axes below floor:
+industry-standards (5), efficiency (6), accessibility (6).
+
+Notable findings:
+- Industry-standards: the matrix's cell color is still a pure grid-
+  position heuristic (`getCellColor`, row+col based), not a genuine
+  interconnection metric -- the round-6/7 fix only added a link to the
+  real PageRank metric elsewhere (RiskGraphPage), a workaround not a
+  fix. No export/print capability at all (RiskGraphPage already has
+  working PNG/SVG/CSV export as a reference pattern). No in-cell
+  hover-preview of risk names.
+- Efficiency: `riskMetrics` is O(risks x links) via nested `.filter()`
+  instead of single-pass lookup maps; `sites.find()` repeated at 4+
+  call sites instead of a `sitesById` Map (the codebase already has
+  this exact pattern for `riskByRef`, just not reused for sites);
+  detail-panel subcomponents aren't memoized despite unstable inline
+  callback props defeating memo anyway if added naively.
+- Accessibility: cell `aria-label`s expose count and axis position but
+  never severity (color-only signal for severity, confirmed live via
+  DOM inspection); light-mode critical-cell contrast still ~4.4:1
+  (already flagged at round 5, still unfixed); no keyboard way to
+  deselect a cell once chosen.
+
+**Next fix:** all three below-floor axes are first-round-observed in
+this continuation (no streak history), tie-broken by lowest raw score
+-> industry-standards (5). Of its two named gaps, export capability is
+the tractable one (client-side CSV, no new backend endpoint needed,
+same pattern RiskGraphPage already established) -- the genuine
+in-cell interconnection metric would require either a new backend
+endpoint or porting RiskGraphPage's PageRank computation client-side,
+a larger scope left for a later round.

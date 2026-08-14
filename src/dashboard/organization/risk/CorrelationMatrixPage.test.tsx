@@ -1947,4 +1947,93 @@ describe("CorrelationMatrixPage", () => {
       screen.getAllByRole("heading", { level: 2 }).length
     ).toBeGreaterThan(0)
   })
+
+  // Round 8 (industry-standards): the page had no export capability at
+  // all -- same client-side CSV pattern RiskGraphPage/RiskRegisterPage
+  // already established.
+  describe("CSV export (round 8 fix)", () => {
+    it("exports the currently-visible, site-filtered risks with their matrix cell", () => {
+      setMatrixData({
+        risks: [
+          makeRisk({
+            id: "r1",
+            ref: "CYB-001",
+            name: "Cyberattaque ransomware",
+            category: "cyber",
+            site_id: "site1",
+          }),
+        ],
+        riskLinks: [],
+      })
+      render(<CorrelationMatrixPage />, withRouter)
+
+      let capturedBlob: Blob | undefined
+      const createObjectURLSpy = vi
+        .spyOn(URL, "createObjectURL")
+        .mockImplementation((blob) => {
+          capturedBlob = blob as Blob
+          return "blob:mock-url"
+        })
+      const revokeObjectURLSpy = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => {})
+
+      try {
+        fireEvent.click(
+          screen.getByRole("button", {
+            name: "organization.correlationMatrix.exportCsv",
+          })
+        )
+
+        expect(createObjectURLSpy).toHaveBeenCalled()
+        expect(capturedBlob).toBeDefined()
+      } finally {
+        createObjectURLSpy.mockRestore()
+        revokeObjectURLSpy.mockRestore()
+      }
+    })
+
+    it("includes the risk's ref, name, category, and site in the exported CSV", async () => {
+      setMatrixData({
+        risks: [
+          makeRisk({
+            id: "r1",
+            ref: "CYB-001",
+            name: "Cyberattaque ransomware",
+            category: "cyber",
+            site_id: "site1",
+          }),
+        ],
+        riskLinks: [],
+      })
+      render(<CorrelationMatrixPage />, withRouter)
+
+      let capturedBlob: Blob | undefined
+      const createObjectURLSpy = vi
+        .spyOn(URL, "createObjectURL")
+        .mockImplementation((blob) => {
+          capturedBlob = blob as Blob
+          return "blob:mock-url"
+        })
+      const revokeObjectURLSpy = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => {})
+
+      try {
+        fireEvent.click(
+          screen.getByRole("button", {
+            name: "organization.correlationMatrix.exportCsv",
+          })
+        )
+
+        const csvText = await capturedBlob!.text()
+        expect(csvText).toContain("CYB-001")
+        expect(csvText).toContain("Cyberattaque ransomware")
+        expect(csvText).toContain("Siège Paris")
+      } finally {
+        createObjectURLSpy.mockRestore()
+        revokeObjectURLSpy.mockRestore()
+      }
+    })
+  })
 })

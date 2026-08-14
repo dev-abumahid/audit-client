@@ -12,6 +12,7 @@ import {
 } from "@/redux/apis/organization/riskLink.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { IAction } from "@/types/finding"
+import { csvTextField, triggerDownload } from "@/utils/csvExport"
 import { riskCategoryLabel } from "@/utils/riskConfig"
 import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import type {
@@ -28,6 +29,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Download,
   GitBranch,
   Layers,
   Loader2,
@@ -326,6 +328,47 @@ export default function CorrelationMatrixPage() {
     return grid
   }, [filteredRisks, riskMetrics, matrixSize])
 
+  // Round 8 (industry-standards): the matrix had no export capability at
+  // all, unlike RiskGraphPage's own CSV export (@/utils/csvExport is
+  // shared between the two so both use the same CSV-injection-safe
+  // escaping instead of two copies drifting apart). Scoped to exactly
+  // what's currently visible -- the site-filtered risk set, at the
+  // active matrix size's root-cause/consequence bucketing -- rather than
+  // a separate unfiltered export, matching what a user filtering first
+  // and exporting second would expect.
+  const exportMatrixAsCsv = useCallback(() => {
+    const header = [
+      "Ref",
+      "Name",
+      "Category",
+      "Site",
+      "Root Causes",
+      "Consequences",
+      "Matrix Cell",
+    ]
+    const rows = filteredRisks.map((risk) => {
+      const m = riskMetrics[risk.ref] ?? { rootCauses: 0, consequences: 0 }
+      const row = mapToAxis(m.rootCauses, matrixSize)
+      const col = mapToAxis(m.consequences, matrixSize)
+      const siteName = sites.find((s) => s.id === risk.site_id)?.name ?? ""
+      return [
+        csvTextField(risk.ref),
+        csvTextField(risk.name),
+        csvTextField(riskCategoryLabel(t, risk.category)),
+        csvTextField(siteName),
+        String(m.rootCauses),
+        String(m.consequences),
+        // Plain numbers, not user-editable free text -- no CSV-injection
+        // guard needed for the count columns (see csvTextField's own
+        // comment on why negative numbers must stay unescaped).
+        `${row + 1}-${col + 1}`,
+      ]
+    })
+    const csv = [header, ...rows].map((r) => r.join(",")).join("\r\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    triggerDownload(blob, "correlation-matrix.csv")
+  }, [filteredRisks, riskMetrics, matrixSize, sites, t])
+
   const riskBuckets = useMemo<RiskBucket[]>(() => {
     const bucketMap: Record<string, Risk[]> = {}
     for (const risk of filteredRisks) {
@@ -576,6 +619,17 @@ export default function CorrelationMatrixPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* Round 8 (industry-standards): the page had no export
+              capability at all -- same button convention as Risk
+              Register's own Export CSV control. */}
+          <button
+            type="button"
+            onClick={exportMatrixAsCsv}
+            className="focus-ring flex h-11 items-center gap-2 rounded-lg border border-input bg-card px-3 text-xs font-medium text-foreground hover:bg-muted"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {t(`${NS}.exportCsv`)}
+          </button>
           {/* quality-bar-loop round 2 (mobile, round-1 finding): these
               toggle buttons were 28px tall with zero gap between adjacent
               buttons (mis-tap risk), under the 44px touch-target

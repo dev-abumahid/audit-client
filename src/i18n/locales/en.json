@@ -1968,6 +1968,7 @@
     "correlationMatrix": {
       "title": "Correlation Matrix",
       "subtitle": "Root causes × Consequences — Bucketing and analysis",
+      "exportCsv": "Export CSV",
       "matrixSectionHeading": "Correlation matrix",
       "detailSectionHeading": "Details",
       "groupAll": "All",
