@@ -1109,3 +1109,59 @@ Recommend treating the four remaining industry-standards items as their
 own separately-scoped feature proposals rather than continuing this
 loop's cadence -- each deserves its own design/plan step before
 implementation, not a quick same-round fix.
+
+## Round 15 (fresh 9-judge panel, post PR #814) — GUARDRAIL STOP
+
+Session picked this loop back up after 5+ days; a background feature-build
+agent discovered most of round-14's "next steps" list (sorting/bulk/export/
+debounce/memoization) had actually already shipped via PRs #615-633 --
+this round is a fresh full re-score to see where those PRs left the page,
+plus PR #814 (watch()->useWatch scoping in RiskScoresSection, merged this
+round) landed alongside it.
+
+| Axis | Round 14 | Round 15 | Delta |
+|---|---|---|---|
+| Industry-standards | 6/10 | 7/10 | **+1, now at floor** |
+| UX | 7/10 | 7/10 | same |
+| Efficiency | ~9/10 | 9/10 | same |
+| Accessibility | ~8/10 | 8/10 | same |
+| Visual polish | ~8/10 | 8/10 | same |
+| Resilience | ~8/10 | 8/10 | same |
+| Code quality | 7/10 | **6/10** | **-1, REGRESSED BELOW FLOOR** |
+| Mobile | 8/10 | **5/10** | **-3, REGRESSED BELOW FLOOR** |
+
+**Average: 7.33/10.** Not converged (target 8.5). Two axes below floor.
+
+**Diagnosis.** Both regressions trace to round 14 (PR #633, bulk status
+change) not being caught at the time, because round 14 used the
+scoped-diff carve-out and only re-ran industry-standards -- but the
+diff's actual surface (a new bulk-toolbar control, a second
+Promise.allSettled bulk-mutation handler) squarely overlapped code
+quality's and mobile's territory. In hindsight the carve-out was misapplied
+there: PR #633 was not a pure-CSS/copy change, it added new UI (the
+Change-status toolbar control) and new logic (a second bulk handler), so
+it should have triggered a full or at least code-quality+mobile-scoped
+re-score at the time.
+
+- **Mobile regression (8->5), confirmed real and reproducible**: the
+  bulk-action toolbar (added by PR #633, `role="status"`, no `flex-wrap`)
+  overflows at 375px -- the "Clear selection" button's right edge sits at
+  x=386.5px on a 375px viewport, part of its tap target off-canvas with no
+  horizontal-scroll container to reach it. The toolbar's own "Change
+  status..." select and "Delete selected" button are also plain `h-8`
+  (32px) with no hit-slop, inconsistent with every other touch target on
+  this page (all of which got deliberate hit-slop treatment in earlier
+  rounds). This is a real, live-verified bug, not judge noise.
+- **Code quality regression (7->6), confirmed real**: `confirmBulkDelete`
+  and `confirmBulkStatusChange` (PR #633) are ~25-line near-duplicates of
+  each other (`Array.from(selectedIds)` -> `Promise.allSettled` ->
+  success/fail/partial toast branching -> prune `selectedIds`), a
+  textbook 2x-duplication candidate for a shared `runBulkAction` helper
+  that didn't exist when round 14's carve-out skipped re-scoring this
+  axis.
+
+**GUARDRAIL TRIPPED: below-floor regression.** Per this loop's own rule,
+a below-floor regression is a hard stop regardless of what the overall
+average did (average technically still rose, 7.89 -> unmeasured-until-now,
+but that's not the relevant comparison -- the per-axis rule applies).
+Escalating to the user rather than silently picking the next fix.
