@@ -848,3 +848,43 @@ now independently verified) zero behavior change. Full QA gate clean
 the dev preview: created a real KRI through every extracted field,
 opened it in Edit KRI and confirmed every field pre-filled correctly,
 deleted it to restore the original seed state.
+
+## Round 17 code quality re-score: still 7, one of two structural
+   complaints resolved
+
+Confirmed PR #857's extraction landed cleanly, both `KriFormField` and
+`KriFrequencySelect` genuinely shared between modals, byte-identical
+ids/classNames, and the risk-select correctly left inline (unique to
+New KRI, not duplicated) -- a real, well-executed fix that resolves
+one of the two co-equal structural weaknesses this axis has flagged
+since round 6/14/16.
+
+The other -- the whole component doing everything in one ~1300-line
+function (4 RTK Query hooks, 4 mutations, 13 useState, 11 useMemo, 5
+modals all inline in one return statement) -- is untouched and is now
+the sole, more consequential remaining weight on this axis. Also
+flagged: a stray inline IIFE (risk-name tooltip fallback) now reads as
+inconsistent style sitting right next to the newly-extracted, properly
+named components two commits away; the file-level `any`-lint-disable
+for 4 `catch (err: any)` blocks remains a standing minor gap.
+
+**Current picture:** average holds around 8.0-8.1/10 (industry-standards
+8, UX 9, efficiency 8, accessibility likely cleared to 8-9 pending a
+fresh full re-score, visual polish 8, resilience 8, code quality 7,
+mobile 8, security 9). No axis below floor. Not converged (target
+8.5). Code quality is now the only axis with a long-standing, well
+understood, unresolved structural gap: a full component decomposition
+(splitting the 5 modals and/or the data-fetching layer out of the
+single 1300-line function) -- a materially larger, higher-regression-risk
+change than anything shipped in rounds 9-17, warranting its own
+carefully-scoped round(s) with a fresh design pass, not a quick
+mechanical fix.
+
+17 rounds, 9 PRs (#849-857) shipped and merged this session, each
+through the full ship-with-review-loop (QA gate, live browser
+verification, independent review to zero findings, merge). Pausing the
+KRI loop here as a natural checkpoint given the scale of the remaining
+item -- resuming to attempt the component decomposition, or moving on
+to the other still-untouched pages in this session's broader sweep
+(Correlation Matrix, Compliance, Audit/Templates, Risk Graph), is the
+next decision point.
