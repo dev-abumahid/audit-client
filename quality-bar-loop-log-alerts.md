@@ -214,3 +214,76 @@ for non-KRI sources, pagination UI) and the file-wide `any`-disable
 code-quality gap are still larger, product-scoped work -- this round
 picked off the clearest, most concretely-actionable items from each
 axis rather than the full remaining list.
+
+## Round 5 (fresh full 9-judge panel, this session's re-score)
+
+Prior log ended mid-round-4 with a "PR TBD" marker that turned out to
+be stale -- git log confirms PR #772 merged that round's fixes. Round
+4's own scope (bulk mark-all-read, per-row loading, retry, unread
+count) never dispatched an accessibility judge, which turns out to
+matter: it introduced a real regression.
+
+| Axis | Score |
+|---|---|
+| Industry-standards | 6/10 |
+| UX | 7/10 |
+| Efficiency | 7/10 |
+| Accessibility | 6/10 |
+| Visual polish | 8/10 |
+| Resilience | 8/10 |
+| Code quality | 5/10 |
+| Mobile | 6/10 |
+| Security | 5/10 |
+
+**Average: 6.44/10.** Target 8.5, floor 7. Five axes below floor:
+industry-standards (6), accessibility (6), code quality (5), mobile
+(6), security (5).
+
+Notable findings:
+- **Security (5) -- real data-correctness/security finding.** No role
+  gating (`useMyOrgRole`/`canWriteOrgResource`) on mark-read/mark-all-
+  read, unlike every sibling org page that mutates state. `is_read` is
+  an ORG-WIDE field (no user_id scoping, confirmed in the type
+  comment), so any authenticated member -- including a low-privilege
+  VIEWER -- can silently clear the unread state for the entire org,
+  potentially hiding a real critical KRI-threshold-breach alert from
+  an Admin/Lead Auditor. Stronger case for gating than most CRUD pages
+  already have it, since one user's click affects everyone's
+  visibility.
+- **Accessibility (6) -- real regression, caused by round 4.** The
+  conditionally-rendered mark-read buttons (both per-row and bulk)
+  unmount on success, silently relocating keyboard focus to an
+  unrelated element (live-reproduced: focus jumped to the "Low"
+  severity filter chip) with zero visual/audible indication. No
+  success announcement either (only failure toasts use sonner's live
+  region). This exact interaction pattern didn't exist before round 4
+  added per-row/bulk mark-read, so it's a genuine round-4 regression
+  that was never caught since that round didn't dispatch an
+  accessibility judge.
+- **Code quality (5)**: file-wide `@typescript-eslint/no-explicit-any`
+  disable plus 6 `any` casts, despite a correctly-typed `Alert`
+  interface already existing and used cleanly by a sibling component
+  (CriticalAlertBanner.tsx) reading from the same query -- a
+  mechanical, cheap fix already proven to work elsewhere in this
+  codebase.
+- **Mobile (6)**: the round-4 bulk "Mark all as read" button is `h-9`
+  (36px), under the 44px floor every OTHER control on this page was
+  explicitly sized to clear -- added after that convention was
+  established on this same file, just missed.
+- **Industry-standards (6)**: three structural gaps persist (binary
+  is_read lifecycle despite useDeleteAlertMutation already existing
+  unused, no sorting, non-KRI deep-links still inert text) plus the
+  same file-wide any-disable.
+
+**GUARDRAIL NOTE:** this is not treated as a below-floor-regression
+hard stop in the strict sense (round 4 -> round 5 spans a real gap
+where accessibility was never re-scored in between, same pattern as
+Risk Register's round-14->round-15 situation) but the regression is
+real, PR-#772-caused, and worth naming explicitly rather than treating
+as fresh-baseline noise.
+
+**Next fix:** security's finding is a data-correctness/security issue
+at/below floor, which per rule 5c.1 takes top priority regardless of
+any axis's stuck_streak. Picking it first: gate mark-read/mark-all-
+read behind `canWriteOrgResource(role)`, same convention every sibling
+org page already uses.

@@ -61,6 +61,18 @@ vi.mock("@/redux/apis/organization/alert.api", () => ({
   useMarkAlertReadMutation: () => [mockMarkAlertRead, { isLoading: false }],
 }))
 
+// Round 5 (security fix): mark-read/mark-all-read are now gated on
+// canWriteOrgResource(role) -- same mock convention as
+// RiskRegisterPage.test.tsx. Defaults to ADMIN so every pre-existing test
+// in this file (all written assuming the buttons are visible) keeps
+// passing unchanged.
+let mockRole: string | undefined = "ADMIN"
+vi.mock("@/hooks/useMyOrgRole", () => ({
+  useMyOrgRole: () => mockRole,
+  canWriteOrgResource: (role: string | undefined) =>
+    role === "ADMIN" || role === "LEAD_AUDITOR",
+}))
+
 function makeAlert(overrides = {}) {
   return {
     id: "alert-1",
@@ -83,6 +95,7 @@ describe("AlertsPage", () => {
     mockMarkAlertRead.mockReset()
     mockToastError.mockReset()
     mockLanguage = undefined
+    mockRole = "ADMIN"
     tCalls.length = 0
     mockUseGetAllAlertsQuery.mockReturnValue({
       data: { data: [] },
@@ -152,6 +165,88 @@ describe("AlertsPage", () => {
     expect(
       screen.queryByRole("button", { name: "organization.alerts.markAsRead" })
     ).not.toBeInTheDocument()
+  })
+
+  // Round 5 (security finding): mark-read/mark-all-read had no role gate
+  // at all -- is_read is an org-wide field with no per-user scoping, so an
+  // ungated mutation let any authenticated member (including a
+  // low-privilege VIEWER) silently clear the unread state for the entire
+  // org, potentially hiding a real critical alert from an Admin/Lead
+  // Auditor.
+  describe("role gating on mark-read actions (round 5 security fix)", () => {
+    it("hides the per-row Mark as read button for a VIEWER", () => {
+      mockRole = "VIEWER"
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert({ is_read: false })] },
+        isLoading: false,
+      })
+      renderPage()
+
+      // The "New" badge is purely informational, not an action -- it
+      // should stay visible for a read-only viewer.
+      expect(screen.getByText("organization.alerts.new")).toBeInTheDocument()
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.alerts.markAsRead",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("hides the bulk Mark all as read button for a VIEWER even with unread alerts present", () => {
+      mockRole = "VIEWER"
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAlert({ id: "a1", is_read: false }),
+            makeAlert({ id: "a2", is_read: false }),
+          ],
+        },
+        isLoading: false,
+      })
+      renderPage()
+
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.alerts.markAllRead",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows both mark-read affordances for an ADMIN", () => {
+      mockRole = "ADMIN"
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert({ is_read: false })] },
+        isLoading: false,
+      })
+      renderPage()
+
+      expect(
+        screen.getByRole("button", { name: "organization.alerts.markAsRead" })
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", {
+          name: "organization.alerts.markAllRead",
+        })
+      ).toBeInTheDocument()
+    })
+
+    it("shows both mark-read affordances for a LEAD_AUDITOR", () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert({ is_read: false })] },
+        isLoading: false,
+      })
+      renderPage()
+
+      expect(
+        screen.getByRole("button", { name: "organization.alerts.markAsRead" })
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", {
+          name: "organization.alerts.markAllRead",
+        })
+      ).toBeInTheDocument()
+    })
   })
 
   // quality-bar-loop round 2 (mobile, round-1 finding): the severity

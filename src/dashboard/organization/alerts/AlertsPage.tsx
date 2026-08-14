@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
+import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   useGetAllAlertsQuery,
   useMarkAlertReadMutation,
@@ -41,6 +42,16 @@ const SEVERITY_ACTIVE_CLASSES: Record<Severity, string> = {
 
 export default function AlertsPage() {
   const { t, i18n } = useTranslation()
+  // Round 5 (security finding): mark-read/mark-all-read had no role gate
+  // at all, unlike every sibling org page that mutates state. `is_read`
+  // is an ORG-WIDE field (no per-user scoping), so an ungated mutation
+  // here isn't just a missing UI affordance -- any authenticated member,
+  // including a low-privilege VIEWER, could silently clear the unread
+  // state for the whole org and hide a real critical alert from an
+  // Admin/Lead Auditor. Same canWriteOrgResource convention as
+  // RiskRegisterPage/KriDashboardPage/etc.
+  const role = useMyOrgRole()
+  const canWrite = canWriteOrgResource(role)
   const {
     data: alertResponse,
     isLoading,
@@ -250,7 +261,7 @@ export default function AlertsPage() {
             (alert.route.ts only has a per-id PATCH), so this fires the
             same per-id mutation in parallel across every unread alert in
             the *currently filtered* view. */}
-        {filteredUnreadCount > 0 && (
+        {canWrite && filteredUnreadCount > 0 && (
           <button
             type="button"
             onClick={handleMarkAllRead}
@@ -415,7 +426,7 @@ export default function AlertsPage() {
                         {t("organization.alerts.viewKri")}
                       </Link>
                     )}
-                    {!alert.is_read && (
+                    {canWrite && !alert.is_read && (
                       <button
                         type="button"
                         onClick={() => handleMarkRead(alert.id)}
