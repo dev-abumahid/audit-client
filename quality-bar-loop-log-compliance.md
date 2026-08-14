@@ -994,3 +994,92 @@ race -- a discriminated-union `activeModal` state was named as the
 concrete fix that would collapse this into one opener and remove the
 ref workaround entirely. The next round should scope and build that
 refactor as the next highest-leverage lever toward 8.5.
+
+## Round 17 (code quality: unify three modal states into one discriminated union, PR #896)
+
+Picked up the concrete lever named at the end of round 16's log
+entry: `actionObligation`/`attestObligation`/`historyObligation`
+were three independent `useState` variables, each hand-rolling its
+own "clear the other two" boilerplate, plus a `pendingFocusRef`
+sibling-modal focus-stealing fix duplicated across two nearly-
+identical `useEffect` calls (one per former state). Replaced with a
+single discriminated union:
+```ts
+type ActiveModal =
+  | { type: "action"; obligation: ComplianceObligation }
+  | { type: "attest"; obligation: ComplianceObligation }
+  | { type: "history"; obligation: ComplianceObligation }
+  | null
+```
+Opening any modal is now inherently exclusive; the three openers
+collapse to a single `setActiveModal(...)` call each, and the
+`pendingFocusRef` effect consolidates from two into one, keyed on
+the unified state.
+
+Pure refactor, no intended behavior change. All 84 pre-existing
+tests passed unchanged, including the round-11 regression test that
+directly exercises the refactored focus-return mechanism. Full repo
+suite: 2191/2191 passed. Typecheck and lint clean.
+
+**Live verification was initially blocked**: the shared dev backend
+was still 429-rate-limited after multiple retries, so the PR shipped
+with that gap explicitly flagged in its own description rather than
+silently skipped. The rate limit cleared shortly after, and live
+verification then happened for real: manually drove the exact
+Attest -> History -> Escape sequence the round-11 test covers
+against the live app, then -- since the observed focus target didn't
+exactly match naive expectations -- temporarily swapped in the
+pre-refactor version of the same file and repeated the identical
+click sequence to confirm the same imprecise-focus-target behavior
+already existed before this round's change (an artifact of
+automation-driven mouse clicks vs. Radix's own internal focus
+handling, not a regression), before restoring the refactored file.
+
+Round-1 independent review traced all four possible modal-transition
+pairs (attest->history, history->attest, attest->action,
+action->history) directly from the source and confirmed React's
+child-before-parent effect-cleanup ordering preserves the exact
+"correction wins" timing property the original two-effect version
+relied on; also re-ran the round-11 regression test directly against
+the merged commit and confirmed it passes. One minor, genuinely
+pre-existing (not introduced by this round) gap was noted: no test
+covers the reverse History->Attest->Escape direction, only the
+Attest->History direction round 11 originally wrote a test for.
+
+**Round-17 code-quality re-score: 8/10, unchanged from round 15.**
+Fresh honest re-inspection confirmed the specific named gap is
+genuinely closed (no more 3x-duplicated modal-clearing logic, one
+focus-ref mechanism instead of two), but surfaced a different,
+previously-unnamed structural cost holding the axis at 8 rather than
+9: comment density (~17% of the file's now-902 lines, much of it
+changelog-style narration of past rounds/PRs/review findings rather
+than forward-looking documentation of present-tense behavior), and
+CompliancePage.tsx remaining a single component owning filter/
+search/pagination/form/upload/modal state and matrix/scorecard
+derivations all in one function body, with no further extraction
+into sub-hooks beyond the existing useComplianceData. This is real,
+honest progress -- the round's actual target defect is fixed -- but
+it didn't move the axis's score, illustrating exactly why this
+session runs fresh full panels rather than assuming a fix
+automatically buys the point a prior round predicted.
+
+17 rounds, 15 code-changing PRs (#859, #862, #863, aexa-server#327,
+#864, #880, #882, #884, #886, #888, #890, #892, #894, #896, plus
+review-fix commits folded into existing PRs where applicable) shipped
+and merged this session's Compliance work (plus several docs-only log
+PRs).
+
+**Current picture** (industry-standards 8, UX 9, efficiency 8,
+accessibility 8, visual polish 8, resilience 9, code quality 8,
+mobile 8, security 8): average = (8+9+8+8+8+9+8+8+8)/9 = 74/9 ~=
+8.22/10, **unchanged from round 16** -- every axis still clears 8,
+none below floor, but the average has now held flat for one full
+round despite a legitimate, review-verified fix landing. Per this
+loop's own guardrails, one flat round is not yet stagnation (that
+requires two consecutive rounds with no net improvement) -- but it's
+a real signal that the remaining gaps at this point are diffuse
+polish across seven different axes each sitting at exactly 8, rather
+than one dominant lever. The next round should run a genuinely fresh
+full panel (not carry forward this round's numbers) before picking
+the next fix, since a full panel is now overdue and any of several
+axes could have shifted.
