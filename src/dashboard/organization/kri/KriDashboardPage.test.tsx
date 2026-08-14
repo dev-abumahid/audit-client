@@ -709,6 +709,61 @@ describe("KriDashboardPage", () => {
     expect(mockToastSuccess).toHaveBeenCalledWith("organization.kri.toast.created")
   })
 
+  // KRI owner field (industry-standards finding, round 20): a filled-in
+  // owner is sent trimmed; a left-blank owner is omitted entirely (not sent
+  // as an empty string) so an unset owner reads as "no owner" server-side.
+  it("sends a trimmed owner when supplied", async () => {
+    mockCreateKri.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+    renderPage()
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.newKri/i }))
+
+    await userEvent.type(screen.getByPlaceholderText("organization.kri.form.namePlaceholder"), "New KRI")
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.kri.form.ownerPlaceholder"),
+      "  Jane Procurement  "
+    )
+    const [riskSelect] = screen.getAllByRole("combobox")
+    await userEvent.selectOptions(riskSelect, "risk-1")
+    const numberInputs = screen.getAllByRole("spinbutton")
+    await userEvent.type(numberInputs[2], "10")
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.createKri/i }))
+
+    await waitFor(() =>
+      expect(mockCreateKri).toHaveBeenCalledWith(
+        expect.objectContaining({ owner: "Jane Procurement" })
+      )
+    )
+  })
+
+  // Independent review of PR #871: the earlier version of this test only
+  // covered the "owner supplied" half -- it never actually left the field
+  // blank and asserted the create payload omits the key entirely (rather
+  // than sending an empty string), which is the exact behavior
+  // handleSave/KriDashboardPage.tsx relies on to keep a never-set owner as
+  // NULL server-side instead of "".
+  it("omits owner entirely from the create payload when left blank", async () => {
+    mockCreateKri.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+    renderPage()
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.newKri/i }))
+
+    await userEvent.type(screen.getByPlaceholderText("organization.kri.form.namePlaceholder"), "New KRI")
+    const [riskSelect] = screen.getAllByRole("combobox")
+    await userEvent.selectOptions(riskSelect, "risk-1")
+    const numberInputs = screen.getAllByRole("spinbutton")
+    await userEvent.type(numberInputs[2], "10")
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.createKri/i }))
+
+    await waitFor(() => expect(mockCreateKri).toHaveBeenCalled())
+    const payload = mockCreateKri.mock.calls[0][0]
+    // `owner: undefined` (rather than an omitted key) is what
+    // KriDashboardPage.tsx's handleSave actually produces -- RTK Query's
+    // JSON.stringify body serialization drops it either way, so what
+    // matters is that no owner *value* is sent, not literal key presence.
+    expect(payload.owner).toBeUndefined()
+  })
+
   // Regression (audit round 4 / #345): the risk-name option in the "Link
   // Risk" dropdown truncated to 30 chars with no ellipsis or way to see the
   // full name, so a long risk name and its truncated sibling could look
@@ -955,6 +1010,7 @@ describe("KriDashboardPage", () => {
           id: "kri-1",
           data: {
             name: "Failed Logins",
+            owner: "",
             unit: "count",
             alert_threshold: 50,
             target_value: 10,
@@ -964,6 +1020,66 @@ describe("KriDashboardPage", () => {
       )
       expect(mockToastSuccess).toHaveBeenCalledWith(
         "organization.kri.toast.edited"
+      )
+    })
+
+    // KRI owner field (industry-standards finding, round 20): free-text
+    // owner, editable the same way as every other KRI field on this modal.
+    it("pre-fills the edit form with the KRI's existing owner and saves an updated one", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ owner: "Jane Procurement" })] },
+        isLoading: false,
+      })
+      mockUpdateKri.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      renderPage()
+      await userEvent.click(screen.getByTitle("organization.kri.editTooltip"))
+
+      const ownerInput = screen.getByDisplayValue("Jane Procurement")
+      await userEvent.clear(ownerInput)
+      await userEvent.type(ownerInput, "John Risk")
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.kri\.save/i })
+      )
+
+      await waitFor(() =>
+        expect(mockUpdateKri).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: "kri-1",
+            data: expect.objectContaining({ owner: "John Risk" }),
+          })
+        )
+      )
+    })
+
+    // Independent review of PR #871: unlike create (which omits a blank
+    // owner so it's never stored), edit deliberately sends an explicit ""
+    // so a previously-set owner actually gets cleared rather than the
+    // update being a silent no-op -- aexa-server#328's update_kri_into_db
+    // normalizes that "" to a real NULL server-side.
+    it("sends an explicit empty-string owner when clearing a previously-set one", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ owner: "Jane Procurement" })] },
+        isLoading: false,
+      })
+      mockUpdateKri.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      renderPage()
+      await userEvent.click(screen.getByTitle("organization.kri.editTooltip"))
+
+      const ownerInput = screen.getByDisplayValue("Jane Procurement")
+      await userEvent.clear(ownerInput)
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.kri\.save/i })
+      )
+
+      await waitFor(() =>
+        expect(mockUpdateKri).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: "kri-1",
+            data: expect.objectContaining({ owner: "" }),
+          })
+        )
       )
     })
 
@@ -1464,6 +1580,42 @@ describe("KriDashboardPage", () => {
 
       expect(
         screen.queryByText("organization.kri.overdueLabel")
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  // KRI owner field (industry-standards finding, round 20): shown compactly
+  // on the card only when set, same conditional-metadata pattern as the
+  // overdue badge just above -- no unconditional column for an org that
+  // never fills it in.
+  describe("owner display", () => {
+    it("shows the owner on the card when set", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ owner: "Jane Procurement" })] },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(screen.getByText("Jane Procurement")).toBeInTheDocument()
+    })
+
+    it("does not render an owner line when owner is unset", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ owner: null })] },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // Round-2 independent review of #871: "organization.kri.ownerLabel"
+      // is only ever used as the owner span's `title` attribute -- its
+      // visible text content is kri.owner itself (e.g. "Jane Procurement"),
+      // never the translation key -- so queryByText against that key never
+      // actually exercised this assertion. queryByTitle checks the
+      // attribute the conditional block actually sets.
+      expect(
+        screen.queryByTitle("organization.kri.ownerLabel")
       ).not.toBeInTheDocument()
     })
   })

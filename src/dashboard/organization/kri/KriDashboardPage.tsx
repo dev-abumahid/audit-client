@@ -16,6 +16,7 @@ import {
   Settings2,
   Trash2,
   TrendingUp,
+  User,
 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -212,6 +213,9 @@ export default function KriDashboardPage() {
         createKri({
           risk_id: form.risk_id,
           name: form.name,
+          // Omit rather than send an empty string -- an unset owner should
+          // read as "no owner" (null), not a stored empty string.
+          owner: form.owner.trim() || undefined,
           unit: form.unit,
           current_value: form.current_value,
           alert_threshold: form.alert_threshold,
@@ -268,6 +272,7 @@ export default function KriDashboardPage() {
     setEditingKriId(kri.id)
     setEditForm({
       name: kri.name,
+      owner: kri.owner ?? "",
       unit: kri.unit,
       target_value: Number(kri.target_value),
       alert_threshold: Number(kri.alert_threshold),
@@ -289,6 +294,12 @@ export default function KriDashboardPage() {
           id: editingKriId,
           data: {
             name: editForm.name,
+            // Empty string clears a previously-set owner back to unset,
+            // same "omit rather than store blank" rule as create above --
+            // an explicit "" is still sent here (unlike create) so clearing
+            // the field actually clears it server-side instead of being a
+            // silent no-op.
+            owner: editForm.owner.trim(),
             unit: editForm.unit,
             alert_threshold: editForm.alert_threshold,
             target_value: editForm.target_value,
@@ -714,6 +725,21 @@ export default function KriDashboardPage() {
                     {formatKriNumber(Number(kri.target_value), i18n.language)}
                   </span>
                 </span>
+                {/* Industry-standards finding (round 20): KRI ownership had
+                    no field at all -- ServiceNow GRC/LogicGate/Resolver all
+                    surface who's responsible for a KRI. Free-text, so shown
+                    compactly and only when set, same "conditional metadata
+                    line" pattern as `overdue` just below -- no unconditional
+                    grid column for an org that never fills it in. */}
+                {kri.owner && (
+                  <span
+                    title={t("organization.kri.ownerLabel", { owner: kri.owner })}
+                    className="flex min-w-0 items-center gap-1"
+                  >
+                    <User className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{kri.owner}</span>
+                  </span>
+                )}
                 {/* aexa-server#242 — overdue is computed server-side from
                     frequency + last_measured_at; always false with no
                     frequency, so this never shows on a KRI with no cadence. */}

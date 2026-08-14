@@ -263,6 +263,10 @@ export interface KRI {
   org_account_id: string
   risk_id: string
   name: string
+  // Free-text owner name (who's responsible for this KRI), matching
+  // ComplianceObligation.owner's convention on the backend -- not a link to
+  // an OrgMember/Account record.
+  owner: string | null
   unit: string
   current_value: number
   alert_threshold: number

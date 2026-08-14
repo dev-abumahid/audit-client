@@ -328,6 +328,8 @@
         "namePlaceholder": "ex. Taux d'incidents",
         "risk": "Risque",
         "selectRisk": "Sélectionner un risque",
+        "owner": "Responsable",
+        "ownerPlaceholder": "ex. Jane Procurement",
         "unit": "Unité",
         "unitPlaceholder": "ex. %, nombre",
         "target": "Valeur cible",
@@ -335,6 +337,7 @@
         "currentValue": "Valeur actuelle",
         "frequency": "Fréquence"
       },
+      "ownerLabel": "Responsable : {{owner}}",
       "frequency": {
         "daily": "Quotidien",
         "weekly": "Hebdomadaire",

@@ -75,6 +75,14 @@ export default function EditKriModal({
             placeholder={t("organization.kri.form.unitPlaceholder")}
           />
 
+          <KriFormField
+            id="kri-edit-owner"
+            label={t("organization.kri.form.owner")}
+            value={form.owner}
+            onChange={(v) => setForm((f) => ({ ...f, owner: v }))}
+            placeholder={t("organization.kri.form.ownerPlaceholder")}
+          />
+
           <div className="grid grid-cols-2 gap-3">
             <KriFormField
               id="kri-edit-alert-threshold"

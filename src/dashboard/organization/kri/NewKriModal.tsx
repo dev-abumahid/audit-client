@@ -117,6 +117,14 @@ export default function NewKriModal({
             />
           </div>
 
+          <KriFormField
+            id="kri-form-owner"
+            label={t("organization.kri.form.owner")}
+            value={form.owner}
+            onChange={(v) => setForm((f) => ({ ...f, owner: v }))}
+            placeholder={t("organization.kri.form.ownerPlaceholder")}
+          />
+
           <div className="grid grid-cols-3 gap-3">
             <KriFormField
               id="kri-form-current-value"

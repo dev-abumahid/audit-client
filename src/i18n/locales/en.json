@@ -328,6 +328,8 @@
         "namePlaceholder": "e.g. Incident rate",
         "risk": "Risk",
         "selectRisk": "Select Risk",
+        "owner": "Owner",
+        "ownerPlaceholder": "e.g. Jane Procurement",
         "unit": "Unit",
         "unitPlaceholder": "e.g. %, count",
         "target": "Target value",
@@ -335,6 +337,7 @@
         "currentValue": "Current value",
         "frequency": "Frequency"
       },
+      "ownerLabel": "Owner: {{owner}}",
       "frequency": {
         "daily": "Daily",
         "weekly": "Weekly",

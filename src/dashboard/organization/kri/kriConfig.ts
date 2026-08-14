@@ -3,6 +3,7 @@ import type { SeverityLevel } from "@/utils/severityStyles"
 export const EMPTY_KRI = {
   name: "",
   risk_id: "",
+  owner: "",
   unit: "",
   current_value: 0,
   target_value: 0,
@@ -20,6 +21,7 @@ export type KriFormState = typeof EMPTY_KRI
 // update_kri's own zod schema on aexa-server explicitly doesn't accept.
 export const EMPTY_EDIT_KRI = {
   name: "",
+  owner: "",
   unit: "",
   target_value: 0,
   alert_threshold: 0,

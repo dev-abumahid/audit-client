@@ -9,6 +9,8 @@ import type { KRI, KriReading, LineOfDefense } from "@/types/organization"
 interface CreateKriPayload {
   risk_id: string
   name: string
+  // Free-text owner, mirrors kri.validation.ts's optional `owner` field.
+  owner?: string
   unit: string
   current_value: number
   alert_threshold: number
@@ -25,7 +27,7 @@ interface CreateKriPayload {
 type UpdateKriPayload = Partial<
   Pick<
     CreateKriPayload,
-    "name" | "unit" | "alert_threshold" | "target_value" | "frequency"
+    "name" | "owner" | "unit" | "alert_threshold" | "target_value" | "frequency"
   >
 > & { line_of_defense?: LineOfDefense }
 
