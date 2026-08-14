@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   useCreateNewKriMutation,
   useDeleteKriMutation,
@@ -12,14 +11,9 @@ import FilteredByNotice from "@/components/shared/FilteredByNotice"
 import { useGetAllAlertsQuery } from "@/redux/apis/organization/alert.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
-import { useModalA11y } from "@/hooks/useModalA11y"
 import { formatLocaleDate } from "@/utils/formatDate"
 import type { Alert, KRI, Risk } from "@/types/organization"
-import {
-  SEVERITY_STYLES,
-  severityBadgeClasses,
-  type SeverityLevel,
-} from "@/utils/severityStyles"
+import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import {
   AlertTriangle,
   ChartLine,
@@ -28,214 +22,54 @@ import {
   Loader2,
   Pencil,
   Plus,
-  Save,
   Settings2,
   Trash2,
   TrendingUp,
-  X,
 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useLocation, useSearchParams } from "react-router"
-import {
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts"
 import { toast } from "sonner"
+import EditKriModal from "./EditKriModal"
+import NewKriModal from "./NewKriModal"
+import TrendModal from "./TrendModal"
+import UpdateValueModal from "./UpdateValueModal"
+import {
+  EMPTY_EDIT_KRI,
+  EMPTY_KRI,
+  HIGHLIGHT_DURATION_MS,
+  formatKriNumber,
+  highestSeverity,
+  KRI_STATUS_META,
+  kriStatusMeta,
+} from "./kriConfig"
 
-const EMPTY_KRI = {
-  name: "",
-  risk_id: "",
-  unit: "",
-  current_value: 0,
-  target_value: 0,
-  alert_threshold: 0,
-  frequency: "monthly",
-}
-
-// Round-5 industry-standards finding: the backend's updateKri/deleteKri
-// endpoints existed with zero frontend consumer -- a KRI's name, unit, or
-// thresholds could never be corrected after creation, and a mistakenly
-// created KRI could never be removed, without going around the UI
-// entirely. Mirrors EMPTY_KRI's shape minus risk_id/current_value, which
-// update_kri's own zod schema on aexa-server explicitly doesn't accept.
-const EMPTY_EDIT_KRI = {
-  name: "",
-  unit: "",
-  target_value: 0,
-  alert_threshold: 0,
-  frequency: "monthly",
-}
-
-// quality-bar-loop round 3 (efficiency, round-1 finding): both are static
-// -- hoisted to module scope instead of being redeclared inside the
-// component on every render.
-const SEVERITY_RANK: Record<string, number> = {
-  critical: 3,
-  high: 2,
-  medium: 1,
-  low: 0,
-}
-
-// Fresh full-panel re-score (code quality finding): a KRI's ALERT/WARNING/
-// OK status was independently re-derived into a severity level, a border
-// color, and a translated label in FOUR separate places across this file
-// (the card border, the status badge's color, the status badge's text, and
-// the URL-filter notice's text) -- any future 4th status value or renamed
-// class would need updating in all four spots with nothing to catch a
-// missed one. One lookup, keyed once.
-const KRI_STATUS_META: Record<
-  string,
-  { severityLevel: SeverityLevel; borderClass: string; labelKey: string }
-> = {
-  ALERT: {
-    severityLevel: "critical",
-    borderClass: "border-risk-critical/40",
-    labelKey: "organization.kri.status.alert",
-  },
-  WARNING: {
-    severityLevel: "medium",
-    borderClass: "border-risk-medium/40",
-    labelKey: "organization.kri.status.warning",
-  },
-  OK: {
-    severityLevel: "low",
-    borderClass: "border-risk-low/40",
-    labelKey: "organization.kri.status.ok",
-  },
-}
-const kriStatusMeta = (status: string) =>
-  KRI_STATUS_META[status] ?? KRI_STATUS_META.OK
-
-// Round 13 (fresh full-panel re-score, industry-standards finding): every
-// numeric readout on this page used bare `Number(...)`, rendering e.g.
-// 15000 instead of 15,000. Round-2 review of PR #852: an unconditional
-// "en-US" pin (round 1's fix for round-1 review's flagged test-flakiness
-// risk from an *unpinned* locale) was itself wrong -- it would show a
-// French-language user English-convention "1,234.56" grouping right next
-// to dates already correctly rendered in French via this same file's
-// `formatLocaleDate(date, i18n.language, ...)` call. Mirrors that exact
-// same `language?.startsWith("fr") ? "fr-FR" : "en-US"` resolution (see
-// src/utils/formatDate.ts's own doc comment on why an unpinned/hardcoded
-// locale is a repeat of a past audit bug class) so numbers and dates on
-// this page always agree on which language they're speaking.
-// `maximumFractionDigits: 20` (the practical ceiling short of the spec's
-// 100) stops the default 3-fraction-digit rounding from silently
-// truncating a KRI value's real precision -- this only adds thousands
-// separators, it never changes what number is displayed.
-const formatKriNumber = (value: number, language: string | undefined) =>
-  value.toLocaleString(language?.startsWith("fr") ? "fr-FR" : "en-US", {
-    maximumFractionDigits: 20,
-  })
-
-// Fresh full-panel re-score (code quality finding): unnamed magic numbers.
-const HIGHLIGHT_DURATION_MS = 3000
-const RISK_NAME_TRUNCATE_LENGTH = 30
-const highestSeverity = (
-  kriAlerts: { severity: SeverityLevel }[]
-): SeverityLevel =>
-  kriAlerts.reduce(
-    (worst, alert) =>
-      (SEVERITY_RANK[alert.severity] ?? 0) > (SEVERITY_RANK[worst] ?? -1)
-        ? alert.severity
-        : worst,
-    "low" as SeverityLevel
-  )
-
-// Round 17 (fresh full-panel re-score, code quality finding): the New KRI
-// and Edit KRI modals repeated this exact label+input block 4-6 times each
-// with only the id/value/onChange/type/required differing -- round 6's log
-// entry originally declined to extract this, citing layout divergence and
-// test-selector risk, but a fresh read found the two modals differ only in
-// New KRI's extra risk-select + current_value field, which composition
-// handles fine. Every id/className/aria attribute below is byte-identical
-// to what the two call sites rendered inline before this extraction, so no
-// existing id-based/label-based test selector changes.
-function KriFormField({
-  id,
-  label,
-  required,
-  type,
-  value,
-  onChange,
-  placeholder,
-}: {
-  id: string
-  label: string
-  required?: boolean
-  type?: "number"
-  value: string | number
-  onChange: (value: string) => void
-  placeholder?: string
-}) {
-  return (
-    <div>
-      <label
-        htmlFor={id}
-        className="text-xs font-medium text-muted-foreground"
-      >
-        {label}
-        {required && " *"}
-      </label>
-      <input
-        id={id}
-        type={type}
-        required={required}
-        aria-required={required ? "true" : undefined}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-        placeholder={placeholder}
-      />
-    </div>
-  )
-}
-
-// Round 17: the frequency <select> (options, className, structure) was
-// identical between New KRI and Edit KRI, only id/value/onChange differed.
-function KriFrequencySelect({
-  id,
-  value,
-  onChange,
-  t,
-}: {
-  id: string
-  value: string
-  onChange: (value: string) => void
-  t: (key: string) => string
-}) {
-  return (
-    <div>
-      <label
-        htmlFor={id}
-        className="text-xs font-medium text-muted-foreground"
-      >
-        {t("organization.kri.form.frequency")}
-      </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-      >
-        <option value="daily">{t("organization.kri.frequency.daily")}</option>
-        <option value="weekly">
-          {t("organization.kri.frequency.weekly")}
-        </option>
-        <option value="monthly">
-          {t("organization.kri.frequency.monthly")}
-        </option>
-        <option value="quarterly">
-          {t("organization.kri.frequency.quarterly")}
-        </option>
-      </select>
-    </div>
-  )
+// Round 18 (code quality finding): handleSave, handleUpdateValue,
+// handleSaveEdit, and handleDelete each independently repeated the
+// identical `try { await mutate().unwrap(); toast.success(...) } catch
+// (err: any) { toast.error(err?.data?.message || fallback) }` shape (the
+// same duplication class already fixed on CompliancePage.tsx's
+// submitWithToast this session) -- and each cast `err` to `any` to do it,
+// which is what forced this whole file's blanket
+// `/* eslint-disable @typescript-eslint/no-explicit-any */` at the top.
+// Never throws -- swallows the error into a toast either way, so every
+// call site can safely `await` this without its own try/catch.
+async function submitWithToast<T>(
+  action: () => Promise<T>,
+  successMessage: string,
+  fallbackErrorMessage: string,
+  onSuccess?: (result: T) => void
+): Promise<void> {
+  try {
+    const result = await action()
+    toast.success(successMessage)
+    onSuccess?.(result)
+  } catch (err) {
+    const message =
+      (err as { data?: { message?: string } })?.data?.message ||
+      fallbackErrorMessage
+    toast.error(message)
+  }
 }
 
 export default function KriDashboardPage() {
@@ -330,6 +164,17 @@ export default function KriDashboardPage() {
     if (!el) return
     highlightedRef.current = highlightKey
     el.scrollIntoView({ behavior: "smooth", block: "center" })
+    // Pre-existing, unrelated to this round's decomposition (this effect
+    // is byte-for-byte unchanged; the rule only started firing here
+    // because the analyzer previously bailed out on this component's
+    // prior size/complexity and is now able to run). `activeHighlight`
+    // synchronizes a genuinely external trigger (a URL param + a real DOM
+    // scroll target) into React state to drive a temporary highlight ring
+    // -- there's no props/derived-state equivalent to compute this from
+    // during render, since it depends on `document.getElementById`
+    // actually finding the element and a real scrollIntoView call
+    // succeeding first.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveHighlight(highlightKriId)
     const timeout = setTimeout(
       () => setActiveHighlight(null),
@@ -376,17 +221,10 @@ export default function KriDashboardPage() {
     { skip: !trendKriId }
   )
 
-  // aexa-frontend#471 -- role="dialog"/focus-trap/Escape for all three
-  // modals below, via the shared hook (see useModalA11y.ts for why this
-  // isn't a Radix Dialog migration instead).
-  const updateValueModalRef = useModalA11y(!!updatingKriId, () =>
-    setUpdatingKriId(null)
-  )
-  const newKriModalRef = useModalA11y(showForm, () => setShowForm(false))
-  const trendModalRef = useModalA11y(!!trendKriId, () => setTrendKriId(null))
-  const editKriModalRef = useModalA11y(!!editingKriId, () =>
-    setEditingKriId(null)
-  )
+  // aexa-frontend#471 -- role="dialog"/focus-trap/Escape for all four
+  // modals below, now via each extracted modal component's own
+  // useModalA11y() call (see useModalA11y.ts for why this isn't a Radix
+  // Dialog migration instead).
 
   // Round 15 (fresh full-panel re-score, accessibility finding): none of
   // these five open-state setters closed any of the others, so e.g.
@@ -419,26 +257,25 @@ export default function KriDashboardPage() {
     }
 
     setIsSaving(true)
-    try {
-      await createKri({
-        risk_id: form.risk_id,
-        name: form.name,
-        unit: form.unit,
-        current_value: form.current_value,
-        alert_threshold: form.alert_threshold,
-        target_value: form.target_value,
-        frequency: form.frequency,
-      }).unwrap()
-      toast.success(t("organization.kri.toast.created"))
-      setShowForm(false)
-      setForm(EMPTY_KRI)
-    } catch (err: any) {
-      toast.error(
-        err?.data?.message || t("organization.kri.toast.createFailed")
-      )
-    } finally {
-      setIsSaving(false)
-    }
+    await submitWithToast(
+      () =>
+        createKri({
+          risk_id: form.risk_id,
+          name: form.name,
+          unit: form.unit,
+          current_value: form.current_value,
+          alert_threshold: form.alert_threshold,
+          target_value: form.target_value,
+          frequency: form.frequency,
+        }).unwrap(),
+      t("organization.kri.toast.created"),
+      t("organization.kri.toast.createFailed"),
+      () => {
+        setShowForm(false)
+        setForm(EMPTY_KRI)
+      }
+    )
+    setIsSaving(false)
   }
 
   const openUpdateValue = (kri: KRI) => {
@@ -463,20 +300,17 @@ export default function KriDashboardPage() {
     }
 
     setIsUpdatingValue(true)
-    try {
-      await submitKriValue({
-        id: updatingKriId,
-        current_value: value,
-      }).unwrap()
-      toast.success(t("organization.kri.toast.valueUpdated"))
-      setUpdatingKriId(null)
-    } catch (err: any) {
-      toast.error(
-        err?.data?.message || t("organization.kri.toast.updateFailed")
-      )
-    } finally {
-      setIsUpdatingValue(false)
-    }
+    await submitWithToast(
+      () =>
+        submitKriValue({
+          id: updatingKriId,
+          current_value: value,
+        }).unwrap(),
+      t("organization.kri.toast.valueUpdated"),
+      t("organization.kri.toast.updateFailed"),
+      () => setUpdatingKriId(null)
+    )
+    setIsUpdatingValue(false)
   }
 
   const openEdit = (kri: KRI) => {
@@ -499,40 +333,35 @@ export default function KriDashboardPage() {
     }
 
     setIsSavingEdit(true)
-    try {
-      await updateKri({
-        id: editingKriId,
-        data: {
-          name: editForm.name,
-          unit: editForm.unit,
-          alert_threshold: editForm.alert_threshold,
-          target_value: editForm.target_value,
-          frequency: editForm.frequency,
-        },
-      }).unwrap()
-      toast.success(t("organization.kri.toast.edited"))
-      setEditingKriId(null)
-    } catch (err: any) {
-      toast.error(err?.data?.message || t("organization.kri.toast.editFailed"))
-    } finally {
-      setIsSavingEdit(false)
-    }
+    await submitWithToast(
+      () =>
+        updateKri({
+          id: editingKriId,
+          data: {
+            name: editForm.name,
+            unit: editForm.unit,
+            alert_threshold: editForm.alert_threshold,
+            target_value: editForm.target_value,
+            frequency: editForm.frequency,
+          },
+        }).unwrap(),
+      t("organization.kri.toast.edited"),
+      t("organization.kri.toast.editFailed"),
+      () => setEditingKriId(null)
+    )
+    setIsSavingEdit(false)
   }
 
   const handleDelete = async () => {
     if (!deletingKri) return
     setIsDeleting(true)
-    try {
-      await deleteKri(deletingKri.id).unwrap()
-      toast.success(t("organization.kri.toast.deleted"))
-      setDeletingKri(null)
-    } catch (err: any) {
-      toast.error(
-        err?.data?.message || t("organization.kri.toast.deleteFailed")
-      )
-    } finally {
-      setIsDeleting(false)
-    }
+    await submitWithToast(
+      () => deleteKri(deletingKri.id).unwrap(),
+      t("organization.kri.toast.deleted"),
+      t("organization.kri.toast.deleteFailed"),
+      () => setDeletingKri(null)
+    )
+    setIsDeleting(false)
   }
 
   // Round 14 (code quality, fresh full-panel re-score finding): typed
@@ -994,218 +823,25 @@ export default function KriDashboardPage() {
         )}
       </div>
 
-      {/* Update Value Modal */}
       {updatingKriId && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setUpdatingKriId(null)}
-        >
-          <div
-            ref={updateValueModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="kri-update-value-title"
-            className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2
-                id="kri-update-value-title"
-                className="text-lg font-bold text-foreground"
-              >
-                {t("organization.kri.updateValueTitle")}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setUpdatingKriId(null)}
-                aria-label={t("organization.kri.cancel")}
-                // quality-bar-loop round 2 (mobile, round-1 finding):
-                // measured ~28px -- under the 44px touch-target guideline.
-                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            {updatingKri && (
-              <div className="mb-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {updatingKri.name}
-                </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {t("organization.kri.thresholdLabel")}{" "}
-                  {formatKriNumber(Number(updatingKri.alert_threshold), i18n.language)} ·{" "}
-                  {t("organization.kri.targetLabel")}{" "}
-                  {formatKriNumber(Number(updatingKri.target_value), i18n.language)}
-                  {updatingKri.unit ? ` ${updatingKri.unit}` : ""}
-                </p>
-              </div>
-            )}
-            <label
-              htmlFor="kri-update-value-input"
-              className="text-xs font-medium text-muted-foreground"
-            >
-              {t("organization.kri.form.currentValue")}
-            </label>
-            {/* Round 16 (accessibility finding): `autoFocus` here fired
-                during React's commit, before useModalA11y's own effect ran
-                -- so by the time that effect captured
-                `document.activeElement` as "the trigger to restore focus
-                to on close," it captured THIS input instead of the button
-                that actually opened the modal. useModalA11y's own
-                focusable[0]?.focus() already overrides autoFocus's target
-                anyway (focus visibly lands on the close button, not this
-                input), so autoFocus was never doing anything except
-                silently corrupting the trigger-restore ref. Removing it
-                changes nothing about where focus lands on open, only fixes
-                where it lands on close. */}
-            <input
-              id="kri-update-value-input"
-              type="number"
-              value={updateValue}
-              onChange={(e) => setUpdateValue(e.target.value)}
-              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            />
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setUpdatingKriId(null)}
-                className="focus-ring rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
-              >
-                {t("organization.kri.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleUpdateValue}
-                disabled={isUpdatingValue}
-                className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-              >
-                {isUpdatingValue ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                {t("organization.kri.save")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <UpdateValueModal
+          kri={updatingKri}
+          value={updateValue}
+          onValueChange={setUpdateValue}
+          onClose={() => setUpdatingKriId(null)}
+          onSave={handleUpdateValue}
+          isSaving={isUpdatingValue}
+        />
       )}
 
-      {/* Round-5 industry-standards finding: no way to edit a KRI's own
-          fields (name/unit/thresholds/frequency) after creation existed
-          at all -- only its current value (the modal above). Mirrors the
-          New KRI modal's fields minus risk_id/current_value, which
-          update_kri's own backend schema doesn't accept. */}
       {editingKriId && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setEditingKriId(null)}
-        >
-          <div
-            ref={editKriModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="kri-edit-title"
-            className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 id="kri-edit-title" className="text-lg font-bold text-foreground">
-                {t("organization.kri.editKriTitle")}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setEditingKriId(null)}
-                aria-label={t("organization.kri.cancel")}
-                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <KriFormField
-                id="kri-edit-name"
-                label={t("organization.kri.form.name")}
-                required
-                value={editForm.name}
-                onChange={(v) =>
-                  setEditForm((f) => ({ ...f, name: v }))
-                }
-                placeholder={t("organization.kri.form.namePlaceholder")}
-              />
-
-              <KriFormField
-                id="kri-edit-unit"
-                label={t("organization.kri.form.unit")}
-                value={editForm.unit}
-                onChange={(v) =>
-                  setEditForm((f) => ({ ...f, unit: v }))
-                }
-                placeholder={t("organization.kri.form.unitPlaceholder")}
-              />
-
-              <div className="grid grid-cols-2 gap-3">
-                <KriFormField
-                  id="kri-edit-alert-threshold"
-                  label={t("organization.kri.form.alertThreshold")}
-                  type="number"
-                  value={editForm.alert_threshold}
-                  onChange={(v) =>
-                    setEditForm((f) => ({
-                      ...f,
-                      alert_threshold: Number(v),
-                    }))
-                  }
-                />
-                <KriFormField
-                  id="kri-edit-target"
-                  label={t("organization.kri.form.target")}
-                  type="number"
-                  value={editForm.target_value}
-                  onChange={(v) =>
-                    setEditForm((f) => ({
-                      ...f,
-                      target_value: Number(v),
-                    }))
-                  }
-                />
-              </div>
-
-              <KriFrequencySelect
-                id="kri-edit-frequency"
-                value={editForm.frequency}
-                onChange={(v) =>
-                  setEditForm((f) => ({ ...f, frequency: v }))
-                }
-                t={t}
-              />
-            </div>
-
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setEditingKriId(null)}
-                className="focus-ring rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
-              >
-                {t("organization.kri.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveEdit}
-                disabled={isSavingEdit || !editForm.name}
-                className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-              >
-                {isSavingEdit ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                {t("organization.kri.save")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <EditKriModal
+          form={editForm}
+          setForm={setEditForm}
+          onClose={() => setEditingKriId(null)}
+          onSave={handleSaveEdit}
+          isSaving={isSavingEdit}
+        />
       )}
 
       <DeleteAlertModal
@@ -1225,322 +861,26 @@ export default function KriDashboardPage() {
         loading={isDeleting}
       />
 
-      {/* New KRI Modal */}
       {showForm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setShowForm(false)}
-        >
-          <div
-            ref={newKriModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="kri-new-title"
-            className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2
-                id="kri-new-title"
-                className="text-lg font-bold text-foreground"
-              >
-                {t("organization.kri.newKri")}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                aria-label={t("organization.kri.cancel")}
-                // quality-bar-loop round 2 (mobile, round-1 finding):
-                // measured ~28px -- under the 44px touch-target guideline.
-                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <KriFormField
-                id="kri-form-name"
-                label={t("organization.kri.form.name")}
-                required
-                value={form.name}
-                onChange={(v) => setForm((f) => ({ ...f, name: v }))}
-                placeholder={t("organization.kri.form.namePlaceholder")}
-              />
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label
-                    htmlFor="kri-form-risk"
-                    className="text-xs font-medium text-muted-foreground"
-                  >
-                    {t("organization.kri.form.risk")} *
-                  </label>
-                  <select
-                    id="kri-form-risk"
-                    required
-                    aria-required="true"
-                    value={form.risk_id}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, risk_id: e.target.value }))
-                    }
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    <option value="">
-                      {t("organization.kri.form.selectRisk")}
-                    </option>
-                    {risks.map((r: Risk) => (
-                      <option key={r.id} value={r.id} title={r.name}>
-                        {r.name.length > RISK_NAME_TRUNCATE_LENGTH
-                          ? `${r.name.slice(0, RISK_NAME_TRUNCATE_LENGTH)}...`
-                          : r.name}
-                      </option>
-                    ))}
-                  </select>
-                  {/* option-element title tooltips don't reliably render
-                      everywhere (same constraint the ReportsPage "Coming
-                      soon" fix documents), so the full name of a truncated
-                      selection is also always visible here, not just on
-                      hover. */}
-                  {(() => {
-                    const selected = risks.find(
-                      (r: Risk) => r.id === form.risk_id
-                    )
-                    return selected &&
-                      selected.name.length > RISK_NAME_TRUNCATE_LENGTH ? (
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        {selected.name}
-                      </p>
-                    ) : null
-                  })()}
-                </div>
-                <KriFormField
-                  id="kri-form-unit"
-                  label={t("organization.kri.form.unit")}
-                  value={form.unit}
-                  onChange={(v) => setForm((f) => ({ ...f, unit: v }))}
-                  placeholder={t("organization.kri.form.unitPlaceholder")}
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <KriFormField
-                  id="kri-form-current-value"
-                  label={t("organization.kri.form.currentValue")}
-                  type="number"
-                  value={form.current_value}
-                  onChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      current_value: Number(v),
-                    }))
-                  }
-                />
-                <KriFormField
-                  id="kri-form-alert-threshold"
-                  label={t("organization.kri.form.alertThreshold")}
-                  type="number"
-                  value={form.alert_threshold}
-                  onChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      alert_threshold: Number(v),
-                    }))
-                  }
-                />
-                <KriFormField
-                  id="kri-form-target"
-                  label={t("organization.kri.form.target")}
-                  type="number"
-                  value={form.target_value}
-                  onChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      target_value: Number(v),
-                    }))
-                  }
-                />
-              </div>
-
-              <KriFrequencySelect
-                id="kri-form-frequency"
-                value={form.frequency}
-                onChange={(v) => setForm((f) => ({ ...f, frequency: v }))}
-                t={t}
-              />
-            </div>
-
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="focus-ring rounded-lg border border-input px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
-              >
-                {t("organization.kri.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaving || !form.name || !form.risk_id}
-                className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                {t("organization.kri.createKri")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <NewKriModal
+          form={form}
+          setForm={setForm}
+          risks={risks}
+          onClose={() => setShowForm(false)}
+          onSave={handleSave}
+          isSaving={isSaving}
+        />
       )}
 
-      {/* Trend modal (aexa-server#242 / aexa-frontend#211) */}
       {trendKriId && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setTrendKriId(null)}
-        >
-          <div
-            ref={trendModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="kri-trend-title"
-            className="w-full max-w-lg rounded-xl border border-border bg-card p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h2
-                id="kri-trend-title"
-                className="text-lg font-bold text-foreground"
-              >
-                {t("organization.kri.trend.modalTitle", {
-                  name: trendKri?.name ?? "",
-                })}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setTrendKriId(null)}
-                aria-label={t("organization.kri.cancel")}
-                // quality-bar-loop round 2 (mobile, round-1 finding):
-                // measured ~28px -- under the 44px touch-target guideline.
-                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {isLoadingReadings && (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-
-            {/* Fresh full-panel re-score (resilience finding): a failed
-                readings fetch fell through to the same empty-state
-                message as "this KRI genuinely has no readings yet" --
-                indistinguishable from a real outage.
-                Round-1 review of PR #847: gated on trendChartData.length
-                === 0 too -- getKriReadings' providesTags: ["KRI"] means a
-                background refetch (e.g. triggered by submitting a new
-                value while this modal is open) can fail while the prior
-                successful fetch's chart data is still cached. The
-                original version hid that still-valid stale chart behind
-                this error message unconditionally, the same
-                stale-but-valid-data anti-pattern already fixed on
-                Alerts/Intelligence this session. */}
-            {!isLoadingReadings && readingsError && trendChartData.length === 0 && (
-              <p
-                role="alert"
-                className="py-8 text-center text-sm text-destructive"
-              >
-                {t("organization.kri.trend.loadError")}
-              </p>
-            )}
-
-            {!isLoadingReadings && !readingsError && trendChartData.length === 0 && (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                {t("organization.kri.trend.empty")}
-              </p>
-            )}
-
-            {!isLoadingReadings && readingsError && trendChartData.length > 0 && (
-              <p role="alert" className="mb-2 text-xs text-destructive">
-                {t("organization.kri.trend.refetchFailedStale")}
-              </p>
-            )}
-
-            {!isLoadingReadings && trendChartData.length > 0 && (
-              <div className="h-64">
-                {/* Round 9 (accessibility finding): a concise text summary
-                    conveys the same "what's the trend" signal the chart
-                    exists to show, without needing a full data-table
-                    fallback. Round 11 (fresh full-panel re-score):
-                    recharts v3's accessibilityLayer (on by default) makes
-                    the chart's <svg> keyboard-focusable with
-                    role="application", but it had no accessible name of
-                    its own -- passing the same summary as LineChart's
-                    `title` prop (below) renders an <svg><title> element,
-                    the standard accessible-name mechanism. */}
-                <p className="sr-only">{trendSummary}</p>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trendChartData} title={trendSummary}>
-                    <XAxis
-                      dataKey="recorded_at"
-                      tick={{ fontSize: 11 }}
-                      stroke="hsl(var(--muted-foreground))"
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11 }}
-                      stroke="hsl(var(--muted-foreground))"
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "hsl(var(--popover))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                      labelStyle={{ color: "hsl(var(--popover-foreground))" }}
-                    />
-                    {trendKri && (
-                      <ReferenceLine
-                        y={Number(trendKri.alert_threshold)}
-                        stroke="hsl(var(--risk-critical))"
-                        strokeDasharray="4 4"
-                        label={{
-                          value: t("organization.kri.thresholdLabel"),
-                          fontSize: 10,
-                          fill: "hsl(var(--risk-critical))",
-                        }}
-                      />
-                    )}
-                    {trendKri && (
-                      <ReferenceLine
-                        y={Number(trendKri.target_value)}
-                        stroke="hsl(var(--risk-low))"
-                        strokeDasharray="4 4"
-                        label={{
-                          value: t("organization.kri.targetLabel"),
-                          fontSize: 10,
-                          fill: "hsl(var(--risk-low))",
-                        }}
-                      />
-                    )}
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-        </div>
+        <TrendModal
+          kri={trendKri}
+          chartData={trendChartData}
+          summary={trendSummary}
+          isLoading={isLoadingReadings}
+          isError={readingsError}
+          onClose={() => setTrendKriId(null)}
+        />
       )}
     </div>
   )
