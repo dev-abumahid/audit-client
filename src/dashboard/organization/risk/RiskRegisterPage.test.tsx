@@ -5,7 +5,9 @@ import { FormProvider, useForm } from "react-hook-form"
 import { MemoryRouter } from "react-router"
 import RiskRegisterPage, { RiskScoresSection } from "./RiskRegisterPage"
 
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+}))
 
 // aexa-frontend#529: the risk name is now a <Link> to the new per-risk
 // detail page, so this needs a Router context -- same convention as
@@ -62,6 +64,7 @@ vi.mock("@/hooks/useMyOrgRole", () => ({
 
 import { toast } from "sonner"
 const mockToastError = vi.mocked(toast.error)
+const mockToastWarning = vi.mocked(toast.warning)
 
 const mockUseGetAllRisksQuery = vi.fn()
 const mockUseGetAllSitesQuery = vi.fn()
@@ -168,6 +171,7 @@ describe("RiskRegisterPage", () => {
     mockUpdateRisk.mockReset()
     mockDeleteRisk.mockReset()
     mockToastError.mockReset()
+    mockToastWarning.mockReset()
     mockTriggerRisksExport.mockClear()
     mockIsRiskCreating = false
     mockIsRiskDeleting = false
@@ -2160,6 +2164,52 @@ describe("RiskRegisterPage", () => {
           expect.objectContaining({ page: 1, limit: 1000 })
         )
       )
+    })
+
+    // Round-17 fix (industry-standards): EXPORT_ROW_LIMIT (1000) was
+    // silently applied since it was introduced -- a filtered set larger
+    // than the cap downloaded a truncated CSV with no indication anything
+    // was missing.
+    it("warns when the export hits the row cap, and stays silent when it doesn't (round 17 fix)", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      const oneThousandRisks = Array.from({ length: 1000 }, (_, i) =>
+        makeRisk({ id: `risk-${i}` })
+      )
+      mockTriggerRisksExport.mockReturnValueOnce({
+        unwrap: () => Promise.resolve({ data: oneThousandRisks }),
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.exportCsv",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockToastWarning).toHaveBeenCalledWith(
+          "organization.riskRegister.exportTruncatedWarningToast"
+        )
+      )
+    })
+
+    it("does not warn when the export is under the row cap", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockTriggerRisksExport.mockReturnValueOnce({
+        unwrap: () => Promise.resolve({ data: [makeRisk()] }),
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.exportCsv",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockTriggerRisksExport).toHaveBeenCalled()
+      )
+      expect(mockToastWarning).not.toHaveBeenCalled()
     })
 
     // Round-16 fix (UX + industry-standards, both independently flagged

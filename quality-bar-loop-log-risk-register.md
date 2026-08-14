@@ -1203,3 +1203,37 @@ the visible table but not the export query), while search/site/category
 correctly do. Picking this as the round's fix -- a single, well-scoped
 change that directly closes findings on both tied axes at once, rather
 than industry-standards' larger untouched gaps.
+
+## Round 17 (scoped re-score after PR #817)
+
+| Axis | Round 16 | Round 17 | Delta |
+|---|---|---|---|
+| Industry-standards | 7/10 | 7/10 | unchanged -- fix closed a correctness gap, not new grid capability |
+| UX | 7/10 | **9/10** | +2, blocking finding verified fixed live |
+| Efficiency | 9/10 | 9/10 | carried forward |
+| Accessibility | 8/10 | 8/10 | carried forward |
+| Visual polish | 8/10 | 8/10 | carried forward |
+| Resilience | 8/10 | 8/10 | carried forward |
+| Code quality | 7/10 | 7/10 | carried forward |
+| Mobile | 9/10 | 9/10 | carried forward |
+| Security | 8/10 | 8/10 | carried forward |
+
+**Average: 8.11/10.** Not converged (target 8.5), no axis below floor.
+
+UX judge live-verified the fix by capturing the actual export Blob: toggling
+"Pending my approval" now produces a 1-row CSV matching the 1 visible row
+(vs. 26 with the toggle off) -- export and table are provably in sync.
+Industry-standards held at 7 since the fix was a data-correctness patch,
+not new grid capability -- its three headline gaps (multi-column sort,
+column management, saved views) remain fully untouched.
+
+**Next fix:** industry-standards now has a 2-round stuck_streak (7 -> 7
+carried forward at round 16 -> 7 again this round), the highest of any
+axis -- code quality's streak is only 1 (6->7 was itself a change last
+round). Per rule 5c.2, industry-standards is next. Of its five remaining
+gaps, picking the export row-cap UI warning: `EXPORT_ROW_LIMIT = 1000`
+has been silently applied with no user-visible indicator since it was
+introduced, repeatedly named across resilience/UX/industry-standards
+rounds -- cheap, contained, and closes a real, oft-cited gap. The other
+four (multi-column sort, column resize/reorder/show-hide, saved views,
+cross-page bulk selection) each remain their own separate feature build.

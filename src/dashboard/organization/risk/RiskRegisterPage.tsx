@@ -1545,6 +1545,20 @@ export default function RiskRegisterPage() {
       const csv = [header, ...rows].map((row) => row.join(",")).join("\r\n")
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
       triggerDownload(blob, "risk-register.csv")
+      // Round-17 fix (industry-standards): EXPORT_ROW_LIMIT has been
+      // silently applied since it was introduced, with no indicator that a
+      // large filtered set could be truncated. result.data.length hitting
+      // the cap exactly is the real signal (a coincidental exact-1000
+      // match is astronomically unlikely at this org's actual scale) --
+      // checked against the raw fetch, not exportRows, since the cap
+      // applies before the client-only status/pending-approval filter.
+      if (result.data.length >= EXPORT_ROW_LIMIT) {
+        toast.warning(
+          t("organization.riskRegister.exportTruncatedWarningToast", {
+            limit: EXPORT_ROW_LIMIT,
+          })
+        )
+      }
     } catch {
       toast.error(t("organization.riskRegister.exportFailedToast"))
     }

@@ -1106,6 +1106,7 @@
       "deleteDescription": "This will permanently remove this Risk from the system.",
       "exportCsv": "Export CSV",
       "exportFailedToast": "Failed to export risks",
+      "exportTruncatedWarningToast": "Export capped at {{limit}} rows -- some matching risks may be missing. Narrow your filters to export a complete file.",
       "selectAllLabel": "Select all risks on this page",
       "selectRiskLabel": "Select {{name}}",
       "selectedCount": "{{count}} selected",
