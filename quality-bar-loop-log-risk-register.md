@@ -1371,3 +1371,75 @@ larger scope, but multi-column sort is tractable as a 2-level
 shift-click extension of the already-client-side single-column sort --
 picking that as a contained slice rather than the full column-
 management/saved-views scope.
+
+## Round 22 (industry-standards final re-score after PR #823) — CONVERGED
+
+| Axis | Round 21 | Round 22 | Delta |
+|---|---|---|---|
+| Industry-standards | 8/10 | **9/10** | +1, multi-column sort closes cleanly |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 8.56/10.** Converged against the session's governing target
+(average >= 8.5, floor 7) -- every axis >= 7 (lowest is 8), average
+above the bar.
+
+Multi-column sort verified via the full test suite (11 sort tests
+passing, including the exact tied-primary/differing-secondary scenario)
+and code reading: `handleSort` correctly implements standard AG Grid/
+TanStack-style multi-sort semantics (plain click always collapses to
+single-column, shift-click adds/toggles a secondary, capped at 2
+levels), and the URL sync/restore handles the secondary symmetrically
+with the primary including the dangling-sort2-with-no-primary edge case
+a round-1 review caught. One gap remains open but no longer blocks
+convergence: cross-page bulk selection (selection is page/filter-scoped
+only, no "select all matching filter" affordance) -- a legitimately
+larger-scope item (needs a new selection model), consistent with every
+other axis that converged with 1-2 minor gaps still open rather than
+zero.
+
+## Final report
+
+| Round | Industry-std | UX | Efficiency | A11y | Visual | Resilience | Code qual | Mobile | Security | Average |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 14 (prior session) | 6 | 7 | 9 | 8 | 8 | 8 | 7 | 8 | 9 | 7.89 |
+| 15 (this session, fresh re-score) | 7 | 7 | 9 | 8 | 8 | 8 | 6* | 5* | 8 | 7.33 |
+| 16 | 7 | 7 | 9 | 8 | 8 | 8 | 7 | 9 | 8 | 7.89 |
+| 17 | 7 | 9 | 9 | 8 | 8 | 8 | 7 | 9 | 8 | 8.11 |
+| 18 | 7 | 9 | 9 | 8 | 8 | 8 | 7 | 9 | 8 | 8.11 |
+| 19 | 8 | 9 | 9 | 8 | 8 | 8 | 7 | 9 | 8 | 8.22 |
+| 20 | 8 | 9 | 9 | 8 | 8 | 8 | 7 | 9 | 8 | 8.22 |
+| 21 | 8 | 9 | 9 | 8 | 8 | 8 | 9 | 9 | 8 | 8.44 |
+| 22 | 9 | 9 | 9 | 8 | 8 | 8 | 9 | 9 | 8 | **8.56** |
+
+\* round 15's mobile/code-quality scores were below-floor regressions
+from round 14's PR #633 not being caught at the time (its scoped-diff
+carve-out incorrectly skipped re-scoring those two axes); rounds 15-16
+were a guardrail-stop-and-recover cycle, not backslide from a
+previously-converged state.
+
+What was fixed each round (this session, rounds 15-22):
+- Round 15->16 (PR #816): mobile toolbar flex-wrap + touch-target sizing;
+  extracted shared `runBulkAction` helper (both below-floor regressions
+  from round 14's PR #633).
+- Round 16->17 (PR #817): CSV export now honors the status/pending-
+  approval client-only filters, matching the visible table.
+- Round 17->18 (PR #818): export-cap warning toast when the 1000-row
+  limit is hit.
+- Round 18->19 (PR #819 + hotfix #820): search/site/category/sort/
+  pending-approval persisted to URL search params (bookmarkable/
+  shareable/reload-safe view state); hotfix for a live-caught race that
+  broke "Clear filter"'s original status-clearing behavior.
+- Round 19->20 (PR #821): extracted shared `FormField` wrapper,
+  eliminating ~27+ duplicated label/error markup instances across 6
+  form-section components.
+- Round 20->21 (PR #822): split the ~2000-line page file by concern
+  (CSV export, bulk actions, Add/Edit modal each into their own
+  file/hook) -- broke code quality's 4-round stuck streak.
+- Round 21->22 (PR #823, 2 review rounds): shift-click multi-column
+  sort, closing the last easily-tractable industry-standards gap.
+
+**Status: CONVERGED.** No guardrail stop. Risk Register meets the
+session's 8.5-average / 7-floor bar as of PR #823 (merged 2026-08-13).
+One gap remains open (cross-page bulk selection) but doesn't block
+convergence -- consistent with every other page in this session's loop,
+which converged with 1-2 minor open items rather than zero.
