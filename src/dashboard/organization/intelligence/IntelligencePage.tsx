@@ -624,17 +624,45 @@ export default function IntelligencePage() {
               </p>
               <div className="space-y-1">
                 {predictResult.result.emerging_risks.map((er, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2 text-xs text-muted-foreground"
-                  >
-                    <AlertTriangle
-                      className={`h-3 w-3 shrink-0 ${SEVERITY_STYLES.high.text}`}
-                    />
-                    <span>{er.title}</span>
-                    <span className="font-mono">
-                      ({(er.probability * 100).toFixed(0)}%)
-                    </span>
+                  <div key={i} className="rounded-lg border border-border p-2">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <AlertTriangle
+                        className={`h-3 w-3 shrink-0 ${SEVERITY_STYLES.high.text}`}
+                      />
+                      <span className="font-medium text-foreground">
+                        {er.title}
+                      </span>
+                      <span className="font-mono">
+                        ({(er.probability * 100).toFixed(0)}%)
+                      </span>
+                      {/* quality-bar-loop round 7 (industry-standards):
+                          EmergingRisk.category/estimated_impact/
+                          early_indicators were already part of the typed
+                          AI response but never rendered -- these came
+                          from array entries the outer emerging_risks
+                          guard doesn't individually validate, so each is
+                          checked defensively before use rather than
+                          assumed present. */}
+                      {typeof er.category === "string" && er.category && (
+                        <span className="ml-auto rounded bg-muted px-1.5 py-0.5 text-[10px]">
+                          {er.category}
+                        </span>
+                      )}
+                    </div>
+                    {typeof er.estimated_impact === "string" &&
+                      er.estimated_impact && (
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          {er.estimated_impact}
+                        </p>
+                      )}
+                    {Array.isArray(er.early_indicators) &&
+                      er.early_indicators.length > 0 && (
+                        <ul className="mt-1 list-inside list-disc text-[10px] text-muted-foreground">
+                          {er.early_indicators.map((ind, j) => (
+                            <li key={j}>{ind}</li>
+                          ))}
+                        </ul>
+                      )}
                   </div>
                 ))}
               </div>
@@ -736,6 +764,17 @@ export default function IntelligencePage() {
                           )}
                           : {(action.effectiveness_score * 100).toFixed(0)}%
                         </p>
+                        {/* quality-bar-loop round 7 (industry-standards):
+                            norm_reference (an optional regulatory/
+                            standards citation for this specific action)
+                            was already part of the typed AI response but
+                            never rendered. */}
+                        {typeof action.norm_reference === "string" &&
+                          action.norm_reference && (
+                            <p className="mt-1 text-[10px] text-muted-foreground italic">
+                              {action.norm_reference}
+                            </p>
+                          )}
                       </div>
                     ))}
                   </div>
@@ -820,6 +859,27 @@ export default function IntelligencePage() {
                   {t("organization.intelligence.rcsa.controlEffectiveness")}:{" "}
                   {entry.control_effectiveness}
                 </p>
+                {/* quality-bar-loop round 7 (industry-standards):
+                    control_gaps/recommended_controls were already part
+                    of the typed AI response but never rendered -- each
+                    risk_universe entry's own gaps and what to do about
+                    them, not just its scores. Individual entries aren't
+                    validated by the outer risk_universe guard, so
+                    checked defensively before use. */}
+                {Array.isArray(entry.control_gaps) &&
+                  entry.control_gaps.length > 0 && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {t("organization.intelligence.rcsa.controlGaps")}:{" "}
+                      {entry.control_gaps.join(", ")}
+                    </p>
+                  )}
+                {Array.isArray(entry.recommended_controls) &&
+                  entry.recommended_controls.length > 0 && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {t("organization.intelligence.rcsa.recommendedControls")}
+                      : {entry.recommended_controls.join(", ")}
+                    </p>
+                  )}
               </div>
             ))}
           </div>
@@ -968,10 +1028,52 @@ export default function IntelligencePage() {
                       <span className="text-sm font-medium text-foreground">
                         {alert.title}
                       </span>
+                      {/* quality-bar-loop round 7 (industry-standards):
+                          type/source were already part of the typed AI
+                          response but never rendered -- what kind of
+                          alert this is and where it came from. Individual
+                          alert entries aren't validated by the outer
+                          immediate_alerts guard, so checked defensively
+                          before use. */}
+                      {typeof alert.type === "string" && alert.type && (
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
+                          {alert.type}
+                        </span>
+                      )}
+                      {typeof alert.source === "string" && alert.source && (
+                        <span className="ml-auto text-[10px] text-muted-foreground">
+                          {alert.source}
+                        </span>
+                      )}
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {alert.description}
                     </p>
+                    {Array.isArray(alert.affected_sites) &&
+                      alert.affected_sites.length > 0 && (
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          {t("organization.intelligence.resilience.affectedSites")}
+                          : {alert.affected_sites.join(", ")}
+                        </p>
+                      )}
+                    {typeof alert.corrective_action === "string" &&
+                      alert.corrective_action && (
+                        <p className="mt-1 text-[10px] text-foreground">
+                          {t(
+                            "organization.intelligence.resilience.correctiveAction"
+                          )}
+                          : {alert.corrective_action}
+                        </p>
+                      )}
+                    {typeof alert.financial_impact === "string" &&
+                      alert.financial_impact && (
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          {t(
+                            "organization.intelligence.resilience.financialImpact"
+                          )}
+                          : {alert.financial_impact}
+                        </p>
+                      )}
                   </div>
                 ))}
               </div>

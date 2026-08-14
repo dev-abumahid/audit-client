@@ -1605,7 +1605,9 @@
         "residual": "Residual",
         "controlEffectiveness": "Control Effectiveness",
         "deficiencies": "Key Control Deficiencies",
-        "managementActions": "Recommended Management Actions"
+        "managementActions": "Recommended Management Actions",
+        "controlGaps": "Control Gaps",
+        "recommendedControls": "Recommended Controls"
       },
       "resilience": {
         "overall": "Overall",
@@ -1613,7 +1615,10 @@
         "financial": "Financial",
         "geopolitical": "Geopolitical",
         "immediateAlerts": "Immediate Alerts",
-        "topVulnerabilities": "Top Vulnerabilities"
+        "topVulnerabilities": "Top Vulnerabilities",
+        "affectedSites": "Affected Sites",
+        "correctiveAction": "Corrective Action",
+        "financialImpact": "Financial Impact"
       },
       "filters": {
         "searchPlaceholder": "Search intelligence...",

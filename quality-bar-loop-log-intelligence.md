@@ -384,3 +384,29 @@ new backend work -- the data already exists in the typed response,
 purely a rendering gap, same spirit as round 4's confidence fix.
 Picking it as this round's fix; (b) citations and (d) export remain
 open, each needing either new backend fields or larger feature scope.
+
+## Round 7 (industry-standards re-score after PR #842)
+
+| Axis | Round 6 | Round 7 | Delta |
+|---|---|---|---|
+| Industry-standards | 6 | 6 | unchanged -- real progress, still below floor |
+
+**Average: 7.56/10.** Unchanged. Industry-standards remains the only
+axis below floor, stuck_streak now 2 (rounds 6-7 both at 6).
+
+Judge's assessment: PR #842's fix was real (5 fields across 3 of 4
+report types, plus a genuine crash-guard fix, no regressions) but only
+partial -- roughly 10 of ~15 originally-flagged dropped fields remain
+unaddressed across the 4 typed AI-response objects:
+`EmergingRisk.category/estimated_impact/early_indicators` (Predictions),
+`MitigationAction.norm_reference` (Mitigations), `RiskUniverseEntry.
+control_gaps/recommended_controls` (RCSA), `ImmediateAlert.type/source/
+affected_sites/corrective_action/financial_impact` (Resilience Scan).
+Source citations and export remain fully open, unchanged.
+
+**Next fix:** rather than continuing to trickle the same gap across
+more single-field rounds (this axis's stuck_streak is already
+building), closing ALL remaining dropped fields across all 4 object
+types in one round -- same tractable, backend-free rendering pattern
+as the last 2 rounds, just completing it in full this time instead of
+partially.

@@ -918,6 +918,57 @@ describe("IntelligencePage", () => {
       expect(screen.queryByText("Summary text")).not.toBeInTheDocument()
     })
 
+    // quality-bar-loop round 7 (industry-standards): EmergingRisk.
+    // category/estimated_impact/early_indicators were already part of
+    // the typed AI response but never rendered.
+    it("shows an emerging risk's category, estimated impact, and early indicators when present", () => {
+      mockRunsFor("PREDICT", {
+        score_7d: 42,
+        score_30d: 55,
+        trend: "worsening",
+        confidence: 0.7,
+        key_drivers: [],
+        board_summary: "Summary text",
+        emerging_risks: [
+          {
+            title: "Ransomware campaign",
+            probability: 0.6,
+            category: "Cyber",
+            estimated_impact: "Operational disruption for 48-72 hours",
+            early_indicators: ["Phishing spike", "Unusual VPN logins"],
+          },
+        ],
+      })
+
+      renderPage()
+
+      expect(screen.getByText("Cyber")).toBeInTheDocument()
+      expect(
+        screen.getByText("Operational disruption for 48-72 hours")
+      ).toBeInTheDocument()
+      expect(screen.getByText("Phishing spike")).toBeInTheDocument()
+      expect(screen.getByText("Unusual VPN logins")).toBeInTheDocument()
+    })
+
+    // Same defensive-guard concern the round-1 review already flagged for
+    // the outer arrays -- an individual emerging_risks ENTRY missing
+    // early_indicators (not validated per-entry by isPredictResult) must
+    // not crash the panel.
+    it("does not crash when an emerging risk entry is missing early_indicators", () => {
+      mockRunsFor("PREDICT", {
+        score_7d: 42,
+        score_30d: 55,
+        trend: "worsening",
+        confidence: 0.7,
+        key_drivers: [],
+        board_summary: "Summary text",
+        emerging_risks: [{ title: "Ransomware campaign", probability: 0.6 }],
+      })
+
+      expect(() => renderPage()).not.toThrow()
+      expect(screen.getByText("Ransomware campaign")).toBeInTheDocument()
+    })
+
     // quality-bar-loop round 4 (industry-standards, round-1 finding): the
     // Predictions panel never showed a "generated on" date or the
     // confidence score, even though both were already part of the typed
@@ -1019,6 +1070,36 @@ describe("IntelligencePage", () => {
       expect(screen.queryByText("Ransomware exposure")).not.toBeInTheDocument()
     })
 
+    // quality-bar-loop round 7 (industry-standards): MitigationAction.
+    // norm_reference (an optional regulatory/standards citation) was
+    // already part of the typed AI response but never rendered.
+    it("shows a mitigation action's norm reference when present", () => {
+      mockRunsFor("MITIGATIONS", {
+        mitigations: [
+          {
+            risk_id: "r1",
+            risk_name: "Ransomware exposure",
+            actions: [
+              {
+                title: "Patch VPN",
+                description: "d",
+                mitigation_type: "prevent",
+                owner: "IT",
+                priority: "high",
+                norm_reference: "ISO 27001 A.12.6.1",
+                effectiveness_score: 0.8,
+                risk_reduction: 0.5,
+              },
+            ],
+          },
+        ],
+      })
+
+      renderPage()
+
+      expect(screen.getByText("ISO 27001 A.12.6.1")).toBeInTheDocument()
+    })
+
     // aexa-frontend#540: risk_name was plain text with no way to jump to
     // the risk it mitigates, unlike the identical risk_id cross-link this
     // page already had for item.created_risk_id.
@@ -1107,6 +1188,60 @@ describe("IntelligencePage", () => {
       expect(screen.getByText("Rotate credentials")).toBeInTheDocument()
     })
 
+    // quality-bar-loop round 7 (industry-standards): RiskUniverseEntry.
+    // control_gaps/recommended_controls were already part of the typed
+    // AI response but never rendered.
+    it("shows a risk universe entry's control gaps and recommended controls when present", () => {
+      mockRunsFor("RCSA", {
+        rcsa_date: "2026-01-01",
+        assessment_period: "Q1",
+        control_environment_score: 70,
+        overall_risk_appetite: "Moderate",
+        key_control_deficiencies: [],
+        management_actions: [],
+        risk_universe: [
+          {
+            risk_category: "Third-party risk",
+            inherent_risk_score: 8,
+            control_effectiveness: 0.4,
+            residual_risk_score: 5,
+            control_gaps: ["No vendor SLA monitoring"],
+            recommended_controls: ["Quarterly vendor audits"],
+          },
+        ],
+      })
+
+      renderPage()
+
+      expect(screen.getByText(/No vendor SLA monitoring/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/Quarterly vendor audits/)
+      ).toBeInTheDocument()
+    })
+
+    // An individual risk_universe ENTRY missing control_gaps (not
+    // validated per-entry by isRcsaResult) must not crash the panel.
+    it("does not crash when a risk universe entry is missing control_gaps", () => {
+      mockRunsFor("RCSA", {
+        rcsa_date: "2026-01-01",
+        control_environment_score: 70,
+        overall_risk_appetite: "Moderate",
+        key_control_deficiencies: [],
+        management_actions: [],
+        risk_universe: [
+          {
+            risk_category: "Third-party risk",
+            inherent_risk_score: 8,
+            control_effectiveness: 0.4,
+            residual_risk_score: 5,
+          },
+        ],
+      })
+
+      expect(() => renderPage()).not.toThrow()
+      expect(screen.getByText("Third-party risk")).toBeInTheDocument()
+    })
+
     it("renders the resilience-scan panel for a well-formed result and rejects a malformed one", () => {
       mockRunsFor("RESILIENCE_SCAN", {
         analysis_date: "2026-01-01",
@@ -1184,6 +1319,74 @@ describe("IntelligencePage", () => {
       expect(
         document.querySelector("svg.lucide-trending-down")
       ).toBeInTheDocument()
+    })
+
+    // quality-bar-loop round 7 (industry-standards): ImmediateAlert.
+    // type/source/affected_sites/corrective_action/financial_impact
+    // were already part of the typed AI response but never rendered.
+    it("shows an immediate alert's type, source, affected sites, corrective action, and financial impact when present", () => {
+      mockRunsFor("RESILIENCE_SCAN", {
+        analysis_date: "2026-01-01",
+        resilience_score: {
+          overall: 60,
+          supply_chain: 55,
+          financial: 65,
+          geopolitical: 50,
+          trend: "stable",
+          top_vulnerabilities: [],
+        },
+        immediate_alerts: [
+          {
+            type: "Supply chain disruption",
+            severity: "high",
+            title: "Port strike",
+            description: "Major port closure affecting shipments.",
+            source: "Reuters",
+            affected_sites: ["Site A", "Site B"],
+            corrective_action: "Activate alternate shipping route.",
+            financial_impact: "$2M estimated exposure",
+          },
+        ],
+      })
+
+      renderPage()
+
+      expect(screen.getByText("Supply chain disruption")).toBeInTheDocument()
+      expect(screen.getByText("Reuters")).toBeInTheDocument()
+      expect(screen.getByText(/Site A, Site B/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/Activate alternate shipping route\./)
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(/\$2M estimated exposure/)
+      ).toBeInTheDocument()
+    })
+
+    // An individual immediate_alerts ENTRY missing affected_sites (not
+    // validated per-entry by isResilienceScanResult) must not crash the
+    // panel.
+    it("does not crash when an immediate alert entry is missing affected_sites", () => {
+      mockRunsFor("RESILIENCE_SCAN", {
+        analysis_date: "2026-01-01",
+        resilience_score: {
+          overall: 60,
+          supply_chain: 55,
+          financial: 65,
+          geopolitical: 50,
+          trend: "stable",
+          top_vulnerabilities: [],
+        },
+        immediate_alerts: [
+          {
+            severity: "high",
+            title: "Port strike",
+            description: "Major port closure affecting shipments.",
+          },
+        ],
+      })
+
+      expect(() => renderPage()).not.toThrow()
+      expect(screen.getByText("Port strike")).toBeInTheDocument()
     })
   })
 

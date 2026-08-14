@@ -1605,7 +1605,9 @@
         "residual": "Résiduel",
         "controlEffectiveness": "Efficacité du contrôle",
         "deficiencies": "Principales lacunes de contrôle",
-        "managementActions": "Actions de gestion recommandées"
+        "managementActions": "Actions de gestion recommandées",
+        "controlGaps": "Lacunes de contrôle",
+        "recommendedControls": "Contrôles recommandés"
       },
       "resilience": {
         "overall": "Global",
@@ -1613,7 +1615,10 @@
         "financial": "Financier",
         "geopolitical": "Géopolitique",
         "immediateAlerts": "Alertes immédiates",
-        "topVulnerabilities": "Principales vulnérabilités"
+        "topVulnerabilities": "Principales vulnérabilités",
+        "affectedSites": "Sites concernés",
+        "correctiveAction": "Action corrective",
+        "financialImpact": "Impact financier"
       },
       "filters": {
         "searchPlaceholder": "Rechercher dans le renseignement...",
