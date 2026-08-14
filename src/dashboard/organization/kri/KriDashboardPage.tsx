@@ -401,6 +401,13 @@ export default function KriDashboardPage() {
   const trendKri = trendKriId
     ? kris.find((k: any) => k.id === trendKriId)
     : null
+  // Round 8 (UX finding): the update-value modal was a bare number input
+  // with no indication which KRI it was for, or what unit/threshold it's
+  // measured against -- a real risk of typing a value into the wrong
+  // context after opening several cards' modals in a row.
+  const updatingKri = updatingKriId
+    ? kris.find((k: any) => k.id === updatingKriId)
+    : null
   // Backend returns newest-first (see kri.api.ts's own comment); a
   // left-to-right chronological chart needs the reverse.
   // quality-bar-loop round 3 (efficiency, round-1 finding): recomputed
@@ -749,11 +756,32 @@ export default function KriDashboardPage() {
           )
         })}
 
+        {/* Round 8 (UX finding): the empty state was a bare line of text
+            with no icon and no way to act on it -- a new org with zero
+            KRIs landed here with no visible next step besides scrolling
+            back up to a button that may not even be in view. Only shown
+            when there's genuinely nothing to create yet (no active
+            status filter, which already has its own "clear filter" CTA
+            via FilteredByNotice above). */}
         {statusFilteredKris.length === 0 && (
           <div className="col-span-full rounded-xl border border-border bg-card p-12 text-center">
-            <p className="text-sm text-muted-foreground">
+            <TrendingUp className="mx-auto h-8 w-8 text-muted-foreground/50" />
+            <p className="mt-2 text-sm text-muted-foreground">
               {t("organization.kri.noKris")}
             </p>
+            {canWrite && !statusParam && (
+              <button
+                type="button"
+                onClick={() => {
+                  setForm(EMPTY_KRI)
+                  setShowForm(true)
+                }}
+                className="focus-ring mt-4 inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-medium text-primary-foreground"
+              >
+                <Plus className="h-3.5 w-3.5" />{" "}
+                {t("organization.kri.createFirstKri")}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -790,12 +818,32 @@ export default function KriDashboardPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
+            {updatingKri && (
+              <div className="mb-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {updatingKri.name}
+                </p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {t("organization.kri.thresholdLabel")}{" "}
+                  {Number(updatingKri.alert_threshold)} ·{" "}
+                  {t("organization.kri.targetLabel")}{" "}
+                  {Number(updatingKri.target_value)}
+                  {updatingKri.unit ? ` ${updatingKri.unit}` : ""}
+                </p>
+              </div>
+            )}
+            <label
+              htmlFor="kri-update-value-input"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              {t("organization.kri.form.currentValue")}
+            </label>
             <input
+              id="kri-update-value-input"
               type="number"
               value={updateValue}
               onChange={(e) => setUpdateValue(e.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              aria-label={t("organization.kri.form.currentValue")}
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
               autoFocus
             />
             <div className="mt-5 flex justify-end gap-2">

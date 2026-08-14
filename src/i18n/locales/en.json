@@ -292,6 +292,7 @@
       "loadError": "Failed to load KRIs. Please try again later.",
       "relatedDataLoadError": "Some related risk or alert data failed to load -- linked risk names and alert counts below may be incomplete.",
       "noKris": "No KRIs yet",
+      "createFirstKri": "Create your first KRI",
       "unknownRisk": "Unknown risk",
       "relatedAlertsTooltip_one": "{{count}} related alert",
       "relatedAlertsTooltip_other": "{{count}} related alerts",

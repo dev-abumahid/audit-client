@@ -366,3 +366,28 @@ zero isError handling, the same isError-omission bug class already
 fixed on 4+ sibling pages this session (Alerts, Intelligence, etc.) --
 picking that as the highest-leverage tractable fix among the tied
 axes.
+
+## Round 8 (resilience re-score after PR #847)
+
+| Axis | Round 7 | Round 8 | Delta |
+|---|---|---|---|
+| Resilience | 7 | **9** | +2, clears floor with margin |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.89/10.** Up from 7.67. **No axis remains below floor.**
+Not yet converged (target 8.5). Judge credited both the banner/error-
+state fix and the same-round stale-data anti-pattern catch/fix,
+live-verified the happy path cleanly (banner correctly absent on
+success, trend modal rendering with reference lines), only short of a
+10 because a live 429/network failure couldn't be forced to visually
+confirm the banner itself.
+
+**Next fix:** industry-standards, UX, accessibility, and code quality
+are all tied at 7 (furthest below target). Roster order would pick
+industry-standards, but its remaining items (threshold-direction
+config, export) are the ones this log has repeatedly flagged as
+needing real product/design scoping. UX's own remaining item is
+concrete and mechanical instead: the update-value modal is still a
+bare unlabeled number input with no KRI name/unit/threshold shown for
+context, and the empty state has no icon or CTA -- picking these as
+this round's fix.

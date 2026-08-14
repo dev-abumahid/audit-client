@@ -380,6 +380,59 @@ describe("KriDashboardPage", () => {
     expect(screen.getByText("organization.kri.noKris")).toBeInTheDocument()
   })
 
+  // Round 8 (UX finding): the empty state was a bare line of text with no
+  // icon and no way to act on it -- a new org with zero KRIs had no
+  // visible next step besides scrolling back up to the header button.
+  describe("empty-state call to action (round 8 UX fix)", () => {
+    it("shows a create-first-KRI CTA for a write-capable role", () => {
+      mockRole = "ADMIN"
+      renderPage()
+
+      expect(
+        screen.getByRole("button", {
+          name: "organization.kri.createFirstKri",
+        })
+      ).toBeInTheDocument()
+    })
+
+    it("hides the CTA for a read-only role", () => {
+      mockRole = "VIEWER"
+      renderPage()
+
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.kri.createFirstKri",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("hides the CTA while a ?status= filter is active, since there's nothing to create matching an empty filtered view", () => {
+      mockRole = "ADMIN"
+      renderPage("/?status=ALERT")
+
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.kri.createFirstKri",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("opens the New KRI modal when the empty-state CTA is clicked", async () => {
+      mockRole = "ADMIN"
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.kri.createFirstKri",
+        })
+      )
+
+      expect(
+        screen.getByRole("dialog", { name: "organization.kri.newKri" })
+      ).toBeInTheDocument()
+    })
+  })
+
   // quality-bar-loop round 14 (industry-standards): the dashboard's
   // "KRI Alerts" card now links here with ?status=ALERT -- this narrows
   // the card grid to ALERT-status KRIs while the summary chips above stay
@@ -789,6 +842,35 @@ describe("KriDashboardPage", () => {
       })
     )
     expect(mockToastSuccess).toHaveBeenCalledWith("organization.kri.toast.valueUpdated")
+  })
+
+  // Round 8 (UX finding): the update-value modal was a bare number input
+  // with no indication which KRI it was for, or what unit/threshold it's
+  // measured against.
+  it("shows the KRI's name, threshold, and target in the update-value modal for context", async () => {
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: {
+        data: [
+          makeKri({
+            name: "Overdue actions",
+            alert_threshold: 80,
+            target_value: 10,
+            unit: "%",
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+    await userEvent.click(screen.getByTitle("organization.kri.updateValueTooltip"))
+
+    const dialog = screen.getByRole("dialog", {
+      name: "organization.kri.updateValueTitle",
+    })
+    expect(within(dialog).getByText("Overdue actions")).toBeInTheDocument()
+    expect(within(dialog).getByText(/80/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/10/)).toBeInTheDocument()
   })
 
   it("rejects an emptied value instead of silently submitting 0", async () => {
