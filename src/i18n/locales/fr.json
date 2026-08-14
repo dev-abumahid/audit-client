@@ -1565,6 +1565,23 @@
         "resilienceLoadError": "Échec du chargement du rapport d'analyse de résilience.",
         "generatedOn": "Généré le : {{date}}"
       },
+      "history": {
+        "viewHistory": "Voir les exécutions précédentes",
+        "modalTitle": "Historique — {{report}}",
+        "close": "Fermer",
+        "empty": "Aucune exécution précédente",
+        "loadError": "Échec du chargement de l'historique des exécutions. Veuillez réessayer plus tard.",
+        "summaryPredict": "Score à 7 jours {{score}} · {{trend}}",
+        "summaryMitigations": "{{count}} plans d'atténuation des risques",
+        "summaryRcsa": "Appétit pour le risque : {{appetite}}",
+        "summaryResilience": "Score de résilience global {{score}}",
+        "reportLabel": {
+          "PREDICT": "Prédictions",
+          "MITIGATIONS": "Mesures d'atténuation",
+          "RCSA": "RCSA",
+          "RESILIENCE_SCAN": "Analyse de résilience"
+        }
+      },
       "predictions": {
         "score7d": "Score de risque à 7 jours",
         "score30d": "Score de risque à 30 jours",

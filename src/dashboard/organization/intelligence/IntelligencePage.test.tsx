@@ -1308,4 +1308,248 @@ describe("IntelligencePage", () => {
       expect(button.type).toBe("button")
     })
   })
+
+  // quality-bar-loop round 5 (industry-standards, fresh-panel finding): all
+  // 4 report queries hardcoded limit: 1, so a user could never see or
+  // compare a prior run despite IntelligenceRun being a paginated,
+  // timestamped resource server-side -- this closes that gap with a
+  // fetch-on-demand history modal per report type.
+  describe("run history modal (round 5 industry-standards fix)", () => {
+    // The mocked hook can't honor RTK Query's real `skip` option (that's a
+    // real-hook-only behavior), so it's distinguished here the same way the
+    // real page distinguishes the two calls -- by `limit`: 1 for "latest
+    // run only" (what every panel already fetches), 20 for "history list."
+    function mockRunsWithHistory(
+      runType: string,
+      latestResult: unknown,
+      historyRuns: IntelligenceRun[]
+    ) {
+      mockUseGetIntelligenceRunsQuery.mockImplementation(
+        (args: { run_type: string; limit: number }) => {
+          if (args.run_type !== runType) return emptyRunsResult
+          if (args.limit === 1) {
+            return {
+              data: {
+                data: [makeRun({ run_type: runType as never, result: latestResult })],
+                meta: { page: 1, limit: 1, total: 1, totalPage: 1 },
+              },
+            }
+          }
+          return {
+            data: {
+              data: historyRuns,
+              meta: { page: 1, limit: 20, total: historyRuns.length, totalPage: 1 },
+            },
+          }
+        }
+      )
+    }
+
+    const predictResult = {
+      score_7d: 42,
+      score_30d: 55,
+      trend: "worsening",
+      confidence: 0.73,
+      emerging_risks: [],
+      key_drivers: [],
+      board_summary: "Summary text",
+    }
+
+    it("opens the history modal for the correct report type, listing past runs with dates and summaries", async () => {
+      mockRunsWithHistory("PREDICT", predictResult, [
+        makeRun({
+          id: "run-old",
+          run_type: "PREDICT",
+          result: { ...predictResult, score_7d: 30, trend: "stable" },
+          createdAt: "2026-01-01T10:00:00.000Z",
+        }),
+        makeRun({
+          id: "run-newer",
+          run_type: "PREDICT",
+          result: { ...predictResult, score_7d: 60, trend: "improving" },
+          createdAt: "2026-02-01T10:00:00.000Z",
+        }),
+      ])
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.intelligence.history.viewHistory",
+        })
+      )
+
+      expect(
+        screen.getByRole("dialog", {
+          name: "organization.intelligence.history.modalTitle",
+        })
+      ).toBeInTheDocument()
+      // 2 history entries -- proves the modal renders the actual list, not
+      // just a static shell. (The mocked t() in this file ignores
+      // interpolation options and always returns the raw key, so both
+      // entries render identical summary text -- getAllByText, not
+      // getByText, is the correct assertion here.)
+      expect(
+        screen.getAllByText("organization.intelligence.history.summaryPredict")
+      ).toHaveLength(2)
+      expect(screen.getAllByText(/2026/).length).toBeGreaterThanOrEqual(2)
+    })
+
+    it("shows an empty-history message when a report type has no prior runs", async () => {
+      mockRunsWithHistory("PREDICT", predictResult, [])
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.intelligence.history.viewHistory",
+        })
+      )
+
+      expect(
+        screen.getByText("organization.intelligence.history.empty")
+      ).toBeInTheDocument()
+    })
+
+    // Round-1 review of PR #841: a failed history fetch fell through to the
+    // same empty-history message as a genuinely empty history --
+    // indistinguishable, same isError-omission bug class already fixed on
+    // this page's other 5 queries in round 2.
+    it("shows a distinct error message, not the empty-history message, when the history fetch fails", async () => {
+      mockRunsWithHistory("PREDICT", predictResult, [])
+      mockUseGetIntelligenceRunsQuery.mockImplementation(
+        (args: { run_type: string; limit: number }) => {
+          if (args.run_type !== "PREDICT") return emptyRunsResult
+          if (args.limit === 1) {
+            return {
+              data: {
+                data: [makeRun({ run_type: "PREDICT", result: predictResult })],
+                meta: { page: 1, limit: 1, total: 1, totalPage: 1 },
+              },
+            }
+          }
+          return { data: undefined, isError: true }
+        }
+      )
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.intelligence.history.viewHistory",
+        })
+      )
+
+      expect(
+        screen.getByText("organization.intelligence.history.loadError")
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.intelligence.history.empty")
+      ).not.toBeInTheDocument()
+    })
+
+    // Round-1 review of PR #841: isRcsaResult doesn't itself validate
+    // overall_risk_appetite, so a row with valid arrays but a missing
+    // appetite field used to render "Risk appetite: undefined" instead of
+    // falling back to no summary line.
+    it("omits the RCSA summary line for a run with a malformed overall_risk_appetite instead of rendering 'undefined'", async () => {
+      const validRcsaResult = {
+        rcsa_date: "2026-03-01T00:00:00.000Z",
+        assessment_period: "Q1",
+        risk_universe: [],
+        control_environment_score: 3,
+        overall_risk_appetite: "Moderate",
+        key_control_deficiencies: [],
+        management_actions: [],
+      }
+      mockRunsWithHistory("RCSA", validRcsaResult, [
+        makeRun({
+          id: "run-bad-appetite",
+          run_type: "RCSA",
+          result: {
+            risk_universe: [],
+            key_control_deficiencies: [],
+            // overall_risk_appetite deliberately omitted/malformed
+          },
+          createdAt: "2026-01-01T10:00:00.000Z",
+        }),
+      ])
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.intelligence.history.viewHistory",
+        })
+      )
+
+      expect(
+        screen.queryByText("organization.intelligence.history.summaryRcsa")
+      ).not.toBeInTheDocument()
+      expect(screen.queryByText(/undefined/)).not.toBeInTheDocument()
+    })
+
+    // Round-2 review of PR #841: `typeof x === "string"` alone still
+    // accepts an empty string, which would render "Risk appetite: " with
+    // nothing after the colon -- the same misleading-summary-line class
+    // this fix set out to close, just via a different malformed value.
+    it("also omits the RCSA summary line for an empty-string overall_risk_appetite", async () => {
+      const validRcsaResult = {
+        rcsa_date: "2026-03-01T00:00:00.000Z",
+        assessment_period: "Q1",
+        risk_universe: [],
+        control_environment_score: 3,
+        overall_risk_appetite: "Moderate",
+        key_control_deficiencies: [],
+        management_actions: [],
+      }
+      mockRunsWithHistory("RCSA", validRcsaResult, [
+        makeRun({
+          id: "run-empty-appetite",
+          run_type: "RCSA",
+          result: {
+            risk_universe: [],
+            key_control_deficiencies: [],
+            overall_risk_appetite: "   ",
+          },
+          createdAt: "2026-01-01T10:00:00.000Z",
+        }),
+      ])
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.intelligence.history.viewHistory",
+        })
+      )
+
+      expect(
+        screen.queryByText("organization.intelligence.history.summaryRcsa")
+      ).not.toBeInTheDocument()
+    })
+
+    it("closes the history modal via the close button", async () => {
+      mockRunsWithHistory("PREDICT", predictResult, [])
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.intelligence.history.viewHistory",
+        })
+      )
+      expect(
+        screen.getByRole("dialog", {
+          name: "organization.intelligence.history.modalTitle",
+        })
+      ).toBeInTheDocument()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.intelligence.history.close",
+        })
+      )
+
+      expect(
+        screen.queryByRole("dialog", {
+          name: "organization.intelligence.history.modalTitle",
+        })
+      ).not.toBeInTheDocument()
+    })
+  })
 })

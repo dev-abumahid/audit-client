@@ -279,3 +279,73 @@ in-memory, so restarting the dev server process (tried twice) does
 not reset it -- it will only clear once the real 15-minute window
 elapses. Relied on the unit tests (with their own genuine negative
 control) instead, documented rather than silently skipped.
+
+## Fresh full panel re-score (this session, resumed after Alerts converged)
+
+Two untracked cross-page batch fixes landed since the "confirming
+re-score" checkpoint: PR #806 (focus-visible rings on raw buttons) and
+PR #809 (page wrapper spacing standardization). Dispatched a fresh
+full 9-axis panel to account for both before picking the next fix.
+
+| Axis | Prior | Fresh | Delta |
+|---|---|---|---|
+| Industry-standards | 5 | 5 | -- |
+| UX | 6 | 7 | +1, clears floor |
+| Efficiency | 8 | 8 | -- |
+| Accessibility | 7 | 8 | +1 (PR #806) |
+| Visual polish | 8 | 8 | -- |
+| Resilience | 8 | 8 | -- |
+| Code quality | 7 | 7 | -- |
+| Mobile | 5 | 8 | +3 (PR #809 + round-3 touch targets holding) |
+| Security | 8 | 8 | -- |
+
+**Average: 7.44/10.** Up from the prior checkpoint. **Only
+industry-standards (5) remains below floor.**
+
+UX cleared the floor -- round 4's create-risk confirmation dialog
+confirmed live-correct, matching the shadcn/Radix AlertDialog pattern
+used elsewhere. Mobile jumped +3 from PR #809's spacing fix compounding
+with round 3's already-shipped touch targets. Accessibility +1 from
+PR #806's focus-ring sweep.
+
+Industry-standards' remaining gaps: no run history/versioning (all 4
+`useGetIntelligenceRunsQuery` calls hardcode `limit: 1`), no source
+citations, several typed AI-response fields silently dropped from
+rendering, no export. Per this session's standing "ship, don't pause
+on product decisions" guidance, scoping the most tractable slice as
+real feature work this round: a run-history list/dropdown per report
+type, replacing the hardcoded `limit: 1` -- this is the one gap that's
+purely a frontend data-fetching/UI change (the backend resource is
+already paginated and timestamped), not a change needing new backend
+work like citations or additional AI-output fields would.
+
+## Round 5 fix (run history modal)
+
+Shipped: a "View past runs" history button (44px touch target) next to
+each of the 4 report panels' generatedOn date, opening a shared modal
+(same pattern as CompliancePage's attestation history -- fetch-on-
+demand via `skip`, scoped by run_type) listing up to 20 past runs for
+that report type via the already-paginated `getIntelligenceRuns`
+endpoint (no new backend work). Each history entry shows its date and
+a one-line type-guard-derived summary (7-day score + trend for
+predictions, mitigation-plan count, risk appetite for RCSA, overall
+resilience score).
+
+This directly closes the "no run history/versioning" gap that's been
+industry-standards' #1 cited finding since round 1. The other 3
+gaps (source citations, several dropped AI-output fields, export)
+remain open -- each needs either new backend work (citations) or a
+larger per-panel redesign (surfacing the dropped fields), not a single
+round's mechanical scope.
+
+3 new tests: opens the correct-report-type modal and lists past runs
+with dates/summaries, shows an empty-history message, closes via the
+close button. Negative control confirmed all 3 fail against pre-fix
+source. Live verification: the page itself renders correctly and the
+button doesn't appear until a report result exists (correctly gated,
+matching the existing panel-conditional pattern) -- this environment's
+`/predict` endpoint reliably 500s instantly (a known, previously-
+documented limitation of this dev environment, not a bug introduced
+here), so the actual modal content couldn't be exercised against a
+live AI report. Relied on the negative-control-verified unit tests
+for that behavior instead.

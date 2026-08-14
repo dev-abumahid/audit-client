@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
+import { useModalA11y } from "@/hooks/useModalA11y"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   useAnalyzeIntelligenceMutation,
@@ -22,7 +23,7 @@ import {
   useResilienceScanMutation,
   useScrapeIntelligenceMutation,
 } from "@/redux/apis/organization/intelligence.api"
-import type { IntelligenceItem } from "@/types/organization"
+import type { IntelligenceItem, IntelligenceRun } from "@/types/organization"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import {
@@ -33,6 +34,7 @@ import {
   ClipboardList,
   ExternalLink,
   Globe,
+  History,
   Loader2,
   Minus,
   Radio,
@@ -41,6 +43,7 @@ import {
   ShieldCheck,
   TrendingDown,
   TrendingUp,
+  X,
   Zap,
 } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -92,6 +95,70 @@ export default function IntelligencePage() {
   // is closed.
   const [confirmRiskItem, setConfirmRiskItem] =
     useState<IntelligenceItem | null>(null)
+
+  // quality-bar-loop round 5 (industry-standards, fresh-panel finding):
+  // every AI-report query hardcoded limit: 1, so a user could never see
+  // or compare a prior run despite IntelligenceRun being a paginated,
+  // timestamped resource server-side (getIntelligenceRuns already
+  // accepts run_type/page/limit -- no new backend endpoint needed).
+  // null means the history modal is closed; a run_type opens it scoped
+  // to that report's own history. Same "selected item opens a fetch-on-
+  // demand modal" pattern as CompliancePage's attestation history.
+  const [historyRunType, setHistoryRunType] = useState<
+    IntelligenceRun["run_type"] | null
+  >(null)
+  const historyModalRef = useModalA11y(!!historyRunType, () =>
+    setHistoryRunType(null)
+  )
+  const {
+    data: historyRuns,
+    isFetching: isHistoryFetching,
+    isError: isHistoryError,
+  } = useGetIntelligenceRunsQuery(
+    { run_type: historyRunType ?? "PREDICT", page: 1, limit: 20 },
+    { skip: !historyRunType }
+  )
+
+  // A one-line summary per historical run, using the same type guards the
+  // panels themselves use to narrow `result: unknown` -- a run from a
+  // stale/older schema fails every guard and falls back to no summary
+  // line rather than throwing, same resilience posture as the panels.
+  const historyRunSummary = (run: IntelligenceRun): string | null => {
+    if (isPredictResult(run.result)) {
+      return t("organization.intelligence.history.summaryPredict", {
+        score: run.result.score_7d.toFixed(1),
+        trend: t(
+          `organization.intelligence.predictions.trend_${run.result.trend}`
+        ),
+      })
+    }
+    if (isMitigationsResult(run.result)) {
+      return t("organization.intelligence.history.summaryMitigations", {
+        count: run.result.mitigations.length,
+      })
+    }
+    // Round-1 review of PR #841: `isRcsaResult` doesn't itself validate
+    // `overall_risk_appetite` (same looseness the RCSA panel already
+    // has), so a row with valid arrays but a missing/malformed appetite
+    // field would otherwise render "Risk appetite: undefined" here --
+    // checked directly rather than widening the shared guard, which the
+    // panel itself also relies on without this stricter check.
+    if (
+      isRcsaResult(run.result) &&
+      typeof run.result.overall_risk_appetite === "string" &&
+      run.result.overall_risk_appetite.trim().length > 0
+    ) {
+      return t("organization.intelligence.history.summaryRcsa", {
+        appetite: run.result.overall_risk_appetite,
+      })
+    }
+    if (isResilienceScanResult(run.result)) {
+      return t("organization.intelligence.history.summaryResilience", {
+        score: run.result.resilience_score.overall,
+      })
+    }
+    return null
+  }
 
   // Reset to page 1 whenever the debounced search term changes, same
   // convention as SitesEntities.tsx.
@@ -482,6 +549,20 @@ export default function IntelligencePage() {
                 date: formatLocaleDate(predictResult.createdAt, i18n.language),
               })}
             </span>
+            {/* quality-bar-loop round 5 (industry-standards): opens the
+                shared run-history modal scoped to this report type. */}
+            {/* h-11/w-11 (44px), not a smaller icon-button size -- round 3
+                of this loop already found every button on this page under
+                the touch-target guideline; this new one follows that
+                established convention from the start. */}
+            <button
+              type="button"
+              onClick={() => setHistoryRunType("PREDICT")}
+              aria-label={t("organization.intelligence.history.viewHistory")}
+              className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <History className="h-3.5 w-3.5" />
+            </button>
           </div>
           <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-4">
             <div className="rounded-lg border border-border bg-card p-3">
@@ -583,6 +664,14 @@ export default function IntelligencePage() {
                 ),
               })}
             </span>
+            <button
+              type="button"
+              onClick={() => setHistoryRunType("MITIGATIONS")}
+              aria-label={t("organization.intelligence.history.viewHistory")}
+              className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <History className="h-3.5 w-3.5" />
+            </button>
           </div>
           {mitigationsResult.result.mitigations.length === 0 ? (
             <p className="text-xs text-muted-foreground">
@@ -662,6 +751,14 @@ export default function IntelligencePage() {
                 ),
               })}
             </span>
+            <button
+              type="button"
+              onClick={() => setHistoryRunType("RCSA")}
+              aria-label={t("organization.intelligence.history.viewHistory")}
+              className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <History className="h-3.5 w-3.5" />
+            </button>
           </div>
           <div className="mb-3 grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-lg border border-border p-3">
@@ -737,6 +834,14 @@ export default function IntelligencePage() {
                 ),
               })}
             </span>
+            <button
+              type="button"
+              onClick={() => setHistoryRunType("RESILIENCE_SCAN")}
+              aria-label={t("organization.intelligence.history.viewHistory")}
+              className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <History className="h-3.5 w-3.5" />
+            </button>
           </div>
           <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-lg border border-border p-3">
@@ -1077,6 +1182,98 @@ export default function IntelligencePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* quality-bar-loop round 5 (industry-standards): run-history modal,
+          same pattern as CompliancePage's attestation history -- fetch-on-
+          demand (skip until opened), scoped by run_type, reusing the
+          already-paginated getIntelligenceRuns endpoint with no new
+          backend work. */}
+      {historyRunType && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setHistoryRunType(null)}
+        >
+          <div
+            ref={historyModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="intelligence-history-modal-title"
+            className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h2
+                id="intelligence-history-modal-title"
+                className="text-lg font-bold text-foreground"
+              >
+                {t("organization.intelligence.history.modalTitle", {
+                  report: t(
+                    `organization.intelligence.history.reportLabel.${historyRunType}`
+                  ),
+                })}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setHistoryRunType(null)}
+                aria-label={t("organization.intelligence.history.close")}
+                className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {isHistoryFetching && (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+
+            {/* Round-1 review of PR #841: a failed fetch fell through to
+                the same empty-history message as a genuinely empty
+                history, indistinguishable from each other -- same
+                isError-omission bug class already fixed on this page's
+                other 5 queries in round 2. */}
+            {!isHistoryFetching && isHistoryError && (
+              <p role="alert" className="py-8 text-center text-sm text-destructive">
+                {t("organization.intelligence.history.loadError")}
+              </p>
+            )}
+
+            {!isHistoryFetching &&
+              !isHistoryError &&
+              (historyRuns?.data?.length ?? 0) === 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  {t("organization.intelligence.history.empty")}
+                </p>
+              )}
+
+            <div className="space-y-2">
+              {historyRuns?.data?.map((run) => {
+                const summary = historyRunSummary(run)
+                return (
+                  <div
+                    key={run.id}
+                    className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs"
+                  >
+                    <span className="text-muted-foreground">
+                      {formatLocaleDate(run.createdAt, i18n.language, {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    {summary && (
+                      <p className="mt-1 text-foreground">{summary}</p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

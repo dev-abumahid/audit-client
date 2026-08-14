@@ -1565,6 +1565,23 @@
         "resilienceLoadError": "Failed to load the resilience scan report.",
         "generatedOn": "Generated: {{date}}"
       },
+      "history": {
+        "viewHistory": "View past runs",
+        "modalTitle": "{{report}} history",
+        "close": "Close",
+        "empty": "No previous runs yet",
+        "loadError": "Failed to load run history. Please try again later.",
+        "summaryPredict": "7-day score {{score}} · {{trend}}",
+        "summaryMitigations": "{{count}} risk mitigation plans",
+        "summaryRcsa": "Risk appetite: {{appetite}}",
+        "summaryResilience": "Overall resilience score {{score}}",
+        "reportLabel": {
+          "PREDICT": "Predictions",
+          "MITIGATIONS": "Mitigations",
+          "RCSA": "RCSA",
+          "RESILIENCE_SCAN": "Resilience scan"
+        }
+      },
       "predictions": {
         "score7d": "7-day Risk Score",
         "score30d": "30-day Risk Score",
