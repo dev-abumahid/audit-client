@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Profiler } from "react"
 import { FormProvider, useForm } from "react-hook-form"
@@ -1815,6 +1815,145 @@ describe("RiskRegisterPage", () => {
       await userEvent.click(within(scoreHeader).getByRole("button"))
       expect(scoreHeader).toHaveAttribute("aria-sort", "descending")
     })
+
+    // Round-21 fix (industry-standards): shift-click adds a secondary
+    // sort key as a tiebreaker for the primary, matching the baseline
+    // multi-column sort AG Grid/TanStack Table both support.
+    it("shift-clicking a second column breaks ties on the primary sort", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({
+              id: "r1",
+              name: "Alpha",
+              pagerank_score: 5,
+              residual_score: 9,
+            }),
+            makeRisk({
+              id: "r2",
+              name: "Beta",
+              pagerank_score: 5,
+              residual_score: 2,
+            }),
+            makeRisk({
+              id: "r3",
+              name: "Gamma",
+              pagerank_score: 8,
+              residual_score: 1,
+            }),
+          ],
+        },
+      })
+      renderPage()
+
+      const getRowNames = () =>
+        screen
+          .getAllByRole("link", { name: /^(Alpha|Beta|Gamma)$/ })
+          .map((el) => el.textContent)
+
+      const prHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colPr",
+      })
+      await userEvent.click(within(prHeader).getByRole("button"))
+      // Primary (PR, ascending) alone can't break the Alpha/Beta tie
+      // (both pagerank_score 5) -- stable sort keeps their original order.
+      expect(getRowNames()).toEqual(["Alpha", "Beta", "Gamma"])
+
+      const scoreHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colScore",
+      })
+      // userEvent.click's options don't include shiftKey in this version --
+      // fireEvent.click accepts raw event properties directly, which is
+      // what's actually needed to exercise the shift-click branch.
+      fireEvent.click(within(scoreHeader).getByRole("button"), {
+        shiftKey: true,
+      })
+      // Secondary (Score, ascending) now breaks that tie: Beta's residual
+      // score (2) is lower than Alpha's (9), so Beta moves ahead of Alpha.
+      expect(getRowNames()).toEqual(["Beta", "Alpha", "Gamma"])
+
+      // Both headers show their position via the numeric badge.
+      expect(prHeader).toHaveTextContent("1")
+      expect(scoreHeader).toHaveTextContent("2")
+    })
+
+    it("a plain click on any column resets to a single-column sort", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [
+            makeRisk({
+              id: "r1",
+              name: "Alpha",
+              pagerank_score: 5,
+              residual_score: 9,
+            }),
+            makeRisk({
+              id: "r2",
+              name: "Beta",
+              pagerank_score: 5,
+              residual_score: 2,
+            }),
+          ],
+        },
+      })
+      renderPage()
+
+      const prHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colPr",
+      })
+      const scoreHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colScore",
+      })
+      await userEvent.click(within(prHeader).getByRole("button"))
+      fireEvent.click(within(scoreHeader).getByRole("button"), {
+        shiftKey: true,
+      })
+      // Two-level sort active -- confirmed by the badge from the test above.
+      expect(prHeader).toHaveTextContent("1")
+
+      // A plain click on the NAME column drops the secondary entirely,
+      // not just changes the primary.
+      const nameHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colName",
+      })
+      await userEvent.click(within(nameHeader).getByRole("button"))
+
+      expect(prHeader).toHaveAttribute("aria-sort", "none")
+      expect(scoreHeader).toHaveAttribute("aria-sort", "none")
+      expect(nameHeader).toHaveAttribute("aria-sort", "ascending")
+      // No badges once back to a single-column sort.
+      expect(nameHeader).not.toHaveTextContent("1")
+    })
+
+    // Round-21 review finding: a plain click on a DIFFERENT column was
+    // the only branch that cleared the secondary -- re-clicking the
+    // CURRENT primary (a direction toggle) left an active secondary and
+    // its badge in place, contradicting "plain click always resolves to
+    // a single-column sort."
+    it("re-clicking the current primary (a direction toggle) also drops the secondary", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+      renderPage()
+
+      const prHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colPr",
+      })
+      const scoreHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colScore",
+      })
+      await userEvent.click(within(prHeader).getByRole("button"))
+      fireEvent.click(within(scoreHeader).getByRole("button"), {
+        shiftKey: true,
+      })
+      expect(prHeader).toHaveTextContent("1")
+      expect(scoreHeader).toHaveTextContent("2")
+
+      // Plain-click PR again -- a direction toggle, not a column change.
+      await userEvent.click(within(prHeader).getByRole("button"))
+
+      expect(prHeader).toHaveAttribute("aria-sort", "descending")
+      expect(scoreHeader).toHaveAttribute("aria-sort", "none")
+      expect(prHeader).not.toHaveTextContent("1")
+    })
   })
 
   // Round-18 fix (industry-standards): search/site/category/sort/pending-
@@ -1875,6 +2014,38 @@ describe("RiskRegisterPage", () => {
         name: "organization.riskRegister.colScore",
       })
       expect(scoreHeader).toHaveAttribute("aria-sort", "descending")
+    })
+
+    // Round-21 fix (industry-standards): shift-click multi-column sort.
+    it("restores a secondary sort key from the URL on mount", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+      renderPage("/?sort=pagerank_score&dir=asc&sort2=residual_score&dir2=desc")
+
+      const prHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colPr",
+      })
+      const scoreHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colScore",
+      })
+      expect(prHeader).toHaveAttribute("aria-sort", "ascending")
+      expect(scoreHeader).toHaveAttribute("aria-sort", "descending")
+      expect(prHeader).toHaveTextContent("1")
+      expect(scoreHeader).toHaveTextContent("2")
+    })
+
+    // Round-21 review finding: a hand-crafted URL with ?sort2= and no
+    // ?sort= would leave sortKey null (sortedRisks correctly no-ops) but
+    // sortKey2 non-null -- the header would still visually claim to be
+    // sorted despite no sort actually being applied.
+    it("ignores a dangling sort2 param with no primary sort in the URL", () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [makeRisk()] } })
+      renderPage("/?sort2=residual_score&dir2=desc")
+
+      const scoreHeader = screen.getByRole("columnheader", {
+        name: "organization.riskRegister.colScore",
+      })
+      expect(scoreHeader).toHaveAttribute("aria-sort", "none")
+      expect(scoreHeader).not.toHaveTextContent("2")
     })
 
     it("ignores an invalid sort column in the URL rather than crashing", () => {

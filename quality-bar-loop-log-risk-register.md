@@ -1334,3 +1334,40 @@ export, all currently inlined in the ~1160-line page component) is the
 real fix for this finding -- a genuine structural refactor, comparable
 in scope to industry-standards' earlier "saved views" pick, not a
 same-round patch.
+
+## Round 21 (code-quality final re-score after PR #822, file split)
+
+| Axis | Round 20 | Round 21 | Delta |
+|---|---|---|---|
+| Code quality | 7/10 | **9/10** | +2, 4-round stuck_streak broken |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 8.44/10.** Up from 8.22. No axis below floor. 0.06 short of
+the 8.5 target.
+
+The file split closed the dominant, 4-round-stuck finding cleanly --
+judge's own assessment: "a new engineer asking 'how does bulk delete
+work' can read useRiskBulkActions.ts top to bottom (188 lines) and get
+the complete answer... they don't need to open RiskRegisterPage.tsx at
+all except to see the 3-line call site." Coupling was reduced, not just
+relocated (resetSelectionDeps takes an opaque array rather than reaching
+into page state; RiskFormModal's own site re-fetch is a documented,
+deliberate tradeoff). RiskRegisterPage.tsx's remaining 1089 lines are
+judged legitimately irreducible (hook wiring, filter/table JSX,
+SortableHeader/RiskRow kept in-file for a real prop-drilling reason),
+not leftover fused concerns.
+
+One minor, pre-existing, out-of-scope-for-this-round finding noted:
+file-level `@typescript-eslint/no-explicit-any` disables and `catch
+(err: any)` in both RiskRegisterPage.tsx and the new RiskFormModal.tsx
+-- didn't block the score, flagged as a cheap future fix.
+
+**Next fix:** no axis is at/below floor (lowest is industry-standards/
+accessibility/visual-polish/resilience/security all tied at 8), so no
+stuck_streak applies. Per rule 5c.4 (furthest below the 8.5 target,
+tie-broken by roster order), industry-standards is next. Its two
+remaining gaps (multi-column sort, cross-page bulk selection) are both
+larger scope, but multi-column sort is tractable as a 2-level
+shift-click extension of the already-client-side single-column sort --
+picking that as a contained slice rather than the full column-
+management/saved-views scope.
