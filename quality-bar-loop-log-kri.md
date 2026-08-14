@@ -1106,3 +1106,50 @@ lever cleanly rather than re-scoring immediately); the other five
 axes tied at 8/10 (efficiency, accessibility, visual polish,
 resilience, mobile) remain the next candidates if the loop resumes
 further.
+
+## Round 21 (industry-standards re-score + a real bug fix, PR #873)
+
+Re-scored industry-standards fresh post-round-20: **8.5/10, up from
+8**. Confirmed live (created a KRI with an owner, edited it, reloaded
+-- persisted server-side both times) that the owner field is real,
+not scaffolding. Remaining gap: bulk actions (multi-select delete/
+reassign/threshold updates) are still entirely absent -- every action
+stays strictly per-card, the standard next expectation once KRI
+inventories grow past a handful of rows.
+
+The re-score judge also surfaced a real, separate bug in passing:
+`unit` is optional in the New/Edit KRI form UI, but the backend's
+`create_kri`/`update_kri` zod schemas require it non-empty
+(`min(1)`, "Unit is required") -- a user leaving it blank found out
+only from a raw 400 in the network tab, never from the form itself.
+Fixed same-round rather than filed as a follow-up, per this session's
+"fix small issues, don't just document them" discipline: marked Unit
+`required` in both modals (matching Name's existing treatment), added
+it to `handleSave`/`handleSaveEdit`'s guards and both Create/Save
+buttons' `disabled` conditions.
+
+A pre-existing test had been asserting the *buggy* behavior ("does
+not mark Unit as required") -- flipped to assert the fix, plus an
+equivalent new test for the Edit modal; both negative-control-verified
+(genuinely fail against the pre-fix source). 3 other pre-existing
+tests that relied on the old permissive behavior (submitting without a
+Unit value) were updated to fill it, since the Create button is now
+correctly disabled without it. All 94 KRI tests + the full 2178-test
+suite pass. Round-1 independent review came back clean (verified no
+other create/update-KRI call sites were missed, confirmed all three
+enforcement layers -- HTML `required`, button `disabled`, handler
+guard -- agree in both modals; one pre-existing, non-regressing nit
+noted: unit isn't `.trim()`'d before the check, same as `name`
+already isn't). Live-verified in a fresh browser tab: "Unit *" label
+and `required`/`aria-required` confirmed on the live DOM, Create
+button confirmed still disabled with Unit empty.
+
+21 rounds, 14 PRs (#849-857, #867, #869, #873, aexa-server#328,
+aexa-frontend#871) shipped and merged this session.
+
+**Current picture:** industry-standards 8.5, code quality 9, UX 9,
+security 9 (all carried from round-19's fresh panel plus this round's
+re-score); efficiency/accessibility/visual polish/resilience/mobile
+still tied at 8 from that same panel, untouched this round. Rough
+average ~8.4/10 -- close to the 8.5 target but not confirmed
+converged without a fresh full panel. No axis below floor.
