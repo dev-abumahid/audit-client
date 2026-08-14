@@ -480,3 +480,63 @@ one well-understood next step (the same component/hook-decomposition
 pattern just proven twice on this page). Returning to Compliance's
 remaining UX/efficiency work (untouched since round 1) or
 industry-standards' two open gaps is the natural next round here.
+
+## Round 9 (fresh full-panel re-baseline + efficiency, PR #880)
+
+Resumed per the standing instruction now that KRI Dashboard has
+converged (8.56/10, 23 rounds). Fresh full 9-axis panel -- not a
+carry-forward -- since UX/efficiency/accessibility/visual-polish/
+resilience/security were never re-scored past round 1's baseline
+despite real refactoring (modal decomposition, edit-history feature)
+landing since:
+
+| Axis | Score |
+|---|---|
+| Industry-standards | 7/10 |
+| UX | 7/10 |
+| Efficiency | 7/10 |
+| Accessibility | 8/10 |
+| Visual polish | 8/10 |
+| Resilience & edge cases | 9/10 |
+| Code quality | 7/10 |
+| Mobile/responsive | 8/10 |
+| Security | 8/10 |
+
+**Average: 7.67/10** (up from round-8's 7.56). No axis below floor.
+Resilience jumped 8->9 since round 1 -- every query now checks
+isError with a distinct message (complianceError/scorecardError/
+sitesError/attestationsError/editHistoryError), closing every gap
+round 1 flagged there, an unplanned side effect of rounds 4-7's other
+fixes. Efficiency held at 7: round 1's double-`.find()` finding was
+already fixed, but `cellFor` (linear scan over `scorecard.matrix`
+inside a nested site x domain map) and `siteName` (unindexed O(n)
+scan, called once per matrix row AND once per edit-history site_id
+diff entry) were still unaddressed -- the panel's single most
+concrete, cheapest fix.
+
+Indexed both into `Map`s built once via `useMemo` (`sitesById`,
+`matrixByKey`), same pattern already proven repeatedly this session
+(KRI's `risksById`). `sites` itself is now memoized too (`|| []` was
+creating a fresh array reference every render, which would have
+defeated `sitesById`'s own memoization -- same efficiency-round-3
+pattern already applied to `obligations`). Zero test changes needed
+-- all 75 pre-existing tests passed unchanged, pure structural
+refactor. Full QA gate clean (typecheck, lint, 2182/2182 full suite).
+Live-verified in a fresh browser tab: scorecard matrix ("Org-wide
+0/1") still renders correctly through the new indexed lookup.
+Round-1 independent review came back clean -- specifically verified
+the two Map key-construction sites (`matrixByKey`'s build and
+`matrixSiteKeys`' pre-existing convention) use the exact same
+`"__org__"` sentinel and `|`-joined key format, since a mismatch there
+would fail silently (every cell rendering "—") rather than throwing.
+
+9 rounds, 6 PRs (#859, #862, #863, aexa-server#327,
+aexa-frontend#864-866 log-only, #880) shipped and merged this
+session's Compliance work.
+
+**Remaining open**: UX (7, untouched since round 1 -- attested_by/
+edited_by still raw account IDs, due-date/overdue column still hidden
+below `md`), code quality (7, the 1145-line file itself, though well
+below its pre-decomposition size), and industry-standards' two larger
+feature gaps (structured regulatory-framework taxonomy, approval/
+review routing) are the candidates for the next round.
