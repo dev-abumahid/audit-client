@@ -937,6 +937,45 @@ describe("CompliancePage", () => {
     expect(lastArgs.page).toBe(2)
   })
 
+  // Round 15 (UX finding, fresh full-panel re-score): `search` used to be
+  // passed straight into the query with no debounce -- every keystroke
+  // fired an immediate refetch, unlike RiskRegisterPage/TemplatesPage/
+  // SitesEntities, which already use this same debounce convention. Same
+  // debounce-testing pattern as RiskRegisterPage.test.tsx's own test.
+  it("debounces the search term before passing it to the query hook", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    renderPage()
+    mockUseGetAllComplianceQuery.mockClear()
+
+    await user.type(
+      screen.getByPlaceholderText(
+        "organization.compliance.searchPlaceholder"
+      ),
+      "GDPR"
+    )
+
+    // Before the 300ms debounce elapses, the query must not yet have been
+    // called with the fully-typed term -- this is exactly the gap the fix
+    // closes.
+    expect(mockUseGetAllComplianceQuery).not.toHaveBeenCalledWith(
+      expect.objectContaining({ searchTerm: "GDPR" })
+    )
+
+    vi.advanceTimersByTime(300)
+
+    await waitFor(() =>
+      expect(mockUseGetAllComplianceQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ searchTerm: "GDPR" })
+      )
+    )
+    vi.useRealTimers()
+  })
+
   // aexa-frontend#265: the delete-path counterpart to #234/#243 (this file's
   // own handleSearchChange/handleDomainChange/handleStatusChange reset page
   // on a filter change, but nothing resets it when a delete alone shrinks

@@ -20,6 +20,7 @@ import {
 import type { LineOfDefense } from "@/types/organization"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import {
   COMPLIANCE_DOMAINS,
   COMPLIANCE_STATUS_KEYS as STATUS_KEYS,
@@ -133,6 +134,22 @@ export default function CompliancePage() {
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
 
+  // Round 15 (UX finding, fresh full-panel re-score): `search` was passed
+  // straight into the query with no debounce -- every keystroke fired a
+  // fresh network request/refetch, unlike RiskRegisterPage/TemplatesPage/
+  // SitesEntities/AllFindingsPage/ReportsPage/IntelligencePage, which all
+  // already use this same useDebouncedValue convention. The input itself
+  // still binds to the raw `search` state below so typing feels instant;
+  // only the query arg is debounced.
+  const debouncedSearch = useDebouncedValue(search, 300)
+  // Same reset-on-debounce-settling convention as RiskRegisterPage's own
+  // round-9 fix: resetting page synchronously in handleSearchChange would
+  // fire one wasted request for {page:1, searchTerm:<stale value>} before
+  // the real debounced request lands 300ms later.
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch])
+
   // Filtering, searching and pagination are all applied server-side (the
   // /compliance list endpoint supports searchTerm / status / domain + page /
   // limit), so results are never silently capped at the first page. See
@@ -158,14 +175,15 @@ export default function CompliancePage() {
   } = useComplianceData({
     page,
     limit: PAGE_SIZE,
-    searchTerm: search,
+    searchTerm: debouncedSearch,
     status: filterStatus || undefined,
     domain: filterDomain || undefined,
   })
 
   // aexa-frontend#265: deleting the last obligation on the last page shrinks
-  // totalPages without a filter change (handleSearchChange/handleDomainChange/
-  // handleStatusChange below only reset page on filter changes), stranding
+  // totalPages without a filter change (handleDomainChange/handleStatusChange
+  // below only reset page on filter changes, and handleSearchChange no
+  // longer does either -- see the debouncedSearch effect above), stranding
   // the user on an out-of-range empty page. Delete-path counterpart to
   // #234/#243.
   useClampPageToTotal(page, totalPages, setPage)
@@ -250,10 +268,12 @@ export default function CompliancePage() {
   )
 
   // Changing any filter resets to page 1 so the user never lands on an
-  // out-of-range page for the newly-filtered result set.
+  // out-of-range page for the newly-filtered result set. Search's own page
+  // reset happens in the debouncedSearch effect above instead of here --
+  // resetting synchronously on every keystroke would race the debounce (see
+  // that effect's own comment).
   const handleSearchChange = (value: string) => {
     setSearch(value)
-    setPage(1)
   }
   const handleDomainChange = (value: string) => {
     setFilterDomain(value)
