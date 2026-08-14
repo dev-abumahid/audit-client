@@ -752,6 +752,19 @@ export default function IntelligencePage() {
                           <span className="font-medium text-foreground">
                             {action.title}
                           </span>
+                          {/* quality-bar-loop round 8 (industry-standards):
+                              mitigation_type (prevent/detect/correct/
+                              transfer/accept) was already part of the
+                              typed AI response but never rendered -- the
+                              round-7 sweep of this panel's own action
+                              cards missed it alongside risk_reduction
+                              below. */}
+                          {typeof action.mitigation_type === "string" &&
+                            action.mitigation_type && (
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase">
+                                {action.mitigation_type}
+                              </span>
+                            )}
                         </div>
                         <p className="mt-1 text-muted-foreground">
                           {action.description}
@@ -763,6 +776,16 @@ export default function IntelligencePage() {
                             "organization.intelligence.mitigations.effectiveness"
                           )}
                           : {(action.effectiveness_score * 100).toFixed(0)}%
+                          {typeof action.risk_reduction === "number" && (
+                            <>
+                              {" "}
+                              ·{" "}
+                              {t(
+                                "organization.intelligence.mitigations.riskReduction"
+                              )}
+                              : {(action.risk_reduction * 100).toFixed(0)}%
+                            </>
+                          )}
                         </p>
                         {/* quality-bar-loop round 7 (industry-standards):
                             norm_reference (an optional regulatory/

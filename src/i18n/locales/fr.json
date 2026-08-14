@@ -1596,7 +1596,8 @@
       "mitigations": {
         "empty": "Aucune mesure d'atténuation générée pour le moment",
         "owner": "Responsable",
-        "effectiveness": "Efficacité"
+        "effectiveness": "Efficacité",
+        "riskReduction": "Réduction du risque"
       },
       "rcsa": {
         "controlEnvironmentScore": "Score de l'environnement de contrôle",

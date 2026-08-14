@@ -1596,7 +1596,8 @@
       "mitigations": {
         "empty": "No mitigations generated yet",
         "owner": "Owner",
-        "effectiveness": "Effectiveness"
+        "effectiveness": "Effectiveness",
+        "riskReduction": "Risk Reduction"
       },
       "rcsa": {
         "controlEnvironmentScore": "Control Environment Score",

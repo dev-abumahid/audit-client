@@ -410,3 +410,25 @@ building), closing ALL remaining dropped fields across all 4 object
 types in one round -- same tractable, backend-free rendering pattern
 as the last 2 rounds, just completing it in full this time instead of
 partially.
+
+## Round 8 (industry-standards re-score after PR #843)
+
+| Axis | Round 7 | Round 8 | Delta |
+|---|---|---|---|
+| Industry-standards | 6 | **7** | +1, clears floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.67/10.** Up from 7.56. **No axis remains below floor.**
+Not yet converged (target 8.5).
+
+Judge's field-by-field re-verification found PR #843 closed 12 of 14
+flagged fields, but missed 2 on `MitigationAction`: `mitigation_type`
+and `risk_reduction` are typed and present in every mock fixture but
+never rendered anywhere in the Mitigations panel.
+
+**Next fix:** industry-standards (7), UX (7), and code quality (7) are
+tied as furthest below target (1.5 points); roster order breaks the
+tie toward industry-standards. Its own finding (the 2 still-dropped
+MitigationAction fields) is small, concrete, and directly actionable --
+picking it as this round's fix rather than dispatching a fresh judge
+for a different axis.

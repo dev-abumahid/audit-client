@@ -1100,6 +1100,42 @@ describe("IntelligencePage", () => {
       expect(screen.getByText("ISO 27001 A.12.6.1")).toBeInTheDocument()
     })
 
+    // quality-bar-loop round 8 (industry-standards): mitigation_type and
+    // risk_reduction were already part of the typed AI response but
+    // never rendered -- the round-7 sweep of this same panel missed
+    // these two on the same MitigationAction object.
+    it("shows a mitigation action's mitigation type and risk reduction percentage", () => {
+      mockRunsFor("MITIGATIONS", {
+        mitigations: [
+          {
+            risk_id: "r1",
+            risk_name: "Ransomware exposure",
+            actions: [
+              {
+                title: "Patch VPN",
+                description: "d",
+                mitigation_type: "detect",
+                owner: "IT",
+                priority: "high",
+                effectiveness_score: 0.8,
+                risk_reduction: 0.35,
+              },
+            ],
+          },
+        ],
+      })
+
+      renderPage()
+
+      expect(screen.getByText("detect")).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          /organization\.intelligence\.mitigations\.riskReduction/
+        )
+      ).toBeInTheDocument()
+      expect(screen.getByText(/35%/)).toBeInTheDocument()
+    })
+
     // aexa-frontend#540: risk_name was plain text with no way to jump to
     // the risk it mitigates, unlike the identical risk_id cross-link this
     // page already had for item.created_risk_id.
