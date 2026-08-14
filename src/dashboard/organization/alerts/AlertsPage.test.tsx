@@ -312,6 +312,23 @@ describe("AlertsPage", () => {
     expect(filterRow?.className).toContain("flex-wrap")
   })
 
+  // Round 9 (mobile, round-5 finding, stuck_streak 5): the bulk "Mark all
+  // as read" button added in round 4 was h-9 (36px), under the 44px floor
+  // every OTHER control on this page was already sized to clear -- added
+  // after that convention was established on this same file, just missed.
+  it("gives the bulk Mark all as read button a 44px touch target", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert({ is_read: false })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    expect(
+      screen.getByRole("button", { name: "organization.alerts.markAllRead" })
+        .className
+    ).toContain("h-11")
+  })
+
   it("marks an alert as read when the button is clicked", async () => {
     mockUseGetAllAlertsQuery.mockReturnValue({
       data: { data: [makeAlert()] },

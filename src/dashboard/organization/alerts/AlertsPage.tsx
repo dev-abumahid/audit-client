@@ -338,7 +338,7 @@ export default function AlertsPage() {
             type="button"
             onClick={handleMarkAllRead}
             disabled={isMarkingAllRead}
-            className="focus-ring flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+            className="focus-ring flex h-11 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
           >
             {isMarkingAllRead ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />

@@ -365,3 +365,38 @@ breaks the tie. Accessibility's round-5 finding: mark-read buttons
 (both per-row and bulk) unmount on success, silently relocating
 keyboard focus with no visual/audible indication and no success
 announcement (only failure toasts use sonner's live region).
+
+## Round 9 (accessibility re-score after PR #834)
+
+| Axis | Round 8 | Round 9 | Delta |
+|---|---|---|---|
+| Accessibility | 6/10 | **7/10** | +1, no longer below floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.56/10.** Up from 7.44. One axis remains below floor:
+mobile (6, stuck_streak 5 -- rounds 5-9 unchanged).
+
+Round-5 finding (focus loss + no success announcement on mark-read)
+confirmed closed via code + all 46 tests passing, including the 4
+round-8 focus/toast tests. Live verification hit the same seeded-data
+gap as prior rounds (org's only alert already read) -- relied on code
++ tests for that specific path, consistent with this session's
+established precedent.
+
+Two new findings surfaced by this fresh full-axis pass (not previously
+flagged, so not a regression -- genuinely new observations):
+- Dismiss confirmation dialog doesn't move focus in on open (WAI-ARIA
+  APG dialog pattern violation -- `DeleteAlertModal`/`alert-dialog.tsx`).
+- Read-alert (`opacity-60`) description/metadata text drops to ~2.95:1
+  contrast, under WCAG AA's 4.5:1 floor for small text.
+
+Neither is data-correctness/security-tagged, so per rule 5c.2 they
+don't jump the queue ahead of mobile's stuck_streak-5 finding, but
+they're logged as open work for accessibility's next round if it dips
+below floor again or once mobile clears.
+
+**Next fix:** mobile has the highest stuck_streak (5) among below-floor
+axes -- its round-5 finding (`markAllRead` button still `h-9`/36px,
+under the 44px floor every OTHER control on this page already clears)
+is confirmed still present via grep (`AlertsPage.tsx:341`). Mechanical,
+one-line fix matching the page's own established convention.
