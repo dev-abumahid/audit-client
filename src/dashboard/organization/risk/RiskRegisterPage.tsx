@@ -1473,9 +1473,10 @@ export default function RiskRegisterPage() {
   // than exporting only whatever 20 rows happen to be on screen, which
   // would make "export" mean something different than what a user
   // filtering first and exporting second would expect. Client-side-only
-  // filters (status param, pending-approval toggle) are NOT applied here,
-  // same documented limitation as isClientFiltered -- there's no
-  // server-side param for them to pass through to this fetch.
+  // filters (status param, pending-approval toggle) have no server-side
+  // param to pass through to this fetch, so they're applied locally to
+  // the fetched result below instead -- same round-16 fix as the
+  // statusParam/pendingApprovalOnly filtering visibleRisks already does.
   const handleExport = async () => {
     // Round-10 judge finding (resilience): the delete paths guard against
     // a double-click firing the mutation twice, but this one relied
@@ -1492,6 +1493,23 @@ export default function RiskRegisterPage() {
         siteId: siteFilter,
         category: filterCat,
       }).unwrap()
+      // Round-16 fix (UX + industry-standards, both independently flagged
+      // this): search/site/category reach the API, but status and
+      // pending-approval are client-only filters -- without this, export
+      // silently returned a superset of what the filtered table showed.
+      // Round-16 review finding: this filter runs AFTER the EXPORT_ROW_LIMIT
+      // truncation above, so if >1000 rows match search/site/category, rows
+      // beyond #1000 that would also match status/pending-approval are
+      // silently dropped -- a variant of the already-documented row cap,
+      // not fixable without a server-side param for these two filters.
+      const statusFilteredExport = statusParam
+        ? result.data.filter((risk) => risk.status === statusParam)
+        : result.data
+      const exportRows = pendingApprovalOnly
+        ? statusFilteredExport.filter(
+            (risk) => risk.approvalStatus === "PENDING_APPROVAL"
+          )
+        : statusFilteredExport
       const header = [
         "Ref",
         "Name",
@@ -1508,7 +1526,7 @@ export default function RiskRegisterPage() {
         "Trend",
         "Source",
       ]
-      const rows = result.data.map((risk) => [
+      const rows = exportRows.map((risk) => [
         csvTextField(risk.ref),
         csvTextField(risk.name),
         csvTextField(riskCategoryLabel(t, risk.category)),

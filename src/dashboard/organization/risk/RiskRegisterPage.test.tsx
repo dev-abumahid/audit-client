@@ -2162,6 +2162,69 @@ describe("RiskRegisterPage", () => {
       )
     })
 
+    // Round-16 fix (UX + industry-standards, both independently flagged
+    // this): search/site/category are passed to the export query, but
+    // status and pending-approval are client-only filters with no server
+    // param -- export used to silently return a superset of the filtered
+    // table instead of matching what the user was actually looking at.
+    it("filters the exported CSV rows by the pending-approval toggle, not just the server-side query args (round 16 fix)", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockTriggerRisksExport.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            data: [
+              makeRisk({
+                id: "risk-pending",
+                name: "Awaiting sign-off",
+                approvalStatus: "PENDING_APPROVAL",
+              }),
+              makeRisk({
+                id: "risk-approved",
+                name: "Already approved",
+                approvalStatus: "APPROVED",
+              }),
+            ],
+          }),
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.filterPendingApproval",
+        })
+      )
+
+      let capturedBlob: Blob | undefined
+      const createObjectURLSpy = vi
+        .spyOn(URL, "createObjectURL")
+        .mockImplementation((blob) => {
+          capturedBlob = blob as Blob
+          return "blob:mock-url"
+        })
+      const revokeObjectURLSpy = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => {})
+
+      try {
+        await userEvent.click(
+          screen.getByRole("button", {
+            name: "organization.riskRegister.exportCsv",
+          })
+        )
+
+        await waitFor(() => expect(createObjectURLSpy).toHaveBeenCalled())
+        const csvText = await capturedBlob!.text()
+        expect(csvText).toContain("Awaiting sign-off")
+        expect(csvText).not.toContain("Already approved")
+      } finally {
+        // Round-16 review finding: an un-restored spy on a shared global
+        // (URL.createObjectURL) is a latent footgun for any test added
+        // later in this file that also exercises the export path.
+        createObjectURLSpy.mockRestore()
+        revokeObjectURLSpy.mockRestore()
+      }
+    })
+
     it("shows an error toast when the export fetch fails", async () => {
       mockTriggerRisksExport.mockReturnValueOnce({
         unwrap: () => Promise.reject(new Error("boom")),

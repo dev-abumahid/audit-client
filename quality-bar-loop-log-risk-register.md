@@ -1165,3 +1165,41 @@ a below-floor regression is a hard stop regardless of what the overall
 average did (average technically still rose, 7.89 -> unmeasured-until-now,
 but that's not the relevant comparison -- the per-axis rule applies).
 Escalating to the user rather than silently picking the next fix.
+
+## Round 16 (guardrail-fix re-score after PR #816)
+
+Scoped re-score of just the two axes PR #816 targeted; every other axis
+carries forward unchanged from round 15 (untouched surface).
+
+| Axis | Round 15 | Round 16 | Delta |
+|---|---|---|---|
+| Industry-standards | 7/10 | 7/10 | carried forward |
+| UX | 7/10 | 7/10 | carried forward |
+| Efficiency | 9/10 | 9/10 | carried forward |
+| Accessibility | 8/10 | 8/10 | carried forward |
+| Visual polish | 8/10 | 8/10 | carried forward |
+| Resilience | 8/10 | 8/10 | carried forward |
+| Code quality | 6/10 | **7/10** | +1, back at floor |
+| Mobile | 5/10 | **9/10** | +4, well above floor |
+| Security | 8/10 | 8/10 | carried forward |
+
+**Average: 7.89/10.** Not converged (target 8.5), but the guardrail is
+clear: no axis below floor. Both round-15 regressions confirmed
+genuinely fixed live/via code -- mobile's toolbar now wraps and
+measures 44px on all three controls (`getBoundingClientRect()`
+confirmed, right edges well inside 375px, no horizontal overflow);
+code quality's `runBulkAction` extraction confirmed to have removed
+the ~25-line duplication with no regression to retry semantics.
+
+**Next fix:** industry-standards and UX are tied at floor (7). Per
+rule 5c.2 tie-break (equal streak, equal raw score -> roster order),
+industry-standards is next -- but its own remaining findings (multi-
+column sort, column management, saved views) are each a separate
+multi-round feature build. UX's #1 finding this round and
+industry-standards' own "doesn't honor client-only filters" note both
+independently name the exact same defect: CSV export silently ignores
+the "Pending my approval" toggle and status dropdown (both apply to
+the visible table but not the export query), while search/site/category
+correctly do. Picking this as the round's fix -- a single, well-scoped
+change that directly closes findings on both tied axes at once, rather
+than industry-standards' larger untouched gaps.
