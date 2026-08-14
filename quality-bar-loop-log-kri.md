@@ -1202,3 +1202,52 @@ quality 9, UX 9, security 9; efficiency/accessibility/visual polish/
 mobile still tied at 8 (untouched since round 19's panel). Rough
 average ~8.44/10 -- within striking distance of the 8.5 target but
 not confirmed converged without a fresh full panel.
+
+## Round 23 (efficiency + mobile: memoization + 44px form inputs, PR #877)
+
+Fresh full-panel re-score before picking this round's fix: **average
+8.44/10** (industry-standards 8.5, UX 9, efficiency 8, accessibility
+8, visual polish 8, resilience 8.5, code quality 9, mobile 8, security
+9). Every axis clears floor. The panel specifically checked whether
+the 4 axes tied at 8 since round 19 had concrete fixable gaps or were
+just diminishing returns -- found two concrete, cheap ones:
+
+- **Efficiency**: `NewKriModal.tsx`'s `risks.find(...)` for
+  `selectedRisk` was unmemoized, re-scanning the full risk list on
+  every keystroke in ANY field of the form -- the exact
+  recompute-on-unrelated-render bug class this file has fixed 4+
+  times elsewhere, just never applied here after round 18 moved this
+  line into its own component.
+- **Mobile**: every text/number input across New KRI/Edit KRI/Update
+  Value measured `h-9` (36px) -- below the 44px touch-target
+  guideline round 2 established and applied to every icon button/
+  primary CTA on this page, never to the form fields themselves.
+
+Batched both into one round (small, non-overlapping-in-purpose,
+genuinely cheap): wrapped `selectedRisk` in `useMemo`, bumped
+`h-9` -> `h-11` across `kriShared.tsx`'s shared `KriFormField`
+(inherited automatically by `EditKriModal.tsx`), `NewKriModal.tsx`'s
+raw risk `<select>`, and `UpdateValueModal.tsx`'s raw number `<input>`.
+
+New CSS-class assertion test (matching this file's existing
+touch-target test pattern), negative-control-verified. Full QA gate
+clean (typecheck, lint, 2182/2182 full suite -- the memoization fix
+needed zero test changes, pure structural). Live-verified in a fresh
+browser tab: confirmed 44px input height on the live DOM, created and
+cleaned up a real KRI through the full form to confirm the memoized
+risk-selection flow still works end-to-end. Round-1 independent
+review came back clean -- confirmed `risks` is already
+reference-stable upstream (`useKriData.ts`'s own `useMemo`), so the
+new memoization genuinely skips recomputation rather than being a
+no-op; confirmed no layout regression from the height bump; confirmed
+no remaining `h-9` anywhere in the directory.
+
+23 rounds, 16 PRs (#849-857, #867, #869, #873, #875, #877,
+aexa-server#328, aexa-frontend#871) shipped and merged this session.
+
+**Two visual/accessibility gaps remain, named but not yet fixed**
+(from this round's panel): visual polish's `TrendModal.tsx`
+Alert-threshold/Target `ReferenceLine` labels overlap illegibly
+(unchanged since round 13); accessibility's threshold/negative-value
+guards are toast-only, no `aria-invalid`/`aria-describedby`
+field-level association (the WCAG 3.3.1 gap round 16 flagged).
