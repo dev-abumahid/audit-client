@@ -329,7 +329,7 @@ export default function Overview() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 lg:p-6">
       <CriticalAlertBanner />
       {/* Title */}
       <div className="animate-fade-in">

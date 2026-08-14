@@ -218,7 +218,7 @@ export default function AlertsPage() {
   }
 
   return (
-    <div className="space-y-5 p-6">
+    <div className="space-y-6 p-4 lg:p-6">
       <div className="animate-fade-in flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">

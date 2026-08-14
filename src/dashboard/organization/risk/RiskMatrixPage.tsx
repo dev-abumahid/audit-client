@@ -443,7 +443,7 @@ export default function RiskMatrixPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 lg:p-6">
       {/* quality-bar-loop round 7 (mobile, live-confirmed at 375px): no
           responsive stacking meant the title column and the controls
           column both stayed in one row, crushing the h1 into an ugly

@@ -269,7 +269,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 lg:p-6">
       {/* Always-present live region for report status transitions (see the
           effect above) -- never toggles live-ness itself, only its text,
           so a GENERATING -> READY/FAILED poll transition is reliably

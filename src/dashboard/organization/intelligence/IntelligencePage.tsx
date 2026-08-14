@@ -321,7 +321,7 @@ export default function IntelligencePage() {
   const resilienceResult = resilienceRuns?.data[0]
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 lg:p-6">
       {/* Header */}
       <div className="animate-fade-in">
         <div className="flex items-center gap-2">

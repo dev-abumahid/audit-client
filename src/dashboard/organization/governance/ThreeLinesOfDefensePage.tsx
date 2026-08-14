@@ -654,7 +654,7 @@ export default function ThreeLinesOfDefensePage() {
   )
 
   return (
-    <div className="flex flex-col gap-4 p-4 lg:p-6">
+    <div className="space-y-6 p-4 lg:p-6">
       <div>
         <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
           {t("organization.threeLinesOfDefense.title")}

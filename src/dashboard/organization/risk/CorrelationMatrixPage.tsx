@@ -535,7 +535,7 @@ export default function CorrelationMatrixPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 lg:p-6">
       {/* This page's own useGetAllSitesQuery call (used for site-name
           lookups) failing doesn't block the matrix itself -- risks still
           render, just without a site name. Same resilience gap round-1
