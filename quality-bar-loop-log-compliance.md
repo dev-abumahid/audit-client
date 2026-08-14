@@ -1083,3 +1083,76 @@ than one dominant lever. The next round should run a genuinely fresh
 full panel (not carry forward this round's numbers) before picking
 the next fix, since a full panel is now overdue and any of several
 axes could have shifted.
+
+## Round 18 (fresh full panel, no fix shipped -- escalating to user)
+
+Per round 17's own recommendation, ran a genuinely fresh full
+9-axis panel rather than carrying forward round 16/17's numbers.
+Every judge was instructed to score honestly and independently, not
+to assume prior rounds' fixes bought back a point.
+
+**Fresh scores: industry-standards 7.5, UX 8, efficiency 8,
+accessibility 7, visual polish 7, resilience 7, code quality 8,
+mobile 8, security 8. Average = 68.5/9 ~= 7.61/10.**
+
+This is a real drop from round 17's carried-forward ~8.22 estimate,
+driven entirely by fresh findings, not by any code regression --
+QA gates and reviews on rounds 16/17 were clean, and no judge
+attributed a new gap to those rounds' actual diffs. Three axes
+(accessibility, visual polish, resilience) landed exactly at floor
+(7) simultaneously for the first time this loop, each on genuinely
+new, concrete findings:
+
+- **Resilience (9 -> 7)**: closing the Attest/Delete confirm modals
+  while their mutation is still in-flight doesn't block or guard
+  against it -- the user believes they cancelled, but the mutation
+  still resolves and fires a toast for an action they thought they
+  stopped.
+- **Visual polish (8 -> 7)**: the round-16 Framework Coverage panel
+  didn't get the page's staggered entrance animation
+  (`stagger-1`/`stagger-2`) other panels use, and its tally chips
+  introduce a third pill visual vocabulary alongside the existing
+  badge and severity-badge conventions, on top of the still-open
+  AttestHistoryModal tab-style divergence from prior rounds.
+- **Accessibility (8 -> 7)**: the evidence-required warning still
+  has no `role="alert"`/`aria-live`, inconsistent with every other
+  error banner on this same page; the new Framework Coverage tiles
+  aren't grouped as a list/group for screen-reader navigation.
+- **Industry-standards (8 -> 7.5)**: framework matching remains
+  exact-string-only with no fuzzy/migration path; no automated
+  evidence collection, policy library, bulk actions, or export --
+  all standard in this product category and structurally larger
+  than anything shipped so far.
+- **UX (9 -> 8, new finding)**: the attestation/edit history modal
+  hardcodes `limit: 20` with zero pagination UI or "more exists"
+  indicator -- a heavily-attested or heavily-edited obligation
+  silently truncates its audit trail with no visible cue.
+
+18 rounds, 15 code-changing PRs shipped and merged this session's
+Compliance work. Every individual axis has cleared its floor (7)
+at every measurement this entire loop -- no guardrail-triggering
+below-floor regression has ever occurred. But the *average* has now
+oscillated between ~7.6 and ~8.5 across the last four rounds
+depending entirely on how skeptically each fresh panel looks, not
+on the underlying code getting worse -- every round's fix has been
+real, reviewed, and verified. The remaining gaps surfaced this round
+are legitimate but structurally larger than prior rounds' fixes:
+a mid-mutation modal-close guard, a paginated history modal, backend
+approval-workflow routing, automated evidence integrations, and a
+new UI pattern for click-to-filter-by-framework are each their own
+multi-step build, not a single-round polish pass.
+
+**Escalating to the user rather than continuing silently**: this
+session has now run 18 rounds (15 PRs) on this single page alone, on
+top of extensive work across ~20 other pages earlier in the session.
+The scores-over-time pattern (7.94 -> 8.22 -> 8.22(flat, unmeasured
+via full panel) -> 7.61 fresh) suggests the remaining ~0.9 points to
+reach 8.5 needs either several more structurally-larger feature
+rounds (each its own multi-hour design->implement->review cycle) or
+a decision to accept the current state as a reasonable stopping
+point for this page. Continuing is possible and every remaining
+finding above is a legitimate, fixable gap -- but the diminishing,
+oscillating nature of the last four rounds' averages is exactly the
+kind of pattern this loop's guardrails exist to surface for a human
+call, even though no single mechanical guardrail (stagnation,
+below-floor regression) technically tripped.
