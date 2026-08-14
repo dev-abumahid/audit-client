@@ -1642,6 +1642,7 @@
       "markAsRead": "Mark as read",
       "viewKri": "View KRI",
       "dismiss": "Dismiss",
+      "dismissing": "Dismissing...",
       "dismissModalTitle": "Dismiss this alert?",
       "dismissModalDescription": "This will permanently remove the alert. This cannot be undone.",
       "dismissSuccess": "Alert dismissed",

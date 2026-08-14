@@ -1642,6 +1642,7 @@
       "markAsRead": "Marquer comme lu",
       "viewKri": "Voir l'ICR",
       "dismiss": "Ignorer",
+      "dismissing": "Suppression...",
       "dismissModalTitle": "Ignorer cette alerte ?",
       "dismissModalDescription": "Cette action supprimera définitivement l'alerte. Cette action est irréversible.",
       "dismissSuccess": "Alerte ignorée",

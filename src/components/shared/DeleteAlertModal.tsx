@@ -19,6 +19,8 @@ type DeleteAlertModalProps = {
   loading?: boolean
   open?: boolean
   setOpen?: (value: boolean) => void
+  confirmLabel?: string
+  loadingLabel?: string
 }
 
 export default function DeleteAlertModal({
@@ -28,11 +30,27 @@ export default function DeleteAlertModal({
   loading = false,
   open,
   setOpen,
+  confirmLabel,
+  loadingLabel,
 }: DeleteAlertModalProps) {
   const { t } = useTranslation()
   const resolvedTitle = title ?? t("common.deleteAlertModal.defaultTitle")
   const resolvedDescription =
     description ?? t("common.deleteAlertModal.defaultDescription")
+  // Round 11 (UX finding): every OTHER caller of this shared component
+  // (site/risk/finding/template delete, etc.) genuinely deletes, so
+  // "Delete"/"Deleting..." is the right default -- but AlertsPage's
+  // "Dismiss" flow used this same hardcoded copy despite every other
+  // affordance around it (button label, toast keys, modal title) calling
+  // the action "Dismiss." Live-confirmed as a real trust/comprehension
+  // gap: a user clicking "Dismiss" (expecting something reversible, à la
+  // GitHub/Slack) hit a modal that flipped terminology to "Delete" right
+  // before an irreversible action. Optional overrides let a caller supply
+  // its own verb without changing the default for every other caller.
+  const resolvedConfirmLabel =
+    confirmLabel ?? t("common.deleteAlertModal.delete")
+  const resolvedLoadingLabel =
+    loadingLabel ?? t("common.deleteAlertModal.deleting")
 
   // quality-bar-loop round 7 (accessibility): this component is always used
   // fully controlled (open/setOpen from the caller's own state, no
@@ -109,7 +127,7 @@ export default function DeleteAlertModal({
             "Deleting..." transition to screen readers -- the button label
             swap alone is silent since there's no live region wrapping it. */}
         <span aria-live="polite" className="sr-only">
-          {loading ? t("common.deleteAlertModal.deleting") : ""}
+          {loading ? resolvedLoadingLabel : ""}
         </span>
 
         <AlertDialogFooter
@@ -131,9 +149,7 @@ export default function DeleteAlertModal({
             className="h-11 flex-1 cursor-pointer rounded-xl border-none bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
             disabled={loading}
           >
-            {loading
-              ? t("common.deleteAlertModal.deleting")
-              : t("common.deleteAlertModal.delete")}
+            {loading ? resolvedLoadingLabel : resolvedConfirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -554,6 +554,15 @@ export default function AlertsPage() {
         }}
         onConfirm={confirmDeleteAlert}
         loading={isDeletingAlert}
+        // Round 11 (UX finding): every other affordance around this modal
+        // -- the trigger button, the toast keys, the modal title itself --
+        // calls this action "Dismiss," but the modal's own confirm button
+        // was hardcoded to the shared component's default "Delete," a
+        // real mid-flow terminology flip right before an irreversible
+        // action. Overriding just these two labels keeps every other
+        // caller of DeleteAlertModal (which genuinely delete) unaffected.
+        confirmLabel={t("organization.alerts.dismiss")}
+        loadingLabel={t("organization.alerts.dismissing")}
       />
     </div>
   )

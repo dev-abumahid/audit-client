@@ -60,6 +60,45 @@ describe("DeleteAlertModal", () => {
     ).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 11 (UX finding, Alerts loop): every caller of
+  // this component before AlertsPage's "Dismiss" flow genuinely deletes,
+  // so the hardcoded "Delete"/"Deleting..." copy was right for them --
+  // but it was a real mid-flow terminology flip for a caller whose own
+  // trigger/toast/title all say "Dismiss." Optional overrides let one
+  // caller supply its own verb without touching every other caller's
+  // default.
+  it("uses confirmLabel/loadingLabel overrides instead of the default Delete/Deleting copy when provided", () => {
+    const { rerender } = render(
+      <DeleteAlertModal
+        open
+        onConfirm={vi.fn()}
+        confirmLabel="Dismiss"
+        loadingLabel="Dismissing..."
+      />
+    )
+
+    expect(
+      screen.getByRole("button", { name: "Dismiss" })
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "common.deleteAlertModal.delete" })
+    ).not.toBeInTheDocument()
+
+    rerender(
+      <DeleteAlertModal
+        open
+        onConfirm={vi.fn()}
+        loading
+        confirmLabel="Dismiss"
+        loadingLabel="Dismissing..."
+      />
+    )
+
+    expect(
+      screen.getByRole("button", { name: "Dismissing..." })
+    ).toBeInTheDocument()
+  })
+
   // quality-bar-loop round 5 (mobile, Sites & Entities loop): both buttons
   // used their variant's default size (h-7, 28px tall), under the 44px
   // touch-target guideline -- this component is reused by every delete

@@ -400,3 +400,88 @@ axes -- its round-5 finding (`markAllRead` button still `h-9`/36px,
 under the 44px floor every OTHER control on this page already clears)
 is confirmed still present via grep (`AlertsPage.tsx:341`). Mechanical,
 one-line fix matching the page's own established convention.
+
+## Round 10 (mobile re-score after PR #835)
+
+| Axis | Round 9 | Round 10 | Delta |
+|---|---|---|---|
+| Mobile | 6/10 | **9/10** | +3, no longer below floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.89/10.** Up from 7.56. **No axis remains below floor** --
+all nine now sit at 7-9. Not yet converged (target 8.5).
+
+44px touch targets confirmed clean across every interactive element at
+a live 390px viewport (measured via `getBoundingClientRect()`): filter
+chips, View KRI, Dismiss, and the Dismiss modal's own Cancel/Delete.
+No horizontal overflow, filter row wraps correctly, Dismiss modal
+usable narrow. Same seeded-data gap as before (no unread alert exists
+to live-tap the bulk button) -- not a page defect, just a fixture
+limitation for future rounds.
+
+**Next fix:** with every axis at/above floor, `stuck_streak` no longer
+applies (it's only computed for at-or-below-floor axes) -- falling
+through to rule 5c.4, furthest below target. UX (7) and efficiency (7)
+tie as the lowest remaining scores; roster order breaks the tie toward
+UX. Both axes are stale, though -- last actually re-examined in round
+4/5 (UX's round-5 score of 7 was carried from round 4's panel with no
+fresh findings recorded since accessibility/security/code-quality/
+mobile/industry-standards dominated every round in between). Dispatching
+a fresh UX judge to get a current, concrete finding to fix, rather than
+fixing blind against 5-round-stale notes.
+
+## Round 11 (fresh UX re-score, then fix)
+
+| Axis | Round 10 | Round 11 | Delta |
+|---|---|---|---|
+| UX | 7/10 | **6/10** | fresh assessment, not a code-caused regression -- see note below |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.78/10.** Down slightly from 7.89 (UX's fresh, more
+thorough assessment vs. its stale round-4/5 carry-forward). One axis
+now below floor: UX (6).
+
+**GUARDRAIL NOTE (same pattern as round 4->5's accessibility
+regression):** UX's round-5 score of 7 was never actually re-examined
+by a UX judge across rounds 6-10, even though PR #833 (round 7-8) added
+an entire new interactive flow (Dismiss) in that gap. This round's
+fresh, deeper assessment surfaced a real problem in that new surface --
+not a regression caused by anything in rounds 9-10's own diffs (mobile
+touch-target, accessibility focus fixes), but a genuine gap in PR
+#833's own UX that no round happened to catch until now. Treating this
+the same as the round 4->5 precedent: logged explicitly, not a hard
+stop, since the "prior" score being compared against was stale rather
+than a real just-shipped baseline.
+
+Fresh findings (dev server live session, seeded org's only alert
+already read so mark-read/mark-all-read flows verified via code
+instead of live click-through):
+- **Dismiss/Delete terminology mismatch (real, fixed this round).**
+  Every page-level affordance calls the action "Dismiss" (button,
+  toast keys, modal title), but `DeleteAlertModal`'s confirm button was
+  hardcoded to the shared component's "Delete" -- live-confirmed: the
+  modal read "Dismiss this alert? ... [Cancel] [Delete]", a real
+  terminology flip right before an irreversible action.
+- No sort control or unread-first grouping (structural, deferred --
+  same scope class as industry-standards' still-open pagination/
+  deep-link gaps).
+- Hard 100-item fetch cap (`limit=100`) with zero pagination UI or
+  disclosure (structural, deferred).
+- Non-KRI alert types have no click-through destination at all, only
+  KRI-originated alerts get "View KRI" (structural, deferred -- would
+  need a backend-side destination for non-KRI sources).
+- Positives confirmed live: severity filter chips distinct active
+  states, genuinely different empty-state copy for "no alerts" vs.
+  "no alerts match filter," working KRI deep-link, clean Dismiss
+  confirm/cancel round-trip.
+
+**Fix shipped this round:** `DeleteAlertModal` gained optional
+`confirmLabel`/`loadingLabel` props (defaulting to the existing
+"Delete"/"Deleting..." copy so every other caller -- site/risk/
+finding/template delete, etc. -- is unaffected); `AlertsPage` passes
+`t("organization.alerts.dismiss")` / `t("organization.alerts.dismissing")`
+so the modal's own copy stays consistent with every other "Dismiss"
+affordance around it. New `dismissing` i18n key (en + fr). The three
+structural findings (sort, pagination, non-KRI deep-links) remain
+open -- each is a larger, product-scoped feature on the same order as
+industry-standards' still-open gaps, not a same-round mechanical fix.

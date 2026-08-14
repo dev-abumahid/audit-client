@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import AlertsPage from "./AlertsPage"
@@ -69,15 +69,27 @@ vi.mock("@/components/shared/DeleteAlertModal", () => ({
     open,
     onConfirm,
     loading,
+    confirmLabel,
+    loadingLabel,
   }: {
     open: boolean
     onConfirm: () => void
     loading?: boolean
+    confirmLabel?: string
+    loadingLabel?: string
   }) =>
     open ? (
-      <button onClick={onConfirm} disabled={loading}>
-        Confirm dismiss
-      </button>
+      // Round-1 review of PR #836: querying "the last button named X" only
+      // worked by coincidence of this mock rendering after the alert list
+      // in the DOM -- a real, if not currently reachable, way for a future
+      // reorder to silently break the tests below with no failure
+      // explaining why. Scoping to this wrapper (matched via `within`)
+      // makes the modal's own button unambiguous regardless of render order.
+      <div data-testid="delete-alert-modal">
+        <button onClick={onConfirm} disabled={loading}>
+          {loading ? (loadingLabel ?? "Confirm dismiss") : (confirmLabel ?? "Confirm dismiss")}
+        </button>
+      </div>
     ) : null,
 }))
 
@@ -1012,7 +1024,9 @@ describe("AlertsPage", () => {
         screen.getByRole("button", { name: "organization.alerts.dismiss" })
       )
       await userEvent.click(
-        screen.getByRole("button", { name: "Confirm dismiss" })
+        within(screen.getByTestId("delete-alert-modal")).getByRole("button", {
+          name: "organization.alerts.dismiss",
+        })
       )
 
       await waitFor(() =>
@@ -1048,7 +1062,9 @@ describe("AlertsPage", () => {
         screen.getByRole("button", { name: "organization.alerts.dismiss" })
       )
       await userEvent.click(
-        screen.getByRole("button", { name: "Confirm dismiss" })
+        within(screen.getByTestId("delete-alert-modal")).getByRole("button", {
+          name: "organization.alerts.dismiss",
+        })
       )
 
       await waitFor(() =>
@@ -1074,7 +1090,9 @@ describe("AlertsPage", () => {
         screen.getByRole("button", { name: "organization.alerts.dismiss" })
       )
       await userEvent.click(
-        screen.getByRole("button", { name: "Confirm dismiss" })
+        within(screen.getByTestId("delete-alert-modal")).getByRole("button", {
+          name: "organization.alerts.dismiss",
+        })
       )
 
       await waitFor(() =>
@@ -1098,6 +1116,31 @@ describe("AlertsPage", () => {
       ).not.toBeInTheDocument()
       expect(
         screen.getByRole("button", { name: "organization.alerts.dismiss" })
+      ).toBeInTheDocument()
+    })
+
+    // Round 11 (UX finding): the confirm modal used to always show the
+    // shared DeleteAlertModal's hardcoded "Delete" copy no matter what the
+    // trigger/toast/title around it called the action -- a genuine
+    // terminology flip mid-flow, live-confirmed as confusing right before
+    // an irreversible action. Passing confirmLabel/loadingLabel keeps the
+    // modal's own copy consistent with every other "Dismiss" affordance
+    // on this page.
+    it("passes Dismiss-consistent confirm/loading labels to the shared delete modal, not the default Delete copy", async () => {
+      mockRole = "ADMIN"
+      mockIsDeletingAlert = true
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert({ id: "alert-1" })] },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.alerts.dismiss" })
+      )
+
+      expect(
+        screen.getByRole("button", { name: "organization.alerts.dismissing" })
       ).toBeInTheDocument()
     })
   })
