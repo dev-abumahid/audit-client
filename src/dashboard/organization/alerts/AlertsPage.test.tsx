@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import type { ReactNode } from "react"
 import { MemoryRouter } from "react-router"
 import AlertsPage from "./AlertsPage"
 
@@ -93,6 +94,40 @@ vi.mock("@/components/shared/DeleteAlertModal", () => ({
     ) : null,
 }))
 
+// Round 12 (UX): sort control -- same mock convention as
+// InspectionTable.test.tsx, a native <select>/<option> pair standing in
+// for Radix's Select so userEvent.selectOptions works without pulling in
+// Radix's real listbox/portal behavior.
+vi.mock("@/components/ui/select", () => ({
+  Select: ({
+    children,
+    value,
+    onValueChange,
+  }: {
+    children: ReactNode
+    value?: string
+    onValueChange?: (v: string) => void
+  }) => (
+    <select value={value} onChange={(e) => onValueChange?.(e.target.value)}>
+      {children}
+    </select>
+  ),
+  SelectTrigger: ({ children }: { children: ReactNode }) => (
+    <>{children}</>
+  ),
+  SelectValue: () => null,
+  SelectContent: ({ children }: { children: ReactNode }) => (
+    <>{children}</>
+  ),
+  SelectItem: ({
+    value,
+    children,
+  }: {
+    value: string
+    children: ReactNode
+  }) => <option value={value}>{children}</option>,
+}))
+
 vi.mock("@/redux/apis/organization/alert.api", () => ({
   useGetAllAlertsQuery: (...args: unknown[]) =>
     mockUseGetAllAlertsQuery(...args),
@@ -184,6 +219,173 @@ describe("AlertsPage", () => {
     ).toBeInTheDocument()
     expect(screen.getByText("12 actions are overdue.")).toBeInTheDocument()
     expect(screen.getByText("KRI Monitor")).toBeInTheDocument()
+  })
+
+  // Round 12 (UX finding): no sort control existed at all -- alerts only
+  // ever rendered in the server's fixed createdAt-desc order, with no way
+  // to group unread first or surface the most severe alerts.
+  describe("sort control (round 12 UX fix)", () => {
+    function threeAlerts() {
+      return [
+        makeAlert({
+          id: "old-low",
+          title: "Old low",
+          severity: "low",
+          is_read: true,
+          createdAt: "2026-01-01T00:00:00.000Z",
+        }),
+        makeAlert({
+          id: "new-critical",
+          title: "New critical",
+          severity: "critical",
+          is_read: false,
+          createdAt: "2026-06-01T00:00:00.000Z",
+        }),
+        makeAlert({
+          id: "mid-medium",
+          title: "Mid medium",
+          severity: "medium",
+          is_read: true,
+          createdAt: "2026-03-01T00:00:00.000Z",
+        }),
+      ]
+    }
+
+    function titleOrder() {
+      return screen
+        .getAllByRole("heading", { level: 3 })
+        .map((h) => h.textContent)
+    }
+
+    it("defaults to newest-first, matching the server's own order", () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: threeAlerts() },
+        isLoading: false,
+      })
+      renderPage()
+
+      expect(titleOrder()).toEqual(["New critical", "Mid medium", "Old low"])
+    })
+
+    it("sorts oldest-first when selected", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: threeAlerts() },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.selectOptions(
+        screen.getByRole("combobox"),
+        "oldest"
+      )
+
+      expect(titleOrder()).toEqual(["Old low", "Mid medium", "New critical"])
+    })
+
+    it("sorts unread-first, newest within each group, when selected", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: threeAlerts() },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.selectOptions(
+        screen.getByRole("combobox"),
+        "unreadFirst"
+      )
+
+      // Only "New critical" is unread -- it must lead regardless of the
+      // other two reads' own createdAt order.
+      expect(titleOrder()).toEqual(["New critical", "Mid medium", "Old low"])
+    })
+
+    it("sorts by severity (high to low) when selected", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: threeAlerts() },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.selectOptions(
+        screen.getByRole("combobox"),
+        "severity"
+      )
+
+      expect(titleOrder()).toEqual(["New critical", "Mid medium", "Old low"])
+    })
+
+    // Round-1 review of PR #837: `alert.severity` is a free-form column
+    // server-side (see this file's own icon-color fallback comment), so
+    // an unrecognized value reaching the severity-sort comparator must
+    // not produce `NaN` (an unguarded `SEVERITY_RANK` lookup returns
+    // `undefined`, and `undefined - number` is `NaN`, which isn't
+    // spec-guaranteed to sort consistently).
+    it("treats an unrecognized severity as lowest-ranked instead of producing NaN", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          // Deliberately fed in the WRONG order relative to the expected
+          // sorted result below -- an unguarded `SEVERITY_RANK` lookup
+          // returns `undefined` for "unknown_severity", `undefined -
+          // number` is `NaN`, and V8's sort leaves a NaN-comparator pair
+          // in its ORIGINAL relative order. Asserting the fixed order
+          // only proves the fallback works if the input starts reversed;
+          // verified via negative control (reverting just the `?? ...`
+          // fallback left this exact test passing when the array started
+          // pre-sorted, and failing once flipped like this).
+          data: [
+            makeAlert({
+              id: "a2",
+              title: "Unrecognized severity",
+              severity: "unknown_severity",
+              createdAt: "2026-02-01T00:00:00.000Z",
+            }),
+            makeAlert({
+              id: "a1",
+              title: "Known high",
+              severity: "high",
+              createdAt: "2026-01-01T00:00:00.000Z",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.selectOptions(screen.getByRole("combobox"), "severity")
+
+      expect(titleOrder()).toEqual(["Known high", "Unrecognized severity"])
+    })
+
+    it("re-applies the active sort after the severity filter narrows the list", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAlert({
+              id: "a1",
+              title: "Newer high",
+              severity: "high",
+              createdAt: "2026-06-01T00:00:00.000Z",
+            }),
+            makeAlert({
+              id: "a2",
+              title: "Older high",
+              severity: "high",
+              createdAt: "2026-01-01T00:00:00.000Z",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.selectOptions(
+        screen.getByRole("combobox"),
+        "oldest"
+      )
+      await userEvent.click(screen.getByRole("button", { name: /riskLevel\.high/i }))
+
+      expect(titleOrder()).toEqual(["Older high", "Newer high"])
+    })
   })
 
   it('shows a "New" badge and "Mark as read" button for an unread alert', () => {

@@ -485,3 +485,57 @@ affordance around it. New `dismissing` i18n key (en + fr). The three
 structural findings (sort, pagination, non-KRI deep-links) remain
 open -- each is a larger, product-scoped feature on the same order as
 industry-standards' still-open gaps, not a same-round mechanical fix.
+
+## Round 12 (UX re-score after PR #836)
+
+| Axis | Round 11 | Round 12 | Delta |
+|---|---|---|---|
+| UX | 6/10 | **7/10** | +1, no longer below floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.89/10.** Back up from 7.78, matching round 10's average
+(UX's dip-then-recovery nets out to its round-10-equivalent value).
+**No axis remains below floor** -- all nine sit at 7-9. Not yet
+converged (target 8.5).
+
+Dismiss/Delete terminology fix confirmed via code + all 57 tests
+across `DeleteAlertModal.test.tsx`/`AlertsPage.test.tsx` passing, with
+a genuine negative-control test proving other `DeleteAlertModal`
+callers keep their original "Delete"/"Deleting..." copy unaffected.
+Same seeded-data gap as prior rounds (org now has 0 alerts entirely,
+likely dismissed by an earlier live-verification pass) -- relied on
+code + tests for the live-click-through check specifically.
+
+Three structural gaps remain open on UX (and overlap with
+industry-standards' own still-open notes): no sort control or
+unread-first grouping, no pagination UI for the 100-item fetch cap,
+non-KRI alert types have no click-through destination.
+
+**Next fix:** UX (7), efficiency (7), and accessibility (7) are now a
+three-way tie on both stuck_streak (0 -- none currently at/below floor)
+and raw score; roster order would nominally pick UX again, but UX's
+only mechanical fix is already shipped -- its remaining findings are
+explicitly structural/product-scoped. Per this session's standing
+"ship, don't pause on product decisions" guidance, picking the most
+tractable of the three open structural UX findings to build as real
+feature work rather than deferring again: a client-side sort control
+(all <=100 alerts are already fetched in one query, so this needs no
+backend change), which directly closes UX's "no sort control or
+unread-first grouping" gap and overlaps with industry-standards' own
+still-open "no sorting" note from its own log history.
+
+## Round 12 fix (client-side sort control)
+
+Shipped this round: a `Select` control (matching InspectionTable's own
+Select usage/mock convention) with 4 options -- Newest first (the
+existing default, unchanged for anyone who never touches it), Oldest
+first, Unread first, and Severity: high to low. Pure client-side sort
+over the already-fetched (<=100) alerts, applied after the severity
+filter so the two compose correctly. New i18n keys `sortLabel`/
+`sortNewest`/`sortOldest`/`sortUnreadFirst`/`sortSeverity` (en + fr).
+
+This closes UX's "no sort control or unread-first grouping" finding
+and overlaps with industry-standards' own still-open "no sorting" note
+-- expect a possible upward move there too on its next re-score. The
+other two structural UX gaps (pagination UI, non-KRI deep-links) remain
+open.

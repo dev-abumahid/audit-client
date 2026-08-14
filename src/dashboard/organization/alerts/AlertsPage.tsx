@@ -1,5 +1,12 @@
 import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   useDeleteAlertMutation,
@@ -24,6 +31,18 @@ import { Link, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 type Severity = "critical" | "high" | "medium" | "low"
+type SortOption = "newest" | "oldest" | "unreadFirst" | "severity"
+
+// Round 12 (UX finding): matches this app's own visual severity ordering
+// (RiskBadge/severityBadgeClasses render critical as the most alarming
+// color down to low as the calmest) rather than inventing a separate
+// order -- used only for the "severity" sort option below.
+const SEVERITY_RANK: Record<Severity, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+}
 
 // aexa-frontend round-3 audit bug #5: `Alert.type` is a free-form string
 // column (see aexa-server prisma/schema/alert.prisma) with no backend enum
@@ -108,6 +127,11 @@ export default function AlertsPage() {
       ? (param as Severity)
       : null
   })
+  // Round 12 (UX finding): no sort control existed at all -- alerts only
+  // ever rendered in the server's fixed createdAt-desc order. "newest"
+  // keeps that same default so nothing changes for a user who never
+  // touches this control.
+  const [sortOption, setSortOption] = useState<SortOption>("newest")
 
   // Round 8 (accessibility): both the per-row "Mark as read" button and the
   // bulk "Mark all as read" button unmount as soon as their action
@@ -126,13 +150,44 @@ export default function AlertsPage() {
   // this -- memoized so the empty-array fallback is referentially
   // stable too.
   const allAlerts = useMemo(() => alertResponse?.data ?? [], [alertResponse])
-  const alerts = useMemo(
-    () =>
-      severityFilter
-        ? allAlerts.filter((a: Alert) => a.severity === severityFilter)
-        : allAlerts,
-    [allAlerts, severityFilter]
-  )
+  const alerts = useMemo(() => {
+    const filtered = severityFilter
+      ? allAlerts.filter((a: Alert) => a.severity === severityFilter)
+      : allAlerts
+    // Round 12 (UX finding): sorts a copy -- `allAlerts`/`filtered` must
+    // stay in the server's original order since `filtered` is also reused
+    // above/elsewhere without assuming any particular order.
+    return [...filtered].sort((a: Alert, b: Alert) => {
+      switch (sortOption) {
+        case "oldest":
+          return (
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          )
+        case "unreadFirst":
+          if (a.is_read !== b.is_read) return a.is_read ? 1 : -1
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+        case "severity":
+          // Round-1 review of PR #837: this file already documents (see
+          // the icon-color fallback below) that `alert.severity` can
+          // arrive outside the typed union at runtime -- an unguarded
+          // lookup here returns `undefined`, and `undefined - number` is
+          // `NaN`, which isn't spec-guaranteed to sort consistently.
+          // Falls back to the same "last" rank as `SEVERITY_STYLES`'s own
+          // neutral fallback treats an unrecognized severity.
+          return (
+            (SEVERITY_RANK[a.severity as Severity] ?? SEVERITY_RANK.low + 1) -
+            (SEVERITY_RANK[b.severity as Severity] ?? SEVERITY_RANK.low + 1)
+          )
+        case "newest":
+        default:
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+      }
+    })
+  }, [allAlerts, severityFilter, sortOption])
 
   // quality-bar-loop round 3 (efficiency, round-1 finding): 4 separate
   // `.filter().length` passes over `allAlerts` recomputed on every
@@ -327,27 +382,62 @@ export default function AlertsPage() {
           </p>
         </div>
 
-        {/* Round-4 industry-standards finding: no bulk action existed at
-            all, not even mark-all-read -- every alert had to be
-            individually clicked. No backend bulk endpoint exists
-            (alert.route.ts only has a per-id PATCH), so this fires the
-            same per-id mutation in parallel across every unread alert in
-            the *currently filtered* view. */}
-        {canWrite && filteredUnreadCount > 0 && (
-          <button
-            type="button"
-            onClick={handleMarkAllRead}
-            disabled={isMarkingAllRead}
-            className="focus-ring flex h-11 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+        <div className="flex items-center gap-2">
+          {/* Round 12 (UX finding): no sort control existed at all --
+              alerts only ever rendered in the server's fixed
+              createdAt-desc order, with no way to group unread first or
+              surface the most severe alerts, unlike GitHub
+              Notifications/PagerDuty. All <=100 fetched alerts are
+              already in memory (useGetAllAlertsQuery's own cap), so this
+              is a pure client-side sort with no new backend call. */}
+          <Select
+            value={sortOption}
+            onValueChange={(value) => setSortOption(value as SortOption)}
           >
-            {isMarkingAllRead ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <CheckCheck className="h-3.5 w-3.5" />
-            )}
-            {t("organization.alerts.markAllRead")}
-          </button>
-        )}
+            <SelectTrigger
+              className="!h-11 w-auto min-w-[9rem]"
+              aria-label={t("organization.alerts.sortLabel")}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">
+                {t("organization.alerts.sortNewest")}
+              </SelectItem>
+              <SelectItem value="oldest">
+                {t("organization.alerts.sortOldest")}
+              </SelectItem>
+              <SelectItem value="unreadFirst">
+                {t("organization.alerts.sortUnreadFirst")}
+              </SelectItem>
+              <SelectItem value="severity">
+                {t("organization.alerts.sortSeverity")}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Round-4 industry-standards finding: no bulk action existed at
+              all, not even mark-all-read -- every alert had to be
+              individually clicked. No backend bulk endpoint exists
+              (alert.route.ts only has a per-id PATCH), so this fires the
+              same per-id mutation in parallel across every unread alert in
+              the *currently filtered* view. */}
+          {canWrite && filteredUnreadCount > 0 && (
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              disabled={isMarkingAllRead}
+              className="focus-ring flex h-11 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              {isMarkingAllRead ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCheck className="h-3.5 w-3.5" />
+              )}
+              {t("organization.alerts.markAllRead")}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Severity Quick Filters
