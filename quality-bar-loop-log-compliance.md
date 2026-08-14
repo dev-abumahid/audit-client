@@ -376,3 +376,65 @@ versioning, structured framework taxonomy, approval routing) are
 still real design/refactor-scoped work. Code quality's monolith-split
 item is now substantially addressed; re-score next round to confirm
 where it lands.
+
+## Round 7 (industry-standards: obligation edit-history, PR #327 aexa-server + #864 aexa-frontend)
+
+Fresh re-score before picking this round's fix: **code quality: 7/10**
+(up from 5 -- round 6's monolith split confirmed landed,
+`CompliancePage.tsx` down from 1570 to 1103 lines, now at floor
+exactly; a `useComplianceData` hook extraction for the remaining 8
+inline RTK Query hooks is the next cut if this needs to move further).
+**Industry-standards: 6/10, still below floor**, unchanged across
+rounds 4-6 -- confirmed three concrete gaps against OneTrust/Vanta/
+Drata/ServiceNow GRC: no edit-history/versioning on obligations (only
+attestation events were audited, not edits), no structured
+regulatory-framework taxonomy (free-text `regulation_reference`), no
+approval/review routing.
+
+Picked the most contained of the three -- obligation edit-history --
+and built it as real, shippable, cross-repo feature work (both
+aexa-server and aexa-frontend), following the standing "ship, don't
+pause for a decision" discipline. Mirrored the already-reviewed
+`ComplianceAttestation` pattern rather than inventing a new shape:
+
+- **aexa-server (PR #327)**: new append-only `ComplianceObligationEdit`
+  table (org-scoped, cascade-deleted with its obligation/account),
+  a pure `build_compliance_edit_diff` field-level diff builder over a
+  fixed `TRACKED_HISTORY_FIELDS` set (explicitly excludes meta/derived
+  fields and `attachments`, documented as a deferred decision rather
+  than silently dropped), written inside the same `$transaction` as
+  `update_compliance_into_db`'s own row update, and a new paginated
+  `GET /compliance/:id/edit-history` endpoint mirroring `/attestations`
+  exactly. 18 new/updated backend tests, all real (mocked-DB call-
+  argument assertions, not return-value-only checks).
+- **aexa-frontend (PR #864)**: `AttestHistoryModal` grew a second tab
+  (`role="tablist"`/`"tab"`/`"tabpanel"`, matching ARIA convention)
+  rather than a new sibling modal -- reuses the existing
+  `historyObligation`/`openHistory` state instead of adding a 4th
+  modal. New RTK Query endpoint + i18n strings (full en/fr parity).
+
+**Round-2 review on the backend PR found one real, minor bug**: the
+edit-diff's "old" snapshot was read before the `$transaction` opened,
+a TOCTOU window a concurrent PATCH could exploit to make the recorded
+"old" value stale -- the same class of bug this function's own
+attestation-count check was already fixed for in a prior round. Fixed
+same-round: re-reads the row from inside `tx` immediately before
+diffing, narrowing the window the same way the existing check does
+(not a stronger row-level lock, to stay consistent with the rest of
+the function). Verified against all 129 compliance-service tests plus
+the full 1453-test backend suite, all green.
+
+Both repos' full QA gates clean (aexa-server: typecheck, lint,
+1453/1453; aexa-frontend: typecheck, lint, full suite). Round-1
+independent review on each PR came back clean after the TOCTOU fix
+(backend: traced org-scoping, transaction atomicity, migration
+cascade behavior, diff-builder edge cases directly rather than trusting
+the PR's own comments; frontend: traced ARIA tab semantics, focus-trap
+behavior across tab switches, i18n parity, and confirmed the diff
+stayed scoped to the 7 intended files). Both PRs merged.
+
+Industry-standards' edit-history gap is now closed; re-score next
+round to confirm where the axis lands. Two of its three known gaps
+(structured framework taxonomy, approval routing) remain open,
+larger design/feature work for a future round if the axis still
+isn't at target after re-scoring this fix.
