@@ -95,7 +95,7 @@ export default function UpdateValueModal({
           min={0}
           value={value}
           onChange={(e) => onValueChange(e.target.value)}
-          className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+          className="mt-1 h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
         />
         <div className="mt-5 flex justify-end gap-2">
           <button

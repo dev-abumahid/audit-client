@@ -1,4 +1,5 @@
 import { Loader2, Save, X } from "lucide-react"
+import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import type { Risk } from "@/types/organization"
 import { useModalA11y } from "@/hooks/useModalA11y"
@@ -29,7 +30,16 @@ export default function NewKriModal({
   const { t } = useTranslation()
   const modalRef = useModalA11y(true, onClose)
 
-  const selectedRisk = risks.find((r) => r.id === form.risk_id)
+  // Round 23 (efficiency finding): unmemoized `risks.find(...)` re-scanned
+  // the full risk list on every keystroke in ANY field of this form (name,
+  // unit, owner, thresholds), not just when risk_id itself changed -- same
+  // recompute-on-unrelated-render bug class this file's parent
+  // (KriDashboardPage.tsx) has fixed multiple times elsewhere, just never
+  // applied here after round 18 moved this line into its own component.
+  const selectedRisk = useMemo(
+    () => risks.find((r) => r.id === form.risk_id),
+    [risks, form.risk_id]
+  )
 
   return (
     <div
@@ -84,7 +94,7 @@ export default function NewKriModal({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, risk_id: e.target.value }))
                 }
-                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="mt-1 h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="">
                   {t("organization.kri.form.selectRisk")}

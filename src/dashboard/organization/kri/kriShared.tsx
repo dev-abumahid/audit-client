@@ -53,7 +53,7 @@ export function KriFormField({
         aria-required={required ? "true" : undefined}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+        className="mt-1 h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
         placeholder={placeholder}
       />
     </div>
@@ -85,7 +85,7 @@ export function KriFrequencySelect({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+        className="mt-1 h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
       >
         <option value="daily">{t("organization.kri.frequency.daily")}</option>
         <option value="weekly">

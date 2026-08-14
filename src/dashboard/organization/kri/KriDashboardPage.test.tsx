@@ -345,6 +345,36 @@ describe("KriDashboardPage", () => {
     expect(closeButton!.className).toContain("h-11")
   })
 
+  // Round 23 (mobile finding): every text/number input in the New KRI
+  // modal measured h-9 (36px) -- below the 44px guideline round 2 already
+  // established and applied to every icon button/primary CTA on this page,
+  // just never applied to the form fields themselves.
+  it("gives the New KRI modal's text/number inputs a 44px touch target", async () => {
+    mockRole = "ADMIN"
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: { data: [makeKri()] },
+      isLoading: false,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", { name: /organization\.kri\.newKri/i })
+    )
+
+    expect(
+      screen.getByPlaceholderText("organization.kri.form.namePlaceholder")
+        .className
+    ).toContain("h-11")
+    expect(
+      screen.getByPlaceholderText("organization.kri.form.unitPlaceholder")
+        .className
+    ).toContain("h-11")
+    expect(
+      screen.getByLabelText("organization.kri.form.risk", { exact: false })
+        .className
+    ).toContain("h-11")
+  })
+
   it("hides write controls for a LIGHT_USER", () => {
     mockRole = "LIGHT_USER"
     mockUseGetAllKriQuery.mockReturnValue({
