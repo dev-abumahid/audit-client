@@ -540,3 +540,51 @@ below `md`), code quality (7, the 1145-line file itself, though well
 below its pre-decomposition size), and industry-standards' two larger
 feature gaps (structured regulatory-framework taxonomy, approval/
 review routing) are the candidates for the next round.
+
+## Round 10 (UX: compact mobile overdue indicator, PR #882)
+
+Picked UX's most concrete gap from round 9's fresh panel: the Due
+Date column (the table's only overdue indicator) is hidden below
+`md`, a genuine mobile triage loss for a compliance user -- "which
+obligations are overdue" is exactly what you'd want on a phone. The
+other known UX gap (attested_by/edited_by rendering as raw account
+IDs) stays confirmed backend-blocked from an earlier round (OrgMember
+has no accountId field to join against), not re-litigated.
+
+Added a compact overdue line to the title cell, following the
+established conditional-line pattern (regulation_reference/
+line_of_defense). **Round-1 independent review caught a real
+duplication bug**: the first version had no breakpoint gate at all,
+so an overdue obligation showed the exact same "Overdue" signal
+twice at `md`+ -- once in the new compact line, once in the Due Date
+column's own badge. Fixed same-round with `md:hidden`, so the compact
+line fills only the real gap below `md` and cedes to the full column
+above it, matching the "don't show the same fact twice" discipline
+the sibling `sm:block`-gated lines already follow.
+
+2 new tests (shows below md, doesn't duplicate/exists when overdue is
+false), both negative-control-verified against both the original
+missing-fix and the review-fixed missing-gate versions. Full QA gate
+clean (typecheck, lint, 2184/2184 full suite). Live-verified at BOTH
+viewport widths in a fresh browser tab against the real backend:
+created a real obligation with a past due date, confirmed the server
+computed `overdue: true`, confirmed "Overdue" renders exactly once at
+375px (compact line) and exactly once at 840px (Due Date column,
+compact line correctly absent) -- not duplicated at either width.
+Cleaned up via API delete both times.
+
+**Round-10 UX re-score: 9/10, up from 7.**
+
+10 rounds, 7 PRs (#859, #862, #863, aexa-server#327, #864-866,
+#880, #882) shipped and merged this session's Compliance work
+(counting only code-changing + this round's; #864-866/880-882 include
+docs-only log PRs).
+
+**Current picture** (industry-standards 7, UX 9, efficiency 9,
+accessibility 8, visual polish 8, resilience 9, code quality 7,
+mobile 8, security 8 -- carrying round 9's panel forward with UX/
+efficiency's fresh re-scores substituted in): rough average ~8.11/10.
+Not yet confirmed converged without a fresh full panel. Code quality
+(7, the 1145-line file) and industry-standards (7, the two larger
+feature gaps: structured framework taxonomy, approval routing) are
+the remaining below-8 axes.
