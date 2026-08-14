@@ -448,3 +448,48 @@ Aug 9 to Aug 9. Latest value: 60." with correct interpolated values).
 
 Re-scoring accessibility next to confirm the floor-clearing impact
 before picking round 11's fix.
+
+## Round 11 (fresh accessibility re-score + fix, PR #850)
+
+Re-score came back **7/10** -- same as before, not a below-floor
+regression (floor is 7). Judge confirmed all three PR #849 fixes landed
+and work correctly live, but a genuinely fresh full pass (not just
+re-checking prior findings, per this loop's own instructions) surfaced
+three new, comparable-weight gaps:
+1. Recharts v3's `accessibilityLayer` (on by default) makes the trend
+   chart's `<svg>` keyboard-focusable with `role="application"`, but it
+   had no accessible name -- sitting right next to the `sr-only`
+   summary PR #849 just added for exactly this chart.
+2. The Update Value modal's number input has `autoFocus`, but
+   `useModalA11y`'s own forced initial-focus logic runs after mount and
+   moves focus to the modal's close button instead -- the intended
+   initial-focus target is dead in practice.
+3. Required fields in the New/Edit KRI forms are marked with a
+   visual-only `*` -- no `required`/`aria-required` on the inputs.
+
+Net accessibility posture: roughly unchanged this round (3 fixed, 3
+new found) -- a real case of genuine progress not showing up as a
+score change, per this log's own GUARDRAIL NOTE precedent (Alerts'
+round 10-11, round 13-14).
+
+Fixed item 1 this round (PR #850): hoisted the existing summary text
+into a shared `trendSummary` value, passed to `<LineChart title={...}>`
+which recharts forwards to an `<svg><title>` element -- the standard
+SVG accessible-name mechanism. No new automated test: recharts'
+`ResponsiveContainer` renders no `<svg>` at all under jsdom (documented
+limitation, same as this file's existing "renders a chart" test) --
+live-verified in the dev preview instead
+(`document.querySelector('.recharts-surface title').textContent` ===
+`"2 readings from Aug 9 to Aug 9. Latest value: 60."` against real
+seeded data).
+
+Round-1 review found `trendSummary` wasn't memoized (recomputed + called
+`t()` on every render of the whole page once no longer gated by JSX
+short-circuit) -- fixed with `useMemo`, same round. Round-2 review came
+back with zero findings -- review loop converged after 2 rounds. Full QA
+gate clean throughout (typecheck, lint, 2143/2143 test suite).
+
+Items 2 and 3 above are left for subsequent rounds. Item 2 touches the
+shared `useModalA11y` hook used across the whole app's modals, not just
+this page -- needs its own scoped round with wider blast-radius review,
+not bundled into this file-scoped accessibility sweep.

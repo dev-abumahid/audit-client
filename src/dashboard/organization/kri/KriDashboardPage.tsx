@@ -427,6 +427,27 @@ export default function KriDashboardPage() {
         })),
     [readingsResponse, i18n.language]
   )
+  // Round 9 (accessibility finding): Recharts renders a purely visual SVG
+  // with no text alternative for a screen-reader user -- this summary
+  // backs both the sr-only paragraph above the chart and (round 11) the
+  // chart's own accessible name, so the two never drift out of sync.
+  // Round-1 review of PR #850: this ran (and called t()) on every render
+  // of the whole page once no longer gated by the JSX's own short-circuit,
+  // not just when the trend modal is actually open -- same
+  // recompute-on-unrelated-render issue this file already fixed for
+  // `trendChartData` and every other derived value above it.
+  const trendSummary = useMemo(
+    () =>
+      trendChartData.length > 0
+        ? t("organization.kri.trend.summary", {
+            count: trendChartData.length,
+            first: trendChartData[0].recorded_at,
+            last: trendChartData[trendChartData.length - 1].recorded_at,
+            latestValue: trendChartData[trendChartData.length - 1].value,
+          })
+        : "",
+    [trendChartData, t]
+  )
 
   // quality-bar-loop round 3 (efficiency, round-1 finding): three
   // separate `.filter().length` passes over `kris` recomputed every
@@ -1394,23 +1415,19 @@ export default function KriDashboardPage() {
 
             {!isLoadingReadings && trendChartData.length > 0 && (
               <div className="h-64">
-                {/* Round 9 (accessibility finding): Recharts renders a
-                    purely visual SVG with no text alternative for a
-                    screen-reader user -- a concise text summary conveys
-                    the same "what's the trend" signal the chart exists
-                    to show, without needing a full data-table fallback. */}
-                <p className="sr-only">
-                  {t("organization.kri.trend.summary", {
-                    count: trendChartData.length,
-                    first: trendChartData[0].recorded_at,
-                    last: trendChartData[trendChartData.length - 1]
-                      .recorded_at,
-                    latestValue:
-                      trendChartData[trendChartData.length - 1].value,
-                  })}
-                </p>
+                {/* Round 9 (accessibility finding): a concise text summary
+                    conveys the same "what's the trend" signal the chart
+                    exists to show, without needing a full data-table
+                    fallback. Round 11 (fresh full-panel re-score):
+                    recharts v3's accessibilityLayer (on by default) makes
+                    the chart's <svg> keyboard-focusable with
+                    role="application", but it had no accessible name of
+                    its own -- passing the same summary as LineChart's
+                    `title` prop (below) renders an <svg><title> element,
+                    the standard accessible-name mechanism. */}
+                <p className="sr-only">{trendSummary}</p>
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trendChartData}>
+                  <LineChart data={trendChartData} title={trendSummary}>
                     <XAxis
                       dataKey="recorded_at"
                       tick={{ fontSize: 11 }}
