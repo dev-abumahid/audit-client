@@ -827,3 +827,93 @@ floor (7) with real margin; no axis below 8; average now exceeds the
 8.5 target.** Convergence looks likely -- a final fresh full-panel
 re-score is the next and probably last step, to confirm this holds
 under an honest re-inspection before declaring Compliance converged.
+
+## Round 15 (UX: debounce the search input, PR #892) + honest final-panel reconciliation
+
+Before this round, a **final convergence-check full panel** was run
+with explicit instructions to score honestly rather than confirm
+the carried-forward ~8.56 estimate. Two axes came back materially
+different from what had been carried forward:
+
+- **industry-standards: 7/10** (not the round-13 8/10 carried
+  forward) -- an honest fresh read judged the framework catalog
+  "thin and rigid" (38 hardcoded controls, exact-match only, no
+  update path) and the still-deferred approval/maker-checker
+  workflow as more than cosmetic gaps against real GRC tooling, not
+  just a nit. This axis has now read at or near 7 for the large
+  majority of this session's rounds (9-12 stuck at 7, briefly 8 in
+  round 13's own self-assessment, honestly re-confirmed back at 7
+  here) -- the longest-running real gap in the whole Compliance loop.
+- **UX: 7.5/10** (not the round-9/13 carried-forward 9/10) -- a
+  genuinely fresh pass found `search` was passed straight into the
+  query with no debounce, unlike every sibling page
+  (RiskRegisterPage/TemplatesPage/SitesEntities/AllFindingsPage/
+  ReportsPage/IntelligencePage), which all already use the
+  codebase's own `useDebouncedValue` convention. A real,
+  reproducible, previously-missed inconsistency, not a nitpick.
+
+The other seven axes held close to their round-14 numbers
+(efficiency 8, accessibility 8, visual polish 8, resilience 9, code
+quality 8 -- an honest re-score landed one point below round 14's
+own 9/10 self-assessment, judged "slightly generous" for the
+remaining 3x-duplicated modal-state pattern -- mobile 8, security 8).
+
+**Honest final-panel average: (7 + 7.5 + 8 + 8 + 8 + 9 + 8 + 8 + 8)/9
+= 71.5/9 ~= 7.94/10.** Materially below both the round-14 carried-
+forward estimate (~8.56) and the 8.5 target -- confirms this
+session's standing practice of running fresh full panels rather than
+trusting carried-forward numbers, since carrying forward too many
+axes at once (round 14 only fully re-ran code quality) let two real
+gaps go unaddressed.
+
+Per the mechanical selection rules, UX's newly-surfaced debounce gap
+was picked for this round (no data-correctness/security finding at
+floor; industry-standards' stuck_streak is real but its own findings
+are all large feature builds with no cheap slice left after round
+13's catalog work, while UX's fix was concrete, cheap, and had a
+direct proven template to copy). Added `debouncedSearch =
+useDebouncedValue(search, 300)`, matching RiskRegisterPage's own
+round-9 fix byte-for-byte in approach: input still bound to raw
+`search` for instant typing feedback, only the query arg debounced,
+page-reset-to-1 effect moved from synchronous (per-keystroke) to
+firing once the debounce settles.
+
+New test (`debounces the search term before passing it to the query
+hook`) added, mirroring RiskRegisterPage.test.tsx's own debounce
+test. Negative-control verified: stashed the source change,
+confirmed the test genuinely failed (4 immediate calls, one per
+keystroke, no debounce), restored, confirmed 82/82 pass. Full repo
+suite: 2189/2189 passed. Live-verified against the real running
+backend in a fresh browser tab: typed "GDPR" and confirmed only one
+network request fired for the settled term, not one per keystroke.
+
+Round-1 independent review came back clean: confirmed
+`handleSearchChange` no longer double-resets the page, confirmed no
+race with `useClampPageToTotal`, confirmed the test's pre/post
+assertion pair is meaningful (not tautological), confirmed no
+analogous `search` reference was missed elsewhere (Compliance has no
+`?q=` URL-sync effect the way RiskRegisterPage does, so nothing else
+needed the debounced value).
+
+**Round-15 UX re-score (post-fix): 9/10**, confirmed by a dedicated
+follow-up judge dispatch reading the merged fix fresh -- the debounce
+is real, correctly timed (no flicker, no wasted stale-page request),
+and no other reproducible gap was found capping it below a clean 9.
+
+15 rounds, 12 code-changing PRs (#859, #862, #863, aexa-server#327,
+#864, #880, #882, #884, #886, #888, #890, #892) shipped and merged
+this session's Compliance work (plus several docs-only log PRs).
+
+**Current picture** (industry-standards 7, UX 9, efficiency 8,
+accessibility 8, visual polish 8, resilience 9, code quality 8,
+mobile 8, security 8): average = (7+9+8+8+8+9+8+8+8)/9 = 73/9 ~=
+8.11/10. **Still not converged** -- industry-standards (7, at floor)
+is now the sole sub-8 axis and the anchor holding the average below
+8.5. Its remaining named gaps (a deeper/self-updating framework
+taxonomy beyond the current 38-entry static catalog, and the
+approval/maker-checker attestation-routing workflow) are both larger
+feature builds than anything shipped so far this session for this
+page -- the next round should scope and build the smaller of the two
+as real feature work, per this session's "ship, don't defer on
+product-decision grounds" standing instruction, rather than
+continuing to defer both indefinitely.
