@@ -1018,3 +1018,91 @@ across six tied axes rather than concentrated in one clear next round.
 
 19 rounds, 11 PRs (#849-857, #867, #869) shipped and merged this
 session.
+
+## Round 20 (industry-standards: KRI owner field, aexa-server#328 + aexa-frontend#871)
+
+Resumed the loop to act on round-19's one named, concrete lever: the
+industry-standards judge had specifically called out "no bulk actions
+or KRI ownership/assignment field yet" (reference tools: ServiceNow
+GRC, LogicGate, Resolver) as the one point keeping that axis at 8/10
+instead of 9. Built the ownership half as a real, shippable
+end-to-end feature across both repos.
+
+**Backend (aexa-server#328):** `owner String?` on `Kri`
+(`prisma/schema/kri.prisma`), matching the codebase's established
+free-text-owner convention (`ComplianceObligation.owner`,
+`Mitigation.owner`, `AuditEngagement.owner`) rather than an FK to
+Account/OrgMember -- deliberately not inventing a relational
+ownership model this session's other loops haven't needed. Added to
+both `create_kri`/`update_kri`'s explicit zod allowlists in
+`kri.validation.ts` (this module validates with an allowlist, not a
+loose `Partial<KRI>` like Compliance -- would've been silently
+stripped otherwise). New migration
+`20260814143217_issue_kri_owner_field`. Swagger examples and
+`docs/features/kri.md` updated.
+
+**Frontend (aexa-frontend#871):** Owner text field added to both
+New/Edit KRI modals via the existing shared `KriFormField` component
+(same pattern as `name`/`unit`). Shown on the KRI card only when set
+-- a compact conditional metadata line (icon + truncated text +
+title tooltip), same pattern already established for the `overdue`
+badge, not a new unconditional grid column for orgs that never fill
+it in. `en.json`/`fr.json` both got the new keys.
+
+**Data-integrity fix from independent review (both repos):** the
+frontend intentionally sends an explicit `owner: ""` on edit to clear
+a previously-set owner (so the clear actually round-trips, not a
+silent no-op), while create omits a blank owner entirely (so a never-
+set owner stays `NULL`, not `""`). Round-2 review caught that this
+split meant `update_kri_into_db` normalized `""` -> `null` but
+`create_kri_into_db` didn't -- a direct API caller (not the frontend,
+which never triggers this path) posting `owner: ""` on create would
+have stored a literal empty string instead of NULL, undercutting the
+"no owner is always NULL" invariant the update-path fix claimed.
+Fixed on both create and update paths so the invariant genuinely
+holds regardless of entry point.
+
+**Test-quality fix from independent review (frontend):** the "does
+not render an owner line when owner is unset" test asserted
+`queryByText("organization.kri.ownerLabel")` -- but that translation
+key is only ever used as the owner span's `title` attribute, never
+its visible text content (which is `kri.owner` itself). The old
+assertion would have passed even if the conditional block always
+rendered. Negative-control-verified the fix by temporarily forcing
+the block to always render: the old-style assertion stayed green
+(confirming it was vacuous), the fixed `queryByTitle` assertion
+correctly failed, then passed again once reverted.
+
+Full QA gates clean on both repos (aexa-server: typecheck, lint,
+1460/1460 full suite; aexa-frontend: typecheck, lint, 2177/2177 full
+suite). Every new regression test negative-control-verified (stash
+fix, confirm red, restore, confirm green) per this session's hard
+requirement. Live-verified end-to-end in a fresh browser tab against
+the real local backend+frontend: created a KRI with an owner (hit a
+genuine environment snag first -- the already-running `tsx watch`
+backend process had a stale in-memory Prisma Client from before the
+migration ran; a touch-triggered restart + explicit `prisma generate`
+fixed it, not a code bug), confirmed the owner rendered correctly on
+the card, edited it to a new value and confirmed the update
+persisted and re-rendered, deleted the test KRI to clean up.
+
+Two independent review rounds: round 1 found one medium (the
+create/update NULL-vs-empty-string split described above, actually
+caught in round 2 for the create side specifically) and two minors
+(a superficial test, a missing whitespace-owner guard matching
+existing Compliance precedent so not a regression); round 2 found and
+fixed the create-path normalization gap and the vacuous test; round 3
+came back clean with zero findings on a genuinely independent re-read
+of the full combined diff, not just the latest commit.
+
+Both PRs merged via `gh pr merge --squash --admin` per this session's
+standing admin-bypass merge authorization.
+
+20 rounds, 13 PRs (#849-857, #867, #869, aexa-server#328,
+aexa-frontend#871) shipped and merged this session. Industry-standards
+axis expected to move 8 -> 9 on the next fresh panel re-score (not yet
+re-run this round -- the loop stayed focused on landing the one named
+lever cleanly rather than re-scoring immediately); the other five
+axes tied at 8/10 (efficiency, accessibility, visual polish,
+resilience, mobile) remain the next candidates if the loop resumes
+further.
