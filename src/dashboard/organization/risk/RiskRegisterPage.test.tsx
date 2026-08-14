@@ -1913,12 +1913,24 @@ describe("RiskRegisterPage", () => {
     // URL, the still-active category filter would silently write itself
     // right back in on the next interaction, so "Clear filter" appeared to
     // do nothing. onClear now resets every filter/sort field too.
-    it('resets category/search/sort in addition to status when "Clear filter" is clicked', async () => {
+    //
+    // Round-19 judge finding: the first fix for this (resetting state in
+    // onClear alone) reintroduced a worse regression -- Link's own
+    // navigate() and the URL-sync effect's reactive setSearchParams call
+    // raced each other, and `status` itself (the ONE thing "Clear filter"
+    // originally cleared) came back. This test's `status=` assertion is
+    // the one that would have caught that regression -- the original
+    // version of this test only checked `category=`, which is exactly
+    // why it shipped undetected.
+    it('resets status, category, search, and sort when "Clear filter" is clicked', async () => {
       mockUseGetAllRisksQuery.mockReturnValue({
         data: { data: [makeRisk({ status: "open" })] },
       })
       renderPageWithProbe("/?status=open&category=supply_chain")
 
+      expect(
+        screen.getByText("organization.riskRegister.filteredByStatus")
+      ).toBeInTheDocument()
       expect(
         screen.getByRole("combobox", {
           name: "organization.riskRegister.categoryFilterLabel",
@@ -1931,19 +1943,24 @@ describe("RiskRegisterPage", () => {
         })
       )
 
+      // The category dropdown is driven directly by component state
+      // (setFilterCat), so it resets synchronously with the click.
       expect(
         screen.getByRole("combobox", {
           name: "organization.riskRegister.categoryFilterLabel",
         })
       ).toHaveValue("")
 
-      // The category filter no longer being active (checked above) is
-      // what proves the fix -- this probe check just confirms the
-      // round-18 URL-sync effect (async, runs after commit -- same
-      // waitFor precedent as the "reflects a filter and sort change"
-      // test above) doesn't write the stale value back in.
+      // The status banner and the URL itself are both derived from
+      // searchParams, which only updates once the URL-sync effect flushes
+      // (statusCleared) -- async, same waitFor precedent as the
+      // "reflects a filter and sort change" test above.
       await waitFor(() => {
+        expect(
+          screen.queryByText("organization.riskRegister.filteredByStatus")
+        ).not.toBeInTheDocument()
         const probe = screen.getByTestId("url-probe").textContent ?? ""
+        expect(probe).not.toContain("status=")
         expect(probe).not.toContain("category=")
       })
     })

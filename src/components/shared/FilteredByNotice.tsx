@@ -15,7 +15,11 @@ interface FilteredByNoticeProps {
   // fails to clear anything the user can see. Optional and additive so
   // the other 3 existing callers (KriDashboardPage, AllFindingsPage,
   // InspectionTable), which have no such extra state, are unaffected.
-  onClear?: () => void
+  // Round-19 review finding: receives the click event so a caller that
+  // needs to own the full navigation atomically (see RiskRegisterPage)
+  // can preventDefault() and avoid racing this Link's own navigate()
+  // against its own URL update.
+  onClear?: (event: React.MouseEvent<HTMLAnchorElement>) => void
 }
 
 // quality-bar-loop round 16 (code quality + accessibility regression fix):

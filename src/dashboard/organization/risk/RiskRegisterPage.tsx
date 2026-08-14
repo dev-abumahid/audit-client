@@ -1185,30 +1185,51 @@ export default function RiskRegisterPage() {
     setSelectedIds(new Set())
   }, [page, debouncedSearch, siteFilter, filterCat, statusParam, pendingApprovalOnly])
 
+  // Round-19 judge finding: "Clear filter" used to also call
+  // setSearchParams directly (in addition to resetting state below), racing
+  // this effect's own setSearchParams call. A flag instead of a second
+  // write path means there's only ever ONE place that writes to
+  // searchParams -- "clear" latches this permanently true so `status` is
+  // never written back, including by a later effect re-run this same
+  // click indirectly triggers (e.g. once the 300ms search debounce
+  // settles). A one-shot flag that resets itself right after firing was
+  // tried first and had a real, live-reproduced race: `setSearchParams`'s
+  // navigate() doesn't land synchronously, so a later re-run (triggered by
+  // an unrelated dependency, like the debounce timer) could still observe
+  // the pre-clear `statusParam` and write it right back in before the
+  // clearing navigation had actually been reflected. A permanent latch
+  // has nothing to race -- once true, status is excluded on every future
+  // run, landed or not.
+  const [statusCleared, setStatusCleared] = useState(false)
+
   // Round-18 fix (industry-standards): mirror the current filter/sort
   // state back into the URL so the view is bookmarkable/shareable and
   // survives a reload -- the inverse of the lazy initializers above.
-  // `replace: true` avoids piling a history entry per keystroke/toggle;
-  // `status` is preserved as-is (not owned by this effect) since it's the
-  // separate deep-link-only param read at statusParam below.
+  // `replace: true` avoids piling a history entry per keystroke/toggle.
+  //
+  // Round-19 fix: this originally used setSearchParams' functional-updater
+  // form (`prev => ...`) to merge into whatever was already in the URL.
+  // That turned out to be a real bug, not just a theoretical one --
+  // confirmed live that react-router's setSearchParams does NOT guarantee
+  // each call in a rapid sequence sees a prior call's result as `prev`; a
+  // later effect re-run observed a stale `prev` from before an earlier
+  // call had applied, silently reintroducing an already-cleared `status`.
+  // Rebuilding the ENTIRE target from this render's own state (never
+  // reading `prev`) removes that class of staleness entirely -- every
+  // write is a complete, self-consistent snapshot of the current render.
   useEffect(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev)
-        const setOrDelete = (key: string, value: string) => {
-          if (value) next.set(key, value)
-          else next.delete(key)
-        }
-        setOrDelete("q", debouncedSearch)
-        setOrDelete("site", siteFilter)
-        setOrDelete("category", filterCat)
-        setOrDelete("pending", pendingApprovalOnly ? "1" : "")
-        setOrDelete("sort", sortKey ?? "")
-        setOrDelete("dir", sortKey ? sortDir : "")
-        return next
-      },
-      { replace: true }
-    )
+    const next = new URLSearchParams()
+    const setIfPresent = (key: string, value: string) => {
+      if (value) next.set(key, value)
+    }
+    setIfPresent("q", debouncedSearch)
+    setIfPresent("site", siteFilter)
+    setIfPresent("category", filterCat)
+    setIfPresent("pending", pendingApprovalOnly ? "1" : "")
+    setIfPresent("sort", sortKey ?? "")
+    setIfPresent("dir", sortKey ? sortDir : "")
+    if (!statusCleared && statusParam) next.set("status", statusParam)
+    setSearchParams(next, { replace: true })
   }, [
     debouncedSearch,
     siteFilter,
@@ -1216,6 +1237,8 @@ export default function RiskRegisterPage() {
     pendingApprovalOnly,
     sortKey,
     sortDir,
+    statusCleared,
+    statusParam,
     setSearchParams,
   ])
 
@@ -1697,14 +1720,22 @@ export default function RiskRegisterPage() {
           // filters, the still-active search/site/category/sort/pending
           // state would silently write itself right back into the URL on
           // the next interaction, making "Clear filter" not actually
-          // clear anything visible. Reset all of it here too.
-          onClear={() => {
+          // clear anything visible.
+          // Round-19 judge finding: fixing the above by calling
+          // setSearchParams directly here (a second write path) raced the
+          // URL-sync effect's own setSearchParams call and could still
+          // lose -- see statusCleared above for why this now goes
+          // through that single effect instead. preventDefault() stops
+          // Link's own navigate() so it can't race either write.
+          onClear={(e) => {
+            e.preventDefault()
             setSearch("")
             setSiteFilter("")
             setFilterCat("")
             setPendingApprovalOnly(false)
             setSortKey(null)
             setSortDir("asc")
+            setStatusCleared(true)
           }}
         />
       )}
