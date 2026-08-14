@@ -346,6 +346,7 @@
       },
       "toast": {
         "thresholdMustDiffer": "Target and alert threshold must be different",
+        "valueCannotBeNegative": "Value, alert threshold, and target cannot be negative",
         "created": "KRI created successfully",
         "createFailed": "Failed to create KRI",
         "enterValidNumber": "Enter a valid number",

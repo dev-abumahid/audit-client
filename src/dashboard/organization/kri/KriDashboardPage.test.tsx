@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, useNavigate } from "react-router"
 import KriDashboardPage from "./KriDashboardPage"
@@ -879,6 +879,33 @@ describe("KriDashboardPage", () => {
     expect(mockCreateKri).not.toHaveBeenCalled()
   })
 
+  // Round 22 (resilience finding): current_value/alert_threshold/
+  // target_value had no floor -- `type="number"` alone doesn't stop a
+  // negative count/percentage/dollar figure, none of which are meaningful
+  // for the KRI value types this app deals with.
+  it("rejects creating a KRI when alert threshold is negative", async () => {
+    renderPage()
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.newKri/i }))
+
+    await userEvent.type(screen.getByPlaceholderText("organization.kri.form.namePlaceholder"), "Bad KRI")
+    await userEvent.type(screen.getByPlaceholderText("organization.kri.form.unitPlaceholder"), "count")
+    const [riskSelect] = screen.getAllByRole("combobox")
+    await userEvent.selectOptions(riskSelect, "risk-1")
+    // Order in the form: Current Value, Alert Threshold, Target.
+    // userEvent.type can't reliably enter a leading "-" into a type="number"
+    // input in jsdom (the keystroke is dropped rather than accumulating into
+    // a negative value) -- fireEvent.change sets the value directly instead.
+    const numberInputs = screen.getAllByRole("spinbutton")
+    fireEvent.change(numberInputs[1], { target: { value: "-5" } })
+    await userEvent.type(numberInputs[2], "10")
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.createKri/i }))
+
+    expect(mockToastError).toHaveBeenCalledWith(
+      "organization.kri.toast.valueCannotBeNegative"
+    )
+    expect(mockCreateKri).not.toHaveBeenCalled()
+  })
+
   it("submits an updated current_value via the pencil button", async () => {
     mockUseGetAllKriQuery.mockReturnValue({
       data: { data: [makeKri()] },
@@ -901,6 +928,26 @@ describe("KriDashboardPage", () => {
       })
     )
     expect(mockToastSuccess).toHaveBeenCalledWith("organization.kri.toast.valueUpdated")
+  })
+
+  // Round 22: same negative-value floor as the New KRI form's guard.
+  it("rejects a negative current_value submitted via the pencil button", async () => {
+    mockUseGetAllKriQuery.mockReturnValue({
+      data: { data: [makeKri()] },
+      isLoading: false,
+    })
+
+    renderPage()
+    await userEvent.click(screen.getByTitle("organization.kri.updateValueTooltip"))
+
+    const input = screen.getByDisplayValue("50")
+    fireEvent.change(input, { target: { value: "-10" } })
+    await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.save/i }))
+
+    expect(mockToastError).toHaveBeenCalledWith(
+      "organization.kri.toast.valueCannotBeNegative"
+    )
+    expect(mockSubmitKriValue).not.toHaveBeenCalled()
   })
 
   // Round 8 (UX finding): the update-value modal was a bare number input
@@ -1025,6 +1072,33 @@ describe("KriDashboardPage", () => {
       expect(mockToastSuccess).toHaveBeenCalledWith(
         "organization.kri.toast.edited"
       )
+    })
+
+    // Round 22 (resilience finding, independent review of PR #875): the
+    // create and update-value negative-value guards each had their own
+    // test, but the Edit KRI modal's guard (handleSaveEdit) didn't -- a
+    // future refactor could silently drop it with nothing to catch that.
+    it("rejects saving an edit when alert threshold is negative", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ alert_threshold: 50, target_value: 10 })] },
+        isLoading: false,
+      })
+
+      renderPage()
+      await userEvent.click(screen.getByTitle("organization.kri.editTooltip"))
+
+      const thresholdInput = screen.getByDisplayValue("50")
+      // userEvent.type can't reliably enter a leading "-" into a
+      // type="number" input in jsdom -- fireEvent.change sets it directly.
+      fireEvent.change(thresholdInput, { target: { value: "-5" } })
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.kri\.save/i })
+      )
+
+      expect(mockToastError).toHaveBeenCalledWith(
+        "organization.kri.toast.valueCannotBeNegative"
+      )
+      expect(mockUpdateKri).not.toHaveBeenCalled()
     })
 
     // KRI owner field (industry-standards finding, round 20): free-text

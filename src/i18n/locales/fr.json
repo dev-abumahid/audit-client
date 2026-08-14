@@ -346,6 +346,7 @@
       },
       "toast": {
         "thresholdMustDiffer": "La cible et le seuil d'alerte doivent être différents",
+        "valueCannotBeNegative": "La valeur, le seuil d'alerte et la cible ne peuvent pas être négatifs",
         "created": "ICR créé avec succès",
         "createFailed": "Échec de la création de l'ICR",
         "enterValidNumber": "Saisissez un nombre valide",

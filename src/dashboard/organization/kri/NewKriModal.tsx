@@ -131,6 +131,7 @@ export default function NewKriModal({
               id="kri-form-current-value"
               label={t("organization.kri.form.currentValue")}
               type="number"
+              min={0}
               value={form.current_value}
               onChange={(v) =>
                 setForm((f) => ({
@@ -143,6 +144,7 @@ export default function NewKriModal({
               id="kri-form-alert-threshold"
               label={t("organization.kri.form.alertThreshold")}
               type="number"
+              min={0}
               value={form.alert_threshold}
               onChange={(v) =>
                 setForm((f) => ({
@@ -155,6 +157,7 @@ export default function NewKriModal({
               id="kri-form-target"
               label={t("organization.kri.form.target")}
               type="number"
+              min={0}
               value={form.target_value}
               onChange={(v) =>
                 setForm((f) => ({

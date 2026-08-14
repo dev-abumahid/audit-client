@@ -12,6 +12,7 @@ export function KriFormField({
   label,
   required,
   type,
+  min,
   value,
   onChange,
   placeholder,
@@ -20,6 +21,17 @@ export function KriFormField({
   label: string
   required?: boolean
   type?: "number"
+  // Round 22 (resilience finding): current_value/alert_threshold/
+  // target_value had no floor -- `type="number"` alone doesn't stop a user
+  // from typing a negative count/percentage/dollar figure, none of which
+  // are meaningful for the KRI value types this app actually deals with
+  // (security incidents, compliance findings, days overdue, etc. are all
+  // naturally >= 0). `min` renders the browser's native spinner-arrow/
+  // validity-styling affordance; the real enforcement is the
+  // handleSave/handleSaveEdit/handleUpdateValue guards in
+  // KriDashboardPage.tsx, since these plain-div modals aren't <form>
+  // elements and so never get native browser submit-blocking for free.
+  min?: number
   value: string | number
   onChange: (value: string) => void
   placeholder?: string
@@ -36,6 +48,7 @@ export function KriFormField({
       <input
         id={id}
         type={type}
+        min={min}
         required={required}
         aria-required={required ? "true" : undefined}
         value={value}

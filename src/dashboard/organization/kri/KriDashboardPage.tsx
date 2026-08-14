@@ -211,6 +211,18 @@ export default function KriDashboardPage() {
       toast.error(t("organization.kri.toast.thresholdMustDiffer"))
       return
     }
+    // Round 22 (resilience finding): none of these three had a floor --
+    // `type="number"` alone doesn't stop a negative count/percentage/
+    // dollar figure, none of which are meaningful for the KRI value types
+    // this app deals with (security incidents, compliance findings, days
+    // overdue, etc. are all naturally >= 0). This is the real enforcement
+    // backstopping the `min={0}` HTML affordance on the same fields --
+    // these are plain divs, not <form> elements, so there's no native
+    // browser submit-blocking for free here.
+    if (form.current_value < 0 || form.alert_threshold < 0 || form.target_value < 0) {
+      toast.error(t("organization.kri.toast.valueCannotBeNegative"))
+      return
+    }
 
     setIsSaving(true)
     await submitWithToast(
@@ -257,6 +269,13 @@ export default function KriDashboardPage() {
       toast.error(t("organization.kri.toast.enterValidNumber"))
       return
     }
+    // Round 22 (resilience finding): same negative-value floor as
+    // handleSave/handleSaveEdit -- a reading of -5 incidents/percent isn't
+    // meaningful for the KRI value types this app deals with.
+    if (value < 0) {
+      toast.error(t("organization.kri.toast.valueCannotBeNegative"))
+      return
+    }
 
     setIsUpdatingValue(true)
     await submitWithToast(
@@ -292,6 +311,11 @@ export default function KriDashboardPage() {
     if (!editingKriId || !editForm.name || !editForm.unit) return
     if (editForm.target_value === editForm.alert_threshold) {
       toast.error(t("organization.kri.toast.thresholdMustDiffer"))
+      return
+    }
+    // Round 22: same negative-value floor as handleSave.
+    if (editForm.alert_threshold < 0 || editForm.target_value < 0) {
+      toast.error(t("organization.kri.toast.valueCannotBeNegative"))
       return
     }
 
