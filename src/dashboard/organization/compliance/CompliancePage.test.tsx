@@ -1581,6 +1581,67 @@ describe("CompliancePage", () => {
       ).not.toBeInTheDocument()
     })
 
+    // Round 9 (UX finding, fresh full-panel re-score): the Due Date column
+    // (with the table's only overdue indicator) is hidden below `md`, a
+    // genuine mobile triage loss. A compact overdue line was added to the
+    // title cell, gated `md:hidden` (round-1 review of PR #882: the
+    // original version had no breakpoint gate at all, duplicating the
+    // exact same "Overdue" signal in both this line AND the Due Date
+    // column's own badge once the column becomes visible at `md`+) so it
+    // fills only the real gap below `md` and defers to the full column
+    // above it, same "don't show the same fact twice" discipline the
+    // sibling description/regulation_reference/line_of_defense lines
+    // (`sm:block`-gated) already follow.
+    it("shows a compact overdue indicator in the title cell, hidden at md+ where the Due Date column takes over", () => {
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              title: "Overdue Obligation",
+              due_date: "2020-01-01T00:00:00.000Z",
+              overdue: true,
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const titleCell = screen.getByText("Overdue Obligation").closest("td")
+      expect(titleCell).not.toBeNull()
+      const compactIndicator = within(titleCell!).getByText((_, el) =>
+        el?.textContent?.startsWith("organization.compliance.overdueLabel") ??
+        false
+      )
+      expect(compactIndicator.className).toContain("md:hidden")
+    })
+
+    it("does not show the compact overdue indicator when overdue is false", () => {
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              title: "Fine Obligation",
+              overdue: false,
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const titleCell = screen.getByText("Fine Obligation").closest("td")
+      expect(titleCell).not.toBeNull()
+      expect(
+        within(titleCell!).queryByText((_, el) =>
+          el?.textContent?.startsWith("organization.compliance.overdueLabel") ??
+          false
+        )
+      ).not.toBeInTheDocument()
+    })
+
     it("shows the evidence-required warning when status is compliant with no attachments", async () => {
       const user = userEvent.setup()
       mockUseGetAllComplianceQuery.mockReturnValue({

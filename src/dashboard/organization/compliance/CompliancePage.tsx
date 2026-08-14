@@ -876,6 +876,34 @@ export default function CompliancePage() {
                       {t("organization.compliance.col.lineOfDefenseShort")}:{" "}
                       {t(LINE_OF_DEFENSE_KEY[obl.line_of_defense])}
                     </p>
+                    {/* Round 9 (UX finding, fresh full-panel re-score): the
+                        Due Date column (with the only overdue indicator on
+                        this table) is hidden below `md` -- a real mobile
+                        triage loss for a compliance user, since "which
+                        obligations are overdue" is exactly the thing you'd
+                        want to see on a phone. `md:hidden` (round-1 review
+                        of PR #882: the original version had no breakpoint
+                        gate at all, duplicating the exact same "Overdue"
+                        signal in both this compact line AND the Due Date
+                        column's own badge once the column becomes visible
+                        at `md`+) makes this fill only the real gap -- below
+                        `md`, where the column is absent -- and disappear
+                        once the full column takes over, same "don't show
+                        the same fact twice" discipline the sm:block-gated
+                        lines above it already follow. Round-2's own "don't
+                        widen the table back out" discipline still holds --
+                        this is the compact-line pattern, not un-hiding the
+                        column. */}
+                    {isOverdue && (
+                      <p
+                        className={`mt-0.5 flex items-center gap-1 text-[10px] font-medium md:hidden ${SEVERITY_STYLES.critical.text}`}
+                      >
+                        <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                        {t("organization.compliance.overdueLabel")}
+                        {obl.due_date &&
+                          ` · ${formatDateOnlyForDisplay(obl.due_date, i18n.language)}`}
+                      </p>
+                    )}
                   </td>
                   <td className="hidden px-3 py-3 text-xs text-muted-foreground sm:table-cell">
                     {domainLabel(obl.domain)}
