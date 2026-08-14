@@ -163,6 +163,33 @@ describe("DeleteAlertModal", () => {
     await waitFor(() => expect(trigger).toHaveFocus())
   })
 
+  // quality-bar-loop round 15 (accessibility, Alerts loop): the WAI-ARIA
+  // APG dialog pattern requires focus to move INTO the dialog when it
+  // opens -- live-confirmed (mouse click and a genuine keyboard Enter on
+  // the trigger) that focus was instead staying on the trigger button
+  // behind the overlay, giving a keyboard user no indication the dialog
+  // had opened until an extra Tab press.
+  it("moves focus into the dialog (onto Cancel) when it opens", async () => {
+    function ControlledCaller() {
+      const [open, setOpen] = useState(false)
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Delete risk</button>
+          <DeleteAlertModal open={open} setOpen={setOpen} onConfirm={vi.fn()} />
+        </>
+      )
+    }
+
+    render(<ControlledCaller />)
+    await userEvent.click(screen.getByRole("button", { name: "Delete risk" }))
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "common.deleteAlertModal.cancel" })
+      ).toHaveFocus()
+    )
+  })
+
   // quality-bar-loop round 8 (accessibility): the "Delete" -> "Deleting..."
   // label swap has no live region wrapping it, so a screen-reader user gets
   // no announcement that their click registered before the toast/close.

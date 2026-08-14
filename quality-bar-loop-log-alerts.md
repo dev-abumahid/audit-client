@@ -616,3 +616,30 @@ seeded alerts in this org):
 per-id ref-registration callback -- directly closes findings 1 and 2.
 Finding 3 (Date-parsing-per-comparison) deferred as genuinely trivial
 at this page's own hard cap, matching the judge's own assessment.
+
+## Round 15 (efficiency re-score after PR #838)
+
+| Axis | Round 14 | Round 15 | Delta |
+|---|---|---|---|
+| Efficiency | 6/10 | **9/10** | +3, no longer below floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 8.33/10.** Up from 8.00. **No axis remains below floor.**
+Not yet converged (target 8.5) but close.
+
+Both round-14 findings (unmemoized row list, ref-callback churn)
+confirmed fixed via code review and the round-14 memoization test's
+direct `formatLocaleDate` call-count measurement (55/55 tests green).
+The `handleMarkRead` useCallback fix was specifically credited as
+catching a real regression that would have silently defeated the
+whole extraction. The deferred Date-parsing-per-comparison finding
+remains open and still correctly judged trivial at this page's
+100-item cap.
+
+**Next fix:** accessibility (7) is now uniquely furthest below target
+(1.5 points, vs. 0.5 for every other axis at 8) -- no tie to break.
+Its two round-9 findings remain open and unaddressed since: (1) the
+Dismiss confirmation dialog doesn't move focus in on open (WAI-ARIA
+APG dialog pattern violation), (2) read-alert (`opacity-60`)
+description/metadata text drops to ~2.95:1 contrast, under WCAG AA's
+4.5:1 floor for small text.

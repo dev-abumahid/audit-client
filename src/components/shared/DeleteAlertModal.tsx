@@ -107,7 +107,25 @@ export default function DeleteAlertModal({
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogContent className="flex max-w-sm flex-col items-center justify-center rounded-3xl p-6 sm:p-8">
+      <AlertDialogContent
+        className="flex max-w-sm flex-col items-center justify-center rounded-3xl p-6 sm:p-8"
+        // Round 15 (accessibility): the WAI-ARIA APG dialog pattern
+        // requires focus to move INTO the dialog when it opens --
+        // live-confirmed (mouse click and a genuine keyboard Enter on the
+        // trigger) that focus was instead staying on the trigger button
+        // behind the overlay, giving a keyboard user no indication the
+        // dialog had opened until an extra Tab press. Explicitly taking
+        // over Radix's own auto-focus (rather than trusting it, which
+        // wasn't working here) and reusing the same footerRef query the
+        // loading-state effect below already uses for the identical
+        // "land focus on the first enabled control" goal.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          footerRef.current
+            ?.querySelector<HTMLButtonElement>("button:not([disabled])")
+            ?.focus()
+        }}
+      >
         <AlertDialogHeader>
           <div className="flex flex-col items-center justify-center gap-3 text-center">
             <AlertCircle

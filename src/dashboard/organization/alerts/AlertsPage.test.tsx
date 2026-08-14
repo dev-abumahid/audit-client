@@ -441,6 +441,27 @@ describe("AlertsPage", () => {
     ).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round 15 (accessibility): the "read" dimming used to
+  // be a blanket opacity-60 on the WHOLE card, which live-measured a
+  // read-state description at ~2.95:1 contrast, under WCAG AA's 4.5:1
+  // floor for small text. Scoping the dimming to just the decorative icon
+  // square keeps a visual "read" cue without ever touching the actual
+  // text nodes' rendered opacity.
+  it("does not dim the alert's text content when read, only the decorative icon", () => {
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: { data: [makeAlert({ is_read: true })] },
+      isLoading: false,
+    })
+    renderPage()
+
+    expect(
+      screen.getByText("Overdue actions exceeded threshold").closest(".opacity-60")
+    ).toBeNull()
+    expect(
+      screen.getByText("12 actions are overdue.").closest(".opacity-60")
+    ).toBeNull()
+  })
+
   // Round 5 (security finding): mark-read/mark-all-read had no role gate
   // at all -- is_read is an org-wide field with no per-user scoping, so an
   // ungated mutation let any authenticated member (including a

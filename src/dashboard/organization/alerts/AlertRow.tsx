@@ -68,7 +68,7 @@ function AlertRowImpl({
       tabIndex={-1}
       className={`focus-ring group rounded-xl border bg-card p-5 transition-all hover:shadow-md ${
         alert.severity === "critical" ? "border-risk-critical/30" : "border-border"
-      } ${alert.is_read ? "opacity-60" : ""}`}
+      }`}
     >
       <div className="flex items-start gap-4">
         {/* quality-bar-loop round 16/17 (resilience regression, round
@@ -82,11 +82,21 @@ function AlertRowImpl({
             ever disagreeing again. (The card border above is a
             separate, deliberately binary "only critical gets a
             colored border" emphasis, not this same bug class --
-            left as-is.) */}
+            left as-is.)
+            Round 15 (accessibility): the "read" dimming used to be a
+            blanket `opacity-60` on the WHOLE card, which scales text
+            render opacity right along with everything else --
+            live-measured the read-state description/metadata text at
+            ~2.95:1 against its background, under WCAG AA's 4.5:1 floor
+            for small text. Scoping the dimming to just this decorative
+            icon square (not the actual text nodes below) keeps the
+            visual "read" cue without touching text contrast at all --
+            the icon isn't conveying information the "New" badge/absent
+            Mark-as-read button don't already convey on their own. */}
         <div
           className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
             (SEVERITY_STYLES[alert.severity as Severity] ?? SEVERITY_STYLES.neutral).bg
-          }`}
+          } ${alert.is_read ? "opacity-60" : ""}`}
         >
           <Bell
             className={`h-5 w-5 ${
