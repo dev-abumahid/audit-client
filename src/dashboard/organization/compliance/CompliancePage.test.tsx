@@ -2025,6 +2025,44 @@ describe("CompliancePage", () => {
           })
         ).toHaveAttribute("aria-selected", "false")
       })
+
+      // Round 12 (accessibility finding, fresh full-panel re-score):
+      // role="tab" with correct aria-selected/aria-controls isn't the full
+      // WAI-ARIA APG tabs pattern on its own -- a keyboard user could Tab to
+      // the tablist but had no Arrow-key way to move between tabs.
+      it("switches tabs with ArrowRight/ArrowLeft and moves focus with them", async () => {
+        const user = userEvent.setup()
+        mockUseGetAllComplianceQuery.mockReturnValue({
+          data: { data: [makeObligation()] },
+          isLoading: false,
+        })
+
+        renderPage()
+        await user.click(
+          screen.getByRole("button", {
+            name: "organization.compliance.attest.historyButton",
+          })
+        )
+
+        const attestationsTab = screen.getByRole("tab", {
+          name: "organization.compliance.attest.tabLabel",
+        })
+        const editsTab = screen.getByRole("tab", {
+          name: "organization.compliance.editHistory.tabLabel",
+        })
+
+        attestationsTab.focus()
+        await user.keyboard("{ArrowRight}")
+
+        expect(editsTab).toHaveAttribute("aria-selected", "true")
+        expect(editsTab).toHaveFocus()
+        expect(attestationsTab).toHaveAttribute("tabIndex", "-1")
+
+        await user.keyboard("{ArrowLeft}")
+
+        expect(attestationsTab).toHaveAttribute("aria-selected", "true")
+        expect(attestationsTab).toHaveFocus()
+      })
     })
 
     // aexa-frontend round-4 audit bug #333: entry.attested_by was never

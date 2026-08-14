@@ -1,5 +1,5 @@
 import { Loader2, X } from "lucide-react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import type {
   ComplianceAttestation,
@@ -57,6 +57,38 @@ export default function AttestHistoryModal({
   const { t, i18n } = useTranslation()
   const modalRef = useModalA11y(true, onClose)
   const [tab, setTab] = useState<HistoryTab>("attestations")
+  // Round 12 (accessibility finding, fresh full-panel re-score): `role="tab"`
+  // with correct `aria-selected`/`aria-controls` isn't the full WAI-ARIA APG
+  // tabs pattern on its own -- a keyboard user could Tab to the tablist but
+  // had no Arrow-key way to move between tabs (https://www.w3.org/WAI/ARIA/
+  // apg/patterns/tabs/). Implements the standard automatic-activation
+  // roving-tabindex behavior: Left/Right/Home/End move focus AND switch the
+  // active tab (only 2 tabs here, so wrapping is trivial either direction).
+  const tabOrder: HistoryTab[] = ["attestations", "edits"]
+  const tabRefs = useRef<Record<HistoryTab, HTMLButtonElement | null>>({
+    attestations: null,
+    edits: null,
+  })
+  const focusTab = (next: HistoryTab) => {
+    setTab(next)
+    tabRefs.current[next]?.focus()
+  }
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = tabOrder.indexOf(tab)
+    if (e.key === "ArrowRight") {
+      e.preventDefault()
+      focusTab(tabOrder[(currentIndex + 1) % tabOrder.length])
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault()
+      focusTab(tabOrder[(currentIndex - 1 + tabOrder.length) % tabOrder.length])
+    } else if (e.key === "Home") {
+      e.preventDefault()
+      focusTab(tabOrder[0])
+    } else if (e.key === "End") {
+      e.preventDefault()
+      focusTab(tabOrder[tabOrder.length - 1])
+    }
+  }
 
   return (
     <div
@@ -92,12 +124,17 @@ export default function AttestHistoryModal({
 
         <div role="tablist" className="mb-3 flex gap-1 border-b border-border">
           <button
+            ref={(el) => {
+              tabRefs.current.attestations = el
+            }}
             type="button"
             role="tab"
             id="history-tab-attestations"
             aria-selected={tab === "attestations"}
             aria-controls="history-panel-attestations"
+            tabIndex={tab === "attestations" ? 0 : -1}
             onClick={() => setTab("attestations")}
+            onKeyDown={handleTabKeyDown}
             className={`focus-ring -mb-px flex h-11 items-center border-b-2 px-3 text-sm font-medium ${
               tab === "attestations"
                 ? "border-primary text-foreground"
@@ -107,12 +144,17 @@ export default function AttestHistoryModal({
             {t("organization.compliance.attest.tabLabel")}
           </button>
           <button
+            ref={(el) => {
+              tabRefs.current.edits = el
+            }}
             type="button"
             role="tab"
             id="history-tab-edits"
             aria-selected={tab === "edits"}
             aria-controls="history-panel-edits"
+            tabIndex={tab === "edits" ? 0 : -1}
             onClick={() => setTab("edits")}
+            onKeyDown={handleTabKeyDown}
             className={`focus-ring -mb-px flex h-11 items-center border-b-2 px-3 text-sm font-medium ${
               tab === "edits"
                 ? "border-primary text-foreground"
