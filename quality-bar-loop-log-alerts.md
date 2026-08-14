@@ -539,3 +539,80 @@ and overlaps with industry-standards' own still-open "no sorting" note
 -- expect a possible upward move there too on its next re-score. The
 other two structural UX gaps (pagination UI, non-KRI deep-links) remain
 open.
+
+## Round 13 (UX + industry-standards re-score after PR #837)
+
+| Axis | Round 12 | Round 13 | Delta |
+|---|---|---|---|
+| Industry-standards | 8/10 | **9/10** | +1 |
+| UX | 7/10 | **8/10** | +1 |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 8.11/10.** Up from 7.89. **No axis remains below floor.**
+Not yet converged (target 8.5).
+
+Sort control confirmed working live in both roles: industry-standards
+credited it as matching/exceeding the reference tools' own sort
+affordances (PagerDuty urgency+time, GitHub read/unread), UX credited
+the accessible markup, correct default, and clear labels with no
+regressions. One UX judge note: synthetic keyboard events (Space/
+Enter/ArrowDown) didn't open the popup through the browser-automation
+tool, flagged as a likely tooling limitation (this is a standard
+shadcn/Radix Select primitive) rather than a confirmed regression --
+worth a real-keyboard spot check in a future round if this resurfaces.
+Both judges independently re-confirmed the same two remaining
+structural gaps (pagination UI, non-KRI deep-links) via code, not
+rediscovering them from scratch.
+
+**Next fix:** efficiency (7) and accessibility (7) tie as the lowest
+remaining scores (furthest below target); roster order breaks the tie
+toward efficiency. Efficiency is stale -- last actually examined in
+round 4/5, never re-checked across 8 rounds of fixes since, similar to
+UX's own staleness before round 11. Dispatching a fresh efficiency
+judge to get a current, concrete finding before fixing, rather than
+fixing blind against 8-round-stale notes.
+
+## Round 14 (fresh efficiency re-score, then fix)
+
+| Axis | Round 13 | Round 14 | Delta |
+|---|---|---|---|
+| Efficiency | 7/10 | **6/10** | fresh assessment, not a code-caused regression -- see note below |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 8.00/10.** Down from 8.11 (efficiency's fresh, more
+thorough assessment vs. its stale round-4/5 carry-forward, same
+pattern as round 11's UX dip). One axis now below floor: efficiency (6).
+
+**GUARDRAIL NOTE (same pattern as round 4->5 and round 10->11):**
+efficiency's round-5 score of 7 was never re-examined by an efficiency
+judge across rounds 6-13, even though that span added substantial new
+row-level state and JSX (focus refs round 8, Dismiss button round 7-8,
+sort control round 12). Not a regression caused by any specific
+round's diff -- a genuine gap in attention this fresh pass finally
+caught. Logged explicitly, not a hard stop.
+
+Fresh findings (code-level analysis; live jank testing blocked by 0
+seeded alerts in this org):
+1. **No per-row memoization (real, fixed this round).** The alert list
+   `.map()` renders each card inline with no `React.memo` boundary, so
+   any row's state change (e.g. `markingReadIds` flipping for one id)
+   re-renders and re-formats every currently-filtered row via
+   `formatLocaleDate`/`SEVERITY_STYLES` lookups, not just the changed
+   one.
+2. **Callback-ref churn (real, fixed this round).** `cardRefs`'s ref
+   callback was a fresh closure every render with no `useCallback`,
+   causing React to call it with `null` then the element again on
+   every re-render of that row, not just mount/unmount.
+3. Sort comparator re-derives `new Date(...).getTime()` per comparison
+   rather than once per item (Schwartzian transform) -- explicitly
+   noted by the judge as trivial at the query's own 100-item cap,
+   deferred as not worth the added complexity at this scale.
+4. Confirmed clean, no regression: the round-12 sort `useMemo`'s
+   dependency array and the count-aggregation pass are both correctly
+   memoized with no missing/wrong deps.
+
+**Fix shipped this round:** extracted the per-row card JSX into a new
+`AlertRow.tsx`, wrapped in `React.memo`, with a `useCallback`-stabilized
+per-id ref-registration callback -- directly closes findings 1 and 2.
+Finding 3 (Date-parsing-per-comparison) deferred as genuinely trivial
+at this page's own hard cap, matching the judge's own assessment.

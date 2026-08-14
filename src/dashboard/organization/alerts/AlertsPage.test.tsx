@@ -36,15 +36,25 @@ let mockLanguage: string | undefined = undefined
 const tCalls: unknown[][] = []
 vi.mock("react-i18next", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-i18next")>()
+  const { useCallback } = await import("react")
   return {
     ...mod,
     useTranslation: () => {
       const real = mod.useTranslation()
-      const trackedT = ((...args: unknown[]) => {
-        tCalls.push(args)
-        const untypedT = real.t as unknown as (...a: unknown[]) => string
-        return untypedT(...args)
-      }) as unknown as typeof real.t
+      // Round 14 (efficiency fix): a fresh `trackedT` closure every call
+      // gave every consumer's own `t`-keyed `useCallback` a new
+      // dependency on every render, which would defeat AlertsPage's
+      // `handleMarkRead` memoization regardless of how correct that
+      // memoization is -- an uninitialized real react-i18next `t` is
+      // itself stable across re-renders, so this mock should be too.
+      const trackedT = useCallback(
+        (...args: unknown[]) => {
+          tCalls.push(args)
+          const untypedT = real.t as unknown as (...a: unknown[]) => string
+          return untypedT(...args)
+        },
+        [real.t]
+      ) as unknown as typeof real.t
       return {
         ...real,
         t: trackedT,
@@ -128,6 +138,22 @@ vi.mock("@/components/ui/select", () => ({
   }) => <option value={value}>{children}</option>,
 }))
 
+// Round 14 (efficiency fix): wraps the real formatLocaleDate so the
+// memoization test below can count exactly which alert.createdAt values
+// were re-formatted after an unrelated row's state changed, without
+// altering its actual (real) formatting behavior for every other test.
+const formatLocaleDateSpy = vi.fn()
+vi.mock("@/utils/formatDate", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@/utils/formatDate")>()
+  return {
+    ...mod,
+    formatLocaleDate: (...args: Parameters<typeof mod.formatLocaleDate>) => {
+      formatLocaleDateSpy(...args)
+      return mod.formatLocaleDate(...args)
+    },
+  }
+})
+
 vi.mock("@/redux/apis/organization/alert.api", () => ({
   useGetAllAlertsQuery: (...args: unknown[]) =>
     mockUseGetAllAlertsQuery(...args),
@@ -174,6 +200,7 @@ describe("AlertsPage", () => {
     mockIsDeletingAlert = false
     mockToastError.mockReset()
     mockToastSuccess.mockReset()
+    formatLocaleDateSpy.mockReset()
     mockLanguage = undefined
     mockRole = "ADMIN"
     tCalls.length = 0
@@ -723,6 +750,69 @@ describe("AlertsPage", () => {
 
       expect(buttonA1).toBeDisabled()
       expect(buttonA2).not.toBeDisabled()
+    })
+  })
+
+  // Round 14 (efficiency fix): the row list used to render every card
+  // inline with no memoization boundary, so a single row's state change
+  // (e.g. markingReadIds flipping for one id) re-rendered and
+  // re-formatted EVERY currently-filtered row, not just the changed one.
+  // formatLocaleDate is called once per row per render, so counting its
+  // per-alert call volume before/after an unrelated row's click is a
+  // direct, real (not approximated) measure of whether the other row
+  // actually re-rendered.
+  describe("row-level memoization (round 14 efficiency fix)", () => {
+    it("does not re-render an unrelated row when only one row's mark-as-read state changes", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAlert({
+              id: "a1",
+              title: "First alert",
+              is_read: false,
+              createdAt: "2026-01-01T00:00:00.000Z",
+            }),
+            makeAlert({
+              id: "a2",
+              title: "Second alert",
+              is_read: false,
+              createdAt: "2026-02-02T00:00:00.000Z",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+      // Never resolves -- keeps a1 in the "marking read" state long
+      // enough to observe whether a2 re-rendered in response.
+      mockMarkAlertRead.mockReturnValue({ unwrap: () => new Promise(() => {}) })
+
+      renderPage()
+      const callsForA2Before = formatLocaleDateSpy.mock.calls.filter(
+        (call) => call[0] === "2026-02-02T00:00:00.000Z"
+      ).length
+      expect(callsForA2Before).toBeGreaterThan(0)
+
+      // Not positional (`getAllByRole(...)[0]`) -- the default "newest
+      // first" sort renders a2 before a1 in the DOM, so index 0 is a2's
+      // button, not a1's. Scoped explicitly to a1's own row via its
+      // title so this test clicks the alert it actually names.
+      const a1Row = screen
+        .getByRole("heading", { level: 3, name: "First alert" })
+        .closest('[tabindex="-1"]') as HTMLElement
+      await userEvent.click(
+        within(a1Row).getByRole("button", {
+          name: "organization.alerts.markAsRead",
+        })
+      )
+
+      // a1's own row re-renders (its isMarkingRead prop changed) -- but
+      // a2's props are unchanged, so a memoized AlertRow must skip it.
+      // Without React.memo, this click would re-render (and re-format)
+      // every row, including a2's.
+      const callsForA2After = formatLocaleDateSpy.mock.calls.filter(
+        (call) => call[0] === "2026-02-02T00:00:00.000Z"
+      ).length
+      expect(callsForA2After).toBe(callsForA2Before)
     })
   })
 

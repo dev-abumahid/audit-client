@@ -14,21 +14,13 @@ import {
   useMarkAlertReadMutation,
 } from "@/redux/apis/organization/alert.api"
 import type { Alert } from "@/types/organization"
-import { getEnumLabel } from "@/utils/enumLabel"
-import { formatLocaleDate } from "@/utils/formatDate"
-import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
-import {
-  Bell,
-  CheckCheck,
-  Clock,
-  Loader2,
-  RotateCw,
-  Trash2,
-} from "lucide-react"
-import { useMemo, useRef, useState } from "react"
+import { severityBadgeClasses } from "@/utils/severityStyles"
+import { Bell, CheckCheck, Loader2, RotateCw } from "lucide-react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Link, useSearchParams } from "react-router"
+import { useSearchParams } from "react-router"
 import { toast } from "sonner"
+import AlertRow from "./AlertRow"
 
 type Severity = "critical" | "high" | "medium" | "low"
 type SortOption = "newest" | "oldest" | "unreadFirst" | "severity"
@@ -42,19 +34,6 @@ const SEVERITY_RANK: Record<Severity, number> = {
   high: 1,
   medium: 2,
   low: 3,
-}
-
-// aexa-frontend round-3 audit bug #5: `Alert.type` is a free-form string
-// column (see aexa-server prisma/schema/alert.prisma) with no backend enum
-// -- the only confirmed system-generated value is 'kri_threshold_breach'
-// (kri.service.ts's alert.create call), while the manual-entry endpoint
-// (alert.service.ts's create_alert_into_db) lets an ADMIN/LEAD_AUDITOR type
-// anything into `type`. So, same convention as getEnumLabel's other
-// callers, this maps the one known value to a humanized label and falls
-// back to the raw string for anything else instead of crashing or hiding
-// unrecognized types.
-const ALERT_TYPE_LABEL_KEYS: Record<string, string> = {
-  kri_threshold_breach: "organization.alerts.type.kriThresholdBreach",
 }
 
 // Active-state classes for each severity's quick-filter chip, matching
@@ -143,6 +122,18 @@ export default function AlertsPage() {
   // to whatever the browser's default post-unmount behavior happens to be.
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const headingRef = useRef<HTMLHeadingElement>(null)
+  // Round 14 (efficiency fix): passed down to the memoized AlertRow below
+  // -- a plain inline arrow function here would give every row a fresh
+  // callback identity on every AlertsPage render, defeating React.memo's
+  // whole point. Only mutates a ref, so an empty dependency array is
+  // correct (nothing it closes over ever needs to change).
+  const registerCardRef = useCallback(
+    (id: string, el: HTMLDivElement | null) => {
+      if (el) cardRefs.current.set(id, el)
+      else cardRefs.current.delete(id)
+    },
+    []
+  )
 
   // quality-bar-loop round 3 (efficiency, round-1 finding): `?? []`
   // creates a fresh array reference every render when data is still
@@ -234,30 +225,40 @@ export default function AlertsPage() {
     [alerts]
   )
 
-  const handleMarkRead = async (id: string) => {
-    setMarkingReadIds((prev) => new Set(prev).add(id))
-    try {
-      await markAlertRead(id).unwrap()
-      // Round 8 (accessibility): mark-read had no success feedback of any
-      // kind before this -- only the error path toasted. The toast gives
-      // an audible/visible confirmation, and moving focus to the row
-      // itself (before its own button unmounts) keeps keyboard/screen-
-      // reader users anchored to the alert they just acted on.
-      toast.success(t("organization.alerts.markReadSuccess"))
-      cardRefs.current.get(id)?.focus()
-    } catch (err: unknown) {
-      const message =
-        (err as { data?: { message?: string } })?.data?.message ||
-        t("organization.alerts.markReadFailed")
-      toast.error(message)
-    } finally {
-      setMarkingReadIds((prev) => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
-    }
-  }
+  // Round 14 (efficiency fix): this was a plain inline function before,
+  // so it got a fresh identity on every AlertsPage render -- passed as
+  // `onMarkRead` to every memoized AlertRow, that alone defeated
+  // React.memo entirely (a changed prop reference forces a re-render
+  // regardless of how well AlertRow itself memoizes). Caught by this
+  // round's own new memoization regression test failing despite the
+  // AlertRow extraction otherwise being correct.
+  const handleMarkRead = useCallback(
+    async (id: string) => {
+      setMarkingReadIds((prev) => new Set(prev).add(id))
+      try {
+        await markAlertRead(id).unwrap()
+        // Round 8 (accessibility): mark-read had no success feedback of
+        // any kind before this -- only the error path toasted. The toast
+        // gives an audible/visible confirmation, and moving focus to the
+        // row itself (before its own button unmounts) keeps keyboard/
+        // screen-reader users anchored to the alert they just acted on.
+        toast.success(t("organization.alerts.markReadSuccess"))
+        cardRefs.current.get(id)?.focus()
+      } catch (err: unknown) {
+        const message =
+          (err as { data?: { message?: string } })?.data?.message ||
+          t("organization.alerts.markReadFailed")
+        toast.error(message)
+      } finally {
+        setMarkingReadIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+      }
+    },
+    [markAlertRead, t]
+  )
 
   const confirmDeleteAlert = async () => {
     // Round-1 review finding: relying solely on DeleteAlertModal's own
@@ -484,143 +485,16 @@ export default function AlertsPage() {
       <div className="animate-slide-up stagger-2 space-y-3">
         <h2 className="sr-only">{t("organization.alerts.listHeading")}</h2>
         {alerts.map((alert: Alert) => (
-          <div
+          <AlertRow
             key={alert.id}
-            ref={(el) => {
-              if (el) cardRefs.current.set(alert.id, el)
-              else cardRefs.current.delete(alert.id)
-            }}
-            tabIndex={-1}
-            className={`focus-ring group rounded-xl border bg-card p-5 transition-all hover:shadow-md ${
-              alert.severity === "critical"
-                ? "border-risk-critical/30"
-                : "border-border"
-            } ${alert.is_read ? "opacity-60" : ""}`}
-          >
-            <div className="flex items-start gap-4">
-              {/* quality-bar-loop round 16/17 (resilience regression, round
-                  2): this icon-background was a hand-rolled ternary chain
-                  that fell through to "low"/no styling for any severity
-                  outside the 3-4 values it happened to check -- e.g. an
-                  unrecognized severity rendered a neutral-gray icon (fixed
-                  round 16) sitting in a green "low-severity" box (missed
-                  round 16). Routing both bg and text through the same
-                  SEVERITY_STYLES lookup + neutral fallback keeps them from
-                  ever disagreeing again. (The card border above is a
-                  separate, deliberately binary "only critical gets a
-                  colored border" emphasis, not this same bug class --
-                  left as-is.) */}
-              <div
-                className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                  (
-                    SEVERITY_STYLES[alert.severity as Severity] ??
-                    SEVERITY_STYLES.neutral
-                  ).bg
-                }`}
-              >
-                <Bell
-                  className={`h-5 w-5 ${
-                    (
-                      SEVERITY_STYLES[alert.severity as Severity] ??
-                      SEVERITY_STYLES.neutral
-                    ).text
-                  }`}
-                />
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <RiskBadge level={alert.severity} />
-                  <span className="text-xs font-semibold text-primary">
-                    {alert.source}
-                  </span>
-                  {alert.type && (
-                    <>
-                      <span className="text-xs text-muted-foreground">·</span>
-                      <span className="text-xs text-muted-foreground">
-                        {getEnumLabel(t, ALERT_TYPE_LABEL_KEYS, alert.type)}
-                      </span>
-                    </>
-                  )}
-                  {alert.ai_generated && (
-                    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                      {t("organization.alerts.aiGenerated")}
-                    </span>
-                  )}
-                  {!alert.is_read && (
-                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
-                      {t("organization.alerts.new")}
-                    </span>
-                  )}
-                </div>
-
-                <h3 className="mt-1.5 text-sm leading-tight font-semibold text-foreground">
-                  {alert.title}
-                </h3>
-                {alert.description && (
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    {alert.description}
-                  </p>
-                )}
-
-                <div className="mt-3 flex items-center justify-between gap-4">
-                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    {formatLocaleDate(alert.createdAt, i18n.language, {
-                      day: "numeric",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-
-                  <div className="flex items-center gap-2">
-                    {/* aexa-frontend#530: kri_id is populated for every
-                        kri_threshold_breach alert but was never surfaced --
-                        this is the one-way-blind half of the cross-link,
-                        the other half (alert counts on the KRI card) lives
-                        in KriDashboardPage.tsx. */}
-                    {/* quality-bar-loop round 2 (mobile, round-1
-                        finding): these measured 25px tall with only 8px
-                        between them -- under the 44px touch-target
-                        guideline and a real mis-tap risk given how
-                        close together they sit. */}
-                    {alert.kri_id && (
-                      <Link
-                        to={`/organization/kri?highlight=${encodeURIComponent(alert.kri_id)}`}
-                        className="focus-ring flex h-11 items-center rounded-md px-2 text-[11px] font-medium text-primary hover:bg-primary/10"
-                      >
-                        {t("organization.alerts.viewKri")}
-                      </Link>
-                    )}
-                    {canWrite && !alert.is_read && (
-                      <button
-                        type="button"
-                        onClick={() => handleMarkRead(alert.id)}
-                        disabled={markingReadIds.has(alert.id)}
-                        className="focus-ring flex h-11 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
-                      >
-                        {markingReadIds.has(alert.id) && (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        )}
-                        {t("organization.alerts.markAsRead")}
-                      </button>
-                    )}
-                    {canWrite && (
-                      <button
-                        type="button"
-                        onClick={() => setDeletingAlertId(alert.id)}
-                        className="focus-ring flex h-11 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        {t("organization.alerts.dismiss")}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            alert={alert}
+            canWrite={canWrite}
+            language={i18n.language}
+            isMarkingRead={markingReadIds.has(alert.id)}
+            onMarkRead={handleMarkRead}
+            onRequestDismiss={setDeletingAlertId}
+            registerCardRef={registerCardRef}
+          />
         ))}
 
         {alerts.length === 0 && (
