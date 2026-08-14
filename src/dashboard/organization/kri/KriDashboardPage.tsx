@@ -201,7 +201,12 @@ export default function KriDashboardPage() {
   }
 
   const handleSave = async () => {
-    if (!form.name || !form.risk_id) return
+    // Round 21 (industry-standards finding): the backend's create_kri
+    // schema requires a non-empty `unit` (z.string().min(1)) but this
+    // form never marked it required or guarded submission on it --
+    // Unit was the one field a user could leave blank and only find out
+    // it was mandatory from a raw 400 in the network tab, not the form.
+    if (!form.name || !form.risk_id || !form.unit) return
     if (form.target_value === form.alert_threshold) {
       toast.error(t("organization.kri.toast.thresholdMustDiffer"))
       return
@@ -281,7 +286,10 @@ export default function KriDashboardPage() {
   }
 
   const handleSaveEdit = async () => {
-    if (!editingKriId || !editForm.name) return
+    // Round 21: same "unit is actually required" backend constraint as
+    // handleSave -- update_kri's schema still enforces min(1) whenever
+    // unit is present in the payload, and this form always sends it.
+    if (!editingKriId || !editForm.name || !editForm.unit) return
     if (editForm.target_value === editForm.alert_threshold) {
       toast.error(t("organization.kri.toast.thresholdMustDiffer"))
       return

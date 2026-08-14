@@ -111,6 +111,7 @@ export default function NewKriModal({
             <KriFormField
               id="kri-form-unit"
               label={t("organization.kri.form.unit")}
+              required
               value={form.unit}
               onChange={(v) => setForm((f) => ({ ...f, unit: v }))}
               placeholder={t("organization.kri.form.unitPlaceholder")}
@@ -183,7 +184,7 @@ export default function NewKriModal({
           <button
             type="button"
             onClick={onSave}
-            disabled={isSaving || !form.name || !form.risk_id}
+            disabled={isSaving || !form.name || !form.risk_id || !form.unit}
             className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             {isSaving ? (

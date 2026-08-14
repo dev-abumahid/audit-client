@@ -692,6 +692,7 @@ describe("KriDashboardPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.newKri/i }))
 
     await userEvent.type(screen.getByPlaceholderText("organization.kri.form.namePlaceholder"), "New KRI")
+    await userEvent.type(screen.getByPlaceholderText("organization.kri.form.unitPlaceholder"), "count")
     const [riskSelect] = screen.getAllByRole("combobox")
     await userEvent.selectOptions(riskSelect, "risk-1")
     // target_value/alert_threshold both default to 0 — set them apart so
@@ -719,6 +720,7 @@ describe("KriDashboardPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.newKri/i }))
 
     await userEvent.type(screen.getByPlaceholderText("organization.kri.form.namePlaceholder"), "New KRI")
+    await userEvent.type(screen.getByPlaceholderText("organization.kri.form.unitPlaceholder"), "count")
     await userEvent.type(
       screen.getByPlaceholderText("organization.kri.form.ownerPlaceholder"),
       "  Jane Procurement  "
@@ -749,6 +751,7 @@ describe("KriDashboardPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.newKri/i }))
 
     await userEvent.type(screen.getByPlaceholderText("organization.kri.form.namePlaceholder"), "New KRI")
+    await userEvent.type(screen.getByPlaceholderText("organization.kri.form.unitPlaceholder"), "count")
     const [riskSelect] = screen.getAllByRole("combobox")
     await userEvent.selectOptions(riskSelect, "risk-1")
     const numberInputs = screen.getAllByRole("spinbutton")
@@ -865,6 +868,7 @@ describe("KriDashboardPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.newKri/i }))
 
     await userEvent.type(screen.getByPlaceholderText("organization.kri.form.namePlaceholder"), "Bad KRI")
+    await userEvent.type(screen.getByPlaceholderText("organization.kri.form.unitPlaceholder"), "count")
     const [riskSelect] = screen.getAllByRole("combobox")
     await userEvent.selectOptions(riskSelect, "risk-1")
     await userEvent.click(screen.getByRole("button", { name: /organization\.kri\.createKri/i }))
@@ -1991,16 +1995,25 @@ describe("KriDashboardPage", () => {
       expect(riskSelect).toHaveAttribute("aria-required", "true")
     })
 
-    it("does not mark the New KRI modal's optional fields as required", async () => {
+    // Round 21 (industry-standards finding): the backend's create_kri
+    // schema requires a non-empty unit (z.string().min(1), "Unit is
+    // required"), but this field was never marked required in the form --
+    // a user could submit with it blank and only find out from a raw 400
+    // in the network tab. This test previously asserted the buggy
+    // behavior (unit NOT required); it now asserts the fix.
+    it("marks the New KRI modal's Unit field as required", async () => {
       renderPage()
 
       await userEvent.click(
         screen.getByRole("button", { name: /organization\.kri\.newKri/i })
       )
 
-      expect(
-        screen.getByLabelText("organization.kri.form.unit", { exact: false })
-      ).not.toBeRequired()
+      const unitInput = screen.getByLabelText(
+        "organization.kri.form.unit",
+        { exact: false }
+      )
+      expect(unitInput).toBeRequired()
+      expect(unitInput).toHaveAttribute("aria-required", "true")
     })
 
     it("marks the Edit KRI modal's Name field as required", async () => {
@@ -2020,6 +2033,28 @@ describe("KriDashboardPage", () => {
       )
       expect(nameInput).toBeRequired()
       expect(nameInput).toHaveAttribute("aria-required", "true")
+    })
+
+    // Round 21: update_kri's schema also enforces unit min(1) whenever
+    // present, and EditKriModal always sends it -- same required-in-form
+    // fix as the New KRI modal above.
+    it("marks the Edit KRI modal's Unit field as required", async () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri()] },
+        isLoading: false,
+      })
+      renderPage()
+
+      await userEvent.click(
+        screen.getByTitle("organization.kri.editTooltip")
+      )
+
+      const unitInput = screen.getByLabelText(
+        "organization.kri.form.unit",
+        { exact: false }
+      )
+      expect(unitInput).toBeRequired()
+      expect(unitInput).toHaveAttribute("aria-required", "true")
     })
   })
 
