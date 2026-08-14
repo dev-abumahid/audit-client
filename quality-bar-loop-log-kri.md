@@ -769,3 +769,53 @@ live-verified in the dev preview.
 Accessibility genuinely fixed this round; not yet re-scored to confirm
 floor-clearing (unlike industry-standards/code-quality, which were
 freshly re-scored before picking this round's fix). Re-scoring next.
+
+## Round 16 accessibility re-score: still 7, genuine progress not
+   showing up as a score change
+
+Confirmed via live real-interaction testing (`el.focus(); el.click()`,
+not a bare synthetic `.click()`): PR #855's fix works correctly, and
+all 4 other modals (New KRI, Edit KRI, Trend, Delete confirmation)
+independently re-verified to already correctly restore focus, zero
+regressions from the fix. Real keyboard Tab presses inside the Trend
+modal correctly stay trapped. Status badge contrast independently
+re-measured via actual `getComputedStyle` + canvas color resolution --
+5.20-8.99:1 across both themes, all AA-passing.
+
+Fresh pass found one new, real issue: form-validation errors
+(`toast.error(t("organization.kri.toast.thresholdMustDiffer"))`, both
+New KRI and Edit KRI forms) reach the user only via a transient toast
+-- neither the `alert_threshold` nor `target_value` input gets
+`aria-invalid`/`aria-describedby`, and focus never moves to the
+offending field. A screen-reader user who misses the toast's live
+region has no persistent, field-associated way to find out what's
+wrong (WCAG 3.3.1 Error Identification gap).
+
+**Current full-panel picture (last known per-axis scores):**
+industry-standards 8, UX 9, efficiency 8, accessibility 7, visual
+polish 8, resilience 8, code quality 7, mobile 8, security 9. **Average
+8.0/10.** No axis below floor. Not converged (target 8.5). Two axes
+tied at floor: accessibility (7, fresh WCAG 3.3.1 finding, 5 active
+fix-rounds so far: 9, 11, 12, 15, 16) and code quality (7, unchanged
+since round 7 across every full-panel checkpoint since, only one
+direct fix attempt in round 14 which made real but insufficient
+progress on typing/memoization without touching the two structural
+items -- monolithic component, ~90% duplicated New/Edit KRI form JSX
+-- that actually cap the score).
+
+**Selection for round 17: code quality.** stuck_streak clearly favors
+it over accessibility -- code quality has sat unchanged through every
+full-panel checkpoint since round 7, while accessibility's identical
+raw score reflects five separate rounds of real, verified fixes each
+immediately superseded by a fresh finding (the GUARDRAIL NOTE pattern
+this log has applied before, e.g. Alerts' round 10-11/13-14).
+Round-16's own code-quality judge explicitly re-evaluated round 6's
+stated reasoning for not extracting the duplicated New/Edit KRI form
+JSX ("layout divergence and test-selector risk") and found it doesn't
+hold up under a fresh read -- the two modals differ only in New KRI's
+extra risk-select + current_value field, which a shared field
+component could accommodate via composition without touching any
+existing id/label/test-selector. Planning a careful, same-file local
+subcomponent extraction (not a new shared file, not a new visual
+design) that preserves every existing id/htmlFor/className exactly, to
+minimize regression risk on this larger-than-usual change.
