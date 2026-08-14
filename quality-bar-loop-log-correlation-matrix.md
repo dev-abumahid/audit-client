@@ -514,3 +514,42 @@ RiskGraphPage's PageRank computation. Checking whether that
 computation is cleanly extractable before committing to this scope for
 the round; if not tractable in one round, falling back to efficiency's
 well-scoped O(risks x links) riskMetrics rewrite instead.
+
+## Round 13 (efficiency re-score after PR #829) -- pause point
+
+| Axis | Round 12 | Round 13 | Delta |
+|---|---|---|---|
+| Efficiency | 7/10 | **8/10** | +1 |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 8.00/10.** Up from 7.89. No axis below floor. Only
+industry-standards (7) remains at floor; every other axis is 8-9.
+
+riskMetrics rewrite confirmed via grep (zero `.filter()` calls inside
+the useMemo now) and 61/61 passing tests. Two findings remain open on
+this axis (subcomponent memoization blocked on stabilizing callback
+props; list virtualization, the largest-scope item) but the
+mechanically cheapest bottleneck is gone.
+
+**Status: pausing here, not converged.** Industry-standards' one
+remaining gap -- the matrix's cell color is still a grid-position
+heuristic, not a genuine interconnection metric -- was scoped out in
+round 12 as a real but disproportionately large product-behavior
+change (redesigning what the matrix visually communicates, touching
+many existing tests that assert the current row/col-based coloring
+directly) rather than a mechanical same-round fix. This is now the
+single blocker keeping the average under 8.5, and closing it
+meaningfully would require either a new backend endpoint or porting
+RiskGraphPage's PageRank client-side (the shared `computePageRank`
+utility exists and is cleanly reusable, confirmed in round 12) --
+genuine feature-shaped work, not a quick patch.
+
+Given 13 rounds of real, review-verified improvement (average
+6.44 -> 8.00 across this loop's full history) and the remaining gap
+needing dedicated design/implementation scope similar to what
+Risk Register's own multi-round industry-standards work required,
+this is a natural pause point. Recommend treating "genuine per-cell
+interconnection metric via client-side PageRank" as its own scoped
+feature proposal for a future round, rather than continuing this
+loop's cadence indefinitely while other pages in the queue haven't
+been started yet this session.
