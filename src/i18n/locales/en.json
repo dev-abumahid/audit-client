@@ -1309,6 +1309,10 @@
       "moveToSecond": "Move to 2nd Line",
       "moveToThird": "Move to 3rd Line",
       "moveToGoverningBody": "Move to Governing Body",
+      "confirmReassignTitle": "Move this item?",
+      "confirmReassignDescription": "\"{{title}}\" will be reassigned to {{line}}.",
+      "confirmReassignConfirm": "Move",
+      "confirmReassignCancel": "Cancel",
       "lines": {
         "first": "1st Line",
         "second": "2nd Line",

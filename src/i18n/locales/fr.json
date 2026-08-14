@@ -1309,6 +1309,10 @@
       "moveToSecond": "Déplacer vers la 2e ligne",
       "moveToThird": "Déplacer vers la 3e ligne",
       "moveToGoverningBody": "Déplacer vers l'organe de gouvernance",
+      "confirmReassignTitle": "Déplacer cet élément ?",
+      "confirmReassignDescription": "« {{title}} » sera réaffecté à {{line}}.",
+      "confirmReassignConfirm": "Déplacer",
+      "confirmReassignCancel": "Annuler",
       "lines": {
         "first": "1re ligne",
         "second": "2e ligne",

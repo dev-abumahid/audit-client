@@ -24,12 +24,22 @@ function rowFor(title: string): HTMLElement {
   return screen.getByText(title).closest(".rounded-md") as HTMLElement
 }
 
+// quality-bar-loop round 10 (industry-standards, round-7 finding):
+// reassigning now requires confirming in an AlertDialog before the
+// mutation fires -- this helper clicks through both steps so existing
+// callers (which assert on the eventual mutation call) don't all need
+// updating individually. `confirmReassignAlso` tests the confirm step
+// itself, so it drives the flow one click at a time instead.
 async function moveViaDropdown(trigger: HTMLElement, destinationKey: string) {
   await userEvent.click(trigger)
   const menuItem = await screen.findByRole("menuitem", {
     name: destinationKey,
   })
   await userEvent.click(menuItem)
+  const confirmButton = await screen.findByRole("button", {
+    name: "organization.threeLinesOfDefense.confirmReassignConfirm",
+  })
+  await userEvent.click(confirmButton)
 }
 
 // This file never triggers src/i18n/i18n.ts's side-effect init, so
@@ -639,6 +649,117 @@ describe("ThreeLinesOfDefensePage", () => {
       })
     )
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled())
+  })
+
+  // quality-bar-loop round 10 (industry-standards, round-7 finding):
+  // clicking a destination now opens a confirmation dialog instead of
+  // firing the mutation immediately -- these three tests exercise the
+  // confirmation step itself (dialog content, cancel path, confirm path)
+  // rather than relying solely on moveViaDropdown's helper always
+  // confirming.
+  describe("reassignment confirmation dialog (round 10)", () => {
+    it("shows a confirmation dialog naming the item and destination line before reassigning", async () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const riskRow = rowFor("Supply chain disruption")
+      await userEvent.click(
+        within(riskRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+      const menuItem = await screen.findByRole("menuitem", {
+        name: "organization.threeLinesOfDefense.moveToSecond",
+      })
+      await userEvent.click(menuItem)
+
+      // Review round 1 finding on PR #811: opening the dialog is now
+      // deferred to the next animation frame (avoids a Radix focus fight
+      // between the closing dropdown and the opening dialog), so this
+      // needs an async query instead of a synchronous one.
+      expect(
+        await screen.findByText(
+          "organization.threeLinesOfDefense.confirmReassignTitle"
+        )
+      ).toBeInTheDocument()
+      // This file's mock t() (see the HUMANIZED map above) never
+      // interpolates, only a fixed set of keys resolve to real text and
+      // everything else falls back to the raw key -- same limitation
+      // documented at the top of this file, so this only proves the
+      // description key is rendered, not that title/line values flow
+      // through it.
+      expect(
+        screen.getByText(
+          "organization.threeLinesOfDefense.confirmReassignDescription"
+        )
+      ).toBeInTheDocument()
+
+      // Mutation must NOT have fired yet -- only after confirming.
+      expect(mockUpdateRisk).not.toHaveBeenCalled()
+    })
+
+    it("does not reassign when the confirmation dialog is cancelled", async () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const riskRow = rowFor("Supply chain disruption")
+      await userEvent.click(
+        within(riskRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+      const menuItem = await screen.findByRole("menuitem", {
+        name: "organization.threeLinesOfDefense.moveToSecond",
+      })
+      await userEvent.click(menuItem)
+
+      const cancelButton = await screen.findByRole("button", {
+        name: "organization.threeLinesOfDefense.confirmReassignCancel",
+      })
+      await userEvent.click(cancelButton)
+
+      expect(
+        screen.queryByText(
+          "organization.threeLinesOfDefense.confirmReassignTitle"
+        )
+      ).not.toBeInTheDocument()
+      expect(mockUpdateRisk).not.toHaveBeenCalled()
+    })
+
+    it("reassigns only after the confirmation dialog is confirmed", async () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+      mockUpdateRisk.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      renderPage()
+
+      const riskRow = rowFor("Supply chain disruption")
+      await moveViaDropdown(
+        within(riskRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        }),
+        "organization.threeLinesOfDefense.moveToSecond"
+      )
+
+      await waitFor(() =>
+        expect(mockUpdateRisk).toHaveBeenCalledWith({
+          id: "risk-1",
+          data: { line_of_defense: "SECOND" },
+        })
+      )
+    })
   })
 
   // Review round 1 (angle B) on PR #664: flagged as untested (a

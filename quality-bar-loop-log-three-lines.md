@@ -488,3 +488,39 @@ finding exists at/below floor -- so mobile's DropdownMenuItem
 touch-target gap is the priority pick per the loop's rule 5c.2,
 overriding industry-standards' lower raw score (7.5) since that axis
 hasn't been sitting still at/below floor the way mobile has.
+
+## Round 10 (mobile re-score after PR #810, scoped-diff carve-out)
+
+PR #810's diff was a pure CSS-class addition confined to one file with
+zero logic change -- per the loop's own scoping rule, only the directly
+affected axis (mobile) was re-run; every other axis carries forward
+unchanged from round 9.
+
+| Axis | Round 9 | Round 10 |
+|---|---|---|
+| Industry-standards | 7.5/10 | 7.5/10 (carried forward) |
+| UX | 8/10 | 8/10 (carried forward) |
+| Efficiency | 9/10 | 9/10 (carried forward) |
+| Accessibility | 8/10 | 8/10 (carried forward) |
+| Visual polish | 9/10 | 9/10 (carried forward) |
+| Resilience | 9/10 | 9/10 (carried forward) |
+| Code quality | 8/10 | 8/10 (carried forward) |
+| Mobile | 7/10 | **8/10** |
+| Security | 9/10 | 9/10 (carried forward) |
+
+**Average: 8.39/10.** Not converged (target 8.5) -- but no axis below
+floor for the first time this loop, and the gap is now only 0.11.
+
+Mobile's blocking finding (DropdownMenuItem touch targets) is confirmed
+genuinely fixed -- code, regression test, and live DOM measurement all
+agree (44/44/47px, up from ~28px). The other two mobile findings
+(Coverage Overview bar squeeze at 375px, nested-scroll structural
+concern) remain open but weren't blocking the floor.
+
+**Next fix:** no axis is below floor and no axis has an active
+stuck_streak (mobile's streak reset to 0 by improving). Per rule 5c.4
+(furthest below target, the fallback rule), industry-standards at 7.5
+is furthest below the 8.5 target -- its one open finding (no
+confirmation step, no reason capture, and no backend audit-log entry
+for line_of_defense reclassification across any of the 5 entity types)
+is the next pick.

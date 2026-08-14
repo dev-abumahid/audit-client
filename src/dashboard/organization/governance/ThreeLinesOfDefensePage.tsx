@@ -1,4 +1,14 @@
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Card,
   CardContent,
   CardDescription,
@@ -207,7 +217,12 @@ interface ItemRowProps {
   currentLine: LineOfDefense | null
   canReassign: boolean
   isPending: boolean
-  onReassign: (entityType: EntityKind, id: string, line: LineOfDefense) => void
+  onReassign: (
+    entityType: EntityKind,
+    id: string,
+    title: string,
+    line: LineOfDefense
+  ) => void
   // aexa-frontend#532: the only way to act on an item here was reassigning
   // its line -- there was no way to drill into the record itself. Optional
   // since Compliance and Audit have no per-record detail page (aexa-frontend
@@ -312,7 +327,7 @@ const ItemRow = memo(function ItemRow({
               // need the larger touch target.
               <DropdownMenuItem
                 key={line}
-                onClick={() => onReassign(entityType, id, line)}
+                onClick={() => onReassign(entityType, id, title, line)}
                 className="min-h-11"
               >
                 {t(MOVE_TO_KEY[line])}
@@ -597,13 +612,47 @@ export default function ThreeLinesOfDefensePage() {
     ]
   )
 
+  // quality-bar-loop round 10 (industry-standards, round-7 finding):
+  // reassigning a line -- a governance-significant action reference GRC
+  // tools (AuditBoard, LogicManager, Resolver) treat as first-class and
+  // gate behind confirmation -- used to fire the mutation the instant a
+  // menu item was clicked. `confirmRequest` holds the pending request
+  // (entity/id/title/destination) between that click and the user
+  // actually confirming it in the AlertDialog below; the mutation itself
+  // only fires from `doReassign`, called by the dialog's confirm action.
+  // One shared piece of state (not one per row) since only one
+  // reassignment can be awaiting confirmation at a time -- same pattern
+  // as ReportsPage's confirmPublishId.
+  const [confirmRequest, setConfirmRequest] = useState<{
+    entityType: EntityKind
+    id: string
+    title: string
+    line: LineOfDefense
+  } | null>(null)
+
+  // Review round 1 finding on PR #811: opening the AlertDialog synchronously
+  // from a DropdownMenuItem click is a known Radix footgun -- the closing
+  // menu's focus-return and the new dialog's focus-trap can fight over
+  // focus in the same tick (occasionally leaving `body` with pointer-events
+  // locked from an interleaved overlay unmount/mount). Deferring the state
+  // update to the next animation frame lets the dropdown finish closing
+  // first, matching Radix's own documented workaround for this pattern.
+  const requestReassign = useCallback(
+    (entityType: EntityKind, id: string, title: string, line: LineOfDefense) => {
+      requestAnimationFrame(() => {
+        setConfirmRequest({ entityType, id, title, line })
+      })
+    },
+    []
+  )
+
   // quality-bar-loop round 3 (efficiency, round-1 finding): wrapped in
   // useCallback so ItemRow receives a stable `onReassign` reference across
   // renders -- required for ItemRow's new React.memo (above) to actually
   // skip re-rendering unaffected rows. The RTK Query mutation triggers
   // (updateRisk etc.) are themselves stable references, so this callback's
   // identity only changes if `t` changes (i18n language switch).
-  const reassign = useCallback(
+  const doReassign = useCallback(
     async (entityType: EntityKind, id: string, line: LineOfDefense) => {
       setPendingIds((prev) => new Set(prev).add(id))
       try {
@@ -757,7 +806,7 @@ export default function ThreeLinesOfDefensePage() {
                           currentLine={risk.line_of_defense}
                           canReassign={canReassignRisk}
                           isPending={pendingIds.has(risk.id)}
-                          onReassign={reassign}
+                          onReassign={requestReassign}
                           linkTo={`/organization/risks/${risk.id}`}
                         />
                       ))}
@@ -784,7 +833,7 @@ export default function ThreeLinesOfDefensePage() {
                           currentLine={action.line_of_defense}
                           canReassign={canReassignAction}
                           isPending={pendingIds.has(action.id)}
-                          onReassign={reassign}
+                          onReassign={requestReassign}
                           linkTo={`/organization/finding/${action.id}`}
                         />
                       ))}
@@ -811,7 +860,7 @@ export default function ThreeLinesOfDefensePage() {
                           currentLine={kri.line_of_defense}
                           canReassign={canReassignKri}
                           isPending={pendingIds.has(kri.id)}
-                          onReassign={reassign}
+                          onReassign={requestReassign}
                           linkTo={`/organization/kri?highlight=${encodeURIComponent(kri.id)}`}
                         />
                       ))}
@@ -839,7 +888,7 @@ export default function ThreeLinesOfDefensePage() {
                           currentLine={obligation.line_of_defense}
                           canReassign={canReassignCompliance}
                           isPending={pendingIds.has(obligation.id)}
-                          onReassign={reassign}
+                          onReassign={requestReassign}
                           // aexa-frontend#561: this was the only one of the
                           // 5 entity sections on this board with no linkTo
                           // at all. CompliancePage has no per-obligation
@@ -873,7 +922,7 @@ export default function ThreeLinesOfDefensePage() {
                           currentLine={engagement.line_of_defense}
                           canReassign={canReassignAudit}
                           isPending={pendingIds.has(engagement.id)}
-                          onReassign={reassign}
+                          onReassign={requestReassign}
                           // AuditPage has no per-engagement URL/route -- it
                           // opens engagements in an edit modal driven by
                           // local state, not a navigable id. Links to the
@@ -922,7 +971,7 @@ export default function ThreeLinesOfDefensePage() {
                     currentLine={null}
                     canReassign={canReassignAction}
                     isPending={pendingIds.has(action.id)}
-                    onReassign={reassign}
+                    onReassign={requestReassign}
                     linkTo={`/organization/finding/${action.id}`}
                   />
                 ))}
@@ -931,6 +980,57 @@ export default function ThreeLinesOfDefensePage() {
           </Card>
         </>
       )}
+
+      {/* quality-bar-loop round 10 (industry-standards, round-7 finding):
+          confirms a reassignment before it fires, matching reference GRC
+          tools' treatment of line-of-defense reclassification as a
+          governance-significant action. One shared dialog (not one per
+          row) since only one reassignment can be awaiting confirmation
+          at a time -- same pattern as ReportsPage's confirmPublishId. */}
+      <AlertDialog
+        open={confirmRequest !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmRequest(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("organization.threeLinesOfDefense.confirmReassignTitle")}
+            </AlertDialogTitle>
+            {confirmRequest && (
+              <AlertDialogDescription>
+                {t(
+                  "organization.threeLinesOfDefense.confirmReassignDescription",
+                  {
+                    title: confirmRequest.title,
+                    line: t(LINE_TITLE_KEY[confirmRequest.line]),
+                  }
+                )}
+              </AlertDialogDescription>
+            )}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {t("organization.threeLinesOfDefense.confirmReassignCancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmRequest) {
+                  doReassign(
+                    confirmRequest.entityType,
+                    confirmRequest.id,
+                    confirmRequest.line
+                  )
+                }
+                setConfirmRequest(null)
+              }}
+            >
+              {t("organization.threeLinesOfDefense.confirmReassignConfirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
