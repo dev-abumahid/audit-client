@@ -81,6 +81,40 @@ const SEVERITY_RANK: Record<string, number> = {
   medium: 1,
   low: 0,
 }
+
+// Fresh full-panel re-score (code quality finding): a KRI's ALERT/WARNING/
+// OK status was independently re-derived into a severity level, a border
+// color, and a translated label in FOUR separate places across this file
+// (the card border, the status badge's color, the status badge's text, and
+// the URL-filter notice's text) -- any future 4th status value or renamed
+// class would need updating in all four spots with nothing to catch a
+// missed one. One lookup, keyed once.
+const KRI_STATUS_META: Record<
+  string,
+  { severityLevel: SeverityLevel; borderClass: string; labelKey: string }
+> = {
+  ALERT: {
+    severityLevel: "critical",
+    borderClass: "border-risk-critical/40",
+    labelKey: "organization.kri.status.alert",
+  },
+  WARNING: {
+    severityLevel: "medium",
+    borderClass: "border-risk-medium/40",
+    labelKey: "organization.kri.status.warning",
+  },
+  OK: {
+    severityLevel: "low",
+    borderClass: "border-risk-low/40",
+    labelKey: "organization.kri.status.ok",
+  },
+}
+const kriStatusMeta = (status: string) =>
+  KRI_STATUS_META[status] ?? KRI_STATUS_META.OK
+
+// Fresh full-panel re-score (code quality finding): unnamed magic numbers.
+const HIGHLIGHT_DURATION_MS = 3000
+const RISK_NAME_TRUNCATE_LENGTH = 30
 const highestSeverity = (
   kriAlerts: { severity: SeverityLevel }[]
 ): SeverityLevel =>
@@ -177,7 +211,10 @@ export default function KriDashboardPage() {
     highlightedRef.current = highlightKey
     el.scrollIntoView({ behavior: "smooth", block: "center" })
     setActiveHighlight(highlightKriId)
-    const timeout = setTimeout(() => setActiveHighlight(null), 3000)
+    const timeout = setTimeout(
+      () => setActiveHighlight(null),
+      HIGHLIGHT_DURATION_MS
+    )
     return () => clearTimeout(timeout)
     // `kris.length`, not `kris`: `kris` (kriResponse?.data ?? []) is a
     // fresh array reference every render, which would re-run this effect
@@ -492,14 +529,21 @@ export default function KriDashboardPage() {
         <FilteredByNotice
           className="animate-fade-in"
           label={t("organization.kri.filteredByStatus", {
-            status:
-              statusParam === "ALERT"
-                ? t("organization.kri.status.alert")
-                : statusParam === "WARNING"
-                  ? t("organization.kri.status.warning")
-                  : statusParam === "OK"
-                    ? t("organization.kri.status.ok")
-                    : statusParam,
+            // Preserves the original fallback (an unrecognized statusParam
+            // renders as-is, not silently relabeled "OK") -- kriStatusMeta
+            // itself defaults to OK's meta, which is right for a real KRI
+            // status but wrong for an arbitrary/malformed URL param.
+            // Round-1 review of PR #846: `in` walks the prototype chain, so
+            // a crafted ?status=constructor/toString/valueOf would have
+            // matched an inherited Object.prototype key and rendered
+            // garbage instead of the original passthrough behavior --
+            // hasOwnProperty checks only the object's own keys.
+            status: Object.prototype.hasOwnProperty.call(
+              KRI_STATUS_META,
+              statusParam ?? ""
+            )
+              ? t(kriStatusMeta(statusParam as string).labelKey)
+              : statusParam,
           })}
           clearLabel={t("organization.kri.clearFilter")}
           clearHref="/organization/kri"
@@ -509,12 +553,7 @@ export default function KriDashboardPage() {
       {/* KRI Cards */}
       <div className="animate-slide-up stagger-2 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {statusFilteredKris.map((kri: any) => {
-          const statusColor =
-            kri.status === "ALERT"
-              ? "border-risk-critical/40"
-              : kri.status === "WARNING"
-                ? "border-risk-medium/40"
-                : "border-risk-low/40"
+          const statusMeta = kriStatusMeta(kri.status)
 
           const risk = risksById.get(kri.risk_id)
 
@@ -525,7 +564,7 @@ export default function KriDashboardPage() {
             <div
               key={kri.id}
               id={`kri-${kri.id}`}
-              className={`rounded-xl border-2 ${statusColor} bg-card p-4 transition-shadow lg:p-5 ${
+              className={`rounded-xl border-2 ${statusMeta.borderClass} bg-card p-4 transition-shadow lg:p-5 ${
                 activeHighlight === kri.id
                   ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
                   : ""
@@ -578,18 +617,10 @@ export default function KriDashboardPage() {
                   )}
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${severityBadgeClasses(
-                      kri.status === "ALERT"
-                        ? "critical"
-                        : kri.status === "WARNING"
-                          ? "medium"
-                          : "low"
+                      statusMeta.severityLevel
                     )}`}
                   >
-                    {kri.status === "ALERT"
-                      ? t("organization.kri.status.alert")
-                      : kri.status === "WARNING"
-                        ? t("organization.kri.status.warning")
-                        : t("organization.kri.status.ok")}
+                    {t(statusMeta.labelKey)}
                   </span>
                 </div>
               </div>
@@ -1024,8 +1055,8 @@ export default function KriDashboardPage() {
                     </option>
                     {risks.map((r: any) => (
                       <option key={r.id} value={r.id} title={r.name}>
-                        {r.name.length > 30
-                          ? `${r.name.slice(0, 30)}...`
+                        {r.name.length > RISK_NAME_TRUNCATE_LENGTH
+                          ? `${r.name.slice(0, RISK_NAME_TRUNCATE_LENGTH)}...`
                           : r.name}
                       </option>
                     ))}
@@ -1039,7 +1070,8 @@ export default function KriDashboardPage() {
                     const selected = risks.find(
                       (r: any) => r.id === form.risk_id
                     )
-                    return selected && selected.name.length > 30 ? (
+                    return selected &&
+                      selected.name.length > RISK_NAME_TRUNCATE_LENGTH ? (
                       <p className="mt-1 text-[11px] text-muted-foreground">
                         {selected.name}
                       </p>

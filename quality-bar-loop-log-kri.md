@@ -269,3 +269,73 @@ shared-backend rate-limit exhaustion documented in the Threat
 Intelligence round above (aexa-server's Redis-backed `apiLimiter`,
 300 req/15min, from this session's own heavy concurrent agent usage).
 Relied on the unit tests (with a genuine negative control) instead.
+
+## Fresh full panel re-score (this session, resumed after Intelligence converged)
+
+| Axis | Round-3 panel | Fresh | Delta |
+|---|---|---|---|
+| Industry-standards | 6 | **7** | +1, clears floor -- round 5's edit/delete gap confirmed closed |
+| UX | 7 | 7 | -- |
+| Efficiency | 9 | 9 | -- |
+| Accessibility | 7 | 7 | -- |
+| Visual polish | 8 | 8 | -- |
+| Resilience | 7 | 7 | -- |
+| Code quality | 6 | 6 | unchanged -- round 5 added a 4th near-duplicate modal (Edit KRI, nearly identical field JSX to New KRI), offsetting its clean typing |
+| Mobile | 9 | 9 | -- |
+| Security | 8 | 8 | -- |
+
+**Average: 7.56/10.** Up from 7.44. **Code quality (6) is now the
+sole below-floor axis.** File grew 892->1297 lines by inlining a 4th
+full modal instead of sharing a component; file-level any-disable
+still present; ALERT/WARNING/OK severity-key mapping still duplicated
+in two places; magic numbers (3000, 30) still unnamed.
+
+**Next fix:** code quality is the only below-floor axis, wins
+automatically. Its cheapest concrete item per this re-score: extract
+the New-KRI/Edit-KRI shared field JSX (name/unit/threshold/target/
+frequency) into one reusable form component -- a mechanical refactor
+collapsing both the duplication and file-size findings together, not
+a product/design decision like threshold-direction config or export
+would be.
+
+## Round 6 fix (code quality -- consolidate status mapping, name magic numbers)
+
+Considered extracting the New/Edit KRI modals' shared field JSX first
+(the judge's own suggestion), but the two modals' actual layouts
+diverge enough (New KRI has an extra risk-select + current_value field
+inline in different grid groupings) that a clean shared component
+would need conditional layout logic nearly as complex as the
+duplication it would remove -- higher risk than benefit given 15+
+existing tests with positional/specific selectors on this exact
+surface. Picked a smaller, unambiguous win instead.
+
+Shipped: a single `KRI_STATUS_META` lookup (+ `kriStatusMeta()`
+helper) replacing FOUR independent re-derivations of the same
+ALERT/WARNING/OK -> {severity level, border color, label} mapping
+(the card border, the alert-count badge's severity color, the status
+badge's color, the status badge's text, and the URL-filter notice's
+text). Also named 2 previously-magic numbers: the highlight-fade
+timeout (3000ms) and the risk-name truncation length (30 chars).
+
+Pure refactor, zero behavior change -- preserved the original
+statusParam fallback (an unrecognized value renders as-is, not
+silently relabeled "OK") via an explicit `in KRI_STATUS_META` check
+rather than relying on kriStatusMeta's own OK-default fallback, which
+is correct for a real KRI row's status but would have been wrong for
+an arbitrary/malformed URL param.
+
+No new tests added (pure refactor with no new behavior) -- all 58
+pre-existing tests pass completely unchanged, which is the actual
+proof of no regression for this kind of change; a fresh `tsc -b` also
+confirms no type drift.
+
+**QA**: lint clean (0 errors), typecheck clean. Full suite: 2127/2127
+passing.
+
+**Live verification**: could not be completed this round -- the
+shared dev backend is currently rate-limited (429 on every request),
+the same `apiLimiter` exhaustion documented repeatedly across this
+session's other pages' logs, from this session's own heavy concurrent
+agent usage. Relied on the unchanged 58-test suite (a stronger proof
+for a pure refactor than a single live click-through would be) plus a
+clean typecheck instead.

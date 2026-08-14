@@ -29,13 +29,24 @@ const FREQUENCY_TRANSLATIONS: Record<string, string> = {
 // technique as AdminTransactions.test.tsx/AdminOrganization.test.tsx. Kept at
 // "en" by default so existing assertions in this file are unaffected.
 let mockLanguage = "en"
+const tCalls: unknown[][] = []
 vi.mock("react-i18next", async (importOriginal) => {
   const mod = await importOriginal<typeof import("react-i18next")>()
   return {
     ...mod,
     useTranslation: () => ({
-      t: (key: string, opts?: Record<string, unknown>) =>
-        FREQUENCY_TRANSLATIONS[key] ?? (opts?.defaultValue as string) ?? key,
+      t: (key: string, opts?: Record<string, unknown>) => {
+        // Round-1 review of PR #846: records every t() call (args
+        // included) so the crafted-?status=constructor regression test
+        // below can assert on exactly what was interpolated into
+        // filteredByStatus's `status` option, without changing this
+        // mock's actual return value for every other existing assertion
+        // in this file.
+        tCalls.push([key, opts])
+        return (
+          FREQUENCY_TRANSLATIONS[key] ?? (opts?.defaultValue as string) ?? key
+        )
+      },
       i18n: { language: mockLanguage },
     }),
   }
@@ -172,6 +183,7 @@ describe("KriDashboardPage", () => {
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
     mockLanguage = "en"
+    tCalls.length = 0
     mockFormatLocaleDate.mockClear()
     ;(Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>).mockClear()
 
@@ -355,6 +367,29 @@ describe("KriDashboardPage", () => {
       expect(
         screen.queryByText("organization.kri.filteredByStatus")
       ).not.toBeInTheDocument()
+    })
+
+    // Round-1 review of PR #846: the recognized/unrecognized status check
+    // originally used `statusParam in KRI_STATUS_META`, which walks the
+    // prototype chain -- a crafted ?status=constructor matched the
+    // inherited Object.prototype.constructor key and would have rendered
+    // something other than the literal "constructor" passthrough the
+    // original ternary chain produced for any unrecognized value.
+    it("passes an unrecognized ?status= value through as-is, even a prototype-chain name like 'constructor'", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      renderPage("/?status=constructor")
+
+      const filteredByStatusCall = tCalls.find(
+        (call) => call[0] === "organization.kri.filteredByStatus"
+      )
+      expect(filteredByStatusCall).toBeDefined()
+      expect(
+        (filteredByStatusCall?.[1] as { status?: unknown })?.status
+      ).toBe("constructor")
     })
 
     it("shows the empty state, not a crash, when the status filter matches nothing", () => {
