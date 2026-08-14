@@ -2033,9 +2033,84 @@ describe("CorrelationMatrixPage", () => {
     // No cell's severity segment is left as an un-interpolated placeholder.
     expect(severities.every((s) => s !== "{{severity}}")).toBe(true)
     // The bottom-right (row=4,col=4 in a 5x5) and top-left (row=0,col=0)
-    // cells sit at opposite ends of getCellSeverityKey's scale.
-    expect(severities).toContain("riskLevel.critical")
-    expect(severities).toContain("riskLevel.low")
+    // cells sit at opposite ends of getCellSeverityKey's scale. Matched
+    // with startsWith rather than exact equality: with a single risk and
+    // no links, topPercentileFromScores' "always at least one node" floor
+    // (round 13's tipping-point feature, @/utils/pageRank) always flags
+    // that lone risk, so whichever cell contains it also carries the
+    // cellTippingPointSuffix key appended (this mock t() doesn't know to
+    // prepend that suffix's own leading separator the way real i18n does).
+    expect(
+      severities.some((s) => s?.startsWith("riskLevel.critical"))
+    ).toBe(true)
+    expect(severities.some((s) => s?.startsWith("riskLevel.low"))).toBe(true)
+  })
+
+  // Fresh full-panel re-score (industry-standards finding, round 13's own
+  // pause note): the matrix's cell placement/color was purely a
+  // grid-position heuristic with no genuine network-interconnection
+  // metric. Reuses the same real PageRank utility (@/utils/pageRank)
+  // RiskGraphPage/Overview.tsx already compute their own "Tipping Point"
+  // signal from, rather than inventing a new metric.
+  describe("Tipping Point indicator (round 13's industry-standards fix)", () => {
+    it("flags the matrix cell and detail card for a highly-interconnected risk, but not a low-centrality risk's", async () => {
+      setMatrixData({
+        risks: [
+          makeRisk({ id: "hub", ref: "CYB-001", name: "Ransomware attack" }),
+          makeRisk({ id: "leaf", ref: "OPS-002", name: "Vendor outage" }),
+        ],
+        riskLinks: [
+          makeLink({
+            source_ref: "OPS-002",
+            target_ref: "CYB-001",
+            link_type: "CAUSES",
+          }),
+        ],
+      })
+      render(<CorrelationMatrixPage />, withRouter)
+
+      // OPS-002 CAUSES CYB-001 puts them in different cells (rootCauses=1
+      // for the target CYB-001, consequences=1 for the source OPS-002),
+      // and gives CYB-001 the clearly higher PageRank score (it has a real
+      // incoming edge; OPS-002 has none) -- only CYB-001's cell should
+      // carry the tipping-point suffix.
+      const cellButtons = screen.getAllByRole("button", {
+        name: /^1 risk\(s\)/,
+      })
+      expect(cellButtons).toHaveLength(2)
+
+      const tippingCell = cellButtons.find((btn) =>
+        (btn.getAttribute("aria-label") || "").includes(
+          "organization.correlationMatrix.cellTippingPointSuffix"
+        )
+      )
+      const nonTippingCell = cellButtons.find((btn) => btn !== tippingCell)
+      expect(tippingCell).toBeDefined()
+      expect(nonTippingCell).toBeDefined()
+
+      await userEvent.click(tippingCell!)
+      expect(screen.getByText("Ransomware attack")).toBeInTheDocument()
+      expect(
+        screen.getByTitle("organization.correlationMatrix.riskIsTippingPoint")
+      ).toBeInTheDocument()
+
+      await userEvent.click(nonTippingCell!)
+      expect(screen.getByText("Vendor outage")).toBeInTheDocument()
+      expect(
+        screen.queryByTitle(
+          "organization.correlationMatrix.riskIsTippingPoint"
+        )
+      ).not.toBeInTheDocument()
+    })
+
+    it("includes a legend entry explaining the Tipping Point indicator", () => {
+      setMatrixData({ risks: [makeRisk()], riskLinks: [] })
+      render(<CorrelationMatrixPage />, withRouter)
+
+      expect(
+        screen.getByText("organization.correlationMatrix.riskIsTippingPoint")
+      ).toBeInTheDocument()
+    })
   })
 
   // aexa-frontend#473 -- the finding-bucket, category-bucket, and both AI

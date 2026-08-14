@@ -2050,6 +2050,8 @@
       "cellRisksHeading_one": "{{count}} risque — {{rootCause}} / {{consequence}} — interconnexion {{severity}}",
       "cellRisksHeading_other": "{{count}} risques — {{rootCause}} / {{consequence}} — interconnexion {{severity}}",
       "clickCellHint": "Cliquez sur une cellule de la matrice",
+      "cellTippingPointSuffix": " — inclut un risque Point de bascule",
+      "riskIsTippingPoint": "Point de bascule : fortement interconnecté dans le réseau de risques",
       "findingsBucketsHeading_one": "{{count}} groupe de constats",
       "findingsBucketsHeading_other": "{{count}} groupes de constats",
       "constatsCount_one": "{{count}} constat",

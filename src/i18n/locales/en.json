@@ -2050,6 +2050,8 @@
       "cellRisksHeading_one": "{{count}} risk — {{rootCause}} / {{consequence}} — {{severity}} interconnection",
       "cellRisksHeading_other": "{{count}} risks — {{rootCause}} / {{consequence}} — {{severity}} interconnection",
       "clickCellHint": "Click on a cell in the matrix",
+      "cellTippingPointSuffix": " — includes a Tipping Point risk",
+      "riskIsTippingPoint": "Tipping Point: highly interconnected in the risk network",
       "findingsBucketsHeading_one": "{{count}} finding bucket",
       "findingsBucketsHeading_other": "{{count}} finding buckets",
       "constatsCount_one": "{{count}} finding",

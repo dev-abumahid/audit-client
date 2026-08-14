@@ -13,6 +13,11 @@ import {
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { IAction } from "@/types/finding"
 import { csvTextField, triggerDownload } from "@/utils/csvExport"
+import {
+  buildRiskCorrelationEdges,
+  computePageRank,
+  topPercentileFromScores,
+} from "@/utils/pageRank"
 import { riskCategoryLabel } from "@/utils/riskConfig"
 import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import type {
@@ -39,6 +44,7 @@ import {
   Sparkles,
   Trash2,
   X,
+  Zap,
 } from "lucide-react"
 import type { FormEvent } from "react"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -380,6 +386,27 @@ export default function CorrelationMatrixPage() {
     }
     return metrics
   }, [filteredRisks, links, filteredRefs])
+
+  // Fresh full-panel re-score (industry-standards finding, round 13's own
+  // pause note): the matrix's cell placement/color was purely a
+  // grid-position heuristic (rootCauses/consequences local link counts),
+  // with no genuine network-interconnection metric anywhere on this page.
+  // Real PageRank centrality already exists and is reused, not
+  // reinvented, from RiskGraphPage.tsx/Overview.tsx's "Systemic Tipping
+  // Points" feature (@/utils/pageRank) -- same 15% cutoff, same
+  // vocabulary ("Tipping Point", organization.riskGraph.legendTippingPoint)
+  // so a risk flagged here means the same thing it means on those two
+  // pages, not a third independently-invented severity concept. Additive
+  // rather than replacing the existing row/col severity heatmap: that
+  // heatmap conveys "which quadrant is this," which stays meaningful even
+  // for an empty cell (round-10's accessible-name test relies on exactly
+  // that), while tipping-point status is a genuine data-driven fact about
+  // specific risks, not a substitute axis.
+  const tippingPointRefs = useMemo(() => {
+    const refs = filteredRisks.map((r) => r.ref)
+    const scores = computePageRank(refs, buildRiskCorrelationEdges(links))
+    return new Set(topPercentileFromScores(refs, scores, 0.15))
+  }, [filteredRisks, links])
 
   const riskGrid = useMemo(() => {
     const grid: Record<string, Risk[]> = {}
@@ -841,6 +868,9 @@ export default function CorrelationMatrixPage() {
                         const cellRisks = riskGrid[cellKey] || []
                         const isSelected =
                           selectedCell?.row === row && selectedCell?.col === col
+                        const hasTippingPoint = cellRisks.some((r) =>
+                          tippingPointRefs.has(r.ref)
+                        )
 
                         return (
                           // quality-bar-loop round 2 (mobile review):
@@ -860,16 +890,37 @@ export default function CorrelationMatrixPage() {
                               )
                             }
                             aria-pressed={isSelected}
-                            aria-label={t(`${NS}.cellRisksHeading`, {
-                              count: cellRisks.length,
-                              rootCause: label,
-                              consequence: axisLabels.consequence[col],
-                              severity: t(
-                                `riskLevel.${getCellSeverityKey(row, col, matrixSize)}`
-                              ),
-                            })}
+                            aria-label={
+                              t(`${NS}.cellRisksHeading`, {
+                                count: cellRisks.length,
+                                rootCause: label,
+                                consequence: axisLabels.consequence[col],
+                                severity: t(
+                                  `riskLevel.${getCellSeverityKey(row, col, matrixSize)}`
+                                ),
+                              }) +
+                              (hasTippingPoint
+                                ? t(`${NS}.cellTippingPointSuffix`)
+                                : "")
+                            }
                             className={`focus-ring ${getCellColor(row, col, matrixSize)} ${getCellTextColorClass(row, col, matrixSize)} relative flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold transition-all hover:z-20 hover:scale-105 ${isSelected ? "z-20 scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-70"}`}
                           >
+                            {/* Round 13's pause note, fresh full-panel
+                                re-score: the matrix had no genuine
+                                network-interconnection metric anywhere --
+                                this Zap badge surfaces the same real
+                                PageRank-derived "Tipping Point" signal
+                                RiskGraphPage/Overview already compute,
+                                reused (not reinvented) via
+                                @/utils/pageRank. aria-hidden since the
+                                cell's own aria-label already carries this
+                                via cellTippingPointSuffix above. */}
+                            {hasTippingPoint && (
+                              <Zap
+                                aria-hidden="true"
+                                className="absolute top-1 right-1 h-3 w-3 fill-current opacity-90"
+                              />
+                            )}
                             {cellRisks.length > 0 && (
                               <>
                                 <span className="text-lg">
@@ -928,6 +979,15 @@ export default function CorrelationMatrixPage() {
                 </span>
               </div>
             ))}
+            {/* Fresh full-panel re-score (industry-standards): explains
+                the new Zap badge (both on matrix cells and RiskDetailCard)
+                right next to the severity swatches it sits alongside. */}
+            <div className="flex items-center gap-1.5">
+              <Zap className="h-3 w-3 fill-current text-primary" />
+              <span className="text-xs text-muted-foreground">
+                {t(`${NS}.riskIsTippingPoint`)}
+              </span>
+            </div>
           </div>
 
           {/* Risk Links (create/delete) */}
@@ -1132,6 +1192,7 @@ export default function CorrelationMatrixPage() {
                               risk={risk}
                               sitesById={sitesById}
                               riskMetrics={riskMetrics}
+                              isTippingPoint={tippingPointRefs.has(risk.ref)}
                             />
                           ))}
                         </div>
@@ -1142,6 +1203,7 @@ export default function CorrelationMatrixPage() {
                           risk={risk}
                           sitesById={sitesById}
                           riskMetrics={riskMetrics}
+                          isTippingPoint={tippingPointRefs.has(risk.ref)}
                         />
                       ))}
                 </div>
@@ -1360,10 +1422,12 @@ function RiskDetailCard({
   risk,
   sitesById,
   riskMetrics,
+  isTippingPoint,
 }: {
   risk: Risk
   sitesById: Map<string, { id: string; name: string }>
   riskMetrics: Record<string, { rootCauses: number; consequences: number }>
+  isTippingPoint?: boolean
 }) {
   const { t } = useTranslation()
   const siteName = sitesById.get(risk.site_id)?.name
@@ -1384,14 +1448,29 @@ function RiskDetailCard({
             {risk.name}
           </Link>
         </div>
-        {isValidScoreValue(risk.residual_score) ? (
-          <RiskBadge
-            level={getRiskSeverityLevel(risk.residual_score)}
-            size="sm"
-          />
-        ) : (
-          <UnscoredBadge />
-        )}
+        <div className="flex items-center gap-1.5">
+          {/* Fresh full-panel re-score (industry-standards): same real
+              PageRank-derived "Tipping Point" signal RiskGraphPage/
+              Overview.tsx already surface, not a new invented metric --
+              same icon (Zap) and i18n vocabulary. */}
+          {isTippingPoint && (
+            <span
+              title={t(`${NS}.riskIsTippingPoint`)}
+              aria-label={t(`${NS}.riskIsTippingPoint`)}
+              className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary"
+            >
+              <Zap className="h-3 w-3 fill-current" aria-hidden="true" />
+            </span>
+          )}
+          {isValidScoreValue(risk.residual_score) ? (
+            <RiskBadge
+              level={getRiskSeverityLevel(risk.residual_score)}
+              size="sm"
+            />
+          ) : (
+            <UnscoredBadge />
+          )}
+        </div>
       </div>
 
       {siteName && (

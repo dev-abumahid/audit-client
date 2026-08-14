@@ -553,3 +553,55 @@ interconnection metric via client-side PageRank" as its own scoped
 feature proposal for a future round, rather than continuing this
 loop's cadence indefinitely while other pages in the queue haven't
 been started yet this session.
+
+## Round 14 (industry-standards, PR #860) -- resuming after the pause
+
+Built the scoped feature the round-13 pause note recommended: a
+genuine PageRank-based network-interconnection metric, reusing (not
+reinventing) `@/utils/pageRank` -- the exact same `computePageRank`/
+`buildRiskCorrelationEdges`/`topPercentileFromScores` utility and 15%
+cutoff RiskGraphPage.tsx/Overview.tsx already use for their own
+"Systemic Tipping Points" feature. A risk flagged here means the same
+thing it means on those two pages.
+
+Deliberately additive rather than replacing the existing row/col
+severity heatmap (`getCellSeverityKey`/`getCellColor`, untouched): that
+heatmap conveys "which quadrant is this," which stays meaningful even
+for an empty cell (round-10's own accessible-name test relies on
+exactly that), while tipping-point status is a genuine data-driven
+fact about specific risks, not a substitute axis. Surfaced as a Zap
+badge on matrix cells containing a tipping-point risk, a matching badge
+on each such risk's own detail card, and a new legend entry.
+
+Round-1 review came back with zero findings -- review loop converged
+immediately. Reviewer specifically verified the memo doesn't
+recompute needlessly (both `filteredRisks` and `links` are themselves
+already-memoized upstream, matching `riskMetrics`'s own pattern),
+confirmed `links` is the same variable `riskMetrics` already consumes
+(no risk of the two computations drifting out of sync), confirmed
+`computePageRank`'s edge-filtering internally preserves the site-filter
+effect even though `buildRiskCorrelationEdges` is fed the unfiltered
+link set, confirmed no visual collision between the new corner badge
+and existing cell content at any matrix size/viewport, confirmed
+`isTippingPoint` is threaded to both `RiskDetailCard` call sites (no
+missed third site), confirmed the new i18n keys are present and
+sensible in both locales, and confirmed the power-iteration algorithm
+is trivial at this page's realistic scale and doesn't reintroduce the
+per-render-recomputation issue round 12/13 already eliminated
+elsewhere.
+
+All 61 pre-existing tests pass completely unchanged (proving the
+heatmap/axis semantics genuinely didn't change), 2 new regression
+tests negative-control-verified against pre-fix source (using a real
+CAUSES-link risk pair to prove the hub risk specifically gets flagged,
+not just "some risk" trivially), 1 existing test adjusted for an
+inherent edge case (a lone risk with no links is trivially always
+"top 15%" per the utility's own documented at-least-one-node floor).
+Full QA gate clean (typecheck, lint, 2162/2162 test suite).
+Live-verified against the real backend's 30-link risk-correlation
+graph: exactly 3 of 21 populated cells flagged, and within one
+selected 3-risk cell, exactly the 1 risk with a real incoming
+CAUSES/AMPLIFIES edge carried the badge -- the other two (only
+outgoing edges) correctly didn't.
+
+Re-scoring industry-standards next to confirm this closes the gap.
