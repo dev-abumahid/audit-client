@@ -7,6 +7,7 @@ import {
   COMPLIANCE_RECURRENCE_KEYS as RECURRENCE_KEYS,
   COMPLIANCE_STATUS_KEYS as STATUS_KEYS,
 } from "@/utils/complianceConfig"
+import { COMPLIANCE_FRAMEWORK_CONTROLS } from "@/utils/complianceFrameworks"
 import { formatDateOnlyForDisplay } from "@/dashboard/organization/findings/dueDateInput"
 import { LINE_OF_DEFENSE_LABEL_KEY as LINE_OF_DEFENSE_KEY } from "@/utils/lineOfDefense"
 import { severityBadgeClasses } from "@/utils/severityStyles"
@@ -87,10 +88,14 @@ export default function ComplianceFormModal({
 
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-foreground">
+            <label
+              htmlFor="compliance-form-title"
+              className="mb-1 block text-xs font-semibold text-foreground"
+            >
               {t("organization.compliance.form.title")} *
             </label>
             <input
+              id="compliance-form-title"
               value={form.title}
               onChange={(e) =>
                 setForm((p) => ({ ...p, title: e.target.value }))
@@ -101,10 +106,14 @@ export default function ComplianceFormModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              <label
+                htmlFor="compliance-form-domain"
+                className="mb-1 block text-xs font-medium text-muted-foreground"
+              >
                 {t("organization.compliance.form.domain")}
               </label>
               <select
+                id="compliance-form-domain"
                 value={form.domain}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, domain: e.target.value }))
@@ -119,10 +128,14 @@ export default function ComplianceFormModal({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              <label
+                htmlFor="compliance-form-site"
+                className="mb-1 block text-xs font-medium text-muted-foreground"
+              >
                 {t("organization.compliance.form.site")}
               </label>
               <select
+                id="compliance-form-site"
                 value={form.site_id}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, site_id: e.target.value }))
@@ -147,10 +160,14 @@ export default function ComplianceFormModal({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor="compliance-form-description"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
               {t("organization.compliance.form.description")}
             </label>
             <textarea
+              id="compliance-form-description"
               value={form.description}
               onChange={(e) =>
                 setForm((p) => ({ ...p, description: e.target.value }))
@@ -161,10 +178,24 @@ export default function ComplianceFormModal({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor="compliance-form-regulation-reference"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
               {t("organization.compliance.form.regulationReference")}
             </label>
+            {/* Quality-bar-loop industry-standards finding: this was pure
+                free text with no controlled framework/control catalog,
+                unlike reference GRC tools (Vanta, Drata, OneTrust). A
+                native <datalist> gives a searchable, curated catalog
+                (src/utils/complianceFrameworks.ts) of real framework
+                controls (GDPR/SOC2/ISO27001/HIPAA/PCI DSS/CCPA) while
+                still accepting free text for obligations tied to a
+                framework not in the list -- no backend schema change
+                needed since regulation_reference stays a plain string. */}
             <input
+              id="compliance-form-regulation-reference"
+              list="compliance-framework-controls"
               value={form.regulation_reference}
               onChange={(e) =>
                 setForm((p) => ({
@@ -177,16 +208,27 @@ export default function ComplianceFormModal({
               )}
               className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
             />
+            <datalist id="compliance-framework-controls">
+              {COMPLIANCE_FRAMEWORK_CONTROLS.map((control) => (
+                <option key={control.label} value={control.label}>
+                  {control.title}
+                </option>
+              ))}
+            </datalist>
           </div>
 
           {/* Round-3 industry-standards finding: line_of_defense was already
               returned/settable by the backend (Issue #97) but had no field
               anywhere in this form. */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor="compliance-form-line-of-defense"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
               {t("organization.compliance.form.lineOfDefense")}
             </label>
             <select
+              id="compliance-form-line-of-defense"
               value={form.line_of_defense}
               onChange={(e) =>
                 setForm((p) => ({
@@ -213,10 +255,14 @@ export default function ComplianceFormModal({
               placeholder. Stacks to a single column below sm. */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              <label
+                htmlFor="compliance-form-status"
+                className="mb-1 block text-xs font-medium text-muted-foreground"
+              >
                 {t("organization.compliance.form.status")}
               </label>
               <select
+                id="compliance-form-status"
                 value={form.status}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, status: e.target.value }))
@@ -231,10 +277,14 @@ export default function ComplianceFormModal({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              <label
+                htmlFor="compliance-form-due-date"
+                className="mb-1 block text-xs font-medium text-muted-foreground"
+              >
                 {t("organization.compliance.form.dueDate")}
               </label>
               <input
+                id="compliance-form-due-date"
                 type="date"
                 value={form.due_date}
                 onChange={(e) =>
@@ -244,10 +294,14 @@ export default function ComplianceFormModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              <label
+                htmlFor="compliance-form-owner"
+                className="mb-1 block text-xs font-medium text-muted-foreground"
+              >
                 {t("organization.compliance.form.owner")}
               </label>
               <input
+                id="compliance-form-owner"
                 value={form.owner}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, owner: e.target.value }))
@@ -258,10 +312,14 @@ export default function ComplianceFormModal({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor="compliance-form-recurrence"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
               {t("organization.compliance.form.recurrence")}
             </label>
             <select
+              id="compliance-form-recurrence"
               value={form.recurrence}
               onChange={(e) =>
                 setForm((p) => ({ ...p, recurrence: e.target.value }))

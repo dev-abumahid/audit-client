@@ -1400,6 +1400,104 @@ describe("CompliancePage", () => {
       ).toBeInTheDocument()
     })
 
+    // Round 13 (industry-standards finding): regulation_reference had no
+    // controlled framework/control catalog, unlike reference GRC tools --
+    // a native <datalist> now offers a curated, searchable catalog
+    // (src/utils/complianceFrameworks.ts) while still accepting free text.
+    it("offers the curated framework/control catalog via the regulation reference datalist", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      renderPage()
+      await user.click(
+        screen.getByRole("button", {
+          name: /organization\.compliance\.newObligation/i,
+        })
+      )
+
+      const regInput = screen.getByLabelText(
+        "organization.compliance.form.regulationReference"
+      )
+      expect(regInput).toHaveAttribute("list", "compliance-framework-controls")
+      expect(
+        document.getElementById("compliance-framework-controls")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText("Records of processing activities")
+      ).toBeInTheDocument()
+    })
+
+    // Round 13 (accessibility finding, fresh full-panel re-score): form
+    // labels had no htmlFor/id association -- a screen reader got no
+    // programmatic name for these fields (WCAG 1.3.1/4.1.2). Spot-checks a
+    // representative field via getByLabelText, which only resolves through
+    // a real label/control association (not proximity, unlike the
+    // `.parentElement!.querySelector(...)` pattern used elsewhere in this
+    // file for fields this round didn't need to touch).
+    it("associates the title and regulation reference fields with their labels for screen readers", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      renderPage()
+      await user.click(
+        screen.getByRole("button", {
+          name: /organization\.compliance\.newObligation/i,
+        })
+      )
+
+      expect(
+        screen.getByLabelText(/organization\.compliance\.form\.title/)
+      ).toBeInTheDocument()
+      expect(
+        screen.getByLabelText(
+          "organization.compliance.form.regulationReference"
+        )
+      ).toBeInTheDocument()
+    })
+
+    // Round 13: a regulation_reference that exactly matches the curated
+    // catalog gets a structured framework badge in the table row; a
+    // custom/free-text reference outside the catalog does not.
+    it("shows a framework badge for a catalog-matched regulation reference, but not for a custom one", () => {
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              id: "catalog-match",
+              title: "Catalog-matched obligation",
+              regulation_reference:
+                "GDPR Art. 30 — Records of processing activities",
+            }),
+            makeObligation({
+              id: "custom-ref",
+              title: "Custom-ref obligation",
+              regulation_reference: "Internal Policy 4.2",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const catalogRow = screen
+        .getByText("Catalog-matched obligation")
+        .closest("tr")!
+      expect(within(catalogRow).getByText("GDPR")).toBeInTheDocument()
+
+      const customRow = screen.getByText("Custom-ref obligation").closest("tr")!
+      expect(within(customRow).queryByText("GDPR")).not.toBeInTheDocument()
+      expect(
+        within(customRow).getByText("Internal Policy 4.2")
+      ).toBeInTheDocument()
+    })
+
     // Round-1 review of PR #859: the fix for CREATE's null-vs-undefined
     // 400 (below) must NOT be applied to UPDATE too -- fetchBaseQuery's
     // JSON.stringify drops `undefined` keys entirely, and Prisma treats an

@@ -54,10 +54,14 @@ export default function AttestConfirmModal({
             title: obligation.title,
           })}
         </p>
-        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+        <label
+          htmlFor="attest-confirm-note"
+          className="mb-1 block text-xs font-medium text-muted-foreground"
+        >
           {t("organization.compliance.attest.noteLabel")}
         </label>
         <textarea
+          id="attest-confirm-note"
           value={note}
           onChange={(e) => onNoteChange(e.target.value)}
           rows={3}

@@ -30,6 +30,7 @@ import {
   COMPLIANCE_DOMAINS,
   COMPLIANCE_STATUS_KEYS as STATUS_KEYS,
 } from "@/utils/complianceConfig"
+import { frameworkForReference } from "@/utils/complianceFrameworks"
 import { LINE_OF_DEFENSE_LABEL_KEY as LINE_OF_DEFENSE_KEY } from "@/utils/lineOfDefense"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 import {
@@ -824,9 +825,25 @@ export default function CompliancePage() {
                       {obl.description}
                     </p>
                     {obl.regulation_reference && (
-                      <p className="hidden max-w-xs truncate text-[10px] text-muted-foreground/80 sm:block">
+                      <p className="hidden max-w-xs items-center gap-1 truncate text-[10px] text-muted-foreground/80 sm:flex">
                         {t("organization.compliance.col.regulationRefShort")}:{" "}
-                        {obl.regulation_reference}
+                        {/* Industry-standards finding: a regulation_reference
+                            that exactly matches the curated framework
+                            catalog (src/utils/complianceFrameworks.ts) gets
+                            a structured framework badge instead of plain
+                            text -- custom/free-text references still render
+                            as-is below, unchanged. */}
+                        {frameworkForReference(obl.regulation_reference) ? (
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
+                            {
+                              frameworkForReference(obl.regulation_reference)!
+                                .framework
+                            }
+                          </span>
+                        ) : null}
+                        <span className="truncate">
+                          {obl.regulation_reference}
+                        </span>
                       </p>
                     )}
                     {/* Round-3 industry-standards finding: line_of_defense
