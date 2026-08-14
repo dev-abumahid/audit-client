@@ -1625,6 +1625,7 @@
     },
     "alerts": {
       "markReadFailed": "Failed to mark alert as read",
+      "markReadSuccess": "Alert marked as read",
       "loadFailed": "Failed to load alerts. Please try again later.",
       "title": "Risk Alerts",
       "listHeading": "Alerts List",
@@ -1633,6 +1634,7 @@
       "unreadCount_one": "{{count}} unread",
       "unreadCount_other": "{{count}} unread",
       "markAllRead": "Mark all as read",
+      "markAllReadSuccess": "All alerts marked as read",
       "markAllReadPartialFailure": "Failed to mark {{failed}} of {{total}} alerts as read",
       "retry": "Retry",
       "aiGenerated": "AI Generated",

@@ -1625,6 +1625,7 @@
     },
     "alerts": {
       "markReadFailed": "Échec du marquage de l'alerte comme lue",
+      "markReadSuccess": "Alerte marquée comme lue",
       "loadFailed": "Échec du chargement des alertes. Veuillez réessayer plus tard.",
       "title": "Alertes de risque",
       "listHeading": "Liste des alertes",
@@ -1633,6 +1634,7 @@
       "unreadCount_one": "{{count}} non lue",
       "unreadCount_other": "{{count}} non lues",
       "markAllRead": "Tout marquer comme lu",
+      "markAllReadSuccess": "Toutes les alertes ont été marquées comme lues",
       "markAllReadPartialFailure": "Échec du marquage de {{failed}} alerte(s) sur {{total}} comme lue(s)",
       "retry": "Réessayer",
       "aiGenerated": "Généré par IA",

@@ -18,7 +18,7 @@ import {
   RotateCw,
   Trash2,
 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
 import { toast } from "sonner"
@@ -109,6 +109,17 @@ export default function AlertsPage() {
       : null
   })
 
+  // Round 8 (accessibility): both the per-row "Mark as read" button and the
+  // bulk "Mark all as read" button unmount as soon as their action
+  // succeeds (the row's button on `!alert.is_read` flipping, the bulk
+  // button on `filteredUnreadCount` hitting 0). Live-reproduced: focus
+  // silently relocated to an unrelated severity chip with no visual or
+  // audible indication anything happened. These refs give somewhere
+  // deliberate to land focus before that unmount, instead of leaving it
+  // to whatever the browser's default post-unmount behavior happens to be.
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const headingRef = useRef<HTMLHeadingElement>(null)
+
   // quality-bar-loop round 3 (efficiency, round-1 finding): `?? []`
   // creates a fresh array reference every render when data is still
   // undefined, which would defeat the useMemo calls below keyed on
@@ -172,6 +183,13 @@ export default function AlertsPage() {
     setMarkingReadIds((prev) => new Set(prev).add(id))
     try {
       await markAlertRead(id).unwrap()
+      // Round 8 (accessibility): mark-read had no success feedback of any
+      // kind before this -- only the error path toasted. The toast gives
+      // an audible/visible confirmation, and moving focus to the row
+      // itself (before its own button unmounts) keeps keyboard/screen-
+      // reader users anchored to the alert they just acted on.
+      toast.success(t("organization.alerts.markReadSuccess"))
+      cardRefs.current.get(id)?.focus()
     } catch (err: unknown) {
       const message =
         (err as { data?: { message?: string } })?.data?.message ||
@@ -234,7 +252,16 @@ export default function AlertsPage() {
           total: unreadIds.length,
         })
       )
+    } else {
+      toast.success(t("organization.alerts.markAllReadSuccess"))
     }
+    // Round 8 (accessibility): same unmount-focus-loss issue as the
+    // per-row button above -- this button itself disappears once
+    // filteredUnreadCount hits 0. The heading is the one element on the
+    // page guaranteed to still be there regardless of how many rows
+    // changed, so it's a safe anchor for both the full-success and
+    // partial-failure cases.
+    headingRef.current?.focus()
   }
 
   if (isLoading) {
@@ -273,7 +300,11 @@ export default function AlertsPage() {
     <div className="space-y-6 p-4 lg:p-6">
       <div className="animate-fade-in flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="focus-ring font-heading text-2xl font-bold tracking-tight text-foreground"
+          >
             {t("organization.alerts.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -365,7 +396,12 @@ export default function AlertsPage() {
         {alerts.map((alert: Alert) => (
           <div
             key={alert.id}
-            className={`group rounded-xl border bg-card p-5 transition-all hover:shadow-md ${
+            ref={(el) => {
+              if (el) cardRefs.current.set(alert.id, el)
+              else cardRefs.current.delete(alert.id)
+            }}
+            tabIndex={-1}
+            className={`focus-ring group rounded-xl border bg-card p-5 transition-all hover:shadow-md ${
               alert.severity === "critical"
                 ? "border-risk-critical/30"
                 : "border-border"

@@ -76,7 +76,7 @@ const mockDeleteRisk = vi.fn()
 // query trigger, mocked as a stable function returning a resolvable
 // unwrap() -- same shape RTK Query's real useLazyQuery tuple returns.
 const mockTriggerRisksExport = vi.fn(() => ({
-  unwrap: () => Promise.resolve({ data: [] }),
+  unwrap: () => Promise.resolve({ data: [] as ReturnType<typeof makeRisk>[] }),
 }))
 let mockIsExporting = false
 // Mutable per-test, same convention as mockRole above -- lets the loader

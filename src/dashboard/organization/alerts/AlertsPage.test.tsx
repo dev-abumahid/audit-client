@@ -21,6 +21,7 @@ vi.mock("sonner", () => ({
 }))
 import { toast } from "sonner"
 const mockToastError = vi.mocked(toast.error)
+const mockToastSuccess = vi.mocked(toast.success)
 
 // Controllable `i18n.language` for the locale-formatting test below, while
 // every other test in this file keeps relying on the real (uninitialized)
@@ -125,6 +126,7 @@ describe("AlertsPage", () => {
     mockDeleteAlert.mockReset()
     mockIsDeletingAlert = false
     mockToastError.mockReset()
+    mockToastSuccess.mockReset()
     mockLanguage = undefined
     mockRole = "ADMIN"
     tCalls.length = 0
@@ -323,6 +325,70 @@ describe("AlertsPage", () => {
     await waitFor(() =>
       expect(mockMarkAlertRead).toHaveBeenCalledWith("alert-1")
     )
+  })
+
+  // Round 8 (accessibility fix): mark-read previously had no success
+  // feedback at all -- neither a toast nor an announcement -- and the
+  // button unmounting on success silently relocated focus with nothing
+  // to tell a keyboard/screen-reader user what happened.
+  describe("mark-as-read success feedback and focus (round 8 accessibility fix)", () => {
+    it("shows a success toast when marking as read succeeds", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert()] },
+        isLoading: false,
+      })
+      mockMarkAlertRead.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.alerts.markAsRead" })
+      )
+
+      await waitFor(() =>
+        expect(mockToastSuccess).toHaveBeenCalledWith(
+          "organization.alerts.markReadSuccess"
+        )
+      )
+    })
+
+    it("does not show a success toast when marking as read fails", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: { data: [makeAlert()] },
+        isLoading: false,
+      })
+      mockMarkAlertRead.mockReturnValue({
+        unwrap: () => Promise.reject({ data: { message: "failed" } }),
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.alerts.markAsRead" })
+      )
+
+      await waitFor(() => expect(mockToastError).toHaveBeenCalled())
+      expect(mockToastSuccess).not.toHaveBeenCalled()
+    })
+
+    it("moves focus to the alert row (not lost to the document body) after marking it read", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAlert({ id: "a1", title: "First alert", is_read: false }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockMarkAlertRead.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.alerts.markAsRead" })
+      )
+
+      await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled())
+      expect(document.activeElement).not.toBe(document.body)
+      expect(document.activeElement?.textContent).toContain("First alert")
+    })
   })
 
   // quality-bar-loop round 3 (efficiency, round-1 finding): the
@@ -570,6 +636,38 @@ describe("AlertsPage", () => {
       await waitFor(() => expect(mockToastError).toHaveBeenCalled())
       expect(mockMarkAlertRead).toHaveBeenCalledWith("a1")
       expect(mockMarkAlertRead).toHaveBeenCalledWith("a2")
+      expect(mockToastSuccess).not.toHaveBeenCalled()
+    })
+
+    // Round 8 (accessibility fix): same unmount-focus-loss issue as the
+    // per-row button -- once every visible alert is marked read, this
+    // button itself disappears, and there was previously nothing telling
+    // a keyboard/screen-reader user the bulk action had succeeded.
+    it("shows a success toast and moves focus to the heading after a full-success mark-all-read", async () => {
+      mockUseGetAllAlertsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeAlert({ id: "a1", is_read: false }),
+            makeAlert({ id: "a2", is_read: false }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockMarkAlertRead.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.alerts.markAllRead" })
+      )
+
+      await waitFor(() =>
+        expect(mockToastSuccess).toHaveBeenCalledWith(
+          "organization.alerts.markAllReadSuccess"
+        )
+      )
+      expect(mockToastError).not.toHaveBeenCalled()
+      expect(document.activeElement).not.toBe(document.body)
+      expect(document.activeElement?.tagName).toBe("H1")
     })
   })
 

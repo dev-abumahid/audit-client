@@ -337,3 +337,31 @@ stuck_streak (2, unchanged since round 5's baseline) and raw score
 already exists and is wired to a real server endpoint but is never
 called from AlertsPage -- wiring a dismiss/delete action reuses
 existing plumbing rather than needing new backend work.
+
+## Round 8 (industry-standards re-score after PR #833)
+
+| Axis | Round 7 | Round 8 | Delta |
+|---|---|---|---|
+| Industry-standards | 6/10 | **8/10** | +2, no longer below floor |
+| (all other axes) | -- | unchanged | carried forward |
+
+**Average: 7.44/10.** Up from 7.22. Two axes remain below floor:
+accessibility (6, stuck_streak 4 -- rounds 5-8 unchanged), mobile (6,
+stuck_streak 4 -- rounds 5-8 unchanged).
+
+Dismiss feature (PR #833) confirmed as the largest-scope of the four
+original industry-standards gaps and cleanly done: reuses the
+pre-existing `useDeleteAlertMutation`, mirrors GitHub/PagerDuty's
+resolve-alert pattern, gated behind `canWrite`, available regardless
+of read state, double-fire guard matching `RiskRegisterPage`'s
+established convention, 10 targeted tests. Three narrower gaps remain
+open (no sorting, non-KRI deep-links still inert text, no pagination
+UI with hardcoded limit=100) but are each smaller in scope than the
+full lifecycle addition that just shipped.
+
+**Next fix:** accessibility and mobile are tied on both stuck_streak
+(4) and raw score (6) -- roster order (accessibility precedes mobile)
+breaks the tie. Accessibility's round-5 finding: mark-read buttons
+(both per-row and bulk) unmount on success, silently relocating
+keyboard focus with no visual/audible indication and no success
+announcement (only failure toasts use sonner's live region).
