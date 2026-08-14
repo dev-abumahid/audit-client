@@ -118,6 +118,37 @@ const EMPTY_FORM = {
   line_of_defense: "SECOND" as LineOfDefense,
 }
 
+// Fresh full-panel re-score (code quality finding): handleSave,
+// handleConfirmDelete, and confirmAttest each independently repeated the
+// identical shape -- try { await mutate().unwrap(); if (res.success)
+// toast.success(...) else toast.error(res.message || fallback) } catch
+// (err) { toast.error((err as {data?:...})?.data?.message || fallback) }.
+// Never throws -- swallows both the "request succeeded but server
+// reported failure" and genuine network/validation-error cases into a
+// toast either way, so every call site can safely `await` this without
+// its own try/catch.
+async function submitWithToast<T extends { success: boolean; message?: string }>(
+  action: () => Promise<T>,
+  successMessage: string,
+  fallbackErrorMessage: string,
+  onSuccess?: () => void
+): Promise<void> {
+  try {
+    const res = await action()
+    if (res.success) {
+      toast.success(successMessage)
+      onSuccess?.()
+    } else {
+      toast.error(res.message || fallbackErrorMessage)
+    }
+  } catch (err) {
+    const message =
+      (err as { data?: { message?: string } })?.data?.message ||
+      fallbackErrorMessage
+    toast.error(message)
+  }
+}
+
 export default function CompliancePage() {
   const { t, i18n } = useTranslation()
   // aexa-frontend#217
@@ -381,57 +412,45 @@ export default function CompliancePage() {
       line_of_defense: form.line_of_defense,
     }
 
-    try {
-      let res
-      if (editingId) {
-        res = await updateCompliance({
-          id: editingId,
-          data: {
-            ...payload,
-            // Round-1 review of PR #859: `undefined` above is wrong for
-            // UPDATE specifically -- RTK Query's fetchBaseQuery
-            // JSON.stringifies the body, which drops `undefined` keys
-            // entirely, and Prisma treats an absent key as "leave this
-            // column unchanged," not "clear it." Unlike site_id (which the
-            // backend's update_compliance schema explicitly overrides to
-            // accept an explicit null-clears-the-column value, see
-            // compliance.validation.ts), regulation_reference/recurrence
-            // have no such override -- there is currently no way to
-            // explicitly clear either field via this endpoint. Restoring
-            // the pre-fix `null` here on UPDATE only keeps that limitation
-            // exactly as it already was (a loud 400 if you try to clear
-            // one) rather than turning it into this round's silent
-            // no-op-but-reports-success regression.
-            regulation_reference: form.regulation_reference || null,
-            recurrence: form.recurrence || null,
-            // Mark as human-edited so the SourceBadge reflects the change,
-            // matching the prior local-state behaviour.
-            is_edited: true,
-          },
-        }).unwrap()
-      } else {
-        res = await createCompliance(payload).unwrap()
-      }
-
-      if (res.success) {
-        toast.success(
-          editingId
-            ? t("organization.compliance.toast.updateSuccess")
-            : t("organization.compliance.toast.createSuccess")
-        )
+    await submitWithToast(
+      () =>
+        editingId
+          ? updateCompliance({
+              id: editingId,
+              data: {
+                ...payload,
+                // Round-1 review of PR #859: `undefined` above is wrong for
+                // UPDATE specifically -- RTK Query's fetchBaseQuery
+                // JSON.stringifies the body, which drops `undefined` keys
+                // entirely, and Prisma treats an absent key as "leave this
+                // column unchanged," not "clear it." Unlike site_id (which
+                // the backend's update_compliance schema explicitly
+                // overrides to accept an explicit null-clears-the-column
+                // value, see compliance.validation.ts),
+                // regulation_reference/recurrence have no such override --
+                // there is currently no way to explicitly clear either
+                // field via this endpoint. Restoring the pre-fix `null`
+                // here on UPDATE only keeps that limitation exactly as it
+                // already was (a loud 400 if you try to clear one) rather
+                // than turning it into this round's silent
+                // no-op-but-reports-success regression.
+                regulation_reference: form.regulation_reference || null,
+                recurrence: form.recurrence || null,
+                // Mark as human-edited so the SourceBadge reflects the
+                // change, matching the prior local-state behaviour.
+                is_edited: true,
+              },
+            }).unwrap()
+          : createCompliance(payload).unwrap(),
+      editingId
+        ? t("organization.compliance.toast.updateSuccess")
+        : t("organization.compliance.toast.createSuccess"),
+      t("organization.compliance.toast.saveFailed"),
+      () => {
         setShowForm(false)
         setForm(EMPTY_FORM)
-      } else {
-        toast.error(
-          res.message || t("organization.compliance.toast.saveFailed")
-        )
       }
-    } catch (err) {
-      const message =
-        (err as { data?: { message?: string } })?.data?.message ||
-        t("organization.compliance.toast.saveFailed")
-      toast.error(message)
-    }
+    )
   }
 
   const handleDelete = (id: string) => {
@@ -441,24 +460,13 @@ export default function CompliancePage() {
   const handleConfirmDelete = async () => {
     if (!deleteTargetId) return
     setIsDeleting(true)
-    try {
-      const res = await deleteCompliance(deleteTargetId).unwrap()
-      if (res.success) {
-        toast.success(t("organization.compliance.toast.deleteSuccess"))
-        setDeleteTargetId(null)
-      } else {
-        toast.error(
-          res.message || t("organization.compliance.toast.deleteFailed")
-        )
-      }
-    } catch (err) {
-      const message =
-        (err as { data?: { message?: string } })?.data?.message ||
-        t("organization.compliance.toast.deleteFailed")
-      toast.error(message)
-    } finally {
-      setIsDeleting(false)
-    }
+    await submitWithToast(
+      () => deleteCompliance(deleteTargetId).unwrap(),
+      t("organization.compliance.toast.deleteSuccess"),
+      t("organization.compliance.toast.deleteFailed"),
+      () => setDeleteTargetId(null)
+    )
+    setIsDeleting(false)
   }
 
   // Found in review: actionObligation/attestObligation/historyObligation are
@@ -488,26 +496,19 @@ export default function CompliancePage() {
 
   const confirmAttest = async () => {
     if (!attestObligation) return
-    try {
-      const res = await attestCompliance({
-        id: attestObligation.id,
-        note: attestNote.trim() || undefined,
-      }).unwrap()
-      if (res.success) {
-        toast.success(t("organization.compliance.toast.attestSuccess"))
+    await submitWithToast(
+      () =>
+        attestCompliance({
+          id: attestObligation.id,
+          note: attestNote.trim() || undefined,
+        }).unwrap(),
+      t("organization.compliance.toast.attestSuccess"),
+      t("organization.compliance.toast.attestFailed"),
+      () => {
         setAttestObligation(null)
         setAttestNote("")
-      } else {
-        toast.error(
-          res.message || t("organization.compliance.toast.attestFailed")
-        )
       }
-    } catch (err) {
-      const message =
-        (err as { data?: { message?: string } })?.data?.message ||
-        t("organization.compliance.toast.attestFailed")
-      toast.error(message)
-    }
+    )
   }
 
   // Whole-org counts come from the scorecard's statusCounts, so they stay

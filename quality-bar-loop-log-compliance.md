@@ -266,3 +266,50 @@ versioning, structured framework taxonomy, approval routing) and code
 quality's two bigger items (1527-line monolith split, 3x duplicated
 request/toast pattern) are both still real design/refactor-scoped
 work for a future round.
+
+## Round 5 (code quality: 3x duplicated request/toast pattern, PR #862)
+
+Picked up the smaller of code quality's two remaining known items:
+the identical `try { await mutate().unwrap(); if (res.success) {...}
+else {...} } catch (err) {...}` shape independently duplicated across
+`handleSave`, `handleConfirmDelete`, and `confirmAttest`. (A repo-wide
+grep found a near-identical error-extraction sub-pattern duplicated
+across 13+ files org-wide -- deliberately scoped this round to just
+`CompliancePage.tsx`'s own 3 call sites, not a repo-wide sweep.)
+
+Extracted a single module-scope `submitWithToast<T extends {success:
+boolean; message?: string}>(action, successMessage,
+fallbackErrorMessage, onSuccess?)` helper; all three call sites now
+call it instead of their own inline try/catch. Behavior preserved
+exactly, including the CREATE-vs-UPDATE `null`/`undefined` split in
+`handleSave`'s payload (verified still present, byte-for-byte comment
+included) and `handleConfirmDelete`'s `setIsDeleting` bracketing
+(flattened from try/finally to a plain sequential
+`setIsDeleting(true); await submitWithToast(...); setIsDeleting(false)`,
+safe because `submitWithToast` never throws).
+
+Zero test changes needed -- all 70 pre-existing `CompliancePage.test.tsx`
+tests passed unchanged against the refactor, matching the KRI round-17
+precedent for a pure structural refactor. Full QA gate clean
+(typecheck, lint, 2163/2163 full suite). Live-verified via the real
+browser: created a real obligation through the New Obligation modal
+end-to-end (exercises `submitWithToast`'s success path against the
+real backend -- API call, toast, modal close, list update), confirmed
+it persisted after a fresh reload, then cleaned up via a direct API
+delete after the Radix "more actions" dropdown was again not reliably
+clickable via browser automation (same documented flakiness as prior
+rounds, unrelated to this diff). Round-1 independent review came back
+with zero findings -- confirmed behavioral equivalence for all 3 call
+sites, the null/undefined split, and type-safety of the generic
+constraint against the real `ApiResponse<T>` shape.
+
+Industry-standards untouched this round (6, unchanged, not this
+round's target axis). Code quality: still below floor at 5 pending
+next round's re-score, but the 3x duplication finding this round
+targeted is now resolved -- the 1527-line monolith split remains the
+one large code-quality item left.
+
+Remaining open, unchanged: industry-standards' bigger items
+(edit-history/versioning, structured framework taxonomy, approval
+routing) and code quality's one remaining bigger item (monolith
+split) are still real design/refactor-scoped work for a future round.
