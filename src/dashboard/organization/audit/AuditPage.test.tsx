@@ -164,6 +164,24 @@ describe("AuditPage", () => {
     })
   })
 
+  // quality-bar-loop round (Audit Missions a11y, fresh-panel finding): the
+  // search input had no accessible name beyond its placeholder, which
+  // disappears once typed into and isn't a reliable accessible-name source
+  // across browsers/AT -- same cross-page gap as Templates' own search
+  // input, which already had this fixed in the same round.
+  it("gives the search input an accessible name via aria-label", () => {
+    mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+
+    render(<AuditPage />)
+
+    expect(
+      screen.getByLabelText("organization.audit.searchLabel")
+    ).toBeInTheDocument()
+  })
+
   // aexa-frontend#467: the Edit/Delete icon-only buttons had no aria-label,
   // and h1 -> h3 (mission card title) skipped h2.
   it("gives the Edit and Delete icon buttons an accessible name, and does not skip heading levels", () => {

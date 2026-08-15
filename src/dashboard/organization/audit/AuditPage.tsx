@@ -508,6 +508,7 @@ export default function AuditPage() {
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder={t("organization.audit.searchPlaceholder")}
+            aria-label={t("organization.audit.searchLabel")}
             className="h-11 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-xs"
           />
         </div>

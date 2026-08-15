@@ -18,7 +18,7 @@ import type {
 } from "@/types/template"
 import { isSystemTemplateName } from "@/utils/isSystemTemplate"
 import { transformValuesToString } from "@/utils/transformValuesToString"
-import { Loader2, Plus, Sliders, Upload } from "lucide-react"
+import { AlertTriangle, Loader2, Plus, Sliders, Upload } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -64,8 +64,19 @@ const EditTemplatePage = () => {
   }, [logoObjectUrl])
 
   const initialLoadComplete = useRef(false)
-  const { data: templateData, isLoading: isFetchingTemplate } =
-    useGetSingleTemplateQuery(id || "", { skip: !id })
+  // quality-bar-loop round (Templates resilience, fresh-panel finding):
+  // isError was previously omitted -- a failed fetch fell through to the
+  // form render below with `templateData` undefined, silently presenting
+  // what looks like an empty create form instead of a clear "this failed
+  // to load" state (the user's edits would then create a NEW template
+  // instead of updating the one they meant to, since `id` is still set
+  // but nothing about the UI communicates the fetch never succeeded).
+  const {
+    data: templateData,
+    isLoading: isFetchingTemplate,
+    isError: isTemplateLoadError,
+    refetch: refetchTemplate,
+  } = useGetSingleTemplateQuery(id || "", { skip: !id })
   // quality-bar-loop round 4 (industry-standards): same free-text +
   // suggest-from-existing-values pattern as CreateTemplatePage.tsx.
   const { data: categoriesData } = useGetTemplateCategoriesQuery()
@@ -357,6 +368,22 @@ const EditTemplatePage = () => {
           <p className="text-muted-foreground">
             {t("organization.templates.edit.loading")}
           </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isTemplateLoadError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="max-w-md text-center">
+          <AlertTriangle className="mx-auto mb-4 h-8 w-8 text-destructive" />
+          <p role="alert" className="mb-6 text-muted-foreground">
+            {t("organization.templates.edit.loadFailed")}
+          </p>
+          <Button type="button" variant="outline" onClick={() => refetchTemplate()}>
+            {t("organization.templates.edit.retry")}
+          </Button>
         </div>
       </div>
     )

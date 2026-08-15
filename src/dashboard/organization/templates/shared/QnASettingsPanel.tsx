@@ -295,7 +295,7 @@ function QnASettingsPanel({
                                 )
                               )
                             }
-                            className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"
+                            className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
                             placeholder={t("organization.templates.qna.optionPlaceholder", {
                               number: idx + 1,
                             })}

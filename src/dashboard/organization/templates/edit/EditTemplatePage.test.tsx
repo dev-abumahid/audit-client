@@ -149,6 +149,29 @@ describe("EditTemplatePage", () => {
     expect(capturedOnOpenAnswerPanelRefs.at(-1)).toBe(firstOnOpenAnswerPanel)
   })
 
+  // quality-bar-loop round (Templates resilience, fresh-panel finding):
+  // isError was previously omitted from useGetSingleTemplateQuery -- a
+  // failed fetch fell through to the form render with templateData
+  // undefined, silently presenting what looks like an empty create form
+  // instead of a clear "this failed to load" state.
+  it("shows a load-failed state with a retry action instead of a phantom empty form when the fetch fails", async () => {
+    mockUseGetSingleTemplateQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: vi.fn(),
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByText("organization.templates.edit.loadFailed")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByPlaceholderText("Template Name")
+    ).not.toBeInTheDocument()
+  })
+
   describe("logo preview object URL lifecycle", () => {
     // Regression test for #259: URL.createObjectURL(logoFile) was called
     // inline during render, minting a new (never-revoked) blob URL on every

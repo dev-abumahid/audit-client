@@ -828,4 +828,55 @@ describe("TemplatesPage", () => {
       expect(screen.queryByText("01 Jun 2026")).not.toBeInTheDocument()
     })
   })
+
+  // quality-bar-loop round (Templates a11y/resilience, fresh-panel
+  // findings): the search input had no accessible name beyond its
+  // placeholder (which disappears once typed into and isn't a reliable
+  // accessible-name source across browsers/AT), and a failed fetch fell
+  // through to the "no templates found" empty state -- silently
+  // misrepresenting a fetch failure as "this org has zero templates",
+  // same bug class fixed on 4+ sibling pages this session.
+  describe("search accessible name and load-failure state", () => {
+    it("gives the search input an accessible name via aria-label", () => {
+      render(
+        <MemoryRouter>
+          <TemplatesPage />
+        </MemoryRouter>
+      )
+
+      expect(
+        screen.getByLabelText("organization.templates.list.searchLabel")
+      ).toBeInTheDocument()
+    })
+
+    it("shows a retry affordance instead of the empty state when the fetch fails", async () => {
+      const refetch = vi.fn()
+      mockUseGetAllTemplatesQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        refetch,
+      })
+
+      render(
+        <MemoryRouter>
+          <TemplatesPage />
+        </MemoryRouter>
+      )
+
+      expect(
+        screen.getByText("organization.templates.list.loadFailed")
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.templates.list.noTemplates")
+      ).not.toBeInTheDocument()
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.templates.list.retry",
+        })
+      )
+      expect(refetch).toHaveBeenCalledTimes(1)
+    })
+  })
 })

@@ -110,7 +110,17 @@ export default function TemplatesPage() {
   //search Input optimized
   const debouncedSearchTerm = useDebouncedValue(searchInput, 300)
 
-  const { data, isLoading } = useGetAllTemplatesQuery({
+  // quality-bar-loop round (Templates resilience, fresh-panel finding):
+  // isError was previously omitted, so a failed fetch fell back to `[]`
+  // and rendered the "no templates found" empty state -- silently
+  // misrepresenting a fetch failure as "this org has zero templates",
+  // same bug class fixed on 4+ sibling pages this session.
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetAllTemplatesQuery({
     page,
     limit,
     searchTerm: debouncedSearchTerm,
@@ -215,6 +225,7 @@ export default function TemplatesPage() {
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder={t("organization.templates.list.searchPlaceholder")}
+              aria-label={t("organization.templates.list.searchLabel")}
               value={searchInput}
               onChange={(e) => {
                 setSearchInput(e.target.value)
@@ -292,6 +303,25 @@ export default function TemplatesPage() {
           <TableBody>
             {isLoading ? (
               <TableSkeleton />
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <span role="alert" className="text-muted-foreground">
+                      {t("organization.templates.list.loadFailed")}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-11"
+                      onClick={() => refetch()}
+                    >
+                      {t("organization.templates.list.retry")}
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
             ) : templates.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
