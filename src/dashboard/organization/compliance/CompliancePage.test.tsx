@@ -451,6 +451,32 @@ describe("CompliancePage", () => {
     expect(screen.queryByText("0 obligations tracked")).not.toBeInTheDocument()
   })
 
+  // quality-bar-loop round (Compliance resilience, fresh-panel finding):
+  // RTK Query correctly retains the last-successful `data` through a
+  // failed refetch (e.g. changing the domain filter while the endpoint is
+  // down) -- this used to render the stale, filter-mismatched rows AND
+  // the error banner at the same time, with nothing telling the user the
+  // visible rows aren't current. Live-reproduced in a real browser by
+  // scoping a fetch-failure injection and switching the domain filter
+  // mid-outage: the previous domain's row stayed visible next to "Failed
+  // to load obligations."
+  it("hides stale rows instead of showing them alongside the error banner when a refetch fails", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      // RTK Query's real shape on a failed refetch: `data` is still the
+      // last-successful payload, `isError` is true.
+      data: { data: [makeObligation({ title: "Stale GDPR row" })] },
+      isLoading: false,
+      isError: true,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getAllByText("organization.compliance.loadError")
+    ).toHaveLength(2)
+    expect(screen.queryByText("Stale GDPR row")).not.toBeInTheDocument()
+  })
+
   // Same discarded-isError bug as the main obligations query above
   // (aexa-frontend#625), for the separate scorecard query: a fetch failure
   // previously fell through to `scorecard` being undefined, which the

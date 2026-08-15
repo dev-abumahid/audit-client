@@ -761,22 +761,39 @@ export default function CompliancePage() {
             </tr>
           </thead>
           <tbody>
-            {obligations.map((obl) => (
-              <ComplianceObligationRow
-                key={obl.id}
-                obligation={obl}
-                canWrite={canWrite}
-                domainLabel={domainLabel}
-                statusLabel={statusLabel}
-                statusIcons={STATUS_ICONS}
-                statusBadgeClass={STATUS_BADGE}
-                onEdit={openEdit}
-                onAttest={openAttest}
-                onHistory={openHistory}
-                onDelete={handleDelete}
-                onCreateAction={openCreateAction}
-              />
-            ))}
+            {/* quality-bar-loop round (Compliance resilience, fresh-panel
+                finding): this used to render `obligations.map(...)`
+                unconditionally, regardless of complianceError -- RTK
+                Query correctly retains the last-successful `data` through
+                a failed refetch (e.g. changing the domain filter while
+                the endpoint is down), so a fetch failure rendered the
+                error block below AT THE SAME TIME as a full table of
+                rows from the OLD filter, with nothing distinguishing
+                "these rows are current" from "these rows are stale and
+                don't even match your current filter." Live-reproduced:
+                switching the domain filter mid-outage kept showing the
+                previous domain's rows next to "Failed to load
+                obligations." Gating on !complianceError makes the error
+                state fully replace stale content instead of layering
+                under it, matching the empty-state block's own
+                !complianceError gate just below. */}
+            {!complianceError &&
+              obligations.map((obl) => (
+                <ComplianceObligationRow
+                  key={obl.id}
+                  obligation={obl}
+                  canWrite={canWrite}
+                  domainLabel={domainLabel}
+                  statusLabel={statusLabel}
+                  statusIcons={STATUS_ICONS}
+                  statusBadgeClass={STATUS_BADGE}
+                  onEdit={openEdit}
+                  onAttest={openAttest}
+                  onHistory={openHistory}
+                  onDelete={handleDelete}
+                  onCreateAction={openCreateAction}
+                />
+              ))}
           </tbody>
         </table>
 
