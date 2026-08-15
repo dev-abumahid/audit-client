@@ -307,28 +307,24 @@ const AdminOverview = () => {
                 {t("admin.overview.quickActions")}
               </h3>
               <div className="space-y-3">
-                <Link to="/admin/settings">
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-3 rounded-xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted"
-                  >
-                    <Settings className="h-5 w-5 text-muted-foreground" />
-                    <span className="font-medium text-foreground">
-                      {t("admin.overview.managePlans")}
-                    </span>
-                  </button>
+                <Link
+                  to="/admin/settings"
+                  className="focus-ring flex w-full items-center gap-3 rounded-xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted"
+                >
+                  <Settings className="h-5 w-5 text-muted-foreground" />
+                  <span className="font-medium text-foreground">
+                    {t("admin.overview.managePlans")}
+                  </span>
                 </Link>
 
-                <Link to="/admin/transaction">
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-3 rounded-xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted"
-                  >
-                    <File className="h-5 w-5 text-muted-foreground" />
-                    <span className="font-medium text-foreground">
-                      {t("admin.overview.viewTransactions")}
-                    </span>
-                  </button>
+                <Link
+                  to="/admin/transaction"
+                  className="focus-ring flex w-full items-center gap-3 rounded-xl border border-border px-5 py-4 text-left transition-colors hover:bg-muted"
+                >
+                  <File className="h-5 w-5 text-muted-foreground" />
+                  <span className="font-medium text-foreground">
+                    {t("admin.overview.viewTransactions")}
+                  </span>
                 </Link>
               </div>
             </div>
@@ -352,13 +348,11 @@ const AdminOverview = () => {
             <h2 className="font-heading text-xl font-semibold text-foreground">
               {t("admin.overview.recentPayments")}
             </h2>
-            <Link to="/admin/transaction">
-              <button
-                type="button"
-                className="focus-ring rounded-xl border border-border bg-background px-5 py-2 text-sm font-medium transition-colors hover:bg-muted"
-              >
-                {t("admin.overview.viewAll")}
-              </button>
+            <Link
+              to="/admin/transaction"
+              className="focus-ring rounded-xl border border-border bg-background px-5 py-2 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              {t("admin.overview.viewAll")}
             </Link>
           </div>
 

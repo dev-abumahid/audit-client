@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import AdminOverview from "./AdminOverview"
 
@@ -44,6 +45,67 @@ describe("AdminOverview", () => {
     expect(hrefs.some((href) => href?.startsWith("/admin-dashboard"))).toBe(
       false,
     )
+  })
+
+  // Found during an app-wide accessibility audit (focus-visible ring sweep,
+  // PR #805) but left out of that PR's scope since it's a different, deeper
+  // bug than a missing focus ring: both Quick Action controls used to be a
+  // <button> nested inside a <Link>, invalid HTML that made the inner
+  // <button> unreachable via Tab (only the outer <a> was focusable), even
+  // though it was the button that looked/was styled as the actual control.
+  // The styling now lives directly on the <Link>, with no nested button.
+  it("renders each Quick Action as a single focusable link, not a button nested inside a link (#805 follow-up)", () => {
+    renderPage()
+
+    const managePlansLink = screen.getByRole("link", {
+      name: "admin.overview.managePlans",
+    })
+    const viewTransactionsLink = screen.getByRole("link", {
+      name: "admin.overview.viewTransactions",
+    })
+
+    expect(managePlansLink).toHaveAttribute("href", "/admin/settings")
+    expect(viewTransactionsLink).toHaveAttribute("href", "/admin/transaction")
+    expect(managePlansLink.querySelector("button")).toBeNull()
+    expect(viewTransactionsLink.querySelector("button")).toBeNull()
+  })
+
+  // Round-1 review of this same PR caught the identical pattern two elements
+  // away: the Recent Payments card's "View All" control was also a <button>
+  // nested inside a <Link>. Same fix, same file.
+  it("renders View All as a single focusable link, not a button nested inside a link (#805 follow-up)", () => {
+    renderPage()
+
+    const viewAllLink = screen.getByRole("link", {
+      name: "admin.overview.viewAll",
+    })
+
+    expect(viewAllLink).toHaveAttribute("href", "/admin/transaction")
+    expect(viewAllLink.querySelector("button")).toBeNull()
+  })
+
+  // Real keyboard Tab-order check, not just DOM structure -- exercises
+  // jsdom's actual tab-order algorithm the way a real Tab key press would,
+  // the same class of check the bug report asked for. With the old
+  // <Link><button>...</button></Link> nesting, only the outer anchor was
+  // reachable and the inner button (the element that actually looked/was
+  // styled as the control) was skipped entirely by the browser's tab order.
+  it("reaches each Quick Action link directly via sequential Tab key presses", async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const managePlansLink = screen.getByRole("link", {
+      name: "admin.overview.managePlans",
+    })
+    const viewTransactionsLink = screen.getByRole("link", {
+      name: "admin.overview.viewTransactions",
+    })
+
+    managePlansLink.focus()
+    expect(managePlansLink).toHaveFocus()
+
+    await user.tab()
+    expect(viewTransactionsLink).toHaveFocus()
   })
 
   // Issue #364: the "Recent Payments" date column used a local, inline
