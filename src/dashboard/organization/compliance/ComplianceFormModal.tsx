@@ -106,7 +106,13 @@ export default function ComplianceFormModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* quality-bar-loop round (mobile, fresh-panel finding): this
+              stayed an unconditional 2-column grid even after round 2 gave
+              the Status/Due-Date/Owner block below the same treatment --
+              each cell measured well under 160px at 375px, tight for
+              longer domain/site names. Same stack-to-one-column-below-sm
+              fix as that sibling block. */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label
                 htmlFor="compliance-form-domain"
