@@ -67,10 +67,18 @@ export default function ComplianceFrameworkCoverage({
       <p className="text-xs text-muted-foreground">
         {t("organization.compliance.frameworkCoverage.subtitle")}
       </p>
-      <div className="mt-3 flex flex-wrap gap-2">
+      {/* Round 19 (accessibility finding, fresh full-panel re-score): these
+          tiles were plain divs in a flex-wrap row -- readable in sequence
+          by a screen reader's virtual cursor, but with no way to tell how
+          many frameworks are present or navigate them as a set (e.g.
+          VoiceOver's rotor wouldn't show "N items" the way it would for a
+          real list). role="list"/"listitem" gives that grouping without
+          changing the visual flex-wrap layout at all. */}
+      <div className="mt-3 flex flex-wrap gap-2" role="list">
         {tallies.map((tally) => (
           <div
             key={tally.framework}
+            role="listitem"
             className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-3 py-1.5"
           >
             <span className="text-xs font-semibold text-foreground">

@@ -1300,6 +1300,7 @@
         "newTitle": "Nouvelle obligation de conformité",
         "close": "Fermer",
         "removeAttachment": "Supprimer la pièce jointe",
+        "attachmentOpensInNewTab": "(ouvre un nouvel onglet)",
         "editTitle": "Modifier l'obligation de conformité",
         "title": "Titre",
         "domain": "Domaine",

@@ -1606,6 +1606,37 @@ describe("CompliancePage", () => {
           screen.queryByText("organization.compliance.frameworkCoverage.title")
         ).not.toBeInTheDocument()
       })
+
+      // Round 19 (accessibility finding, fresh full-panel re-score): the
+      // tiles were plain divs with no grouping semantics -- a screen
+      // reader had no way to know how many frameworks were present or
+      // navigate them as a set.
+      it("groups the framework tiles as a list for screen reader navigation", () => {
+        mockUseGetAllComplianceQuery.mockReturnValue({
+          data: {
+            data: [
+              makeObligation({
+                id: "gdpr-1",
+                regulation_reference:
+                  "GDPR Art. 30 — Records of processing activities",
+              }),
+              makeObligation({
+                id: "soc2-1",
+                regulation_reference:
+                  "SOC 2 CC6.1 — Logical and physical access controls",
+              }),
+            ],
+          },
+          isLoading: false,
+        })
+
+        renderPage()
+
+        const panel = screen
+          .getByText("organization.compliance.frameworkCoverage.title")
+          .closest("div")!
+        expect(within(panel).getAllByRole("listitem")).toHaveLength(2)
+      })
     })
 
     // Round-1 review of PR #859: the fix for CREATE's null-vs-undefined
@@ -1927,6 +1958,69 @@ describe("CompliancePage", () => {
       expect(
         screen.getByText("organization.compliance.form.evidenceRequiredWarning")
       ).toBeInTheDocument()
+    })
+
+    // Round 19 (accessibility finding, fresh full-panel re-score): this
+    // warning appears/disappears purely from a Status change with no
+    // aria-live announcement, unlike every other error banner on this page
+    // (sitesError, complianceError, scorecardError all use role="alert"),
+    // so a screen reader user changing Status to "Compliant" got no
+    // notification a new blocking warning just appeared.
+    it("announces the evidence-required warning via role=alert", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      await user.click(
+        screen.getByRole("button", {
+          name: /organization\.compliance\.newObligation/i,
+        })
+      )
+
+      const statusSelect = screen
+        .getByText("organization.compliance.form.status")
+        .parentElement!.querySelector("select")!
+      await user.selectOptions(statusSelect, "compliant")
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "organization.compliance.form.evidenceRequiredWarning"
+      )
+    })
+
+    // Round 19 (accessibility finding): attachment links open target="_blank"
+    // with only an icon + filename, giving a screen reader no indication
+    // that activating the link leaves the page.
+    it("gives each attachment link a visually-hidden opens-in-new-tab cue", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              attachments: ["https://cdn.example/evidence.pdf"],
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+      await user.click(
+        within(row).getByText("organization.compliance.editObligation")
+      )
+
+      const attachmentLink = screen.getByRole("link", {
+        name: /evidence\.pdf.*organization\.compliance\.form\.attachmentOpensInNewTab/,
+      })
+      expect(attachmentLink).toHaveAttribute(
+        "href",
+        "https://cdn.example/evidence.pdf"
+      )
     })
 
     it("opens the re-attest modal and calls attestCompliance with a trimmed note", async () => {

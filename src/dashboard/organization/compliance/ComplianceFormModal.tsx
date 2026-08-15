@@ -351,6 +351,7 @@ export default function ComplianceFormModal({
               backend. */}
           {form.status === "compliant" && form.attachments.length === 0 && (
             <div
+              role="alert"
               className={`flex items-start gap-2 rounded-md px-3 py-2 text-xs ${severityBadgeClasses("medium", { border: true })}`}
             >
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -377,6 +378,10 @@ export default function ComplianceFormModal({
                   >
                     <Paperclip className="h-3 w-3 shrink-0" />
                     <span className="truncate">{url.split("/").pop()}</span>
+                    <span className="sr-only">
+                      {" "}
+                      {t("organization.compliance.form.attachmentOpensInNewTab")}
+                    </span>
                   </a>
                   <button
                     type="button"

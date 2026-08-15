@@ -1300,6 +1300,7 @@
         "newTitle": "New Compliance Obligation",
         "close": "Close",
         "removeAttachment": "Remove attachment",
+        "attachmentOpensInNewTab": "(opens in a new tab)",
         "editTitle": "Edit Compliance Obligation",
         "title": "Title",
         "domain": "Domain",
