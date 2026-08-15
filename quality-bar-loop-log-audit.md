@@ -478,3 +478,108 @@ Risk Register search inputs already have one). Batched into one PR
 with 3 Templates-side fixes since all 4 touched disjoint files. 1 new
 test, negative-control-verified. Live-verified the aria-label in the
 real DOM. Full suite green. Review: fully clean first round. Merged.
+
+## Round (efficiency + resilience regression fix: batched remediation-status fetch, aexa-server#332 + aexa-frontend#912)
+
+A fresh full-panel re-score of all 3 pages (prompted by the user
+questioning why Compliance had barely moved in 8 rounds) found Audit
+Missions had *regressed* from 7.44 to 6.89 average since its last
+fresh panel, with efficiency and resilience both dropping below floor
+-- a bug I personally introduced in this session's own PR #902 (the
+per-completed-engagement remediation-status strip):
+
+- **Efficiency**: `AuditRemediationStatus` ran its own
+  `useGetAllFindingsQuery` per completed-engagement row on mount -- an
+  N+1 pattern live-measured (via network capture) to fan out to up to
+  ~100 simultaneous requests when the page's status filter narrowed to
+  "Completed".
+- **Resilience**: `if (isLoading || isError) return null` made a
+  genuine fetch failure indistinguishable from "no findings for this
+  engagement" -- the same false-all-clear bug class this session has
+  fixed repeatedly elsewhere, reintroduced by my own new component.
+
+User was asked to prioritize (re-score all 3 pages first, then fix the
+regression first) and chose both explicitly via AskUserQuestion.
+
+**Fix (2 paired PRs, backend merged first):**
+- `aexa-server#332`: extends `GET /action`'s `auditEngagementId` query
+  param to accept a comma-separated list, wrapped in a Prisma
+  `{in: [...]}` where clause (single-id path byte-identical for every
+  other caller).
+- `aexa-frontend#912`: `AuditPage` now batches every visible completed
+  engagement's findings via a new `useBatchedFindingsByEngagement`
+  hook, grouped client-side by engagement and handed to each row as a
+  plain prop; `AuditRemediationStatus` is now purely presentational
+  with a single page-level `role="alert"` error state instead of a
+  silent `null`.
+
+**Review took 4 rounds on each PR to converge, all real bugs caught
+and fixed:**
+- Backend round 1: a trailing/leading comma (`"eng-1,"`) fell back to
+  the raw unfiltered string instead of the parsed id, silently
+  matching zero rows instead of the intended engagement.
+- Backend round 2: an all-comma/whitespace input (`",,"`) left the id
+  list empty, so the where clause fell back to `undefined` -- Prisma
+  treats `undefined` as "no filter" (not "match nothing"), so this
+  silently fell through to *every action in the org* instead of
+  failing closed like every other non-matching value. Fixed to an
+  explicit `''` sentinel (verified against the schema: `auditEngagementId`
+  is a nullable String, and SQL's `NULL = ''` is false, so this
+  matches neither real ids nor null rows).
+- Backend round 3: a test-precision nit -- the round-2 regression test
+  only asserted "not undefined", which would also pass against a
+  still-broken `null` variant (worse than the original bug: `null`
+  means Prisma matches `IS NULL`, leaking every unlinked action in the
+  org). Tightened to assert the exact value.
+- Backend round 4: clean, merged.
+- Frontend round 1: a single batched request shared the backend's
+  `MAX_LIMIT=100` cap across *all* requested engagements combined, not
+  per engagement -- on a page with up to 100 completed engagements
+  (this page's own upstream fetch already allows that many), combined
+  findings could easily exceed 100 and silently zero out whichever
+  engagements the backend returned last. A worse failure mode than the
+  N+1 pattern being fixed. Also found: a duplicate per-row
+  `role="alert"` meaning a screen reader would announce the identical
+  error once per completed row.
+- Frontend round 2: fixed both round-1 findings -- added a new
+  `useBatchedFindingsByEngagement` hook that splits engagement ids
+  into fixed-size chunks of 20 (up to 5 fixed hook calls, since a hook
+  can't call a variable number of other hooks), bounding the
+  combined-findings risk to one chunk instead of up to 100; moved the
+  error alert to one page-level alert. Also found: the >100-id
+  overflow case (chunks beyond the 5th) only logged a dev-only
+  `console.error`, and `completedEngagementIds`' memoization was inert
+  because its own dependency chain wasn't stable.
+- Frontend round 3: fixed both round-2 findings -- folded the overflow
+  signal into the hook's existing `isError` so it reaches the same
+  page-level alert a real failure does; memoized `visibleEngagements`
+  and gave `engagements` a stable empty-array fallback so the memo
+  chain actually memoizes. One trivial prettier nit left over.
+- Frontend round 4: fixed the prettier nit, clean, merged.
+
+**Live verification:** confirmed a single batched
+`GET /action?...&auditEngagementId=<id>` request fires for the page's
+completed engagement (200 OK, correct render). Could not live-repro
+the error state in a real browser -- `window.fetch` patched post-load
+doesn't intercept the request because RTK Query's `fetchBaseQuery`
+binds its `fetch` reference at module-init time, before any injected
+script can run (the same limitation hit in the earlier PR #909 round).
+Proven instead by negative-controlled component/integration tests
+asserting the `role="alert"` render on `isError`.
+
+**Also required a rebase**: aexa-server's branch had been built on top
+of a duplicate of its own base commit (PR #331, the original single-id
+filter, merged to `main` independently while this branch was still
+open) -- rebased onto `origin/main`, which cleanly dropped the
+duplicate commit and kept the 4 genuine fix commits on top; full suite
+re-confirmed green post-rebase before merging.
+
+**Status:** the regression is fixed and both PRs merged to `main`.
+Full test suites green throughout (aexa-server: 76 files/1483 tests;
+aexa-frontend: 129 files/2222 tests). Audit Missions has not yet been
+re-scored against a fresh panel to confirm efficiency/resilience are
+back at/above floor -- that's the natural next step before resuming
+work on Audit Missions' other still-open items (industry-standards,
+the mobile `RiskMultiSelect` touch-target gap) or moving on to
+Compliance/Templates' own open items per the broader "keep going"
+context.
