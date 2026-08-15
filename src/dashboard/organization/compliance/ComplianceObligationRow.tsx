@@ -206,7 +206,18 @@ export default function ComplianceObligationRow({
       <td className="px-3 py-3 text-center">
         <SourceBadge aiGenerated={obl.ai_generated} isEdited={obl.is_edited} />
       </td>
-      <td className="px-3 py-3">
+      {/* User-reported bug: on a non-compliant, writable row, "Create
+          Action" + the "More actions" trigger together need ~145px, but
+          the browser's table auto-layout algorithm was compressing this
+          column to ~136px to keep the table within its `w-full` container
+          -- since neither button can shrink (shrink-0 / a fixed 44px
+          touch target), the row's rendered content overflowed the td's
+          left edge, visually bleeding into the Source column's badge
+          instead of respecting `overflow-x-auto` on the table's wrapper.
+          min-w gives table auto-layout a hard floor for this column, so a
+          row needing more space grows the table (and lets the wrapper's
+          existing horizontal scroll take over) instead of overlapping. */}
+      <td className="min-w-[180px] px-3 py-3">
         <div className="flex items-center justify-end gap-1">
           {/* Remediation path for a failing obligation (#166): only
               non-compliant rows are a dead end that needs a "Create

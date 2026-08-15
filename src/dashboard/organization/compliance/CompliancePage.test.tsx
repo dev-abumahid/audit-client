@@ -1245,6 +1245,40 @@ describe("CompliancePage", () => {
     ).not.toBeInTheDocument()
   })
 
+  // User-reported bug: on a non-compliant, writable row, the "Create
+  // Action" button and the row's "More actions" trigger together need
+  // ~145px of content width (neither can shrink -- one has a fixed
+  // 44px touch target, the other is shrink-0), but the actions column's
+  // own natural content width was narrower than that, so the browser's
+  // table auto-layout algorithm let the rendered buttons overflow their
+  // own cell boundary and visually bleed into the Source column's badge
+  // (live-verified in both light and dark mode). A min-width floor on
+  // the actions <td> gives the column enough room. jsdom doesn't do real
+  // layout, so this only guards that the class survives -- the actual
+  // fix was verified live in the browser.
+  it("gives the actions column a min-width so Create Action + the row trigger don't overflow into the Source column", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: {
+        data: [
+          makeObligation({
+            id: "comp-fail",
+            title: "Failing obligation",
+            status: "non_compliant",
+          }),
+        ],
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const row = screen.getByText("Failing obligation").closest("tr")!
+    const actionsTd = within(row).getByRole("button", {
+      name: /organization\.compliance\.createAction\.button/i,
+    }).closest("td")!
+    expect(actionsTd.className).toMatch(/min-w-\[\d+px\]/)
+  })
+
   it("shows View Action instead of Create Action once a remediation action already exists (aexa-server#531)", () => {
     mockUseGetAllComplianceQuery.mockReturnValue({
       data: {

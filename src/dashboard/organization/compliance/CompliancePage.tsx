@@ -750,7 +750,14 @@ export default function CompliancePage() {
               <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground">
                 {t("organization.compliance.col.source")}
               </th>
-              <th className="w-16 px-3 py-3"></th>
+              {/* Review finding on the actions-column overlap fix: this
+                  header's own w-16 was already moot (a table column's
+                  rendered width is the max across every cell in it, and
+                  the body's min-w-[180px] always wins), but leaving a
+                  stale, contradicting width here invited confusion for
+                  the next reader. min-w-[180px] mirrors the body cell so
+                  the header and body agree on what this column asks for. */}
+              <th className="min-w-[180px] px-3 py-3"></th>
             </tr>
           </thead>
           <tbody>
