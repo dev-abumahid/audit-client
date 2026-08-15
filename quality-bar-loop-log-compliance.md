@@ -1156,3 +1156,89 @@ oscillating nature of the last four rounds' averages is exactly the
 kind of pattern this loop's guardrails exist to surface for a human
 call, even though no single mechanical guardrail (stagnation,
 below-floor regression) technically tripped.
+
+## Round 20 (accessibility re-score + dropdown-modal focus-trap fix, PR #905)
+
+Resumed per "keep going, finish compliance, audit missions and
+templates" -- dispatched a fresh, honest re-score of the three axes
+that sat at exactly floor (7/10) in round 18 (accessibility, visual
+polish, resilience), to confirm round 19's shipped accessibility fix
+actually held before deciding the next round.
+
+**Re-score result:**
+
+| Axis | Round 18 | Round 20 |
+|---|---|---|
+| Accessibility | 7/10 | 7/10 |
+| Visual polish | 7/10 | 8/10 |
+| Resilience | 7/10 | 7/10 |
+
+Round 19's three fixes (role="alert" evidence banner, sr-only
+attachment cue, role="list"/"listitem" framework tiles) were all
+live-verified as correctly implemented and holding. But a fresh full
+accessibility pass -- not just re-confirming round 19's own diff --
+turned up a new, more serious bug round 19 never touched: opening
+Edit, Re-attest, or Attestation History from a row's "More actions"
+dropdown did not trap keyboard focus. Live-verified three times: after
+selecting any of the three, `document.activeElement` landed on
+`&lt;body&gt;` and Tab moved into the *background table* instead of the
+just-opened modal -- a genuine WCAG 2.4.3/2.1.1 failure on the most
+common modal-invocation path on this page (every row action goes
+through this dropdown). This is why accessibility held at exactly 7
+rather than rising: one real regression-class gap offset round 19's
+genuine progress.
+
+**Fix:** root cause was Radix DropdownMenu's own internal FocusScope
+teardown for the closing dropdown racing against, and beating, the
+newly-mounted modal's own mount-time `focus()` call
+(`useModalA11y.ts`). A first attempt -- a bare
+`onCloseAutoFocus={(e) =&gt; e.preventDefault()}` -- was live-verified in
+a real browser to be insufficient; Radix's internal teardown still won
+even with its own default return-to-trigger behavior suppressed. The
+working fix defers each item's actual `onEdit`/`onAttest`/`onHistory`/
+`onDelete` call to run *inside* `onCloseAutoFocus` itself (via a
+`pendingActionRef`), once Radix has fully finished tearing down its
+own focus scope, instead of directly in each item's `onClick` --
+removing the race entirely rather than trying to win it. Same "let
+Radix's own close event own the handoff" pattern already established
+elsewhere in this codebase (`UpdateInspection.tsx`'s status dropdown,
+Inspections round 48).
+
+Testing this genuinely required both layers: jsdom's own
+`DropdownMenuContent` mock never actually fires `onCloseAutoFocus` at
+all (it's a fully-replaced stub, not real Radix), so the timing race
+itself is only reproducible live -- confirmed by writing a naive
+"focus ends up in the dialog" unit test first and finding it passed
+identically whether or not the fix was even applied (a false-positive
+regression test, caught by this session's own negative-control
+discipline before it shipped). The real, negative-controlled unit test
+instead asserts deterministically that the row passes an
+`onCloseAutoFocus` handler that calls `preventDefault` (required
+updating the test file's mock to actually capture and simulate that
+handler, context-scoped per row so a multi-row test doesn't cross-wire
+one row's handler to another's click). A parameterized live-behavior
+sanity check across all three modals was kept alongside it. Full suite
+green (129 files, 2215 tests).
+
+Live-verified against the real running stack, in a fresh tab: opened
+Edit/Re-attest/History each from the row dropdown, confirmed focus
+lands inside the dialog every time (not `&lt;body&gt;`, not the trigger),
+confirmed Tab moves to the next focusable element within the dialog
+rather than escaping to the table, confirmed Escape still closes
+correctly, and confirmed Delete's `AlertDialog` (which already managed
+its own focus correctly, unaffected by this change) still works.
+Confirmed a clean console. Review: fully clean first round --
+independently traced the multi-row context-scoping, confirmed no
+stale-closure risk, confirmed the deterministic test is genuinely
+non-vacuous. Merged.
+
+**Status:** accessibility's most severe outstanding gap (the
+dropdown-modal focus trap) is fixed; visual polish moved from 7 to 8.
+Not yet re-scored against this round's fix -- next step is a targeted
+re-score of accessibility (and resilience, still at floor) before
+picking the next round, or continuing directly to a resilience fix
+(genuine network-failure paths for compliance/scorecard/sites queries
+were flagged this round as inspected-only, not live-reproduced, since
+RTK Query's `fetchBaseQuery` holds its own captured `fetch` reference
+that a post-load monkey-patch doesn't intercept -- consistent with
+this session's own documented fetch-monkeypatch pitfall).
