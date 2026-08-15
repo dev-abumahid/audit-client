@@ -357,3 +357,113 @@ flagged below floor has been independently reconfirmed at or above
 it. Remaining items (status-transition shortcut on the card, org-wide
 stats beyond page scope) are smaller residual gaps already noted as
 future-round candidates, not floor concerns.
+
+## Fresh full 9-axis panel (target raised to 8.5, floor stays 7)
+
+Resumed per "keep going, finish compliance, audit missions and
+templates" -- the "confirming re-score" above only ever verified 2 of
+9 axes narrowly (the specific round-6/7 fixes), not a full fresh
+panel. This session's own established discipline (demonstrated
+repeatedly on the Compliance loop) is that narrow re-scores run
+optimistic; a genuinely fresh, comprehensive panel is more honest.
+
+| Axis | Score |
+|---|---|
+| Industry-standards | 6/10 (below floor) |
+| UX | 8/10 |
+| Efficiency | 7/10 |
+| Accessibility | 7/10 |
+| Visual polish | 7/10 |
+| Resilience & edge cases | 6/10 |
+| Code quality | 8/10 |
+| Mobile/responsive | 6/10 |
+| Security | 8/10 |
+
+**Average: 7.44/10.** Below target (8.5); industry-standards below
+floor (7).
+
+Industry-standards' remaining gaps, compared against IIA
+engagement-lifecycle guidance and AuditBoard/TeamMate+: no follow-up
+stage after "completed" to verify corrective actions were
+implemented (IIA Standard 2500), no evidence library for the
+engagement itself, and (per the judge's own comparison) `findings_count`
+reading as a hand-typed integer with no visible linkage. Investigation
+found the last of these is a documentation/legibility gap, not a real
+one -- aexa-server#244 already gave `Action` a real `auditEngagementId`
+FK and `findings_count` is already server-derived via `groupBy`. The
+first two are genuinely backend-schema-sized (a new status enum value,
+a new model) and stay deferred.
+
+## Round (industry-standards: remediation status, PRs aexa-server#331 + aexa-frontend#902)
+
+A real, smaller slice was available: the FK existed but `GET /action`
+never accepted it as a filter, so nothing could read a single
+engagement's findings -- only the org-wide list, and no UI could show
+whether a completed engagement's findings had actually been resolved.
+
+- **aexa-server#331**: added `auditEngagementId` as an optional query
+  param on `GET /action`, same additive shape as the existing
+  `siteId`/`inspectionId` filters. Two new tests (filter applied /
+  filter absent), both negative-control-verified. Full backend suite
+  green (75 files, 1474 tests). Review: fully clean -- confirmed
+  org-scoping and LIGHT_USER role-scoping both AND correctly with the
+  new filter, no cross-tenant leak path. Merged.
+- **aexa-frontend#902**: new `AuditRemediationStatus` component,
+  rendered only on `status === "completed"` engagement cards, tallying
+  real per-finding status (`COMPLETE`/`CANT_DO` = resolved) scoped via
+  the new filter. Renders nothing while loading, on error, or with zero
+  linked findings, so an engagement predating this feature degrades to
+  today's behavior. 4 new tests, all negative-control-verified. Full
+  frontend suite green (128 files, 2203 tests).
+
+  Live-verified against the real running stack: marked the one real
+  engagement Completed, confirmed the strip stayed hidden at 0
+  findings; created two real findings linked via the new
+  `auditEngagementId` (direct API calls, since no UI yet links a
+  finding to an engagement at creation time -- see Scoped out below),
+  confirmed the network request carried the right id, the card
+  rendered "0 of 2 findings resolved", and the progress bar's
+  `aria-valuenow`/`aria-label` were correct. Deleted the test findings
+  and reverted the engagement to Planned afterward. Confirmed a clean
+  console in a fresh tab.
+
+  Review took 3 rounds to converge -- both real findings caught and
+  fixed:
+  - Round 1: `total` was `findings.length` (the fetched page, capped at
+    limit=100) instead of the real server-side `meta.total` -- an
+    engagement with more than 100 findings would have silently
+    understated its own total. Fixed to use `meta.total`, with
+    `resolved` still only a tally over the fetched page (the safer
+    failure direction -- never overstates progress).
+  - Round 2: the round-1 fix's `data?.meta.total` could itself throw
+    (`Cannot read properties of undefined`) if `meta` was absent --
+    caught immediately by the round-1 regression test failing in a way
+    the round-1 finding hadn't anticipated. Fixed to `data?.meta?.total`.
+    A second reviewer finding in the same round (backend-reported
+    `meta.total: 0` alongside non-empty findings producing `NaN` in
+    `aria-valuenow`) was fixed in the same commit with a `total > 0`
+    guard.
+  - Round 3: no blocking findings -- one narrow, explicitly
+    non-blocking note (an over-100% or non-numeric `meta.total` from a
+    malformed API response isn't fully guarded) left as a known,
+    documented edge case rather than expanded scope. Converged.
+
+**Scoped out (documented, not silently dropped):** no UI currently
+lets a finding be created *linked to* an audit engagement --
+`CreateNewFindingModal` requires an inspection, not an engagement, so
+in practice no real finding will have `auditEngagementId` set until a
+follow-up round adds that linking flow. This round ships the read
+side (a real, tested, working surface once findings exist) rather than
+blocking on the larger create-side UI work in the same round. Also
+still deferred: a true "follow-up" workflow stage (IIA 2500's fuller
+ask) and an evidence library for the engagement itself -- both remain
+backend-schema-sized.
+
+**Status:** industry-standards' `findings_count`-legibility and
+per-engagement-remediation gaps are addressed as far as a contained
+round reasonably goes. Not yet re-scored against the full fresh panel
+above -- next step is either a targeted re-score of industry-standards
+(and ideally resilience/mobile, this panel's other below-floor-
+adjacent axes at 6) or continuing directly to the next real slice
+(the finding-creation linking flow) before re-scoring, per this
+session's "ship, don't pause on a re-score" practice.
