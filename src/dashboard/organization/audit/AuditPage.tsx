@@ -16,6 +16,7 @@ import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useGetAllOrgUsersQuery } from "@/redux/apis/organization/org.user.api"
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
+import { useBatchedFindingsByEngagement } from "@/hooks/useBatchedFindingsByEngagement"
 import {
   AlertTriangle,
   CheckCircle2,
@@ -30,7 +31,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
@@ -46,6 +47,13 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ""
 
 // One page's worth of engagements. Matches AllFindingsPage's page size.
 const PAGE_SIZE = 20
+
+// Review-round finding on aexa-frontend#912: `auditData?.data || []` gave
+// `engagements` a fresh array reference on every render whenever the fetch
+// hadn't resolved yet, which fed into visibleEngagements/completedEngagementIds'
+// useMemo deps and made those memos inert. A single stable empty-array
+// reference for the "no data yet" case keeps the memo chain actually memoized.
+const EMPTY_ENGAGEMENTS: AuditEngagement[] = []
 
 const STATUS_ICONS: Record<string, React.ElementType> = {
   planned: Play,
@@ -187,15 +195,45 @@ export default function AuditPage() {
     useUpdateAuditEngagementMutation()
   const [deleteAuditEngagement] = useDeleteAuditEngagementMutation()
 
-  const engagements: AuditEngagement[] = auditData?.data || []
+  const engagements: AuditEngagement[] = auditData?.data || EMPTY_ENGAGEMENTS
   // quality-bar-loop round 7 (UX, round-1 finding): client-side status
   // filter applied on top of whatever page the (larger, when active)
   // fetch returned -- see the isClientFiltered comment above for why.
-  const visibleEngagements: AuditEngagement[] = filterStatus
-    ? engagements.filter((e) => e.status === filterStatus)
-    : engagements
+  // Review-round finding on aexa-frontend#912: memoizing completedEngagementIds
+  // below is inert if visibleEngagements itself gets a new array reference
+  // every render (which `engagements.filter(...)` does whenever a status
+  // filter is active) -- memoizing this one too actually makes that
+  // downstream memo do something.
+  const visibleEngagements: AuditEngagement[] = useMemo(
+    () =>
+      filterStatus
+        ? engagements.filter((e) => e.status === filterStatus)
+        : engagements,
+    [engagements, filterStatus]
+  )
   const meta = auditData?.meta
   const totalPages = isClientFiltered ? 0 : meta?.totalPage || 0
+
+  // quality-bar-loop round (Audit Missions efficiency/resilience,
+  // fresh-panel regression finding): AuditRemediationStatus used to run
+  // its own findings fetch per completed row on mount -- an N+1 pattern
+  // that live-measured up to ~100 simultaneous requests once the status
+  // filter narrowed to "Completed". useBatchedFindingsByEngagement batches
+  // every completed engagement's findings into a handful of chunked
+  // requests instead (see its own comment for why chunked rather than one
+  // giant request), grouped by engagement and handed to each row as a
+  // plain prop.
+  const completedEngagementIds = useMemo(
+    () =>
+      visibleEngagements
+        .filter((e) => e.status === "completed")
+        .map((e) => e.id),
+    [visibleEngagements]
+  )
+  const {
+    findingsByEngagement: remediationFindingsByEngagement,
+    isError: isRemediationFindingsError,
+  } = useBatchedFindingsByEngagement(completedEngagementIds)
 
   // aexa-frontend#265: deleting the last engagement on the last page shrinks
   // totalPages without a search change (handleSearchChange below only resets
@@ -524,7 +562,9 @@ export default function AuditPage() {
           className="h-11 rounded-lg border border-input bg-card px-3 text-xs"
         >
           <option value="">{t("organization.audit.allStatuses")}</option>
-          <option value="planned">{t("organization.audit.statusPlanned")}</option>
+          <option value="planned">
+            {t("organization.audit.statusPlanned")}
+          </option>
           <option value="in_progress">
             {t("organization.audit.statusInProgress")}
           </option>
@@ -536,7 +576,14 @@ export default function AuditPage() {
 
       {/* Audit List */}
       <div className="animate-slide-up stagger-2 space-y-3">
-        <h2 className="sr-only">{t("organization.audit.missionListHeading")}</h2>
+        <h2 className="sr-only">
+          {t("organization.audit.missionListHeading")}
+        </h2>
+        {isRemediationFindingsError && (
+          <p role="alert" className="text-xs text-destructive">
+            {t("organization.audit.remediationLoadError")}
+          </p>
+        )}
         {visibleEngagements.map((eng) => {
           const statusCfg = STATUS_CONFIG[eng.status] || STATUS_CONFIG.planned
           const Icon = STATUS_ICONS[eng.status] || Play
@@ -728,7 +775,9 @@ export default function AuditPage() {
                 )}
               </div>
               {eng.status === "completed" && (
-                <AuditRemediationStatus engagementId={eng.id} />
+                <AuditRemediationStatus
+                  findings={remediationFindingsByEngagement.get(eng.id)}
+                />
               )}
             </div>
           )
@@ -784,7 +833,10 @@ export default function AuditPage() {
             aria-labelledby="audit-modal-title"
             className="w-full max-w-lg space-y-4 rounded-2xl border border-border bg-card p-6 shadow-xl"
           >
-            <h2 id="audit-modal-title" className="text-lg font-bold text-foreground">
+            <h2
+              id="audit-modal-title"
+              className="text-lg font-bold text-foreground"
+            >
               {editId
                 ? t("organization.audit.editModalTitle")
                 : t("organization.audit.newModalTitle")}

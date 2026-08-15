@@ -13,6 +13,11 @@ export interface IAction {
   inspectionId: string
   siteId?: string | null
   questionId?: string | null
+  // aexa-server#244 -- always present on the raw Prisma row (no `select`
+  // narrows the list endpoint's response), just never typed here before
+  // the Audit Missions remediation-status round needed to group a
+  // multi-engagement findings fetch back out client-side by engagement.
+  auditEngagementId?: string | null
 
   // Main body
   actionTitle: string

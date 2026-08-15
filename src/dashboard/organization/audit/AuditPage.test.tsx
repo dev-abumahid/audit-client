@@ -1502,10 +1502,24 @@ describe("AuditPage", () => {
   // quality-bar-loop round (industry-standards, fresh-panel finding): a
   // completed engagement's findings_count was a hand-typed integer with no
   // way to tell whether any of it had actually been remediated (IIA
-  // Standard 2500). AuditRemediationStatus reads real per-finding status
-  // scoped to this engagement via the auditEngagementId filter.
+  // Standard 2500). AuditRemediationStatus reads real per-finding status.
+  //
+  // quality-bar-loop round (Audit Missions efficiency/resilience,
+  // fresh-panel regression finding): this used to fire one findings query
+  // per completed row (N+1, live-measured up to ~100 simultaneous requests
+  // filtered to "Completed") and silently swallow fetch failures. AuditPage
+  // now uses useBatchedFindingsByEngagement, which chunks every visible
+  // completed engagement's id into up to 5 fixed hook calls (CHUNK_SIZE=20
+  // each -- see the hook's own comment for why chunked rather than one
+  // giant request) and groups the results client-side by
+  // auditEngagementId. Since useGetAllFindingsQuery is always called
+  // exactly 5 times now (one per chunk slot, most of them `skip: true`
+  // when there's only one real chunk of data), these tests mock by
+  // inspecting each call's own args/opts rather than a single blanket
+  // mockReturnValue, so a skipped call doesn't spuriously "return" the
+  // active chunk's data.
   describe("remediation status (completed engagements)", () => {
-    it("does not query or render remediation status for a non-completed engagement", () => {
+    it("skips the findings query entirely when no engagement is completed", () => {
       mockUseGetAllAuditEngagementsQuery.mockReturnValue({
         data: { data: [makeEngagement({ status: "in_progress" })] },
         isLoading: false,
@@ -1513,105 +1527,95 @@ describe("AuditPage", () => {
 
       render(<AuditPage />)
 
-      expect(mockUseGetAllFindingsQuery).not.toHaveBeenCalled()
+      // All 5 chunk-hook calls are skipped -- no real chunk of completed
+      // ids exists at all.
+      expect(mockUseGetAllFindingsQuery).toHaveBeenCalledTimes(5)
+      expect(
+        mockUseGetAllFindingsQuery.mock.calls.every(
+          ([, opts]) => opts.skip === true
+        )
+      ).toBe(true)
       expect(
         screen.queryByText(/organization\.audit\.remediationLabel/)
       ).not.toBeInTheDocument()
     })
 
-    it("scopes the findings query to this engagement and shows resolved/total for a completed engagement", () => {
+    it("batches every completed engagement's id into a single chunked findings query", () => {
       mockUseGetAllAuditEngagementsQuery.mockReturnValue({
         data: {
           data: [
-            makeEngagement({
-              id: "audit-9",
-              status: "completed",
-              closed_at: "2026-04-01T00:00:00.000Z",
-            }),
+            makeEngagement({ id: "audit-9", status: "completed" }),
+            makeEngagement({ id: "audit-10", status: "completed" }),
+            makeEngagement({ id: "audit-11", status: "in_progress" }),
           ],
         },
         isLoading: false,
       })
-      mockUseGetAllFindingsQuery.mockReturnValue({
-        data: {
-          data: [
-            { id: "f1", status: "COMPLETE" },
-            { id: "f2", status: "CANT_DO" },
-            { id: "f3", status: "IN_PROGRESS" },
-            { id: "f4", status: "TO_DO" },
-          ],
-        },
-        isLoading: false,
-        isError: false,
-      })
+      const findingsData = {
+        data: [
+          { id: "f1", status: "COMPLETE", auditEngagementId: "audit-9" },
+          { id: "f2", status: "CANT_DO", auditEngagementId: "audit-9" },
+          { id: "f3", status: "IN_PROGRESS", auditEngagementId: "audit-9" },
+          { id: "f4", status: "TO_DO", auditEngagementId: "audit-9" },
+          { id: "f5", status: "COMPLETE", auditEngagementId: "audit-10" },
+        ],
+      }
+      mockUseGetAllFindingsQuery.mockImplementation((_args, opts) =>
+        opts.skip
+          ? { data: undefined, isLoading: false, isError: false }
+          : { data: findingsData, isLoading: false, isError: false }
+      )
 
       render(<AuditPage />)
 
-      expect(mockUseGetAllFindingsQuery).toHaveBeenCalledWith(
-        expect.objectContaining({ auditEngagementId: "audit-9" })
+      // Exactly one of the 5 chunk-hook calls is active, covering both
+      // completed engagements in one request, not one per row -- the
+      // in_progress engagement (audit-11) is correctly excluded.
+      const activeCalls = mockUseGetAllFindingsQuery.mock.calls.filter(
+        ([, opts]) => opts.skip === false
       )
-      const progress = screen.getByRole("progressbar")
-      expect(progress).toHaveAttribute("aria-valuenow", "50")
+      expect(activeCalls).toHaveLength(1)
+      expect(activeCalls[0][0]).toMatchObject({
+        auditEngagementId: "audit-9,audit-10",
+      })
+      expect(mockUseGetAllFindingsQuery).toHaveBeenCalledTimes(5)
+      // Grouped correctly per row: audit-9 gets 2 of 4 resolved (50%),
+      // audit-10 gets 1 of 1 resolved (100%).
+      const progressBars = screen.getAllByRole("progressbar")
+      expect(progressBars).toHaveLength(2)
+      expect(progressBars[0]).toHaveAttribute("aria-valuenow", "50")
+      expect(progressBars[1]).toHaveAttribute("aria-valuenow", "100")
     })
 
-    // Review round 1 finding: the findings fetch is capped at limit=100, so
-    // for an engagement with more findings than that, findings.length would
-    // silently understate the real total instead of reflecting it. The
-    // denominator must come from the server-reported meta.total.
-    it("uses the real server-side total (meta.total), not the capped page length, as the denominator", () => {
+    // Review-round finding on aexa-frontend#912: a per-row role="alert" on
+    // fetch failure meant a screen reader announced the identical error
+    // once per completed row. AuditPage now renders a single page-level
+    // alert instead, and rows just render nothing.
+    it("shows a single visible page-level error, not a silent null or a per-row alert, when the batched query fails", () => {
       mockUseGetAllAuditEngagementsQuery.mockReturnValue({
-        data: { data: [makeEngagement({ id: "audit-10", status: "completed" })] },
+        data: {
+          data: [
+            makeEngagement({ id: "audit-9", status: "completed" }),
+            makeEngagement({ id: "audit-10", status: "completed" }),
+          ],
+        },
         isLoading: false,
       })
       mockUseGetAllFindingsQuery.mockReturnValue({
-        data: {
-          data: [
-            { id: "f1", status: "COMPLETE" },
-            { id: "f2", status: "TO_DO" },
-          ],
-          meta: { total: 150 },
-        },
+        data: undefined,
         isLoading: false,
-        isError: false,
+        isError: true,
       })
 
       render(<AuditPage />)
 
       expect(
-        screen.getByText("organization.audit.remediationLabel")
-      ).toBeInTheDocument()
-      // 1 resolved out of a real total of 150 (not 2, the fetched page's
-      // length) -- 1% rounded, not the 50% a findings.length denominator
-      // would wrongly produce.
-      expect(screen.getByRole("progressbar")).toHaveAttribute(
-        "aria-valuenow",
-        "1"
+        screen.getAllByText("organization.audit.remediationLoadError")
+      ).toHaveLength(1)
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "organization.audit.remediationLoadError"
       )
-    })
-
-    // Review round 2 finding: a backend-reported meta.total of 0 alongside
-    // a non-empty findings page (an inconsistency, but not one this
-    // component should crash on) must not produce NaN in aria-valuenow.
-    it("does not render NaN when meta.total is 0 despite non-empty findings", () => {
-      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
-        data: { data: [makeEngagement({ id: "audit-11", status: "completed" })] },
-        isLoading: false,
-      })
-      mockUseGetAllFindingsQuery.mockReturnValue({
-        data: {
-          data: [{ id: "f1", status: "TO_DO" }],
-          meta: { total: 0 },
-        },
-        isLoading: false,
-        isError: false,
-      })
-
-      render(<AuditPage />)
-
-      expect(screen.getByRole("progressbar")).toHaveAttribute(
-        "aria-valuenow",
-        "0"
-      )
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument()
     })
 
     it("renders nothing when the completed engagement has no findings", () => {
@@ -1628,6 +1632,100 @@ describe("AuditPage", () => {
       render(<AuditPage />)
 
       expect(screen.queryByRole("progressbar")).not.toBeInTheDocument()
+    })
+
+    // Review-round finding on aexa-frontend#912: a single batched request
+    // shared the backend's MAX_LIMIT=100 cap across every requested
+    // engagement combined, so a page with many completed engagements could
+    // silently under-report whichever ones the backend didn't get to
+    // first. useBatchedFindingsByEngagement splits into CHUNK_SIZE=20
+    // fixed-size requests instead -- 21 completed ids must produce 2
+    // active chunk-hook calls (20 + 1), not 1.
+    it("splits more than 20 completed engagements across multiple chunked requests", () => {
+      const engagements = Array.from({ length: 21 }, (_, i) =>
+        makeEngagement({ id: `audit-${i}`, status: "completed" })
+      )
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: engagements },
+        isLoading: false,
+      })
+      mockUseGetAllFindingsQuery.mockImplementation((_args, opts) => ({
+        data: opts.skip ? undefined : { data: [] },
+        isLoading: false,
+        isError: false,
+      }))
+
+      render(<AuditPage />)
+
+      const activeCalls = mockUseGetAllFindingsQuery.mock.calls.filter(
+        ([, opts]) => opts.skip === false
+      )
+      expect(activeCalls).toHaveLength(2)
+      const [firstChunkArgs] = activeCalls[0]
+      const [secondChunkArgs] = activeCalls[1]
+      expect(
+        (firstChunkArgs.auditEngagementId as string).split(",")
+      ).toHaveLength(20)
+      expect(
+        (secondChunkArgs.auditEngagementId as string).split(",")
+      ).toHaveLength(1)
+    })
+
+    // Review-round finding on aexa-frontend#912: useBatchedFindingsByEngagement
+    // only covers 5 fixed chunks (100 ids); silently dropping the overflow
+    // beyond that would under-report remediation status for those
+    // engagements with zero signal to a real user. More than 100 completed
+    // ids must surface the same page-level alert a real fetch failure does.
+    it("shows the page-level error when completed engagements exceed the 100-id chunking cap", () => {
+      const engagements = Array.from({ length: 101 }, (_, i) =>
+        makeEngagement({ id: `audit-${i}`, status: "completed" })
+      )
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: engagements },
+        isLoading: false,
+      })
+      mockUseGetAllFindingsQuery.mockImplementation((_args, opts) => ({
+        data: opts.skip ? undefined : { data: [] },
+        isLoading: false,
+        isError: false,
+      }))
+
+      render(<AuditPage />)
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "organization.audit.remediationLoadError"
+      )
+    })
+
+    // Review-round finding on aexa-frontend#912: findings with a missing
+    // auditEngagementId are silently dropped by the grouping loop rather
+    // than crashing or being mis-attributed to another engagement --
+    // reasonable given the field is optional on IAction, but previously
+    // untested.
+    it("silently drops a finding with no auditEngagementId instead of mis-grouping or crashing", () => {
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [makeEngagement({ id: "audit-9", status: "completed" })] },
+        isLoading: false,
+      })
+      const findingsData = {
+        data: [
+          { id: "f1", status: "COMPLETE", auditEngagementId: "audit-9" },
+          { id: "f2", status: "TO_DO", auditEngagementId: null },
+        ],
+      }
+      mockUseGetAllFindingsQuery.mockImplementation((_args, opts) =>
+        opts.skip
+          ? { data: undefined, isLoading: false, isError: false }
+          : { data: findingsData, isLoading: false, isError: false }
+      )
+
+      render(<AuditPage />)
+
+      // audit-9 only ever sees its own 1 real finding (f1, resolved) -- f2
+      // (no auditEngagementId) must not be counted against it.
+      const progressBars = screen.getAllByRole("progressbar")
+      expect(progressBars).toHaveLength(1)
+      expect(progressBars[0]).toHaveAttribute("aria-valuenow", "100")
     })
   })
 })
