@@ -1542,3 +1542,37 @@ maker-checker workflow) -- likely still below floor without a re-score.
 Mobile (6.5) remains the other below-floor axis, not yet addressed --
 next round candidate (`ComplianceFormModal`'s Domain/Site select pair
 missing the touch-width treatment its sibling block already has).
+
+## Round (mobile: Domain/Site fields stack below sm, PR #911)
+
+Fixed mobile's below-floor finding (6.5/10): `ComplianceFormModal`'s
+Domain/Site `grid-cols-2` block never got the mobile-width treatment
+its own Status/Due-Date/Owner sibling block already has -- at 375px
+each select measured well under 160px, tight for longer domain/site
+names. Same `grid-cols-1`/`sm:grid-cols-2` stacking fix as the
+sibling. Live-verified at 375px: Domain and Site now each get the
+full available width (295px) instead of being squeezed. No unit test
+(matches this file's own established convention -- the sibling
+block's own round-2 fix shipped without one too, confirmed by review:
+zero `grid-cols` references anywhere in `CompliancePage.test.tsx`).
+Full suite green (129 files, 2220 tests, no regression). Review:
+clean -- confirmed no other `grid-cols-2` consumer in the compliance
+module needed the same fix, confirmed no desktop/tablet regression
+(sm: restores the exact previous 2-column behavior). Merged.
+
+**Status:** both axes below floor in the last fresh panel
+(industry-standards 6, mobile 6.5) have now had a real fix shipped.
+Neither has been re-scored yet -- next step is either a targeted
+re-score of both (industry-standards likely still below floor given
+its remaining structurally-larger gaps: sorting, bulk actions, export,
+buried attestation workflow, no maker-checker workflow) or moving to
+Audit Missions/Templates, whose own panels are further overdue for a
+re-score than Compliance's.
+
+**Note:** an orphaned background agent from an earlier meta-dispatch
+(the "Fresh full 9-axis panel" delegation attempt that hit the known
+sub-agent notification-routing limitation) stopped the aexa-frontend
+dev server mid-session. Caught and restarted via preview_start with no
+data loss -- flagging here since a stray dispatched agent taking a
+destructive-ish action (stopping a shared dev server) outside the
+mechanical fix-selection flow is worth noting for future sessions.
