@@ -1301,3 +1301,69 @@ most below target across the three pages this session is working
 (Audit Missions and Templates both sit at 7.44 average pending their
 own re-scores; Compliance's other axes -- industry-standards at 7,
 resilience at 6 per round 20's re-score -- remain open).
+
+## Round 22 (user-reported: Actions column overlapping Source badge, PR #907)
+
+User screenshot showed "Create Action" visually overlapping the
+"Manual" source badge and the row's "More actions" trigger, in dark
+mode. Investigated live: the actions `<td>` needs ~145px to fit
+"Create Action" (~97px) + gap + the trigger's fixed 44px touch target,
+but neither can shrink -- the browser's table auto-layout algorithm
+was compressing the column below its content's natural width to keep
+the table within its `w-full` container, letting the rendered buttons
+overflow the cell boundary and bleed left into the Source column.
+
+**Fix:** `min-w-[180px]` on the actions `<td>` (accounting for its own
+padding) gives table auto-layout a hard floor for this column;
+follow-up commit mirrored the same width onto the corresponding `<th>`
+(its old `w-16` was already moot once the body cell's min-width won,
+but left stale and contradicting). Verified live in both light and
+dark mode at the exact viewport width from the report: measured DOM
+rects confirming the button content no longer overflows the cell,
+screenshotted both themes. Lightweight test added (jsdom has no real
+layout engine, so it only guards the class survives). Full suite
+green (129 files, 2217 tests). Review: clean -- confirmed the shared-
+column-width side effect on simpler rows (compliant/in-progress, no
+Create Action button) is an acceptable, deliberate trade-off, not a
+regression; confirmed no interaction with other columns' widths;
+confirmed the `overflow-x-auto` wrapper already exists for exactly
+this scenario. Merged.
+
+## Two new findings from the same re-score pass, not yet fixed
+
+A fresh re-score dispatched after round 21 (before this round's user-
+reported bug interrupted it) surfaced two more real, live-reproduced
+issues:
+
+1. **AttestHistoryModal's focus trap is broken.** `useModalA11y.ts`'s
+   `FOCUSABLE_SELECTOR` counts `button:not([disabled])` unconditionally,
+   so `AttestHistoryModal.tsx`'s inactive tab (`tabIndex={-1}` on the
+   "Edit History" button, its own round-12 roving-tabindex pattern) is
+   counted as part of the trap -- but real Tab navigation skips
+   `tabindex="-1"` elements entirely. Live-reproduced 2x: real Tab
+   sequence is Close -> Attestations tab -> escapes straight to the
+   sidebar, only 2 tabs in. Escape-to-close still works (a separate,
+   document-level listener). Edit/Re-attest/New-Obligation modals are
+   unaffected (no roving-tabindex content).
+2. **Stale, filter-mismatched data renders simultaneously with the
+   error banner on a failed refetch.** Live-reproduced by scoping a
+   fetch-failure injection to `/api/compliance` and changing the domain
+   filter while the list endpoint was failing: the table kept showing
+   the previous obligation (still tagged with the OLD domain) at the
+   same time as "Failed to load obligations. Please try again later."
+   RTK Query correctly retains the last-successful `data` through a
+   failed refetch (expected behavior), but `CompliancePage.tsx` never
+   signals that the still-visible row may be stale/filter-mismatched --
+   the error banner and the stale table are additive siblings, not a
+   replacement. A user could easily misread the stale row as a valid
+   (if incomplete) result for the new filter. `isError` itself is wired
+   correctly (this is not a regression of that earlier fix).
+
+Both are real, contained, next-round candidates -- not yet scoped or
+fixed.
+
+**Status:** the accessibility trap/restore chain now covers 2 of 3
+dropdown-invoked modals correctly (Edit, Re-attest); History has its
+own distinct root cause (a shared hook's selector, not this round's
+own fix) and needs a separate round. Resilience has a second real,
+live-reproduced gap beyond round 20's original findings.
