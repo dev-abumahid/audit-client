@@ -1242,3 +1242,62 @@ were flagged this round as inspected-only, not live-reproduced, since
 RTK Query's `fetchBaseQuery` holds its own captured `fetch` reference
 that a post-load monkey-patch doesn't intercept -- consistent with
 this session's own documented fetch-monkeypatch pitfall).
+
+## Round 21 (fix a below-floor regression round 20 itself introduced, PR #906)
+
+A fresh accessibility/resilience re-score immediately after round 20
+merged caught a genuine below-floor regression round 20's own fix had
+introduced (accessibility 7 -> 6): deferring the row-dropdown's
+Edit/Attest/History/Delete action into `onCloseAutoFocus` fixed the
+focus-*trap* while a modal was open, but broke focus-*restore* on
+close -- `document.activeElement` was already `<body>` (Radix's own
+teardown had already blurred it) by the time the newly-opened modal's
+own mount-time effect captured "what's currently focused" as its
+close-time restore target. Live-verified 4/4 times: closing Edit,
+Re-attest, History, or Delete (Delete via `DeleteAlertModal.tsx`'s
+identical capture pattern) all dropped focus to `<body>` instead of
+back to the row's "More actions" trigger.
+
+**Fix:** a new `triggerRef` on the "More actions" button, explicitly
+re-focused inside `onCloseAutoFocus` *before* running the deferred
+action -- so it's genuinely `document.activeElement` at the instant
+the next modal's mount effect captures its own restore target. Doesn't
+touch `useModalA11y.ts` or `DeleteAlertModal.tsx` at all; fixes both by
+fixing what's focused right before they run.
+
+New test negative-controlled against round-20-only source (confirmed
+failing -- focus landed elsewhere, not on the trigger -- before this
+fix). Traced (not just trusted the suite) that the existing round-11
+sibling-modal-switch test still passes: that mechanism
+(`pendingFocusRef` in `CompliancePage.tsx`) only fires on a same-
+modal-family Attest→History switch triggered from inside the modal
+itself, which happens strictly after this round's trigger-refocus has
+already run once -- the two mechanisms never fire in the same commit.
+Full suite green (129 files, 2216 tests).
+
+Live-verified against the real running stack, in a fresh tab: closed
+Edit and separately Re-attest, confirmed `document.activeElement` is
+"More actions for Omar T" (not `&lt;body&gt;`) both times; confirmed round
+20's trap-while-open behavior still holds. Clean console.
+
+Review: clean -- independently confirmed both `useModalA11y.ts` and
+`DeleteAlertModal.tsx`'s capture mechanisms, confirmed no remaining
+race in the synchronous focus/deferred-action ordering, confirmed no
+Radix `asChild` ref-forwarding gotcha (real Radix primitive + native
+button child, no custom-component ref issue). One honest caveat noted
+by the reviewer -- the new jsdom test can't literally reproduce
+round 20's "lands on `&lt;body&gt;`" mechanism since the file's own Radix
+mock never truly blurs focus the way real Radix does -- addressed by
+this round's own live-browser verification (quoted above), which is
+what actually proves the fix, same split this session has used
+throughout for Radix-timing-dependent bugs. Merged.
+
+**Status:** the two-round accessibility chain (trap fix + restore-on-
+close fix) is now complete and independently live-verified end to end.
+Not yet re-scored against a fresh full panel -- next step is either a
+targeted accessibility/resilience re-score to confirm the floor
+regression is genuinely resolved, or moving to whichever page/axis is
+most below target across the three pages this session is working
+(Audit Missions and Templates both sit at 7.44 average pending their
+own re-scores; Compliance's other axes -- industry-standards at 7,
+resilience at 6 per round 20's re-score -- remain open).
