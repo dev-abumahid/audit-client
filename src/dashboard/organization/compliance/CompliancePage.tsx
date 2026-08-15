@@ -440,17 +440,18 @@ export default function CompliancePage() {
                 // UPDATE specifically -- RTK Query's fetchBaseQuery
                 // JSON.stringifies the body, which drops `undefined` keys
                 // entirely, and Prisma treats an absent key as "leave this
-                // column unchanged," not "clear it." Unlike site_id (which
-                // the backend's update_compliance schema explicitly
-                // overrides to accept an explicit null-clears-the-column
-                // value, see compliance.validation.ts),
-                // regulation_reference/recurrence have no such override --
-                // there is currently no way to explicitly clear either
-                // field via this endpoint. Restoring the pre-fix `null`
-                // here on UPDATE only keeps that limitation exactly as it
-                // already was (a loud 400 if you try to clear one) rather
-                // than turning it into this round's silent
-                // no-op-but-reports-success regression.
+                // column unchanged," not "clear it." `null` on UPDATE
+                // correctly clears these fields now that
+                // update_compliance's schema explicitly accepts null for
+                // regulation_reference/recurrence, matching site_id's own
+                // three-way undefined/null/string handling (see
+                // compliance.validation.ts, aexa-server). Before that
+                // backend fix, this same `null` -- which the form always
+                // resends on every save, not just when actively clearing a
+                // value -- 400'd any edit to an obligation whose
+                // regulation_reference/recurrence were already blank, not
+                // just an attempt to clear a previously-set one. Found
+                // live-verifying feat/compliance-edit-history-ui.
                 regulation_reference: form.regulation_reference || null,
                 recurrence: form.recurrence || null,
                 // Mark as human-edited so the SourceBadge reflects the

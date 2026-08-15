@@ -1661,6 +1661,54 @@ describe("CompliancePage", () => {
       expect(submitted.recurrence).toBeNull()
     })
 
+    // Found live-verifying feat/compliance-edit-history-ui: the frontend
+    // always resends regulation_reference/recurrence as null when blank on
+    // EVERY save, not only when the user actively clears a previously-set
+    // value -- editing an obligation whose fields were already unset, and
+    // touching only an unrelated field (title here), still sends the same
+    // null shape. Before aexa-server's update_compliance schema was fixed
+    // to accept null for these two fields, this exact case 400'd. This
+    // pins the payload shape so a future change to only-send-changed-fields
+    // doesn't silently drop the null the backend now correctly relies on.
+    it("still sends null for already-blank regulation_reference/recurrence when editing an unrelated field", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              regulation_reference: null,
+              recurrence: null,
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockUpdateCompliance.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      renderPage()
+
+      const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+      await user.click(
+        within(row).getByText("organization.compliance.editObligation")
+      )
+
+      await user.type(titleInput(), " (revised)")
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.form.update",
+        })
+      )
+
+      await waitFor(() => expect(mockUpdateCompliance).toHaveBeenCalled())
+      const submitted = mockUpdateCompliance.mock.calls[0][0].data
+      expect(submitted.title).toBe("GDPR Article 30 records (revised)")
+      expect(submitted.regulation_reference).toBeNull()
+      expect(submitted.recurrence).toBeNull()
+    })
+
     // Round-3 industry-standards finding: line_of_defense was already
     // returned/settable by the backend (Issue #97) but had no field
     // anywhere in this form and was never displayed in the list.
