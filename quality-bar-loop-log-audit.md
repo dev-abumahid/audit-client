@@ -467,3 +467,14 @@ above -- next step is either a targeted re-score of industry-standards
 adjacent axes at 6) or continuing directly to the next real slice
 (the finding-creation linking flow) before re-scoring, per this
 session's "ship, don't pause on a re-score" practice.
+
+## Round (a11y: search input accessible name, PR #904, batched with Templates)
+
+Cheap, disjoint-file finding from the fresh panel: the search input had
+no accessible name beyond its placeholder, which disappears once typed
+into and isn't a reliable accessible-name source across browsers/AT.
+Added `aria-label` matching the established convention (Compliance/
+Risk Register search inputs already have one). Batched into one PR
+with 3 Templates-side fixes since all 4 touched disjoint files. 1 new
+test, negative-control-verified. Live-verified the aria-label in the
+real DOM. Full suite green. Review: fully clean first round. Merged.

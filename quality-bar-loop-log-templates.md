@@ -343,3 +343,49 @@ Audit Missions' identical gap; `isError` not checked on
 `useGetAllTemplatesQuery`/`useGetSingleTemplateQuery`, the same
 false-all-clear pattern fixed repeatedly elsewhere this session;
 `focus:ring-green-500` inconsistency in `QnASettingsPanel.tsx`).
+
+## Round (a11y + resilience: search label, isError/retry, ring color, PR #904, batched with Audit Missions)
+
+Three cheap, disjoint-file findings from the fresh panel, batched into
+one PR (per the same-tier/non-overlapping-files batching rule) along
+with Audit Missions' identical search-label gap:
+
+- Search input: same missing-aria-label gap as Audit Missions' own
+  search input.
+- `useGetAllTemplatesQuery` omitted `isError` -- a failed fetch fell
+  through to "no templates found," same false-all-clear bug class
+  fixed on 4+ sibling pages this session. Added a table-row error
+  state with retry, matching InspectionTable's own convention.
+- `useGetSingleTemplateQuery` (EditTemplatePage) had the same gap with
+  a worse consequence: a failed fetch fell through to the form render
+  with `templateData` undefined, presenting what looks like an empty
+  *create* form -- the user's edits would then create a new template
+  instead of updating the one they meant to. Added a full-page error
+  state matching this page's own "system template blocked" layout.
+- `QnASettingsPanel`'s option-text inputs used `focus:ring-green-500`
+  instead of the app's standard `focus:ring-primary` -- pure CSS fix.
+
+3 new tests (one each for the aria-label, isError/retry on the list
+page, isError on the edit page), all negative-control-verified. Full
+suite green (129 files, 2211 tests).
+
+Live-verified against the real running stack: confirmed both search
+inputs' `aria-label` in the DOM; genuinely intercepted a real
+`GET /api/template` request (verified via a call counter, not assumed)
+to reproduce the load-failure state, confirmed the retry button
+cleared the error and re-fetched correctly; opened the QnA settings
+panel and confirmed the option inputs now render `focus:ring-primary`.
+Confirmed a clean console in a fresh tab.
+
+Review: fully clean first round -- independently confirmed the isError
+branch ordering (isLoading > isError > empty state), the colSpan match,
+and that RTK Query's `skip: !id` behavior can't produce a spurious
+isError on a route with no id (moot anyway since the route requires
+`:id`). Merged.
+
+**Status:** efficiency's fresh-panel finding (PR #903) and this
+round's a11y/resilience findings are both addressed. Templates' fresh
+panel is not yet re-scored since PRs #903/#904 shipped -- next step is
+either a re-score or continuing to industry-standards' one remaining
+deferred item (full version history/changelog/rollback), still
+characterized as materially larger than everything shipped so far.
