@@ -1447,3 +1447,98 @@ addressed (round 23: History modal trap; round 24: this resilience
 fix). Several rounds (20-24) have now shipped without a fresh full
 9-axis panel confirming cumulative progress -- due for one before
 picking the next round.
+
+## Fresh full 9-axis panel (after rounds 19-24)
+
+Dispatched fresh, honest judges across all 9 axes to confirm cumulative
+progress since round 18 -- not a rubber-stamp of rounds 19-24's own
+fixes. Some duplicate coverage occurred (an earlier meta-dispatch's
+orphaned sub-judges reported independently alongside a second,
+directly-dispatched set); duplicate axes were reconciled by averaging.
+
+| Axis | Score |
+|---|---|
+| Industry-standards | 6/10 (below floor) |
+| UX | 8/10 |
+| Efficiency | 8/10 |
+| Resilience | 7.5/10 (avg of 7, 8) |
+| Accessibility | 7/10 |
+| Visual polish | 8/10 |
+| Code quality | 7.5/10 (avg of 7, 8) |
+| Mobile/responsive | 6.5/10 (avg of 6, 7 -- below floor) |
+| Security | 8/10 |
+
+**Average: 7.39/10.** Below target (8.5); two axes below floor:
+industry-standards (6), mobile (6.5).
+
+Rounds 20/21/23 (focus-trap/restore fixes) and round 22 (overlap fix)
+all confirmed holding live. Round 24's resilience fix confirmed
+holding by two independent judges, one of whom live-reproduced the
+fetch-failure precondition via a scoped `window.fetch` patch and
+confirmed the stale row correctly disappears.
+
+New findings this panel, not covered by rounds 19-24:
+- **Industry-standards (6, lowest):** no column sorting, no bulk
+  actions/multi-select, no export/report affordance, the primary
+  attestation workflow buried three clicks deep in an unlabeled
+  overflow menu, raw accountId shown in the audit trail (confirmed
+  genuinely unfixable frontend-only -- see round below), Owner is
+  free text with no binding to a real org member, no maker-checker
+  approval workflow for status changes (a carried-forward gap).
+- **Mobile (6.5):** `ComplianceFormModal`'s Domain/Site `grid-cols-2`
+  block never got the mobile-width treatment its Status/Due-Date/Owner
+  sibling block already has (round 2's own fix, cited in that block's
+  comment) -- at 375px each select gets ~155px, tight for longer
+  option text. The Actions column's `min-w-[180px]` (round 22's own
+  fix) also means any row with realistic title/description text pushes
+  the table into horizontal scroll at mobile width, with no visible
+  affordance hinting a user needs to scroll right to reach row
+  actions -- scroll-fallback works but wasn't exercised with real data
+  before.
+- Accessibility (7, at floor): color-only status coding in the
+  scorecard matrix's red/orange/green cells (no aria-label on the
+  band, just the ratio text); no `aria-hidden`/`inert` on background
+  content while a custom modal is open (SR virtual-cursor could still
+  reach the table behind a modal, distinct from the Tab-order fixes
+  rounds 20/21/23 already made).
+- Code quality (7.5): the `pendingActionRef`/`triggerRef` deferred-
+  action pattern (rounds 20-21) is an implicit contract with nothing
+  enforcing that a new `DropdownMenuItem` remembers to use it instead
+  of calling its action directly -- a real, if narrow, regression risk
+  for a future round. Comment density is very high throughout the
+  file (a decision log bolted onto the code), which is honest but a
+  real maintainability tax.
+
+## Round (industry-standards: Owner field autocomplete, PR #910)
+
+Industry-standards' own top finding (raw accountId in the attestation
+audit trail) was investigated and confirmed genuinely unfixable
+frontend-only: `OrgMember`'s shape (`src/types/organizationMember.d.ts`)
+exposes `account.email`/`account.profile` but never the underlying
+`accountId` needed to resolve `attested_by`/`edited_by` against it --
+matching the code's own pre-existing comment. Scoped down instead to
+a smaller, real slice with a direct precedent already shipped in this
+codebase: Owner (free text, no binding to a real org member) got the
+same `<datalist>`-backed autocomplete already shipped for AuditPage's
+`lead_auditor` field (round 6) -- confirmed byte-identical in
+implementation by review. Free text still works; nudges toward
+canonical spelling.
+
+New test negative-controlled (an earlier draft had a `not.toBeNull()`
+bug that trivially passed against `undefined` -- caught before
+shipping, fixed to assert the concrete DOM node instead). Full suite
+green (129 files, 2220 tests). Live-verified against the real running
+stack: datalist correctly wired and populated with a real org member
+name. Review: fully clean -- independently confirmed byte-identical
+match against AuditPage's pattern, confirmed no crash risk from a
+null `profile`, confirmed the org-members fetch is unpaginated but
+bounded (same call AuditPage already makes) and adds no new risk.
+Merged.
+
+**Status:** industry-standards' one addressed item this round is real
+but narrow against the axis's structurally larger remaining gaps
+(sorting, bulk actions, export, buried attestation workflow, no
+maker-checker workflow) -- likely still below floor without a re-score.
+Mobile (6.5) remains the other below-floor axis, not yet addressed --
+next round candidate (`ComplianceFormModal`'s Domain/Site select pair
+missing the touch-width treatment its sibling block already has).
