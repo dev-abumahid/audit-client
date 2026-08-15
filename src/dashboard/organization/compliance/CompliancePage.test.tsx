@@ -3161,4 +3161,41 @@ describe("CompliancePage", () => {
       )
     })
   })
+
+  // Round 21 (accessibility, fresh-panel finding -- a regression in round
+  // 20's own fix): deferring the action into onCloseAutoFocus meant
+  // document.activeElement was already <body> by the time the newly-
+  // opened modal's useModalA11y effect captured "whatever's currently
+  // focused" as its own close-time restore target, so closing the modal
+  // dropped focus to <body> instead of back to the row's "More actions"
+  // trigger. Explicitly refocusing the trigger before running the
+  // deferred action fixes this without needing to change every modal's
+  // own focus-capture mechanism.
+  describe("dropdown-menu-invoked modals restore focus to the row's trigger on close, not <body>", () => {
+    it("Edit: closing the modal returns focus to the row's More-actions trigger", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+      const trigger = within(row).getByRole("button", {
+        name: "organization.compliance.moreActionsLabel",
+      })
+      await user.click(trigger)
+      await user.click(
+        within(row).getByText("organization.compliance.editObligation")
+      )
+      await screen.findByRole("dialog")
+
+      await user.keyboard("{Escape}")
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      expect(document.activeElement).toBe(trigger)
+      expect(document.activeElement).not.toBe(document.body)
+    })
+  })
 })

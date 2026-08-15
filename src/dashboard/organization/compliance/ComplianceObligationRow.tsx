@@ -59,6 +59,19 @@ export default function ComplianceObligationRow({
   onCreateAction,
 }: ComplianceObligationRowProps) {
   const { t, i18n } = useTranslation()
+  // Round 21 (accessibility, fresh-panel finding -- a regression in round
+  // 20's own fix): deferring the action into onCloseAutoFocus meant
+  // document.activeElement was already <body> (Radix's own teardown had
+  // already blurred it) by the time the newly-opened modal's useModalA11y
+  // effect ran and captured "whatever's currently focused" as the element
+  // to restore focus to on close -- so closing Edit/Re-attest/History (or
+  // Delete's AlertDialog, same document.activeElement-capture pattern in
+  // DeleteAlertModal.tsx) dropped focus to <body> instead of back to this
+  // trigger. Explicitly refocusing the trigger BEFORE running the deferred
+  // action (below) means it's what's actually focused at the instant the
+  // next modal captures document.activeElement, fixing both directions
+  // without needing to change every modal's own focus-capture mechanism.
+  const triggerRef = useRef<HTMLButtonElement>(null)
   // quality-bar-loop round 20 (accessibility, fresh-panel finding): a
   // plain onCloseAutoFocus={(e) => e.preventDefault()} alone wasn't
   // enough -- live-verified in a real browser that Radix's own internal
@@ -235,6 +248,7 @@ export default function ComplianceObligationRow({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
+                ref={triggerRef}
                 type="button"
                 aria-label={t("organization.compliance.moreActionsLabel", {
                   title: obl.title,
@@ -256,6 +270,10 @@ export default function ComplianceObligationRow({
               align="end"
               onCloseAutoFocus={(e) => {
                 e.preventDefault()
+                // Round 21: restore focus to this trigger BEFORE running
+                // the deferred action -- see triggerRef's own comment for
+                // why this must happen first.
+                triggerRef.current?.focus()
                 pendingActionRef.current?.()
                 pendingActionRef.current = null
               }}
