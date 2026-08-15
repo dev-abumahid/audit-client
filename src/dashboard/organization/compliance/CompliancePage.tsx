@@ -166,6 +166,7 @@ export default function CompliancePage() {
     scorecardError,
     sites,
     sitesError,
+    ownerSuggestions,
     createCompliance,
     isCreating,
     updateCompliance,
@@ -853,6 +854,7 @@ export default function CompliancePage() {
           }
           sites={sites}
           sitesError={sitesError}
+          ownerSuggestions={ownerSuggestions}
           uploading={uploading}
           onUploadAttachment={uploadAttachment}
           onRemoveAttachment={removeAttachment}

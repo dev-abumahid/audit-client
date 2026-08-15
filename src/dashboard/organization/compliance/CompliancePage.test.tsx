@@ -110,6 +110,15 @@ vi.mock("@/redux/apis/organization/sites.api", () => ({
   useGetAllSitesQuery: (...args: unknown[]) => mockUseGetAllSitesQuery(...args),
 }))
 
+// quality-bar-loop round (industry-standards, fresh-panel finding): the
+// Owner field's <datalist> suggestions come from the org's real members,
+// same pattern as AuditPage's lead_auditor field.
+const mockUseGetAllOrgUsersQuery = vi.fn()
+vi.mock("@/redux/apis/organization/org.user.api", () => ({
+  useGetAllOrgUsersQuery: (...args: unknown[]) =>
+    mockUseGetAllOrgUsersQuery(...args),
+}))
+
 // The reused Action-creation modal (#166) pulls in its own RTK Query hooks
 // (findings/inspection/org-users/upload) that this suite doesn't wrap in a
 // store — mock it and capture the props it's opened with, the same pattern
@@ -264,12 +273,14 @@ describe("CompliancePage", () => {
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
     mockUseGetAllSitesQuery.mockReset()
+    mockUseGetAllOrgUsersQuery.mockReset()
     mockCreateActionModal.mockReset()
     // Sensible defaults; individual tests override the compliance query.
     mockUseGetComplianceScorecardQuery.mockReturnValue({
       data: { data: emptyScorecard },
     })
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [] } })
+    mockUseGetAllOrgUsersQuery.mockReturnValue({ data: { data: [] } })
     mockUseGetComplianceAttestationsQuery.mockReturnValue({
       data: { data: [] },
       isLoading: false,
@@ -756,6 +767,57 @@ describe("CompliancePage", () => {
       title: "GDPR Article 30 records EDITED",
       is_edited: true,
     })
+  })
+
+  // quality-bar-loop round (industry-standards, fresh-panel finding): the
+  // Owner field's <datalist> suggestions come from the org's real members,
+  // same pattern as AuditPage's lead_auditor field -- still free text (an
+  // owner can be an external party not in this org), but nudges toward a
+  // canonical spelling instead of letting "Jane Kimura" and "J. Kimura"
+  // fragment the same person across obligations.
+  it("suggests real org member names for the Owner field via a datalist", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+    })
+    mockUseGetAllOrgUsersQuery.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "member-1",
+            role: "ADMIN",
+            status: "ACTIVE",
+            expiresAt: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            isExpired: false,
+            account: {
+              email: "jane.kimura@example.com",
+              profile: { fullName: "Jane Kimura" },
+            },
+          },
+        ],
+      },
+    })
+
+    renderPage()
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /organization\.compliance\.newObligation/i,
+      })
+    )
+
+    const ownerInput = document.getElementById(
+      "compliance-form-owner"
+    ) as HTMLInputElement
+    const datalistId = ownerInput.getAttribute("list")
+    expect(datalistId).not.toBeNull()
+    const datalist = document.getElementById(datalistId!)
+    expect(datalist).not.toBeNull()
+    expect(
+      datalist!.querySelector('option[value="Jane Kimura"]')
+    ).not.toBeNull()
   })
 
   // aexa-frontend#465 -- the form modal's icon-only close button had no

@@ -8,6 +8,7 @@ import {
   useUpdateComplianceMutation,
 } from "@/redux/apis/organization/compliance.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
+import { useGetAllOrgUsersQuery } from "@/redux/apis/organization/org.user.api"
 
 interface UseComplianceDataArgs {
   page: number
@@ -72,6 +73,25 @@ export function useComplianceData({
     limit: 100,
     searchTerm: "",
   })
+  // quality-bar-loop round (industry-standards, fresh-panel finding):
+  // `owner` (ComplianceFormModal) is a plain free-text field with no
+  // binding to a real org member -- unlike reference GRC tools, where
+  // control owners are real users. A full relational owner (a new
+  // ownerAccountId FK + backend migration) is out of scope for a
+  // frontend-only round, but the exact same "free text stays free text,
+  // but nudge toward canonical spelling via a <datalist> sourced from
+  // real org members" pattern already shipped for AuditPage's
+  // lead_auditor field (round 6) applies here too -- same underlying
+  // constraint (no Account relation to migrate to without a schema
+  // change), same fix shape.
+  const { data: orgUsersData } = useGetAllOrgUsersQuery(undefined)
+  const ownerSuggestions = Array.from(
+    new Set(
+      (orgUsersData?.data ?? [])
+        .map((m) => m.account?.profile?.fullName || m.account?.email)
+        .filter((name): name is string => !!name)
+    )
+  )
 
   const [createCompliance, { isLoading: isCreating }] =
     useCreateComplianceMutation()
@@ -104,6 +124,7 @@ export function useComplianceData({
     scorecardError,
     sites,
     sitesError,
+    ownerSuggestions,
     createCompliance,
     isCreating,
     updateCompliance,

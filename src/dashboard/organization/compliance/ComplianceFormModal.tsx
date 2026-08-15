@@ -20,6 +20,7 @@ interface ComplianceFormModalProps {
   editingNextReviewDate: string | null
   sites: SiteSummary[]
   sitesError: boolean
+  ownerSuggestions: string[]
   uploading: boolean
   onUploadAttachment: (file: File) => void
   onRemoveAttachment: (url: string) => void
@@ -42,6 +43,7 @@ export default function ComplianceFormModal({
   editingNextReviewDate,
   sites,
   sitesError,
+  ownerSuggestions,
   uploading,
   onUploadAttachment,
   onRemoveAttachment,
@@ -300,14 +302,30 @@ export default function ComplianceFormModal({
               >
                 {t("organization.compliance.form.owner")}
               </label>
+              {/* quality-bar-loop round (industry-standards, fresh-panel
+                  finding): owner was pure free text with no binding to a
+                  real org member, unlike reference GRC tools where control
+                  owners are real users. Same <datalist>-backed autocomplete
+                  pattern already shipped for AuditPage's lead_auditor field
+                  (round 6) -- free text still works (an owner can be an
+                  external party not in this org), but nudges toward the
+                  same canonical spelling every time instead of letting
+                  "Jane Kimura" and "J. Kimura" silently fragment the same
+                  person across obligations. */}
               <input
                 id="compliance-form-owner"
+                list="compliance-owner-suggestions"
                 value={form.owner}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, owner: e.target.value }))
                 }
                 className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
               />
+              <datalist id="compliance-owner-suggestions">
+                {ownerSuggestions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </div>
           </div>
 
