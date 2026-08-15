@@ -259,3 +259,87 @@ the only genuinely open item is full version history/changelog/
 rollback, already characterized as a materially larger feature than
 the rest of this loop combined, and still the right thing to defer
 rather than force into a mechanical fix round.
+
+## Fresh full 9-axis panel (target raised to 8.5, floor stays 7)
+
+Resumed per "keep going, finish compliance, audit missions and
+templates". The "confirming re-score" above only ever re-verified
+industry-standards narrowly; efficiency, UX, and the other 7 axes had
+never gotten a full panel this session.
+
+| Axis | Score |
+|---|---|
+| Industry-standards | 8/10 |
+| UX | 8/10 |
+| Efficiency | 6/10 (below floor) |
+| Accessibility | 7/10 |
+| Visual polish | 8/10 |
+| Resilience & edge cases | 7/10 |
+| Code quality | 8/10 |
+| Mobile/responsive | 7/10 |
+| Security | 8/10 |
+
+**Average: 7.44/10.** Below target (8.5); efficiency below floor (7).
+
+Efficiency's gaps, live-verified against the real running EditTemplatePage:
+`useAutoSave`'s `form.watch()` handler ran a full `JSON.stringify(value)`
+of the entire form on every keystroke; `useWatch({ name: "pages" })`
+subscribed to the whole nested pages/questions tree just to read each
+page's `.title` for the section navigator; and `onOpenAddModal`/
+`onOpenAnswerPanel` were inline arrow functions passed to the
+`React.memo`-wrapped `EditPageSection`, defeating that memoization
+outright -- every section re-rendered on every keystroke in every
+other section.
+
+## Round (efficiency: stop re-rendering the whole edit page, PR #903)
+
+All three gaps were genuinely frontend-only and independently fixable
+without touching the other two, so shipped together as one PR (same
+file, non-overlapping changes):
+
+- `useAutoSave`'s per-keystroke deep-equality check (used to skip a
+  no-op autosave when an edit is reverted back to the last-saved
+  value) moved out of the `watch()` handler and into `attemptSave`
+  itself, which only runs once per `interval` (2s on this page) --
+  the watch handler now just flags dirty in O(1).
+- `useWatch({ name: "pages" })` narrowed to
+  `useWatch({ name: pageFields.map((_, idx) => \`pages.${idx}.title\`) })`,
+  scoping the subscription to exactly what `SectionNavigator` reads.
+- `onOpenAddModal`/`onOpenAnswerPanel` wrapped in `useCallback` with
+  only the stable `setState` setters as deps.
+
+3 new tests in a new `useAutoSave.test.tsx` (using a real registered
+`&lt;input&gt;` + `fireEvent.change`, since react-hook-form's `setValue()`
+doesn't populate `watch()`'s `type` as `"change"` the way a real DOM
+event does -- a constraint this same loop's PR #677 review already
+documented) plus 1 new test in `EditTemplatePage.test.tsx` capturing
+callback references across an unrelated re-render. All 4
+negative-control-verified. Full suite green (129 files, 2207 tests).
+
+Live-verified against the real running stack: opened a real 3-section
+template, typed into section 1's title, confirmed the sidebar
+navigator updated live from the scoped watch (proving the narrower
+subscription still serves its purpose), reverted the edit, confirmed
+autosave still fired ("All changes saved" / "Saved") and persisted
+correctly. Confirmed a clean console in a fresh tab.
+
+Review: fully clean on the first round -- independently verified the
+`useWatch` resubscription timing against the installed react-hook-form
+source (no stale-index window around field-array add/remove), the
+`stringified` value reused for `lastSavedDataRef` matches what was
+actually persisted, and the `useCallback` deps are sufficient (stable
+setState setters). One pre-existing, non-regressed behavior noted
+(edits made strictly during an in-flight save without any further
+keystroke after it completes don't trigger a following autosave) --
+present before this diff too, not introduced by it.
+
+**Status:** efficiency's fresh-panel finding is addressed. Not yet
+re-scored against the full panel above -- next step is either a
+targeted re-score of efficiency (and ideally accessibility/resilience/
+mobile, this panel's other axes sitting just above floor at 7) or
+continuing directly to the cheap cross-page findings already
+identified this session (search input missing aria-label, matching
+Audit Missions' identical gap; `isError` not checked on
+`useGetAllTemplatesQuery`/`useGetSingleTemplateQuery`, the same
+false-all-clear pattern fixed repeatedly elsewhere this session;
+`focus:ring-green-500` inconsistency in `QnASettingsPanel.tsx`).
