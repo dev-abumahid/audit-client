@@ -12,8 +12,17 @@ import { useEffect, useRef } from "react"
 // multi-character userEvent.type() into the name field stopped after the
 // first character).
 
+// quality-bar-loop round (Compliance accessibility, fresh-panel finding):
+// `:not([tabindex="-1"])` was only attached to the standalone `[tabindex]`
+// clause -- in a comma-separated selector list each clause is independent,
+// so a `<button tabIndex={-1}>` (a roving-tabindex pattern's inactive
+// items, e.g. AttestHistoryModal.tsx's tabs) still matched the earlier
+// `button:not([disabled])` clause and was wrongly counted as part of the
+// trap, even though real Tab navigation skips tabindex="-1" elements
+// entirely -- live-reproduced: Tab escaped the modal into the background
+// page after only 2 presses. Every clause now excludes tabindex="-1".
 const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  'a[href]:not([tabindex="-1"]), button:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])'
 
 // Round 9 audit (aexa-frontend#471) -- KriDashboardPage's three modals were
 // plain divs with no role="dialog", no focus trap, and no Escape handling.
