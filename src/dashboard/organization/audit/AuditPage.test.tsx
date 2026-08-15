@@ -44,6 +44,14 @@ vi.mock("@/redux/apis/organization/org.user.api", () => ({
     mockUseGetAllOrgUsersQuery(...args),
 }))
 
+// quality-bar-loop round (industry-standards, fresh-panel finding):
+// AuditRemediationStatus fetches findings scoped to a completed engagement.
+const mockUseGetAllFindingsQuery = vi.fn()
+vi.mock("@/redux/apis/organization/findings.api", () => ({
+  useGetAllFindingsQuery: (...args: unknown[]) =>
+    mockUseGetAllFindingsQuery(...args),
+}))
+
 vi.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
 }))
@@ -106,7 +114,15 @@ describe("AuditPage", () => {
     mockToastError.mockReset()
     mockUseGetAllRisksQuery.mockReset()
     mockUseGetAllOrgUsersQuery.mockReset()
+    mockUseGetAllFindingsQuery.mockReset()
     mockNavigate.mockReset()
+    // Default: no findings for whatever engagement id is requested, unless
+    // a test overrides this.
+    mockUseGetAllFindingsQuery.mockReturnValue({
+      data: { data: [] },
+      isLoading: false,
+      isError: false,
+    })
     // Default: the org's risks are available to the picker unless a test
     // overrides this.
     mockUseGetAllRisksQuery.mockReturnValue({
@@ -1463,5 +1479,137 @@ describe("AuditPage", () => {
       (screen.getByRole("button", { name: "organization.audit.retry" }) as HTMLButtonElement)
         .type
     ).toBe("button")
+  })
+
+  // quality-bar-loop round (industry-standards, fresh-panel finding): a
+  // completed engagement's findings_count was a hand-typed integer with no
+  // way to tell whether any of it had actually been remediated (IIA
+  // Standard 2500). AuditRemediationStatus reads real per-finding status
+  // scoped to this engagement via the auditEngagementId filter.
+  describe("remediation status (completed engagements)", () => {
+    it("does not query or render remediation status for a non-completed engagement", () => {
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [makeEngagement({ status: "in_progress" })] },
+        isLoading: false,
+      })
+
+      render(<AuditPage />)
+
+      expect(mockUseGetAllFindingsQuery).not.toHaveBeenCalled()
+      expect(
+        screen.queryByText(/organization\.audit\.remediationLabel/)
+      ).not.toBeInTheDocument()
+    })
+
+    it("scopes the findings query to this engagement and shows resolved/total for a completed engagement", () => {
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeEngagement({
+              id: "audit-9",
+              status: "completed",
+              closed_at: "2026-04-01T00:00:00.000Z",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: {
+          data: [
+            { id: "f1", status: "COMPLETE" },
+            { id: "f2", status: "CANT_DO" },
+            { id: "f3", status: "IN_PROGRESS" },
+            { id: "f4", status: "TO_DO" },
+          ],
+        },
+        isLoading: false,
+        isError: false,
+      })
+
+      render(<AuditPage />)
+
+      expect(mockUseGetAllFindingsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ auditEngagementId: "audit-9" })
+      )
+      const progress = screen.getByRole("progressbar")
+      expect(progress).toHaveAttribute("aria-valuenow", "50")
+    })
+
+    // Review round 1 finding: the findings fetch is capped at limit=100, so
+    // for an engagement with more findings than that, findings.length would
+    // silently understate the real total instead of reflecting it. The
+    // denominator must come from the server-reported meta.total.
+    it("uses the real server-side total (meta.total), not the capped page length, as the denominator", () => {
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [makeEngagement({ id: "audit-10", status: "completed" })] },
+        isLoading: false,
+      })
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: {
+          data: [
+            { id: "f1", status: "COMPLETE" },
+            { id: "f2", status: "TO_DO" },
+          ],
+          meta: { total: 150 },
+        },
+        isLoading: false,
+        isError: false,
+      })
+
+      render(<AuditPage />)
+
+      expect(
+        screen.getByText("organization.audit.remediationLabel")
+      ).toBeInTheDocument()
+      // 1 resolved out of a real total of 150 (not 2, the fetched page's
+      // length) -- 1% rounded, not the 50% a findings.length denominator
+      // would wrongly produce.
+      expect(screen.getByRole("progressbar")).toHaveAttribute(
+        "aria-valuenow",
+        "1"
+      )
+    })
+
+    // Review round 2 finding: a backend-reported meta.total of 0 alongside
+    // a non-empty findings page (an inconsistency, but not one this
+    // component should crash on) must not produce NaN in aria-valuenow.
+    it("does not render NaN when meta.total is 0 despite non-empty findings", () => {
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [makeEngagement({ id: "audit-11", status: "completed" })] },
+        isLoading: false,
+      })
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: {
+          data: [{ id: "f1", status: "TO_DO" }],
+          meta: { total: 0 },
+        },
+        isLoading: false,
+        isError: false,
+      })
+
+      render(<AuditPage />)
+
+      expect(screen.getByRole("progressbar")).toHaveAttribute(
+        "aria-valuenow",
+        "0"
+      )
+    })
+
+    it("renders nothing when the completed engagement has no findings", () => {
+      mockUseGetAllAuditEngagementsQuery.mockReturnValue({
+        data: { data: [makeEngagement({ status: "completed" })] },
+        isLoading: false,
+      })
+      mockUseGetAllFindingsQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+        isError: false,
+      })
+
+      render(<AuditPage />)
+
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument()
+    })
   })
 })

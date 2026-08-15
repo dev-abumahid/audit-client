@@ -1,5 +1,6 @@
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
 import Pagination from "@/components/shared/Pagination"
+import AuditRemediationStatus from "./AuditRemediationStatus"
 import type {
   AuditEngagement,
   AuditEngagementWrite,
@@ -725,6 +726,9 @@ export default function AuditPage() {
                   </span>
                 )}
               </div>
+              {eng.status === "completed" && (
+                <AuditRemediationStatus engagementId={eng.id} />
+              )}
             </div>
           )
         })}

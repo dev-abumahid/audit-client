@@ -10,6 +10,11 @@ interface GetAllFindingsArgs {
   searchTerm: string
   siteId: string
   inspectionId?: string
+  // Audit Missions industry-standards round: scopes findings to a single
+  // audit engagement via the FK aexa-server#244 already added to Action,
+  // so a completed engagement's remediation status can be read without a
+  // new schema/migration.
+  auditEngagementId?: string
 }
 
 // What create/update actually send to the backend — action.service.ts's
@@ -74,8 +79,8 @@ const findingsApi = baseApi.injectEndpoints({
       PaginatedApiResponse<IAction>,
       GetAllFindingsArgs
     >({
-      query: ({ page, limit, searchTerm, siteId, inspectionId }) => ({
-        url: `/action?${buildQueryString({ page, limit, searchTerm, siteId, inspectionId })}`,
+      query: ({ page, limit, searchTerm, siteId, inspectionId, auditEngagementId }) => ({
+        url: `/action?${buildQueryString({ page, limit, searchTerm, siteId, inspectionId, auditEngagementId })}`,
         method: "GET",
       }),
       providesTags: ["FINDINGS"],

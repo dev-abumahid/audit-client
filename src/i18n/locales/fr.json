@@ -1507,6 +1507,7 @@
       "priorityLabel": "Priorité :",
       "findingsLabel": "Constats :",
       "linkedRisksLabel": "Risques liés :",
+      "remediationLabel": "{{resolved}} constat(s) résolu(s) sur {{total}}",
       "startedLabel": "Débuté :",
       "closedLabel": "Clôturé :",
       "viewRiskDetails": "Voir les détails du risque",

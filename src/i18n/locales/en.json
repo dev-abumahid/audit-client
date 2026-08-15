@@ -1507,6 +1507,7 @@
       "priorityLabel": "Priority:",
       "findingsLabel": "Findings:",
       "linkedRisksLabel": "Linked Risks:",
+      "remediationLabel": "{{resolved}} of {{total}} findings resolved",
       "startedLabel": "Started:",
       "closedLabel": "Closed:",
       "viewRiskDetails": "View risk details",
