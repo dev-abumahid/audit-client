@@ -10,6 +10,7 @@ import {
   RotateCw,
   Trash2,
 } from "lucide-react"
+import { useRef } from "react"
 import { Link } from "react-router"
 import { useTranslation } from "react-i18next"
 import SourceBadge from "@/components/dashboard/organization/SourceBadge"
@@ -58,6 +59,19 @@ export default function ComplianceObligationRow({
   onCreateAction,
 }: ComplianceObligationRowProps) {
   const { t, i18n } = useTranslation()
+  // quality-bar-loop round 20 (accessibility, fresh-panel finding): a
+  // plain onCloseAutoFocus={(e) => e.preventDefault()} alone wasn't
+  // enough -- live-verified in a real browser that Radix's own internal
+  // FocusScope teardown for the closing dropdown still raced against (and
+  // beat) the newly-mounted modal's own mount-time focus() call
+  // (useModalA11y.ts), landing focus on <body> instead of either the
+  // trigger or the modal. Deferring the actual onEdit/onAttest/onHistory/
+  // onDelete call to run INSIDE onCloseAutoFocus (after Radix has fully
+  // torn down its own focus scope) removes the race entirely instead of
+  // trying to win it -- the modal only mounts once Radix is done, same
+  // "let Radix's own close event own the handoff" pattern already
+  // established for UpdateInspection.tsx's status dropdown (round 48).
+  const pendingActionRef = useRef<(() => void) | null>(null)
   const StatusIcon = statusIcons[obl.status] || Clock
   // aexa-server#250 -- `overdue` is computed server-side from
   // next_review_date (falling back to due_date when unset), so a recurring
@@ -230,9 +244,28 @@ export default function ComplianceObligationRow({
                 <MoreVertical className="h-4 w-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            {/* quality-bar-loop round 20 (accessibility, fresh-panel
+                finding): every DropdownMenuItem below stashes its action
+                into pendingActionRef instead of calling it directly, and
+                onCloseAutoFocus (fired once Radix has fully torn down its
+                own focus scope for the closing dropdown) both prevents
+                Radix's default return-to-trigger AND runs the stashed
+                action -- see pendingActionRef's own comment above for why
+                a plain preventDefault alone wasn't sufficient. */}
+            <DropdownMenuContent
+              align="end"
+              onCloseAutoFocus={(e) => {
+                e.preventDefault()
+                pendingActionRef.current?.()
+                pendingActionRef.current = null
+              }}
+            >
               {canWrite && (
-                <DropdownMenuItem onClick={() => onEdit(obl)}>
+                <DropdownMenuItem
+                  onClick={() => {
+                    pendingActionRef.current = () => onEdit(obl)
+                  }}
+                >
                   <Pencil className="h-3.5 w-3.5" />
                   {t("organization.compliance.editObligation")}
                 </DropdownMenuItem>
@@ -244,18 +277,20 @@ export default function ComplianceObligationRow({
                   edit/delete (assertCanWriteOrgResource). */}
               {canWrite && (
                 <DropdownMenuItem
-                  onClick={(e) =>
-                    onAttest(obl, e.currentTarget as unknown as HTMLElement)
-                  }
+                  onClick={(e) => {
+                    const trigger = e.currentTarget as unknown as HTMLElement
+                    pendingActionRef.current = () => onAttest(obl, trigger)
+                  }}
                 >
                   <RotateCw className="h-3.5 w-3.5" />
                   {t("organization.compliance.attest.button")}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
-                onClick={(e) =>
-                  onHistory(obl, e.currentTarget as unknown as HTMLElement)
-                }
+                onClick={(e) => {
+                  const trigger = e.currentTarget as unknown as HTMLElement
+                  pendingActionRef.current = () => onHistory(obl, trigger)
+                }}
               >
                 <History className="h-3.5 w-3.5" />
                 {t("organization.compliance.attest.historyButton")}
@@ -263,7 +298,9 @@ export default function ComplianceObligationRow({
               {canWrite && (
                 <DropdownMenuItem
                   variant="destructive"
-                  onClick={() => onDelete(obl.id)}
+                  onClick={() => {
+                    pendingActionRef.current = () => onDelete(obl.id)
+                  }}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   {t("organization.compliance.deleteObligation")}

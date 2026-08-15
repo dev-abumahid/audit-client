@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { createContext, useContext } from "react"
 import type React from "react"
 import { MemoryRouter } from "react-router"
 import CompliancePage from "./CompliancePage"
@@ -118,6 +119,30 @@ const mockCreateActionModal = vi.fn()
 // reason InspectionTable.test.tsx swaps out its Select. Content is rendered
 // unconditionally (no open/closed simulation) so the row actions are
 // directly queryable without needing to click the trigger first.
+// quality-bar-loop round 20 (accessibility, fresh-panel finding): captures
+// every onCloseAutoFocus handler this mock is rendered with, so a test can
+// assert ComplianceObligationRow actually passes one that prevents Radix's
+// default close-focus-return -- the real Radix DropdownMenuContent isn't
+// used here at all (fully mocked below), so jsdom timing can't reproduce
+// the actual trigger-steals-focus-back race this fix addresses; asserting
+// the handler exists and calls preventDefault is the deterministic
+// substitute for that live-browser-only race.
+//
+// ComplianceObligationRow now defers each item's actual action (edit/
+// attest/history/delete) to run INSIDE onCloseAutoFocus rather than
+// directly in the item's own onClick (see that file's own comment for
+// why) -- so this mock's DropdownMenuItem simulates Radix actually
+// closing the menu after a click by invoking ITS OWN DropdownMenuContent
+// ancestor's onCloseAutoFocus handler right after the item's onClick, the
+// same sequence a real click-to-select in Radix produces. Scoped per
+// DropdownMenuContent instance via context (not a single shared module
+// variable) since the obligations table renders one dropdown per row --
+// a shared "last one wins" variable would call the WRONG row's handler
+// whenever more than one row is present.
+const capturedOnCloseAutoFocusHandlers: ((e: Event) => void)[] = []
+const OnCloseAutoFocusContext = createContext<((e: Event) => void) | null>(
+  null
+)
 vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenu: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
@@ -125,9 +150,20 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  ),
+  DropdownMenuContent: ({
+    children,
+    onCloseAutoFocus,
+  }: {
+    children: React.ReactNode
+    onCloseAutoFocus?: (e: Event) => void
+  }) => {
+    if (onCloseAutoFocus) capturedOnCloseAutoFocusHandlers.push(onCloseAutoFocus)
+    return (
+      <OnCloseAutoFocusContext.Provider value={onCloseAutoFocus ?? null}>
+        <div>{children}</div>
+      </OnCloseAutoFocusContext.Provider>
+    )
+  },
   DropdownMenuItem: ({
     children,
     onClick,
@@ -136,11 +172,23 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
     children: React.ReactNode
     onClick?: (e: React.MouseEvent) => void
     variant?: string
-  }) => (
-    <button type="button" onClick={onClick} data-variant={variant}>
-      {children}
-    </button>
-  ),
+  }) => {
+    const onCloseAutoFocus = useContext(OnCloseAutoFocusContext)
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          onClick?.(e)
+          onCloseAutoFocus?.({
+            preventDefault: () => {},
+          } as unknown as Event)
+        }}
+        data-variant={variant}
+      >
+        {children}
+      </button>
+    )
+  },
 }))
 
 vi.mock("@/dashboard/organization/findings/CreateNewFindingModal", () => ({
@@ -3052,5 +3100,65 @@ describe("CompliancePage", () => {
       })
     )
     sweep()
+  })
+
+  // quality-bar-loop round 20 (accessibility, fresh-panel finding): Radix
+  // DropdownMenu's own default onCloseAutoFocus behavior returns focus to
+  // the "More actions" trigger asynchronously after the dropdown closes --
+  // racing against, and previously winning against, the newly-opened
+  // modal's own mount-time focus() call (useModalA11y.ts), so Tab would
+  // escape into the background table instead of staying trapped in the
+  // modal that visually just opened. This file's own dropdown-menu mock
+  // (above) fully replaces Radix's real DropdownMenuContent, so jsdom has
+  // no async focus-return timing to race in the first place -- a live
+  // "focus ends up in the dialog" assertion here would pass identically
+  // whether or not ComplianceObligationRow.tsx actually passes
+  // onCloseAutoFocus, proving nothing about this specific fix. The
+  // deterministic substitute: assert the row genuinely passes a handler
+  // that calls preventDefault, which the mock captures.
+  it("passes an onCloseAutoFocus handler to the row's dropdown menu that prevents Radix's default focus-return", () => {
+    mockUseGetAllComplianceQuery.mockReturnValue({
+      data: { data: [makeObligation()] },
+      isLoading: false,
+    })
+    capturedOnCloseAutoFocusHandlers.length = 0
+
+    renderPage()
+
+    expect(capturedOnCloseAutoFocusHandlers.length).toBeGreaterThan(0)
+    const fakeEvent = { preventDefault: vi.fn() } as unknown as Event
+    capturedOnCloseAutoFocusHandlers[0](fakeEvent)
+    expect((fakeEvent as unknown as { preventDefault: () => void }).preventDefault).toHaveBeenCalled()
+  })
+
+  // Live-behavior sanity check (not sensitive to the round-20 fix itself,
+  // per the comment above) -- confirms opening each dropdown-invoked modal
+  // does land focus inside its own dialog, independent of the trigger.
+  describe("dropdown-menu-invoked modals land focus inside their own dialog", () => {
+    it.each([
+      ["Edit", "organization.compliance.editObligation"],
+      ["Re-attest", "organization.compliance.attest.button"],
+      ["History", "organization.compliance.attest.historyButton"],
+    ])("%s", async (_label, itemKey) => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+      const trigger = within(row).getByRole("button", {
+        name: "organization.compliance.moreActionsLabel",
+      })
+      await user.click(trigger)
+      await user.click(within(row).getByText(itemKey))
+
+      const dialog = await screen.findByRole("dialog")
+      await waitFor(() =>
+        expect(dialog.contains(document.activeElement)).toBe(true)
+      )
+    })
   })
 })
