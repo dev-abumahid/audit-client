@@ -102,7 +102,17 @@ const EditTemplatePage = () => {
   // field-array semantics) — watch the live values so the navigator shows
   // section titles as they're typed, not stale ones from when each section
   // was created or last loaded.
-  const watchedPages = useWatch({ control, name: "pages" })
+  //
+  // quality-bar-loop round (Templates efficiency, fresh-panel finding):
+  // this used to watch the whole `pages` tree (`name: "pages"`), so typing
+  // into any question anywhere on any page re-rendered this component with
+  // the entire nested pages array, even though only each page's `title` is
+  // ever read below. Watching just the title field paths scopes the
+  // subscription to what's actually used.
+  const watchedTitles = useWatch({
+    control,
+    name: pageFields.map((_, idx) => `pages.${idx}.title` as const),
+  })
   const { activeIndex, registerSection, scrollToSection } = useSectionScroll(
     pageFields.map((f) => f.fieldId)
   )
@@ -285,6 +295,23 @@ const EditTemplatePage = () => {
       setAnswerPanel(null)
     },
     [answerPanel, setValue]
+  )
+
+  // quality-bar-loop round (Templates efficiency, fresh-panel finding):
+  // these were inline arrow functions passed straight to EditPageSection's
+  // onOpenAddModal/onOpenAnswerPanel props -- a new function identity every
+  // render, which defeats EditPageSection's React.memo (it re-renders on
+  // every keystroke in every OTHER section, not just its own, since props
+  // always look "changed"). Wrapped in useCallback with only the stable
+  // setState setters as deps so the identity holds across renders.
+  const handleOpenAddModal = useCallback((pageIndex: number) => {
+    setAddModalTarget(pageIndex)
+  }, [])
+  const handleOpenAnswerPanel = useCallback(
+    (pageIndex: number, questionIndex: number) => {
+      setAnswerPanel({ pageIndex, questionIndex })
+    },
+    []
   )
 
   const currentStatus = useWatch({ control, name: "status" })
@@ -587,7 +614,7 @@ const EditTemplatePage = () => {
             <SectionNavigator
               sections={pageFields.map((pageField, idx) => ({
                 id: pageField.fieldId,
-                title: watchedPages?.[idx]?.title ?? "",
+                title: watchedTitles?.[idx] ?? "",
               }))}
               activeIndex={activeIndex}
               onSelect={scrollToSection}
@@ -605,10 +632,8 @@ const EditTemplatePage = () => {
                     control={control}
                     removePage={removePage}
                     totalPages={pageFields.length}
-                    onOpenAddModal={(pi) => setAddModalTarget(pi)}
-                    onOpenAnswerPanel={(pi, qi) =>
-                      setAnswerPanel({ pageIndex: pi, questionIndex: qi })
-                    }
+                    onOpenAddModal={handleOpenAddModal}
+                    onOpenAnswerPanel={handleOpenAnswerPanel}
                     getValues={getValues}
                     setValue={setValue}
                     isEditMode={true}

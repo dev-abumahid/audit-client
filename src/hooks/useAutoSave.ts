@@ -45,19 +45,23 @@ export function useAutoSave({
     }
   }, [])
 
-  // Track form changes
+  // Track form changes.
+  //
+  // quality-bar-loop round (Templates efficiency, fresh-panel finding):
+  // this used to JSON.stringify the entire form on every single keystroke
+  // to check whether the new value equals the last-saved snapshot (so a
+  // revert-to-saved edit wouldn't trigger a no-op autosave) -- O(form size)
+  // work on every keystroke, not just every `interval`. A "change" event
+  // means changed almost always, so that deep-equality check is moved into
+  // attemptSave below (see its own comment), which only runs once per
+  // `interval` -- this handler now just flags dirty in O(1).
   useEffect(() => {
     if (!enabled) return
 
-    const subscription = form.watch((value, { type }) => {
+    const subscription = form.watch((_value, { type }) => {
       if (type === "change") {
-        const currentData = JSON.stringify(value)
-        const hasUnsavedChanges = currentData !== lastSavedDataRef.current
-        setHasChanges(hasUnsavedChanges)
-
-        if (hasUnsavedChanges) {
-          setSaveStatus("idle")
-        }
+        setHasChanges(true)
+        setSaveStatus("idle")
       }
     })
 
@@ -97,14 +101,27 @@ export function useAutoSave({
           return
         }
 
+        const currentData = form.getValues()
+        // The deep-equality check that used to run on every keystroke (see
+        // the watch() handler above) now runs here instead -- once per
+        // `interval`, not once per keystroke. Catches the case where a
+        // "change" event fired (e.g. the user typed something then undid it
+        // back to the last-saved value) but the data is actually unchanged,
+        // so a real network call isn't made for a no-op edit.
+        const stringified = JSON.stringify(currentData)
+        if (stringified === lastSavedDataRef.current) {
+          setHasChanges(false)
+          setSaveStatus("idle")
+          return
+        }
+
         setSaveStatus("saving")
         isSavingRef.current = true
 
-        const currentData = form.getValues()
         await onSave(currentData)
         if (cancelled) return
 
-        lastSavedDataRef.current = JSON.stringify(currentData)
+        lastSavedDataRef.current = stringified
         setHasChanges(false)
         setSaveStatus("saved")
 

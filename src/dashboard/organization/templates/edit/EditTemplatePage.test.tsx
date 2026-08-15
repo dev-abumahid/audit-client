@@ -70,20 +70,38 @@ vi.mock("@/redux/apis/organization/template.api", () => ({
 // Still exposes its onOpenAddModal trigger as a plain button so the
 // aexa-frontend#485 regression test below can reach the "Add New" modal
 // (owned by this page, not EditPageSection) without pulling in dnd-kit.
+// quality-bar-loop round (Templates efficiency, fresh-panel finding):
+// records every onOpenAddModal/onOpenAnswerPanel reference this mock is
+// re-rendered with, so a test can assert the real EditTemplatePage keeps
+// passing the SAME function identity across renders (see
+// "keeps a stable onOpenAddModal/onOpenAnswerPanel reference" below) --
+// EditPageSection is wrapped in React.memo in the real module, and a new
+// function identity on every render would defeat that memoization.
+const capturedOnOpenAddModalRefs: ((pageIndex: number) => void)[] = []
+const capturedOnOpenAnswerPanelRefs: ((
+  pageIndex: number,
+  questionIndex: number
+) => void)[] = []
 vi.mock("./EditPagesection", () => ({
   default: ({
     pageIndex,
     onOpenAddModal,
+    onOpenAnswerPanel,
   }: {
     pageIndex: number
     onOpenAddModal: (pageIndex: number) => void
-  }) => (
-    <div data-testid="edit-page-section">
-      <button type="button" onClick={() => onOpenAddModal(pageIndex)}>
-        open add modal
-      </button>
-    </div>
-  ),
+    onOpenAnswerPanel: (pageIndex: number, questionIndex: number) => void
+  }) => {
+    capturedOnOpenAddModalRefs.push(onOpenAddModal)
+    capturedOnOpenAnswerPanelRefs.push(onOpenAnswerPanel)
+    return (
+      <div data-testid="edit-page-section">
+        <button type="button" onClick={() => onOpenAddModal(pageIndex)}>
+          open add modal
+        </button>
+      </div>
+    )
+  },
 }))
 
 function renderPage() {
@@ -103,6 +121,32 @@ describe("EditTemplatePage", () => {
       data: { data: makeTemplateData() },
       isLoading: false,
     })
+    capturedOnOpenAddModalRefs.length = 0
+    capturedOnOpenAnswerPanelRefs.length = 0
+  })
+
+  // quality-bar-loop round (Templates efficiency, fresh-panel finding):
+  // these were inline arrow functions before this round, so EditPageSection
+  // (React.memo-wrapped in the real module) received a new prop identity on
+  // every render and re-rendered regardless of whether its own data
+  // actually changed. Opening then closing the "Add" modal re-renders
+  // EditTemplatePage twice via unrelated state (addModalTarget) -- the
+  // callback refs it hands to EditPageSection must stay the same identity
+  // across both renders.
+  it("keeps a stable onOpenAddModal/onOpenAnswerPanel reference across unrelated re-renders", async () => {
+    renderPage()
+
+    expect(capturedOnOpenAddModalRefs.length).toBeGreaterThan(0)
+    const firstOnOpenAddModal = capturedOnOpenAddModalRefs.at(-1)
+    const firstOnOpenAnswerPanel = capturedOnOpenAnswerPanelRefs.at(-1)
+
+    await userEvent.click(screen.getByText("open add modal"))
+    await userEvent.click(
+      screen.getByText("organization.templates.create.cancel")
+    )
+
+    expect(capturedOnOpenAddModalRefs.at(-1)).toBe(firstOnOpenAddModal)
+    expect(capturedOnOpenAnswerPanelRefs.at(-1)).toBe(firstOnOpenAnswerPanel)
   })
 
   describe("logo preview object URL lifecycle", () => {
