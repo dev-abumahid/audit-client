@@ -1407,3 +1407,43 @@ addressed -- round 21's trap/restore chain covers all three dropdown-
 invoked modals correctly (this round closed the History-specific gap).
 Still open: the resilience finding (stale, filter-mismatched data
 rendering alongside the fetch-failed error banner) -- next round.
+
+## Round 24 (resilience: stale data hidden on refetch error, PR #909)
+
+Fixed finding #2 from round 22's re-score: `CompliancePage.tsx`
+rendered `obligations.map(...)` unconditionally regardless of
+`complianceError` -- RTK Query correctly retains the last-successful
+`data` through a failed refetch (e.g. changing the domain filter
+while the endpoint is down), so a fetch failure showed the error
+banner AND a full table of stale, filter-mismatched rows from the OLD
+filter at the same time, with nothing distinguishing "current" from
+"stale and mismatched."
+
+**Fix:** gate the table row rendering on `!complianceError`, mirroring
+the empty-state block's own already-shipped `!complianceError` gate a
+few lines below on the same page.
+
+New negative-controlled test mocks the exact shape RTK Query produces
+in this scenario (stale `data` + `isError: true` together). Full
+suite green (129 files, 2219 tests).
+
+Live verification took two attempts. My own attempt could not get
+`isError` to visibly flip true in the running page despite confirming
+the fetch-interception patch genuinely reached the exact expected
+request (a raw manual `fetch()` call to the same URL correctly
+returned the injected 500) -- flagged this honestly in the PR rather
+than claiming a live verification that hadn't actually succeeded.
+Review round 1 independently retried with a slightly different
+technique (native `&lt;select&gt;` interaction instead of a manual event
+dispatch) and succeeded: the stale row disappeared and the error
+banner rendered correctly. The reviewer also independently re-ran the
+new test against a temporarily-reverted pre-fix source file (test
+unchanged) and confirmed it fails exactly as expected -- a genuine,
+externally-verified negative control, not just trusted from the PR
+description. Merged.
+
+**Status:** both real findings from round 22's re-score are now
+addressed (round 23: History modal trap; round 24: this resilience
+fix). Several rounds (20-24) have now shipped without a fresh full
+9-axis panel confirming cumulative progress -- due for one before
+picking the next round.
