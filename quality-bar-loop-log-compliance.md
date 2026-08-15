@@ -1367,3 +1367,43 @@ dropdown-invoked modals correctly (Edit, Re-attest); History has its
 own distinct root cause (a shared hook's selector, not this round's
 own fix) and needs a separate round. Resilience has a second real,
 live-reproduced gap beyond round 20's original findings.
+
+## Round 23 (accessibility: History modal focus-trap escape, PR #908)
+
+Fixed finding #1 from round 22's re-score pass: `useModalA11y.ts`'s
+`FOCUSABLE_SELECTOR` had `:not([tabindex="-1"])` attached only to the
+standalone `[tabindex]` clause -- in a comma-separated CSS selector
+list each clause is independent, so a `<button tabIndex={-1}>` (a
+roving-tabindex pattern's inactive items, e.g.
+`AttestHistoryModal.tsx`'s tabs, round 12) still matched the earlier
+`button:not([disabled])` clause and was wrongly counted as part of
+the trap. Real Tab navigation skips `tabindex="-1"` entirely, so the
+trap's own wraparound logic desynced from what a keyboard user could
+actually reach -- live-reproduced by the re-score: Tab escaped
+`AttestHistoryModal` into the background page after only 2 presses.
+
+**Fix:** every clause in `FOCUSABLE_SELECTOR` now excludes
+`tabindex="-1"`. This is a shared hook used by 20 consumers across the
+app (KRI, Audit, Compliance, Templates, Inspections, etc.) -- swept
+all of them: only `AttestHistoryModal.tsx` renders a `tabindex="-1"`
+element inside a `useModalA11y`-managed container, so the fix is a
+pure positive effect there and a no-op everywhere else (the change
+only narrows the matched set, never broadens it, so no other consumer
+could regress).
+
+New negative-controlled test mirrors `AttestHistoryModal`'s real
+active/inactive tab structure exactly. Full suite green (129 files,
+2218 tests). Live-verified against the real running stack: opened
+`AttestHistoryModal` from the row dropdown, confirmed it now stays
+correctly trapped through 10 consecutive Tab presses (previously
+escaped after 2), confirmed Escape and focus-restore-on-close both
+still work. Review: fully clean -- independently swept all 20
+consumers, confirmed no other modal has a tabindex=-1 descendant,
+confirmed the CSS selector syntax is valid character-by-character.
+Merged.
+
+**Status:** both real findings from round 22's re-score are now
+addressed -- round 21's trap/restore chain covers all three dropdown-
+invoked modals correctly (this round closed the History-specific gap).
+Still open: the resilience finding (stale, filter-mismatched data
+rendering alongside the fetch-failed error banner) -- next round.
