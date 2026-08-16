@@ -36,7 +36,7 @@ const { mockT } = vi.hoisted(() => ({
       "auth.signUp.emailInvalidText": "Please enter a valid email",
       "auth.signUp.passwordReqText": "Password is required",
       "auth.signUp.passwordMinLengthReqText":
-        "Password must be at least 8 characters",
+        "Password must be at least 10 characters",
       "auth.genericError": "Something went wrong",
       "auth.verifyOtp.title": "Check your email",
       "auth.verifyOtp.subTitle": "We sent a verification code to",
@@ -268,19 +268,19 @@ describe("SignUpModal", () => {
     expect(mockT).toHaveBeenCalledWith("auth.signUp.emailReqText")
   })
 
-  it("shows a translated message when password is under 8 characters", async () => {
+  it("shows a translated message when password is under 10 characters", async () => {
     const user = userEvent.setup()
     renderModal()
 
     await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
     await user.type(screen.getByLabelText("Email"), "admin@acme.com")
-    // 7 chars -- one short of the unified 8-character policy shared with
-    // ResetPasswordPage (aexa-frontend#445).
-    await user.type(screen.getByLabelText("Password"), "abcdefg")
+    // 9 chars -- one short of the backend's 10-character minimum
+    // (aexa-frontend#916: frontend previously allowed 8, backend requires 10).
+    await user.type(screen.getByLabelText("Password"), "abcdefghi")
     await user.click(screen.getByRole("button", { name: "Sign Up" }))
 
     expect(
-      await screen.findByText("Password must be at least 8 characters")
+      await screen.findByText("Password must be at least 10 characters")
     ).toBeInTheDocument()
     expect(mockSignUpTrigger).not.toHaveBeenCalled()
     // Not just "this text is present" -- proves the message actually came
@@ -470,6 +470,148 @@ describe("SignUpModal", () => {
       expect(toast.error).toHaveBeenCalledWith("Something went wrong")
     )
     expect(mockT).toHaveBeenCalledWith("auth.genericError")
+  })
+
+  // aexa-frontend#916: backend field validation errors (errorSources) were
+  // previously discarded in favor of a generic toast, so the user never saw
+  // which field(s) actually failed or why.
+  it("maps backend errorSources onto their fields instead of showing a generic toast", async () => {
+    const user = userEvent.setup()
+    const { toast } = await import("sonner")
+    // Other tests in this suite call toast.error without resetting it
+    // afterward -- clear the shared mock so this test's assertion isn't
+    // polluted by calls made earlier in the run.
+    vi.mocked(toast.error).mockClear()
+
+    mockSignUpTrigger.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({
+          data: {
+            message: "Validation Error",
+            errorSources: [
+              {
+                path: "password",
+                message: "Password must be at least 10 characters.",
+              },
+              {
+                path: "password",
+                message: "Password must contain at least one letter.",
+              },
+            ],
+          },
+        }),
+    })
+
+    renderModal()
+
+    await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
+    await user.type(screen.getByLabelText("Email"), "admin@acme.com")
+    await user.type(screen.getByLabelText("Password"), "1234567890")
+    await user.click(screen.getByRole("button", { name: "Sign Up" }))
+
+    // Last errorSources entry for a field wins (react-hook-form's setError
+    // overwrites, it doesn't accumulate) -- assert on that actual behavior.
+    expect(
+      await screen.findByText("Password must contain at least one letter.")
+    ).toBeInTheDocument()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it("toasts the actual unrecognized errorSources message instead of vanishing", async () => {
+    const user = userEvent.setup()
+    const { toast } = await import("sonner")
+    vi.mocked(toast.error).mockClear()
+
+    mockSignUpTrigger.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({
+          data: {
+            message: "Something is wrong upstream",
+            // "confirmPassword" isn't a field this form renders -- setError
+            // would silently register an error with nowhere to display it,
+            // so this must surface via toast instead of vanishing. The
+            // specific errorSources message is toasted (more actionable
+            // than the generic top-level "Something is wrong upstream").
+            errorSources: [
+              { path: "confirmPassword", message: "Passwords must match." },
+            ],
+          },
+        }),
+    })
+
+    renderModal()
+
+    await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
+    await user.type(screen.getByLabelText("Email"), "admin@acme.com")
+    await user.type(screen.getByLabelText("Password"), "password123")
+    await user.click(screen.getByRole("button", { name: "Sign Up" }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Passwords must match.")
+    )
+  })
+
+  it("still toasts an unrecognized errorSources entry even when another entry maps to a real field", async () => {
+    const user = userEvent.setup()
+    const { toast } = await import("sonner")
+    vi.mocked(toast.error).mockClear()
+
+    mockSignUpTrigger.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({
+          data: {
+            message: "Validation Error",
+            errorSources: [
+              {
+                path: "password",
+                message: "Password must be at least 10 characters.",
+              },
+              // Unrecognized path -- must not be silently dropped just
+              // because the password entry above already rendered a field
+              // error (the mappedAny-only check from the previous fix round
+              // would have swallowed this one).
+              { path: "confirmPassword", message: "Passwords must match." },
+            ],
+          },
+        }),
+    })
+
+    renderModal()
+
+    await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
+    await user.type(screen.getByLabelText("Email"), "admin@acme.com")
+    await user.type(screen.getByLabelText("Password"), "1234567890")
+    await user.click(screen.getByRole("button", { name: "Sign Up" }))
+
+    expect(
+      await screen.findByText("Password must be at least 10 characters.")
+    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Passwords must match.")
+    )
+  })
+
+  it("falls back to the generic toast when the server error has no errorSources", async () => {
+    const user = userEvent.setup()
+    const { toast } = await import("sonner")
+
+    mockSignUpTrigger.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({
+          data: { message: "Organization already exists" },
+        }),
+    })
+
+    renderModal()
+
+    await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
+    await user.type(screen.getByLabelText("Email"), "admin@acme.com")
+    await user.type(screen.getByLabelText("Password"), "password123")
+    await user.click(screen.getByRole("button", { name: "Sign Up" }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Organization already exists")
+    )
   })
 
   it("disables Resend Code and counts down after a successful resend, re-enabling once it reaches zero", async () => {

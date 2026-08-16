@@ -102,4 +102,46 @@ describe("NavBar", () => {
       .filter((btn): btn is HTMLButtonElement => btn !== null)
       .forEach((btn) => expect(btn.type).toBe("button"))
   })
+
+  // aexa-frontend#915: `dark:text-primary` was beating `hover:text-primary-foreground`
+  // in the dark-mode cascade, so the Login/Dashboard text became invisible
+  // against the `hover:bg-primary` background on hover. `dark:hover:text-white`
+  // must be present on every button/link sharing this classname pattern
+  // (desktop + mobile Login, and the equivalent Dashboard link) so hover text
+  // stays readable in dark mode too.
+  it("keeps Login/Dashboard hover text readable in dark mode via dark:hover:text-white", async () => {
+    const user = userEvent.setup()
+    renderNavBar()
+
+    const desktopLogin = screen
+      .getAllByText("home.navbar.login")
+      .map((el) => el.closest("button"))
+      .find((btn): btn is HTMLButtonElement => btn !== null)!
+    expect(desktopLogin.className).toContain("dark:hover:text-white")
+
+    await user.click(screen.getByLabelText("home.navbar.toggleMenu"))
+
+    screen
+      .getAllByText("home.navbar.login")
+      .map((el) => el.closest("button"))
+      .filter((btn): btn is HTMLButtonElement => btn !== null)
+      .forEach((btn) =>
+        expect(btn.className).toContain("dark:hover:text-white")
+      )
+  })
+
+  // aexa-frontend#915: replaced the arbitrary-value `max-h-[32rem]` utility
+  // with the equivalent scale-based `max-h-128` (128 * 0.25rem = 32rem).
+  it("uses the max-h-128 utility (not the arbitrary max-h-[32rem] value) for the open mobile menu", async () => {
+    const user = userEvent.setup()
+    renderNavBar()
+
+    await user.click(screen.getByLabelText("home.navbar.toggleMenu"))
+
+    const mobileMenu = screen
+      .getByLabelText("home.navbar.toggleMenu")
+      .closest("div")!.nextElementSibling as HTMLElement
+    expect(mobileMenu.className).toContain("max-h-128")
+    expect(mobileMenu.className).not.toContain("max-h-[32rem]")
+  })
 })

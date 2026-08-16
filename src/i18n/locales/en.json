@@ -190,7 +190,7 @@
       "emailReqText": "Email is required",
       "emailInvalidText": "Please enter a valid email",
       "passwordReqText": "Password is required",
-      "passwordMinLengthReqText": "Password must be at least 8 characters",
+      "passwordMinLengthReqText": "Password must be at least 10 characters",
       "signingUp": "Signing Up...",
       "orContinueWith": "or continue with"
     },

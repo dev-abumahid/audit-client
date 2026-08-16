@@ -190,7 +190,7 @@
       "emailReqText": "L'adresse e-mail est requise.",
       "emailInvalidText": "Veuillez saisir une adresse e-mail valide.",
       "passwordReqText": "Le mot de passe est requis.",
-      "passwordMinLengthReqText": "Le mot de passe doit contenir au moins 8 caractères.",
+      "passwordMinLengthReqText": "Le mot de passe doit contenir au moins 10 caractères.",
       "signingUp": "Inscription en cours...",
       "orContinueWith": "ou continuer avec"
     },

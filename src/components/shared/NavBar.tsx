@@ -95,7 +95,7 @@ const NavBar: React.FC = () => {
                 {user?.role ? (
                   <Link
                     to={`/${user?.role.toLocaleLowerCase()}`}
-                    className="focus-ring rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-teal-700 transition-colors hover:bg-primary hover:text-primary-foreground dark:text-primary"
+                    className="focus-ring rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-teal-700 transition-colors hover:bg-primary hover:text-primary-foreground dark:text-primary dark:hover:text-white"
                   >
                     {t("home.navbar.dashboard")}
                   </Link>
@@ -107,7 +107,7 @@ const NavBar: React.FC = () => {
                         authTriggerRef.current = e.currentTarget
                         setIsSignInModalOpen(true)
                       }}
-                      className="focus-ring rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-teal-700 transition-colors hover:bg-primary hover:text-primary-foreground dark:text-primary"
+                      className="focus-ring rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-teal-700 transition-colors hover:bg-primary hover:text-primary-foreground dark:text-primary dark:hover:text-white"
                     >
                       {t("home.navbar.login")}
                     </button>
@@ -162,7 +162,7 @@ const NavBar: React.FC = () => {
               screenshot test where overflow-hidden alone did not. */}
           <div
             className={`overflow-hidden transition-[max-height] duration-300 ease-out lg:hidden ${
-              isMenuOpen ? "max-h-[32rem]" : "max-h-0"
+              isMenuOpen ? "max-h-128" : "max-h-0"
             }`}
             style={{
               visibility: isMenuOpen ? "visible" : "hidden",
@@ -196,7 +196,7 @@ const NavBar: React.FC = () => {
                       onClick={() => {
                         closeMobileMenu()
                       }}
-                      className="focus-ring w-full rounded-md border border-primary px-4 py-3 text-left text-teal-700 transition-colors hover:bg-primary hover:text-primary-foreground dark:text-primary"
+                      className="focus-ring w-full rounded-md border border-primary px-4 py-3 text-left text-teal-700 transition-colors hover:bg-primary hover:text-primary-foreground dark:text-primary dark:hover:text-white"
                     >
                       {t("home.navbar.dashboard")}
                     </Link>
@@ -209,7 +209,7 @@ const NavBar: React.FC = () => {
                           closeMobileMenu()
                           setIsSignInModalOpen(true)
                         }}
-                        className="focus-ring w-full rounded-md border border-primary px-4 py-3 text-left text-teal-700 transition-colors hover:bg-primary hover:text-primary-foreground dark:text-primary"
+                        className="focus-ring w-full rounded-md border border-primary px-4 py-3 text-left text-teal-700 transition-colors hover:bg-primary hover:text-primary-foreground dark:text-primary dark:hover:text-white"
                       >
                         {t("home.navbar.login")}
                       </button>

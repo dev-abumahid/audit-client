@@ -61,6 +61,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
     register: formRegister,
     handleSubmit,
     reset,
+    setError,
     formState: { errors },
   } = useForm<SignUpFormData>({
     defaultValues: {
@@ -120,8 +121,46 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
       setPendingEmail(data.email)
       reset()
     } catch (error: unknown) {
-      const msg = (error as { data?: { message?: string } })?.data?.message
-      toast.error(msg ?? t("auth.genericError"))
+      const apiError = error as {
+        data?: {
+          message?: string
+          errorSources?: Array<{ path?: string; message?: string }>
+        }
+      }
+      const errorSources = apiError?.data?.errorSources ?? []
+      const knownFields: Array<keyof SignUpFormData> = [
+        "organizationName",
+        "email",
+        "password",
+      ]
+
+      // Only entries whose `path` is a field this form actually renders can
+      // be surfaced via setError -- anything else (an unrecognized path, or
+      // a source missing path/message) would silently vanish with no
+      // visible error at all, which is worse than the generic toast this
+      // fix replaces. Unmapped entries are collected and toasted too, so a
+      // mix of one known-field error and one unrecognized one doesn't lose
+      // the unrecognized one just because the known one already rendered.
+      let mappedAny = false
+      const unmapped: string[] = []
+      errorSources.forEach(({ path, message }) => {
+        if (!path || !message) return
+        if ((knownFields as string[]).includes(path)) {
+          setError(path as keyof SignUpFormData, {
+            type: "server",
+            message,
+          })
+          mappedAny = true
+        } else {
+          unmapped.push(message)
+        }
+      })
+
+      if (unmapped.length > 0) {
+        toast.error(unmapped.join(" "))
+      } else if (!mappedAny) {
+        toast.error(apiError?.data?.message ?? t("auth.genericError"))
+      }
     }
   }
 
@@ -334,7 +373,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                   />
                   {errors.organizationName && (
                     <p className="mt-1 text-xs text-destructive">
-                      {t("auth.signUp.organizationNameReqText")}
+                      {errors.organizationName.message}
                     </p>
                   )}
                 </div>
@@ -384,7 +423,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                     {...formRegister("password", {
                       required: t("auth.signUp.passwordReqText"),
                       minLength: {
-                        value: 8,
+                        value: 10,
                         message: t("auth.signUp.passwordMinLengthReqText"),
                       },
                     })}
