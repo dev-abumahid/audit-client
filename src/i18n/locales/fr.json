@@ -1017,6 +1017,7 @@
       "prevPage": "Page précédente",
       "nextPage": "Page suivante",
       "nameRequired": "Le nom est requis",
+      "activityRequired": "L'activité est requise pour permettre l'analyse de risque par IA de ce site",
       "riskNameRequired": "Le nom du risque est requis",
       "riskStatusRequired": "Le statut est requis",
       "riskRequiredFieldsMissing": "Veuillez remplir les champs obligatoires"

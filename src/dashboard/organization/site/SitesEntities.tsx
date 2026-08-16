@@ -404,6 +404,16 @@ export default function SitesEntities() {
 
   const siteFormModalRef = useModalA11y(showForm, closeSiteForm)
 
+  // Activity is required for a new site, and for editing a site that
+  // already had one -- but NOT for editing an existing site whose activity
+  // was already blank. Sites created before this validation existed can
+  // have a blank activity, and hard-blocking every other field edit on
+  // those until the user backfills Activity would be a bigger, separate UX
+  // change than this fix calls for. aexa-server has its own guard that
+  // turns Analyze AI into a clear, actionable error for exactly this case
+  // (aexa-frontend#917 / aexa-server#337).
+  const activityAlreadyRequired = !editingSite || !!editingSite.activity?.trim()
+
   const openEdit = async (site: SiteSummary) => {
     latestEditRequestRef.current = site.id
     setEditingSite(site)
@@ -1638,13 +1648,33 @@ export default function SitesEntities() {
                     className="mb-1.5 block text-xs font-medium text-muted-foreground"
                   >
                     {t("organization.site&entities.activity")}
+                    {activityAlreadyRequired ? " *" : ""}
                   </label>
                   <textarea
                     id={siteActivityId}
                     rows={4}
-                    {...siteForm.register("activity")}
+                    aria-required={activityAlreadyRequired ? "true" : "false"}
+                    {...siteForm.register("activity", {
+                      required: activityAlreadyRequired
+                        ? t("organization.site&entities.activityRequired")
+                        : false,
+                      // Same whitespace-only guard as the name field just
+                      // above -- RHF's `required` alone only checks
+                      // truthiness, so "   " would pass it and still 400
+                      // out of aexa-ai's risk-analysis endpoint later
+                      // (aexa-frontend#917).
+                      validate: (v) =>
+                        !activityAlreadyRequired ||
+                        v.trim().length > 0 ||
+                        t("organization.site&entities.activityRequired"),
+                    })}
                     className="w-full rounded-lg border border-input bg-background p-2 text-sm"
                   />
+                  {siteForm.formState.errors.activity && (
+                    <p className="mt-1 text-xs text-destructive">
+                      {siteForm.formState.errors.activity.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

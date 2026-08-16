@@ -1017,6 +1017,7 @@
       "prevPage": "Previous page",
       "nextPage": "Next page",
       "nameRequired": "Name is required",
+      "activityRequired": "Activity is required so AI risk analysis can run for this site",
       "riskNameRequired": "Risk name is required",
       "riskStatusRequired": "Status is required",
       "riskRequiredFieldsMissing": "Please fill in the required fields"

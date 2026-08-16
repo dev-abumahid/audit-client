@@ -913,7 +913,7 @@ describe("SitesEntities", () => {
       "organization.site&entities.siteLocationLabel",
       "organization.site&entities.siteCountryLabel",
       "organization.site&entities.siteType",
-      "organization.site&entities.activity",
+      /organization\.site&entities\.activity(?!Required)/,
       "organization.site&entities.revenueLabel",
       "organization.site&entities.employees",
     ]) {
@@ -979,6 +979,171 @@ describe("SitesEntities", () => {
     await waitFor(() =>
       expect(
         screen.getByText("organization.site&entities.nameRequired")
+      ).toBeInTheDocument()
+    )
+    expect(mockCreateNewSite).not.toHaveBeenCalled()
+  })
+
+  // aexa-frontend#917: a site with no primary activity 400s out of
+  // aexa-ai's /risk_analysis endpoint the moment someone clicks "Analyze
+  // AI" (site_primary_activity is required server-side), but nothing
+  // upstream previously enforced that a site actually has one. Activity is
+  // now required at creation, same pattern as the Site Name field above.
+  it("marks the Activity field as aria-required and blocks submit when empty", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+
+    const { container } = renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+
+    expect(
+      screen.getByLabelText(/organization\.site&entities\.activity(?!Required)/)
+    ).toHaveAttribute("aria-required", "true")
+
+    await userEvent.type(
+      container.querySelector('[name="name"]')!,
+      "New Factory"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.site&entities.add" })
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.site&entities.activityRequired")
+      ).toBeInTheDocument()
+    )
+    expect(mockCreateNewSite).not.toHaveBeenCalled()
+  })
+
+  // aexa-frontend#917 review round 1: making Activity required could have
+  // hard-blocked editing ANY other field on a pre-existing site that
+  // already had a blank activity (created before this validation existed),
+  // until the user also backfilled Activity. That's a bigger UX change than
+  // this fix intends -- aexa-server has its own guard that turns Analyze AI
+  // into a clear error for exactly this case (aexa-server#337), so the
+  // frontend only needs to stop *new* blank activities, not retroactively
+  // block edits on old ones.
+  it("does not require Activity when editing an existing site whose activity was already blank", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: {
+        data: [makeSite({ activity: "" })],
+        meta: { page: 1, limit: 10, total: 1 },
+      },
+      error: undefined,
+    })
+    mockFetchSiteById.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ success: true, data: makeSite({ activity: "" }) }),
+    })
+    mockUpdateSite.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    renderPage()
+    const editButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-pencil"))
+    await userEvent.click(editButtons[0])
+
+    expect(
+      screen.getByLabelText(/organization\.site&entities\.activity(?!Required)/)
+    ).toHaveAttribute("aria-required", "false")
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.site&entities.update" })
+    )
+
+    await waitFor(() => expect(mockUpdateSite).toHaveBeenCalled())
+    expect(
+      screen.queryByText("organization.site&entities.activityRequired")
+    ).not.toBeInTheDocument()
+  })
+
+  it("still requires Activity when editing a site that already had one", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: {
+        data: [makeSite({ activity: "Finance" })],
+        meta: { page: 1, limit: 10, total: 1 },
+      },
+      error: undefined,
+    })
+    mockFetchSiteById.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          success: true,
+          data: makeSite({ activity: "Finance" }),
+        }),
+    })
+
+    const { container } = renderPage()
+    const editButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.querySelector("svg.lucide-pencil"))
+    await userEvent.click(editButtons[0])
+
+    const activityField = screen.getByLabelText(
+      /organization\.site&entities\.activity(?!Required)/
+    )
+    expect(activityField).toHaveAttribute("aria-required", "true")
+
+    await userEvent.clear(activityField)
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.site&entities.update" })
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.site&entities.activityRequired")
+      ).toBeInTheDocument()
+    )
+    expect(mockUpdateSite).not.toHaveBeenCalled()
+    // Sanity: the field really was cleared, not left at its prefilled value.
+    expect(container.querySelector('[name="activity"]')).toHaveValue("")
+  })
+
+  it("shows a visible error for a whitespace-only activity instead of silently failing", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+
+    const { container } = renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+
+    await userEvent.type(
+      container.querySelector('[name="name"]')!,
+      "New Factory"
+    )
+    await userEvent.type(
+      screen.getByLabelText(/organization\.site&entities\.activity(?!Required)/),
+      "   "
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.site&entities.add" })
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("organization.site&entities.activityRequired")
       ).toBeInTheDocument()
     )
     expect(mockCreateNewSite).not.toHaveBeenCalled()
@@ -1091,6 +1256,10 @@ describe("SitesEntities", () => {
       container.querySelector('[name="name"]')!,
       "New Factory"
     )
+    await userEvent.type(
+      container.querySelector('[name="activity"]')!,
+      "Manufacturing"
+    )
     await userEvent.click(
       screen.getByRole("button", { name: "organization.site&entities.add" })
     )
@@ -1098,6 +1267,7 @@ describe("SitesEntities", () => {
     await waitFor(() => expect(mockCreateNewSite).toHaveBeenCalled())
     expect(mockCreateNewSite.mock.calls[0][0]).toMatchObject({
       name: "New Factory",
+      activity: "Manufacturing",
     })
   })
 
@@ -1126,6 +1296,10 @@ describe("SitesEntities", () => {
     await userEvent.type(
       container.querySelector('[name="name"]')!,
       "New Factory"
+    )
+    await userEvent.type(
+      container.querySelector('[name="activity"]')!,
+      "Manufacturing"
     )
     await userEvent.click(
       screen.getByRole("button", { name: "organization.site&entities.add" })
@@ -1835,6 +2009,10 @@ describe("SitesEntities", () => {
     await userEvent.type(
       container.querySelector('[name="name"]')!,
       "New Factory"
+    )
+    await userEvent.type(
+      container.querySelector('[name="activity"]')!,
+      "Manufacturing"
     )
     await userEvent.click(
       screen.getByRole("button", { name: "organization.site&entities.add" })
