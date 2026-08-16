@@ -63,6 +63,11 @@ interface SortableHeaderProps {
   onSort: (column: SortableColumn, shiftKey: boolean) => void
   align?: "left" | "center"
   className?: string
+  // Optional native title= tooltip on the header cell -- matches this
+  // codebase's existing de-facto hover-explainer convention (no dedicated
+  // Tooltip component exists). Undefined by default so unrelated columns
+  // are unaffected.
+  labelTitle?: string
 }
 
 // aria-sort on the <th> itself (not the button inside it) is the standard
@@ -83,6 +88,7 @@ function SortableHeader({
   onSort,
   align = "left",
   className = "",
+  labelTitle,
 }: SortableHeaderProps) {
   const isPrimary = sortKey === column
   const isSecondary = sortKey2 === column
@@ -93,6 +99,7 @@ function SortableHeader({
     <th
       className={`px-3 py-2.5 font-semibold text-muted-foreground ${align === "center" ? "text-center" : ""} ${className}`}
       aria-sort={isActive ? (activeDir === "asc" ? "ascending" : "descending") : "none"}
+      title={labelTitle}
     >
       {/* Round-10 judge finding (mobile): this button measured 16px tall
           with no hit-slop, worse than the row Edit/Delete buttons already
@@ -1069,6 +1076,9 @@ export default function RiskRegisterPage() {
                 <SortableHeader
                   column="residual_score"
                   label={t("organization.riskRegister.colScore")}
+                  labelTitle={t(
+                    "organization.riskRegister.residualScoreExplainer"
+                  )}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   sortKey2={sortKey2}
@@ -1079,6 +1089,9 @@ export default function RiskRegisterPage() {
                 <SortableHeader
                   column="pagerank_score"
                   label={t("organization.riskRegister.colPr")}
+                  labelTitle={t(
+                    "organization.riskRegister.pagerankScoreExplainer"
+                  )}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   sortKey2={sortKey2}

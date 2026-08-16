@@ -96,6 +96,11 @@ interface FormFieldProps {
   htmlFor?: string
   error?: string
   children: ReactNode
+  // Optional native title= tooltip on the label -- matches this codebase's
+  // existing de-facto hover-explainer convention (no dedicated Tooltip
+  // component exists; see RiskMatrixPage/RiskOverrideBadge). Undefined by
+  // default so the existing FormField call sites are unaffected.
+  labelTitle?: string
 }
 
 // quality-bar-loop code-quality workstream (stuck at 7/10 for 3 rounds): the
@@ -117,10 +122,20 @@ interface FormFieldProps {
 // checkbox rather than sitting above it, plus a validate-driven textarea)
 // and intentionally aren't run through this wrapper either -- see that
 // section's own comment.
-function FormField({ label, htmlFor, error, children }: FormFieldProps) {
+function FormField({
+  label,
+  htmlFor,
+  error,
+  children,
+  labelTitle,
+}: FormFieldProps) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="text-xs font-medium text-muted-foreground">
+      <label
+        htmlFor={htmlFor}
+        title={labelTitle}
+        className="text-xs font-medium text-muted-foreground"
+      >
         {label}
       </label>
       {children}
@@ -299,6 +314,7 @@ export function RiskScoresSection({ editId }: { editId: string | null }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <FormField
           label={t("organization.riskRegister.inherentScoreLabel")}
+          labelTitle={t("organization.riskRegister.inherentScoreExplainer")}
           htmlFor="risk-inherent_score"
         >
           <input
@@ -312,6 +328,7 @@ export function RiskScoresSection({ editId }: { editId: string | null }) {
         </FormField>
         <FormField
           label={t("organization.riskRegister.residualScoreLabel")}
+          labelTitle={t("organization.riskRegister.residualScoreExplainer")}
           htmlFor="risk-residual_score"
         >
           <input
@@ -325,6 +342,7 @@ export function RiskScoresSection({ editId }: { editId: string | null }) {
         </FormField>
         <FormField
           label={t("organization.riskRegister.pagerankScoreLabel")}
+          labelTitle={t("organization.riskRegister.pagerankScoreExplainer")}
           htmlFor="risk-pagerank_score"
         >
           <input
@@ -494,6 +512,7 @@ function RiskAssessmentSection() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <FormField
           label={t("organization.riskRegister.probabilityLabel")}
+          labelTitle={t("organization.riskRegister.probabilityExplainer")}
           htmlFor="risk-probability"
         >
           <input
@@ -507,6 +526,7 @@ function RiskAssessmentSection() {
         </FormField>
         <FormField
           label={t("organization.riskRegister.velocityLabel")}
+          labelTitle={t("organization.riskRegister.velocityExplainer")}
           htmlFor="risk-velocity"
         >
           <select
@@ -529,7 +549,11 @@ function RiskAssessmentSection() {
             <option value="low">{t("organization.riskRegister.velocityLow")}</option>
           </select>
         </FormField>
-        <FormField label={t("organization.riskRegister.trendLabel")} htmlFor="risk-trend">
+        <FormField
+          label={t("organization.riskRegister.trendLabel")}
+          labelTitle={t("organization.riskRegister.trendExplainer")}
+          htmlFor="risk-trend"
+        >
           <select
             id="risk-trend"
             {...register("trend")}
@@ -612,6 +636,9 @@ function RiskControlEffectivenessSection() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FormField
           label={t("organization.riskRegister.designEffectivenessLabel")}
+          labelTitle={t(
+            "organization.riskRegister.designEffectivenessExplainer"
+          )}
           htmlFor="risk-control_design_eff"
         >
           <input
@@ -625,6 +652,9 @@ function RiskControlEffectivenessSection() {
         </FormField>
         <FormField
           label={t("organization.riskRegister.operatingEffectivenessLabel")}
+          labelTitle={t(
+            "organization.riskRegister.operatingEffectivenessExplainer"
+          )}
           htmlFor="risk-control_operating_eff"
         >
           <input

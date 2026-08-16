@@ -6,7 +6,7 @@ import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { Risk } from "@/types/organization"
 import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
 import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
-import { AlertCircle, Grid3X3, Info, Loader2, MapPin } from "lucide-react"
+import { AlertCircle, Grid3X3, Loader2, MapPin } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
@@ -557,36 +557,12 @@ export default function RiskMatrixPage() {
             <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               {t("organization.riskMatrix.impactAxis")}
             </span>
-            {/* quality-bar-loop round 6 (industry-standards): the bold
-                number in each cell is its likelihood x impact BAND
-                position (e.g. 4 for a 2x2 cell), not any individual
-                risk's real score -- live-confirmed reproducible confusion
-                since multiple risks with very different real scores can
-                land in the same band. This icon plus each RiskCard's own
-                score (added below) close the transparency gap without
-                removing the standard heat-map band convention itself.
-                Review round 1: a role="img" span (even with tabIndex) is
-                the wrong pattern -- RiskGraphPage's minimap comment
-                (aexa-frontend#577 round 10) already rejected exactly this
-                for the same reason: it announces as an inert graphic to
-                screen readers instead of a reachable, operable control.
-                A real button (native focus + aria-label, same as that
-                minimap) is the correct shape even though its only
-                "action" is surfacing the tooltip on hover/focus.
-                quality-bar-loop round 13 (mobile, found during a
-                full-panel re-check): this button measured only 14x14px,
-                well under the 44px touch-target guideline, since only
-                the icon itself was clickable -- h-11 w-11 gives it the
-                same touch target as this file's other controls (round 7)
-                while the icon inside stays visually small. */}
-            <button
-              type="button"
-              aria-label={t("organization.riskMatrix.bandScoreExplainer")}
-              title={t("organization.riskMatrix.bandScoreExplainer")}
-              className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground/70 hover:text-foreground"
-            >
-              <Info className="h-3.5 w-3.5" />
-            </button>
+            {/* The band-score explainer button (and the bold number it
+                explained) was removed per explicit CEO feedback -- cells
+                now convey severity purely through the heat-map color,
+                with count/likelihood/impact still available on hover
+                (title) and to assistive tech (aria-label below), just
+                not as a visible in-cell digit. */}
           </div>
 
           {/* Additive, not a replacement: some existing tests deliberately
@@ -721,18 +697,7 @@ export default function RiskMatrixPage() {
                             })}
                             className={`focus-ring ${getMatrixColor(row, col, matrixSize)} relative flex h-16 cursor-pointer flex-col items-center justify-center rounded-lg text-xs font-bold text-black hover:z-20 hover:scale-105 dark:text-white transition-all ${isSelected ? "z-20 scale-105 ring-2 ring-primary ring-offset-2" : ""} ${cellRisks.length ? "shadow-md" : "opacity-75"}`}
                             title={`${label} × ${labels.impact[col]} : ${t("organization.riskMatrix.cellCount", { count: cellRisks.length })}`}
-                          >
-                            <span className="text-lg font-bold">
-                              {(row + 1) * (col + 1)}
-                            </span>
-                            {cellRisks.length > 0 && (
-                              <span className="mt-0.5 text-[9px] opacity-90">
-                                {t("organization.riskMatrix.cellCount", {
-                                  count: cellRisks.length,
-                                })}
-                              </span>
-                            )}
-                          </button>
+                          />
                         )
                       })}
                     </div>
@@ -848,9 +813,6 @@ export default function RiskMatrixPage() {
               {effectiveSelectedCell && selectedRisks.length > 0
                 ? t("organization.riskMatrix.selectedCellHeading", {
                     count: selectedRisks.length,
-                    score:
-                      (effectiveSelectedCell.row + 1) *
-                      (effectiveSelectedCell.col + 1),
                   }) +
                   (groupMode === "category"
                     ? t("organization.riskMatrix.groupedByTypeSuffix")

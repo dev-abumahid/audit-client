@@ -873,7 +873,8 @@
       "openSidebar": "Ouvrir la barre latérale",
       "collapseSidebar": "Réduire la barre latérale",
       "expandSidebar": "Développer la barre latérale",
-      "orgLogoAlt": "Logo de {{name}}"
+      "orgLogoAlt": "Logo de {{name}}",
+      "profileLinkLabel": "Votre profil"
     },
     "overview": {
       "title": "Tableau de bord exécutif",
@@ -956,12 +957,14 @@
       "siteName": "Nom du site",
       "siteType": "Type de site",
       "headOffice": "Siège social",
+      "office": "Bureaux",
       "production": "Production",
       "warehouse": "Entrepôt",
       "other": "Autre",
       "activity": "Activité",
-      "siteLocationLabel": "Emplacement",
+      "siteLocationLabel": "Adresse",
       "siteCountryLabel": "Pays",
+      "noCountryMatch": "Aucun pays correspondant -- vous pouvez toujours saisir n'importe quel nom",
       "noAdditionalDetails": "Aucun détail de localisation ou de pays disponible",
       "update": "Mettre à jour le site",
       "searchPlaceholder": "Rechercher des sites...",
@@ -1082,20 +1085,26 @@
       "descriptionLabel": "Description",
       "scoresTitle": "Scores",
       "inherentScoreLabel": "Score inhérent",
+      "inherentScoreExplainer": "Niveau de risque avant application de tout contrôle ou mesure d'atténuation.",
       "residualScoreLabel": "Score résiduel",
+      "residualScoreExplainer": "Niveau de risque restant après application des contrôles existants.",
       "pagerankScoreLabel": "Score PageRank",
+      "pagerankScoreExplainer": "Mesure l'importance structurelle de ce risque dans le graphe de dépendances -- plus il déclenche ou amplifie d'autres risques, plus ce score est élevé. Ce n'est pas un score de sévérité.",
       "financialImpactTitle": "Impact financier",
       "minImpactLabel": "Impact minimum (k€)",
       "maxImpactLabel": "Impact maximum (k€)",
       "riskAssessmentTitle": "Évaluation du risque",
       "probabilityLabel": "Probabilité",
+      "probabilityExplainer": "Probabilité que ce risque se matérialise.",
       "velocityLabel": "Vélocité",
+      "velocityExplainer": "Rapidité avec laquelle ce risque impacterait l'organisation une fois déclenché.",
       "selectVelocity": "Sélectionner une vélocité",
       "velocityCritical": "Critique",
       "velocityHigh": "Élevée",
       "velocityMedium": "Moyenne",
       "velocityLow": "Faible",
       "trendLabel": "Tendance",
+      "trendExplainer": "Évolution de ce risque dans le temps : en hausse, stable ou en baisse.",
       "selectTrend": "Sélectionner une tendance",
       "trendIncreasing": "En hausse",
       "trendDecreasing": "En baisse",
@@ -1110,7 +1119,9 @@
       "sourceInfoPlaceholder": "Source ou référence du risque",
       "controlEffectivenessTitle": "Efficacité des contrôles",
       "designEffectivenessLabel": "Efficacité de la conception",
+      "designEffectivenessExplainer": "Le contrôle, tel que conçu, est-il théoriquement adapté pour traiter ce risque ?",
       "operatingEffectivenessLabel": "Efficacité opérationnelle",
+      "operatingEffectivenessExplainer": "Le contrôle est-il réellement appliqué et fonctionne-t-il comme prévu en pratique ?",
       "siteRequired": "Le site est requis",
       "riskNameRequired": "Le nom du risque est requis",
       "statusRequired": "Le statut est requis",
@@ -1374,12 +1385,10 @@
       },
       "unclassified": {
         "title": "Actions non classées",
-        "subtitle": "Actions créées avant que la classification par ligne ne soit requise",
         "empty": "Aucune action non classée"
       },
       "coverage": {
         "title": "Aperçu de la couverture",
-        "subtitle": "Répartition des risques, contrôles et travaux d'assurance entre les trois lignes",
         "none": "Aucun élément pour l'instant"
       },
       "toast": {
@@ -1391,7 +1400,7 @@
       "groupView": "Vue Groupe (tous sites)"
     },
     "riskMatrix": {
-      "title": "Matrice des risques ISO 31000",
+      "title": "Matrice des risques",
       "des_one": "{{count}} risque positionné — Cliquez sur une cellule pour voir les détails",
       "des_other": "{{count}} risques positionnés — Cliquez sur une cellule pour voir les détails",
       "noRiskSelected": "Sélectionnez une cellule de la matrice",
@@ -1402,8 +1411,8 @@
       "cellAriaLabel_one": "{{likelihood}} × {{impact}}, bande {{score}} : {{count}} risque",
       "cellAriaLabel_other": "{{likelihood}} × {{impact}}, bande {{score}} : {{count}} risques",
       "impactAxis": "Impact →",
-      "selectedCellHeading_one": "{{count}} risque — bande {{score}}",
-      "selectedCellHeading_other": "{{count}} risques — bande {{score}}",
+      "selectedCellHeading_one": "{{count}} risque",
+      "selectedCellHeading_other": "{{count}} risques",
       "groupedByTypeSuffix": ", groupé par type",
       "likelihoodRare": "Rare",
       "likelihoodUnlikely": "Improbable",
@@ -1426,7 +1435,6 @@
       "emptyStateHint": "Une fois qu'un risque a une probabilité et un impact, il apparaîtra ici.",
       "unscoredRiskBadge": "Non évalué",
       "unscoredRiskWarning": "Ce risque n'a pas de score de probabilité, d'impact ou de gravité valide -- sa position dans la matrice et son badge de gravité sont des valeurs par défaut, pas des données d'évaluation réelles.",
-      "bandScoreExplainer": "Le nombre dans chaque cellule est sa position dans la bande probabilité x impact, pas le score réel d'un risque individuel -- le score propre à chaque risque est affiché sur sa fiche.",
       "riskScoreLabel": "Score : {{score}}"
     },
     "riskGraph": {

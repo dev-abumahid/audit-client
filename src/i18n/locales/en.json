@@ -873,7 +873,8 @@
       "openSidebar": "Open sidebar",
       "collapseSidebar": "Collapse sidebar",
       "expandSidebar": "Expand sidebar",
-      "orgLogoAlt": "{{name}} logo"
+      "orgLogoAlt": "{{name}} logo",
+      "profileLinkLabel": "Your profile"
     },
     "overview": {
       "title": "Executive Dashboard",
@@ -956,12 +957,14 @@
       "siteName": "Site Name",
       "siteType": "Site Type",
       "headOffice": "Head Office",
+      "office": "Office",
       "production": "Production",
       "warehouse": "Warehouse",
       "other": "Other",
       "activity": "Activity",
-      "siteLocationLabel": "Location",
+      "siteLocationLabel": "Address",
       "siteCountryLabel": "Country",
+      "noCountryMatch": "No matching country -- you can still type any name",
       "noAdditionalDetails": "No location or country details available",
       "update": "Update Site",
       "searchPlaceholder": "Search sites...",
@@ -1082,20 +1085,26 @@
       "descriptionLabel": "Description",
       "scoresTitle": "Scores",
       "inherentScoreLabel": "Inherent Score",
+      "inherentScoreExplainer": "Risk level before any controls or mitigations are applied.",
       "residualScoreLabel": "Residual Score",
+      "residualScoreExplainer": "Risk level remaining after existing controls are applied.",
       "pagerankScoreLabel": "PageRank Score",
+      "pagerankScoreExplainer": "This risk's structural importance in the dependency graph -- the more it causes or amplifies other risks, the higher this score. Not a severity score.",
       "financialImpactTitle": "Financial Impact",
       "minImpactLabel": "Min Impact (k€)",
       "maxImpactLabel": "Max Impact (k€)",
       "riskAssessmentTitle": "Risk Assessment",
       "probabilityLabel": "Probability",
+      "probabilityExplainer": "Likelihood that this risk will materialize.",
       "velocityLabel": "Velocity",
+      "velocityExplainer": "How quickly this risk would impact the organization once triggered.",
       "selectVelocity": "Select Velocity",
       "velocityCritical": "Critical",
       "velocityHigh": "High",
       "velocityMedium": "Medium",
       "velocityLow": "Low",
       "trendLabel": "Trend",
+      "trendExplainer": "How this risk is evolving over time: increasing, stable, or decreasing.",
       "selectTrend": "Select Trend",
       "trendIncreasing": "Increasing",
       "trendDecreasing": "Decreasing",
@@ -1110,7 +1119,9 @@
       "sourceInfoPlaceholder": "Risk source or reference",
       "controlEffectivenessTitle": "Control Effectiveness",
       "designEffectivenessLabel": "Design Effectiveness",
+      "designEffectivenessExplainer": "Is the control, as designed, theoretically adequate to address this risk?",
       "operatingEffectivenessLabel": "Operating Effectiveness",
+      "operatingEffectivenessExplainer": "Is the control actually being executed and working as intended in practice?",
       "siteRequired": "Site is required",
       "riskNameRequired": "Risk name is required",
       "statusRequired": "Status is required",
@@ -1374,12 +1385,10 @@
       },
       "unclassified": {
         "title": "Unclassified Actions",
-        "subtitle": "Actions created before line classification was required",
         "empty": "No unclassified actions"
       },
       "coverage": {
         "title": "Coverage Overview",
-        "subtitle": "How risks, controls and assurance work are distributed across the three lines",
         "none": "No items yet"
       },
       "toast": {
@@ -1391,7 +1400,7 @@
       "groupView": "Group View (all sites)"
     },
     "riskMatrix": {
-      "title": "ISO 31000 Risk Matrix",
+      "title": "Risk Matrix",
       "des_one": "{{count}} risk positioned — Click on a cell to see details",
       "des_other": "{{count}} risks positioned — Click on a cell to see details",
       "noRiskSelected": "Select a cell from the matrix",
@@ -1402,8 +1411,8 @@
       "cellAriaLabel_one": "{{likelihood}} × {{impact}}, band {{score}}: {{count}} risk",
       "cellAriaLabel_other": "{{likelihood}} × {{impact}}, band {{score}}: {{count}} risks",
       "impactAxis": "Impact →",
-      "selectedCellHeading_one": "{{count}} risk — band {{score}}",
-      "selectedCellHeading_other": "{{count}} risks — band {{score}}",
+      "selectedCellHeading_one": "{{count}} risk",
+      "selectedCellHeading_other": "{{count}} risks",
       "groupedByTypeSuffix": ", grouped by type",
       "likelihoodRare": "Rare",
       "likelihoodUnlikely": "Unlikely",
@@ -1426,7 +1435,6 @@
       "emptyStateHint": "Once risks have a likelihood and impact score, they'll appear here.",
       "unscoredRiskBadge": "Unscored",
       "unscoredRiskWarning": "This risk is missing a valid probability, impact, or severity score -- its matrix position and severity badge are fallbacks, not real scoring data.",
-      "bandScoreExplainer": "The number in each cell is its likelihood x impact band position, not any individual risk's real score -- each risk's own score is shown on its card.",
       "riskScoreLabel": "Score: {{score}}"
     },
     "riskGraph": {

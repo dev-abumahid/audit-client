@@ -413,12 +413,11 @@ function CoverageOverview({
   return (
     <Card>
       <CardHeader>
+        {/* Subtitle removed per CEO feedback (page felt cluttered) -- it
+            restated what the coverage bar below already shows visually. */}
         <h2 className="font-heading text-sm font-medium">
           {t("organization.threeLinesOfDefense.coverage.title")}
         </h2>
-        <CardDescription>
-          {t("organization.threeLinesOfDefense.coverage.subtitle")}
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2.5">
         {rows.map((row) => {
@@ -948,12 +947,13 @@ export default function ThreeLinesOfDefensePage() {
               (see governance.service.ts's doc comment on aexa-server). */}
           <Card>
             <CardHeader>
+              {/* Subtitle removed per CEO feedback (page felt cluttered) --
+                  the comment above already documents why this bucket
+                  exists; end users don't need that explanation repeated
+                  as visible copy. */}
               <h2 className="font-heading text-sm font-medium">
                 {t("organization.threeLinesOfDefense.unclassified.title")}
               </h2>
-              <CardDescription>
-                {t("organization.threeLinesOfDefense.unclassified.subtitle")}
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <Section

@@ -329,7 +329,11 @@ export default function OrganizationLayout() {
               )}
             </Link>
 
-            <div className="font-heading ring-border/60 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground uppercase ring-2">
+            <Link
+              to="/organization/settings"
+              aria-label={t("organization.nav.profileLinkLabel")}
+              className="font-heading ring-border/60 focus-ring flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground uppercase ring-2 transition-opacity hover:opacity-90"
+            >
               {(user?.organizationProfile?.organizationLogo as string) ? (
                 <img
                   src={user?.organizationProfile?.organizationLogo}
@@ -341,7 +345,7 @@ export default function OrganizationLayout() {
               ) : (
                 <>{user?.organizationProfile?.organizationName?.charAt(0)}</>
               )}
-            </div>
+            </Link>
           </div>
         </header>
 

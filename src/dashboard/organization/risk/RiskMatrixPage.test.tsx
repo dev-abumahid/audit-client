@@ -76,10 +76,7 @@ vi.mock("react-i18next", async (importOriginal) => {
         }
         if (key === "organization.riskMatrix.selectedCellHeading") {
           const count = Number(opts?.count ?? 0)
-          const score = opts?.score
-          return count === 1
-            ? `${count} risk — band ${score}`
-            : `${count} risks — band ${score}`
+          return count === 1 ? `${count} risk` : `${count} risks`
         }
         if (key === "organization.riskMatrix.riskScoreLabel") {
           return `Score: ${opts?.score}`
@@ -238,9 +235,7 @@ describe("RiskMatrixPage", () => {
       })
       renderPage(["/?size=5&row=0&col=0"])
 
-      expect(
-        screen.getByText("1 risk — band 1")
-      ).toBeInTheDocument()
+      expect(screen.getByText("1 risk")).toBeInTheDocument()
     })
 
     // Review round 1 finding: the round-8 focus-management effect assumed
@@ -336,23 +331,6 @@ describe("RiskMatrixPage", () => {
     )
     expect(
       screen.getByRole("button", { name: "organization.correlationMatrix.groupAll" }).className
-    ).toContain("h-11")
-  })
-
-  // quality-bar-loop round 13 (mobile, found during a full-panel
-  // re-check): this button measured only 14x14px, well under the 44px
-  // touch-target guideline, since only the icon itself was clickable.
-  it("gives the band-score info button a 44px touch target", () => {
-    mockUseGetAllRisksQuery.mockReturnValue({
-      data: { data: [makeRisk()] },
-      isLoading: false,
-    })
-    renderPage()
-
-    expect(
-      screen.getByRole("button", {
-        name: "organization.riskMatrix.bandScoreExplainer",
-      }).className
     ).toContain("h-11")
   })
 
@@ -917,15 +895,24 @@ describe("RiskMatrixPage", () => {
     expect(screen.queryByText("Par type")).not.toBeInTheDocument()
   })
 
-  it("shows the pluralized cell count in the visible cell label, not the old hardcoded French 'risque(s)'", () => {
+  // CEO feedback: cells no longer show a visible number at all (band-score
+  // digit or risk count) -- severity is conveyed purely by color now. The
+  // count is still available on hover (title) and to assistive tech
+  // (aria-label), just not as visible cell text.
+  it("does not show a visible risk-count number in the cell, but keeps it in the accessible name and hover title", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: [makeRisk()] },
       isLoading: false,
     })
     renderPage()
 
-    expect(screen.getByText("1 risk")).toBeInTheDocument()
+    expect(screen.queryByText(/^1 risk$/)).not.toBeInTheDocument()
     expect(screen.queryByText(/risque/)).not.toBeInTheDocument()
+
+    const cellWithOneRisk = screen.getByRole("button", {
+      name: /: 1 risk$/,
+    })
+    expect(cellWithOneRisk).toHaveAttribute("title", expect.stringContaining("1 risk"))
   })
 
   it("renders nothing selected when there are no risks at all", () => {
@@ -997,8 +984,7 @@ describe("RiskMatrixPage", () => {
       screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
     )
 
-    // row 0, col 0 -> score (0+1)*(0+1) = 1
-    expect(screen.getByText("1 risk — band 1")).toBeInTheDocument()
+    expect(screen.getByText("1 risk")).toBeInTheDocument()
     expect(screen.queryByText(/Risk\(s\)/)).not.toBeInTheDocument()
   })
 
@@ -1036,8 +1022,7 @@ describe("RiskMatrixPage", () => {
     await userEvent.click(
       screen.getByTitle(/Moderately Likely × Moderate : 1 risk/)
     )
-    // (2+1)*(2+1) = 9
-    expect(screen.getByText("1 risk — band 9")).toBeInTheDocument()
+    expect(screen.getByText("1 risk")).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole("button", { name: "3×3" }))
 
@@ -1048,7 +1033,6 @@ describe("RiskMatrixPage", () => {
     expect(
       screen.getByText("organization.riskMatrix.noRiskSelected")
     ).toBeInTheDocument()
-    expect(screen.queryByText(/score 9/)).not.toBeInTheDocument()
   })
 
   // quality-bar-loop round 17 (accessibility finding, fresh audit):
@@ -1068,7 +1052,7 @@ describe("RiskMatrixPage", () => {
     const cell = screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
     await userEvent.click(cell)
 
-    const heading = screen.getByText("1 risk — band 1")
+    const heading = screen.getByText("1 risk")
     expect(heading).toHaveAttribute("aria-live", "polite")
 
     await userEvent.click(
@@ -1077,9 +1061,7 @@ describe("RiskMatrixPage", () => {
       })
     )
 
-    expect(
-      screen.getByText("1 risk — band 1, grouped by type")
-    ).toBeInTheDocument()
+    expect(screen.getByText("1 risk, grouped by type")).toBeInTheDocument()
   })
 
   // Same class of bug, different trigger: a site filter narrowing the
@@ -1113,7 +1095,7 @@ describe("RiskMatrixPage", () => {
     await userEvent.click(
       screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
     )
-    expect(screen.getByText("1 risk — band 1")).toBeInTheDocument()
+    expect(screen.getByText("1 risk")).toBeInTheDocument()
 
     // Select the OTHER site (via the stubbed SiteFilter above), which
     // owns none of the currently-selected cell's risks.
@@ -1124,7 +1106,6 @@ describe("RiskMatrixPage", () => {
     expect(
       screen.getByText("organization.riskMatrix.noRiskSelected")
     ).toBeInTheDocument()
-    expect(screen.queryByText(/score 1\b/)).not.toBeInTheDocument()
   })
 
   // Round-1 review finding on PR #634: effectiveSelectedCell only masked
@@ -1143,7 +1124,7 @@ describe("RiskMatrixPage", () => {
     await userEvent.click(
       screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
     )
-    expect(screen.getByText("1 risk — band 1")).toBeInTheDocument()
+    expect(screen.getByText("1 risk")).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole("button", { name: "3×3" }))
     expect(
@@ -1154,7 +1135,6 @@ describe("RiskMatrixPage", () => {
     expect(
       screen.getByText("organization.riskMatrix.noRiskSelected")
     ).toBeInTheDocument()
-    expect(screen.queryByText(/score 1\b/)).not.toBeInTheDocument()
   })
 
   // Round-1 review finding on PR #634: the cell's own ring/highlight

@@ -10,6 +10,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { COUNTRIES } from "@/data/countries"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { useModalA11y } from "@/hooks/useModalA11y"
@@ -163,7 +169,14 @@ export default function SitesEntities() {
   const siteNameId = useId()
   const siteLocationId = useId()
   const siteCountryId = useId()
+  const countryListboxId = useId()
   const siteTypeId = useId()
+  // Country stays a free-text field (CEO feedback: keep the ability to
+  // type any country name) with a searchable suggestion list layered on
+  // top, not a forced-selection combobox -- selecting a suggestion just
+  // fills the same text field via setValue, it doesn't replace it.
+  const [countrySuggestOpen, setCountrySuggestOpen] = useState(false)
+  const [countryHighlightIndex, setCountryHighlightIndex] = useState(-1)
   const siteActivityId = useId()
   const siteRevenueId = useId()
   const siteEmployeesId = useId()
@@ -1608,11 +1621,144 @@ export default function SitesEntities() {
                     >
                       {t("organization.site&entities.siteCountryLabel")}
                     </label>
-                    <input
-                      id={siteCountryId}
-                      {...siteForm.register("country")}
-                      className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
-                    />
+                    {/* review follow-up (PR #920 round 1): originally built
+                        on cmdk's Command/CommandList, with the typed input
+                        living outside Command's own DOM subtree (needed so
+                        it could stay a plain always-visible free-text field,
+                        not one that only appears inside the popover). Live
+                        testing found cmdk's internal item-lookup (used by
+                        its own ArrowDown/Enter handling) doesn't reliably
+                        resolve through that layout -- selecting a
+                        highlighted item via Enter silently no-ops. Rather
+                        than depend on cmdk internals this doesn't control,
+                        keyboard nav (Arrow keys, Enter, Escape) and the
+                        active-option highlight are handled explicitly here,
+                        with a plain ARIA 1.2 combobox/listbox pattern. */}
+                    {(() => {
+                      const filteredCountries = COUNTRIES.filter((country) =>
+                        country
+                          .toLowerCase()
+                          .includes(
+                            (siteForm.watch("country") || "").toLowerCase()
+                          )
+                      )
+                      const activeOptionId =
+                        countrySuggestOpen &&
+                        countryHighlightIndex >= 0 &&
+                        filteredCountries[countryHighlightIndex]
+                          ? `${countryListboxId}-opt-${countryHighlightIndex}`
+                          : undefined
+                      return (
+                        <Popover
+                          open={countrySuggestOpen}
+                          onOpenChange={setCountrySuggestOpen}
+                        >
+                          <PopoverTrigger asChild>
+                            <input
+                              id={siteCountryId}
+                              {...siteForm.register("country", {
+                                onChange: () => setCountryHighlightIndex(-1),
+                              })}
+                              autoComplete="off"
+                              role="combobox"
+                              aria-expanded={countrySuggestOpen}
+                              aria-controls={countryListboxId}
+                              aria-activedescendant={activeOptionId}
+                              onFocus={() => setCountrySuggestOpen(true)}
+                              onKeyDown={(e) => {
+                                if (e.key === "ArrowDown") {
+                                  e.preventDefault()
+                                  setCountrySuggestOpen(true)
+                                  setCountryHighlightIndex((i) =>
+                                    Math.min(
+                                      i + 1,
+                                      filteredCountries.length - 1
+                                    )
+                                  )
+                                } else if (e.key === "ArrowUp") {
+                                  e.preventDefault()
+                                  setCountryHighlightIndex((i) =>
+                                    Math.max(i - 1, 0)
+                                  )
+                                } else if (e.key === "Enter") {
+                                  if (
+                                    countrySuggestOpen &&
+                                    countryHighlightIndex >= 0 &&
+                                    filteredCountries[countryHighlightIndex]
+                                  ) {
+                                    e.preventDefault()
+                                    siteForm.setValue(
+                                      "country",
+                                      filteredCountries[
+                                        countryHighlightIndex
+                                      ],
+                                      { shouldDirty: true }
+                                    )
+                                    setCountrySuggestOpen(false)
+                                  }
+                                } else if (e.key === "Escape") {
+                                  setCountrySuggestOpen(false)
+                                }
+                              }}
+                              className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
+                            />
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-(--radix-popover-trigger-width) p-0"
+                            align="start"
+                            sideOffset={4}
+                            // The input is the trigger, not popover content --
+                            // without this, Radix's default open-focus behavior
+                            // would yank focus off the input and into the
+                            // popover the instant it opens, breaking typing.
+                            onOpenAutoFocus={(e) => e.preventDefault()}
+                          >
+                            {filteredCountries.length === 0 ? (
+                              <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+                                {t("organization.site&entities.noCountryMatch")}
+                              </p>
+                            ) : (
+                              <ul
+                                id={countryListboxId}
+                                role="listbox"
+                                className="max-h-72 overflow-y-auto p-1"
+                              >
+                                {filteredCountries.map((country, index) => (
+                                  <li
+                                    key={country}
+                                    id={`${countryListboxId}-opt-${index}`}
+                                    role="option"
+                                    aria-selected={
+                                      index === countryHighlightIndex
+                                    }
+                                    onMouseEnter={() =>
+                                      setCountryHighlightIndex(index)
+                                    }
+                                    // onMouseDown (not onClick) so this fires
+                                    // before the input's blur closes the
+                                    // popover.
+                                    onMouseDown={(e) => {
+                                      e.preventDefault()
+                                      siteForm.setValue("country", country, {
+                                        shouldDirty: true,
+                                      })
+                                      setCountrySuggestOpen(false)
+                                    }}
+                                    className={`cursor-default rounded-md px-2.5 py-1.5 text-xs ${
+                                      index === countryHighlightIndex
+                                        ? "bg-muted text-foreground"
+                                        : "text-foreground"
+                                    }`}
+                                  >
+                                    {country}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </PopoverContent>
+                        </Popover>
+                      )
+                    })()}
                   </div>
                   <div>
                     <label
@@ -1628,6 +1774,9 @@ export default function SitesEntities() {
                     >
                       <option value="headquarters">
                         {t("organization.site&entities.headOffice")}
+                      </option>
+                      <option value="office">
+                        {t("organization.site&entities.office")}
                       </option>
                       <option value="production">
                         {t("organization.site&entities.production")}

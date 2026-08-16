@@ -195,7 +195,10 @@ export default function RiskDetails() {
       {/* Scores */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground">
+          <p
+            className="text-xs text-muted-foreground"
+            title={t("organization.riskRegister.inherentScoreExplainer")}
+          >
             {t("organization.riskRegister.inherentScoreLabel")}
           </p>
           <div className="mt-1 flex items-center gap-2">
@@ -220,7 +223,10 @@ export default function RiskDetails() {
           </div>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground">
+          <p
+            className="text-xs text-muted-foreground"
+            title={t("organization.riskRegister.residualScoreExplainer")}
+          >
             {t("organization.riskRegister.residualScoreLabel")}
           </p>
           <div className="mt-1 flex items-center gap-2">
@@ -254,7 +260,10 @@ export default function RiskDetails() {
         </h2>
         <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
           <div>
-            <dt className="text-xs text-muted-foreground">
+            <dt
+              className="text-xs text-muted-foreground"
+              title={t("organization.riskRegister.probabilityExplainer")}
+            >
               {t("organization.riskRegister.probabilityLabel")}
             </dt>
             <dd className="font-mono-data font-medium text-foreground">
@@ -262,7 +271,10 @@ export default function RiskDetails() {
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">
+            <dt
+              className="text-xs text-muted-foreground"
+              title={t("organization.riskRegister.velocityExplainer")}
+            >
               {t("organization.riskRegister.velocityLabel")}
             </dt>
             <dd className="font-medium text-foreground">
@@ -272,7 +284,10 @@ export default function RiskDetails() {
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">
+            <dt
+              className="text-xs text-muted-foreground"
+              title={t("organization.riskRegister.trendExplainer")}
+            >
               {t("organization.riskRegister.trendLabel")}
             </dt>
             <dd className="font-medium text-foreground">
@@ -290,7 +305,10 @@ export default function RiskDetails() {
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">
+            <dt
+              className="text-xs text-muted-foreground"
+              title={t("organization.riskRegister.pagerankScoreExplainer")}
+            >
               {t("organization.riskRegister.pagerankScoreLabel")}
             </dt>
             <dd className="font-mono-data font-medium text-foreground">
@@ -325,7 +343,12 @@ export default function RiskDetails() {
           </h2>
           <dl className="space-y-2 text-sm">
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">
+              <dt
+                className="text-muted-foreground"
+                title={t(
+                  "organization.riskRegister.designEffectivenessExplainer"
+                )}
+              >
                 {t("organization.riskRegister.designEffectivenessLabel")}
               </dt>
               <dd className="font-mono-data font-medium text-foreground">
@@ -333,7 +356,12 @@ export default function RiskDetails() {
               </dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">
+              <dt
+                className="text-muted-foreground"
+                title={t(
+                  "organization.riskRegister.operatingEffectivenessExplainer"
+                )}
+              >
                 {t("organization.riskRegister.operatingEffectivenessLabel")}
               </dt>
               <dd className="font-mono-data font-medium text-foreground">
