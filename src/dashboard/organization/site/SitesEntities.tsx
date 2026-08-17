@@ -177,6 +177,15 @@ export default function SitesEntities() {
   // fills the same text field via setValue, it doesn't replace it.
   const [countrySuggestOpen, setCountrySuggestOpen] = useState(false)
   const [countryHighlightIndex, setCountryHighlightIndex] = useState(-1)
+  // Separate from the committed form value: the suggestion list filters on
+  // THIS, not on siteForm's "country" value directly. Without this split,
+  // reopening a field that already holds a complete value (e.g. "Greece")
+  // filtered the list down to just that one matching entry, making it
+  // impossible to browse other countries without first deleting the text --
+  // reported as the dropdown "feeling weird" to open. Resets to "" every
+  // time the popover opens so the full list is always browsable on open;
+  // starts tracking real input the moment the user types.
+  const [countryQuery, setCountryQuery] = useState("")
   const siteActivityId = useId()
   const siteRevenueId = useId()
   const siteEmployeesId = useId()
@@ -1614,7 +1623,7 @@ export default function SitesEntities() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
+                  <div className="relative">
                     <label
                       htmlFor={siteCountryId}
                       className="mb-1.5 block text-xs font-medium text-muted-foreground"
@@ -1638,9 +1647,7 @@ export default function SitesEntities() {
                       const filteredCountries = COUNTRIES.filter((country) =>
                         country
                           .toLowerCase()
-                          .includes(
-                            (siteForm.watch("country") || "").toLowerCase()
-                          )
+                          .includes(countryQuery.toLowerCase())
                       )
                       const activeOptionId =
                         countrySuggestOpen &&
@@ -1657,14 +1664,66 @@ export default function SitesEntities() {
                             <input
                               id={siteCountryId}
                               {...siteForm.register("country", {
-                                onChange: () => setCountryHighlightIndex(-1),
+                                onChange: (e) => {
+                                  setCountryHighlightIndex(-1)
+                                  setCountryQuery(e.target.value)
+                                },
+                                // Deliberately routed through register()'s
+                                // own onBlur option (not a separate onBlur=
+                                // prop below it in the JSX) -- a later prop
+                                // in the same element wins, which would
+                                // silently discard RHF's own onBlur (marks
+                                // the field touched, drives blur-mode
+                                // validation). Harmless today since
+                                // "country" has no validation rules, but a
+                                // real footgun the moment anyone adds one.
+                                onBlur: () => setCountrySuggestOpen(false),
                               })}
+                              // Radix's PopoverTrigger defaults an
+                              // asChild-wrapped element to type="button"
+                              // when the child doesn't declare its own type
+                              // -- silently turning this into a
+                              // non-editable button-style input (centered
+                              // label text, no cursor, no keyboard text
+                              // entry at all, since browsers don't support
+                              // typing into type="button" inputs). This was
+                              // reported as the field feeling broken to
+                              // click into. Explicit type="text" overrides
+                              // Radix's default.
+                              type="text"
                               autoComplete="off"
                               role="combobox"
                               aria-expanded={countrySuggestOpen}
                               aria-controls={countryListboxId}
                               aria-activedescendant={activeOptionId}
-                              onFocus={() => setCountrySuggestOpen(true)}
+                              onFocus={(e) => {
+                                setCountrySuggestOpen(true)
+                                // Reopening a field that already holds a
+                                // complete value (e.g. "Greece") used to
+                                // filter the list down to just that one
+                                // match, making it impossible to browse
+                                // other countries without deleting the text
+                                // first. Resetting the query shows the full
+                                // list on every open; selecting the text
+                                // means the next keystroke replaces it,
+                                // matching standard editable-combobox
+                                // behavior.
+                                setCountryQuery("")
+                                setCountryHighlightIndex(-1)
+                                e.target.select()
+                              }}
+                              // (The onBlur closing the suggestion list --
+                              // a pre-existing gap where Radix's own
+                              // outside-interaction dismiss doesn't
+                              // reliably close a Popover nested inside a
+                              // Dialog, confirmed via git stash against the
+                              // committed code -- lives in register()'s own
+                              // onBlur option above, not here, so it
+                              // doesn't discard RHF's onBlur. Safe against
+                              // losing a click on a suggestion: those use
+                              // onMouseDown with preventDefault
+                              // specifically so the option list handles
+                              // the click before any blur fires.)
                               onKeyDown={(e) => {
                                 if (e.key === "ArrowDown") {
                                   e.preventDefault()
@@ -1687,22 +1746,41 @@ export default function SitesEntities() {
                                     filteredCountries[countryHighlightIndex]
                                   ) {
                                     e.preventDefault()
-                                    siteForm.setValue(
-                                      "country",
-                                      filteredCountries[
-                                        countryHighlightIndex
-                                      ],
-                                      { shouldDirty: true }
-                                    )
+                                    const selected =
+                                      filteredCountries[countryHighlightIndex]
+                                    siteForm.setValue("country", selected, {
+                                      shouldDirty: true,
+                                    })
+                                    // setValue bypasses register()'s
+                                    // onChange, so countryQuery (what the
+                                    // suggestion list filters against)
+                                    // wouldn't otherwise reflect the
+                                    // selection -- stays stale until the
+                                    // next real open (onFocus resets it).
+                                    // Harmless most of the time since
+                                    // onFocus resets on reopen, but
+                                    // onMouseDown's e.preventDefault() below
+                                    // keeps the input focused through a
+                                    // mouse selection too, so pressing
+                                    // ArrowDown again right after selecting
+                                    // (without leaving the field) would
+                                    // otherwise reopen filtered against the
+                                    // old pre-selection text instead of the
+                                    // just-selected value.
+                                    setCountryQuery(selected)
                                     setCountrySuggestOpen(false)
                                   }
                                 } else if (e.key === "Escape") {
                                   setCountrySuggestOpen(false)
                                 }
                               }}
-                              className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm"
+                              className="h-10 w-full rounded-lg border border-input bg-background px-4 pr-9 text-sm"
                             />
                           </PopoverTrigger>
+                          <ChevronDown
+                            aria-hidden="true"
+                            className="pointer-events-none absolute right-3 bottom-3 h-4 w-4 text-muted-foreground"
+                          />
                           <PopoverContent
                             className="w-(--radix-popover-trigger-width) p-0"
                             align="start"
@@ -1742,6 +1820,7 @@ export default function SitesEntities() {
                                       siteForm.setValue("country", country, {
                                         shouldDirty: true,
                                       })
+                                      setCountryQuery(country)
                                       setCountrySuggestOpen(false)
                                     }}
                                     className={`cursor-default rounded-md px-2.5 py-1.5 text-xs ${

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import React from "react"
 import { MemoryRouter } from "react-router"
@@ -1233,6 +1233,131 @@ describe("SitesEntities", () => {
     expect(screen.queryByText("Location")).not.toBeInTheDocument()
     expect(screen.queryByText("Country")).not.toBeInTheDocument()
     expect(screen.queryByText("Revenue")).not.toBeInTheDocument()
+  })
+
+  // Regression: the country combobox's <input> never declared an explicit
+  // type, so Radix's PopoverTrigger (asChild) filled in its own default of
+  // type="button" -- silently turning it into a non-editable, centered-text
+  // button-style input (browsers don't support typing into type="button"
+  // inputs at all). Reported as the field "feeling weird" to click into.
+  it("renders the country field as a real editable text input, not a button", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+
+    const countryInput = screen.getByRole("combobox", {
+      name: "organization.site&entities.siteCountryLabel",
+    })
+    expect(countryInput).toHaveAttribute("type", "text")
+
+    await userEvent.click(countryInput)
+    await userEvent.type(countryInput, "Fra")
+    expect(countryInput).toHaveValue("Fra")
+    expect(
+      await screen.findByRole("option", { name: "France" })
+    ).toBeInTheDocument()
+  })
+
+  // Regression: reopening a field that already holds a complete value (e.g.
+  // after selecting "Greece") filtered the suggestion list down to just that
+  // one matching entry, making it impossible to browse other countries
+  // without first deleting the text.
+  it("shows the full country list on reopen, not filtered to the current value", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+
+    const countryInput = screen.getByRole("combobox", {
+      name: "organization.site&entities.siteCountryLabel",
+    })
+    await userEvent.click(countryInput)
+    await userEvent.type(countryInput, "Greece")
+    await userEvent.click(await screen.findByRole("option", { name: "Greece" }))
+    expect(countryInput).toHaveValue("Greece")
+
+    // Close it, then reopen the already-filled field. fireEvent.focus (not
+    // userEvent.click) here -- jsdom doesn't reliably simulate a real
+    // browser's click-focuses-text-input behavior through Radix's Slot
+    // composition, verified working via a real click in a live browser
+    // during manual testing; the component's onFocus handler (what's
+    // actually under test) is exercised identically either way.
+    await userEvent.click(
+      screen.getByRole("textbox", {
+        name: /organization\.site&entities\.siteName/i,
+      })
+    )
+    fireEvent.focus(countryInput)
+
+    expect(
+      await screen.findByRole("option", { name: "Afghanistan" })
+    ).toBeInTheDocument()
+    expect(screen.getByRole("option", { name: "France" })).toBeInTheDocument()
+  })
+
+  // General coverage for explicit close-on-blur, added alongside the fixes
+  // above -- NOT a regression test for the specific bug that motivated it.
+  // That bug (Radix's own outside-interaction dismiss not reliably closing
+  // a Popover nested inside a Dialog) was confirmed live in a real browser,
+  // via git-stash A/B against the committed code, but doesn't reproduce in
+  // jsdom: this same test passes against the pre-fix component too (jsdom's
+  // simulated dismissable-layer/pointerdown handling differs from real
+  // Chromium here). Kept anyway as basic coverage that closing works at
+  // all, with this noted rather than silently claimed as regression-proof.
+  it("closes the country suggestion list when focus moves to another field", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+
+    renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+
+    const countryInput = screen.getByRole("combobox", {
+      name: "organization.site&entities.siteCountryLabel",
+    })
+    // fireEvent.focus (not userEvent.click) to open -- see comment on the
+    // equivalent reopen step in the previous test.
+    fireEvent.focus(countryInput)
+    expect(
+      await screen.findByRole("option", { name: "Afghanistan" })
+    ).toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole("textbox", {
+        name: /organization\.site&entities\.siteName/i,
+      })
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("option", { name: "Afghanistan" })
+      ).not.toBeInTheDocument()
+    )
   })
 
   it("submits the create-site form with the entered name", async () => {
