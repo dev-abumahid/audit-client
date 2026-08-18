@@ -23,6 +23,11 @@ import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import enTranslations from "@/i18n/locales/en.json"
 import { useAnalyzeSiteRisksMutation } from "@/redux/apis/organization/ai.api"
 import {
+  useDismissSuggestionMutation,
+  useGetSiteSuggestionStatesQuery,
+  useMarkSuggestionImportedMutation,
+} from "@/redux/apis/organization/aiSuggestions.api"
+import {
   useCreateNewRiskMutation,
   useDeleteRiskMutation,
   useGetAllRisksQuery,
@@ -38,12 +43,15 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks"
 import {
   failSiteAnalysis,
   removeImportedSuggestions,
+  removeSuggestion,
   setSiteSuggestions,
   startSiteAnalysis,
   toggleSuggestionSelected as toggleSuggestionSelectedAction,
 } from "@/redux/slices/aiSuggestions.slice"
 import type { RiskSuggestion } from "@/types/ai"
 import type { Risk, SiteSummary } from "@/types/organization"
+import { buildSuggestionFingerprint } from "@/utils/aiSuggestionFingerprint"
+import { formatLocaleDate } from "@/utils/formatDate"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { SEVERITY_STYLES } from "@/utils/severityStyles"
@@ -55,6 +63,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  History,
   Loader2,
   MoreVertical,
   Pencil,
@@ -159,7 +168,7 @@ const EMPTY_SITE_FORM_VALUES: SiteFormValues = {
 }
 
 export default function SitesEntities() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   // aexa-frontend#217
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
@@ -357,6 +366,44 @@ export default function SitesEntities() {
   )
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [importingIds, setImportingIds] = useState<Set<string>>(new Set())
+  const [dismissingIds, setDismissingIds] = useState<Set<string>>(new Set())
+
+  // aexa-frontend#922: AI-suggested-risk lifecycle -- dismiss, per-site
+  // dismissed history, previously-dismissed marking on re-analysis.
+  // showDismissedHistory is plain component state (not the Redux slice):
+  // only one site panel is ever expanded at a time (expandedSite), so it
+  // doesn't need cross-navigation persistence like suggestions/
+  // analyzingSiteId/selectedSuggestionIds do.
+  const [showDismissedHistory, setShowDismissedHistory] = useState(false)
+  useEffect(() => {
+    setShowDismissedHistory(false)
+  }, [expandedSite])
+
+  const [dismissSuggestion] = useDismissSuggestionMutation()
+  const [markSuggestionImported] = useMarkSuggestionImportedMutation()
+  // Fetched whenever a site panel is expanded (not gated on suggestions
+  // existing) -- both the "previously dismissed" marker on freshly
+  // analyzed suggestions and the read-only dismissed-history view need it,
+  // and the history view must be reachable even with zero active
+  // suggestions in the aiSuggestions slice this session.
+  const { data: siteSuggestionStatesData } = useGetSiteSuggestionStatesQuery(
+    expandedSite ?? "",
+    { skip: !expandedSite }
+  )
+  const dismissedSuggestionStates = useMemo(
+    () =>
+      (siteSuggestionStatesData?.data ?? []).filter(
+        (s) => s.status === "DISMISSED"
+      ),
+    [siteSuggestionStatesData]
+  )
+  // Rows already carry the server-computed fingerprint -- only fresh
+  // suggestions (from analyzeSiteRisks, which never got a stored row) need
+  // buildSuggestionFingerprint recomputed against this set.
+  const dismissedFingerprints = useMemo(
+    () => new Set(dismissedSuggestionStates.map((s) => s.fingerprint)),
+    [dismissedSuggestionStates]
+  )
   // The Analyze button is only disabled for the site currently being
   // analyzed, so nothing stops clicking Analyze on a different site while
   // one request is still in flight. This ref (not state, so it's readable
@@ -673,6 +720,48 @@ export default function SitesEntities() {
     // behavior for a fully-successful import) -- retrying means
     // re-checking the box, not an auto-preserved selection.
     dispatch(removeImportedSuggestions(Array.from(importedIds)))
+
+    // aexa-frontend#922: fire-and-forget -- record each successfully
+    // imported suggestion server-side so a later re-analysis run's
+    // dismissed/imported history reflects it. Not awaited and doesn't
+    // block the UI; a failure here doesn't affect the risk that was
+    // already successfully created, so it's only logged, not toasted.
+    for (const suggestion of toImport) {
+      if (!importedIds.has(suggestion.risk_id)) continue
+      markSuggestionImported({ siteId, suggestion })
+        .unwrap()
+        .catch((err) => {
+          console.warn("Failed to mark AI suggestion as imported", err)
+        })
+    }
+  }
+
+  // aexa-frontend#922: single-suggestion dismiss (one row's "Dismiss"
+  // button), separate from the bulk import flow above. On success, drops
+  // the suggestion from the local slice so it disappears from the active
+  // panel immediately; on failure, leaves it visible so the user can
+  // retry, same resilience pattern as handleImportSuggestions.
+  const handleDismissSuggestion = async (
+    siteId: string,
+    suggestion: RiskSuggestion
+  ) => {
+    setDismissingIds((prev) => new Set(prev).add(suggestion.risk_id))
+    try {
+      await dismissSuggestion({ siteId, suggestion }).unwrap()
+      dispatch(removeSuggestion(suggestion.risk_id))
+    } catch {
+      toast.error(
+        t("organization.site&entities.dismissSuggestionFailed", {
+          title: suggestion.title,
+        })
+      )
+    } finally {
+      setDismissingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(suggestion.risk_id)
+        return next
+      })
+    }
   }
 
   const handleAddManualRisk = async (
@@ -1251,8 +1340,66 @@ export default function SitesEntities() {
                 </form>
               )}
 
+              {/* aexa-frontend#922: dismissed-history toggle -- reachable
+                  whenever the site panel is expanded, independent of
+                  whether this session has any active AI suggestions (the
+                  CEO's own framing: "comme une sorte d'historique de
+                  recherche" -- a search history, not tied to a live
+                  analysis run). Viewing history is read-only, so it's not
+                  gated behind canWrite the way Import/Dismiss are. */}
+              {isExpanded && (
+                <div className="border-t border-border bg-muted/10 px-5 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowDismissedHistory((prev) => !prev)}
+                    className="focus-ring flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    <History className="h-3.5 w-3.5" />
+                    {showDismissedHistory
+                      ? t("organization.site&entities.backToSuggestions")
+                      : t("organization.site&entities.dismissedHistoryToggle")}
+                  </button>
+
+                  {showDismissedHistory &&
+                    (dismissedSuggestionStates.length === 0 ? (
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        {t("organization.site&entities.noDismissedHistory")}
+                      </p>
+                    ) : (
+                      <div className="mt-3 space-y-2 text-start">
+                        {/* Read-only by design: no "undismiss" action in this
+                            round -- out of scope, this is a search-history
+                            view, not a reversible-state editor. */}
+                        {dismissedSuggestionStates.map((state) => (
+                          <div
+                            key={state.id}
+                            className="rounded-lg border border-border bg-card p-3"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-medium text-foreground">
+                                {state.title}
+                              </p>
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                                {state.category}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {state.suggestion.description}
+                            </p>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              {t("organization.site&entities.dismissedOnLabel")}{" "}
+                              {formatLocaleDate(state.actedAt, i18n.language)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                </div>
+              )}
+
               {/* AI-suggested risks — pending review, not yet in the register */}
               {isExpanded &&
+                !showDismissedHistory &&
                 analyzingSiteId === site.id &&
                 suggestions.length > 0 && (
                   <div className="border-t border-border bg-primary/5 p-5">
@@ -1284,75 +1431,118 @@ export default function SitesEntities() {
                     </div>
 
                     <div className="space-y-2 text-start">
-                      {suggestions.map((suggestion) => (
-                        <label
-                          key={suggestion.risk_id}
-                          className="flex cursor-pointer flex-col gap-2 rounded-lg border-2 border-primary/20 bg-card p-3 sm:flex-row sm:items-start"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedSuggestionIds.has(
-                              suggestion.risk_id
-                            )}
-                            onChange={() =>
-                              toggleSuggestionSelected(suggestion.risk_id)
-                            }
-                            className="mt-1 h-4 w-4 shrink-0"
-                          />
-                          <div className="min-w-0 flex-1">
-                            {/* quality-bar-loop round 15 (visual-polish
-                                finding, open since round 1): this metadata
-                                (category, description, inherent/residual/
-                                probability/velocity/trend/owner) was
-                                text-[10px], below the app's text-xs (12px)
-                                type-scale floor used everywhere else in
-                                this file -- bumped to text-xs. */}
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm font-medium text-foreground">
-                                {suggestion.title}
+                      {suggestions.map((suggestion) => {
+                        const isPreviouslyDismissed = dismissedFingerprints.has(
+                          buildSuggestionFingerprint(
+                            suggestion.title,
+                            suggestion.category
+                          )
+                        )
+                        return (
+                          <label
+                            key={suggestion.risk_id}
+                            className={`flex cursor-pointer flex-col gap-2 rounded-lg border-2 border-primary/20 bg-card p-3 sm:flex-row sm:items-start ${
+                              isPreviouslyDismissed
+                                ? "bg-muted/40 opacity-60"
+                                : ""
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedSuggestionIds.has(
+                                suggestion.risk_id
+                              )}
+                              onChange={() =>
+                                toggleSuggestionSelected(suggestion.risk_id)
+                              }
+                              className="mt-1 h-4 w-4 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              {/* quality-bar-loop round 15 (visual-polish
+                                  finding, open since round 1): this metadata
+                                  (category, description, inherent/residual/
+                                  probability/velocity/trend/owner) was
+                                  text-[10px], below the app's text-xs (12px)
+                                  type-scale floor used everywhere else in
+                                  this file -- bumped to text-xs. */}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-medium text-foreground">
+                                  {suggestion.title}
+                                </p>
+                                <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                                  {suggestion.category}
+                                </span>
+                                {isPreviouslyDismissed && (
+                                  <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                                    {t(
+                                      "organization.site&entities.previouslyDismissedBadge",
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {suggestion.description}
                               </p>
-                              <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                                {suggestion.category}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {suggestion.description}
-                            </p>
-                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                              <span>
-                                {t("organization.site&entities.inherentLabel")}{" "}
-                                {suggestion.inherent_risk_score}
-                              </span>
-                              <span>
-                                {t("organization.site&entities.residualLabel")}{" "}
-                                {suggestion.residual_risk_score}
-                              </span>
-                              <span>
-                                {t(
-                                  "organization.site&entities.probabilityLabel",
-                                )}{" "}
-                                {Math.round(suggestion.Probability * 100)}%
-                              </span>
-                              <span>
-                                {t("organization.site&entities.velocityLabel")}{" "}
-                                {suggestion.Velocity}
-                              </span>
-                              <span>
-                                {t("organization.site&entities.trendLabel")}{" "}
-                                {suggestion.Trend}
-                              </span>
-                              {suggestion.Responsable && (
+                              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                <span>
+                                  {t("organization.site&entities.inherentLabel")}{" "}
+                                  {suggestion.inherent_risk_score}
+                                </span>
+                                <span>
+                                  {t("organization.site&entities.residualLabel")}{" "}
+                                  {suggestion.residual_risk_score}
+                                </span>
                                 <span>
                                   {t(
-                                    "organization.site&entities.suggestedOwnerLabel",
+                                    "organization.site&entities.probabilityLabel",
                                   )}{" "}
-                                  {suggestion.Responsable}
+                                  {Math.round(suggestion.Probability * 100)}%
                                 </span>
-                              )}
+                                <span>
+                                  {t("organization.site&entities.velocityLabel")}{" "}
+                                  {suggestion.Velocity}
+                                </span>
+                                <span>
+                                  {t("organization.site&entities.trendLabel")}{" "}
+                                  {suggestion.Trend}
+                                </span>
+                                {suggestion.Responsable && (
+                                  <span>
+                                    {t(
+                                      "organization.site&entities.suggestedOwnerLabel",
+                                    )}{" "}
+                                    {suggestion.Responsable}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </label>
-                      ))}
+                            {canWrite && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  // Nested inside the <label> above so the
+                                  // checkbox it's paired with doesn't also
+                                  // toggle from this click (browsers forward
+                                  // a click anywhere in a <label> to its
+                                  // associated control unless prevented).
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  handleDismissSuggestion(site.id, suggestion)
+                                }}
+                                disabled={dismissingIds.has(suggestion.risk_id)}
+                                className="focus-ring flex shrink-0 items-center gap-1 rounded-lg border border-input px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                              >
+                                {dismissingIds.has(suggestion.risk_id) ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <X className="h-3.5 w-3.5" />
+                                )}
+                                {t("organization.site&entities.dismissSuggestion")}
+                              </button>
+                            )}
+                          </label>
+                        )
+                      })}
                     </div>
                   </div>
                 )}

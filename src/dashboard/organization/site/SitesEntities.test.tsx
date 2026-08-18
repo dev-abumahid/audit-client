@@ -46,7 +46,10 @@ const mockToastError = vi.mocked(toast.error)
 const mockToastSuccess = vi.mocked(toast.success)
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string) => key,
+    i18n: { language: "en" },
+  }),
 }))
 
 // aexa-frontend#217 -- role hook mocked per-test via this mutable holder,
@@ -67,6 +70,9 @@ const mockUseGetAllRisksQuery = vi.fn()
 const mockDeleteRisk = vi.fn()
 const mockCreateNewRisk = vi.fn()
 const mockAnalyzeSiteRisks = vi.fn()
+const mockDismissSuggestion = vi.fn()
+const mockMarkSuggestionImported = vi.fn()
+const mockUseGetSiteSuggestionStatesQuery = vi.fn()
 
 vi.mock("@/redux/apis/organization/sites.api", () => ({
   useGetAllSitesQuery: (...args: unknown[]) => mockUseGetAllSitesQuery(...args),
@@ -84,6 +90,20 @@ vi.mock("@/redux/apis/organization/risk.api", () => ({
 
 vi.mock("@/redux/apis/organization/ai.api", () => ({
   useAnalyzeSiteRisksMutation: () => [mockAnalyzeSiteRisks, { isLoading: false }],
+}))
+
+// aexa-frontend#922: AI-suggestion lifecycle (dismiss / dismissed history /
+// previously-dismissed marking). getSiteSuggestionStates defaults to an
+// empty list so existing tests (written before this feature) that never
+// set up this mock don't blow up on an undefined return value.
+vi.mock("@/redux/apis/organization/aiSuggestions.api", () => ({
+  useDismissSuggestionMutation: () => [mockDismissSuggestion, { isLoading: false }],
+  useMarkSuggestionImportedMutation: () => [
+    mockMarkSuggestionImported,
+    { isLoading: false },
+  ],
+  useGetSiteSuggestionStatesQuery: (...args: unknown[]) =>
+    mockUseGetSiteSuggestionStatesQuery(...args),
 }))
 
 vi.mock("@/components/shared/DeleteAlertModal", () => ({
@@ -168,10 +188,25 @@ describe("SitesEntities", () => {
     mockDeleteRisk.mockReset()
     mockCreateNewRisk.mockReset()
     mockAnalyzeSiteRisks.mockReset()
+    mockDismissSuggestion.mockReset()
+    mockMarkSuggestionImported.mockReset()
+    mockUseGetSiteSuggestionStatesQuery.mockReset()
     mockToastError.mockReset()
     mockToastSuccess.mockReset()
     ;(Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>).mockClear()
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+    // aexa-frontend#922: default to an empty dismissed-history list --
+    // individual tests override with real rows where the feature under
+    // test needs them.
+    mockUseGetSiteSuggestionStatesQuery.mockReturnValue({
+      data: { success: true, data: [] },
+    })
+    mockDismissSuggestion.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+    mockMarkSuggestionImported.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
     // Edit opens a per-site detail fetch (aexa-frontend#401); default to a
     // never-resolving promise so tests that don't care about it aren't
     // affected, individual tests override with a resolved/rejected value.
@@ -3150,6 +3185,261 @@ describe("SitesEntities", () => {
       ).not.toBeInTheDocument()
     )
     expect(screen.getByText("Flood exposure")).toBeInTheDocument()
+  })
+
+  // aexa-frontend#922: AI-suggestion lifecycle -- dismiss, per-site
+  // dismissed history, previously-dismissed marking on re-analysis.
+  describe("AI-suggestion lifecycle (aexa-frontend#922)", () => {
+    it("dismisses a suggestion: calls the mutation with siteId+suggestion and removes it from the panel", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      const suggestion = makeSuggestion({
+        risk_id: "sugg-1",
+        title: "Supplier concentration",
+      })
+      mockAnalyzeSiteRisks.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true, data: [suggestion] }),
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization.site&entities.analyzeAi/i,
+        })
+      )
+      await waitFor(() =>
+        expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+      )
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.site&entities.dismissSuggestion",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockDismissSuggestion).toHaveBeenCalledWith({
+          siteId: "site-1",
+          suggestion,
+        })
+      )
+      await waitFor(() =>
+        expect(
+          screen.queryByText("Supplier concentration")
+        ).not.toBeInTheDocument()
+      )
+    })
+
+    it("shows an error toast and keeps the suggestion visible when dismiss fails", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockAnalyzeSiteRisks.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            data: [makeSuggestion({ risk_id: "sugg-1", title: "Supplier concentration" })],
+          }),
+      })
+      mockDismissSuggestion.mockReturnValue({
+        unwrap: () => Promise.reject(new Error("network error")),
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization.site&entities.analyzeAi/i,
+        })
+      )
+      await waitFor(() =>
+        expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+      )
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.site&entities.dismissSuggestion",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith(
+          "organization.site&entities.dismissSuggestionFailed"
+        )
+      )
+      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+    })
+
+    it("marks a freshly analyzed suggestion whose fingerprint matches a dismissed row as 'Previously dismissed', and leaves a non-matching one unmarked", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockAnalyzeSiteRisks.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            data: [
+              makeSuggestion({
+                risk_id: "sugg-1",
+                title: "Supplier concentration",
+                category: "Operational",
+              }),
+              makeSuggestion({
+                risk_id: "sugg-2",
+                title: "Flood exposure",
+                category: "Environmental",
+              }),
+            ],
+          }),
+      })
+      // "Supplier concentration"/"Operational" normalizes to
+      // "supplier concentration::operational" -- matches sugg-1 only.
+      mockUseGetSiteSuggestionStatesQuery.mockReturnValue({
+        data: {
+          success: true,
+          data: [
+            {
+              id: "state-1",
+              siteId: "site-1",
+              fingerprint: "supplier concentration::operational",
+              title: "Supplier concentration",
+              category: "Operational",
+              suggestion: makeSuggestion(),
+              status: "DISMISSED",
+              actedById: "user-1",
+              actedAt: "2026-08-01T00:00:00.000Z",
+              createdAt: "2026-08-01T00:00:00.000Z",
+              updatedAt: "2026-08-01T00:00:00.000Z",
+            },
+          ],
+        },
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization.site&entities.analyzeAi/i,
+        })
+      )
+      await waitFor(() =>
+        expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+      )
+
+      const badges = screen.getAllByText(
+        "organization.site&entities.previouslyDismissedBadge"
+      )
+      expect(badges).toHaveLength(1)
+      // The badge sits alongside "Supplier concentration", not "Flood
+      // exposure" -- walk up to the row and assert the non-matching
+      // suggestion's row has no badge of its own.
+      const floodRow = screen.getByText("Flood exposure").closest("label")
+      expect(
+        within(floodRow!).queryByText(
+          "organization.site&entities.previouslyDismissedBadge"
+        )
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows the dismissed-history view with rows from the API, reachable even with zero active suggestions", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockUseGetSiteSuggestionStatesQuery.mockReturnValue({
+        data: {
+          success: true,
+          data: [
+            {
+              id: "state-1",
+              siteId: "site-1",
+              fingerprint: "supplier concentration::operational",
+              title: "Supplier concentration",
+              category: "Operational",
+              suggestion: makeSuggestion({
+                description: "Single supplier for a critical part",
+              }),
+              status: "DISMISSED",
+              actedById: "user-1",
+              actedAt: "2026-08-01T00:00:00.000Z",
+              createdAt: "2026-08-01T00:00:00.000Z",
+              updatedAt: "2026-08-01T00:00:00.000Z",
+            },
+          ],
+        },
+      })
+
+      renderPage()
+      // Expand the site without ever running AI analysis -- the history
+      // toggle must still be reachable (not gated on suggestions.length).
+      const expandButton = screen
+        .getAllByRole("button")
+        .find((b) => b.querySelector("svg.lucide-chevron-down"))!
+      await userEvent.click(expandButton)
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.site&entities.dismissedHistoryToggle",
+        })
+      )
+
+      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+      expect(screen.getByText("Operational")).toBeInTheDocument()
+      expect(
+        screen.getByText("Single supplier for a critical part")
+      ).toBeInTheDocument()
+    })
+
+    it("fires markSuggestionImported (fire-and-forget) for each successfully imported suggestion", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      const suggestion = makeSuggestion({
+        risk_id: "sugg-1",
+        title: "Supplier concentration",
+      })
+      mockAnalyzeSiteRisks.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true, data: [suggestion] }),
+      })
+      mockCreateNewRisk.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization.site&entities.analyzeAi/i,
+        })
+      )
+      await waitFor(() =>
+        expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+      )
+
+      await userEvent.click(screen.getByRole("checkbox"))
+      await userEvent.click(
+        screen.getByRole("button", { name: /organization\.site&entities\.importSelected/i })
+      )
+
+      await waitFor(() =>
+        expect(mockMarkSuggestionImported).toHaveBeenCalledWith({
+          siteId: "site-1",
+          suggestion,
+        })
+      )
+    })
   })
 
   // aexa-frontend#533: FindingDetails.tsx links here with ?siteId=&search=

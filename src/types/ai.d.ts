@@ -20,3 +20,21 @@ export interface RiskSuggestion {
   Responsable: string
   score: number
 }
+
+// aexa-frontend#922: shape of the rows aexa-server persists for the
+// AI-suggestion lifecycle (dismiss / mark-imported), one row per
+// (siteId, fingerprint) pair, upserted on POST /ai/suggestions/dismiss and
+// /ai/suggestions/mark-imported, listed via GET /ai/suggestions/site/:siteId.
+export interface AiSuggestionState {
+  id: string
+  siteId: string
+  fingerprint: string
+  title: string
+  category: string
+  suggestion: RiskSuggestion
+  status: "DISMISSED" | "IMPORTED"
+  actedById: string
+  actedAt: string
+  createdAt: string
+  updatedAt: string
+}

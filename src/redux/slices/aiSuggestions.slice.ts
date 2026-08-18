@@ -60,6 +60,20 @@ const aiSuggestionsSlice = createSlice({
       )
       state.selectedSuggestionIds = []
     },
+    // aexa-frontend#922: dismiss is a single-suggestion action (one row's
+    // "Dismiss" button, not a bulk operation like import), so this takes a
+    // single risk_id rather than reusing removeImportedSuggestions' array
+    // shape -- that reducer's name and its "clear selection" side effect
+    // are both specific to the import flow and don't fit dismiss (a
+    // dismissed suggestion was never necessarily selected).
+    removeSuggestion(state, action: PayloadAction<string>) {
+      state.suggestions = state.suggestions.filter(
+        (s) => s.risk_id !== action.payload
+      )
+      state.selectedSuggestionIds = state.selectedSuggestionIds.filter(
+        (id) => id !== action.payload
+      )
+    },
   },
 })
 
@@ -69,5 +83,6 @@ export const {
   failSiteAnalysis,
   toggleSuggestionSelected,
   removeImportedSuggestions,
+  removeSuggestion,
 } = aiSuggestionsSlice.actions
 export const aiSuggestionsReducer = aiSuggestionsSlice.reducer
