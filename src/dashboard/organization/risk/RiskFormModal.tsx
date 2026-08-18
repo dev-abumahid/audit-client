@@ -252,7 +252,20 @@ function FormField({
 }: FormFieldProps) {
   const ringed = aiControl?.pending
   return (
-    <div className={ringed ? "rounded-lg ring-1 ring-violet-400/60" : ""}>
+    // quality-bar-loop visual-polish finding (rounds 1-2, stuck at 5/10):
+    // the AI controls used an off-palette violet/fuchsia gradient with no
+    // precedent anywhere else in the app -- the app's own accent is the
+    // teal/emerald `--primary` token (src/index.css), already used for
+    // every other CTA and for `focus-visible:ring-primary` globally (see
+    // index.css's `.focus-ring` rule), which is also why `ring-primary`
+    // below doesn't need a fresh contrast check: it's the same ring color
+    // already relied on for focus visibility everywhere in this app.
+    // Accept/Reject keep their own semantic emerald/destructive colors
+    // (success/danger are a different signal from "this is AI"). Icon
+    // buttons grew from p-0.5 to p-1.5 (12px icon -> ~26px hit target,
+    // clearing the 24px comfortable-target guideline) without changing
+    // the icon's own visual size.
+    <div className={ringed ? "rounded-lg ring-1 ring-primary/60" : ""}>
       {/* AI controls are deliberately siblings of <label>, not children of
           it -- testing-library's getByLabelText (and browsers' own
           implicit-label association) treats any labelable descendant of a
@@ -271,7 +284,7 @@ function FormField({
         </label>
         {aiControl?.pending && (
           <span className="ml-auto inline-flex items-center gap-1">
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
               <Sparkles className="h-2.5 w-2.5" />
               AI
             </span>
@@ -280,7 +293,7 @@ function FormField({
               onClick={aiControl.onAccept}
               aria-label={`Accept AI suggestion for ${label}`}
               title="Accept"
-              className="focus-ring rounded p-0.5 text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-400"
+              className="focus-ring rounded p-1.5 text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-400"
             >
               <Check className="h-3 w-3" />
             </button>
@@ -289,7 +302,7 @@ function FormField({
               onClick={aiControl.onReject}
               aria-label={`Reject AI suggestion for ${label}`}
               title="Reject"
-              className="focus-ring rounded p-0.5 text-destructive hover:bg-destructive/15"
+              className="focus-ring rounded p-1.5 text-destructive hover:bg-destructive/15"
             >
               <X className="h-3 w-3" />
             </button>
@@ -306,7 +319,7 @@ function FormField({
                 ? "Suggest with AI"
                 : "Enter a site, name, and category first"
             }
-            className="focus-ring ml-auto rounded p-0.5 text-muted-foreground/50 hover:text-violet-600 disabled:cursor-not-allowed disabled:hover:text-muted-foreground/50 dark:hover:text-violet-400"
+            className="focus-ring ml-auto rounded p-1.5 text-muted-foreground/60 hover:text-primary disabled:cursor-not-allowed disabled:hover:text-muted-foreground/60"
           >
             <Sparkles className="h-3 w-3" />
           </button>
@@ -1586,7 +1599,16 @@ function AiPrefillTrigger({ canSuggest }: { canSuggest: boolean }) {
         type="button"
         disabled={!canSuggest || ai.isSuggesting}
         onClick={ai.runSuggest}
-        className="focus-ring flex w-full items-center justify-center gap-2 rounded-xl border-2 border-violet-400/60 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 px-4 py-3 text-sm font-semibold text-violet-700 hover:from-violet-500/20 hover:to-fuchsia-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:text-violet-300"
+        // quality-bar-loop visual-polish finding (rounds 1-2): this
+        // button used to be visually LOUDER than the form's real "Add
+        // Risk" submit button (border-2 + gradient fill vs. the submit
+        // button's plain solid bg-primary) -- a secondary, optional
+        // action outweighing the primary one. A single border + tinted
+        // background (no gradient) reads as a clear but secondary CTA,
+        // leaving the solid-fill submit button as the visually dominant
+        // action, same relationship the rest of the app's
+        // primary-vs-secondary buttons already have.
+        className="focus-ring flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {ai.isSuggesting ? (
           <>
@@ -1615,7 +1637,7 @@ function AiPrefillTrigger({ canSuggest }: { canSuggest: boolean }) {
           <button
             type="button"
             onClick={ai.acceptAll}
-            className="focus-ring inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-violet-600 hover:bg-violet-500/10 dark:text-violet-400"
+            className="focus-ring inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
           >
             <Check className="h-3 w-3" />
             Accept all
