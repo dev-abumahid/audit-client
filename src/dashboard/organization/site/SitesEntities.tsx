@@ -34,6 +34,14 @@ import {
   useLazyGetSiteByIdQuery,
   useUpdateSiteMutation,
 } from "@/redux/apis/organization/sites.api"
+import { useAppDispatch, useAppSelector } from "@/redux/hooks"
+import {
+  failSiteAnalysis,
+  removeImportedSuggestions,
+  setSiteSuggestions,
+  startSiteAnalysis,
+  toggleSuggestionSelected as toggleSuggestionSelectedAction,
+} from "@/redux/slices/aiSuggestions.slice"
 import type { RiskSuggestion } from "@/types/ai"
 import type { Risk, SiteSummary } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
@@ -59,7 +67,7 @@ import {
   Trash2,
   X,
 } from "lucide-react"
-import { useCallback, useEffect, useId, useRef, useState } from "react"
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
@@ -323,16 +331,31 @@ export default function SitesEntities() {
 
   const [showRiskForm, setShowRiskForm] = useState<string | null>(null)
 
-  // AI risk-analysis state. Suggestions/selection/importing are scoped to a
-  // single site at a time (analyzingSiteId) rather than keyed per-site,
-  // since only one site's panel realistically drives this at once and it
-  // keeps the state reset trivial when switching sites.
-  const [analyzingSiteId, setAnalyzingSiteId] = useState<string | null>(null)
+  // AI risk-analysis state. Suggestions/selection are scoped to a single
+  // site at a time (analyzingSiteId) rather than keyed per-site, since only
+  // one site's panel realistically drives this at once and it keeps the
+  // state reset trivial when switching sites.
+  //
+  // suggestions/analyzingSiteId/selectedSuggestionIds live in the
+  // aiSuggestions Redux slice, not component state -- aexa-frontend#924:
+  // this page previously discarded AI-suggested risks (forcing a full
+  // re-run of the AI analysis) whenever it unmounted, e.g. navigating to a
+  // different route and back. isAnalyzing/importingIds stay local: they're
+  // in-flight-request indicators tied to this mount's own request
+  // lifecycle, not data worth preserving across navigation.
+  const dispatch = useAppDispatch()
+  const analyzingSiteId = useAppSelector(
+    (state) => state.aiSuggestions.analyzingSiteId
+  )
+  const suggestions = useAppSelector((state) => state.aiSuggestions.suggestions)
+  const selectedSuggestionIdsList = useAppSelector(
+    (state) => state.aiSuggestions.selectedSuggestionIds
+  )
+  const selectedSuggestionIds = useMemo(
+    () => new Set(selectedSuggestionIdsList),
+    [selectedSuggestionIdsList]
+  )
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [suggestions, setSuggestions] = useState<RiskSuggestion[]>([])
-  const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<
-    Set<string>
-  >(new Set())
   const [importingIds, setImportingIds] = useState<Set<string>>(new Set())
   // The Analyze button is only disabled for the site currently being
   // analyzed, so nothing stops clicking Analyze on a different site while
@@ -555,16 +578,14 @@ export default function SitesEntities() {
     // skipped rather than overwriting a different site's already-displayed
     // suggestions with this stale response.
     latestAnalysisRequestRef.current = site.id
-    setAnalyzingSiteId(site.id)
-    setSuggestions([])
-    setSelectedSuggestionIds(new Set())
+    dispatch(startSiteAnalysis(site.id))
     setIsAnalyzing(true)
     setExpandedSite(site.id)
     try {
       const res = await analyzeSiteRisks(site.id).unwrap()
       if (latestAnalysisRequestRef.current !== site.id) return
       const risks: RiskSuggestion[] = res?.data ?? []
-      setSuggestions(risks)
+      dispatch(setSiteSuggestions(risks))
       if (risks.length === 0) {
         toast(t("organization.site&entities.noAdditionalRisks"))
       }
@@ -579,7 +600,7 @@ export default function SitesEntities() {
         t("organization.site&entities.aiRiskAnalysisFailed") ||
           (error as { data?: { message?: string } })?.data?.message,
       )
-      setAnalyzingSiteId(null)
+      dispatch(failSiteAnalysis())
     } finally {
       if (latestAnalysisRequestRef.current === site.id) {
         setIsAnalyzing(false)
@@ -588,15 +609,7 @@ export default function SitesEntities() {
   }
 
   const toggleSuggestionSelected = (riskId: string) => {
-    setSelectedSuggestionIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(riskId)) {
-        next.delete(riskId)
-      } else {
-        next.add(riskId)
-      }
-      return next
-    })
+    dispatch(toggleSuggestionSelectedAction(riskId))
   }
 
   const handleImportSuggestions = async (siteId: string) => {
@@ -659,8 +672,7 @@ export default function SitesEntities() {
     // is still cleared below (matching this handler's pre-existing
     // behavior for a fully-successful import) -- retrying means
     // re-checking the box, not an auto-preserved selection.
-    setSuggestions((prev) => prev.filter((s) => !importedIds.has(s.risk_id)))
-    setSelectedSuggestionIds(new Set())
+    dispatch(removeImportedSuggestions(Array.from(importedIds)))
   }
 
   const handleAddManualRisk = async (

@@ -1,17 +1,34 @@
+import { configureStore } from "@reduxjs/toolkit"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import React from "react"
+import { Provider } from "react-redux"
 import { MemoryRouter } from "react-router"
+import { aiSuggestionsReducer } from "@/redux/slices/aiSuggestions.slice"
 import SitesEntities from "./SitesEntities"
+
+// aexa-frontend#924: suggestions/analyzingSiteId/selectedSuggestionIds now
+// live in the aiSuggestions Redux slice (not component state) so they
+// survive navigation -- see aiSuggestions.slice.ts's own comment. A real
+// store (not a hand-mocked useAppSelector/useAppDispatch) gives the closest
+// fidelity to production reducer behavior, and a fresh one per render call
+// keeps each test's AI-suggestions state isolated from every other test.
+function createTestStore() {
+  return configureStore({
+    reducer: { aiSuggestions: aiSuggestionsReducer },
+  })
+}
 
 // aexa-frontend#533: the search box is now pre-fillable from a ?search=
 // param and the highlight effect reads ?siteId=, so this needs a Router
 // context -- same convention as InspectionTable.test.tsx's renderTable().
 function renderPage(initialPath = "/") {
   return render(
-    <MemoryRouter initialEntries={[initialPath]}>
-      <SitesEntities />
-    </MemoryRouter>
+    <Provider store={createTestStore()}>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <SitesEntities />
+      </MemoryRouter>
+    </Provider>
   )
 }
 
@@ -2951,6 +2968,68 @@ describe("SitesEntities", () => {
     await waitFor(() => Promise.resolve())
     expect(screen.queryByText("Supplier concentration")).not.toBeInTheDocument()
     expect(screen.getByText("Flood exposure")).toBeInTheDocument()
+  })
+
+  // aexa-frontend#924: AI-suggested risks previously lived in component
+  // useState, discarded the moment this page unmounted (e.g. navigating to
+  // a different route and back), forcing a full AI-analysis re-run to see
+  // the same suggestions again. Now backed by the aiSuggestions Redux
+  // slice, so a genuine unmount+remount against the SAME store (unlike
+  // renderPage()'s helper, which creates a fresh store every call) must
+  // still show the previously-fetched suggestions with no second
+  // analyzeSiteRisks call.
+  it("keeps AI-suggested risks visible after the page unmounts and remounts (navigating away and back)", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockAnalyzeSiteRisks.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
+    })
+
+    const sharedStore = createTestStore()
+    const renderWithSharedStore = () =>
+      render(
+        <Provider store={sharedStore}>
+          <MemoryRouter initialEntries={["/"]}>
+            <SitesEntities />
+          </MemoryRouter>
+        </Provider>
+      )
+
+    const { unmount } = renderWithSharedStore()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+    )
+    await waitFor(() =>
+      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+    )
+    expect(mockAnalyzeSiteRisks).toHaveBeenCalledTimes(1)
+
+    // Simulate navigating to a different route and back -- the whole
+    // component tree unmounts and a fresh instance mounts, same as a real
+    // route change would do, but the Redux store (unlike component state)
+    // persists across that.
+    unmount()
+    renderWithSharedStore()
+
+    // The site row itself is freshly collapsed on this new mount (row
+    // expand/collapse is ordinary per-mount UI state, not part of this fix)
+    // -- re-expand it, same as a user would by clicking the site again.
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization\.site&entities\.expandSiteLabel/i,
+      })
+    )
+
+    expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+    // No re-run of the (slow, costly) AI analysis -- the whole point of the
+    // fix is not forcing the user through it again.
+    expect(mockAnalyzeSiteRisks).toHaveBeenCalledTimes(1)
   })
 
   // Regression (audit round 3): the pagination summary ("Showing X-Y of Z")
