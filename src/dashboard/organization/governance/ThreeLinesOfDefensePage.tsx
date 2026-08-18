@@ -346,14 +346,32 @@ function Section({
   label,
   count,
   emptyLabel,
+  hideWhenEmpty,
   children,
 }: {
   icon: React.ElementType
   label: string
   count: number
   emptyLabel: string
+  // aexa-frontend#930: CEO feedback ("still a bit cluttered, remove the
+  // superfluous text") on the per-line board below. Each of the 4 line
+  // columns renders one Section per entity type (5), and most lines only
+  // have items in 1-2 of those 5 -- live-verified before this change: the
+  // 3rd Line column showed "No items in this line yet" 3 times stacked in
+  // a row, Governing Body 2-3 times, for up to ~10 near-identical empty
+  // sentences per screen. Reference kanban/board tools (Jira, Trello,
+  // generic kanban libraries) solve this exact pattern by hiding empty
+  // columns/swimlanes rather than repeating an empty-state label per
+  // category -- see PR body for the full research citation. When true,
+  // an empty Section renders nothing at all; the parent (the per-line
+  // Card below) is responsible for showing ONE empty message if every
+  // section in that card is empty, so a line with truly zero items
+  // anywhere still tells the user that instead of going silent.
+  hideWhenEmpty?: boolean
   children: React.ReactNode
 }) {
+  if (count === 0 && hideWhenEmpty) return null
+
   return (
     <div className="mb-4 last:mb-0">
       <div className="mb-1.5 flex items-center justify-between">
@@ -717,14 +735,16 @@ export default function ThreeLinesOfDefensePage() {
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
-      <div>
-        <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-          {t("organization.threeLinesOfDefense.title")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("organization.threeLinesOfDefense.subtitle")}
-        </p>
-      </div>
+      {/* aexa-frontend#930: subtitle removed -- it named the same 5 entity
+          types (risks, controls, KRIs, compliance, audits) that the
+          Coverage Overview and every line's own section labels already
+          show visually one paragraph below. Same "restates what's already
+          visible" reasoning PR #920 already applied to this page's two
+          CardHeader subtitles (CoverageOverview, Unclassified Actions) --
+          extending it to the page-level subtitle too. */}
+      <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
+        {t("organization.threeLinesOfDefense.title")}
+      </h1>
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">
@@ -790,6 +810,16 @@ export default function ThreeLinesOfDefensePage() {
                       CorrelationMatrixPage's panels) keeps every column
                       a consistent height regardless of item count. */}
                   <CardContent className="max-h-[560px] overflow-y-auto">
+                    {/* aexa-frontend#930: one empty message for the whole
+                        card when every section in it has zero items,
+                        instead of each of the 5 sections below repeating
+                        its own "No items in this line yet" -- see the
+                        hideWhenEmpty comment on Section above. */}
+                    {totalCount === 0 && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {t("organization.threeLinesOfDefense.empty")}
+                      </p>
+                    )}
                     <Section
                       icon={Shield}
                       label={t(
@@ -797,6 +827,7 @@ export default function ThreeLinesOfDefensePage() {
                       )}
                       count={lineRisks.length}
                       emptyLabel={t("organization.threeLinesOfDefense.empty")}
+                      hideWhenEmpty
                     >
                       {lineRisks.map((risk) => (
                         <ItemRow
@@ -824,6 +855,7 @@ export default function ThreeLinesOfDefensePage() {
                       )}
                       count={lineActions.length}
                       emptyLabel={t("organization.threeLinesOfDefense.empty")}
+                      hideWhenEmpty
                     >
                       {lineActions.map((action) => (
                         <ItemRow
@@ -851,6 +883,7 @@ export default function ThreeLinesOfDefensePage() {
                       )}
                       count={lineKris.length}
                       emptyLabel={t("organization.threeLinesOfDefense.empty")}
+                      hideWhenEmpty
                     >
                       {lineKris.map((kri) => (
                         <ItemRow
@@ -878,6 +911,7 @@ export default function ThreeLinesOfDefensePage() {
                       )}
                       count={lineCompliance.length}
                       emptyLabel={t("organization.threeLinesOfDefense.empty")}
+                      hideWhenEmpty
                     >
                       {lineCompliance.map((obligation) => (
                         <ItemRow
@@ -912,6 +946,7 @@ export default function ThreeLinesOfDefensePage() {
                       )}
                       count={lineAudits.length}
                       emptyLabel={t("organization.threeLinesOfDefense.empty")}
+                      hideWhenEmpty
                     >
                       {lineAudits.map((engagement) => (
                         <ItemRow

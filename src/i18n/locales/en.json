@@ -1406,7 +1406,6 @@
     },
     "threeLinesOfDefense": {
       "title": "Three Lines Model",
-      "subtitle": "Governance classification board across risks, controls, KRIs, compliance and audits",
       "loading": "Loading classification board...",
       "loadFailed": "Failed to load the classification board. Please try again.",
       "retry": "Retry",

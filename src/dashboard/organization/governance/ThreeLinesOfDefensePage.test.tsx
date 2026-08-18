@@ -1316,6 +1316,102 @@ describe("ThreeLinesOfDefensePage", () => {
     ).toBeGreaterThan(0)
   })
 
+  // aexa-frontend#930: CEO feedback ("still a bit cluttered, remove the
+  // superfluous text") -- live-verified before this change, a line with
+  // items in only 1-2 of the 5 entity-type sections still rendered a full
+  // header + "No items in this line yet" for every OTHER section, e.g. up
+  // to 3-4 near-identical empty sentences stacked in a single column.
+  // Empty sections within an otherwise-populated line are now hidden
+  // entirely; only a truly all-empty line still shows one empty message.
+  describe("hides empty sections instead of repeating empty-state text (#930)", () => {
+    function cardForLine(lineHeadingText: string): HTMLElement {
+      const heading = screen.getByRole("heading", {
+        level: 2,
+        name: lineHeadingText,
+      })
+      const card = heading.closest('[data-slot="card"]')
+      if (!card) {
+        throw new Error(`No card found for heading "${lineHeadingText}"`)
+      }
+      return card as HTMLElement
+    }
+
+    it("does not repeat the empty-state label for a line that has items in some but not all sections", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // Default makeData: FIRST line only has a risk (no actions, kris,
+      // compliance, or audits assigned to FIRST) -- the other 4 sections
+      // must be hidden entirely, not rendered with an empty label each.
+      const firstCard = cardForLine(
+        "organization.threeLinesOfDefense.lines.first"
+      )
+      expect(
+        within(firstCard).queryByText(
+          "organization.threeLinesOfDefense.empty"
+        )
+      ).not.toBeInTheDocument()
+      // Only the Risks section heading should be present -- the other 4
+      // entity-type sections have nothing to show for this line.
+      expect(
+        within(firstCard).getByText(
+          "organization.threeLinesOfDefense.sections.risks"
+        )
+      ).toBeInTheDocument()
+      expect(
+        within(firstCard).queryByText(
+          "organization.threeLinesOfDefense.sections.actions"
+        )
+      ).not.toBeInTheDocument()
+      expect(
+        within(firstCard).queryByText(
+          "organization.threeLinesOfDefense.sections.kris"
+        )
+      ).not.toBeInTheDocument()
+      expect(
+        within(firstCard).queryByText(
+          "organization.threeLinesOfDefense.sections.compliance"
+        )
+      ).not.toBeInTheDocument()
+      expect(
+        within(firstCard).queryByText(
+          "organization.threeLinesOfDefense.sections.audits"
+        )
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows exactly one empty message for a line where every section is empty, not one per section", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // Default makeData never assigns anything to GOVERNING_BODY -- it
+      // must show the empty message exactly once for the whole card, not
+      // 5 times (one per entity-type section).
+      const governingBodyCard = cardForLine(
+        "organization.threeLinesOfDefense.lines.governingBody"
+      )
+      expect(
+        within(governingBodyCard).getAllByText(
+          "organization.threeLinesOfDefense.empty"
+        )
+      ).toHaveLength(1)
+      // No per-section headings should render at all for a fully-empty line.
+      expect(
+        within(governingBodyCard).queryByText(
+          "organization.threeLinesOfDefense.sections.risks"
+        )
+      ).not.toBeInTheDocument()
+    })
+  })
+
   // aexa-frontend#532: item titles now link into their entity's detail page
   // where one exists (Risk, Action, KRI-dashboard-highlight, Audit list).
   // aexa-frontend#561: Compliance also links now -- like Audit, it has no

@@ -1406,7 +1406,6 @@
     },
     "threeLinesOfDefense": {
       "title": "Modèle des trois lignes",
-      "subtitle": "Tableau de classification de la gouvernance pour les risques, contrôles, KRI, conformité et audits",
       "loading": "Chargement du tableau de classification...",
       "loadFailed": "Échec du chargement du tableau de classification. Veuillez réessayer.",
       "retry": "Réessayer",
