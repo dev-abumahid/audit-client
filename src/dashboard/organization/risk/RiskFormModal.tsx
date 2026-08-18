@@ -256,16 +256,27 @@ function FormField({
     // the AI controls used an off-palette violet/fuchsia gradient with no
     // precedent anywhere else in the app -- the app's own accent is the
     // teal/emerald `--primary` token (src/index.css), already used for
-    // every other CTA and for `focus-visible:ring-primary` globally (see
-    // index.css's `.focus-ring` rule), which is also why `ring-primary`
-    // below doesn't need a fresh contrast check: it's the same ring color
-    // already relied on for focus visibility everywhere in this app.
-    // Accept/Reject keep their own semantic emerald/destructive colors
-    // (success/danger are a different signal from "this is AI"). Icon
-    // buttons grew from p-0.5 to p-1.5 (12px icon -> ~26px hit target,
-    // clearing the 24px comfortable-target guideline) without changing
-    // the icon's own visual size.
-    <div className={ringed ? "rounded-lg ring-1 ring-primary/60" : ""}>
+    // every other CTA. Accept/Reject keep their own semantic emerald/
+    // destructive colors (success/danger are a different signal from
+    // "this is AI"). Icon buttons grew from p-0.5 to p-1.5 (12px icon ->
+    // ~24px hit target, clearing the 24px comfortable-target guideline)
+    // without changing the icon's own visual size.
+    //
+    // Round 3 correction: an earlier version of this ring used
+    // `ring-primary/60`, on the (unverified, and WRONG) assumption that
+    // reusing `--primary` automatically inherited the contrast headroom
+    // of `.focus-ring`'s `focus-visible:ring-primary` -- but that global
+    // rule uses FULL opacity at ring-2 (2px), not a 60%-alpha ring-1 (1px)
+    // -- same hue, very different actual paint. Measured live: /60 gave
+    // 2.13:1 against a white light-mode card (WORSE than the violet ring
+    // it replaced, which measured 2.65:1) while only passing in dark mode
+    // (3.23:1). WCAG 1.4.11 needs 3:1. `/90` (verified via the sRGB
+    // relative-luminance formula against this exact primary/white and
+    // primary/dark-card pair) gives ~3.27:1 light / ~5.68:1 dark -- passes
+    // both themes with margin. Lesson: reusing a design-system color token
+    // does not exempt a NEW usage (different opacity/weight) from its own
+    // contrast check.
+    <div className={ringed ? "rounded-lg ring-1 ring-primary/90" : ""}>
       {/* AI controls are deliberately siblings of <label>, not children of
           it -- testing-library's getByLabelText (and browsers' own
           implicit-label association) treats any labelable descendant of a
