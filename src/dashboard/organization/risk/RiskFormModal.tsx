@@ -16,7 +16,7 @@ import { formatEbitdaSectorLabel } from "@/utils/ebitdaSector"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import RiskOverrideBadge from "./RiskOverrideBadge"
-import { Check, Loader, Sparkles, X } from "lucide-react"
+import { Check, Loader, RotateCw, Sparkles, X } from "lucide-react"
 import type { ReactNode } from "react"
 import { createContext, useCallback, useContext, useMemo, useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
@@ -75,6 +75,7 @@ interface AiPrefillState {
   suggestField: (name: AiFieldName) => void
   acceptField: (name: AiFieldName) => void
   rejectField: (name: AiFieldName) => void
+  regenerateField: (name: AiFieldName) => void
 }
 const AiPrefillContext = createContext<AiPrefillState | null>(null)
 function useAiPrefill() {
@@ -84,9 +85,21 @@ function useAiPrefill() {
 interface AiFieldControl {
   pending: boolean
   canSuggest: boolean
+  // quality-bar-loop UX finding: the per-field suggest/regenerate icon
+  // used to have no loading state at all -- clicking it gave zero visual
+  // feedback while its request was in flight, and nothing stopped firing
+  // several requests at once. `isSuggesting` is shared across the bulk
+  // button and every per-field trigger (they all go through the same
+  // useSuggestRiskFieldsMutation hook instance), so this disables/spins
+  // ALL AI triggers while ANY request is in flight -- a small
+  // over-restriction (can't fire two per-field suggestions in parallel)
+  // in exchange for a simple, always-correct loading signal instead of
+  // per-field in-flight tracking.
+  isSuggesting: boolean
   onSuggestField: () => void
   onAccept: () => void
   onReject: () => void
+  onRegenerate: () => void
 }
 function useAiFieldControl(fieldName: AiFieldName): AiFieldControl | undefined {
   const ai = useAiPrefill()
@@ -94,9 +107,11 @@ function useAiFieldControl(fieldName: AiFieldName): AiFieldControl | undefined {
   return {
     pending: ai.suggestions.has(fieldName),
     canSuggest: ai.canSuggest,
+    isSuggesting: ai.isSuggesting,
     onSuggestField: () => ai.suggestField(fieldName),
     onAccept: () => ai.acceptField(fieldName),
     onReject: () => ai.rejectField(fieldName),
+    onRegenerate: () => ai.regenerateField(fieldName),
   }
 }
 
@@ -301,19 +316,33 @@ function FormField({
             </span>
             <button
               type="button"
+              disabled={aiControl.isSuggesting}
+              onClick={aiControl.onRegenerate}
+              aria-label={`Regenerate AI suggestion for ${label}`}
+              title="Try a different suggestion"
+              className="focus-ring rounded p-1.5 text-muted-foreground/60 hover:text-primary disabled:cursor-not-allowed disabled:hover:text-muted-foreground/60"
+            >
+              <RotateCw
+                className={`h-3 w-3 ${aiControl.isSuggesting ? "animate-spin" : ""}`}
+              />
+            </button>
+            <button
+              type="button"
+              disabled={aiControl.isSuggesting}
               onClick={aiControl.onAccept}
               aria-label={`Accept AI suggestion for ${label}`}
               title="Accept"
-              className="focus-ring rounded p-1.5 text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-400"
+              className="focus-ring rounded p-1.5 text-emerald-600 hover:bg-emerald-500/15 disabled:cursor-not-allowed dark:text-emerald-400"
             >
               <Check className="h-3 w-3" />
             </button>
             <button
               type="button"
+              disabled={aiControl.isSuggesting}
               onClick={aiControl.onReject}
               aria-label={`Reject AI suggestion for ${label}`}
               title="Reject"
-              className="focus-ring rounded p-1.5 text-destructive hover:bg-destructive/15"
+              className="focus-ring rounded p-1.5 text-destructive hover:bg-destructive/15 disabled:cursor-not-allowed"
             >
               <X className="h-3 w-3" />
             </button>
@@ -322,7 +351,7 @@ function FormField({
         {aiControl && !aiControl.pending && (
           <button
             type="button"
-            disabled={!aiControl.canSuggest}
+            disabled={!aiControl.canSuggest || aiControl.isSuggesting}
             onClick={aiControl.onSuggestField}
             aria-label={`Suggest ${label} with AI`}
             title={
@@ -332,7 +361,9 @@ function FormField({
             }
             className="focus-ring ml-auto rounded p-1.5 text-muted-foreground/60 hover:text-primary disabled:cursor-not-allowed disabled:hover:text-muted-foreground/60"
           >
-            <Sparkles className="h-3 w-3" />
+            <Sparkles
+              className={`h-3 w-3 ${aiControl.isSuggesting ? "animate-pulse" : ""}`}
+            />
           </button>
         )}
       </div>
@@ -1294,6 +1325,58 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
       applySuggestion,
     ]
   )
+  // quality-bar-loop industry-standards finding (stuck 3 rounds at 6/10):
+  // the only way to get a different value for a pending suggestion used to
+  // be Reject, then re-click Suggest -- no direct "try again" affordance
+  // (unlike Notion AI / Linear's inline regenerate). Only shown while a
+  // field IS pending (see FormField's aiControl.pending branch below), so
+  // it always has a real prior AI suggestion to replace, never a fresh
+  // suggest from a blank field (that's suggestField's job).
+  //
+  // Deliberately does NOT reuse suggestField's own prior-value capture
+  // (`getValues(name)` at call time) -- at the moment Regenerate is
+  // clicked, the field already holds the FIRST AI suggestion, not the
+  // user's real original input. Re-snapshotting here would mean Reject,
+  // after a Regenerate, restores the first AI guess instead of what the
+  // user actually typed. Reusing the ALREADY-STORED `suggestions.get(name)`
+  // (captured back when the pending suggestion was first created) keeps
+  // Reject a real undo no matter how many times a field is regenerated.
+  const regenerateField = useCallback(
+    async (name: AiFieldName) => {
+      const requestSiteId = currentSiteId
+      const requestCategory = currentCategory
+      const requestName = currentName
+      const existingPrior = suggestions.get(name)
+      if (existingPrior === undefined) return
+      const priorSnapshot = new Map<AiFieldName, number | string>([
+        [name, existingPrior],
+      ])
+      try {
+        const res = await suggestRiskFields({
+          name: requestName,
+          category: requestCategory,
+          site_id: requestSiteId,
+          fields: [name],
+        }).unwrap()
+        if (
+          !isStillCurrentContext(requestSiteId, requestCategory, requestName)
+        )
+          return
+        applySuggestion(res.data, [name], priorSnapshot)
+      } catch {
+        toast.error("AI suggestion failed -- try again in a moment.")
+      }
+    },
+    [
+      currentSiteId,
+      currentCategory,
+      currentName,
+      suggestions,
+      suggestRiskFields,
+      isStillCurrentContext,
+      applySuggestion,
+    ]
+  )
   const acceptField = useCallback((name: AiFieldName) => {
     setSuggestions((prev) => {
       const next = new Map(prev)
@@ -1329,6 +1412,7 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
       suggestField,
       acceptField,
       rejectField,
+      regenerateField,
     }),
     [
       suggestions,
@@ -1340,6 +1424,7 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
       suggestField,
       acceptField,
       rejectField,
+      regenerateField,
     ]
   )
 

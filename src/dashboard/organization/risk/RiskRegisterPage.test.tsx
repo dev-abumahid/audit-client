@@ -3331,6 +3331,277 @@ describe("RiskRegisterPage", () => {
       ).toBe("65")
     })
 
+    it("regenerates a pending suggestion to a new value", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockSuggestRiskFields
+        .mockReturnValueOnce({
+          unwrap: () =>
+            Promise.resolve({
+              success: true,
+              message: "",
+              data: { probability: 65 },
+            }),
+        })
+        .mockReturnValueOnce({
+          unwrap: () =>
+            Promise.resolve({
+              success: true,
+              message: "",
+              data: { probability: 40 },
+            }),
+        })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Suggest organization.riskRegister.probabilityLabel with AI",
+        })
+      )
+      await waitFor(() =>
+        expect(
+          (container.querySelector('[name="probability"]') as HTMLInputElement)
+            .value
+        ).toBe("65")
+      )
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Regenerate AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      )
+
+      await waitFor(() =>
+        expect(
+          (container.querySelector('[name="probability"]') as HTMLInputElement)
+            .value
+        ).toBe("40")
+      )
+      // Still pending -- regenerating doesn't accept or clear the badge.
+      expect(
+        screen.getByRole("button", {
+          name: "Accept AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      ).toBeInTheDocument()
+    })
+
+    it("rejecting after a regenerate restores the real original value, not the first AI guess", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockSuggestRiskFields
+        .mockReturnValueOnce({
+          unwrap: () =>
+            Promise.resolve({
+              success: true,
+              message: "",
+              data: { probability: 65 },
+            }),
+        })
+        .mockReturnValueOnce({
+          unwrap: () =>
+            Promise.resolve({
+              success: true,
+              message: "",
+              data: { probability: 40 },
+            }),
+        })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+
+      const probabilityField = container.querySelector(
+        '[name="probability"]'
+      ) as HTMLInputElement
+      await userEvent.clear(probabilityField)
+      await userEvent.type(probabilityField, "17")
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Suggest organization.riskRegister.probabilityLabel with AI",
+        })
+      )
+      await waitFor(() => expect(probabilityField.value).toBe("65"))
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Regenerate AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      )
+      await waitFor(() => expect(probabilityField.value).toBe("40"))
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Reject AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      )
+
+      // Regression guard: without preserving the ORIGINAL prior snapshot
+      // across a regenerate, this would incorrectly restore "65" (the
+      // first AI guess) instead of "17" (what the user actually typed).
+      expect(probabilityField.value).toBe("17")
+    })
+
+    it("disables the bulk button and every per-field suggest trigger while a request is in flight", async () => {
+      // quality-bar-loop UX finding: the per-field suggest icon used to
+      // have no loading state at all -- clicking it gave zero visual
+      // feedback while its request was in flight, and nothing stopped
+      // firing several requests at once. isSuggesting is shared across
+      // the bulk button and every per-field trigger (one mutation hook
+      // instance), so setting it true should disable ALL of them.
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockIsSuggesting = true
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+
+      // isSuggesting=true also swaps the bulk button's label to
+      // "Pre-filling the form…" -- confirmed via text, not the (now
+      // stale) "Pre-fill entire form with AI" name.
+      expect(screen.getByText("Pre-filling the form…").closest("button")).toBeDisabled()
+      expect(
+        screen.getByRole("button", {
+          name: "Suggest organization.riskRegister.probabilityLabel with AI",
+        })
+      ).toBeDisabled()
+      expect(
+        screen.getByRole("button", {
+          name: "Suggest organization.riskRegister.velocityLabel with AI",
+        })
+      ).toBeDisabled()
+    })
+
+    it("also disables Accept/Reject/Regenerate on an already-pending field while a different request is in flight", async () => {
+      // Review finding: the previous test only covered the bulk button and
+      // never-yet-pending Suggest icons -- it never actually got a field
+      // into the pending state, so it couldn't prove Accept/Reject/
+      // Regenerate (which only render once pending) actually respect
+      // isSuggesting too. Uses `rerender` on the SAME tree (not a fresh
+      // renderPage()) so the component instance -- and the `suggestions`
+      // state a fresh mount would lose -- survives the isSuggesting flip.
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockSuggestRiskFields.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            message: "",
+            data: { probability: 65 },
+          }),
+      })
+
+      const { container, rerender } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Suggest organization.riskRegister.probabilityLabel with AI",
+        })
+      )
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", {
+            name: "Accept AI suggestion for organization.riskRegister.probabilityLabel",
+          })
+        ).toBeInTheDocument()
+      )
+
+      mockIsSuggesting = true
+      rerender(
+        <MemoryRouter initialEntries={["/"]}>
+          <RiskRegisterPage />
+        </MemoryRouter>
+      )
+
+      expect(
+        screen.getByRole("button", {
+          name: "Accept AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      ).toBeDisabled()
+      expect(
+        screen.getByRole("button", {
+          name: "Reject AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      ).toBeDisabled()
+      expect(
+        screen.getByRole("button", {
+          name: "Regenerate AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      ).toBeDisabled()
+    })
+
+    it("preserves the true original value across multiple consecutive regenerates", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockSuggestRiskFields
+        .mockReturnValueOnce({
+          unwrap: () =>
+            Promise.resolve({ success: true, message: "", data: { probability: 65 } }),
+        })
+        .mockReturnValueOnce({
+          unwrap: () =>
+            Promise.resolve({ success: true, message: "", data: { probability: 40 } }),
+        })
+        .mockReturnValueOnce({
+          unwrap: () =>
+            Promise.resolve({ success: true, message: "", data: { probability: 90 } }),
+        })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+
+      const probabilityField = container.querySelector(
+        '[name="probability"]'
+      ) as HTMLInputElement
+      await userEvent.clear(probabilityField)
+      await userEvent.type(probabilityField, "5")
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Suggest organization.riskRegister.probabilityLabel with AI",
+        })
+      )
+      await waitFor(() => expect(probabilityField.value).toBe("65"))
+
+      // Regenerate twice in a row before ever accepting/rejecting.
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Regenerate AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      )
+      await waitFor(() => expect(probabilityField.value).toBe("40"))
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Regenerate AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      )
+      await waitFor(() => expect(probabilityField.value).toBe("90"))
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Reject AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      )
+
+      // Regression guard: the prior value must not drift across repeated
+      // regenerates -- still the TRUE original ("5"), not "65" or "40"
+      // (either of the intermediate AI guesses a naive re-snapshot on each
+      // regenerate would have captured instead).
+      expect(probabilityField.value).toBe("5")
+    })
+
     it("shows an error toast and applies nothing when the suggestion request fails", async () => {
       mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
       mockSuggestRiskFields.mockReturnValue({
