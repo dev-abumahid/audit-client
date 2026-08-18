@@ -1,7 +1,7 @@
 import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
-import type { RiskFieldSuggestion } from "@/types/ai"
+import type { RiskFieldSuggestionResult } from "@/types/ai"
 import type { Risk } from "@/types/organization"
 
 interface SuggestRiskFieldsArgs {
@@ -110,7 +110,7 @@ const risksApi = baseApi.injectEndpoints({
     // invalidatesTags, since this doesn't change any stored Risk data,
     // just returns values for the caller to review/apply client-side.
     suggestRiskFields: builder.mutation<
-      ApiResponse<RiskFieldSuggestion>,
+      ApiResponse<RiskFieldSuggestionResult>,
       SuggestRiskFieldsArgs
     >({
       query: (data) => ({

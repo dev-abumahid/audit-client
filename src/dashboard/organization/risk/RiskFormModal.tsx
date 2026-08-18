@@ -58,6 +58,13 @@ interface AiPrefillState {
   // actually in the field right before the suggestion overwrote it, so
   // Reject is a real undo, not a reset-to-zero).
   suggestions: Map<AiFieldName, number | string>
+  // quality-bar-loop round 5 (industry-standards): one-sentence reason per
+  // PENDING suggestion, shown as a hover tooltip on the field's "AI" badge
+  // -- addresses the "no confidence/rationale shown" gap (Salesforce
+  // Einstein / HubSpot AI-autofill convention). Cleared alongside the
+  // matching `suggestions` entry on accept/reject, so it never outlives
+  // the suggestion it explains.
+  rationale: Map<AiFieldName, string>
   // True from the first successful suggestion onward, independent of
   // `suggestions` (which empties out on Accept all/individual
   // accept-or-reject) -- without this, the trigger can't distinguish
@@ -96,6 +103,7 @@ interface AiFieldControl {
   // in exchange for a simple, always-correct loading signal instead of
   // per-field in-flight tracking.
   isSuggesting: boolean
+  rationale: string | undefined
   onSuggestField: () => void
   onAccept: () => void
   onReject: () => void
@@ -108,6 +116,7 @@ function useAiFieldControl(fieldName: AiFieldName): AiFieldControl | undefined {
     pending: ai.suggestions.has(fieldName),
     canSuggest: ai.canSuggest,
     isSuggesting: ai.isSuggesting,
+    rationale: ai.rationale.get(fieldName),
     onSuggestField: () => ai.suggestField(fieldName),
     onAccept: () => ai.acceptField(fieldName),
     onReject: () => ai.rejectField(fieldName),
@@ -310,7 +319,17 @@ function FormField({
         </label>
         {aiControl?.pending && (
           <span className="ml-auto inline-flex items-center gap-1">
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+            <span
+              className={`inline-flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary${aiControl.rationale ? " cursor-help" : ""}`}
+              // quality-bar-loop round 5 (industry-standards): native
+              // title= tooltip, matching this codebase's existing de-facto
+              // hover-explainer convention (see FormField's own
+              // labelTitle prop) -- no dedicated Tooltip component exists.
+              // Undefined when aexa-ai didn't return a rationale for this
+              // field, so the badge falls back to no tooltip rather than
+              // an empty one.
+              title={aiControl.rationale}
+            >
               <Sparkles className="h-2.5 w-2.5" />
               AI
             </span>
@@ -1170,6 +1189,9 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
   const [suggestions, setSuggestions] = useState<
     Map<AiFieldName, number | string>
   >(new Map())
+  const [rationale, setRationale] = useState<Map<AiFieldName, string>>(
+    new Map()
+  )
   const [hasEverSuggested, setHasEverSuggested] = useState(false)
   const [suggestRiskFields, { isLoading: isSuggesting }] =
     useSuggestRiskFieldsMutation()
@@ -1212,9 +1234,11 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
     (
       result: RiskFieldSuggestion,
       requestedFields: readonly AiFieldName[],
-      priorSnapshot: Map<AiFieldName, number | string>
+      priorSnapshot: Map<AiFieldName, number | string>,
+      resultRationale: Record<string, string>
     ) => {
       const priorValues = new Map<AiFieldName, number | string>()
+      const appliedRationale = new Map<AiFieldName, string>()
       let appliedAny = false
       requestedFields.forEach((name) => {
         const value = result[name]
@@ -1222,6 +1246,15 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
         priorValues.set(name, priorSnapshot.get(name) as number | string)
         setValue(name, value as never, { shouldDirty: false })
         appliedAny = true
+        // aexa-ai only ever includes a rationale entry for a field that
+        // also made it into `suggestions` -- but a field with no entry
+        // (a model that skipped the rationale for one field) shouldn't
+        // keep a STALE rationale from a prior regenerate either, so a
+        // regenerate with no new rationale clears the old one rather than
+        // leaving a mismatched explanation attached to a new value.
+        if (resultRationale[name]) {
+          appliedRationale.set(name, resultRationale[name])
+        }
       })
       if (!appliedAny) {
         toast.error(
@@ -1232,6 +1265,17 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
       setSuggestions((prev) => {
         const next = new Map(prev)
         priorValues.forEach((value, name) => next.set(name, value))
+        return next
+      })
+      setRationale((prev) => {
+        const next = new Map(prev)
+        priorValues.forEach((_value, name) => {
+          if (appliedRationale.has(name)) {
+            next.set(name, appliedRationale.get(name) as string)
+          } else {
+            next.delete(name)
+          }
+        })
         return next
       })
       setHasEverSuggested(true)
@@ -1271,7 +1315,12 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
       }).unwrap()
       if (!isStillCurrentContext(requestSiteId, requestCategory, requestName))
         return
-      applySuggestion(res.data, AI_FIELD_NAMES, priorSnapshot)
+      applySuggestion(
+        res.data.suggestions ?? {},
+        AI_FIELD_NAMES,
+        priorSnapshot,
+        res.data.rationale ?? {}
+      )
     } catch {
       toast.error("AI suggestion failed -- try again in a moment.")
     }
@@ -1288,7 +1337,10 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
   // re-fetching or changing any value (they're already applied by
   // runSuggest/suggestField). A field already accepted or rejected
   // individually has no badge left to clear either way.
-  const acceptAll = useCallback(() => setSuggestions(new Map()), [])
+  const acceptAll = useCallback(() => {
+    setSuggestions(new Map())
+    setRationale(new Map())
+  }, [])
   // Independent of runSuggest above -- works whether or not the bulk
   // button was ever used.
   const suggestField = useCallback(
@@ -1310,7 +1362,12 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
           !isStillCurrentContext(requestSiteId, requestCategory, requestName)
         )
           return
-        applySuggestion(res.data, [name], priorSnapshot)
+        applySuggestion(
+          res.data.suggestions ?? {},
+          [name],
+          priorSnapshot,
+          res.data.rationale ?? {}
+        )
       } catch {
         toast.error("AI suggestion failed -- try again in a moment.")
       }
@@ -1362,7 +1419,12 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
           !isStillCurrentContext(requestSiteId, requestCategory, requestName)
         )
           return
-        applySuggestion(res.data, [name], priorSnapshot)
+        applySuggestion(
+          res.data.suggestions ?? {},
+          [name],
+          priorSnapshot,
+          res.data.rationale ?? {}
+        )
       } catch {
         toast.error("AI suggestion failed -- try again in a moment.")
       }
@@ -1383,6 +1445,11 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
       next.delete(name)
       return next
     })
+    setRationale((prev) => {
+      const next = new Map(prev)
+      next.delete(name)
+      return next
+    })
   }, [])
   // Real undo, not a reset-to-zero: restores whatever was actually in the
   // field right before the suggestion overwrote it.
@@ -1397,6 +1464,11 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
         next.delete(name)
         return next
       })
+      setRationale((prev) => {
+        const next = new Map(prev)
+        next.delete(name)
+        return next
+      })
     },
     [suggestions, setValue]
   )
@@ -1404,6 +1476,7 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
   const aiPrefillContextValue = useMemo(
     () => ({
       suggestions,
+      rationale,
       hasEverSuggested,
       isSuggesting,
       canSuggest,
@@ -1416,6 +1489,7 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
     }),
     [
       suggestions,
+      rationale,
       hasEverSuggested,
       isSuggesting,
       canSuggest,

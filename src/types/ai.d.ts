@@ -54,3 +54,14 @@ export interface RiskFieldSuggestion {
   financial_impact_min?: number
   financial_impact_max?: number
 }
+
+// quality-bar-loop round 5: aexa-server's POST /risk/suggest-fields
+// response shape, updated from a bare RiskFieldSuggestion to this wrapper
+// -- `rationale` carries a one-sentence reason per SUGGESTED field, keyed
+// by field name (aexa-ai's own normalization only includes an entry here
+// for a field that also made it into `suggestions`, so every key in
+// `rationale` is guaranteed to also be a key in `suggestions`).
+export interface RiskFieldSuggestionResult {
+  suggestions: RiskFieldSuggestion
+  rationale: Record<string, string>
+}

@@ -208,7 +208,7 @@ describe("RiskRegisterPage", () => {
     mockIsSuggesting = false
     mockSuggestRiskFields.mockReturnValue({
       unwrap: () =>
-        Promise.resolve({ success: true, message: "", data: {} }),
+        Promise.resolve({ success: true, message: "", data: { suggestions: {}, rationale: {} } }),
     })
   })
 
@@ -3130,14 +3130,19 @@ describe("RiskRegisterPage", () => {
             success: true,
             message: "",
             data: {
-              probability: 65,
-              impact: 80,
-              velocity: "high",
-              trend: "increasing",
-              control_design_eff: 55,
-              control_operating_eff: 40,
-              financial_impact_min: 50,
-              financial_impact_max: 500,
+              suggestions: {
+                probability: 65,
+                impact: 80,
+                velocity: "high",
+                trend: "increasing",
+                control_design_eff: 55,
+                control_operating_eff: 40,
+                financial_impact_min: 50,
+                financial_impact_max: 500,
+              },
+              rationale: {
+                probability: "Cyber risks at manufacturing sites with exposed OT networks are frequent.",
+              },
             },
           }),
       })
@@ -3190,6 +3195,28 @@ describe("RiskRegisterPage", () => {
       expect(
         screen.getByRole("button", { name: "Re-suggest all fields" })
       ).toBeInTheDocument()
+
+      // quality-bar-loop round 5 (industry-standards): the AI badge for a
+      // field with a rationale carries it as a hover tooltip (native
+      // title=, matching this codebase's existing hover-explainer
+      // convention). Only "probability" has a rationale in this mock --
+      // scope the query to that field's own wrapper since every
+      // AI-touched field renders an "AI" badge.
+      const probabilityWrapper = (
+        container.querySelector('[name="probability"]') as HTMLInputElement
+      ).closest("div")!
+      const probabilityBadge = within(probabilityWrapper).getByText("AI").closest("span")!
+      expect(probabilityBadge).toHaveAttribute(
+        "title",
+        "Cyber risks at manufacturing sites with exposed OT networks are frequent."
+      )
+
+      // A field with NO rationale in the mock response gets no tooltip.
+      const velocityWrapper = (
+        container.querySelector('[name="velocity"]') as HTMLSelectElement
+      ).closest("div")!
+      const velocityBadge = within(velocityWrapper).getByText("AI").closest("span")!
+      expect(velocityBadge).not.toHaveAttribute("title")
     })
 
     it("suggests a single field independently, without touching the bulk button or other fields", async () => {
@@ -3199,7 +3226,7 @@ describe("RiskRegisterPage", () => {
           Promise.resolve({
             success: true,
             message: "",
-            data: { velocity: "critical" },
+            data: { suggestions: { velocity: "critical" }, rationale: {} },
           }),
       })
 
@@ -3252,7 +3279,7 @@ describe("RiskRegisterPage", () => {
           Promise.resolve({
             success: true,
             message: "",
-            data: { probability: 65 },
+            data: { suggestions: { probability: 65 }, rationale: {} },
           }),
       })
 
@@ -3291,7 +3318,7 @@ describe("RiskRegisterPage", () => {
           Promise.resolve({
             success: true,
             message: "",
-            data: { probability: 65 },
+            data: { suggestions: { probability: 65 }, rationale: {} },
           }),
       })
 
@@ -3331,25 +3358,19 @@ describe("RiskRegisterPage", () => {
       ).toBe("65")
     })
 
-    it("regenerates a pending suggestion to a new value", async () => {
+    it("clears a field's rationale tooltip when its suggestion is accepted", async () => {
       mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
-      mockSuggestRiskFields
-        .mockReturnValueOnce({
-          unwrap: () =>
-            Promise.resolve({
-              success: true,
-              message: "",
-              data: { probability: 65 },
-            }),
-        })
-        .mockReturnValueOnce({
-          unwrap: () =>
-            Promise.resolve({
-              success: true,
-              message: "",
-              data: { probability: 40 },
-            }),
-        })
+      mockSuggestRiskFields.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            message: "",
+            data: {
+              suggestions: { probability: 65 },
+              rationale: { probability: "A specific, concrete reason." },
+            },
+          }),
+      })
 
       const { container } = renderPage()
       await userEvent.click(
@@ -3364,9 +3385,142 @@ describe("RiskRegisterPage", () => {
       )
       await waitFor(() =>
         expect(
+          screen.getByRole("button", {
+            name: "Accept AI suggestion for organization.riskRegister.probabilityLabel",
+          })
+        ).toBeInTheDocument()
+      )
+      const probabilityWrapper = (
+        container.querySelector('[name="probability"]') as HTMLInputElement
+      ).closest("div")!
+      expect(within(probabilityWrapper).getByText("AI").closest("span")).toHaveAttribute(
+        "title",
+        "A specific, concrete reason."
+      )
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Accept AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      )
+
+      // Accepted -- the whole badge (and its tooltip) is gone, not just
+      // hidden, since the field is no longer "pending".
+      expect(within(probabilityWrapper).queryByText("AI")).not.toBeInTheDocument()
+    })
+
+    it("clears a field's rationale tooltip when its suggestion is rejected", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockSuggestRiskFields.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            message: "",
+            data: {
+              suggestions: { probability: 65 },
+              rationale: { probability: "A specific, concrete reason." },
+            },
+          }),
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Suggest organization.riskRegister.probabilityLabel with AI",
+        })
+      )
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", {
+            name: "Reject AI suggestion for organization.riskRegister.probabilityLabel",
+          })
+        ).toBeInTheDocument()
+      )
+      const probabilityWrapper = (
+        container.querySelector('[name="probability"]') as HTMLInputElement
+      ).closest("div")!
+      expect(within(probabilityWrapper).getByText("AI").closest("span")).toHaveAttribute(
+        "title",
+        "A specific, concrete reason."
+      )
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Reject AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      )
+
+      // Rejected -- same cleanup as Accept: the whole badge (and its
+      // tooltip) is gone, not left behind attached to the restored
+      // original value.
+      expect(within(probabilityWrapper).queryByText("AI")).not.toBeInTheDocument()
+    })
+
+    it("regenerates a pending suggestion to a new value, replacing (not stacking or leaving stale) its rationale", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockSuggestRiskFields
+        .mockReturnValueOnce({
+          unwrap: () =>
+            Promise.resolve({
+              success: true,
+              message: "",
+              data: {
+                suggestions: { probability: 65 },
+                rationale: { probability: "Initial reason." },
+              },
+            }),
+        })
+        .mockReturnValueOnce({
+          unwrap: () =>
+            Promise.resolve({
+              success: true,
+              message: "",
+              data: {
+                suggestions: { probability: 40 },
+                rationale: { probability: "Updated reason after regenerate." },
+              },
+            }),
+        })
+        .mockReturnValueOnce({
+          unwrap: () =>
+            Promise.resolve({
+              success: true,
+              message: "",
+              // No rationale this time -- the stale "Updated reason..."
+              // tooltip must be cleared, not left showing an explanation
+              // for a value that's no longer on the field.
+              data: { suggestions: { probability: 90 }, rationale: {} },
+            }),
+        })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+      const probabilityWrapper = (
+        container.querySelector('[name="probability"]') as HTMLInputElement
+      ).closest("div")!
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Suggest organization.riskRegister.probabilityLabel with AI",
+        })
+      )
+      await waitFor(() =>
+        expect(
           (container.querySelector('[name="probability"]') as HTMLInputElement)
             .value
         ).toBe("65")
+      )
+      expect(within(probabilityWrapper).getByText("AI").closest("span")).toHaveAttribute(
+        "title",
+        "Initial reason."
       )
 
       await userEvent.click(
@@ -3387,6 +3541,29 @@ describe("RiskRegisterPage", () => {
           name: "Accept AI suggestion for organization.riskRegister.probabilityLabel",
         })
       ).toBeInTheDocument()
+      // Tooltip replaced with the NEW rationale, not stacked or stale.
+      expect(within(probabilityWrapper).getByText("AI").closest("span")).toHaveAttribute(
+        "title",
+        "Updated reason after regenerate."
+      )
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Regenerate AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      )
+      await waitFor(() =>
+        expect(
+          (container.querySelector('[name="probability"]') as HTMLInputElement)
+            .value
+        ).toBe("90")
+      )
+      // A regenerate response with no rationale clears the old tooltip
+      // rather than leaving "Updated reason after regenerate." attached
+      // to a value it no longer explains.
+      expect(
+        within(probabilityWrapper).getByText("AI").closest("span")
+      ).not.toHaveAttribute("title")
     })
 
     it("rejecting after a regenerate restores the real original value, not the first AI guess", async () => {
@@ -3397,7 +3574,7 @@ describe("RiskRegisterPage", () => {
             Promise.resolve({
               success: true,
               message: "",
-              data: { probability: 65 },
+              data: { suggestions: { probability: 65 }, rationale: {} },
             }),
         })
         .mockReturnValueOnce({
@@ -3405,7 +3582,7 @@ describe("RiskRegisterPage", () => {
             Promise.resolve({
               success: true,
               message: "",
-              data: { probability: 40 },
+              data: { suggestions: { probability: 40 }, rationale: {} },
             }),
         })
 
@@ -3493,7 +3670,7 @@ describe("RiskRegisterPage", () => {
           Promise.resolve({
             success: true,
             message: "",
-            data: { probability: 65 },
+            data: { suggestions: { probability: 65 }, rationale: {} },
           }),
       })
 
@@ -3544,15 +3721,15 @@ describe("RiskRegisterPage", () => {
       mockSuggestRiskFields
         .mockReturnValueOnce({
           unwrap: () =>
-            Promise.resolve({ success: true, message: "", data: { probability: 65 } }),
+            Promise.resolve({ success: true, message: "", data: { suggestions: { probability: 65 }, rationale: {} } }),
         })
         .mockReturnValueOnce({
           unwrap: () =>
-            Promise.resolve({ success: true, message: "", data: { probability: 40 } }),
+            Promise.resolve({ success: true, message: "", data: { suggestions: { probability: 40 }, rationale: {} } }),
         })
         .mockReturnValueOnce({
           unwrap: () =>
-            Promise.resolve({ success: true, message: "", data: { probability: 90 } }),
+            Promise.resolve({ success: true, message: "", data: { suggestions: { probability: 90 }, rationale: {} } }),
         })
 
       const { container } = renderPage()
@@ -3654,7 +3831,7 @@ describe("RiskRegisterPage", () => {
       resolveRequest!({
         success: true,
         message: "",
-        data: { probability: 65, velocity: "high" },
+        data: { suggestions: { probability: 65, velocity: "high" }, rationale: {} },
       })
       // Give the resolved promise a tick to (not) apply.
       await Promise.resolve()
@@ -3718,7 +3895,7 @@ describe("RiskRegisterPage", () => {
       )
 
       // Per-field resolves first: probability -> 99.
-      resolvePerField!({ success: true, message: "", data: { probability: 99 } })
+      resolvePerField!({ success: true, message: "", data: { suggestions: { probability: 99 }, rationale: {} } })
       await waitFor(() => {
         expect(
           (container.querySelector('[name="probability"]') as HTMLInputElement)
@@ -3733,7 +3910,7 @@ describe("RiskRegisterPage", () => {
       resolveBulk!({
         success: true,
         message: "",
-        data: { probability: 65, velocity: "high" },
+        data: { suggestions: { probability: 65, velocity: "high" }, rationale: {} },
       })
       await waitFor(() => {
         expect(
