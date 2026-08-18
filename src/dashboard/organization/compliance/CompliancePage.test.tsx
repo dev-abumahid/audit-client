@@ -79,6 +79,9 @@ const mockDeleteCompliance = vi.fn()
 const mockAttestCompliance = vi.fn()
 const mockUseGetComplianceAttestationsQuery = vi.fn()
 const mockUseGetComplianceEditHistoryQuery = vi.fn()
+const mockCreateRiskFromObligation = vi.fn()
+const mockLinkRiskToObligation = vi.fn()
+const mockUnlinkRiskFromObligation = vi.fn()
 
 vi.mock("@/redux/apis/organization/compliance.api", () => ({
   useGetAllComplianceQuery: (...args: unknown[]) =>
@@ -103,6 +106,23 @@ vi.mock("@/redux/apis/organization/compliance.api", () => ({
     mockUseGetComplianceAttestationsQuery(...args),
   useGetComplianceEditHistoryQuery: (...args: unknown[]) =>
     mockUseGetComplianceEditHistoryQuery(...args),
+  // aexa-server#346
+  useCreateRiskFromObligationMutation: () => [
+    mockCreateRiskFromObligation,
+    { isLoading: false },
+  ],
+  useLinkRiskToObligationMutation: () => [
+    mockLinkRiskToObligation,
+    { isLoading: false },
+  ],
+  useUnlinkRiskFromObligationMutation: () => [mockUnlinkRiskFromObligation],
+}))
+
+// aexa-server#346 -- ComplianceRiskLinkModal (only mounted once a row's
+// "Link to Risk Register" action is used) reads the risk list itself.
+const mockUseGetAllRisksQuery = vi.fn()
+vi.mock("@/redux/apis/organization/risk.api", () => ({
+  useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
 }))
 
 const mockUseGetAllSitesQuery = vi.fn()
@@ -247,6 +267,10 @@ function makeObligation(overrides = {}) {
     // obligation -- empty by default so existing tests keep seeing the
     // pre-#531 "Create Action" behavior unless a test opts into overriding it.
     actions: [] as { id: string; actionTitle: string; status: string }[],
+    // aexa-server#346: unlinked by default -- tests that need a linked
+    // obligation pass `{ risk_id: "risk-1", risk: { ... } }` in overrides.
+    risk_id: null as string | null,
+    risk: null as { id: string; ref: string; name: string; status: string } | null,
     ...overrides,
   }
 }
@@ -275,6 +299,11 @@ describe("CompliancePage", () => {
     mockUseGetAllSitesQuery.mockReset()
     mockUseGetAllOrgUsersQuery.mockReset()
     mockCreateActionModal.mockReset()
+    mockCreateRiskFromObligation.mockReset()
+    mockLinkRiskToObligation.mockReset()
+    mockUnlinkRiskFromObligation.mockReset()
+    mockUseGetAllRisksQuery.mockReset()
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] }, isFetching: false })
     // Sensible defaults; individual tests override the compliance query.
     mockUseGetComplianceScorecardQuery.mockReturnValue({
       data: { data: emptyScorecard },
@@ -3318,6 +3347,225 @@ describe("CompliancePage", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
       expect(document.activeElement).toBe(trigger)
       expect(document.activeElement).not.toBe(document.body)
+    })
+  })
+
+  // aexa-server#346 -- ComplianceObligation <-> Risk linking UI. Point 1 of
+  // the ticket: regulatory obligations didn't flow into the Risk Register at
+  // all. These tests exercise the discoverable "not linked yet" affordance,
+  // the linked-state chip, and both create-new/link-existing submission
+  // paths through the modal.
+  describe("risk linking (aexa-server#346)", () => {
+    it("shows a Link to Risk Register button for an unlinked obligation, and a risk chip once linked", () => {
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({ id: "unlinked" }),
+            makeObligation({
+              id: "linked",
+              title: "PCI DSS scoping",
+              risk_id: "risk-1",
+              risk: { id: "risk-1", ref: "REG-001", name: "PCI DSS risk", status: "open" },
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const unlinkedRow = screen
+        .getByText("GDPR Article 30 records")
+        .closest("tr")!
+      expect(
+        within(unlinkedRow).getByText(
+          "organization.compliance.riskLink.button"
+        )
+      ).toBeInTheDocument()
+
+      const linkedRow = screen.getByText("PCI DSS scoping").closest("tr")!
+      const riskLink = within(linkedRow).getByRole("link", {
+        name: /REG-001/,
+      })
+      expect(riskLink).toHaveAttribute("href", "/organization/risks/risk-1")
+      expect(
+        within(linkedRow).queryByText(
+          "organization.compliance.riskLink.button"
+        )
+      ).not.toBeInTheDocument()
+    })
+
+    it("does not offer the Link to Risk Register button to a non-writer role", () => {
+      mockRole = "LIGHT_USER"
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.queryByText("organization.compliance.riskLink.button")
+      ).not.toBeInTheDocument()
+    })
+
+    it("opens the risk-link modal, defaults to Create New, and calls createRiskFromObligation with the obligation id", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockCreateRiskFromObligation.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Risk created and linked" }),
+      })
+
+      renderPage()
+
+      await user.click(
+        screen.getByText("organization.compliance.riskLink.button")
+      )
+
+      const dialog = await screen.findByRole("dialog")
+      expect(
+        within(dialog).getByText("organization.compliance.riskLink.modalTitle")
+      ).toBeInTheDocument()
+
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: "organization.compliance.riskLink.create",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockCreateRiskFromObligation).toHaveBeenCalledWith(
+          expect.objectContaining({ obligationId: "comp-1" })
+        )
+      )
+      expect(mockToastSuccess).toHaveBeenCalled()
+    })
+
+    // Review round-1 finding: this modal used to call toast.success and
+    // onClose() unconditionally, without checking `res.success` -- a
+    // business-rule failure returned as HTTP 200 { success: false, message }
+    // would have shown a false-positive success toast and silently closed
+    // the modal. Negative control: the mutation resolves (not rejects) with
+    // success:false, so this only passes if the fix's res.success branch is
+    // actually reached.
+    it("shows an error toast and keeps the modal open when create-risk resolves with success:false", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockCreateRiskFromObligation.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: false, message: "This obligation is already linked" }),
+      })
+
+      renderPage()
+
+      await user.click(
+        screen.getByText("organization.compliance.riskLink.button")
+      )
+      const dialog = await screen.findByRole("dialog")
+
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: "organization.compliance.riskLink.create",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith("This obligation is already linked")
+      )
+      expect(mockToastSuccess).not.toHaveBeenCalled()
+      expect(screen.getByRole("dialog")).toBeInTheDocument()
+    })
+
+    it("switches to Link Existing and calls linkRiskToObligation with the selected risk id", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [makeObligation()] },
+        isLoading: false,
+      })
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: {
+          data: [{ id: "risk-9", ref: "REG-009", name: "Existing regulatory risk" }],
+        },
+        isFetching: false,
+      })
+      mockLinkRiskToObligation.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Linked to risk" }),
+      })
+
+      renderPage()
+
+      await user.click(
+        screen.getByText("organization.compliance.riskLink.button")
+      )
+      const dialog = await screen.findByRole("dialog")
+
+      await user.click(
+        within(dialog).getByText(
+          "organization.compliance.riskLink.linkExistingTab"
+        )
+      )
+      await user.selectOptions(
+        within(dialog).getByLabelText(
+          "organization.compliance.riskLink.existingRiskLabel"
+        ),
+        "risk-9"
+      )
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: "organization.compliance.riskLink.link",
+        })
+      )
+
+      await waitFor(() =>
+        expect(mockLinkRiskToObligation).toHaveBeenCalledWith({
+          obligationId: "comp-1",
+          riskId: "risk-9",
+        })
+      )
+      expect(mockToastSuccess).toHaveBeenCalled()
+    })
+
+    it("Unlink Risk menu item calls unlinkRiskFromObligation for a linked obligation", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: {
+          data: [
+            makeObligation({
+              risk_id: "risk-1",
+              risk: { id: "risk-1", ref: "REG-001", name: "Linked risk", status: "open" },
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+      mockUnlinkRiskFromObligation.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true, message: "Risk unlinked" }),
+      })
+
+      renderPage()
+
+      const row = screen.getByText("GDPR Article 30 records").closest("tr")!
+      await user.click(
+        within(row).getByRole("button", {
+          name: "organization.compliance.moreActionsLabel",
+        })
+      )
+      await user.click(
+        within(row).getByText("organization.compliance.riskLink.unlink")
+      )
+
+      await waitFor(() =>
+        expect(mockUnlinkRiskFromObligation).toHaveBeenCalledWith("comp-1")
+      )
+      expect(mockToastSuccess).toHaveBeenCalled()
     })
   })
 })

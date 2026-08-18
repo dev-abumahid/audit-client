@@ -49,6 +49,11 @@ export interface ComplianceObligation {
   // "no action yet" from "one already exists" instead of always offering to
   // create a duplicate.
   actions: { id: string; actionTitle: string; status: string }[]
+  // aexa-server#346 — optional link to the Risk this obligation represents
+  // in the Risk Register. Null until linked via createRiskFromObligation
+  // (spawns a new Risk) or linkRiskToObligation (attaches an existing one).
+  risk_id: string | null
+  risk: { id: string; ref: string; name: string; status: string } | null
 }
 
 // aexa-server#250 — a permanent, append-only re-attestation record. Never
@@ -251,6 +256,46 @@ const complianceApi = baseApi.injectEndpoints({
       }),
       providesTags: ["COMPLIANCE"],
     }),
+    // aexa-server#346. Mirrors intelligence.api.ts's createRiskFromItem
+    // exactly, including the RISK tag invalidation reasoning: this endpoint
+    // creates a Risk server-side, so Risk Register's getAllRisks must
+    // refetch to show it without a manual reload.
+    createRiskFromObligation: builder.mutation<
+      ApiResponse<{ id: string; name: string }>,
+      { obligationId: string; siteId?: string; severity?: "critical" | "high" | "medium" | "low" }
+    >({
+      query: ({ obligationId, siteId, severity }) => ({
+        url: `/compliance/${obligationId}/create-risk`,
+        method: "POST",
+        body: { ...(siteId ? { siteId } : {}), ...(severity ? { severity } : {}) },
+      }),
+      invalidatesTags: ["COMPLIANCE", "RISK"],
+    }),
+    // Attaches an EXISTING Risk (unlike createRiskFromObligation above,
+    // which spawns a new one) — see compliance.service.ts's
+    // link_risk_to_obligation_into_db for why this is a plain overwrite
+    // rather than a one-time claim.
+    linkRiskToObligation: builder.mutation<
+      ApiResponse<ComplianceObligation>,
+      { obligationId: string; riskId: string }
+    >({
+      query: ({ obligationId, riskId }) => ({
+        url: `/compliance/${obligationId}/link-risk`,
+        method: "POST",
+        body: { riskId },
+      }),
+      invalidatesTags: ["COMPLIANCE", "RISK"],
+    }),
+    unlinkRiskFromObligation: builder.mutation<
+      ApiResponse<ComplianceObligation>,
+      string
+    >({
+      query: (obligationId) => ({
+        url: `/compliance/${obligationId}/link-risk`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["COMPLIANCE", "RISK"],
+    }),
   }),
 })
 
@@ -264,6 +309,9 @@ export const {
   useAttestComplianceMutation,
   useGetComplianceAttestationsQuery,
   useGetComplianceEditHistoryQuery,
+  useCreateRiskFromObligationMutation,
+  useLinkRiskToObligationMutation,
+  useUnlinkRiskFromObligationMutation,
 } = complianceApi
 
 export { complianceApi }

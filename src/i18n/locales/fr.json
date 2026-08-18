@@ -1129,6 +1129,13 @@
       "designEffectivenessExplainer": "Le contrôle, tel que conçu, est-il théoriquement adapté pour traiter ce risque ?",
       "operatingEffectivenessLabel": "Efficacité opérationnelle",
       "operatingEffectivenessExplainer": "Le contrôle est-il réellement appliqué et fonctionne-t-il comme prévu en pratique ?",
+      "complianceLink": {
+        "title": "Obligation de conformité",
+        "label": "Lier à une obligation réglementaire",
+        "none": "Aucune",
+        "alreadyLinked": "déjà liée à un risque",
+        "linkFailedToast": "Risque enregistré, mais la liaison à l'obligation a échoué"
+      },
       "siteRequired": "Le site est requis",
       "riskNameRequired": "Le nom du risque est requis",
       "statusRequired": "Le statut est requis",
@@ -1213,6 +1220,32 @@
       },
       "viewAction": {
         "button": "Voir l'action"
+      },
+      "riskLink": {
+        "button": "Lier au registre des risques",
+        "relink": "Changer le risque lié",
+        "unlink": "Délier le risque",
+        "modalTitle": "Lier au registre des risques",
+        "modalSubtitle": "Lier « {{title}} » à un risque du registre des risques.",
+        "createNewTab": "Créer un nouveau risque",
+        "linkExistingTab": "Lier un risque existant",
+        "siteLabel": "Site",
+        "siteAuto": "Utiliser le site de l'obligation (ou celui par défaut)",
+        "severityLabel": "Gravité",
+        "selectSeverity": "Sélectionner une gravité",
+        "existingRiskLabel": "Risque",
+        "selectRisk": "Sélectionner un risque",
+        "noRisksFound": "Aucun risque trouvé",
+        "create": "Créer et lier",
+        "link": "Lier",
+        "toast": {
+          "createSuccess": "Risque créé et lié",
+          "createFailed": "Échec de la création et de la liaison du risque",
+          "linkSuccess": "Lié au risque",
+          "linkFailed": "Échec de la liaison du risque",
+          "unlinkSuccess": "Risque délié",
+          "unlinkFailed": "Échec de la déliaison du risque"
+        }
       },
       "searchPlaceholder": "Rechercher une obligation, description ou responsable...",
       "searchLabel": "Rechercher des obligations",

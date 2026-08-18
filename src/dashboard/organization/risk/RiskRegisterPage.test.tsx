@@ -86,6 +86,9 @@ let mockIsRiskCreating = false
 // double-submission-guard test below can flip this to true without a
 // static mock, same convention as mockIsRiskCreating above.
 let mockIsRiskDeleting = false
+// aexa-server#346 point 3
+const mockUseGetAllComplianceQuery = vi.fn()
+const mockLinkRiskToObligation = vi.fn()
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
@@ -106,6 +109,18 @@ vi.mock("@/redux/apis/organization/risk.api", () => ({
 
 vi.mock("@/redux/apis/organization/sites.api", () => ({
   useGetAllSitesQuery: (...args: unknown[]) => mockUseGetAllSitesQuery(...args),
+}))
+
+// aexa-server#346 point 3 -- RiskComplianceLinkSection (only rendered inside
+// the Add/Edit modal for a regulatory/compliance-category risk) reads the
+// obligation list and can call linkRiskToObligation after a successful save.
+vi.mock("@/redux/apis/organization/compliance.api", () => ({
+  useGetAllComplianceQuery: (...args: unknown[]) =>
+    mockUseGetAllComplianceQuery(...args),
+  useLinkRiskToObligationMutation: () => [
+    mockLinkRiskToObligation,
+    { isLoading: false },
+  ],
 }))
 
 vi.mock("@/components/shared/DeleteAlertModal", () => ({
@@ -178,6 +193,9 @@ describe("RiskRegisterPage", () => {
     mockIsRiskDeleting = false
     mockIsExporting = false
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [makeSite()] } })
+    mockUseGetAllComplianceQuery.mockReset()
+    mockLinkRiskToObligation.mockReset()
+    mockUseGetAllComplianceQuery.mockReturnValue({ data: { data: [] }, isFetching: false })
   })
 
   // Regression (issue #353): the subtitle used to render the literal
@@ -2712,6 +2730,141 @@ describe("RiskRegisterPage", () => {
           "organization.riskRegister.inherentOverrideReasonPlaceholder"
         )
       ).toBeInTheDocument()
+    })
+  })
+
+  // aexa-server#346 point 3 -- harmonizes the Risk Register's own creation
+  // form with the Compliance module's obligation-linking option (see
+  // ComplianceRiskLinkModal.tsx for that side), per the CEO feedback this
+  // ticket quotes about the two flows offering inconsistent options.
+  describe("compliance obligation link (aexa-server#346)", () => {
+    it("hides the compliance-link section for a non-regulatory category", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.addNewRisk",
+        })
+      )
+
+      expect(
+        screen.queryByText("organization.riskRegister.complianceLink.title")
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows the compliance-link section once category is set to regulatory, populated from getAllCompliance", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [{ id: "obl-1", title: "GDPR Art. 30", risk_id: null }] },
+        isFetching: false,
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.addNewRisk",
+        })
+      )
+      await userEvent.selectOptions(
+        container.querySelector('[name="category"]')!,
+        "regulatory"
+      )
+
+      expect(
+        screen.getByText("organization.riskRegister.complianceLink.title")
+      ).toBeInTheDocument()
+      expect(screen.getByText("GDPR Art. 30")).toBeInTheDocument()
+    })
+
+    it("links the newly-created risk to the selected obligation after a successful save", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [{ id: "obl-1", title: "GDPR Art. 30", risk_id: null }] },
+        isFetching: false,
+      })
+      mockCreateNewRisk.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            message: "Risk created",
+            data: { id: "risk-new" },
+          }),
+      })
+      mockLinkRiskToObligation.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true, message: "Linked" }),
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.addNewRisk",
+        })
+      )
+      await userEvent.selectOptions(
+        container.querySelector('[name="site_id"]')!,
+        "site-1"
+      )
+      await userEvent.type(
+        container.querySelector('[name="name"]')!,
+        "Regulatory risk"
+      )
+      await userEvent.selectOptions(
+        container.querySelector('[name="status"]')!,
+        "open"
+      )
+      await userEvent.selectOptions(
+        container.querySelector('[name="category"]')!,
+        "regulatory"
+      )
+      await userEvent.selectOptions(
+        screen.getByLabelText("organization.riskRegister.complianceLink.label"),
+        "obl-1"
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addRisk" })
+      )
+
+      await waitFor(() =>
+        expect(mockLinkRiskToObligation).toHaveBeenCalledWith({
+          obligationId: "obl-1",
+          riskId: "risk-new",
+        })
+      )
+    })
+
+    it("does not call linkRiskToObligation when no obligation is selected", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockCreateNewRisk.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            message: "Risk created",
+            data: { id: "risk-new" },
+          }),
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.addNewRisk",
+        })
+      )
+      await userEvent.selectOptions(
+        container.querySelector('[name="site_id"]')!,
+        "site-1"
+      )
+      await userEvent.type(container.querySelector('[name="name"]')!, "Risk")
+      await userEvent.selectOptions(
+        container.querySelector('[name="status"]')!,
+        "open"
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addRisk" })
+      )
+
+      await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
+      expect(mockLinkRiskToObligation).not.toHaveBeenCalled()
     })
   })
 })

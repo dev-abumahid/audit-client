@@ -7,6 +7,7 @@ import AttestHistoryModal from "./AttestHistoryModal"
 import ComplianceFormModal from "./ComplianceFormModal"
 import ComplianceFrameworkCoverage from "./ComplianceFrameworkCoverage"
 import ComplianceObligationRow from "./ComplianceObligationRow"
+import ComplianceRiskLinkModal from "./ComplianceRiskLinkModal"
 import ComplianceScorecardMatrix from "./ComplianceScorecardMatrix"
 import { useComplianceData } from "./useComplianceData"
 import type {
@@ -17,6 +18,7 @@ import type {
 import {
   useGetComplianceAttestationsQuery,
   useGetComplianceEditHistoryQuery,
+  useUnlinkRiskFromObligationMutation,
 } from "@/redux/apis/organization/compliance.api"
 import type { LineOfDefense } from "@/types/organization"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
@@ -40,6 +42,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import { submitWithToast } from "@/utils/submitWithToast"
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ""
 
@@ -92,37 +95,6 @@ const EMPTY_FORM = {
 }
 
 export type ComplianceFormState = typeof EMPTY_FORM
-
-// Fresh full-panel re-score (code quality finding): handleSave,
-// handleConfirmDelete, and confirmAttest each independently repeated the
-// identical shape -- try { await mutate().unwrap(); if (res.success)
-// toast.success(...) else toast.error(res.message || fallback) } catch
-// (err) { toast.error((err as {data?:...})?.data?.message || fallback) }.
-// Never throws -- swallows both the "request succeeded but server
-// reported failure" and genuine network/validation-error cases into a
-// toast either way, so every call site can safely `await` this without
-// its own try/catch.
-async function submitWithToast<T extends { success: boolean; message?: string }>(
-  action: () => Promise<T>,
-  successMessage: string,
-  fallbackErrorMessage: string,
-  onSuccess?: () => void
-): Promise<void> {
-  try {
-    const res = await action()
-    if (res.success) {
-      toast.success(successMessage)
-      onSuccess?.()
-    } else {
-      toast.error(res.message || fallbackErrorMessage)
-    }
-  } catch (err) {
-    const message =
-      (err as { data?: { message?: string } })?.data?.message ||
-      fallbackErrorMessage
-    toast.error(message)
-  }
-}
 
 export default function CompliancePage() {
   const { t, i18n } = useTranslation()
@@ -211,9 +183,14 @@ export default function CompliancePage() {
     | { type: "action"; obligation: ComplianceObligation }
     | { type: "attest"; obligation: ComplianceObligation }
     | { type: "history"; obligation: ComplianceObligation }
+    // aexa-server#346: obligation <-> risk linking modal (create-new /
+    // link-existing tabs). Slots into the same exclusive-modal union as
+    // its three siblings above.
+    | { type: "riskLink"; obligation: ComplianceObligation }
     | null
   const [activeModal, setActiveModal] = useState<ActiveModal>(null)
   const [attestNote, setAttestNote] = useState("")
+  const [unlinkRiskFromObligation] = useUnlinkRiskFromObligationMutation()
 
   // aexa-server#250 -- the obligation currently open in the re-attest
   // confirm dialog / attestation history modal, respectively. Derived from
@@ -225,6 +202,8 @@ export default function CompliancePage() {
     activeModal?.type === "history" ? activeModal.obligation : null
   const actionObligation =
     activeModal?.type === "action" ? activeModal.obligation : null
+  const riskLinkObligation =
+    activeModal?.type === "riskLink" ? activeModal.obligation : null
 
   // Round-11 review: attestObligation/historyObligation are two of three
   // sibling-exclusive modals above, each mounting its own useModalA11y()
@@ -496,6 +475,18 @@ export default function CompliancePage() {
   // version had to hand-roll on every opener).
   const openCreateAction = (obl: ComplianceObligation) => {
     setActiveModal({ type: "action", obligation: obl })
+  }
+
+  const openRiskLink = (obl: ComplianceObligation) => {
+    setActiveModal({ type: "riskLink", obligation: obl })
+  }
+
+  const handleUnlinkRisk = async (obl: ComplianceObligation) => {
+    await submitWithToast(
+      () => unlinkRiskFromObligation(obl.id).unwrap(),
+      t("organization.compliance.riskLink.toast.unlinkSuccess"),
+      t("organization.compliance.riskLink.toast.unlinkFailed")
+    )
   }
 
   const openAttest = (obl: ComplianceObligation, trigger: HTMLElement) => {
@@ -793,6 +784,8 @@ export default function CompliancePage() {
                   onHistory={openHistory}
                   onDelete={handleDelete}
                   onCreateAction={openCreateAction}
+                  onLinkRisk={openRiskLink}
+                  onUnlinkRisk={handleUnlinkRisk}
                 />
               ))}
           </tbody>
@@ -884,6 +877,13 @@ export default function CompliancePage() {
               : `Remediation action for non-compliant obligation "${actionObligation.title}".`,
             complianceObligationId: actionObligation.id,
           }}
+        />
+      )}
+
+      {riskLinkObligation && (
+        <ComplianceRiskLinkModal
+          obligation={riskLinkObligation}
+          onClose={() => setActiveModal(null)}
         />
       )}
 

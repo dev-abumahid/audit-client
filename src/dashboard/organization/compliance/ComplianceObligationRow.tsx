@@ -3,12 +3,15 @@ import {
   ArrowUpRight,
   Clock,
   History,
+  Link2,
   MoreVertical,
   Paperclip,
   Pencil,
   Plus,
   RotateCw,
+  ShieldAlert,
   Trash2,
+  Unlink,
 } from "lucide-react"
 import { useRef } from "react"
 import { Link } from "react-router"
@@ -38,6 +41,12 @@ interface ComplianceObligationRowProps {
   onHistory: (obligation: ComplianceObligation, trigger: HTMLElement) => void
   onDelete: (id: string) => void
   onCreateAction: (obligation: ComplianceObligation) => void
+  // aexa-server#346: opens the create-new/link-existing Risk modal.
+  onLinkRisk: (obligation: ComplianceObligation) => void
+  // Clears an existing link — no confirm dialog, mirrors this row's other
+  // low-stakes reversible actions (edit/re-attest); unlike Delete, nothing
+  // is destroyed (the Risk row itself is untouched).
+  onUnlinkRisk: (obligation: ComplianceObligation) => void
 }
 
 // Round 14 (code quality finding, fresh full-panel re-score): extracted from
@@ -57,6 +66,8 @@ export default function ComplianceObligationRow({
   onHistory,
   onDelete,
   onCreateAction,
+  onLinkRisk,
+  onUnlinkRisk,
 }: ComplianceObligationRowProps) {
   const { t, i18n } = useTranslation()
   // Round 21 (accessibility, fresh-panel finding -- a regression in round
@@ -134,6 +145,33 @@ export default function ComplianceObligationRow({
           {t("organization.compliance.col.lineOfDefenseShort")}:{" "}
           {t(LINE_OF_DEFENSE_KEY[obl.line_of_defense])}
         </p>
+        {/* aexa-server#346: shows whether this obligation flows into the
+            Risk Register yet. Deliberately visible even when unlinked (not
+            just an icon that only appears once linked) -- the CEO feedback
+            this ticket answers was specifically that regulatory obligations
+            were invisible in the risk register, so surfacing "not linked"
+            as a discoverable, clickable affordance (not a silent absence)
+            is the point. */}
+        {obl.risk ? (
+          <Link
+            to={`/organization/risks/${obl.risk.id}`}
+            className="mt-0.5 flex max-w-xs items-center gap-1 truncate text-[10px] font-medium text-primary hover:underline"
+          >
+            <ShieldAlert className="h-2.5 w-2.5 shrink-0" />
+            {obl.risk.ref} — {obl.risk.name}
+          </Link>
+        ) : (
+          canWrite && (
+            <button
+              type="button"
+              onClick={() => onLinkRisk(obl)}
+              className="focus-ring mt-0.5 flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-primary"
+            >
+              <Link2 className="h-2.5 w-2.5" />
+              {t("organization.compliance.riskLink.button")}
+            </button>
+          )
+        )}
         {/* Round 9 (UX finding, fresh full-panel re-score): the Due Date
             column (with the only overdue indicator on this table) is
             hidden below `md` -- a real mobile triage loss for a compliance
@@ -324,6 +362,31 @@ export default function ComplianceObligationRow({
                 <History className="h-3.5 w-3.5" />
                 {t("organization.compliance.attest.historyButton")}
               </DropdownMenuItem>
+              {/* aexa-server#346: re-link (relink to a different Risk) is
+                  always offered once already linked -- the compact line
+                  above already covers the primary "not linked yet" case
+                  with its own button, so this menu only needs to handle
+                  the already-linked state's two follow-up actions. */}
+              {canWrite && obl.risk && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    pendingActionRef.current = () => onLinkRisk(obl)
+                  }}
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  {t("organization.compliance.riskLink.relink")}
+                </DropdownMenuItem>
+              )}
+              {canWrite && obl.risk && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    pendingActionRef.current = () => onUnlinkRisk(obl)
+                  }}
+                >
+                  <Unlink className="h-3.5 w-3.5" />
+                  {t("organization.compliance.riskLink.unlink")}
+                </DropdownMenuItem>
+              )}
               {canWrite && (
                 <DropdownMenuItem
                   variant="destructive"

@@ -3,6 +3,10 @@ import {
   useCreateNewRiskMutation,
   useUpdateRiskMutation,
 } from "@/redux/apis/organization/risk.api"
+import {
+  useGetAllComplianceQuery,
+  useLinkRiskToObligationMutation,
+} from "@/redux/apis/organization/compliance.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import type { Risk, SiteSummary } from "@/types/organization"
@@ -11,10 +15,21 @@ import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import RiskOverrideBadge from "./RiskOverrideBadge"
 import { Loader } from "lucide-react"
 import type { ReactNode } from "react"
+import { useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
 import { FormProvider, useForm, useFormContext, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+
+// aexa-server#346 point 3: harmonizes the two creation flows the CEO
+// feedback flagged as inconsistent -- creating a regulatory risk directly
+// in the Risk Register previously offered none of the linking options
+// available when creating one from the Compliance module (see
+// ComplianceRiskLinkModal.tsx for that side). Category values that mean
+// "this is a regulatory/compliance risk" per RISK_CATEGORIES
+// (src/utils/riskConfig.ts) -- gates the section below so it doesn't clutter
+// the form for every other risk category.
+const REGULATORY_CATEGORIES = new Set(["regulatory", "compliance"])
 
 // quality-bar-loop round 20 (code quality): extracted out of
 // RiskRegisterPage -- the Add/Edit modal (FormProvider setup, the 6
@@ -671,6 +686,64 @@ function RiskControlEffectivenessSection() {
   )
 }
 
+// aexa-server#346 point 3 -- offered only for a regulatory/compliance-
+// category risk, same reasoning REGULATORY_CATEGORIES documents above.
+// Deliberately a plain useState prop, not an RHF-registered field: this
+// selection isn't a Risk column at all (it drives a separate
+// POST /compliance/:id/link-risk call after the risk itself is
+// created/updated), so folding it into the Risk form's own submit payload
+// would misrepresent it as part of the Risk shape.
+function RiskComplianceLinkSection({
+  linkObligationId,
+  onChange,
+}: {
+  linkObligationId: string
+  onChange: (id: string) => void
+}) {
+  const { t } = useTranslation()
+  const { control } = useFormContext<Risk>()
+  const category = useWatch({ control, name: "category" })
+  // Idle until the section is actually visible -- same skip-until-relevant
+  // convention this codebase already uses for on-demand modal queries (see
+  // ComplianceRiskLinkModal.tsx's getAllRisks skip).
+  const { data, isFetching } = useGetAllComplianceQuery(
+    { page: 1, limit: 100, searchTerm: "" },
+    { skip: !REGULATORY_CATEGORIES.has(category) }
+  )
+
+  if (!REGULATORY_CATEGORIES.has(category)) return null
+
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-semibold">
+        {t("organization.riskRegister.complianceLink.title")}
+      </h3>
+      <FormField
+        label={t("organization.riskRegister.complianceLink.label")}
+        htmlFor="risk-link-obligation"
+      >
+        <select
+          id="risk-link-obligation"
+          value={linkObligationId}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={isFetching}
+          className="mt-1 h-9 w-full rounded-lg border bg-muted px-3 text-sm"
+        >
+          <option value="">
+            {t("organization.riskRegister.complianceLink.none")}
+          </option>
+          {data?.data?.map((obl) => (
+            <option key={obl.id} value={obl.id}>
+              {obl.title}
+              {obl.risk_id ? ` (${t("organization.riskRegister.complianceLink.alreadyLinked")})` : ""}
+            </option>
+          ))}
+        </select>
+      </FormField>
+    </div>
+  )
+}
+
 interface RiskFormModalProps {
   risk: Risk | null
   onClose: () => void
@@ -708,6 +781,10 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
   const [createNewRisk, { isLoading: isRiskCreating }] =
     useCreateNewRiskMutation()
   const [updateRisk, { isLoading: isRiskUpdating }] = useUpdateRiskMutation()
+  // aexa-server#346 point 3 -- see RiskComplianceLinkSection's own comment
+  // for why this lives outside react-hook-form's own state.
+  const [linkObligationId, setLinkObligationId] = useState("")
+  const [linkRiskToObligation] = useLinkRiskToObligationMutation()
 
   const onSubmit: SubmitHandler<Risk> = async (data) => {
     // aexa-frontend#269 -- translate this form's client-facing
@@ -799,6 +876,29 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
 
       if (res.success) {
         toast.success(res.message)
+        // aexa-server#346 point 3 -- fires after the Risk itself is
+        // successfully saved (create or update). res.data.id is used on
+        // BOTH branches (not editId on the update branch) -- both
+        // createNewRisk and updateRisk are typed ApiResponse<Risk>
+        // (risk.api.ts), so res.data.id is simply the same value as editId
+        // on an update; reading it off the response uniformly avoids a
+        // branch that isn't actually needed. Review finding: an earlier
+        // version of this comment claimed a editId fallback that the code
+        // never had. A failure here is reported separately rather than
+        // folded into the main save's error path: the Risk itself did save
+        // correctly, so this must not read as "your risk wasn't saved."
+        if (linkObligationId && res.data?.id) {
+          try {
+            await linkRiskToObligation({
+              obligationId: linkObligationId,
+              riskId: res.data.id,
+            }).unwrap()
+          } catch {
+            toast.error(
+              t("organization.riskRegister.complianceLink.linkFailedToast")
+            )
+          }
+        }
         onClose()
       } else {
         // manage_response.ts (aexa-server) never sends an `error` key — a
@@ -843,6 +943,10 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
             <RiskAssessmentSection />
             <RiskStatusSection />
             <RiskControlEffectivenessSection />
+            <RiskComplianceLinkSection
+              linkObligationId={linkObligationId}
+              onChange={setLinkObligationId}
+            />
 
             {/* Form Actions */}
             <div className="flex justify-end gap-2 pt-4">

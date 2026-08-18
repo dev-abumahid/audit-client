@@ -1129,6 +1129,13 @@
       "designEffectivenessExplainer": "Is the control, as designed, theoretically adequate to address this risk?",
       "operatingEffectivenessLabel": "Operating Effectiveness",
       "operatingEffectivenessExplainer": "Is the control actually being executed and working as intended in practice?",
+      "complianceLink": {
+        "title": "Compliance Obligation",
+        "label": "Link to a regulatory obligation",
+        "none": "None",
+        "alreadyLinked": "already linked to a risk",
+        "linkFailedToast": "Risk saved, but linking it to the obligation failed"
+      },
       "siteRequired": "Site is required",
       "riskNameRequired": "Risk name is required",
       "statusRequired": "Status is required",
@@ -1213,6 +1220,32 @@
       },
       "viewAction": {
         "button": "View Action"
+      },
+      "riskLink": {
+        "button": "Link to Risk Register",
+        "relink": "Change linked risk",
+        "unlink": "Unlink risk",
+        "modalTitle": "Link to Risk Register",
+        "modalSubtitle": "Link \"{{title}}\" to a risk in the Risk Register.",
+        "createNewTab": "Create New Risk",
+        "linkExistingTab": "Link Existing Risk",
+        "siteLabel": "Site",
+        "siteAuto": "Use obligation's site (or org default)",
+        "severityLabel": "Severity",
+        "selectSeverity": "Select severity",
+        "existingRiskLabel": "Risk",
+        "selectRisk": "Select a risk",
+        "noRisksFound": "No risks found",
+        "create": "Create & Link",
+        "link": "Link",
+        "toast": {
+          "createSuccess": "Risk created and linked",
+          "createFailed": "Failed to create and link risk",
+          "linkSuccess": "Linked to risk",
+          "linkFailed": "Failed to link risk",
+          "unlinkSuccess": "Risk unlinked",
+          "unlinkFailed": "Failed to unlink risk"
+        }
       },
       "searchPlaceholder": "Search obligations, description or owner...",
       "searchLabel": "Search obligations",
