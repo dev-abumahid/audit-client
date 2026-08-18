@@ -18,7 +18,7 @@ import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import RiskOverrideBadge from "./RiskOverrideBadge"
 import { Check, Loader, Sparkles, X } from "lucide-react"
 import type { ReactNode } from "react"
-import { createContext, useContext, useState } from "react"
+import { createContext, useCallback, useContext, useMemo, useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
 import { FormProvider, useForm, useFormContext, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -1106,7 +1106,7 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
     handleSubmit,
     setValue,
     getValues,
-    watch,
+    control,
     formState: { dirtyFields },
   } = formMethods
 
@@ -1118,9 +1118,23 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
   const [hasEverSuggested, setHasEverSuggested] = useState(false)
   const [suggestRiskFields, { isLoading: isSuggesting }] =
     useSuggestRiskFieldsMutation()
-  const currentSiteId = watch("site_id")
-  const currentCategory = watch("category")
-  const currentName = watch("name")
+  // quality-bar-loop efficiency finding (round 1): this used to read
+  // site_id/category/name via plain watch(name) -- react-hook-form's
+  // useForm().watch, not the useWatch hook. watch() re-renders whichever
+  // component calls it on EVERY field change anywhere in the form (see
+  // RiskScoresSection's own comment above on this exact pitfall), so every
+  // keystroke in this file's OTHER sections (description, financial
+  // impact, control effectiveness, EBITDA override, etc.) was forcing a
+  // full RiskFormModal re-render -- and since RiskFormModal is the parent
+  // of every section, that re-render cascaded through the whole form,
+  // undoing the useWatch-scoping this file's other sections were
+  // specifically refactored to have. useWatch({control, name}) subscribes
+  // at the individual-field level via its own isolated render cycle, same
+  // fix as RiskScoresSection/RiskEbitdaSection already apply.
+  const [currentSiteId, currentCategory, currentName] = useWatch({
+    control,
+    name: ["site_id", "category", "name"],
+  })
   const canSuggest = !!currentSiteId && !!currentName && !!currentCategory
 
   // Review finding: applySuggestion used to read getValues(name) itself,
@@ -1132,33 +1146,43 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
   // even dispatched, so it always reflects what was really in the field at
   // the moment the user asked AI to touch it, regardless of what else
   // resolves in between.
-  const applySuggestion = (
-    result: RiskFieldSuggestion,
-    requestedFields: readonly AiFieldName[],
-    priorSnapshot: Map<AiFieldName, number | string>
-  ) => {
-    const priorValues = new Map<AiFieldName, number | string>()
-    let appliedAny = false
-    requestedFields.forEach((name) => {
-      const value = result[name]
-      if (value === undefined) return
-      priorValues.set(name, priorSnapshot.get(name) as number | string)
-      setValue(name, value as never, { shouldDirty: false })
-      appliedAny = true
-    })
-    if (!appliedAny) {
-      toast.error(
-        "AI couldn't generate a suggestion for this risk -- try again or fill it in manually."
-      )
-      return
-    }
-    setSuggestions((prev) => {
-      const next = new Map(prev)
-      priorValues.forEach((value, name) => next.set(name, value))
-      return next
-    })
-    setHasEverSuggested(true)
-  }
+  // quality-bar-loop efficiency finding (round 1): these handlers are
+  // wrapped in useCallback, and the AiPrefillContext value below in
+  // useMemo, so a RiskFormModal re-render for a reason unrelated to AI
+  // state (e.g. isRiskCreating/isRiskUpdating toggling during submit, or
+  // linkObligationId changing) no longer hands every one of the 8
+  // AiPrefillContext consumers (each AI-suggestable FormField) a
+  // new-identity context value to re-render for.
+  const applySuggestion = useCallback(
+    (
+      result: RiskFieldSuggestion,
+      requestedFields: readonly AiFieldName[],
+      priorSnapshot: Map<AiFieldName, number | string>
+    ) => {
+      const priorValues = new Map<AiFieldName, number | string>()
+      let appliedAny = false
+      requestedFields.forEach((name) => {
+        const value = result[name]
+        if (value === undefined) return
+        priorValues.set(name, priorSnapshot.get(name) as number | string)
+        setValue(name, value as never, { shouldDirty: false })
+        appliedAny = true
+      })
+      if (!appliedAny) {
+        toast.error(
+          "AI couldn't generate a suggestion for this risk -- try again or fill it in manually."
+        )
+        return
+      }
+      setSuggestions((prev) => {
+        const next = new Map(prev)
+        priorValues.forEach((value, name) => next.set(name, value))
+        return next
+      })
+      setHasEverSuggested(true)
+    },
+    [setValue]
+  )
 
   // Review finding: the site/name/category a suggestion was requested for
   // can change (or the user can close and reopen with different values)
@@ -1169,16 +1193,15 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
   // currentName above) always reads the live current form state, so
   // comparing it post-await against what was captured pre-await detects a
   // mid-flight change honestly.
-  const isStillCurrentContext = (
-    requestSiteId: string,
-    requestCategory: string,
-    requestName: string
-  ) =>
-    getValues("site_id") === requestSiteId &&
-    getValues("category") === requestCategory &&
-    getValues("name") === requestName
+  const isStillCurrentContext = useCallback(
+    (requestSiteId: string, requestCategory: string, requestName: string) =>
+      getValues("site_id") === requestSiteId &&
+      getValues("category") === requestCategory &&
+      getValues("name") === requestName,
+    [getValues]
+  )
 
-  const runSuggest = async () => {
+  const runSuggest = useCallback(async () => {
     const requestSiteId = currentSiteId
     const requestCategory = currentCategory
     const requestName = currentName
@@ -1197,55 +1220,104 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
     } catch {
       toast.error("AI suggestion failed -- try again in a moment.")
     }
-  }
+  }, [
+    currentSiteId,
+    currentCategory,
+    currentName,
+    getValues,
+    suggestRiskFields,
+    isStillCurrentContext,
+    applySuggestion,
+  ])
   // "Accept all" -- clears every remaining badge in one click without
   // re-fetching or changing any value (they're already applied by
   // runSuggest/suggestField). A field already accepted or rejected
   // individually has no badge left to clear either way.
-  const acceptAll = () => setSuggestions(new Map())
+  const acceptAll = useCallback(() => setSuggestions(new Map()), [])
   // Independent of runSuggest above -- works whether or not the bulk
   // button was ever used.
-  const suggestField = async (name: AiFieldName) => {
-    const requestSiteId = currentSiteId
-    const requestCategory = currentCategory
-    const requestName = currentName
-    const priorSnapshot = new Map<AiFieldName, number | string>([
-      [name, getValues(name) as number | string],
-    ])
-    try {
-      const res = await suggestRiskFields({
-        name: requestName,
-        category: requestCategory,
-        site_id: requestSiteId,
-        fields: [name],
-      }).unwrap()
-      if (!isStillCurrentContext(requestSiteId, requestCategory, requestName))
-        return
-      applySuggestion(res.data, [name], priorSnapshot)
-    } catch {
-      toast.error("AI suggestion failed -- try again in a moment.")
-    }
-  }
-  const acceptField = (name: AiFieldName) => {
+  const suggestField = useCallback(
+    async (name: AiFieldName) => {
+      const requestSiteId = currentSiteId
+      const requestCategory = currentCategory
+      const requestName = currentName
+      const priorSnapshot = new Map<AiFieldName, number | string>([
+        [name, getValues(name) as number | string],
+      ])
+      try {
+        const res = await suggestRiskFields({
+          name: requestName,
+          category: requestCategory,
+          site_id: requestSiteId,
+          fields: [name],
+        }).unwrap()
+        if (
+          !isStillCurrentContext(requestSiteId, requestCategory, requestName)
+        )
+          return
+        applySuggestion(res.data, [name], priorSnapshot)
+      } catch {
+        toast.error("AI suggestion failed -- try again in a moment.")
+      }
+    },
+    [
+      currentSiteId,
+      currentCategory,
+      currentName,
+      getValues,
+      suggestRiskFields,
+      isStillCurrentContext,
+      applySuggestion,
+    ]
+  )
+  const acceptField = useCallback((name: AiFieldName) => {
     setSuggestions((prev) => {
       const next = new Map(prev)
       next.delete(name)
       return next
     })
-  }
+  }, [])
   // Real undo, not a reset-to-zero: restores whatever was actually in the
   // field right before the suggestion overwrote it.
-  const rejectField = (name: AiFieldName) => {
-    const priorValue = suggestions.get(name)
-    if (priorValue !== undefined) {
-      setValue(name, priorValue as never, { shouldDirty: false })
-    }
-    setSuggestions((prev) => {
-      const next = new Map(prev)
-      next.delete(name)
-      return next
-    })
-  }
+  const rejectField = useCallback(
+    (name: AiFieldName) => {
+      const priorValue = suggestions.get(name)
+      if (priorValue !== undefined) {
+        setValue(name, priorValue as never, { shouldDirty: false })
+      }
+      setSuggestions((prev) => {
+        const next = new Map(prev)
+        next.delete(name)
+        return next
+      })
+    },
+    [suggestions, setValue]
+  )
+
+  const aiPrefillContextValue = useMemo(
+    () => ({
+      suggestions,
+      hasEverSuggested,
+      isSuggesting,
+      canSuggest,
+      runSuggest,
+      acceptAll,
+      suggestField,
+      acceptField,
+      rejectField,
+    }),
+    [
+      suggestions,
+      hasEverSuggested,
+      isSuggesting,
+      canSuggest,
+      runSuggest,
+      acceptAll,
+      suggestField,
+      acceptField,
+      rejectField,
+    ]
+  )
 
   const [createNewRisk, { isLoading: isRiskCreating }] =
     useCreateNewRiskMutation()
@@ -1448,19 +1520,7 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
         </h2>
 
         <FormProvider {...formMethods}>
-          <AiPrefillContext.Provider
-            value={{
-              suggestions,
-              hasEverSuggested,
-              isSuggesting,
-              canSuggest,
-              runSuggest,
-              acceptAll,
-              suggestField,
-              acceptField,
-              rejectField,
-            }}
-          >
+          <AiPrefillContext.Provider value={aiPrefillContextValue}>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <RiskBasicInfoFields />
               <AiPrefillTrigger canSuggest={canSuggest} />
