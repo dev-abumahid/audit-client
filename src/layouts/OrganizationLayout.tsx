@@ -37,6 +37,24 @@ export default function OrganizationLayout() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
+
+  // Prefer the logged-in user's own initials (mirrors AdminLayout.tsx's
+  // identical pattern) over the organization's initial -- an ORGANIZATION-
+  // role account has no personal userProfile (auth.d.ts), so it falls back
+  // to the org initial exactly as before for that case.
+  const avatarInitials = (() => {
+    const fullName = user?.userProfile?.fullName?.trim()
+    if (fullName) {
+      return fullName
+        .split(" ")
+        .filter(Boolean)
+        .map((word) => word[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    }
+    return user?.organizationProfile?.organizationName?.charAt(0)
+  })()
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
   const { t } = useTranslation()
@@ -343,7 +361,7 @@ export default function OrganizationLayout() {
                   className="h-full w-full rounded-full object-cover"
                 />
               ) : (
-                <>{user?.organizationProfile?.organizationName?.charAt(0)}</>
+                <>{avatarInitials}</>
               )}
             </Link>
           </div>

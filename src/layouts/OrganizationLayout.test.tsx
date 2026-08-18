@@ -251,6 +251,59 @@ describe("OrganizationLayout alerts indicator and logo alt (#510)", () => {
   })
 })
 
+// aexa-frontend#923 -- the avatar fallback (no organizationLogo) previously
+// always showed the organization's initial, even for a real logged-in
+// person with their own name on file -- every user in the same org saw the
+// identical single letter. It now prefers the user's own initials.
+describe("OrganizationLayout avatar initials (#923)", () => {
+  beforeEach(() => {
+    mockNavigate.mockReset()
+    mockDispatch.mockReset()
+    mockUseGetAllAlertsQuery.mockReset()
+    mockUseGetAllAlertsQuery.mockReturnValue({ data: { data: [] } })
+  })
+
+  it("shows the user's own initials when a personal profile name is set", () => {
+    mockUserState = {
+      userProfile: { fullName: "Jane Doe" },
+      organizationProfile: { organizationName: "Acme Corp" },
+    }
+    renderOrganizationLayout()
+
+    const profileLink = screen.getByRole("link", {
+      name: "organization.nav.profileLinkLabel",
+    })
+    expect(profileLink).toHaveTextContent("JD")
+    expect(profileLink).not.toHaveTextContent("A")
+  })
+
+  it("falls back to the organization's initial when there is no personal profile name (ORGANIZATION-role account)", () => {
+    mockUserState = {
+      userProfile: { fullName: "" },
+      organizationProfile: { organizationName: "Acme Corp" },
+    }
+    renderOrganizationLayout()
+
+    const profileLink = screen.getByRole("link", {
+      name: "organization.nav.profileLinkLabel",
+    })
+    expect(profileLink).toHaveTextContent("A")
+  })
+
+  it("uses only the first two initials for a name with more than two words", () => {
+    mockUserState = {
+      userProfile: { fullName: "Jane Middle Doe" },
+      organizationProfile: { organizationName: "Acme Corp" },
+    }
+    renderOrganizationLayout()
+
+    const profileLink = screen.getByRole("link", {
+      name: "organization.nav.profileLinkLabel",
+    })
+    expect(profileLink).toHaveTextContent("JM")
+  })
+})
+
 // Raw <button>s with no explicit type default to type="submit" per the HTML
 // spec -- a latent bug if this layout's sidebar/header ever ends up inside a
 // <form>. Every button this layout renders is a raw <button> (no shadcn
