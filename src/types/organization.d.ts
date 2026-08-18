@@ -117,6 +117,12 @@ export interface Risk {
   financial_impact_min: number
   financial_impact_max: number
   probability: number
+  // aexa-server#241: the real, independently-collected severity/impact axis
+  // (0-100, same scale as probability) -- was missing from this type
+  // entirely even though the backend model has had it since #241; added now
+  // because aexa-server#347's EBITDA-at-risk formula maps the CEO's
+  // "Severite" term onto this exact field (see aexa-server ebitda_risk.ts).
+  impact: number
   velocity: string
   trend: string
   status: string
@@ -127,6 +133,22 @@ export interface Risk {
   source_info?: string
   control_design_eff: number
   control_operating_eff: number
+  // aexa-server#347 -- EBITDA-at-risk, same derive-with-override-and-
+  // staleness shape as inherent/residual_score above. ebitda_at_risk is the
+  // computed currency amount (CA du site x Marge benchmark x Probabilite x
+  // Severite); ebitda_benchmark_sector/margin describe which sector
+  // benchmark was used (or overridden to). See aexa-server's
+  // prisma/schema/risk.prisma Risk model / ebitda_risk.ts for the full
+  // writeup. All null until the risk has a resolvable site revenue +
+  // probability + impact.
+  ebitda_at_risk: number | null
+  ebitda_benchmark_sector: string | null
+  ebitda_benchmark_margin: number | null
+  ebitda_is_override: boolean
+  ebitda_override_reason: string | null
+  ebitda_overridden_by: string | null
+  ebitda_overridden_at: string | null
+  ebitda_override_stale: boolean
   createdAt: string
   updatedAt: string
   // aexa-frontend#95: maker-checker approval state for this risk's current

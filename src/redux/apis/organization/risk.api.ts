@@ -11,6 +11,19 @@ interface GetAllRisksArgs {
   category: string
 }
 
+// aexa-server#347: org-wide EBITDA-at-risk distribution backing the
+// dashboard's "Distribution EBITDA at Risk" chart -- see
+// GET /risk/ebitda-at-risk-summary (risk.service.ts's
+// get_ebitda_at_risk_summary / ebitda_summary.ts's computeEbitdaSummary).
+export interface EbitdaAtRiskSummary {
+  data: { name: string; value: number }[]
+  p5: number
+  p50: number
+  totalEstimatedEbitda: number
+  risksWithData: number
+  risksTotal: number
+}
+
 const risksApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getAllRisks: builder.query<PaginatedApiResponse<Risk>, GetAllRisksArgs>({
@@ -29,6 +42,18 @@ const risksApi = baseApi.injectEndpoints({
     getSingleRisk: builder.query<ApiResponse<Risk>, string>({
       query: (id) => ({
         url: `/risk/${id}`,
+        method: "GET",
+      }),
+      providesTags: ["RISK"],
+    }),
+    // aexa-server#347: powers Overview.tsx's "Distribution EBITDA at Risk"
+    // chart, replacing that page's previous hardcoded static placeholder
+    // array. providesTags: ["RISK"] so any risk create/update/delete (all of
+    // which already invalidate "RISK") refetches this too, keeping the
+    // chart in sync with the register without a dedicated tag.
+    getEbitdaAtRiskSummary: builder.query<ApiResponse<EbitdaAtRiskSummary>, void>({
+      query: () => ({
+        url: `/risk/ebitda-at-risk-summary`,
         method: "GET",
       }),
       providesTags: ["RISK"],
@@ -77,6 +102,7 @@ export const {
   useGetAllRisksQuery,
   useLazyGetAllRisksQuery,
   useGetSingleRiskQuery,
+  useGetEbitdaAtRiskSummaryQuery,
   useDeleteRiskMutation,
   useCreateNewRiskMutation,
   useUpdateRiskMutation,

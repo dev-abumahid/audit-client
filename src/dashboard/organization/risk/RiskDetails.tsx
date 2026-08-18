@@ -3,6 +3,7 @@ import { useGetRiskApprovalStateQuery } from "@/redux/apis/organization/riskAppr
 import { useGetSingleRiskQuery } from "@/redux/apis/organization/risk.api"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
+import { formatEbitdaSectorLabel } from "@/utils/ebitdaSector"
 import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { severityBadgeClasses } from "@/utils/severityStyles"
 import { LINE_OF_DEFENSE_LABEL_KEY as LINE_OF_DEFENSE_KEY } from "@/utils/lineOfDefense"
@@ -11,6 +12,7 @@ import {
   Bot,
   Building2,
   ChevronLeft,
+  Euro,
   Gauge,
   Shield,
   User,
@@ -273,6 +275,17 @@ export default function RiskDetails() {
           <div>
             <dt
               className="text-xs text-muted-foreground"
+              title={t("organization.riskRegister.impactExplainer")}
+            >
+              {t("organization.riskRegister.impactLabel")}
+            </dt>
+            <dd className="font-mono-data font-medium text-foreground">
+              {risk.impact}
+            </dd>
+          </div>
+          <div>
+            <dt
+              className="text-xs text-muted-foreground"
               title={t("organization.riskRegister.velocityExplainer")}
             >
               {t("organization.riskRegister.velocityLabel")}
@@ -332,6 +345,63 @@ export default function RiskDetails() {
             </dd>
           </div>
         </dl>
+      </div>
+
+      {/* aexa-server#347: EBITDA at Risk -- the CEO's proposed actuarial
+          methodology (Site.revenue x sector benchmark margin x probability
+          x severity), computed server-side (ebitda_risk.ts) and surfaced
+          here per the ticket's explicit "il faudra mentionner dans le
+          risque cet EBITDA a risque calcule ainsi que le benchmark
+          sectoriel utilise" requirement. Read-only here, same as every
+          other field on this deliberately-read-only page (see this file's
+          top comment) -- overriding the benchmark margin happens in the
+          edit form (RiskFormModal's RiskEbitdaSection), "Manage in
+          Register" below. */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+          <Euro className="h-4 w-4 text-primary" />
+          {t("organization.riskRegister.ebitdaTitle")}
+        </h2>
+        {risk.ebitda_at_risk == null ? (
+          <p className="text-xs text-muted-foreground">
+            {t("organization.riskRegister.ebitdaNotCalculated")}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono-data text-xl font-bold text-foreground">
+                €{(risk.ebitda_at_risk / 1_000_000).toFixed(2)}M
+              </span>
+              <RiskOverrideBadge
+                isOverride={!!risk.ebitda_is_override}
+                isStale={!!risk.ebitda_override_stale}
+                overriddenBy={risk.ebitda_overridden_by}
+                overriddenAt={risk.ebitda_overridden_at}
+                label={t("organization.riskRegister.ebitdaAtRiskLabel")}
+              />
+            </div>
+            <dl className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <dt className="text-xs text-muted-foreground">
+                  {t("organization.riskRegister.ebitdaBenchmarkSectorLabel")}
+                </dt>
+                <dd className="font-medium text-foreground">
+                  {formatEbitdaSectorLabel(risk.ebitda_benchmark_sector)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">
+                  {t("organization.riskRegister.ebitdaBenchmarkMarginLabel")}
+                </dt>
+                <dd className="font-mono-data font-medium text-foreground">
+                  {risk.ebitda_benchmark_margin != null
+                    ? `${(risk.ebitda_benchmark_margin * 100).toFixed(1)}%`
+                    : "—"}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        )}
       </div>
 
       {/* Controls + site + line of defense */}

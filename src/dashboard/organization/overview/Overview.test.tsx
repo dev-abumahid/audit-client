@@ -80,6 +80,8 @@ const mockUseGetAllFindingsQuery = vi.fn()
 const mockUseGetAllInspectionQuery = vi.fn()
 const mockUseGetCorrelationMatrixDataQuery = vi.fn()
 const mockUseGetAllSitesQuery = vi.fn()
+// aexa-server#347
+const mockUseGetEbitdaAtRiskSummaryQuery = vi.fn()
 // aexa-frontend#471 -- Overview now reads the real org name via
 // useGetMeQuery for the subtitle (replacing the hardcoded "CEBI
 // International S.A." fixture), same mocking convention as every other
@@ -93,6 +95,8 @@ vi.mock("@/redux/apis/auth.api", () => ({
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) =>
     mockUseGetAllRisksQuery(...args),
+  useGetEbitdaAtRiskSummaryQuery: (...args: unknown[]) =>
+    mockUseGetEbitdaAtRiskSummaryQuery(...args),
 }))
 
 vi.mock("@/redux/apis/organization/riskLink.api", () => ({
@@ -270,6 +274,7 @@ describe("Overview", () => {
     mockUseGetAllInspectionQuery.mockReset()
     mockUseGetCorrelationMatrixDataQuery.mockReset()
     mockUseGetAllSitesQuery.mockReset()
+    mockUseGetEbitdaAtRiskSummaryQuery.mockReset()
     mockUseGetMeQuery.mockReset()
     mockUseGetMeQuery.mockReturnValue({
       data: {
@@ -287,6 +292,32 @@ describe("Overview", () => {
       isLoading: false,
     })
     mockUseGetAllSitesQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
+    // aexa-server#347: real EBITDA-at-risk distribution -- default fixture
+    // keeps the same illustrative magnitudes the old static placeholder
+    // array used (P5=14.2M ... P95=23.8M), just as real currency units
+    // (not the old "thousands" scale) since that's what ebitda_at_risk
+    // actually returns (see ebitda_summary.ts).
+    mockUseGetEbitdaAtRiskSummaryQuery.mockReturnValue({
+      data: {
+        data: {
+          data: [
+            { name: "P5", value: 14_200_000 },
+            { name: "P10", value: 16_100_000 },
+            { name: "P25", value: 18_500_000 },
+            { name: "P50", value: 20_800_000 },
+            { name: "P75", value: 22_400_000 },
+            { name: "P90", value: 23_100_000 },
+            { name: "P95", value: 23_800_000 },
+          ],
+          p5: 14_200_000,
+          p50: 20_800_000,
+          totalEstimatedEbitda: 22_000_000,
+          risksWithData: 5,
+          risksTotal: 5,
+        },
+      },
+      isLoading: false,
+    })
   })
 
   it("shows a loading state while any of risks/KRIs/alerts/actions/inspections are loading", () => {
@@ -927,6 +958,87 @@ describe("Overview", () => {
     expect(screen.queryByText(/P5 \(Median\)/)).not.toBeInTheDocument()
   })
 
+  // Round-1 review finding: the three new conditional branches
+  // (ebitdaSummaryLoading / ebitdaSummaryError / !ebitdaHasData) had zero
+  // test coverage -- only the default success fixture was ever exercised.
+  describe("EBITDA-at-risk chart states (#347, round-1 review fix)", () => {
+    it("shows a spinner while the EBITDA summary is loading", () => {
+      mockUseGetEbitdaAtRiskSummaryQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        isError: false,
+      })
+
+      renderPage()
+
+      // The chart itself (a bar chart mock) must not render while loading.
+      expect(screen.queryByTestId("mock-barchart")).not.toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.overview.chart.emptyState")
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows a load-error message when the EBITDA summary request fails", () => {
+      mockUseGetEbitdaAtRiskSummaryQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("organization.overview.chart.loadError")
+      ).toBeInTheDocument()
+      expect(screen.queryByTestId("mock-barchart")).not.toBeInTheDocument()
+    })
+
+    it("shows the empty-state message when no risk has a computed EBITDA-at-risk value yet", () => {
+      mockUseGetEbitdaAtRiskSummaryQuery.mockReturnValue({
+        data: {
+          data: {
+            data: [
+              { name: "P5", value: 0 },
+              { name: "P10", value: 0 },
+              { name: "P25", value: 0 },
+              { name: "P50", value: 0 },
+              { name: "P75", value: 0 },
+              { name: "P90", value: 0 },
+              { name: "P95", value: 0 },
+            ],
+            p5: 0,
+            p50: 0,
+            totalEstimatedEbitda: 0,
+            risksWithData: 0,
+            risksTotal: 12,
+          },
+        },
+        isLoading: false,
+        isError: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("organization.overview.chart.emptyState")
+      ).toBeInTheDocument()
+      expect(screen.queryByTestId("mock-barchart")).not.toBeInTheDocument()
+    })
+
+    it("renders the real chart and coverage text once EBITDA data is present", () => {
+      // Uses the beforeEach default fixture (risksWithData: 5, risksTotal: 5).
+      renderPage()
+
+      expect(screen.getByTestId("mock-barchart")).toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.overview.chart.emptyState")
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByText("organization.overview.chart.loadError")
+      ).not.toBeInTheDocument()
+    })
+  })
+
   it("shows an empty state in Recent Alerts when there are no alerts", () => {
     mockUseGetAllAlertsQuery.mockReturnValue({ data: { data: [] }, isLoading: false })
     renderPage()
@@ -997,7 +1109,10 @@ describe("Overview", () => {
     const formatter = ebitdaTooltip!.formatter as (
       value: number
     ) => [string, string]
-    expect(formatter(23100)).toEqual(["€23.1M", "EBITDA"])
+    // aexa-server#347: ebitda_at_risk values are real currency units (not
+    // the old placeholder's "thousands" scale), so the formatter now
+    // divides by 1,000,000 instead of 1,000.
+    expect(formatter(23_100_000)).toEqual(["€23.10M", "EBITDA"])
   })
 
   // quality-bar-loop round 12 (industry-standards): the EBITDA chart used

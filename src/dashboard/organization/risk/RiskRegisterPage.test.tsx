@@ -1320,6 +1320,212 @@ describe("RiskRegisterPage", () => {
     })
   })
 
+  // aexa-server#347: EBITDA-at-risk override -- targets the sector-benchmark
+  // margin (a 0-100 percent-scale form input, converted to a 0-1 fraction
+  // for the request), not the final at-risk currency amount. Mirrors the
+  // inherent-score override tests above closely; the override control only
+  // renders while editing an existing risk (RiskEbitdaSection's `if
+  // (!editId) return null` -- nothing to override before the first save).
+  describe("EBITDA-at-risk override (#347)", () => {
+    it("requires a margin and a reason before an EBITDA override can be submitted, then submits it converted to a fraction", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk()] },
+      })
+      mockUpdateRisk.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Risk updated" }),
+      })
+
+      const { container } = renderPage()
+      const editButtons = screen
+        .getAllByRole("button")
+        .filter((b) => b.querySelector("svg.lucide-pencil"))
+      await userEvent.click(editButtons[0])
+
+      await userEvent.click(
+        container.querySelector('[name="ebitda_is_override"]')!
+      )
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.updateRisk",
+        })
+      )
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("organization.riskRegister.overrideReasonRequired")
+        ).toBeInTheDocument()
+      })
+      expect(mockUpdateRisk).not.toHaveBeenCalled()
+
+      const marginField = container.querySelector(
+        '[name="ebitda_override_margin_percent"]'
+      )!
+      await userEvent.clear(marginField)
+      await userEvent.type(marginField, "18")
+      await userEvent.type(
+        container.querySelector('[name="ebitda_override_reason"]')!,
+        "Audited 2026 accounts show a real 18% EBITDA margin for this site."
+      )
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.updateRisk",
+        })
+      )
+
+      await waitFor(() => expect(mockUpdateRisk).toHaveBeenCalled())
+      const { data: submitted } = mockUpdateRisk.mock.calls[0][0]
+      // 18% in the form's percent-scale input -> 0.18 fraction, matching
+      // aexa-server risk.validation.ts's ebitda_override_margin schema
+      // (0-1 fraction, not 0-100).
+      expect(submitted).toMatchObject({
+        ebitda_override: true,
+        ebitda_override_margin: 0.18,
+        ebitda_override_reason:
+          "Audited 2026 accounts show a real 18% EBITDA margin for this site.",
+      })
+      expect(submitted).not.toHaveProperty("ebitda_is_override")
+      expect(submitted).not.toHaveProperty("ebitda_override_margin_percent")
+      // Server-owned computed/audit fields are never sent as inputs.
+      expect(submitted).not.toHaveProperty("ebitda_at_risk")
+      expect(submitted).not.toHaveProperty("ebitda_benchmark_sector")
+      expect(submitted).not.toHaveProperty("ebitda_overridden_by")
+    })
+
+    it("does not send an ebitda_override instruction when the toggle is left off", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk()] },
+      })
+      mockUpdateRisk.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Risk updated" }),
+      })
+
+      const { container } = renderPage()
+      const editButtons = screen
+        .getAllByRole("button")
+        .filter((b) => b.querySelector("svg.lucide-pencil"))
+      await userEvent.click(editButtons[0])
+
+      const nameField = container.querySelector('[name="name"]')!
+      await userEvent.clear(nameField)
+      await userEvent.type(nameField, "Renamed risk")
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.updateRisk",
+        })
+      )
+
+      await waitFor(() => expect(mockUpdateRisk).toHaveBeenCalled())
+      const { data: submitted } = mockUpdateRisk.mock.calls[0][0]
+      expect(submitted).not.toHaveProperty("ebitda_override")
+      expect(submitted).not.toHaveProperty("ebitda_override_reason")
+      expect(submitted).not.toHaveProperty("ebitda_override_margin")
+    })
+
+    it("renders a severity (impact) input alongside probability, needed to ever compute an EBITDA-at-risk value", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.addNewRisk",
+        })
+      )
+
+      expect(container.querySelector('[name="impact"]')).toBeInTheDocument()
+    })
+
+    // Round-1 review gap: the presence check above never verified the
+    // value actually round-trips on edit (pre-fill from risk.impact) or
+    // ends up in the submitted payload.
+    it("pre-fills the severity (impact) input from the existing risk on edit, and submits a changed value", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ impact: 55 })] },
+      })
+      mockUpdateRisk.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Risk updated" }),
+      })
+
+      const { container } = renderPage()
+      const editButtons = screen
+        .getAllByRole("button")
+        .filter((b) => b.querySelector("svg.lucide-pencil"))
+      await userEvent.click(editButtons[0])
+
+      const impactField = container.querySelector(
+        '[name="impact"]'
+      ) as HTMLInputElement
+      expect(impactField.value).toBe("55")
+
+      await userEvent.clear(impactField)
+      await userEvent.type(impactField, "80")
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.updateRisk",
+        })
+      )
+
+      await waitFor(() => expect(mockUpdateRisk).toHaveBeenCalled())
+      const { data: submitted } = mockUpdateRisk.mock.calls[0][0]
+      expect(submitted.impact).toBe(80)
+    })
+
+    // Round-1 review finding: the margin-override `validate` rule was
+    // registered but its error was never rendered (no `error` prop on the
+    // surrounding FormField) -- handleSubmit silently refused to submit
+    // with zero visible feedback to the user. Uses an EMPTY margin field
+    // (not an out-of-range number) to exercise this: the input's native
+    // `max="100"`/`min="0"` HTML attributes intercept an out-of-range
+    // *typed* value via the browser's own constraint validation before
+    // react-hook-form's JS-level `validate` even runs (same as every
+    // other min/max-bounded numeric field in this form) -- the
+    // `value != null` branch of the custom `validate` rule is the one
+    // actually reachable in practice, for a cleared/blank field.
+    it("shows a visible error when the EBITDA override margin is left blank, and blocks submission", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk()] },
+      })
+      mockUpdateRisk.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Risk updated" }),
+      })
+
+      const { container } = renderPage()
+      const editButtons = screen
+        .getAllByRole("button")
+        .filter((b) => b.querySelector("svg.lucide-pencil"))
+      await userEvent.click(editButtons[0])
+
+      await userEvent.click(
+        container.querySelector('[name="ebitda_is_override"]')!
+      )
+      const marginField = container.querySelector(
+        '[name="ebitda_override_margin_percent"]'
+      )!
+      await userEvent.clear(marginField)
+      await userEvent.type(
+        container.querySelector('[name="ebitda_override_reason"]')!,
+        "Testing a blank margin."
+      )
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.updateRisk",
+        })
+      )
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            "organization.riskRegister.ebitdaOverrideMarginRequired"
+          )
+        ).toBeInTheDocument()
+      })
+      expect(mockUpdateRisk).not.toHaveBeenCalled()
+    })
+  })
+
   describe("score override staleness badge", () => {
     it("shows the stale badge in the list view when residual_override_stale is true", () => {
       mockUseGetAllRisksQuery.mockReturnValue({

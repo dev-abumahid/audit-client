@@ -10,7 +10,10 @@ import { useGetAllFindingsQuery } from "@/redux/apis/organization/findings.api"
 import { useGetAllInspectionQuery } from "@/redux/apis/organization/inspection.api"
 import { useGetAllKriQuery } from "@/redux/apis/organization/kri.api"
 import { useGetCorrelationMatrixDataQuery } from "@/redux/apis/organization/riskLink.api"
-import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
+import {
+  useGetAllRisksQuery,
+  useGetEbitdaAtRiskSummaryQuery,
+} from "@/redux/apis/organization/risk.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import type { Alert, Risk } from "@/types/organization"
 import {
@@ -45,19 +48,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-
-// No backend endpoint returns EBITDA percentile data anywhere in this
-// project — kept as static placeholder data, out of scope for this ticket
-// (frontend#92's tractable half covers risks/KRI/alerts, not financials).
-const ebitdaData = [
-  { name: "P5", value: 14200 },
-  { name: "P10", value: 16100 },
-  { name: "P25", value: 18500 },
-  { name: "P50", value: 20800 },
-  { name: "P75", value: 22400 },
-  { name: "P90", value: 23100 },
-  { name: "P95", value: 23800 },
-]
 
 export default function Overview() {
   const { t, i18n } = useTranslation()
@@ -143,6 +133,13 @@ export default function Overview() {
     limit: 100,
     searchTerm: "",
   })
+  // aexa-server#347: real org-wide EBITDA-at-risk distribution, replacing
+  // this page's previous hardcoded static P5...P95 array.
+  const {
+    data: ebitdaSummaryResponse,
+    isLoading: ebitdaSummaryLoading,
+    isError: ebitdaSummaryError,
+  } = useGetEbitdaAtRiskSummaryQuery()
 
   // Memoized (rather than a plain `?? []`) so its reference stays stable
   // across renders where riskResponse hasn't changed -- categoryData's own
@@ -157,6 +154,14 @@ export default function Overview() {
   // Matches the EBITDA chart's own €X.XM formatting just below, for visual
   // consistency on this page.
   const totalRevenueLabel = `€${(totalRevenue / 1_000_000).toFixed(1)}M`
+
+  const ebitdaSummary = ebitdaSummaryResponse?.data
+  const ebitdaData = ebitdaSummary?.data ?? []
+  // A real distribution can legitimately be all-zero (every risk missing
+  // probability/impact, or no site revenue yet) -- distinct from "still
+  // loading" and worth its own empty state rather than rendering an
+  // all-flat-zero bar chart that looks broken.
+  const ebitdaHasData = (ebitdaSummary?.risksWithData ?? 0) > 0
 
   // quality-bar-loop round 8 (efficiency): this reduce+map used to run on
   // every render regardless of cause (e.g. CriticalAlertBanner's own
@@ -420,79 +425,116 @@ export default function Overview() {
           <p className="text-xs text-muted-foreground">
             {t("organization.overview.chart.des")}
           </p>
-          {/* quality-bar-loop round 12 (industry-standards): this is seven
-              discrete percentile buckets (P5...P95), not a time series --
-              an AreaChart's continuous, connected line visually implied a
-              trend moving left-to-right, the opposite of what a static
-              distribution snapshot is. A bar chart is the standard idiom
-              for percentile/Monte Carlo data in Grafana/Datadog/Tableau,
-              since each bar is independently readable with no implied
-              continuity between adjacent buckets. */}
-          <div className="mt-4 h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={ebitdaData}>
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 11 }}
-                  stroke="hsl(var(--muted-foreground))"
-                />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  stroke="hsl(var(--muted-foreground))"
-                  tickFormatter={(v) => `€${(v / 1000).toFixed(0)}M`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--popover))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  labelStyle={{ color: "hsl(var(--popover-foreground))" }}
-                  cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
-                  formatter={(v) => [
-                    `€${(Number(v) / 1000).toFixed(1)}M`,
-                    "EBITDA",
-                  ]}
-                />
-                <Bar
-                  dataKey="value"
-                  fill="hsl(var(--primary))"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-3 flex items-center gap-6 text-xs">
-            <div>
-              <span className="text-muted-foreground">
-                {t("organization.overview.chart.p5Worst")}:
-              </span>{" "}
-              <span
-                className={`font-mono-data font-semibold ${SEVERITY_STYLES.critical.text}`}
-              >
-                €14.2M
-              </span>
+          {ebitdaSummaryLoading ? (
+            <div className="mt-4 flex h-56 items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-            <div>
-              <span className="text-muted-foreground">
-                {t("organization.overview.chart.p50Median")}:
-              </span>{" "}
-              <span className="font-mono-data font-semibold text-foreground">
-                €20.8M
-              </span>
+          ) : ebitdaSummaryError || !ebitdaHasData ? (
+            <div className="mt-4 flex h-56 items-center justify-center px-6 text-center text-xs text-muted-foreground">
+              {ebitdaSummaryError
+                ? t("organization.overview.chart.loadError")
+                : t("organization.overview.chart.emptyState")}
             </div>
-            <div>
-              <span className="text-muted-foreground">
-                {t("organization.overview.chart.budget")}:
-              </span>{" "}
-              <span
-                className={`font-mono-data font-semibold ${SEVERITY_STYLES.low.text}`}
-              >
-                €22.0M
-              </span>
-            </div>
-          </div>
+          ) : (
+            <>
+              {/* quality-bar-loop round 12 (industry-standards): this is
+                  seven discrete percentile buckets (P5...P95), not a time
+                  series -- an AreaChart's continuous, connected line
+                  visually implied a trend moving left-to-right, the
+                  opposite of what a static distribution snapshot is. A bar
+                  chart is the standard idiom for percentile/Monte Carlo
+                  data in Grafana/Datadog/Tableau, since each bar is
+                  independently readable with no implied continuity between
+                  adjacent buckets.
+                  aexa-server#347: values are now real ebitda_at_risk
+                  amounts in the same currency unit as Site.revenue (whole
+                  currency units, not thousands like the old static
+                  placeholder was) -- formatting divides by 1,000,000 to
+                  match totalRevenueLabel's own €X.XM convention just above,
+                  not the old /1000 the placeholder data used. */}
+              <div className="mt-4 h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={ebitdaData}>
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 11 }}
+                      stroke="hsl(var(--muted-foreground))"
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      stroke="hsl(var(--muted-foreground))"
+                      // Round-1 review finding: this used .toFixed(1) while
+                      // the tooltip and the P5/P50/budget stats just below
+                      // all use .toFixed(2) -- same bar's axis tick and
+                      // tooltip could show different decimal precision
+                      // (e.g. "€23.1M" vs "€23.10M"). Aligned to .toFixed(2)
+                      // to match.
+                      tickFormatter={(v) => `€${(v / 1_000_000).toFixed(2)}M`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "hsl(var(--popover))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                      labelStyle={{ color: "hsl(var(--popover-foreground))" }}
+                      cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
+                      formatter={(v) => [
+                        `€${(Number(v) / 1_000_000).toFixed(2)}M`,
+                        "EBITDA",
+                      ]}
+                    />
+                    <Bar
+                      dataKey="value"
+                      fill="hsl(var(--primary))"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
+                <div>
+                  <span className="text-muted-foreground">
+                    {t("organization.overview.chart.p5Worst")}:
+                  </span>{" "}
+                  <span
+                    className={`font-mono-data font-semibold ${SEVERITY_STYLES.critical.text}`}
+                  >
+                    €{((ebitdaSummary?.p5 ?? 0) / 1_000_000).toFixed(2)}M
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">
+                    {t("organization.overview.chart.p50Median")}:
+                  </span>{" "}
+                  <span className="font-mono-data font-semibold text-foreground">
+                    €{((ebitdaSummary?.p50 ?? 0) / 1_000_000).toFixed(2)}M
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">
+                    {t("organization.overview.chart.budget")}:
+                  </span>{" "}
+                  <span
+                    className={`font-mono-data font-semibold ${SEVERITY_STYLES.low.text}`}
+                  >
+                    €
+                    {(
+                      (ebitdaSummary?.totalEstimatedEbitda ?? 0) / 1_000_000
+                    ).toFixed(2)}
+                    M
+                  </span>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                {t("organization.overview.chart.coverage", {
+                  withData: ebitdaSummary?.risksWithData ?? 0,
+                  total: ebitdaSummary?.risksTotal ?? 0,
+                })}
+              </p>
+            </>
+          )}
         </div>
 
         {/* Risk by category */}

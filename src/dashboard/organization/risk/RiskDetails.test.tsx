@@ -314,4 +314,89 @@ describe("RiskDetails", () => {
       expect(button.type).toBe("button")
     })
   })
+
+  // aexa-server#347: EBITDA-at-risk section.
+  describe("EBITDA at Risk (#347)", () => {
+    it("shows the not-yet-calculable explainer when ebitda_at_risk is null", () => {
+      mockUseGetSingleRiskQuery.mockReturnValue({
+        data: { data: makeRisk({ ebitda_at_risk: null }) },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("organization.riskRegister.ebitdaNotCalculated")
+      ).toBeInTheDocument()
+    })
+
+    it("renders the computed EBITDA-at-risk amount, benchmark sector, and margin", () => {
+      mockUseGetSingleRiskQuery.mockReturnValue({
+        data: {
+          data: makeRisk({
+            impact: 70,
+            ebitda_at_risk: 34_552_000,
+            ebitda_benchmark_sector: "CHEMICAL_BASIC",
+            ebitda_benchmark_margin: 0.1234,
+            ebitda_is_override: false,
+            ebitda_override_stale: false,
+            ebitda_overridden_by: null,
+            ebitda_overridden_at: null,
+          }),
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(screen.getByText("€34.55M")).toBeInTheDocument()
+      // Round-1 review fix: the raw sector key ("CHEMICAL_BASIC") is
+      // formatted to Title Case ("Chemical Basic") for display -- see
+      // utils/ebitdaSector.ts.
+      expect(screen.getByText("Chemical Basic")).toBeInTheDocument()
+      expect(screen.queryByText("CHEMICAL_BASIC")).not.toBeInTheDocument()
+      expect(screen.getByText("12.3%")).toBeInTheDocument()
+    })
+
+    it("shows the override badge when ebitda_is_override is true", () => {
+      mockUseGetSingleRiskQuery.mockReturnValue({
+        data: {
+          data: makeRisk({
+            ebitda_at_risk: 10_000_000,
+            ebitda_benchmark_sector: "CHEMICAL_BASIC",
+            ebitda_benchmark_margin: 0.2,
+            ebitda_is_override: true,
+            ebitda_override_stale: false,
+            ebitda_overridden_by: "user-1",
+            ebitda_overridden_at: "2026-08-01T10:00:00.000Z",
+          }),
+        },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("organization.riskRegister.overrideActiveBadge")
+      ).toBeInTheDocument()
+    })
+
+    // Round-1 review gap: no test anywhere verified risk.impact (the
+    // "Severity" field the EBITDA formula's "Severite" input maps onto)
+    // actually renders on the detail page, even though the EBITDA test
+    // above sets impact: 70 on its fixture without ever asserting on it.
+    it("renders the risk's impact (Severity) value in the assessment section", () => {
+      mockUseGetSingleRiskQuery.mockReturnValue({
+        data: { data: makeRisk({ impact: 70 }) },
+        isLoading: false,
+      })
+
+      renderPage()
+
+      expect(
+        screen.getByText("organization.riskRegister.impactLabel")
+      ).toBeInTheDocument()
+      expect(screen.getByText("70")).toBeInTheDocument()
+    })
+  })
 })

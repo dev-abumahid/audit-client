@@ -10,6 +10,7 @@ import {
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import type { Risk, SiteSummary } from "@/types/organization"
+import { formatEbitdaSectorLabel } from "@/utils/ebitdaSector"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import RiskOverrideBadge from "./RiskOverrideBadge"
@@ -39,7 +40,15 @@ const REGULATORY_CATEGORIES = new Set(["regulatory", "compliance"])
 // deduped-by-RTK-Query-cache pattern RiskBasicInfoFields already used
 // before this extraction) rather than receiving it as a prop.
 
-const EMPTY_RISK: Partial<Risk> = {
+// aexa-server#347: the client-facing form value shape adds one field that
+// isn't on the stored Risk row at all -- `ebitda_override_margin_percent`,
+// a 0-100 percent-scale input for usability, converted to the 0-1 fraction
+// the server's `ebitda_override_margin` expects on submit (see onSubmit
+// below). Everything else mirrors Risk exactly, same as the rest of this
+// form.
+type RiskFormValues = Risk & { ebitda_override_margin_percent: number }
+
+const EMPTY_RISK: Partial<RiskFormValues> = {
   name: "",
   description: "",
   category: "",
@@ -53,6 +62,7 @@ const EMPTY_RISK: Partial<Risk> = {
   financial_impact_min: 0,
   financial_impact_max: 0,
   probability: 0,
+  impact: 0,
   velocity: "",
   trend: "",
   status: "",
@@ -60,6 +70,9 @@ const EMPTY_RISK: Partial<Risk> = {
   control_design_eff: 0,
   control_operating_eff: 0,
   site_id: "",
+  ebitda_is_override: false,
+  ebitda_override_reason: "",
+  ebitda_override_margin_percent: 0,
 }
 
 // Mirrors the transformation openEdit used to apply via `reset()` before
@@ -68,7 +81,7 @@ const EMPTY_RISK: Partial<Risk> = {
 // the parent's `showModal` conditional renders it (unmounted on close),
 // so there's no longer a long-lived form instance that needs `reset()`
 // called on it between edits.
-function riskToFormDefaults(risk: Risk): Risk {
+function riskToFormDefaults(risk: Risk): RiskFormValues {
   return {
     ...risk,
     inherent_score: Number(risk.inherent_score) || 0,
@@ -81,9 +94,19 @@ function riskToFormDefaults(risk: Risk): Risk {
     financial_impact_min: Number(risk.financial_impact_min) || 0,
     financial_impact_max: Number(risk.financial_impact_max) || 0,
     probability: Number(risk.probability) || 0,
+    impact: Number(risk.impact) || 0,
     control_design_eff: Number(risk.control_design_eff) || 0,
     control_operating_eff: Number(risk.control_operating_eff) || 0,
     site_id: risk.site_id,
+    ebitda_is_override: !!risk.ebitda_is_override,
+    ebitda_override_reason: risk.ebitda_override_reason || "",
+    // Pre-fill the percent-scale override input from the currently
+    // *effective* margin (benchmark or already-overridden) rather than 0 --
+    // so opening "override" on an already-benchmarked risk starts from its
+    // real current margin, not from a blank/misleading 0%.
+    ebitda_override_margin_percent: risk.ebitda_benchmark_margin
+      ? Math.round(risk.ebitda_benchmark_margin * 1000) / 10
+      : 0,
   }
 }
 
@@ -524,7 +547,7 @@ function RiskAssessmentSection() {
       <h3 className="text-sm font-semibold">
         {t("organization.riskRegister.riskAssessmentTitle")}
       </h3>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <FormField
           label={t("organization.riskRegister.probabilityLabel")}
           labelTitle={t("organization.riskRegister.probabilityExplainer")}
@@ -536,6 +559,28 @@ function RiskAssessmentSection() {
             min="0"
             max="100"
             {...register("probability", { valueAsNumber: true })}
+            className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
+          />
+        </FormField>
+        {/* aexa-server#241 added this as the risk matrix's real,
+            independent severity axis, but no form on this page ever
+            exposed an input for it -- confirmed while wiring
+            aexa-server#347's EBITDA-at-risk formula, which needs this
+            exact field as its "Severite" input (see ebitda_risk.ts). A
+            risk created through this form could never get an impact value
+            any other way, so EBITDA-at-risk would stay permanently
+            uncalculable for it without this. */}
+        <FormField
+          label={t("organization.riskRegister.impactLabel")}
+          labelTitle={t("organization.riskRegister.impactExplainer")}
+          htmlFor="risk-impact"
+        >
+          <input
+            id="risk-impact"
+            type="number"
+            min="0"
+            max="100"
+            {...register("impact", { valueAsNumber: true })}
             className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
           />
         </FormField>
@@ -584,6 +629,146 @@ function RiskAssessmentSection() {
             <option value="none">{t("organization.riskRegister.trendNone")}</option>
           </select>
         </FormField>
+      </div>
+    </div>
+  )
+}
+
+// aexa-server#347: EBITDA-at-risk section -- a read-only display of the
+// currently computed value + benchmark (auto-derived server-side from
+// Site.revenue/activity + probability/impact, see ebitda_risk.ts), plus the
+// user override control for the CEO's "modifiable par l'utilisateur
+// (devient alors l'EBITDA reel)" requirement. Mirrors
+// RiskScoresSection's useWatch-scoped-re-render pattern (only re-renders
+// when one of these specific fields changes) and its override-block layout
+// exactly, for the same reasons documented on that section.
+const EBITDA_WATCH_FIELDS = [
+  "ebitda_at_risk",
+  "ebitda_benchmark_sector",
+  "ebitda_benchmark_margin",
+  "ebitda_is_override",
+  "ebitda_override_stale",
+  "ebitda_overridden_by",
+  "ebitda_overridden_at",
+] as const
+
+function RiskEbitdaSection({ editId }: { editId: string | null }) {
+  const { t } = useTranslation()
+  const {
+    register,
+    control,
+    formState: { errors },
+  } = useFormContext<RiskFormValues>()
+  const [
+    ebitdaAtRisk,
+    ebitdaBenchmarkSector,
+    ebitdaBenchmarkMargin,
+    ebitdaIsOverride,
+    ebitdaOverrideStale,
+    ebitdaOverriddenBy,
+    ebitdaOverriddenAt,
+  ] = useWatch({ control, name: EBITDA_WATCH_FIELDS })
+
+  // Only relevant once a risk exists server-side (create hasn't computed
+  // anything yet -- there's nothing to show until the first save).
+  if (!editId) return null
+
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-semibold">
+        {t("organization.riskRegister.ebitdaTitle")}
+      </h3>
+      <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+        {ebitdaAtRisk == null ? (
+          <p className="text-xs text-muted-foreground">
+            {t("organization.riskRegister.ebitdaNotCalculated")}
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <span className="font-mono-data text-base font-semibold">
+              €{(Number(ebitdaAtRisk) / 1_000_000).toFixed(2)}M
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {t("organization.riskRegister.ebitdaBenchmarkSectorLabel")}:{" "}
+              {formatEbitdaSectorLabel(ebitdaBenchmarkSector)}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {t("organization.riskRegister.ebitdaBenchmarkMarginLabel")}:{" "}
+              {ebitdaBenchmarkMargin != null
+                ? `${(Number(ebitdaBenchmarkMargin) * 100).toFixed(1)}%`
+                : "—"}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-1.5 rounded-lg border border-dashed p-2.5">
+        <label className="flex items-center gap-2 text-xs font-medium">
+          <input
+            type="checkbox"
+            {...register("ebitda_is_override")}
+            className="h-3.5 w-3.5"
+          />
+          {t("organization.riskRegister.ebitdaOverrideLabel")}
+        </label>
+        {ebitdaIsOverride && (
+          <div className="space-y-1.5">
+            <FormField
+              label={t("organization.riskRegister.ebitdaOverrideMarginLabel")}
+              htmlFor="risk-ebitda_override_margin_percent"
+              // Round-1 review finding: the `validate` rule below was
+              // registered but never surfaced -- unlike the reason
+              // textarea just below it (which does render
+              // errors.ebitda_override_reason), an out-of-range margin
+              // silently blocked handleSubmit with zero visible feedback.
+              error={errors.ebitda_override_margin_percent?.message}
+            >
+              <input
+                id="risk-ebitda_override_margin_percent"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                {...register("ebitda_override_margin_percent", {
+                  valueAsNumber: true,
+                  validate: (value) =>
+                    !ebitdaIsOverride ||
+                    (value != null && value >= 0 && value <= 100) ||
+                    t("organization.riskRegister.ebitdaOverrideMarginRequired"),
+                })}
+                className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
+              />
+            </FormField>
+            <textarea
+              {...register("ebitda_override_reason", {
+                validate: (value) =>
+                  !ebitdaIsOverride ||
+                  !!value?.trim() ||
+                  t("organization.riskRegister.overrideReasonRequired"),
+              })}
+              placeholder={t(
+                "organization.riskRegister.ebitdaOverrideReasonPlaceholder"
+              )}
+              rows={2}
+              className="w-full rounded-lg border bg-muted px-2 py-1.5 text-xs"
+            />
+            {errors.ebitda_override_reason && (
+              <p className="mt-1 text-xs text-destructive">
+                {errors.ebitda_override_reason.message}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <RiskOverrideBadge
+          isOverride={!!ebitdaIsOverride}
+          isStale={!!ebitdaOverrideStale}
+          overriddenBy={ebitdaOverriddenBy}
+          overriddenAt={ebitdaOverriddenAt}
+          label={t("organization.riskRegister.ebitdaAtRiskLabel")}
+        />
       </div>
     </div>
   )
@@ -770,7 +955,7 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
   // mounted.
   const addEditModalRef = useModalA11y(true, onClose)
 
-  const formMethods = useForm<Risk>({
+  const formMethods = useForm<RiskFormValues>({
     defaultValues: risk ? riskToFormDefaults(risk) : EMPTY_RISK,
   })
   const {
@@ -786,7 +971,7 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
   const [linkObligationId, setLinkObligationId] = useState("")
   const [linkRiskToObligation] = useLinkRiskToObligationMutation()
 
-  const onSubmit: SubmitHandler<Risk> = async (data) => {
+  const onSubmit: SubmitHandler<RiskFormValues> = async (data) => {
     // aexa-frontend#269 -- translate this form's client-facing
     // `*_is_override`/`*_override_reason` fields (named to match the stored
     // Risk row, for display/pre-fill purposes) into the request keys
@@ -811,6 +996,19 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
     delete payload.residual_overridden_by
     delete payload.residual_overridden_at
     delete payload.residual_override_stale
+    // aexa-server#347: same "server always recomputes these" reasoning as
+    // the two blocks above -- ebitda_at_risk/benchmark_sector/margin are
+    // ebitda_risk.ts's OUTPUT (resolveEbitdaFields always overwrites
+    // whatever the client sends), and overridden_by/at/stale are equally
+    // server-owned. ebitda_benchmark_margin specifically is never sent as
+    // an input either way -- the override path uses
+    // ebitda_override_margin (below) instead.
+    delete payload.ebitda_at_risk
+    delete payload.ebitda_benchmark_sector
+    delete payload.ebitda_benchmark_margin
+    delete payload.ebitda_overridden_by
+    delete payload.ebitda_overridden_at
+    delete payload.ebitda_override_stale
     // Rename this form's client-facing `*_is_override` field to the
     // `*_override` request key POST/PATCH /risk actually expect (confirmed
     // against risk_scoring.ts's InherentOverrideRequest/
@@ -838,6 +1036,17 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
       !!dirtyFields.residual_is_override ||
       !!dirtyFields.residual_override_reason ||
       !!dirtyFields.residual_score
+    // aexa-server#347: same touched-gating reasoning as inherent/residual
+    // above, plus probability/impact -- those two feed the auto-computed
+    // ebitda_at_risk even when the override toggle itself isn't touched, so
+    // an edit to either one still needs to reach the server as a live
+    // (non-override) recompute trigger; it just doesn't need `ebitda_override`
+    // in the payload to do that (resolveEbitdaFields recomputes
+    // automatically for any create/update that doesn't set the flag).
+    const ebitdaOverrideTouched =
+      !!dirtyFields.ebitda_is_override ||
+      !!dirtyFields.ebitda_override_reason ||
+      !!dirtyFields.ebitda_override_margin_percent
 
     if (inherentOverrideTouched) {
       payload.inherent_override = data.inherent_is_override
@@ -863,6 +1072,25 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
       delete payload.residual_override_reason
     }
     delete payload.residual_is_override
+
+    if (ebitdaOverrideTouched) {
+      payload.ebitda_override = data.ebitda_is_override
+      payload.ebitda_override_reason = data.ebitda_is_override
+        ? data.ebitda_override_reason
+        : undefined
+      // Convert the form's 0-100 percent-scale input to the 0-1 fraction
+      // ebitda_risk.ts's resolveEbitdaFields expects (validated server-side
+      // as [0, 1] -- risk.validation.ts's ebitda_override_margin schema).
+      payload.ebitda_override_margin = data.ebitda_is_override
+        ? data.ebitda_override_margin_percent / 100
+        : undefined
+    } else {
+      delete payload.ebitda_override
+      delete payload.ebitda_override_reason
+      delete payload.ebitda_override_margin
+    }
+    delete payload.ebitda_is_override
+    delete payload.ebitda_override_margin_percent
 
     const filteredData = removeNulls(payload)
 
@@ -941,6 +1169,7 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
             <RiskScoresSection editId={editId} />
             <RiskFinancialImpactSection />
             <RiskAssessmentSection />
+            <RiskEbitdaSection editId={editId} />
             <RiskStatusSection />
             <RiskControlEffectivenessSection />
             <RiskComplianceLinkSection
