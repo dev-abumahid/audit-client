@@ -1,7 +1,17 @@
 import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
+import type { RiskFieldSuggestion } from "@/types/ai"
 import type { Risk } from "@/types/organization"
+
+interface SuggestRiskFieldsArgs {
+  name: string
+  category: string
+  site_id: string
+  // Omitted = suggest every AI-suggestable field (bulk pre-fill). A
+  // single-element array is the per-field "suggest just this one" path.
+  fields?: string[]
+}
 
 interface GetAllRisksArgs {
   page: number
@@ -95,6 +105,20 @@ const risksApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["RISK", "CORRELATION_MATRIX"],
     }),
+    // RiskFormModal's AI pre-fill -- non-persisting suggestion, same
+    // convention as useAnalyzeSiteRisksMutation (ai.api.ts): no
+    // invalidatesTags, since this doesn't change any stored Risk data,
+    // just returns values for the caller to review/apply client-side.
+    suggestRiskFields: builder.mutation<
+      ApiResponse<RiskFieldSuggestion>,
+      SuggestRiskFieldsArgs
+    >({
+      query: (data) => ({
+        url: `/risk/suggest-fields`,
+        method: "POST",
+        body: data,
+      }),
+    }),
   }),
 })
 
@@ -106,6 +130,7 @@ export const {
   useDeleteRiskMutation,
   useCreateNewRiskMutation,
   useUpdateRiskMutation,
+  useSuggestRiskFieldsMutation,
 } = risksApi
 
 // aexa-frontend#261: exported so risk.api.test.ts can dispatch

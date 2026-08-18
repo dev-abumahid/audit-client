@@ -38,3 +38,19 @@ export interface AiSuggestionState {
   createdAt: string
   updatedAt: string
 }
+
+// Shape of aexa-server's POST /risk/suggest-fields response -- passthrough
+// of aexa-ai's RiskFieldSuggestion (app/schemas/risk_field_suggestion_schema.py).
+// A partial object: only fields the caller requested (or all of them, for
+// the bulk pre-fill path) are present, and aexa-ai/aexa-server both drop
+// any value that fails its own validation rather than send a bad one.
+export interface RiskFieldSuggestion {
+  probability?: number
+  impact?: number
+  velocity?: string
+  trend?: string
+  control_design_eff?: number
+  control_operating_eff?: number
+  financial_impact_min?: number
+  financial_impact_max?: number
+}

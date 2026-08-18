@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   useCreateNewRiskMutation,
+  useSuggestRiskFieldsMutation,
   useUpdateRiskMutation,
 } from "@/redux/apis/organization/risk.api"
 import {
@@ -9,18 +10,95 @@ import {
 } from "@/redux/apis/organization/compliance.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { useModalA11y } from "@/hooks/useModalA11y"
+import type { RiskFieldSuggestion } from "@/types/ai"
 import type { Risk, SiteSummary } from "@/types/organization"
 import { formatEbitdaSectorLabel } from "@/utils/ebitdaSector"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import RiskOverrideBadge from "./RiskOverrideBadge"
-import { Loader } from "lucide-react"
+import { Check, Loader, Sparkles, X } from "lucide-react"
 import type { ReactNode } from "react"
-import { useState } from "react"
+import { createContext, useContext, useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
 import { FormProvider, useForm, useFormContext, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+
+// AI pre-fill: a prominent top-level "fill everything" button, PLUS an
+// independent small per-field "suggest just this one" trigger next to each
+// AI-suggestable field's label -- works whether or not the top button was
+// ever used (design decision: "one button to fill out everything, above,
+// and then the user has the choice to either accept individually, or
+// accept all. separately, if the user doesn't click the above button, each
+// cell has its own smaller suggest with ai"). Once a field holds a
+// suggestion (from either path), it shows explicit Accept/Reject controls
+// -- not implicit "edit it to override", which gives no way to signal "I
+// looked at this AI value and it's right" vs. "I never looked."
+//
+// Deliberately excludes inherent_score/residual_score/pagerank_score: all
+// three are server-derived (risk_scoring.ts's resolveInherentFields/
+// resolveResidualFields; pagerank has no override at all — see
+// risk.validation.ts's create_risk comments), so suggesting them directly
+// here would be silently discarded on save unless the override toggle is
+// also set, which this feature doesn't do.
+const AI_FIELD_NAMES = [
+  "probability",
+  "impact",
+  "velocity",
+  "trend",
+  "control_design_eff",
+  "control_operating_eff",
+  "financial_impact_min",
+  "financial_impact_max",
+] as const
+type AiFieldName = (typeof AI_FIELD_NAMES)[number]
+
+interface AiPrefillState {
+  // fieldName -> the value to restore on Reject (the value that was
+  // actually in the field right before the suggestion overwrote it, so
+  // Reject is a real undo, not a reset-to-zero).
+  suggestions: Map<AiFieldName, number | string>
+  // True from the first successful suggestion onward, independent of
+  // `suggestions` (which empties out on Accept all/individual
+  // accept-or-reject) -- without this, the trigger can't distinguish
+  // "never asked AI" from "asked, and already resolved everything", both
+  // of which would otherwise show suggestions.size === 0.
+  hasEverSuggested: boolean
+  isSuggesting: boolean
+  // Whether there's enough on the form (name + category + site) to ask AI
+  // for anything -- read by every field's own suggest icon, not just the
+  // top bulk button, so it's on the shared context rather than
+  // prop-drilled through every section component.
+  canSuggest: boolean
+  runSuggest: () => void
+  acceptAll: () => void
+  suggestField: (name: AiFieldName) => void
+  acceptField: (name: AiFieldName) => void
+  rejectField: (name: AiFieldName) => void
+}
+const AiPrefillContext = createContext<AiPrefillState | null>(null)
+function useAiPrefill() {
+  return useContext(AiPrefillContext)
+}
+
+interface AiFieldControl {
+  pending: boolean
+  canSuggest: boolean
+  onSuggestField: () => void
+  onAccept: () => void
+  onReject: () => void
+}
+function useAiFieldControl(fieldName: AiFieldName): AiFieldControl | undefined {
+  const ai = useAiPrefill()
+  if (!ai) return undefined
+  return {
+    pending: ai.suggestions.has(fieldName),
+    canSuggest: ai.canSuggest,
+    onSuggestField: () => ai.suggestField(fieldName),
+    onAccept: () => ai.acceptField(fieldName),
+    onReject: () => ai.rejectField(fieldName),
+  }
+}
 
 // aexa-server#346 point 3: harmonizes the two creation flows the CEO
 // feedback flagged as inconsistent -- creating a regulatory risk directly
@@ -139,6 +217,10 @@ interface FormFieldProps {
   // component exists; see RiskMatrixPage/RiskOverrideBadge). Undefined by
   // default so the existing FormField call sites are unaffected.
   labelTitle?: string
+  // AI pre-fill: pending suggestion shows a badge + explicit Accept/Reject;
+  // no suggestion yet shows a small independent "suggest just this field"
+  // icon. Undefined for fields that aren't AI-suggestable.
+  aiControl?: AiFieldControl
 }
 
 // quality-bar-loop code-quality workstream (stuck at 7/10 for 3 rounds): the
@@ -166,16 +248,70 @@ function FormField({
   error,
   children,
   labelTitle,
+  aiControl,
 }: FormFieldProps) {
+  const ringed = aiControl?.pending
   return (
-    <div>
-      <label
-        htmlFor={htmlFor}
-        title={labelTitle}
-        className="text-xs font-medium text-muted-foreground"
-      >
-        {label}
-      </label>
+    <div className={ringed ? "rounded-lg ring-1 ring-violet-400/60" : ""}>
+      {/* AI controls are deliberately siblings of <label>, not children of
+          it -- testing-library's getByLabelText (and browsers' own
+          implicit-label association) treats any labelable descendant of a
+          wrapping <label> as also "labeled by" that label's text, which
+          made the field's own accessible-name query collide with these
+          buttons' aria-labels (both contain the field's label text). A
+          flex row holding both as siblings keeps the same visual layout
+          without that association. */}
+      <div className="flex items-center gap-1.5">
+        <label
+          htmlFor={htmlFor}
+          title={labelTitle}
+          className="text-xs font-medium text-muted-foreground"
+        >
+          {label}
+        </label>
+        {aiControl?.pending && (
+          <span className="ml-auto inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
+              <Sparkles className="h-2.5 w-2.5" />
+              AI
+            </span>
+            <button
+              type="button"
+              onClick={aiControl.onAccept}
+              aria-label={`Accept AI suggestion for ${label}`}
+              title="Accept"
+              className="focus-ring rounded p-0.5 text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-400"
+            >
+              <Check className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              onClick={aiControl.onReject}
+              aria-label={`Reject AI suggestion for ${label}`}
+              title="Reject"
+              className="focus-ring rounded p-0.5 text-destructive hover:bg-destructive/15"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        )}
+        {aiControl && !aiControl.pending && (
+          <button
+            type="button"
+            disabled={!aiControl.canSuggest}
+            onClick={aiControl.onSuggestField}
+            aria-label={`Suggest ${label} with AI`}
+            title={
+              aiControl.canSuggest
+                ? "Suggest with AI"
+                : "Enter a site, name, and category first"
+            }
+            className="focus-ring ml-auto rounded p-0.5 text-muted-foreground/50 hover:text-violet-600 disabled:cursor-not-allowed disabled:hover:text-muted-foreground/50 dark:hover:text-violet-400"
+          >
+            <Sparkles className="h-3 w-3" />
+          </button>
+        )}
+      </div>
       {children}
       {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
@@ -514,6 +650,7 @@ function RiskFinancialImpactSection() {
         <FormField
           label={t("organization.riskRegister.minImpactLabel")}
           htmlFor="risk-financial_impact_min"
+          aiControl={useAiFieldControl("financial_impact_min")}
         >
           <input
             id="risk-financial_impact_min"
@@ -525,6 +662,7 @@ function RiskFinancialImpactSection() {
         <FormField
           label={t("organization.riskRegister.maxImpactLabel")}
           htmlFor="risk-financial_impact_max"
+          aiControl={useAiFieldControl("financial_impact_max")}
         >
           <input
             id="risk-financial_impact_max"
@@ -552,6 +690,7 @@ function RiskAssessmentSection() {
           label={t("organization.riskRegister.probabilityLabel")}
           labelTitle={t("organization.riskRegister.probabilityExplainer")}
           htmlFor="risk-probability"
+          aiControl={useAiFieldControl("probability")}
         >
           <input
             id="risk-probability"
@@ -574,6 +713,7 @@ function RiskAssessmentSection() {
           label={t("organization.riskRegister.impactLabel")}
           labelTitle={t("organization.riskRegister.impactExplainer")}
           htmlFor="risk-impact"
+          aiControl={useAiFieldControl("impact")}
         >
           <input
             id="risk-impact"
@@ -588,6 +728,7 @@ function RiskAssessmentSection() {
           label={t("organization.riskRegister.velocityLabel")}
           labelTitle={t("organization.riskRegister.velocityExplainer")}
           htmlFor="risk-velocity"
+          aiControl={useAiFieldControl("velocity")}
         >
           <select
             id="risk-velocity"
@@ -613,6 +754,7 @@ function RiskAssessmentSection() {
           label={t("organization.riskRegister.trendLabel")}
           labelTitle={t("organization.riskRegister.trendExplainer")}
           htmlFor="risk-trend"
+          aiControl={useAiFieldControl("trend")}
         >
           <select
             id="risk-trend"
@@ -840,6 +982,7 @@ function RiskControlEffectivenessSection() {
             "organization.riskRegister.designEffectivenessExplainer"
           )}
           htmlFor="risk-control_design_eff"
+          aiControl={useAiFieldControl("control_design_eff")}
         >
           <input
             id="risk-control_design_eff"
@@ -856,6 +999,7 @@ function RiskControlEffectivenessSection() {
             "organization.riskRegister.operatingEffectivenessExplainer"
           )}
           htmlFor="risk-control_operating_eff"
+          aiControl={useAiFieldControl("control_operating_eff")}
         >
           <input
             id="risk-control_operating_eff"
@@ -960,8 +1104,148 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
   })
   const {
     handleSubmit,
+    setValue,
+    getValues,
+    watch,
     formState: { dirtyFields },
   } = formMethods
+
+  // AI pre-fill state -- see AiPrefillState's own doc comment above for the
+  // design this implements.
+  const [suggestions, setSuggestions] = useState<
+    Map<AiFieldName, number | string>
+  >(new Map())
+  const [hasEverSuggested, setHasEverSuggested] = useState(false)
+  const [suggestRiskFields, { isLoading: isSuggesting }] =
+    useSuggestRiskFieldsMutation()
+  const currentSiteId = watch("site_id")
+  const currentCategory = watch("category")
+  const currentName = watch("name")
+  const canSuggest = !!currentSiteId && !!currentName && !!currentCategory
+
+  // Review finding: applySuggestion used to read getValues(name) itself,
+  // AFTER the request resolved -- if a second suggest request (bulk or
+  // per-field) landed first and already overwrote the field, this "prior"
+  // value would be that OTHER AI suggestion, not the user's real original
+  // input, so Reject would silently restore the wrong (still AI-generated)
+  // value. `priorSnapshot` is captured by the caller BEFORE the request is
+  // even dispatched, so it always reflects what was really in the field at
+  // the moment the user asked AI to touch it, regardless of what else
+  // resolves in between.
+  const applySuggestion = (
+    result: RiskFieldSuggestion,
+    requestedFields: readonly AiFieldName[],
+    priorSnapshot: Map<AiFieldName, number | string>
+  ) => {
+    const priorValues = new Map<AiFieldName, number | string>()
+    let appliedAny = false
+    requestedFields.forEach((name) => {
+      const value = result[name]
+      if (value === undefined) return
+      priorValues.set(name, priorSnapshot.get(name) as number | string)
+      setValue(name, value as never, { shouldDirty: false })
+      appliedAny = true
+    })
+    if (!appliedAny) {
+      toast.error(
+        "AI couldn't generate a suggestion for this risk -- try again or fill it in manually."
+      )
+      return
+    }
+    setSuggestions((prev) => {
+      const next = new Map(prev)
+      priorValues.forEach((value, name) => next.set(name, value))
+      return next
+    })
+    setHasEverSuggested(true)
+  }
+
+  // Review finding: the site/name/category a suggestion was requested for
+  // can change (or the user can close and reopen with different values)
+  // while the request is still in flight -- without this check, a slow
+  // response for "Fire risk, Site A" could land and silently overwrite
+  // fields after the user had already moved on to "Financial risk, Site
+  // B". getValues() (unlike the watched currentSiteId/currentCategory/
+  // currentName above) always reads the live current form state, so
+  // comparing it post-await against what was captured pre-await detects a
+  // mid-flight change honestly.
+  const isStillCurrentContext = (
+    requestSiteId: string,
+    requestCategory: string,
+    requestName: string
+  ) =>
+    getValues("site_id") === requestSiteId &&
+    getValues("category") === requestCategory &&
+    getValues("name") === requestName
+
+  const runSuggest = async () => {
+    const requestSiteId = currentSiteId
+    const requestCategory = currentCategory
+    const requestName = currentName
+    const priorSnapshot = new Map<AiFieldName, number | string>(
+      AI_FIELD_NAMES.map((name) => [name, getValues(name) as number | string])
+    )
+    try {
+      const res = await suggestRiskFields({
+        name: requestName,
+        category: requestCategory,
+        site_id: requestSiteId,
+      }).unwrap()
+      if (!isStillCurrentContext(requestSiteId, requestCategory, requestName))
+        return
+      applySuggestion(res.data, AI_FIELD_NAMES, priorSnapshot)
+    } catch {
+      toast.error("AI suggestion failed -- try again in a moment.")
+    }
+  }
+  // "Accept all" -- clears every remaining badge in one click without
+  // re-fetching or changing any value (they're already applied by
+  // runSuggest/suggestField). A field already accepted or rejected
+  // individually has no badge left to clear either way.
+  const acceptAll = () => setSuggestions(new Map())
+  // Independent of runSuggest above -- works whether or not the bulk
+  // button was ever used.
+  const suggestField = async (name: AiFieldName) => {
+    const requestSiteId = currentSiteId
+    const requestCategory = currentCategory
+    const requestName = currentName
+    const priorSnapshot = new Map<AiFieldName, number | string>([
+      [name, getValues(name) as number | string],
+    ])
+    try {
+      const res = await suggestRiskFields({
+        name: requestName,
+        category: requestCategory,
+        site_id: requestSiteId,
+        fields: [name],
+      }).unwrap()
+      if (!isStillCurrentContext(requestSiteId, requestCategory, requestName))
+        return
+      applySuggestion(res.data, [name], priorSnapshot)
+    } catch {
+      toast.error("AI suggestion failed -- try again in a moment.")
+    }
+  }
+  const acceptField = (name: AiFieldName) => {
+    setSuggestions((prev) => {
+      const next = new Map(prev)
+      next.delete(name)
+      return next
+    })
+  }
+  // Real undo, not a reset-to-zero: restores whatever was actually in the
+  // field right before the suggestion overwrote it.
+  const rejectField = (name: AiFieldName) => {
+    const priorValue = suggestions.get(name)
+    if (priorValue !== undefined) {
+      setValue(name, priorValue as never, { shouldDirty: false })
+    }
+    setSuggestions((prev) => {
+      const next = new Map(prev)
+      next.delete(name)
+      return next
+    })
+  }
 
   const [createNewRisk, { isLoading: isRiskCreating }] =
     useCreateNewRiskMutation()
@@ -1164,41 +1448,119 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
         </h2>
 
         <FormProvider {...formMethods}>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <RiskBasicInfoFields />
-            <RiskScoresSection editId={editId} />
-            <RiskFinancialImpactSection />
-            <RiskAssessmentSection />
-            <RiskEbitdaSection editId={editId} />
-            <RiskStatusSection />
-            <RiskControlEffectivenessSection />
-            <RiskComplianceLinkSection
-              linkObligationId={linkObligationId}
-              onChange={setLinkObligationId}
-            />
+          <AiPrefillContext.Provider
+            value={{
+              suggestions,
+              hasEverSuggested,
+              isSuggesting,
+              canSuggest,
+              runSuggest,
+              acceptAll,
+              suggestField,
+              acceptField,
+              rejectField,
+            }}
+          >
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <RiskBasicInfoFields />
+              <AiPrefillTrigger canSuggest={canSuggest} />
+              <RiskScoresSection editId={editId} />
+              <RiskFinancialImpactSection />
+              <RiskAssessmentSection />
+              <RiskEbitdaSection editId={editId} />
+              <RiskStatusSection />
+              <RiskControlEffectivenessSection />
+              <RiskComplianceLinkSection
+                linkObligationId={linkObligationId}
+                onChange={setLinkObligationId}
+              />
 
-            {/* Form Actions */}
-            <div className="flex justify-end gap-2 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
-              >
-                {t("organization.riskRegister.close")}
-              </button>
-              <button
-                type="submit"
-                disabled={isRiskCreating || isRiskUpdating}
-                className="focus-ring rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-              >
-                {(isRiskCreating || isRiskUpdating) && <Loader />}
-                {editId
-                  ? t("organization.riskRegister.updateRisk")
-                  : t("organization.riskRegister.addRisk")}
-              </button>
-            </div>
-          </form>
+              {/* Form Actions */}
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+                >
+                  {t("organization.riskRegister.close")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRiskCreating || isRiskUpdating}
+                  className="focus-ring rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                >
+                  {(isRiskCreating || isRiskUpdating) && <Loader />}
+                  {editId
+                    ? t("organization.riskRegister.updateRisk")
+                    : t("organization.riskRegister.addRisk")}
+                </button>
+              </div>
+            </form>
+          </AiPrefillContext.Provider>
         </FormProvider>
+      </div>
+    </div>
+  )
+}
+
+// A top-level bulk button with the same visual weight as the primary form
+// action, plus "Accept all" once there's something pending to clear. Each
+// individual field carries its OWN independent suggest icon too (wired in
+// FormField via useAiFieldControl), reachable without ever touching this
+// button.
+//
+// Three real states, not two: collapsing "never asked AI" and "asked, then
+// resolved everything" into the same suggestions.size === 0 check would
+// make the button silently revert to "Pre-fill entire form with AI" right
+// after "Accept all", which reads as if the acceptance didn't register.
+// hasEverSuggested (never cleared by acceptAll, unlike `suggestions`)
+// distinguishes the two.
+function AiPrefillTrigger({ canSuggest }: { canSuggest: boolean }) {
+  const ai = useAiPrefill()
+  if (!ai) return null
+
+  const hasOpenSuggestions = ai.suggestions.size > 0
+  return (
+    <div className="space-y-1.5">
+      <button
+        type="button"
+        disabled={!canSuggest || ai.isSuggesting}
+        onClick={ai.runSuggest}
+        className="focus-ring flex w-full items-center justify-center gap-2 rounded-xl border-2 border-violet-400/60 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 px-4 py-3 text-sm font-semibold text-violet-700 hover:from-violet-500/20 hover:to-fuchsia-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:text-violet-300"
+      >
+        {ai.isSuggesting ? (
+          <>
+            <Loader className="h-4 w-4" /> Pre-filling the form…
+          </>
+        ) : (
+          <>
+            <Sparkles className="h-4 w-4" />
+            {ai.hasEverSuggested
+              ? "Re-suggest all fields"
+              : "Pre-fill entire form with AI"}
+          </>
+        )}
+      </button>
+      <div className="flex items-center justify-between px-1">
+        <p className="text-xs text-muted-foreground">
+          {!canSuggest
+            ? "Enter a site, name, and category to enable AI suggestions."
+            : hasOpenSuggestions
+              ? `${ai.suggestions.size} field${ai.suggestions.size === 1 ? "" : "s"} awaiting review -- accept all, or accept/reject each one below.`
+              : ai.hasEverSuggested
+                ? "AI suggestions applied — edit any field above to override."
+                : "Or suggest just one field at a time using the ✨ next to its label."}
+        </p>
+        {hasOpenSuggestions && (
+          <button
+            type="button"
+            onClick={ai.acceptAll}
+            className="focus-ring inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-violet-600 hover:bg-violet-500/10 dark:text-violet-400"
+          >
+            <Check className="h-3 w-3" />
+            Accept all
+          </button>
+        )}
       </div>
     </div>
   )

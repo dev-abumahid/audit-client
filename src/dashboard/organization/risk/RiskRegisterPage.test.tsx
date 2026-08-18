@@ -89,6 +89,10 @@ let mockIsRiskDeleting = false
 // aexa-server#346 point 3
 const mockUseGetAllComplianceQuery = vi.fn()
 const mockLinkRiskToObligation = vi.fn()
+// AI pre-fill (RiskFormModal). Mutable per-test, same convention as the
+// other mock*Mutation fns above.
+const mockSuggestRiskFields = vi.fn()
+let mockIsSuggesting = false
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
@@ -104,6 +108,10 @@ vi.mock("@/redux/apis/organization/risk.api", () => ({
   useDeleteRiskMutation: () => [
     mockDeleteRisk,
     { isLoading: mockIsRiskDeleting },
+  ],
+  useSuggestRiskFieldsMutation: () => [
+    mockSuggestRiskFields,
+    { isLoading: mockIsSuggesting },
   ],
 }))
 
@@ -196,6 +204,12 @@ describe("RiskRegisterPage", () => {
     mockUseGetAllComplianceQuery.mockReset()
     mockLinkRiskToObligation.mockReset()
     mockUseGetAllComplianceQuery.mockReturnValue({ data: { data: [] }, isFetching: false })
+    mockSuggestRiskFields.mockReset()
+    mockIsSuggesting = false
+    mockSuggestRiskFields.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({ success: true, message: "", data: {} }),
+    })
   })
 
   // Regression (issue #353): the subtitle used to render the literal
@@ -3071,6 +3085,402 @@ describe("RiskRegisterPage", () => {
 
       await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
       expect(mockLinkRiskToObligation).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("AI pre-fill (risk field suggestions)", () => {
+    async function fillBasics(container: HTMLElement) {
+      await userEvent.selectOptions(
+        container.querySelector('[name="site_id"]')!,
+        "site-1"
+      )
+      await userEvent.type(
+        container.querySelector('[name="name"]')!,
+        "Fire risk in solvent storage"
+      )
+      await userEvent.selectOptions(
+        container.querySelector('[name="category"]')!,
+        "fire"
+      )
+    }
+
+    it("disables the bulk pre-fill button until site, name, and category are all filled", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+
+      expect(
+        screen.getByRole("button", { name: "Pre-fill entire form with AI" })
+      ).toBeDisabled()
+
+      await fillBasics(container)
+
+      expect(
+        screen.getByRole("button", { name: "Pre-fill entire form with AI" })
+      ).toBeEnabled()
+    })
+
+    it("bulk pre-fill requests every AI-suggestable field and applies the returned values", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockSuggestRiskFields.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            message: "",
+            data: {
+              probability: 65,
+              impact: 80,
+              velocity: "high",
+              trend: "increasing",
+              control_design_eff: 55,
+              control_operating_eff: 40,
+              financial_impact_min: 50,
+              financial_impact_max: 500,
+            },
+          }),
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "Pre-fill entire form with AI" })
+      )
+
+      await waitFor(() => expect(mockSuggestRiskFields).toHaveBeenCalled())
+      expect(mockSuggestRiskFields.mock.calls[0][0]).toEqual({
+        name: "Fire risk in solvent storage",
+        category: "fire",
+        site_id: "site-1",
+      })
+
+      await waitFor(() => {
+        expect(
+          (container.querySelector('[name="probability"]') as HTMLInputElement)
+            .value
+        ).toBe("65")
+      })
+      expect(
+        (container.querySelector('[name="control_design_eff"]') as HTMLInputElement)
+          .value
+      ).toBe("55")
+      expect(
+        (container.querySelector('[name="financial_impact_min"]') as HTMLInputElement)
+          .value
+      ).toBe("50")
+      expect(
+        (container.querySelector('[name="velocity"]') as HTMLSelectElement).value
+      ).toBe("high")
+
+      // Every AI-touched field shows explicit Accept/Reject controls.
+      expect(
+        screen.getByRole("button", {
+          name: "Accept AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      ).toBeInTheDocument()
+
+      // The button relabels once something's been suggested (issue: it
+      // used to silently revert to "Pre-fill entire form with AI" as if
+      // nothing had happened).
+      expect(
+        screen.getByRole("button", { name: "Re-suggest all fields" })
+      ).toBeInTheDocument()
+    })
+
+    it("suggests a single field independently, without touching the bulk button or other fields", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockSuggestRiskFields.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            message: "",
+            data: { velocity: "critical" },
+          }),
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Suggest organization.riskRegister.velocityLabel with AI",
+        })
+      )
+
+      await waitFor(() => expect(mockSuggestRiskFields).toHaveBeenCalled())
+      expect(mockSuggestRiskFields.mock.calls[0][0]).toEqual({
+        name: "Fire risk in solvent storage",
+        category: "fire",
+        site_id: "site-1",
+        fields: ["velocity"],
+      })
+
+      await waitFor(() => {
+        expect(
+          (container.querySelector('[name="velocity"]') as HTMLSelectElement)
+            .value
+        ).toBe("critical")
+      })
+      // Untouched fields stay untouched -- confirms the per-field trigger
+      // doesn't fall back to a bulk suggestion.
+      expect(
+        (container.querySelector('[name="probability"]') as HTMLInputElement)
+          .value
+      ).toBe("0")
+      // The bulk button's own label still reflects hasEverSuggested (any
+      // AI use, not just the bulk path) -- same shared state the top
+      // status line reads, confirmed live: using a per-field trigger first
+      // still relabels "Pre-fill entire form with AI" to "Re-suggest all
+      // fields" once anything has been suggested.
+      expect(
+        screen.getByRole("button", { name: "Re-suggest all fields" })
+      ).toBeInTheDocument()
+    })
+
+    it("rejecting a suggestion restores the value that was there before, not zero", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockSuggestRiskFields.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            message: "",
+            data: { probability: 65 },
+          }),
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+
+      const probabilityField = container.querySelector(
+        '[name="probability"]'
+      ) as HTMLInputElement
+      await userEvent.clear(probabilityField)
+      await userEvent.type(probabilityField, "42")
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Suggest organization.riskRegister.probabilityLabel with AI",
+        })
+      )
+      await waitFor(() => expect(probabilityField.value).toBe("65"))
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Reject AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      )
+
+      expect(probabilityField.value).toBe("42")
+    })
+
+    it("accepting a suggestion clears its badge without changing the value", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockSuggestRiskFields.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            message: "",
+            data: { probability: 65 },
+          }),
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Suggest organization.riskRegister.probabilityLabel with AI",
+        })
+      )
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", {
+            name: "Accept AI suggestion for organization.riskRegister.probabilityLabel",
+          })
+        ).toBeInTheDocument()
+      )
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Accept AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      )
+
+      expect(
+        screen.queryByRole("button", {
+          name: "Accept AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      ).not.toBeInTheDocument()
+      expect(
+        (container.querySelector('[name="probability"]') as HTMLInputElement)
+          .value
+      ).toBe("65")
+    })
+
+    it("shows an error toast and applies nothing when the suggestion request fails", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockSuggestRiskFields.mockReturnValue({
+        unwrap: () => Promise.reject(new Error("network error")),
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "Pre-fill entire form with AI" })
+      )
+
+      await waitFor(() => expect(mockToastError).toHaveBeenCalled())
+      expect(
+        (container.querySelector('[name="probability"]') as HTMLInputElement)
+          .value
+      ).toBe("0")
+    })
+
+    it("discards a suggestion that resolves after the user has already changed category (stale-context race)", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      let resolveRequest: (value: unknown) => void
+      mockSuggestRiskFields.mockReturnValue({
+        unwrap: () =>
+          new Promise((resolve) => {
+            resolveRequest = resolve
+          }),
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "Pre-fill entire form with AI" })
+      )
+      // Request is in flight (unresolved) -- the user changes category
+      // before the AI responds.
+      await userEvent.selectOptions(
+        container.querySelector('[name="category"]')!,
+        "cyber"
+      )
+
+      resolveRequest!({
+        success: true,
+        message: "",
+        data: { probability: 65, velocity: "high" },
+      })
+      // Give the resolved promise a tick to (not) apply.
+      await Promise.resolve()
+      await Promise.resolve()
+
+      expect(
+        (container.querySelector('[name="probability"]') as HTMLInputElement)
+          .value
+      ).toBe("0")
+      expect(
+        screen.queryByRole("button", {
+          name: "Accept AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("a concurrent bulk request does not corrupt a per-field suggestion's undo value (prior-value race)", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      let resolveBulk: (value: unknown) => void
+      let resolvePerField: (value: unknown) => void
+      let callCount = 0
+      mockSuggestRiskFields.mockImplementation(() => {
+        callCount += 1
+        if (callCount === 1) {
+          // First call: the bulk request (dispatched first, resolves LAST).
+          return {
+            unwrap: () =>
+              new Promise((resolve) => {
+                resolveBulk = resolve
+              }),
+          }
+        }
+        // Second call: the per-field request (dispatched second, resolves
+        // FIRST) -- out-of-order resolution is the whole point of this test.
+        return {
+          unwrap: () =>
+            new Promise((resolve) => {
+              resolvePerField = resolve
+            }),
+        }
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+
+      // Dispatch the bulk request first (captures probability's prior
+      // value as 0, the real original -- per the fix, this snapshot is
+      // taken synchronously before the request goes out, not after).
+      await userEvent.click(
+        screen.getByRole("button", { name: "Pre-fill entire form with AI" })
+      )
+      // Dispatch a per-field request for probability while the bulk
+      // request is still pending.
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Suggest organization.riskRegister.probabilityLabel with AI",
+        })
+      )
+
+      // Per-field resolves first: probability -> 99.
+      resolvePerField!({ success: true, message: "", data: { probability: 99 } })
+      await waitFor(() => {
+        expect(
+          (container.querySelector('[name="probability"]') as HTMLInputElement)
+            .value
+        ).toBe("99")
+      })
+
+      // Bulk resolves second, overwriting probability again -> 65. Without
+      // the fix, this would also silently overwrite the stored "prior"
+      // value for probability to 99 (the per-field suggestion) instead of
+      // the real original 0.
+      resolveBulk!({
+        success: true,
+        message: "",
+        data: { probability: 65, velocity: "high" },
+      })
+      await waitFor(() => {
+        expect(
+          (container.querySelector('[name="probability"]') as HTMLInputElement)
+            .value
+        ).toBe("65")
+      })
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Reject AI suggestion for organization.riskRegister.probabilityLabel",
+        })
+      )
+
+      expect(
+        (container.querySelector('[name="probability"]') as HTMLInputElement)
+          .value
+      ).toBe("0")
     })
   })
 })
