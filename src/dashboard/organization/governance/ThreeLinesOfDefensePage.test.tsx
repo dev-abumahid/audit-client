@@ -284,20 +284,26 @@ describe("ThreeLinesOfDefensePage", () => {
   // IIA Three Lines Model's central diagnostic question -- "is 3rd line
   // reviewing enough of what 1st/2nd line own" -- was previously only
   // answerable by manually counting raw per-column totals. A coverage
-  // overview panel now surfaces the actual per-line distribution per
-  // entity type at a glance.
-  describe("coverage overview (round 6)", () => {
-    // The "Risks"/"Actions"/etc. section labels and the line names both
-    // also appear inside the per-line column cards, so every assertion
-    // here is scoped to the coverage panel's own Card via its unique
-    // "Coverage Overview" heading.
+  // overview panel now surfaces the actual per-line distribution at a
+  // glance.
+  //
+  // aexa-frontend#939 (visual polish loop, round-5 finding): the panel
+  // originally rendered one bar+row PER entity type (5 total) -- flagged
+  // as the dominant remaining clutter/redundancy source (duplicating
+  // what the grid below already shows via each row's own type icon) by
+  // two independent judges across 4 rounds. Collapsed to a single
+  // combined bar of total items per line, across all 5 entity types.
+  describe("coverage overview (round 6, collapsed round-5 visual polish)", () => {
+    // The line names also appear inside the per-line column cards, so
+    // every assertion here is scoped to the coverage panel's own Card via
+    // its unique "Coverage Overview" heading.
     function coverageCard(): HTMLElement {
       return screen
         .getByText("organization.threeLinesOfDefense.coverage.title")
         .closest('[data-slot="card"]') as HTMLElement
     }
 
-    it("renders one coverage bar segment per line with a real count, plus a legend for all 4 lines", () => {
+    it("renders one combined bar segment per line with a real count, plus a legend for all 4 lines", () => {
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
         data: makeData(),
         isLoading: false,
@@ -307,21 +313,29 @@ describe("ThreeLinesOfDefensePage", () => {
 
       const card = coverageCard()
 
-      // The Risks row has exactly 1 risk, in FIRST -- a single 100%-width
-      // segment labeled with the real count via its title attribute.
-      const risksLabel = within(card).getByText(
-        "organization.threeLinesOfDefense.sections.risks"
-      )
-      const risksRow = risksLabel.parentElement as HTMLElement
-      const risksBar = risksRow.querySelector('[role="img"]') as HTMLElement
-      expect(risksBar).not.toBeNull()
-      const segments = risksBar.querySelectorAll(":scope > div")
-      expect(segments).toHaveLength(1)
+      // Default makeData: FIRST has 1 item (risk-1), SECOND has 3
+      // (action-1, kri-1, compliance-1), THIRD has 1 (audit-1) -- summed
+      // across all 5 entity types into one combined bar, not one row per
+      // type.
+      const totalRow = within(card).getByText(
+        "organization.threeLinesOfDefense.coverage.totalLabel"
+      ).parentElement as HTMLElement
+      const bar = totalRow.querySelector('[role="img"]') as HTMLElement
+      expect(bar).not.toBeNull()
+      const segments = bar.querySelectorAll(":scope > div")
+      expect(segments).toHaveLength(3)
       expect(segments[0]).toHaveAttribute(
         "title",
         "organization.threeLinesOfDefense.lines.first: 1"
       )
-      expect((segments[0] as HTMLElement).style.width).toBe("100%")
+      expect(segments[1]).toHaveAttribute(
+        "title",
+        "organization.threeLinesOfDefense.lines.second: 3"
+      )
+      expect(segments[2]).toHaveAttribute(
+        "title",
+        "organization.threeLinesOfDefense.lines.third: 1"
+      )
 
       // The legend lists all 4 lines, not just the ones with data.
       expect(
@@ -350,33 +364,74 @@ describe("ThreeLinesOfDefensePage", () => {
 
       renderPage()
 
-      // 1 classified action (action-1, SECOND) + 1 unclassified
-      // (action-unclassified, null) -- the coverage bar's percentages
-      // should reflect only the classified item, with the unclassified
-      // one called out separately rather than silently diluting the bar.
-      const actionsLabel = within(coverageCard()).getByText(
-        "organization.threeLinesOfDefense.sections.actions"
-      )
-      const actionsRow = actionsLabel.parentElement as HTMLElement
-      expect(actionsRow).toHaveTextContent("1 (+1)")
+      // 4 classified items total (risk-1, action-1, kri-1, compliance-1;
+      // audit-1 is THIRD so it's part of the 5-item combined total) + 1
+      // unclassified action (action-unclassified) -- the combined total
+      // should reflect only classified items, with the unclassified one
+      // called out separately rather than silently diluting the bar.
+      const totalRow = within(coverageCard()).getByText(
+        "organization.threeLinesOfDefense.coverage.totalLabel"
+      ).parentElement as HTMLElement
+      expect(totalRow).toHaveTextContent("5 (+1)")
     })
 
-    it("shows a 'no items' message instead of an empty bar for a line with no data at all", () => {
+    it("shows a 'no items' message instead of an empty bar when there is genuinely no data at all", () => {
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
-        data: makeData({ auditEngagements: [] }),
+        data: makeData({
+          risks: [],
+          actions: [],
+          kris: [],
+          complianceObligations: [],
+          auditEngagements: [],
+        }),
         isLoading: false,
       })
 
       renderPage()
 
-      const auditsLabel = within(coverageCard()).getByText(
-        "organization.threeLinesOfDefense.sections.audits"
-      )
-      const auditsRow = auditsLabel.parentElement as HTMLElement
-      expect(auditsRow).toHaveTextContent(
+      const totalRow = within(coverageCard()).getByText(
+        "organization.threeLinesOfDefense.coverage.totalLabel"
+      ).parentElement as HTMLElement
+      expect(totalRow).toHaveTextContent(
         "organization.threeLinesOfDefense.coverage.none"
       )
-      expect(auditsRow.querySelector('[role="img"]')).toBeNull()
+      expect(totalRow.querySelector('[role="img"]')).toBeNull()
+    })
+
+    // Review round 1 finding on PR #943: total===0 governs only whether the
+    // bar-or-"none" element renders; the trailing count span is a sibling
+    // rendered unconditionally, so an unclassified-only data state (0
+    // classified items anywhere, but 1 unclassified action) must still show
+    // the "(+1)" alongside the "no items" message, not silently drop it.
+    it("still shows the unclassified count alongside the 'no items' message when there are zero classified items anywhere", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({
+          risks: [],
+          actions: [
+            {
+              id: "action-unclassified",
+              title: "Legacy remediation item",
+              priority: "Low",
+              status: "IN_PROGRESS",
+              line_of_defense: null,
+            },
+          ],
+          kris: [],
+          complianceObligations: [],
+          auditEngagements: [],
+        }),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const totalRow = within(coverageCard()).getByText(
+        "organization.threeLinesOfDefense.coverage.totalLabel"
+      ).parentElement as HTMLElement
+      expect(totalRow).toHaveTextContent(
+        "organization.threeLinesOfDefense.coverage.none"
+      )
+      expect(totalRow).toHaveTextContent("0 (+1)")
     })
   })
 

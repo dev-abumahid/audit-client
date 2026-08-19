@@ -1442,6 +1442,7 @@
       },
       "coverage": {
         "title": "Coverage Overview",
+        "totalLabel": "All items",
         "none": "No items yet"
       },
       "toast": {

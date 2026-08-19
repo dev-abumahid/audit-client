@@ -1442,6 +1442,7 @@
       },
       "coverage": {
         "title": "Aperçu de la couverture",
+        "totalLabel": "Tous les éléments",
         "none": "Aucun élément pour l'instant"
       },
       "toast": {
