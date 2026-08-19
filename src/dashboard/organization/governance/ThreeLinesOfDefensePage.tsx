@@ -493,42 +493,40 @@ const ItemRow = memo(function ItemRow({
             <div className="mt-0.5 flex items-center gap-1">
               {LINES.filter((line) => reviewedLines.has(line)).map((line) => {
                 const isSelfReview = line === currentLine
+                // Review round 3 (code quality): was written out twice
+                // (aria-label and title), a copy-paste-drift risk -- one
+                // computed value, used in both places.
+                const badgeLabel = isSelfReview
+                  ? t("organization.threeLinesOfDefense.reviewedByLineSelf", {
+                      line: t(LINE_TITLE_KEY[line]),
+                    })
+                  : t("organization.threeLinesOfDefense.reviewedByLine", {
+                      line: t(LINE_TITLE_KEY[line]),
+                    })
                 return (
                 <span
                   key={line}
                   role="img"
-                  aria-label={
-                    isSelfReview
-                      ? t(
-                          "organization.threeLinesOfDefense.reviewedByLineSelf",
-                          { line: t(LINE_TITLE_KEY[line]) }
-                        )
-                      : t("organization.threeLinesOfDefense.reviewedByLine", {
-                          line: t(LINE_TITLE_KEY[line]),
-                        })
-                  }
-                  title={
-                    isSelfReview
-                      ? t(
-                          "organization.threeLinesOfDefense.reviewedByLineSelf",
-                          { line: t(LINE_TITLE_KEY[line]) }
-                        )
-                      : t("organization.threeLinesOfDefense.reviewedByLine", {
-                          line: t(LINE_TITLE_KEY[line]),
-                        })
-                  }
+                  aria-label={badgeLabel}
+                  title={badgeLabel}
                   // Review round 2: was text-[8px]/h-3.5, a full 2px
                   // smaller than the adjacent category/status pills
                   // (text-[10px]) on the same row -- now matches them.
-                  // Self-review renders outlined/hollow (border + colored
-                  // text, transparent fill) instead of the solid fill an
-                  // independent review gets -- same hue either way, so the
-                  // line is still identifiable, but the fill/outline
-                  // distinction reads as "not the same as a genuinely
-                  // independent check" at a glance, not just on hover.
+                  // Self-review renders outlined/hollow (border, no fill)
+                  // instead of the solid fill an independent review gets --
+                  // the line is still identifiable via the border's hue,
+                  // but the fill/outline distinction reads as "not the same
+                  // as a genuinely independent check" at a glance, not just
+                  // on hover.
+                  // Review round 3 (a11y): the outlined variant's glyph is
+                  // `text-foreground` (the app's own accessible text token),
+                  // not the line's own hue -- see LINE_BORDER's own comment
+                  // for why text color on a theme-variable background can't
+                  // safely reuse a single-hue palette the way a colored
+                  // FILL with a fixed white/dark glyph can.
                   className={
                     isSelfReview
-                      ? `inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full border-2 px-1 text-[10px] font-semibold ${LINE_COLOR_TEXT[line]} border-current`
+                      ? `inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full border-2 px-1 text-[10px] font-semibold text-foreground ${LINE_BORDER[line]}`
                       : `inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white ${LINE_COLOR[line]}`
                   }
                 >
@@ -864,6 +862,29 @@ const LINE_COLOR_TEXT: Record<LineOfDefense, string> = {
   SECOND: "text-[hsl(250_70%_60%)]",
   THIRD: "text-[hsl(320_65%_55%)]",
   GOVERNING_BODY: "text-[hsl(88_55%_42%)]",
+}
+// Review round 3 (a11y): the self-review badge below briefly used
+// LINE_COLOR_TEXT as its own glyph color, directly on the page/card
+// background (not on a colored fill the way LINE_COLOR's solid badge
+// uses white text) -- measured live, every one of the 4 lines failed
+// WCAG 1.4.3 (4.5:1) in at least one theme (as low as 2.93:1). Text
+// contrast against a THEME-VARIABLE background can't be solved with one
+// more static hue, light or dark -- so the glyph now uses `text-foreground`
+// (the app's own already-accessible primary text token) instead, and the
+// line's hue moves to the border only, a non-text/decorative channel with
+// a more lenient 3:1 threshold (WCAG 1.4.11) -- but still a real threshold,
+// not a free pass: FIRST/SECOND/THIRD's un-darkened hues clear it in both
+// themes, but GOVERNING_BODY's original 42%L measured only 2.93:1 against
+// the light-mode card (a review agent caught this -- the same symmetry
+// that made it fail as 4.5:1 text made it fail as 3:1 border too, since
+// contrast is symmetric between the same two colors either way).
+// GOVERNING_BODY alone is darkened to 36%L, independently verified to
+// clear 3:1 in both themes (3.88 light-mode, 4.51 dark-mode against card).
+const LINE_BORDER: Record<LineOfDefense, string> = {
+  FIRST: "border-chart-1",
+  SECOND: "border-[hsl(250_70%_60%)]",
+  THIRD: "border-[hsl(320_65%_55%)]",
+  GOVERNING_BODY: "border-[hsl(88_55%_36%)]",
 }
 const LINE_STROKE: Record<LineOfDefense, string> = {
   FIRST: "hsl(168 60% 42%)",

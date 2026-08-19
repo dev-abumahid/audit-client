@@ -1903,8 +1903,11 @@ describe("ThreeLinesOfDefensePage", () => {
       const independentBadge = within(riskRow).getByTitle(
         "organization.threeLinesOfDefense.reviewedByLine"
       )
-      // Self-review: outlined (border-current), no solid bg-* fill class.
-      expect(selfBadge.classList.contains("border-current")).toBe(true)
+      // Self-review: outlined (line-colored border, app-text-colored
+      // glyph -- see LINE_BORDER's own comment for why the glyph isn't
+      // the line's own hue), no solid bg-* fill class.
+      expect(selfBadge.classList.contains("border-chart-1")).toBe(true)
+      expect(selfBadge.classList.contains("text-foreground")).toBe(true)
       expect(
         Array.from(selfBadge.classList).some((c) => c.startsWith("bg-["))
       ).toBe(false)
