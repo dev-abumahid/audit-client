@@ -1486,7 +1486,9 @@
         "gapMore_one": "+{{count}} more",
         "gapMore_other": "+{{count}} more",
         "legendIndependent": "Independent review",
-        "legendSelf": "Self-review"
+        "legendSelf": "Self-review",
+        "highlightActive": "Showing items reviewed by {{line}}",
+        "clearHighlight": "Clear"
       },
       "toast": {
         "reassignSuccess": "Item reassigned",

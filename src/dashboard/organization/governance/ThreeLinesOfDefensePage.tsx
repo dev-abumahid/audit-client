@@ -385,6 +385,21 @@ interface ItemRowProps {
   // merged into one flat per-line list, so the header's icon -- previously
   // the only visual cue for an item's type -- moves onto the row itself.
   icon: React.ElementType
+  // quality-bar-loop round 7 (industry-standards, round-1 finding):
+  // reference GRC tools (AuditBoard, LogicManager, Resolver) let a user
+  // drill from a coverage ring into the items behind it -- this page's
+  // rings were display-only. When set, rows reviewed by this line get a
+  // visual highlight, so clicking a ring answers "which of these has 2nd
+  // Line actually looked at" at a glance across the whole board, not just
+  // per-row on hover. Deliberately doesn't dim non-matching rows too --
+  // an earlier version did via opacity, but that uniformly washes out a
+  // row's text against its background (independently measured: muted-
+  // foreground text at 40% opacity over a white card drops to ~1.8:1,
+  // main foreground text to ~2.5:1, both far under WCAG 1.4.3's 4.5:1) --
+  // dimming a whole row is a text-contrast problem in disguise, not just
+  // a visual one, so only the positive "this matches" signal is safe to
+  // add without a redesign of the row's own color tokens.
+  highlightLine?: LineOfDefense | null
 }
 
 // quality-bar-loop round 3 (efficiency, round-1 finding): wrapped in
@@ -411,10 +426,12 @@ const ItemRow = memo(function ItemRow({
   myReviewableLines,
   onRecordReview,
   isReviewPending,
+  highlightLine,
 }: ItemRowProps) {
   const { t } = useTranslation()
   const otherLines = LINES.filter((line) => line !== currentLine)
   const reviewedLines = new Set(lineReviews.map((r) => r.line))
+  const isHighlighted = highlightLine ? reviewedLines.has(highlightLine) : false
   // Lines this caller could record a review for that DON'T already have a
   // live one -- recording again for an already-reviewed line is legitimate
   // (it just supersedes the prior one, see the backend's soft-supersede
@@ -425,7 +442,13 @@ const ItemRow = memo(function ItemRow({
   )
 
   return (
-    <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 px-2 py-1.5">
+    <div
+      className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 ${
+        isHighlighted
+          ? "border-primary bg-primary/5 ring-1 ring-primary/40"
+          : "border-border/60"
+      }`}
+    >
       <div className="flex min-w-0 items-start gap-1.5">
         {/* aexa-frontend#939: replaces the removed per-type Section header
             as the item's only type indicator now that all 5 entity types
@@ -869,27 +892,45 @@ function CoverageRing({
   line,
   count,
   total,
+  isActive,
+  onClick,
 }: {
   line: LineOfDefense
   count: number
   total: number
+  // quality-bar-loop round 7 (industry-standards, round-1 finding):
+  // optional so rings stay purely decorative wherever a drill-down target
+  // doesn't make sense (there's currently only one caller, but not every
+  // ring composition needs this to be mandatory).
+  isActive?: boolean
+  onClick?: () => void
 }) {
   const { t } = useTranslation()
   const pct = total === 0 ? 0 : count / total
   const radius = 30
   const circumference = 2 * Math.PI * radius
+  const ringLabel = t(
+    "organization.threeLinesOfDefense.coverage.ringLabel",
+    { line: t(LINE_TITLE_KEY[line]), count, total }
+  )
+  const Wrapper = onClick ? "button" : "div"
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    <Wrapper
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      aria-pressed={onClick ? isActive : undefined}
+      aria-label={onClick ? ringLabel : undefined}
+      className={`focus-ring flex flex-col items-center gap-1.5 rounded-lg p-1 ${
+        onClick ? "cursor-pointer hover:bg-muted/50" : ""
+      } ${isActive ? "bg-primary/10 ring-1 ring-primary/40" : ""}`}
+    >
       <svg
         width="72"
         height="72"
         viewBox="0 0 72 72"
-        role="img"
-        aria-label={t("organization.threeLinesOfDefense.coverage.ringLabel", {
-          line: t(LINE_TITLE_KEY[line]),
-          count,
-          total,
-        })}
+        role={onClick ? undefined : "img"}
+        aria-hidden={onClick ? "true" : undefined}
+        aria-label={onClick ? undefined : ringLabel}
       >
         {/* Review round 2: --border is a bare "H S% L%" triplet (see
             index.css), not a full color -- used directly (outside a
@@ -936,11 +977,19 @@ function CoverageRing({
       <span className="text-center text-[11px] text-muted-foreground">
         {t(LINE_TITLE_KEY[line])}
       </span>
-    </div>
+    </Wrapper>
   )
 }
 
-function CoverageOverview({ items }: { items: CoverageItem[] }) {
+function CoverageOverview({
+  items,
+  highlightLine,
+  onToggleHighlight,
+}: {
+  items: CoverageItem[]
+  highlightLine: LineOfDefense | null
+  onToggleHighlight: (line: LineOfDefense) => void
+}) {
   const { t } = useTranslation()
   const total = items.length
 
@@ -1011,9 +1060,28 @@ function CoverageOverview({ items }: { items: CoverageItem[] }) {
                   line={line}
                   count={reviewedCountByLine[line]}
                   total={total}
+                  isActive={highlightLine === line}
+                  onClick={() => onToggleHighlight(line)}
                 />
               ))}
             </div>
+            {highlightLine && (
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <span>
+                  {t(
+                    "organization.threeLinesOfDefense.coverage.highlightActive",
+                    { line: t(LINE_TITLE_KEY[highlightLine]) }
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onToggleHighlight(highlightLine)}
+                  className="focus-ring rounded px-1 font-medium text-primary hover:underline"
+                >
+                  {t("organization.threeLinesOfDefense.coverage.clearHighlight")}
+                </button>
+              </div>
+            )}
             {/* Round 5 (UX): the same solid-vs-outlined distinction each
                 item row's badges use for independent-vs-self-review was
                 only discoverable via hover -- an always-visible legend
@@ -1119,6 +1187,16 @@ export default function ThreeLinesOfDefensePage() {
   const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(
     () => new Set()
   )
+
+  // quality-bar-loop round 7 (industry-standards, round-1 finding): which
+  // review-coverage ring the user clicked to drill into, if any. Clicking
+  // the same ring again clears it -- a toggle, not a one-way filter.
+  const [highlightLine, setHighlightLine] = useState<LineOfDefense | null>(
+    null
+  )
+  const toggleHighlightLine = useCallback((line: LineOfDefense) => {
+    setHighlightLine((prev) => (prev === line ? null : line))
+  }, [])
 
   useEffect(() => {
     if (isError) {
@@ -1474,7 +1552,11 @@ export default function ThreeLinesOfDefensePage() {
         </div>
       ) : (
         <>
-          <CoverageOverview items={coverageItems} />
+          <CoverageOverview
+            items={coverageItems}
+            highlightLine={highlightLine}
+            onToggleHighlight={toggleHighlightLine}
+          />
 
           {/* aexa-frontend#939 (visual polish loop, round-3 finding): the
               previous `xl:grid-cols-4` breakpoint (1280px) put all 4 line
@@ -1554,6 +1636,7 @@ export default function ThreeLinesOfDefensePage() {
                     myReviewableLines={myReviewableLines}
                     onRecordReview={requestRecordReview}
                     isReviewPending={pendingIds.has(risk.id)}
+                    highlightLine={highlightLine}
                     linkTo={`/organization/risks/${risk.id}`}
                   />
                   ),
@@ -1588,6 +1671,7 @@ export default function ThreeLinesOfDefensePage() {
                     myReviewableLines={myReviewableLines}
                     onRecordReview={requestRecordReview}
                     isReviewPending={pendingIds.has(action.id)}
+                    highlightLine={highlightLine}
                     linkTo={`/organization/finding/${action.id}`}
                   />
                   ),
@@ -1616,6 +1700,7 @@ export default function ThreeLinesOfDefensePage() {
                     myReviewableLines={myReviewableLines}
                     onRecordReview={requestRecordReview}
                     isReviewPending={pendingIds.has(kri.id)}
+                    highlightLine={highlightLine}
                     linkTo={`/organization/kri?highlight=${encodeURIComponent(kri.id)}`}
                   />
                   ),
@@ -1648,6 +1733,7 @@ export default function ThreeLinesOfDefensePage() {
                     myReviewableLines={myReviewableLines}
                     onRecordReview={requestRecordReview}
                     isReviewPending={pendingIds.has(obligation.id)}
+                    highlightLine={highlightLine}
                     // aexa-frontend#561: CompliancePage has no
                     // per-obligation route or ?search= support of its own
                     // (unlike SitesEntities), so this links to the list,
@@ -1685,6 +1771,7 @@ export default function ThreeLinesOfDefensePage() {
                     myReviewableLines={myReviewableLines}
                     onRecordReview={requestRecordReview}
                     isReviewPending={pendingIds.has(engagement.id)}
+                    highlightLine={highlightLine}
                     // AuditPage has no per-engagement URL/route -- it opens
                     // engagements in an edit modal driven by local state,
                     // not a navigable id. Links to the list rather than
@@ -1756,6 +1843,7 @@ export default function ThreeLinesOfDefensePage() {
                     myReviewableLines={myReviewableLines}
                     onRecordReview={requestRecordReview}
                     isReviewPending={pendingIds.has(action.id)}
+                    highlightLine={highlightLine}
                     linkTo={`/organization/finding/${action.id}`}
                   />
                 ))}

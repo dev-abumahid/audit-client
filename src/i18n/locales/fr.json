@@ -1486,7 +1486,9 @@
         "gapMore_one": "+{{count}} de plus",
         "gapMore_other": "+{{count}} de plus",
         "legendIndependent": "Revue indépendante",
-        "legendSelf": "Auto-évaluation"
+        "legendSelf": "Auto-évaluation",
+        "highlightActive": "Éléments revus par {{line}}",
+        "clearHighlight": "Effacer"
       },
       "toast": {
         "reassignSuccess": "Élément réassigné",

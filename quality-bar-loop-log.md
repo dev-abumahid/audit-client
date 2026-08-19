@@ -1505,3 +1505,87 @@ console errors, no layout regression from the `hidden ... sm:block` →
 
 Deferred: everything else unchanged. Industry-standards' 3 large-scope
 findings remain deferred pending product input (see round 5's note).
+
+## Round 7 (re-score after PR #964, targeted panel)
+
+Round 6's diff was cross-file but purely additive/decorative (a color dot,
+no new state or interaction), so re-ran Cross-view (the target axis) plus
+Visual and Resilience (a new rendered element + the fix's own overflow
+handling). Industry-standards, UX, Efficiency, Accessibility, and Code
+quality carried forward unchanged (7, 9, 9, 9, 8).
+
+| Axis | Score | Note |
+|---|---|---|
+| Industry-standards | 7/10 | carried forward, not touched by round 6's diff |
+| UX | 9/10 | carried forward, not touched |
+| Efficiency | 9/10 | carried forward, not touched |
+| Accessibility | 9/10 | carried forward, not touched |
+| Visual/design polish | 9/10 | unchanged -- the new dot verified pixel-perfectly centered against its adjacent text in both RiskDetails and ComplianceObligationRow (vertical center of dot exactly matches line-box center in both), sized proportionately to each page's existing small-icon conventions, renders identically in both themes (fixed literal HSL values, not theme tokens, which is correct for a semantic category color) |
+| Resilience & edge cases | 9/10 | unchanged -- independently re-verified the round-6 review fix's truncation behavior (injected overflow content, confirmed `scrollWidth` > `clientWidth`, ellipsis engaged, dot stayed bounded). Found one new, low-severity note: RiskDetails' dot row has no `truncate`/`max-w`, so an extremely long wrapped label would float the dot next to the wrapped block's middle line rather than its first line -- flagged as a completeness note, not scored down, since `line_of_defense` is a fixed 4-value enum with short labels in every currently-supported locale |
+| Code quality/maintainability | 8/10 | carried forward, not touched |
+| Cross-view integration | 10/10 | **up from 9 -- perfect score.** Independently confirmed via `getComputedStyle` that RiskDetails' and ComplianceObligationRow's dots for the same line value (FIRST) resolve to the exact same `rgb(29, 114, 97)`, not just visually similar -- genuine single source of truth. Grepped the whole `src/` tree for every other `line_of_defense`-touching file (RiskRegisterPage, KriDashboardPage, CreateNewFindingModal) and confirmed none of them render it read-only, so nothing was missed. Confirmed the refactor didn't break the Three Lines page's own badge/ring colors (still resolve to the correct per-line `bg-[hsl(...)]` classes post-import-relocation) |
+| **Average** | **8.75/10** | **(7+9+9+9+9+9+8+10)/8** |
+
+**stuck_streak**: Industry-standards = 6 (7 unchanged for 7 rounds running,
+at floor). Cross-view = 0 (9→10, changed, now the ceiling).
+
+### Convergence / guardrail check
+
+Average = 8.75 (up from 8.625). Every axis clears the floor. Not converged
+on average (need ≥9). No regression, no stagnation (average has risen 5
+rounds running). **Industry-standards' 7/10 is now the only thing between
+this loop and its target** -- fixing it alone to 9/10 would put the average
+at exactly 9.0 with every other axis unchanged.
+
+### Fix selected for round 7
+
+Deferred industry-standards for the SAME reason across rounds 5 and 6 (its
+3 findings are large-scope, one re-treads a rejected direction). With it now
+mathematically the only remaining lever and its `stuck_streak` at 6 (the
+longest of the whole loop), continuing to defer indefinitely stops being a
+judgment call and starts being avoidance -- especially since 2 of its 3
+findings genuinely don't touch the rejected ground. Built the safer of the
+two: **coverage-ring drill-down** (round 1's finding: "coverage rings have no
+drill-down/click-through to underlying items (reference tools have this)").
+
+Clicking a SECOND/THIRD/GOVERNING_BODY ring now toggles a highlight filter:
+items reviewed by that line get a visible border+tint, and a "Showing items
+reviewed by X / Clear" banner appears. Rings became real `<button>`s
+(`aria-pressed`, accessible name moved off the now-`aria-hidden` svg) rather
+than decorative `<div>`s. Reuses existing per-item `line_reviews` data -- no
+new backend/data-model work, no state beyond one `highlightLine: LineOfDefense
+| null`. Explicitly did NOT touch finding (c) (the kanban-vs-matrix layout
+question) or attempt trend/export (finding (b), which would need either real
+historical-snapshot data the backend doesn't track, or a client export
+feature -- both larger, separate scope). Tier 3 (new interactive state, new
+page behavior) -- design traced (only consumer of the rings is this one page;
+only data-state that matters is items with/without a review for a given line,
+both already exercised by existing tests), self-review, QA gate (typecheck
+clean, 0 lint errors, 80/80 tests including 4 new tests for the drill-down
+interaction), one review round (Agent tool, read-only git) -- 2 findings (see
+addendum below), live-verified: clicking "2nd Line" highlights the 2 items it
+reviewed with a green border, "Clear" restores the normal view, no console
+errors (checked in a fresh tab to rule out a stale-buffer false positive).
+
+**Review-round addendum**: the review agent flagged 2 things. (1) A
+non-blocking test-selector update (the ring's role changed from
+`svg[role=img]` to `button`, an existing test needed its selector updated,
+not a code bug -- applied). (2) A real finding, initially non-blocking in
+the review agent's own assessment but confirmed as a genuine bug on
+independent verification: the original design also dimmed every
+NON-matching row via `opacity-40` on the whole row. Hand-computed via the
+sRGB luminance formula (same method used throughout this loop): dimming
+`text-muted-foreground` at 40% opacity over a white card measures ~1.8:1,
+and even `text-foreground` (near-black) at the same opacity measures
+~2.5:1 -- both far under WCAG 1.4.3's 4.5:1. Opacity-based dimming of a
+whole row is a text-contrast regression in disguise, not a purely visual
+choice -- removed entirely rather than tuned to a "less aggressive" opacity
+value, since ANY opacity reduction on top of already-borderline
+muted-foreground text pushes it further from 4.5:1, not closer. Non-matching
+rows now stay at full contrast, distinguished only by the ABSENCE of the
+highlight rather than by their own text becoming harder to read.
+
+Deferred: industry-standards' remaining 2 findings ((b) trend/export -- real
+feature work, larger scope than this round; (c) kanban-vs-matrix layout --
+still deliberately not touched, per the user's earlier rejection of a matrix
+redesign). Everything else unchanged.

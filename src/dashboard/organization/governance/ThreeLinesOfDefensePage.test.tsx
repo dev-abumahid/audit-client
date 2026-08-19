@@ -463,7 +463,14 @@ describe("ThreeLinesOfDefensePage", () => {
       // FIRST-line "coverage" would just restate near-100% ownership, so
       // no ring renders for it.
       expect(within(card).queryByText(FIRST_LABEL)).not.toBeInTheDocument()
-      expect(card.querySelectorAll('svg[role="img"]')).toHaveLength(3)
+      // quality-bar-loop round 7 (industry-standards): rings are now
+      // clickable drill-down buttons -- the accessible name (and role)
+      // moved from the svg (now aria-hidden) to the wrapping button.
+      expect(
+        within(card).getAllByRole("button", {
+          name: "organization.threeLinesOfDefense.coverage.ringLabel",
+        })
+      ).toHaveLength(3)
     })
 
     it("shows the gap callout listing items with no SECOND or THIRD line review", () => {
@@ -742,6 +749,147 @@ describe("ThreeLinesOfDefensePage", () => {
           "organization.threeLinesOfDefense.coverage.legendIndependent"
         )
       ).not.toBeInTheDocument()
+    })
+
+    // quality-bar-loop round 7 (industry-standards, round-1 finding):
+    // reference GRC tools (AuditBoard, LogicManager, Resolver) let a user
+    // drill from a coverage ring into the items behind it -- these tests
+    // exercise that click-to-highlight interaction end to end.
+    describe("drill-down: clicking a ring highlights reviewed items (round 7)", () => {
+      function makeDrilldownData() {
+        return makeData({
+          risks: [
+            {
+              id: "risk-1",
+              title: "Supply chain disruption",
+              category: "supply_chain",
+              status: "open",
+              line_of_defense: "FIRST",
+              line_reviews: [
+                { line: "SECOND", reviewedById: "u1", reviewedAt: "2026-01-01" },
+              ],
+            },
+          ],
+        })
+      }
+
+      it("renders coverage rings as buttons with an accessible name and no separate img role", () => {
+        mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+          data: makeDrilldownData(),
+          isLoading: false,
+        })
+
+        renderPage()
+
+        const card = coverageCard()
+        const ringButtons = within(card).getAllByRole("button", {
+          name: "organization.threeLinesOfDefense.coverage.ringLabel",
+        })
+        expect(ringButtons).toHaveLength(3)
+        // Accessible name moved to the button (aria-hidden svg underneath),
+        // not left duplicated as a second img-role element.
+        expect(card.querySelectorAll('svg[role="img"]')).toHaveLength(0)
+        for (const button of ringButtons) {
+          expect(button).toHaveAttribute("aria-pressed", "false")
+        }
+      })
+
+      it("highlights items reviewed by the clicked line, without dimming the rest (a11y: dimming via opacity would break text contrast)", async () => {
+        const user = userEvent.setup()
+        mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+          data: makeDrilldownData(),
+          isLoading: false,
+        })
+
+        renderPage()
+
+        const card = coverageCard()
+        const secondRing = ringFor(card, SECOND_LABEL)
+        await user.click(secondRing)
+
+        expect(secondRing).toHaveAttribute("aria-pressed", "true")
+
+        const reviewedRow = rowFor("Supply chain disruption")
+        expect(reviewedRow.className).toContain("border-primary")
+        expect(reviewedRow.className).not.toContain("opacity-40")
+
+        // "Patch critical vulnerability" also appears as plain text in the
+        // gap-list (it has no independent review, by definition a gap) --
+        // rowFor's plain getByText would be ambiguous, so pick the match
+        // that's an actual item row, not the gap-list <li>.
+        const unreviewedRow = screen
+          .getAllByText("Patch critical vulnerability")
+          .map((el) => el.closest(".justify-between"))
+          .find((el): el is HTMLElement => el !== null)!
+        // No opacity-based dimming (measured to drop text contrast to
+        // ~1.8-2.5:1, under WCAG 1.4.3's 4.5:1) -- non-matching rows stay
+        // at full contrast, distinguished only by the ABSENCE of the
+        // highlight, not by their own text becoming harder to read.
+        expect(unreviewedRow.className).not.toContain("opacity-40")
+        expect(unreviewedRow.className).not.toContain("border-primary")
+      })
+
+      it("shows a 'showing items reviewed by X' banner with a way to clear it", async () => {
+        const user = userEvent.setup()
+        mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+          data: makeDrilldownData(),
+          isLoading: false,
+        })
+
+        renderPage()
+
+        const card = coverageCard()
+        expect(
+          within(card).queryByText(
+            "organization.threeLinesOfDefense.coverage.highlightActive"
+          )
+        ).not.toBeInTheDocument()
+
+        const secondRing = ringFor(card, SECOND_LABEL)
+        await user.click(secondRing)
+
+        expect(
+          within(card).getByText(
+            "organization.threeLinesOfDefense.coverage.highlightActive"
+          )
+        ).toBeInTheDocument()
+
+        await user.click(
+          within(card).getByText(
+            "organization.threeLinesOfDefense.coverage.clearHighlight"
+          )
+        )
+
+        expect(
+          within(card).queryByText(
+            "organization.threeLinesOfDefense.coverage.highlightActive"
+          )
+        ).not.toBeInTheDocument()
+        expect(rowFor("Supply chain disruption").className).not.toContain(
+          "border-primary"
+        )
+      })
+
+      it("clicking the same ring twice toggles the highlight off", async () => {
+        const user = userEvent.setup()
+        mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+          data: makeDrilldownData(),
+          isLoading: false,
+        })
+
+        renderPage()
+
+        const card = coverageCard()
+        const secondRing = ringFor(card, SECOND_LABEL)
+        await user.click(secondRing)
+        expect(secondRing).toHaveAttribute("aria-pressed", "true")
+
+        await user.click(secondRing)
+        expect(secondRing).toHaveAttribute("aria-pressed", "false")
+        expect(rowFor("Supply chain disruption").className).not.toContain(
+          "border-primary"
+        )
+      })
     })
   })
 
