@@ -36,7 +36,7 @@ import {
 } from "@/utils/findingLabels"
 import { LINE_OF_DEFENSE_LABEL_KEY as LINE_TITLE_KEY } from "@/utils/lineOfDefense"
 import { riskCategoryLabel } from "@/utils/riskConfig"
-import { SEVERITY_STYLES, type SeverityLevel } from "@/utils/severityStyles"
+import { severityBadgeClasses, type SeverityLevel } from "@/utils/severityStyles"
 import {
   Activity,
   AlertTriangle,
@@ -95,8 +95,9 @@ function complianceDomainLabel(
 
 // Maps each entity type's own status enum (see the *_STATUS_LABEL_KEYS maps
 // above) to a shared SeverityLevel, so ItemRow can show a consistent
-// at-a-glance severity dot across all 5 entity types on this board -- same
-// dot color source as RiskBadge/severityBadgeClasses (src/utils/severityStyles.ts).
+// at-a-glance severity badge across all 5 entity types on this board --
+// same color source as RiskBadge/RiskRegisterPage's own severity badges
+// (src/utils/severityStyles.ts).
 const RISK_STATUS_SEVERITY: Record<string, SeverityLevel> = {
   open: "medium",
   in_progress: "info",
@@ -266,9 +267,6 @@ const ItemRow = memo(function ItemRow({
           aria-hidden="true"
           className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground"
         />
-        <span
-          className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_STYLES[severity].dot}`}
-        />
         <div className="min-w-0">
           {/* quality-bar-loop round 5 (visual polish, round-1 finding):
               single-line truncation cut titles off aggressively even at
@@ -288,7 +286,23 @@ const ItemRow = memo(function ItemRow({
               {title}
             </p>
           )}
-          <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
+          {/* aexa-frontend#939 (visual polish loop, round-2 finding): two
+              independent judges converged on this row's meta line as both
+              a cross-page inconsistency (Risk Register renders the same
+              class of semantic data -- category, status -- as a colored
+              pill via this exact severityBadgeClasses utility; this page
+              rendered it as plain gray text) and the fix for reduced
+              type-scannability the round-1 header-flattening introduced
+              (a colored pill is a far stronger scan cue than the 12px
+              type icon alone). Reuses severity -- already computed per
+              row for the removed dot above -- rather than inventing a new
+              per-entity-type color system with no existing convention. */}
+          <span
+            className={`mt-0.5 inline-block truncate rounded-full px-1.5 py-0.5 text-[10px] font-medium ${severityBadgeClasses(severity)}`}
+            title={meta}
+          >
+            {meta}
+          </span>
         </div>
       </div>
       {canReassign && (
@@ -393,8 +407,9 @@ function Section({
 // quality-bar-loop round 6 (industry-standards, round-1 finding).
 // Review round 1 (angle B) found --chart-2 (199°) and --chart-3 (38°)
 // are color-IDENTICAL to --risk-info and --risk-medium (src/index.css)
-// -- this page renders SEVERITY_STYLES dots using those exact risk
-// colors on every item row directly below this bar, so reusing the
+// -- this page renders severity badges (severityBadgeClasses) using
+// those exact risk colors on every item row directly below this bar, so
+// reusing the
 // full chart-1..4 set would make a line-color segment indistinguishable
 // from an unrelated severity indicator on the same screen. Keeps
 // --chart-1 (168°, teal), which doesn't collide with any --risk-* hue

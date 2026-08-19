@@ -1248,6 +1248,31 @@ describe("ThreeLinesOfDefensePage", () => {
     expect(screen.queryByText(/data_protection ·/)).not.toBeInTheDocument()
   })
 
+  // aexa-frontend#939 (visual polish loop, round-2 finding): two
+  // independent judges flagged this row's meta line as plain gray text
+  // while Risk Register renders the same class of semantic data as a
+  // colored pill -- fixed by reusing severityBadgeClasses (the same
+  // shared utility Risk Register's own severity badges use) instead of
+  // a flat text-muted-foreground class.
+  it("renders each row's meta line as a severity-colored pill, not plain gray text", () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData(),
+      isLoading: false,
+    })
+
+    renderPage()
+
+    // risk-1 (default makeData): status "open" -> RISK_STATUS_SEVERITY.open
+    // = "medium" -> severityBadgeClasses("medium") includes the amber
+    // background/text pair, not a flat muted-foreground gray. Only "Open"
+    // resolves through the i18n mock's HUMANIZED map; the category half
+    // falls back to its raw key, so match on the humanized suffix.
+    const meta = screen.getByText(/· Open$/)
+    expect(meta.className).not.toContain("text-muted-foreground")
+    expect(meta.className).toContain("rounded-full")
+    expect(meta.className).toMatch(/amber/)
+  })
+
   // aexa-frontend round-4 audit bug #334: a failed query used to render
   // identically to a genuinely empty board -- no isError/error handling.
   it("shows an error state with a retry button when the query fails, and refetches on click", async () => {
