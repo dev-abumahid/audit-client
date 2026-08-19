@@ -1487,8 +1487,9 @@
         "gapMore_other": "+{{count}} more",
         "legendIndependent": "Independent review",
         "legendSelf": "Self-review",
-        "highlightActive": "Showing items reviewed by {{line}}",
-        "clearHighlight": "Clear"
+        "highlightActive": "Showing {{count}} of {{total}} items reviewed by {{line}}",
+        "clearHighlight": "Clear",
+        "ringHint": "Click a ring to see what it's reviewed"
       },
       "toast": {
         "reassignSuccess": "Item reassigned",

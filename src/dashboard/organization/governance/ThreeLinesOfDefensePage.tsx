@@ -385,20 +385,10 @@ interface ItemRowProps {
   // merged into one flat per-line list, so the header's icon -- previously
   // the only visual cue for an item's type -- moves onto the row itself.
   icon: React.ElementType
-  // quality-bar-loop round 7 (industry-standards, round-1 finding):
-  // reference GRC tools (AuditBoard, LogicManager, Resolver) let a user
-  // drill from a coverage ring into the items behind it -- this page's
-  // rings were display-only. When set, rows reviewed by this line get a
-  // visual highlight, so clicking a ring answers "which of these has 2nd
-  // Line actually looked at" at a glance across the whole board, not just
-  // per-row on hover. Deliberately doesn't dim non-matching rows too --
-  // an earlier version did via opacity, but that uniformly washes out a
-  // row's text against its background (independently measured: muted-
-  // foreground text at 40% opacity over a white card drops to ~1.8:1,
-  // main foreground text to ~2.5:1, both far under WCAG 1.4.3's 4.5:1) --
-  // dimming a whole row is a text-contrast problem in disguise, not just
-  // a visual one, so only the positive "this matches" signal is safe to
-  // add without a redesign of the row's own color tokens.
+  // When set, rows reviewed by this line get a visual highlight -- lets a
+  // user drill from a coverage ring into the items behind it. Only a
+  // positive "this matches" signal, no opacity-based dimming of the rest
+  // (that washes out text contrast; see quality-bar-loop-log.md round 7).
   highlightLine?: LineOfDefense | null
 }
 
@@ -1065,12 +1055,24 @@ function CoverageOverview({
                 />
               ))}
             </div>
+            {/* Round 8 (UX, round-8 finding): rings had no static cue that
+                they're clickable, only a hover tint -- a plain-text hint
+                doesn't depend on a user hovering to discover it. */}
+            {!highlightLine && (
+              <p className="text-center text-[11px] text-muted-foreground sm:text-left">
+                {t("organization.threeLinesOfDefense.coverage.ringHint")}
+              </p>
+            )}
             {highlightLine && (
               <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                 <span>
                   {t(
                     "organization.threeLinesOfDefense.coverage.highlightActive",
-                    { line: t(LINE_TITLE_KEY[highlightLine]) }
+                    {
+                      line: t(LINE_TITLE_KEY[highlightLine]),
+                      count: reviewedCountByLine[highlightLine],
+                      total,
+                    }
                   )}
                 </span>
                 <button

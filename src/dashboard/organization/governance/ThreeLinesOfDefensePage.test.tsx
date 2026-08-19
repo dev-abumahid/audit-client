@@ -794,6 +794,31 @@ describe("ThreeLinesOfDefensePage", () => {
         }
       })
 
+      it("shows a static hint that rings are clickable, and hides it once a filter is active (round 8)", async () => {
+        const user = userEvent.setup()
+        mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+          data: makeDrilldownData(),
+          isLoading: false,
+        })
+
+        renderPage()
+
+        const card = coverageCard()
+        expect(
+          within(card).getByText(
+            "organization.threeLinesOfDefense.coverage.ringHint"
+          )
+        ).toBeInTheDocument()
+
+        await user.click(ringFor(card, SECOND_LABEL))
+
+        expect(
+          within(card).queryByText(
+            "organization.threeLinesOfDefense.coverage.ringHint"
+          )
+        ).not.toBeInTheDocument()
+      })
+
       it("highlights items reviewed by the clicked line, without dimming the rest (a11y: dimming via opacity would break text contrast)", async () => {
         const user = userEvent.setup()
         mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({

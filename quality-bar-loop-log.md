@@ -1589,3 +1589,70 @@ Deferred: industry-standards' remaining 2 findings ((b) trend/export -- real
 feature work, larger scope than this round; (c) kanban-vs-matrix layout --
 still deliberately not touched, per the user's earlier rejection of a matrix
 redesign). Everything else unchanged.
+
+## Round 8 (re-score after PR #965, broad panel)
+
+Round 7's diff added real interactive state (not pure CSS/copy), so ran a
+broader panel than the last few rounds: Industry-standards (the target),
+Accessibility + Visual (new button/highlight semantics), UX + Code quality
+(new state threaded through 6 call sites in an already-large file).
+Efficiency, Resilience, and Cross-view carried forward unchanged (9, 9, 10).
+
+| Axis | Score | Note |
+|---|---|---|
+| Industry-standards | 7/10 | **unchanged despite the round-7 fix.** Live-confirmed the drill-down works correctly (each ring highlights exactly the right items, switching/clearing both clean) and is a real, recognizable instance of the "click an aggregate to drill down" pattern used by ServiceNow GRC/AuditBoard/LogicManager. But those reference tools drill into a dedicated filtered list/table view with a count and further drill (what/when/who reviewed) -- this ships an in-place highlight only, no count, no isolate/hide-non-matching option, no further drill. A genuine partial match, not yet full parity. Findings (b) trend/export and (c) kanban-vs-matrix layout confirmed still open, neither regressed nor accidentally fixed |
+| UX | 8/10 | **down from 9 -- two real, judge-caught issues.** (1) No static affordance signals the rings are clickable before hovering -- discoverability regression from "obviously interactive" to "stumble onto it." (2) Removing opacity-dimming (necessary for the a11y fix) means matching rows are only distinguished by a thin border + faint `bg-primary/5` tint, with no de-emphasis of the rest to make them pop by comparison -- flagged as a legitimate, unresolved scannability tradeoff, most visible in a long column (1st Line has 20 items) |
+| Efficiency | 9/10 | carried forward, not touched |
+| Accessibility | 9/10 | confirmed live: all 3 rings keyboard-reachable with visible focus, `aria-pressed`/`aria-label` correct and dynamic, dimming-fix verified across 12 rows (`opacity: 1` on every non-matching row, no regression). One new minor note: the active ring's own `bg-primary/10`/`ring-primary/40` wash measures ~1.6:1 against the card (under WCAG 1.4.11's 3:1) -- not scored down since the active state is redundantly conveyed by the always-visible banner text and `aria-pressed`, not a sole indicator |
+| Visual/design polish | 9/10 | unchanged -- hover affordance present and consistent with the app's existing patterns; highlighted rows still read clearly at a glance because the highlight (border+tint) reinforces, rather than replaces, the item's own colored line-badge -- two independent visual cues, not one weakened-by-comparison effect. Clean in both themes |
+| Resilience & edge cases | 9/10 | carried forward, not touched |
+| Code quality/maintainability | 8/10 | unchanged -- new state/logic (`highlightLine`, `toggleHighlightLine`, `isHighlighted`, `CoverageRing`'s `Wrapper` polymorphism) is clean, no duplication, prop threading consistent across all 6 `ItemRow` call sites. This round's addition doesn't meaningfully worsen the standing large-scope file-size finding (small relative to the file's existing ~1900 lines). But: the `highlightLine?` prop's own doc comment repeated round 4's already-fixed anti-pattern -- 14 lines stacking a full inline WCAG rationale (including specific measured contrast ratios) into the code comment instead of the log |
+| Cross-view integration | 10/10 | carried forward, not touched |
+| **Average** | **8.625/10** | **(7+8+9+9+9+9+8+10)/8** |
+
+**stuck_streak**: Industry-standards = 7 (7 unchanged for 8 rounds running,
+at floor -- the longest streak of the loop by far, even after a genuine,
+correctly-implemented fix attempt in round 7). UX = 0 (9→8, a regression,
+not a streak).
+
+### Convergence / guardrail check
+
+Average = 8.625 (down from 8.75 -- the first decline since round 3). Every
+axis still clears the floor of 7. Not converged. **Not a stagnation trip**
+(the guardrail requires two consecutive rounds of no net improvement; this
+is the first decline after 5 rounds of consecutive rises). **Not a
+below-floor regression** (UX's 9→8 stayed well above the floor of 7).
+
+### Fix selected for round 8
+
+Industry-standards' streak (7) is by far the highest and mechanically wins
+selection, but its remaining gap is now a genuine larger-scope one (a
+dedicated filtered view, not achievable as one more small round). Rather
+than defer it a 4th time with the same unchanged reasoning, addressed its
+most concrete, cheaply-actionable sub-finding from THIS round's own judge
+report ("no count" of how many items matched) while batching in the two
+real, cheap findings from UX and code quality -- all Tier 1/2, same file,
+done sequentially by me (not parallel agents), so no merge-conflict risk
+despite sharing a file:
+1. **Industry-standards**: added a match count to the "Showing items
+   reviewed by X" banner -- now "Showing {count} of {total} items reviewed
+   by X".
+2. **UX**: added a static, always-visible hint ("Click a ring to see what
+   it's reviewed") near the rings, shown only when no filter is active --
+   doesn't depend on hovering to discover interactivity.
+3. **Code quality**: trimmed the `highlightLine?` prop's 14-line inline
+   WCAG-rationale comment down to 3 lines pointing at this log entry
+   instead of restating the numbers inline.
+
+QA gate: typecheck clean, 0 lint errors, 81/81 tests (1 new test for the
+hint's show/hide behavior). Live-verified: hint visible at rest, disappears
+once a ring is clicked, banner correctly reads "Showing 2 of 34 items
+reviewed by 2nd Line", no console errors.
+
+Deferred: UX's scannability tradeoff (matching rows only distinguished by a
+thin border, no de-emphasis of the rest) -- a real, harder design problem
+without reintroducing the contrast issue; needs its own round's thought, not
+folded into this batch. Industry-standards' remaining gap (isolate/hide-
+non-matching option, drill into what/when/who) -- large-scope, a real next
+step if this axis is revisited again. (b) trend/export and (c) kanban-vs-
+matrix layout unchanged.
