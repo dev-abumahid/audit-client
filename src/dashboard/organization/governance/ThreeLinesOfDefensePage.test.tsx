@@ -548,6 +548,29 @@ describe("ThreeLinesOfDefensePage", () => {
     expect(classes).not.toContain("xl:grid-cols-4")
   })
 
+  // aexa-frontend#939 (visual polish loop, round-7 finding): without
+  // items-start, CSS Grid's default align-items: stretch forced every
+  // card in a row to match its tallest row-sibling's height -- a short
+  // card's dead space moved inside its own visible card border instead
+  // of being removed by round 5's per-card scroll cap.
+  it("lets each line's card size to its own content instead of stretching to match its row", () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData(),
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const grid = screen
+      .getByRole("heading", {
+        level: 2,
+        name: "organization.threeLinesOfDefense.lines.first",
+      })
+      .closest('[data-slot="card"]')!.parentElement!
+    const classes = grid.className.split(/\s+/)
+    expect(classes).toContain("items-start")
+  })
+
   it("shows the Unclassified Actions bucket for an Action with a null line_of_defense", () => {
     mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
       data: makeData(),

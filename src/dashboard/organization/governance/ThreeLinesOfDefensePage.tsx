@@ -822,7 +822,16 @@ export default function ThreeLinesOfDefensePage() {
               there's genuinely enough width for them (`2xl`, 1536px+) --
               keeps every column's content readable at the viewport most
               real users actually have, not just ultra-wide monitors. */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4">
+          {/* aexa-frontend#939 (visual polish loop, round-7 finding): with
+              no items-start, CSS Grid's default align-items: stretch
+              forced every card in a row to match its tallest row-sibling's
+              height -- round 5's max-h-[560px] scroll cap only bounds the
+              TALL card; a short card (e.g. 5 items next to a 20-item
+              sibling) still stretched to fill the same row height, just
+              trapping the resulting dead space inside its own visible
+              card border instead of removing it. items-start lets each
+              card size to its own content instead. */}
+          <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4">
             {LINES.map((line) => {
               const lineRisks = risksByLine[line]
               const lineActions = actionsByLine[line]
