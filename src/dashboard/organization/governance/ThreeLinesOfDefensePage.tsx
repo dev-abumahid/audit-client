@@ -464,38 +464,19 @@ const ItemRow = memo(function ItemRow({
               {statusLabel}
             </span>
           </div>
-          {/* #97: real independent-review coverage, distinct from the
-              ownership badge above -- one small badge per line that has
-              actually reviewed this item, in that line's own color (same
-              palette LINE_COLOR drives on the coverage overview below, so
-              the two views read consistently). Nothing renders when no
-              line has reviewed it yet -- an empty state here is normal for
-              a brand-new item, not an error.
-              Review round 1 (a11y): a bare color dot with only a `title`
-              attribute has no reliable accessible name (title alone isn't
-              consistently exposed by screen readers on a plain span) and,
-              for a compliance tool, color-only encoding is a real gap for
-              colorblind/touch/non-hovering users too -- every OTHER
-              indicator on this row (category, status) shows visible text
-              at all times, not color-only. Now a tiny labeled badge
-              (role="img" + full aria-label, same as the coverage rings
-              below) instead of a bare dot.
-              Review round 2 (UX): a review by the SAME line that owns this
-              item (line === currentLine) isn't independent assurance --
-              it's the owner re-confirming their own work, exactly what the
-              Coverage Overview's own copy excludes from "independent
-              (2nd/3rd-line) review." Rendering it identically to a
-              genuinely independent review (a different line reviewing)
-              would misrepresent self-assessment as assurance -- the two
-              now get visually distinct treatments (outlined/hollow for
-              self, solid for independent), not just the same filled pill. */}
+          {/* Independent-review coverage badges: one per line that has
+              reviewed this item, in that line's color (same palette
+              LINE_COLOR drives on the coverage overview below, so the two
+              views read consistently). Empty when nothing's been reviewed
+              yet -- normal for a new item, not an error. role="img" +
+              aria-label since color alone isn't a reliable indicator for
+              colorblind/non-hovering users. Self-review (line ===
+              currentLine) renders outlined, not filled -- the owner
+              confirming their own work isn't independent assurance. */}
           {lineReviews.length > 0 && (
             <div className="mt-0.5 flex items-center gap-1">
               {LINES.filter((line) => reviewedLines.has(line)).map((line) => {
                 const isSelfReview = line === currentLine
-                // Review round 3 (code quality): was written out twice
-                // (aria-label and title), a copy-paste-drift risk -- one
-                // computed value, used in both places.
                 const badgeLabel = isSelfReview
                   ? t("organization.threeLinesOfDefense.reviewedByLineSelf", {
                       line: t(LINE_TITLE_KEY[line]),
@@ -509,21 +490,13 @@ const ItemRow = memo(function ItemRow({
                   role="img"
                   aria-label={badgeLabel}
                   title={badgeLabel}
-                  // Review round 2: was text-[8px]/h-3.5, a full 2px
-                  // smaller than the adjacent category/status pills
-                  // (text-[10px]) on the same row -- now matches them.
-                  // Self-review renders outlined/hollow (border, no fill)
-                  // instead of the solid fill an independent review gets --
-                  // the line is still identifiable via the border's hue,
-                  // but the fill/outline distinction reads as "not the same
-                  // as a genuinely independent check" at a glance, not just
-                  // on hover.
-                  // Review round 3 (a11y): the outlined variant's glyph is
-                  // `text-foreground` (the app's own accessible text token),
-                  // not the line's own hue -- see LINE_BORDER's own comment
-                  // for why text color on a theme-variable background can't
-                  // safely reuse a single-hue palette the way a colored
-                  // FILL with a fixed white/dark glyph can.
+                  // Self-review is outlined (border-only, text-foreground
+                  // glyph) instead of filled -- a single hue can't safely
+                  // serve as both a filled badge's text/background AND as
+                  // text directly on the page background (see LINE_BORDER),
+                  // so the outlined variant keeps the hue on the border
+                  // (WCAG 1.4.11, 3:1) and uses the app's own accessible
+                  // text token for the glyph (WCAG 1.4.3, 4.5:1).
                   className={
                     isSelfReview
                       ? `inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full border-2 px-1 text-[10px] font-semibold text-foreground ${LINE_BORDER[line]}`

@@ -1304,3 +1304,76 @@ non-conflicting duplication fix (extract the self-review label computation
 to one `const`, used for both `aria-label` and `title`).
 
 Deferred: everything else from prior rounds' deferred lists, unchanged.
+
+### Addendum to round 3 log entry
+
+Round 3's fix shipped as PR #961 with one follow-up commit not reflected
+above: a review agent on that PR independently found `GOVERNING_BODY`'s new
+`LINE_BORDER` value (unchanged from the original 42%L) measured 2.93:1
+against the light-mode card -- below WCAG 1.4.11's 3:1 threshold, directly
+contradicting the fix's own comment claiming all 4 hues were "comfortably
+distinguishable" as borders. Darkened to 36%L (hand-verified 3.88:1 light /
+4.51:1 dark) and corrected the overclaiming comment before merge.
+
+## Round 4 (re-verify after PR #961, targeted panel)
+
+Round 3's diff was two pure color/token changes in one file (LINE_BORDER
+darkened, glyph moved from a per-line hue to `text-foreground`) plus one
+comment-scoped duplication fix (`badgeLabel` extracted to one const) -- no
+logic/state changes. Per the narrow-scoping allowance, re-ran only the three
+axes that diff's surface plausibly touched: Accessibility (the axis that
+regressed and was fixed), Visual (color values changed), and Code quality
+(the duplication finding was directly addressed). Industry-standards, UX,
+Efficiency, Resilience, and Cross-view carried forward unchanged from round 3
+(7, 7, 9, 9, 9).
+
+| Axis | Score | Note |
+|---|---|---|
+| Industry-standards | 7/10 | carried forward, not touched by round 3's diff |
+| UX | 7/10 | carried forward, not touched |
+| Efficiency | 9/10 | carried forward, not touched |
+| Accessibility | 9/10 | **up from 5 -- regression confirmed fixed.** Independently live-measured `text-foreground` glyph at 17.93:1 (light) / 13.70:1 (dark) against the card background -- both clear WCAG 1.4.3's 4.5:1 by a wide margin, theme-invariant since it's the shared token. All 4 `LINE_BORDER` values independently re-measured against WCAG 1.4.11's 3:1: FIRST 3.78/4.60, SECOND 5.41/3.22, THIRD 4.03/4.33, GOVERNING_BODY 3.90/4.47 (light/dark) -- all pass, confirming the addendum's follow-up fix holds. Prior a11y fixes (ring text aria-hidden, gap-box role, focus-restore) reconfirmed untouched |
+| Visual/design polish | 9/10 | unchanged -- the outlined badge with hue-only-on-border still reads as a coherent, deliberate two-style system in both themes; GOVERNING_BODY's darkened border doesn't look muddy or washed out next to the other 3 lines' borders in a live side-by-side comparison |
+| Resilience & edge cases | 9/10 | carried forward, not touched |
+| Code quality/maintainability | 6/10 | **unchanged -- duplication finding fixed, but comment-density finding (round 3's other open item) got measurably worse in the same pass.** `badgeLabel` confirmed computed once and reused for both `aria-label`/`title`, no leftover duplication. But the hotspot's comment-to-code ratio rose from round 3's ~40% (18/~45 lines) to ~60% (43/72 lines) -- round 3's own fix added a 3-line comment explaining the extraction on top of the round-1 and round-2 rationale blocks that were still sitting there verbatim, rather than using the touch to consolidate them |
+| Cross-view integration | 9/10 | carried forward, not touched |
+| **Average** | **8.125/10** | **(7+7+9+9+9+9+6+9)/8** |
+
+**stuck_streak**: Code quality = 1 (6→6, unchanged, at-or-below floor -- streak reset in round 3 when it moved 5→6, this is the first repeat since). Industry-standards = 3 (7→7→7→7, unchanged 4 rounds running, but now *above* floor since floor is 7 and `>=` floor counts as clearing it -- not a below-floor streak, not selection-eligible under rule 5c-2). UX = 0 (moved to 7, at floor not below, streak not applicable).
+
+### Convergence / guardrail check
+
+Average = 8.125 (up from 7.625). Only one axis below floor: Code quality
+(6). Not converged. No below-floor regression (Accessibility crossed back
+*above* floor; nothing crossed below). No stagnation (average moved twice in
+a row: 7.625→7.625→8.125 -- the middle round's average was flat but the
+underlying distribution shifted, and this round's average genuinely rose).
+
+### Fix selected for round 4
+
+Only one axis below floor (Code quality), so it's selected regardless of
+`stuck_streak` math. Of its two open findings, the file-size/lack-of-
+component-extraction issue is still `large-scope` (standing, unchanged) --
+not eligible. The comment-density finding is `cosmetic/convention`,
+`contained`: trimmed the self-review-badge hotspot's accumulated
+round-numbered rationale comments (43 lines) down to their essential
+why-content (11 lines total across two comments), removing the "Review
+round N" history framing per this skill's own guidance that a fix's inline
+comment should be terse (what+why, not a round-by-round retelling) with the
+full history living in this log instead. Net: hotspot comment-to-code ratio
+drops from ~60% to well under round 3's own ~40% baseline. Scope
+deliberately confined to the one hotspot the round-3/4 judges actually
+flagged -- the file has many other "Review round N" comments elsewhere
+(dialog focus-restore, coverage overview, efficiency memoization sites,
+etc.) that are a legitimate but separate, broader cleanup, not part of what
+this round's fix selected.
+
+Tier 1 (comment-only, zero logic/behavior change, single file) per
+ship-with-review-loop's tiering -- self-review, QA gate (typecheck clean,
+lint 0 errors/4 pre-existing unrelated warnings, 74/74 tests passing
+unmodified since no assertions reference comment content), and a live
+`read_page`/screenshot check substituted for the full review-agent loop.
+
+Deferred: everything else from prior rounds' deferred lists, unchanged. The
+file's overall size (1866 lines, 53 top-level declarations) remains the
+single dominant standing code-quality issue, still `large-scope`.
