@@ -1077,6 +1077,48 @@ describe("ThreeLinesOfDefensePage", () => {
           )
         ).toBeInTheDocument()
       })
+
+      it("also narrows the Unclassified Actions bucket (round 10 -- it sits outside the per-line grid)", async () => {
+        const user = userEvent.setup()
+        mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+          data: makeDrilldownData(),
+          isLoading: false,
+        })
+
+        renderPage()
+
+        // "Legacy remediation item" is the default fixture's unclassified
+        // action (line_of_defense: null, line_reviews: []) -- unreviewed
+        // by any line, so isolating by 2nd Line should remove it too. It
+        // also appears in the gap-list (no independent review at all), so
+        // scope to the Unclassified Actions card specifically.
+        const unclassifiedCardBefore = screen
+          .getByText("organization.threeLinesOfDefense.unclassified.title")
+          .closest('[data-slot="card"]') as HTMLElement
+        expect(
+          within(unclassifiedCardBefore).getByText("Legacy remediation item")
+        ).toBeInTheDocument()
+
+        const card = coverageCard()
+        await user.click(ringFor(card, SECOND_LABEL))
+        await user.click(
+          within(card).getByText(
+            "organization.threeLinesOfDefense.coverage.isolateLabel"
+          )
+        )
+
+        const unclassifiedCard = screen
+          .getByText("organization.threeLinesOfDefense.unclassified.title")
+          .closest('[data-slot="card"]') as HTMLElement
+        expect(
+          within(unclassifiedCard).queryByText("Legacy remediation item")
+        ).not.toBeInTheDocument()
+        expect(
+          within(unclassifiedCard).getByText(
+            "organization.threeLinesOfDefense.isolateEmpty"
+          )
+        ).toBeInTheDocument()
+      })
     })
   })
 

@@ -1656,3 +1656,120 @@ folded into this batch. Industry-standards' remaining gap (isolate/hide-
 non-matching option, drill into what/when/who) -- large-scope, a real next
 step if this axis is revisited again. (b) trend/export and (c) kanban-vs-
 matrix layout unchanged.
+
+## Round 9 (re-score after PR #966, targeted panel)
+
+Round 8's diff was two small, independent copy/text additions (a match
+count, a static hint) plus a comment trim, so re-ran only Industry-standards
+and UX (the two axes it targeted). Efficiency, Accessibility, Visual,
+Resilience, Code quality, and Cross-view carried forward unchanged (9, 9, 9,
+9, 8, 10).
+
+| Axis | Score | Note |
+|---|---|---|
+| Industry-standards | 7/10 | **unchanged -- the count addition confirmed real but too small to move the score.** Live-verified the count is accurate (cross-checked against actual highlighted rows) and handles the 0-match edge case cleanly ("Showing 0 of 34..."). But round 8's own critique was about missing FILTERING affordances (no isolate, no further drill), not primarily a missing number -- the count closes the smallest of three named sub-gaps, the two structurally significant ones (isolate, further drill) are untouched |
+| UX | 9/10 | **up from 8 -- the discoverability finding is fully resolved.** Hint text ("Click a ring to see what it's reviewed") verified visible on a fresh, no-hover page load; disappears on click, reappears on Clear; reads as natural inline copy in the same slot the status text later occupies, not a bolted-on instruction. The scannability tradeoff (matching rows only distinguished by a thin border, no de-emphasis of the rest) is confirmed still present, unchanged, and was deliberately not addressed this round |
+| Efficiency | 9/10 | carried forward, not touched |
+| Accessibility | 9/10 | carried forward, not touched |
+| Visual/design polish | 9/10 | carried forward, not touched |
+| Resilience & edge cases | 9/10 | carried forward, not touched |
+| Code quality/maintainability | 8/10 | carried forward, not touched |
+| Cross-view integration | 10/10 | carried forward, not touched |
+| **Average** | **8.75/10** | **(7+9+9+9+9+9+8+10)/8** |
+
+**stuck_streak**: Industry-standards = 8 (7 unchanged for 9 rounds running,
+at floor -- by a wide margin the longest streak of this loop). UX = 0 (8→9,
+a real recovery, not a streak).
+
+### Convergence / guardrail check
+
+Average = 8.75 (back up from round 8's 8.625). Every axis clears the floor.
+Not converged (need ≥9). No regression, no stagnation.
+
+### Fix selected for round 9
+
+Industry-standards' streak (8) mechanically wins selection again, and this
+time its own judge report named a genuinely buildable next increment: "no
+isolate option." Built it -- an "Isolate" checkbox (shown once a ring is
+active) that narrows each of the 4 line columns to only the items the
+highlighted line has reviewed, instead of just marking them. Filters at the
+render site (`risksByLine[line]` etc., via a new shared `filterByReviewLine`
+helper) so item counts, entity-type filter chips, and rendered rows all stay
+consistent; reassignment logic reads from the un-narrowed groupings
+elsewhere in the file, unaffected. Added distinct `isolateEmpty` copy so a
+line with zero matches doesn't misleadingly read as "no items at all."
+Isolate auto-resets when the highlight clears.
+
+Tier 3 (new state, new filtering behavior) -- design traced (confirmed via
+grep that `risksByLine`/etc. are used nowhere else in the file besides this
+render loop, so isolate can't leak into reassignment logic), self-review, QA
+gate (typecheck clean, 0 lint errors, 85/85 tests incl. 4 new isolate
+tests), one review round (Agent tool, read-only git) -- 2 findings, both
+fixed: (1) the line-card header's item count read ambiguously while
+isolating (now says "N matching items" instead of a bare "N items"), (2)
+`setIsIsolated` was called as a side effect inside `setHighlightLine`'s
+functional updater, an impure-updater anti-pattern -- moved to a plain
+sequential call. Live-verified on real data: isolating by 2nd Line narrows
+1st Line's column to its 2 matching items (with "2 matching items" in the
+header) and shows the new empty message on the other 3 lines (each with
+zero 2nd-Line-reviewed items); unchecking restores the full lists; no
+console errors.
+
+Deferred: UX's scannability tradeoff (still open, needs its own design
+thought). Industry-standards' "further drill" (what/when/who reviewed) --
+real, large-scope, a possible next step. (b) trend/export and (c) kanban-vs-
+matrix layout unchanged.
+
+## Round 10 (re-score after PR #967, targeted panel)
+
+Round 9's diff (the Isolate feature) was substantial enough to re-run
+Industry-standards (the target) plus Code quality and Resilience (new
+state/filtering logic in an already-large file). UX, Efficiency,
+Accessibility, Visual, and Cross-view carried forward unchanged (9, 9, 9, 9,
+10).
+
+| Axis | Score | Note |
+|---|---|---|
+| Industry-standards | 8/10 | **up from 7 -- first movement in 9 rounds.** Live-verified isolate genuinely narrows (items removed from the DOM, not just dimmed): 1st Line 20→2, 2nd/3rd Line and Governing Body all →0, with correctly distinct "N matching items" headers and `isolateEmpty` copy. Judged as a real, substantive improvement over round 8's "partial match" -- multi-column narrowing, correct counts, correct empty states is now a genuine (if in-place, not dedicated-view) instance of the reference-tool drill-down pattern. Ceiling reason it's not higher: no export, no shareable/persistent filter state (plain `useState`, lost on refresh), still bolted onto the same route rather than a dedicated filtered view. New gap found: the Unclassified Actions bucket (outside the 4-column grid) wasn't touched by isolate's filtering |
+| UX | 9/10 | carried forward, not touched |
+| Efficiency | 9/10 | carried forward, not touched |
+| Accessibility | 9/10 | carried forward, not touched |
+| Visual/design polish | 9/10 | carried forward, not touched |
+| Resilience & edge cases | 9/10 | confirmed live: all-zero-match case (every line isolated to nothing) renders cleanly, no crash; rapid interaction (click ring → isolate → switch ring while isolated → uncheck) stays consistent with no stale content or console errors; traced in source that isolate recomputes fresh from `data`-derived arrays every render, no separate staleness/invalidation path to get out of sync |
+| Code quality/maintainability | 8/10 | confirmed clean: `filterByReviewLine` well-typed and reused; the 5x repeated per-entity-type ternary judged as acceptable (each line is a distinct array/type feeding a differently-shaped `.map()`, collapsing to a loop would need a keyed-record restructure for marginal line savings); comment discipline good (terse, states one invariant, no accumulated history); net addition small relative to the file's ~2000-line standing size finding |
+| Cross-view integration | 10/10 | carried forward, not touched |
+| **Average** | **8.875/10** | **(8+9+9+9+9+9+8+10)/8** |
+
+**stuck_streak**: Industry-standards = 0 (7→8, changed -- streak broken
+after 8 rounds). No axis currently at-or-below its floor.
+
+### Convergence / guardrail check
+
+Average = 8.875 (up from 8.75). Every axis clears the floor, none below 8.
+Not converged (need ≥9). No regression, no stagnation (average has risen in
+9 of the last 10 rounds, flat only once).
+
+### Fix selected for round 10
+
+No axis below floor, no axis with a live stuck_streak (industry-standards'
+streak just reset). Priority falls to "furthest below target": industry-
+standards and code quality are tied at 8 (1 point below 9); industry-
+standards wins the roster-order tie-break. Its own judge this round named a
+concrete, cheap, contained gap: the Unclassified Actions bucket sits outside
+the 4-column `LINES.map` grid and was never wired into isolate's filtering.
+
+Fixed by hoisting `isolateLine` (previously recomputed identically on every
+one of the 4 line-loop iterations, a harmless but redundant duplication) to
+a single top-level `const`, then reusing it to filter
+`unclassifiedActions` the same way the 4 line columns already are --
+`visibleUnclassifiedActions`, with the same `isolateEmpty` copy on zero
+matches. Tier 2 (contained, same file, no new state or UI surface) --
+self-review, QA gate (typecheck clean, 0 lint errors, 86/86 tests incl. 1
+new test), live-verified: isolating by 2nd Line correctly empties the
+Unclassified Actions bucket (its one fixture item has no reviews from any
+line) with the isolate-specific empty message, no console errors.
+
+Deferred: industry-standards' remaining structural gap (dedicated
+view/export/shareable filter state) -- real, large-scope, the likely reason
+this axis's ceiling isn't 10 even after this round. UX's scannability
+tradeoff. (b) trend/export and (c) kanban-vs-matrix layout unchanged.

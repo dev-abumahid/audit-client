@@ -1312,6 +1312,16 @@ export default function ThreeLinesOfDefensePage() {
     () => groupByLine(auditEngagements),
     [auditEngagements]
   )
+  // Round 10 (industry-standards, round-9 finding): isolate only narrows
+  // list RENDERING, not the ownership groupings above (risksByLine etc.
+  // stay the full set) -- reassigning an item while isolated still needs
+  // its real, un-narrowed ownership data. Computed once, not per-line --
+  // it doesn't depend on `line`, and the Unclassified Actions bucket below
+  // (outside the per-line grid) needs it too.
+  const isolateLine = isIsolated ? highlightLine : null
+  const visibleUnclassifiedActions = isolateLine
+    ? filterByReviewLine(unclassifiedActions, isolateLine)
+    : unclassifiedActions
 
   // #97: flat list of every item across all 5 entity types, carrying real
   // review coverage (line_reviews) alongside ownership -- what
@@ -1646,11 +1656,6 @@ export default function ThreeLinesOfDefensePage() {
               card size to its own content instead. */}
           <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4">
             {LINES.map((line) => {
-              // Round 9: isolate only narrows THIS list rendering, not the
-              // ownership groupings above (risksByLine etc. stay the full
-              // set) -- reassigning an item while isolated still needs its
-              // real, un-narrowed ownership data.
-              const isolateLine = isIsolated ? highlightLine : null
               const lineRisks = isolateLine
                 ? filterByReviewLine(risksByLine[line], isolateLine)
                 : risksByLine[line]
@@ -1890,15 +1895,22 @@ export default function ThreeLinesOfDefensePage() {
               </h2>
             </CardHeader>
             <CardContent>
+              {/* Round 10 (industry-standards, round-9 finding): this
+                  bucket sits outside the 4-column LINES.map grid above, so
+                  isolate's filtering missed it entirely until now -- an
+                  unclassified action reviewed by the highlighted line
+                  didn't stand out, and one that wasn't still showed. */}
               <Section
                 icon={AlertTriangle}
                 label={t("organization.threeLinesOfDefense.sections.actions")}
-                count={unclassifiedActions.length}
+                count={visibleUnclassifiedActions.length}
                 emptyLabel={t(
-                  "organization.threeLinesOfDefense.unclassified.empty"
+                  isolateLine
+                    ? "organization.threeLinesOfDefense.isolateEmpty"
+                    : "organization.threeLinesOfDefense.unclassified.empty"
                 )}
               >
-                {unclassifiedActions.map((action) => (
+                {visibleUnclassifiedActions.map((action) => (
                   <ItemRow
                     key={action.id}
                     icon={AlertTriangle}
