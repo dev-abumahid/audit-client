@@ -1325,6 +1325,8 @@
         "allDismissed": "All suggestions dismissed for this check.",
         "addAsObligation": "Add as obligation",
         "addAsObligationFor": "Add {{name}} as obligation",
+        "added": "Added",
+        "addedFor": "{{name}} already added as obligation",
         "dismiss": "Dismiss",
         "dismissFor": "Dismiss {{name}}",
         "source": "View source",

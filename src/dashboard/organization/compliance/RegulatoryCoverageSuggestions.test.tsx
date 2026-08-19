@@ -19,6 +19,8 @@ vi.mock("react-i18next", async (importOriginal) => {
     "organization.compliance.regulatoryCoverage.addAsObligationFor":
       "Add {{name}} as obligation",
     "organization.compliance.regulatoryCoverage.dismissFor": "Dismiss {{name}}",
+    "organization.compliance.regulatoryCoverage.addedFor":
+      "{{name}} already added as obligation",
   }
   return {
     ...mod,
@@ -227,6 +229,115 @@ it("calls onAddSuggestion with the selected site id and the suggestion when 'Add
   )
 
   expect(onAddSuggestion).toHaveBeenCalledWith("site-1", suggestion)
+})
+
+// Round-8 quality-bar-loop review (UX axis): clicking "Add as obligation"
+// twice for the same suggestion used to be indistinguishable from clicking
+// it once -- nothing marked the suggestion as already actioned, so a user
+// could open the pre-fill form repeatedly and, if they saved each time, end
+// up with duplicate persisted obligations for one gap.
+it("disables 'Add as obligation' and relabels it after use, without re-calling onAddSuggestion", async () => {
+  const suggestion = {
+    name: "GDPR",
+    domain: "data_protection",
+    jurisdiction: "EU",
+    rationale: "x",
+    source_url: null,
+  }
+  mockSuggestRegulatorySources.mockReturnValue({
+    unwrap: () => Promise.resolve({ data: { suggestions: [suggestion] } }),
+  })
+  const { onAddSuggestion } = renderPanel()
+
+  await selectSiteAndCheck("HQ Casablanca")
+  await screen.findByText("GDPR")
+  const addButton = screen.getByRole("button", { name: "Add GDPR as obligation" })
+  await userEvent.click(addButton)
+
+  expect(onAddSuggestion).toHaveBeenCalledTimes(1)
+  const addedButton = screen.getByRole("button", {
+    name: "GDPR already added as obligation",
+  })
+  expect(addedButton).toBeDisabled()
+  expect(
+    screen.getByText("organization.compliance.regulatoryCoverage.added")
+  ).toBeInTheDocument()
+
+  // Disabled buttons don't fire click handlers, but assert the intent
+  // directly too: no second call happened.
+  await userEvent.click(addedButton)
+  expect(onAddSuggestion).toHaveBeenCalledTimes(1)
+})
+
+// Round-8 review round 1 finding: no test exercised marking a suggestion
+// added and then dismissing that same item -- confirms `dismissed` (which
+// visibleSuggestions filters on) is what actually controls visibility, so
+// an added-then-dismissed suggestion cleanly disappears rather than leaving
+// a stale "Added" ghost row behind.
+it("cleanly removes a suggestion from view if it's dismissed after being added", async () => {
+  const suggestion = {
+    name: "GDPR",
+    domain: "data_protection",
+    jurisdiction: "EU",
+    rationale: "x",
+    source_url: null,
+  }
+  mockSuggestRegulatorySources.mockReturnValue({
+    unwrap: () => Promise.resolve({ data: { suggestions: [suggestion] } }),
+  })
+  renderPanel()
+
+  await selectSiteAndCheck("HQ Casablanca")
+  await screen.findByText("GDPR")
+  await userEvent.click(
+    screen.getByRole("button", { name: "Add GDPR as obligation" })
+  )
+  expect(
+    screen.getByRole("button", { name: "GDPR already added as obligation" })
+  ).toBeInTheDocument()
+
+  await userEvent.click(screen.getByRole("button", { name: "Dismiss GDPR" }))
+
+  expect(screen.queryByText("GDPR")).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole("button", { name: "GDPR already added as obligation" })
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getByText("organization.compliance.regulatoryCoverage.allDismissed")
+  ).toBeInTheDocument()
+})
+
+it("resets the added state on a fresh check", async () => {
+  const suggestion = {
+    name: "GDPR",
+    domain: "data_protection",
+    jurisdiction: "EU",
+    rationale: "x",
+    source_url: null,
+  }
+  mockSuggestRegulatorySources.mockReturnValue({
+    unwrap: () => Promise.resolve({ data: { suggestions: [suggestion] } }),
+  })
+  renderPanel()
+
+  await selectSiteAndCheck("HQ Casablanca")
+  await screen.findByText("GDPR")
+  await userEvent.click(
+    screen.getByRole("button", { name: "Add GDPR as obligation" })
+  )
+  expect(
+    screen.getByRole("button", { name: "GDPR already added as obligation" })
+  ).toBeInTheDocument()
+
+  await selectSiteAndCheck("HQ Casablanca")
+  await screen.findByText("GDPR")
+
+  expect(
+    screen.getByRole("button", { name: "Add GDPR as obligation" })
+  ).toBeInTheDocument()
+  expect(
+    screen.queryByRole("button", { name: "GDPR already added as obligation" })
+  ).not.toBeInTheDocument()
 })
 
 it("removes a dismissed suggestion from view without calling onAddSuggestion", async () => {

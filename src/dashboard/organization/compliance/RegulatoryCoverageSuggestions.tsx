@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Loader2, Sparkles } from "lucide-react"
+import { CircleCheck, Loader2, Sparkles } from "lucide-react"
 import type { SuggestedRegulatorySource } from "@/redux/apis/organization/compliance.api"
 import { useSuggestRegulatorySourcesMutation } from "@/redux/apis/organization/compliance.api"
 import { isHttpUrl } from "@/utils/isHttpUrl"
@@ -47,6 +47,16 @@ export default function RegulatoryCoverageSuggestions({
   // index only ever refers to the one suggestion that occupied that slot
   // in this specific response.
   const [dismissed, setDismissed] = useState<Set<number>>(() => new Set())
+  // Round-8 quality-bar-loop review (UX axis): "Add as obligation" stayed
+  // fully clickable after use, with nothing distinguishing an actioned
+  // suggestion from an untouched one -- a user could open the pre-fill form
+  // for the same suggestion repeatedly and, if they saved each time, end up
+  // with duplicate persisted obligations for one regulatory gap. Same
+  // session-only tradeoff as `dismissed` above: marked the instant the
+  // button is clicked (this component has no visibility into whether the
+  // parent's form was actually saved or cancelled), not gated on a
+  // round-trip confirmation it can't observe.
+  const [added, setAdded] = useState<Set<number>>(() => new Set())
   const [suggestRegulatorySources, { isLoading }] = useSuggestRegulatorySourcesMutation()
 
   // Round-2 quality-bar-loop review (resilience axis): checkCoverage's
@@ -80,6 +90,7 @@ export default function RegulatoryCoverageSuggestions({
     if (!selectedSiteId) return
     const requestedSiteId = selectedSiteId
     setDismissed(new Set())
+    setAdded(new Set())
     try {
       const res = await suggestRegulatorySources({ site_id: requestedSiteId }).unwrap()
       if (selectedSiteIdRef.current !== requestedSiteId) return
@@ -285,14 +296,27 @@ export default function RegulatoryCoverageSuggestions({
                           text; the visible label stays short. */}
                       <button
                         type="button"
-                        onClick={() => onAddSuggestion(selectedSiteId, suggestion)}
+                        onClick={() => {
+                          setAdded((prev) => new Set(prev).add(index))
+                          onAddSuggestion(selectedSiteId, suggestion)
+                        }}
+                        disabled={added.has(index)}
                         aria-label={t(
-                          "organization.compliance.regulatoryCoverage.addAsObligationFor",
+                          added.has(index)
+                            ? "organization.compliance.regulatoryCoverage.addedFor"
+                            : "organization.compliance.regulatoryCoverage.addAsObligationFor",
                           { name: suggestion.name }
                         )}
-                        className="focus-ring rounded-md border border-primary/30 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10"
+                        className="focus-ring flex items-center gap-1 rounded-md border border-primary/30 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:border-border disabled:text-muted-foreground disabled:hover:bg-transparent"
                       >
-                        {t("organization.compliance.regulatoryCoverage.addAsObligation")}
+                        {added.has(index) && (
+                          <CircleCheck className="h-3 w-3" aria-hidden="true" />
+                        )}
+                        {t(
+                          added.has(index)
+                            ? "organization.compliance.regulatoryCoverage.added"
+                            : "organization.compliance.regulatoryCoverage.addAsObligation"
+                        )}
                       </button>
                       <button
                         type="button"

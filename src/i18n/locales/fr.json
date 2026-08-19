@@ -1325,6 +1325,8 @@
         "allDismissed": "Toutes les suggestions ont été ignorées pour cette vérification.",
         "addAsObligation": "Ajouter comme obligation",
         "addAsObligationFor": "Ajouter {{name}} comme obligation",
+        "added": "Ajouté",
+        "addedFor": "{{name}} déjà ajouté comme obligation",
         "dismiss": "Ignorer",
         "dismissFor": "Ignorer {{name}}",
         "source": "Voir la source",
