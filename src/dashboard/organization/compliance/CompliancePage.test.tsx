@@ -2875,12 +2875,17 @@ describe("CompliancePage", () => {
         })
       )
 
+      // Round-6 quality-bar-loop review (resilience axis) also surfaces this
+      // same message from the RegulatoryCoverageSuggestions panel elsewhere
+      // on the page once `sitesError` is true -- scope this assertion to the
+      // modal so it isn't ambiguous between the two now-real occurrences.
+      const dialog = screen.getByRole("dialog")
       expect(
-        screen.getByText("organization.compliance.sitesLoadError")
+        within(dialog).getByText("organization.compliance.sitesLoadError")
       ).toBeInTheDocument()
       // Non-blocking: the form itself (and its site select) still renders.
       expect(
-        screen.getByText("organization.compliance.form.orgWide")
+        within(dialog).getByText("organization.compliance.form.orgWide")
       ).toBeInTheDocument()
     })
 

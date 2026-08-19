@@ -53,12 +53,16 @@ const SITES = [
 
 const domainLabel = (key: string) => key
 
-function renderPanel(onAddSuggestion = vi.fn()) {
+function renderPanel(
+  onAddSuggestion = vi.fn(),
+  { sites = SITES, sitesError = false }: { sites?: typeof SITES; sitesError?: boolean } = {}
+) {
   return {
     onAddSuggestion,
     ...render(
       <RegulatoryCoverageSuggestions
-        sites={SITES}
+        sites={sites}
+        sitesError={sitesError}
         domainLabel={domainLabel}
         onAddSuggestion={onAddSuggestion}
       />
@@ -272,6 +276,27 @@ it("shows a toast error and does not render a suggestion list when the request f
   expect(
     screen.queryByText("organization.compliance.regulatoryCoverage.noGaps")
   ).not.toBeInTheDocument()
+})
+
+// Round-6 quality-bar-loop review (resilience axis): a 504 from the
+// aexa-server timeout distinction (see compliance.service.ts's
+// AbortError handling) must produce a different, more specific toast
+// than a generic failure.
+it("shows a distinct timeout toast when the request fails with a 504", async () => {
+  mockSuggestRegulatorySources.mockReturnValue({
+    unwrap: () => Promise.reject({ status: 504, data: { message: "Timed out" } }),
+  })
+  renderPanel()
+
+  await selectSiteAndCheck("HQ Casablanca")
+
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  expect(mockToastError).toHaveBeenCalledWith(
+    "organization.compliance.regulatoryCoverage.checkTimedOut"
+  )
+  expect(mockToastError).not.toHaveBeenCalledWith(
+    "organization.compliance.regulatoryCoverage.checkFailed"
+  )
 })
 
 it("resets suggestions and re-runs a fresh check when switching to a different site", async () => {
@@ -541,5 +566,65 @@ describe("accessibility fixes (round 4)", () => {
     expect(screen.getByText("European Union").className).toContain(
       "text-foreground"
     )
+  })
+})
+
+describe("resilience fixes (round 6)", () => {
+  it("shows the shared sites-load-error message instead of a dead select+button when sitesError is true", () => {
+    renderPanel(vi.fn(), { sitesError: true })
+
+    expect(
+      screen.getByText("organization.compliance.sitesLoadError")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("combobox", {
+        name: "organization.compliance.regulatoryCoverage.selectSite",
+      })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.compliance.regulatoryCoverage.checkButton",
+      })
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows an explanatory empty state instead of a dead select+button when the org has no sites", () => {
+    renderPanel(vi.fn(), { sites: [] })
+
+    expect(
+      screen.getByText("organization.compliance.regulatoryCoverage.noSites")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("combobox", {
+        name: "organization.compliance.regulatoryCoverage.selectSite",
+      })
+    ).not.toBeInTheDocument()
+  })
+
+  it("sitesError takes precedence over the empty-sites state when both are true", () => {
+    renderPanel(vi.fn(), { sites: [], sitesError: true })
+
+    expect(
+      screen.getByText("organization.compliance.sitesLoadError")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.compliance.regulatoryCoverage.noSites")
+    ).not.toBeInTheDocument()
+  })
+
+  it("renders the normal select+button when sites are present and there is no error", () => {
+    renderPanel()
+
+    expect(
+      screen.getByRole("combobox", {
+        name: "organization.compliance.regulatoryCoverage.selectSite",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.compliance.sitesLoadError")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.compliance.regulatoryCoverage.noSites")
+    ).not.toBeInTheDocument()
   })
 })

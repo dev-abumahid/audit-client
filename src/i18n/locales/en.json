@@ -1319,6 +1319,8 @@
         "selectSite": "Select a site…",
         "checkButton": "Check coverage",
         "checkFailed": "Failed to check regulatory coverage. Please try again.",
+        "checkTimedOut": "Regulatory coverage check timed out. Please try again.",
+        "noSites": "Add a site to check its regulatory coverage.",
         "noGaps": "No coverage gaps found for this site.",
         "allDismissed": "All suggestions dismissed for this check.",
         "addAsObligation": "Add as obligation",

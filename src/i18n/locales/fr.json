@@ -1319,6 +1319,8 @@
         "selectSite": "Sélectionner un site…",
         "checkButton": "Vérifier la couverture",
         "checkFailed": "Échec de la vérification de la couverture réglementaire. Veuillez réessayer.",
+        "checkTimedOut": "La vérification de la couverture réglementaire a expiré. Veuillez réessayer.",
+        "noSites": "Ajoutez un site pour vérifier sa couverture réglementaire.",
         "noGaps": "Aucune lacune de couverture trouvée pour ce site.",
         "allDismissed": "Toutes les suggestions ont été ignorées pour cette vérification.",
         "addAsObligation": "Ajouter comme obligation",

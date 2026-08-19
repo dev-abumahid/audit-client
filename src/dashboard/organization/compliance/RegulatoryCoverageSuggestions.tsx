@@ -13,6 +13,7 @@ interface Site {
 
 interface RegulatoryCoverageSuggestionsProps {
   sites: Site[]
+  sitesError: boolean
   domainLabel: (key: string) => string
   onAddSuggestion: (siteId: string, suggestion: SuggestedRegulatorySource) => void
 }
@@ -32,6 +33,7 @@ interface RegulatoryCoverageSuggestionsProps {
 // than just re-showing it next time the user checks.
 export default function RegulatoryCoverageSuggestions({
   sites,
+  sitesError,
   domainLabel,
   onAddSuggestion,
 }: RegulatoryCoverageSuggestionsProps) {
@@ -82,9 +84,24 @@ export default function RegulatoryCoverageSuggestions({
       const res = await suggestRegulatorySources({ site_id: requestedSiteId }).unwrap()
       if (selectedSiteIdRef.current !== requestedSiteId) return
       setSuggestions(res.data.suggestions)
-    } catch {
+    } catch (err: unknown) {
       if (selectedSiteIdRef.current !== requestedSiteId) return
-      toast.error(t("organization.compliance.regulatoryCoverage.checkFailed"))
+      // Round-6 quality-bar-loop review (resilience axis): the AI round-trip
+      // is server-side capped at 45s (aexa-server's LLM_CALL_TIMEOUT_MS) --
+      // on abort, compliance.service.ts throws a dedicated 504 AppError
+      // instead of letting it fall into the generic wrapAiServiceError 500,
+      // specifically so this one case can read differently from "something
+      // went wrong": a timeout means "the AI took too long," not "the
+      // request was malformed or the server errored."
+      const isTimeout =
+        typeof err === "object" && err !== null && "status" in err && err.status === 504
+      toast.error(
+        t(
+          isTimeout
+            ? "organization.compliance.regulatoryCoverage.checkTimedOut"
+            : "organization.compliance.regulatoryCoverage.checkFailed"
+        )
+      )
     }
   }
 
@@ -107,42 +124,59 @@ export default function RegulatoryCoverageSuggestions({
             {t("organization.compliance.regulatoryCoverage.subtitle")}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={selectedSiteId}
-            onChange={(e) => {
-              setSelectedSiteId(e.target.value)
-              setSuggestions(null)
-            }}
-            aria-label={t(
-              "organization.compliance.regulatoryCoverage.selectSite"
-            )}
-            className="focus-ring h-9 rounded-md border border-border bg-background px-2 text-xs"
-          >
-            <option value="">
-              {t("organization.compliance.regulatoryCoverage.selectSite")}
-            </option>
-            {sites.map((site) => (
-              <option key={site.id} value={site.id}>
-                {site.name}
+        {/* Round-6 quality-bar-loop review (resilience axis): this panel
+            used to render the select+button unconditionally regardless of
+            whether `sites` actually loaded or was genuinely empty -- both
+            looked identical (a permanently disabled button, no
+            explanation). `sitesError` and an empty `sites` array now each
+            get their own message instead of silently degrading to a dead
+            control. */}
+        {sitesError ? (
+          <p role="alert" className="text-xs text-destructive">
+            {t("organization.compliance.sitesLoadError")}
+          </p>
+        ) : sites.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            {t("organization.compliance.regulatoryCoverage.noSites")}
+          </p>
+        ) : (
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedSiteId}
+              onChange={(e) => {
+                setSelectedSiteId(e.target.value)
+                setSuggestions(null)
+              }}
+              aria-label={t(
+                "organization.compliance.regulatoryCoverage.selectSite"
+              )}
+              className="focus-ring h-9 rounded-md border border-border bg-background px-2 text-xs"
+            >
+              <option value="">
+                {t("organization.compliance.regulatoryCoverage.selectSite")}
               </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={checkCoverage}
-            disabled={!selectedSiteId || isLoading}
-            aria-busy={isLoading}
-            className="focus-ring flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isLoading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            )}
-            {t("organization.compliance.regulatoryCoverage.checkButton")}
-          </button>
-        </div>
+              {sites.map((site) => (
+                <option key={site.id} value={site.id}>
+                  {site.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={checkCoverage}
+              disabled={!selectedSiteId || isLoading}
+              aria-busy={isLoading}
+              className="focus-ring flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              {t("organization.compliance.regulatoryCoverage.checkButton")}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Round-4 quality-bar-loop review (accessibility axis): the live

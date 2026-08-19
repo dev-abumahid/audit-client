@@ -725,6 +725,7 @@ export default function CompliancePage() {
 
       <RegulatoryCoverageSuggestions
         sites={sites}
+        sitesError={sitesError}
         domainLabel={domainLabel}
         onAddSuggestion={openFromSuggestion}
       />
