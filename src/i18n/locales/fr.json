@@ -1433,6 +1433,8 @@
       "empty": "Aucun élément dans cette ligne pour le moment",
       "itemCount_one": "{{count}} élément",
       "itemCount_other": "{{count}} éléments",
+      "filterLabel": "Filtrer par type",
+      "filterAll": "Tous",
       "noLeadAuditor": "Aucun auditeur principal assigné",
       "moveItem": "Déplacer {{title}} vers une autre ligne",
       "moveToFirst": "Déplacer vers la 1re ligne",

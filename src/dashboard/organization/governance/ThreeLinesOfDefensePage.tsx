@@ -35,7 +35,7 @@ import {
   FINDING_STATUS_LABEL_KEYS,
 } from "@/utils/findingLabels"
 import { LINE_OF_DEFENSE_LABEL_KEY as LINE_TITLE_KEY } from "@/utils/lineOfDefense"
-import { riskCategoryLabel } from "@/utils/riskConfig"
+import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
 import { severityBadgeClasses, type SeverityLevel } from "@/utils/severityStyles"
 import {
   Activity,
@@ -130,6 +130,37 @@ const ACTION_STATUS_SEVERITY: Record<string, SeverityLevel> = {
 
 type EntityKind = "risk" | "action" | "kri" | "compliance" | "audit"
 
+const ENTITY_KINDS: EntityKind[] = [
+  "risk",
+  "action",
+  "kri",
+  "compliance",
+  "audit",
+]
+
+// Integration-axis fix (quality-bar-loop): PR #940 flattened 5 per-type
+// Section blocks into one list per line to cut clutter, but the section
+// headers it removed were the only way to tell entity types apart at a
+// glance or filter to just one -- a line with risks, KRIs, and compliance
+// obligations all mixed together had no way to isolate any of them. These
+// two maps drive the per-line filter chips (LineCard below) that restore
+// that without bringing back the redundant stacked headers: one row of
+// small chips per line, reusing the same icon each row already carries.
+const ENTITY_ICON: Record<EntityKind, React.ElementType> = {
+  risk: Shield,
+  action: AlertTriangle,
+  kri: Activity,
+  compliance: Scale,
+  audit: ClipboardCheck,
+}
+const ENTITY_LABEL_KEY: Record<EntityKind, string> = {
+  risk: "organization.threeLinesOfDefense.sections.risks",
+  action: "organization.threeLinesOfDefense.sections.actions",
+  kri: "organization.threeLinesOfDefense.sections.kris",
+  compliance: "organization.threeLinesOfDefense.sections.compliance",
+  audit: "organization.threeLinesOfDefense.sections.audits",
+}
+
 // aexa-frontend#208/#209: GOVERNING_BODY added as a 4th column -- the IIA's
 // 2020 update's headline structural addition, an explicit governing body
 // sitting above the three lines.
@@ -203,11 +234,49 @@ function groupByLine<T extends { line_of_defense: LineOfDefense | null }>(
   return grouped
 }
 
+// Cross-view integration fix (quality-bar-loop, integration axis): this
+// row used to render "category · status" as ONE pill colored entirely by
+// status severity -- so a risk's category (which has its own dedicated
+// per-category color on RiskRegisterPage/RiskDetails.tsx, e.g. RISK_
+// CATEGORIES.reputational) showed up in a color that never matched, and
+// depended on that row's status rather than its category at all. Splits
+// the two: `metaLabel` gets its own color when the entity type has a real
+// per-value color source elsewhere in the app (risk category, compliance
+// domain); otherwise it renders as plain neutral text. `statusLabel` keeps
+// the severity-colored pill, which is the one thing status was actually
+// supposed to drive.
+function MetaPill({ label, color }: { label: string; color?: string }) {
+  if (color) {
+    return (
+      <span
+        className="inline-block truncate rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+        style={{
+          backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`,
+          color,
+        }}
+        title={label}
+      >
+        {label}
+      </span>
+    )
+  }
+  return (
+    <span
+      className="inline-block truncate rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+      title={label}
+    >
+      {label}
+    </span>
+  )
+}
+
 interface ItemRowProps {
   entityType: EntityKind
   id: string
   title: string
-  meta: string
+  metaLabel: string
+  metaColor?: string
+  statusLabel: string
   severity: SeverityLevel
   currentLine: LineOfDefense | null
   canReassign: boolean
@@ -245,7 +314,9 @@ const ItemRow = memo(function ItemRow({
   entityType,
   id,
   title,
-  meta,
+  metaLabel,
+  metaColor,
+  statusLabel,
   severity,
   currentLine,
   canReassign,
@@ -286,23 +357,20 @@ const ItemRow = memo(function ItemRow({
               {title}
             </p>
           )}
-          {/* aexa-frontend#939 (visual polish loop, round-2 finding): two
-              independent judges converged on this row's meta line as both
-              a cross-page inconsistency (Risk Register renders the same
-              class of semantic data -- category, status -- as a colored
-              pill via this exact severityBadgeClasses utility; this page
-              rendered it as plain gray text) and the fix for reduced
-              type-scannability the round-1 header-flattening introduced
-              (a colored pill is a far stronger scan cue than the 12px
-              type icon alone). Reuses severity -- already computed per
-              row for the removed dot above -- rather than inventing a new
-              per-entity-type color system with no existing convention. */}
-          <span
-            className={`mt-0.5 inline-block truncate rounded-full px-1.5 py-0.5 text-[10px] font-medium ${severityBadgeClasses(severity)}`}
-            title={meta}
-          >
-            {meta}
-          </span>
+          {/* aexa-frontend#939 (visual polish loop, round-2 finding): a
+              colored pill is a stronger scan cue than the 12px type icon
+              alone. Now two pills, not one -- see MetaPill's own comment
+              for why they're no longer merged into a single status-colored
+              string. */}
+          <div className="mt-0.5 flex flex-wrap items-center gap-1">
+            <MetaPill label={metaLabel} color={metaColor} />
+            <span
+              className={`inline-block truncate rounded-full px-1.5 py-0.5 text-[10px] font-medium ${severityBadgeClasses(severity)}`}
+              title={statusLabel}
+            >
+              {statusLabel}
+            </span>
+          </div>
         </div>
       </div>
       {canReassign && (
@@ -401,6 +469,153 @@ function Section({
         <div className="flex flex-col gap-1">{children}</div>
       )}
     </div>
+  )
+}
+
+// Integration-axis fix (quality-bar-loop): restores per-type filtering
+// within a line without reintroducing the 5 stacked Section headers PR
+// #940 removed. Extracted as its own component (rather than inline in the
+// LINES.map below) specifically so it can hold its own `filter` state --
+// each line's filter is independent, and hooks can't live inside a plain
+// array-map callback.
+function LineCard({
+  line,
+  items,
+  totalCount,
+}: {
+  line: LineOfDefense
+  items: { entityType: EntityKind; node: React.ReactNode }[]
+  totalCount: number
+}) {
+  const { t } = useTranslation()
+  const [filter, setFilter] = useState<EntityKind | "all">("all")
+
+  const countByType = ENTITY_KINDS.reduce(
+    (acc, kind) => {
+      acc[kind] = items.filter((item) => item.entityType === kind).length
+      return acc
+    },
+    {} as Record<EntityKind, number>
+  )
+  const presentTypes = ENTITY_KINDS.filter((kind) => countByType[kind] > 0)
+  // Review round 1 on PR #957: an item can be reassigned to a different
+  // line via the move menu below while this line is mid-filter -- if that
+  // reassignment empties out the currently-selected type, its chip (and,
+  // if it was the last non-"all" type, the whole chip row) disappears from
+  // `presentTypes` above with nothing resetting `filter` back to "all".
+  // Left unguarded, that's a dead end: totalCount > 0 but visibleItems is
+  // empty, with no chip left to click back to "all". Falls back to "all"
+  // automatically instead of rendering that state.
+  const effectiveFilter =
+    filter !== "all" && !presentTypes.includes(filter) ? "all" : filter
+  const visibleItems =
+    effectiveFilter === "all"
+      ? items
+      : items.filter((item) => item.entityType === effectiveFilter)
+
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="font-heading text-sm font-medium">
+          {t(LINE_TITLE_KEY[line])}
+        </h2>
+        <CardDescription>
+          {t("organization.threeLinesOfDefense.itemCount", {
+            count: totalCount,
+          })}
+        </CardDescription>
+      </CardHeader>
+      {/* Only worth showing when a line genuinely mixes >=2 entity types --
+          a single-type line (the common case) gets no redundant "All /
+          Risks" toggle, keeping PR #940's declutter intent for the cases
+          it was actually solving. */}
+      {presentTypes.length > 1 && (
+        <div
+          role="group"
+          aria-label={t("organization.threeLinesOfDefense.filterLabel")}
+          className="flex flex-wrap gap-1 px-6 pb-3"
+        >
+          <FilterChip
+            active={effectiveFilter === "all"}
+            onClick={() => setFilter("all")}
+            label={t("organization.threeLinesOfDefense.filterAll")}
+            count={items.length}
+          />
+          {presentTypes.map((kind) => {
+            const Icon = ENTITY_ICON[kind]
+            return (
+              <FilterChip
+                key={kind}
+                active={effectiveFilter === kind}
+                onClick={() => setFilter(kind)}
+                label={t(ENTITY_LABEL_KEY[kind])}
+                count={countByType[kind]}
+                icon={Icon}
+              />
+            )
+          })}
+        </div>
+      )}
+      {/* quality-bar-loop round 5 (visual polish, round-1 finding):
+          live-observed severe column imbalance -- up to 23 items in one
+          line vs. 2-3 in others, equal-width columns with no independent
+          scroll meant the whole grid row stretched to the tallest column,
+          leaving large dead whitespace under short ones. Bounding each
+          column's own height and scrolling internally (same pattern
+          already used for other long lists on this session's pages, e.g.
+          CorrelationMatrixPage's panels) keeps every column a consistent
+          height regardless of item count. */}
+      <CardContent className="max-h-[560px] overflow-y-auto">
+        {totalCount === 0 ? (
+          <p className="text-[11px] text-muted-foreground">
+            {t("organization.threeLinesOfDefense.empty")}
+          </p>
+        ) : (
+          // A filter chip only ever exists for a type with count > 0
+          // (presentTypes above), so selecting one can never produce an
+          // empty visibleItems -- no separate "no items match this
+          // filter" state is reachable here.
+          <div className="flex flex-col gap-1">
+            {visibleItems.map((item) => item.node)}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function FilterChip({
+  active,
+  onClick,
+  label,
+  count,
+  icon: Icon,
+}: {
+  active: boolean
+  onClick: () => void
+  label: string
+  count: number
+  icon?: React.ElementType
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`focus-ring flex h-7 items-center gap-1 rounded-full border px-2 text-[10px] font-medium transition-colors ${
+        active
+          ? "border-primary bg-primary/10 text-primary"
+          : "border-border text-muted-foreground hover:bg-muted"
+      }`}
+    >
+      {Icon && <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />}
+      {label}
+      <span
+        className={`rounded-full px-1 ${active ? "bg-primary/20" : "bg-muted"}`}
+      >
+        {count}
+      </span>
+    </button>
   )
 }
 
@@ -853,15 +1068,32 @@ export default function ThreeLinesOfDefensePage() {
               // though most lines only populate 1-2 of the 5 types. The
               // type indicator that header used to carry now lives on each
               // row itself (ItemRow's new `icon` prop).
-              const lineItems = [
-                ...lineRisks.map((risk) => (
+              // Integration-axis fix (quality-bar-loop): each entry now
+              // carries its `entityType` alongside the rendered row, not
+              // just a flat JSX array -- LineCard (below) needs the type to
+              // filter by, since PR #940 removed the only other way to
+              // isolate one entity type within a line.
+              const lineItems: { entityType: EntityKind; node: React.ReactNode }[] = [
+                ...lineRisks.map((risk) => ({
+                  entityType: "risk" as const,
+                  node: (
                   <ItemRow
                     key={risk.id}
                     icon={Shield}
                     entityType="risk"
                     id={risk.id}
                     title={risk.title}
-                    meta={`${riskCategoryLabel(t, risk.category)} · ${getEnumLabel(t, RISK_STATUS_LABEL_KEYS, risk.status)}`}
+                    metaLabel={riskCategoryLabel(t, risk.category)}
+                    metaColor={
+                      RISK_CATEGORIES[
+                        risk.category as keyof typeof RISK_CATEGORIES
+                      ]?.color
+                    }
+                    statusLabel={getEnumLabel(
+                      t,
+                      RISK_STATUS_LABEL_KEYS,
+                      risk.status
+                    )}
                     severity={
                       RISK_STATUS_SEVERITY[risk.status] ?? "neutral"
                     }
@@ -871,15 +1103,27 @@ export default function ThreeLinesOfDefensePage() {
                     onReassign={requestReassign}
                     linkTo={`/organization/risks/${risk.id}`}
                   />
-                )),
-                ...lineActions.map((action) => (
+                  ),
+                })),
+                ...lineActions.map((action) => ({
+                  entityType: "action" as const,
+                  node: (
                   <ItemRow
                     key={action.id}
                     icon={AlertTriangle}
                     entityType="action"
                     id={action.id}
                     title={action.title}
-                    meta={`${getEnumLabel(t, FINDING_PRIORITY_LABEL_KEYS, action.priority)} · ${getEnumLabel(t, FINDING_STATUS_LABEL_KEYS, action.status)}`}
+                    metaLabel={getEnumLabel(
+                      t,
+                      FINDING_PRIORITY_LABEL_KEYS,
+                      action.priority
+                    )}
+                    statusLabel={getEnumLabel(
+                      t,
+                      FINDING_STATUS_LABEL_KEYS,
+                      action.status
+                    )}
                     severity={
                       ACTION_STATUS_SEVERITY[action.status] ?? "neutral"
                     }
@@ -889,15 +1133,23 @@ export default function ThreeLinesOfDefensePage() {
                     onReassign={requestReassign}
                     linkTo={`/organization/finding/${action.id}`}
                   />
-                )),
-                ...lineKris.map((kri) => (
+                  ),
+                })),
+                ...lineKris.map((kri) => ({
+                  entityType: "kri" as const,
+                  node: (
                   <ItemRow
                     key={kri.id}
                     icon={Activity}
                     entityType="kri"
                     id={kri.id}
                     title={kri.title}
-                    meta={`${kri.unit} · ${getEnumLabel(t, KRI_STATUS_LABEL_KEYS, kri.status)}`}
+                    metaLabel={kri.unit}
+                    statusLabel={getEnumLabel(
+                      t,
+                      KRI_STATUS_LABEL_KEYS,
+                      kri.status
+                    )}
                     severity={KRI_STATUS_SEVERITY[kri.status] ?? "neutral"}
                     currentLine={kri.line_of_defense}
                     canReassign={canReassignKri}
@@ -905,15 +1157,24 @@ export default function ThreeLinesOfDefensePage() {
                     onReassign={requestReassign}
                     linkTo={`/organization/kri?highlight=${encodeURIComponent(kri.id)}`}
                   />
-                )),
-                ...lineCompliance.map((obligation) => (
+                  ),
+                })),
+                ...lineCompliance.map((obligation) => ({
+                  entityType: "compliance" as const,
+                  node: (
                   <ItemRow
                     key={obligation.id}
                     icon={Scale}
                     entityType="compliance"
                     id={obligation.id}
                     title={obligation.title}
-                    meta={`${complianceDomainLabel(t, obligation.domain)} · ${getEnumLabel(t, COMPLIANCE_STATUS_LABEL_KEYS, obligation.status)}`}
+                    metaLabel={complianceDomainLabel(t, obligation.domain)}
+                    metaColor={COMPLIANCE_DOMAINS[obligation.domain]?.color}
+                    statusLabel={getEnumLabel(
+                      t,
+                      COMPLIANCE_STATUS_LABEL_KEYS,
+                      obligation.status
+                    )}
                     severity={
                       COMPLIANCE_STATUS_SEVERITY[obligation.status] ??
                       "neutral"
@@ -928,15 +1189,26 @@ export default function ThreeLinesOfDefensePage() {
                     // same as Audit's own linkTo below.
                     linkTo="/organization/compliance"
                   />
-                )),
-                ...lineAudits.map((engagement) => (
+                  ),
+                })),
+                ...lineAudits.map((engagement) => ({
+                  entityType: "audit" as const,
+                  node: (
                   <ItemRow
                     key={engagement.id}
                     icon={ClipboardCheck}
                     entityType="audit"
                     id={engagement.id}
                     title={engagement.title}
-                    meta={`${engagement.lead_auditor ?? t("organization.threeLinesOfDefense.noLeadAuditor")} · ${getEnumLabel(t, AUDIT_ENGAGEMENT_STATUS_LABEL_KEYS, engagement.status)}`}
+                    metaLabel={
+                      engagement.lead_auditor ??
+                      t("organization.threeLinesOfDefense.noLeadAuditor")
+                    }
+                    statusLabel={getEnumLabel(
+                      t,
+                      AUDIT_ENGAGEMENT_STATUS_LABEL_KEYS,
+                      engagement.status
+                    )}
                     severity={
                       AUDIT_STATUS_SEVERITY[engagement.status] ?? "neutral"
                     }
@@ -950,46 +1222,17 @@ export default function ThreeLinesOfDefensePage() {
                     // nothing.
                     linkTo="/organization/audit"
                   />
-                )),
+                  ),
+                })),
               ]
 
               return (
-                <Card key={line}>
-                  <CardHeader>
-                    <h2 className="font-heading text-sm font-medium">
-                      {t(LINE_TITLE_KEY[line])}
-                    </h2>
-                    <CardDescription>
-                      {t("organization.threeLinesOfDefense.itemCount", {
-                        count: totalCount,
-                      })}
-                    </CardDescription>
-                  </CardHeader>
-                  {/* quality-bar-loop round 5 (visual polish, round-1
-                      finding): live-observed severe column imbalance --
-                      up to 23 items in one line vs. 2-3 in others, equal-
-                      width columns with no independent scroll meant the
-                      whole grid row stretched to the tallest column,
-                      leaving large dead whitespace under short ones.
-                      Bounding each column's own height and scrolling
-                      internally (same pattern already used for other
-                      long lists on this session's pages, e.g.
-                      CorrelationMatrixPage's panels) keeps every column
-                      a consistent height regardless of item count. */}
-                  <CardContent className="max-h-[560px] overflow-y-auto">
-                    {/* aexa-frontend#930/#939: one empty message for the
-                        whole card when every entity type is empty for this
-                        line; otherwise the single flat, ordered list built
-                        above. */}
-                    {totalCount === 0 ? (
-                      <p className="text-[11px] text-muted-foreground">
-                        {t("organization.threeLinesOfDefense.empty")}
-                      </p>
-                    ) : (
-                      <div className="flex flex-col gap-1">{lineItems}</div>
-                    )}
-                  </CardContent>
-                </Card>
+                <LineCard
+                  key={line}
+                  line={line}
+                  items={lineItems}
+                  totalCount={totalCount}
+                />
               )
             })}
           </div>
@@ -1023,7 +1266,16 @@ export default function ThreeLinesOfDefensePage() {
                     entityType="action"
                     id={action.id}
                     title={action.title}
-                    meta={`${getEnumLabel(t, FINDING_PRIORITY_LABEL_KEYS, action.priority)} · ${getEnumLabel(t, FINDING_STATUS_LABEL_KEYS, action.status)}`}
+                    metaLabel={getEnumLabel(
+                      t,
+                      FINDING_PRIORITY_LABEL_KEYS,
+                      action.priority
+                    )}
+                    statusLabel={getEnumLabel(
+                      t,
+                      FINDING_STATUS_LABEL_KEYS,
+                      action.status
+                    )}
                     severity={
                       ACTION_STATUS_SEVERITY[action.status] ?? "neutral"
                     }

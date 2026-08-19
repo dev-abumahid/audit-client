@@ -1343,19 +1343,28 @@ describe("ThreeLinesOfDefensePage", () => {
 
     renderPage()
 
-    expect(screen.getByText("Cyber · Open")).toBeInTheDocument()
+    // Integration-axis fix (quality-bar-loop): category/priority/unit/
+    // domain/lead-auditor and status are now two separate pills, not one
+    // combined "X · Y" string -- see MetaPill's own comment for why.
+    expect(screen.getByText("Cyber")).toBeInTheDocument()
+    expect(screen.getByText("Open")).toBeInTheDocument()
     // Classified (2nd Line) and Unclassified Actions sections render through
     // two separate ItemRow call sites in the source -- both must be fixed.
-    expect(screen.getAllByText("High · To Do").length).toBe(2)
-    expect(screen.getByText("days · OK")).toBeInTheDocument()
-    expect(screen.getByText("Data Protection · Non-Compliant")).toBeInTheDocument()
-    expect(screen.getByText("Jane Doe · Planned")).toBeInTheDocument()
+    expect(screen.getAllByText("High").length).toBe(2)
+    expect(screen.getAllByText("To Do").length).toBe(2)
+    expect(screen.getByText("days")).toBeInTheDocument()
+    expect(screen.getByText("OK")).toBeInTheDocument()
+    expect(screen.getByText("Data Protection")).toBeInTheDocument()
+    expect(screen.getByText("Non-Compliant")).toBeInTheDocument()
+    expect(screen.getByText("Jane Doe")).toBeInTheDocument()
+    expect(screen.getByText("Planned")).toBeInTheDocument()
 
     // None of the raw backend values should leak through unhumanized.
-    expect(screen.queryByText(/cyber · open/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^cyber$/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^open$/)).not.toBeInTheDocument()
     expect(screen.queryByText(/TO_DO/)).not.toBeInTheDocument()
     expect(screen.queryByText(/non_compliant/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/data_protection ·/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^data_protection$/)).not.toBeInTheDocument()
   })
 
   // aexa-frontend#939 (visual polish loop, round-2 finding): two
@@ -1364,7 +1373,7 @@ describe("ThreeLinesOfDefensePage", () => {
   // colored pill -- fixed by reusing severityBadgeClasses (the same
   // shared utility Risk Register's own severity badges use) instead of
   // a flat text-muted-foreground class.
-  it("renders each row's meta line as a severity-colored pill, not plain gray text", () => {
+  it("renders each row's status as a severity-colored pill, not plain gray text", () => {
     mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
       data: makeData(),
       isLoading: false,
@@ -1374,13 +1383,48 @@ describe("ThreeLinesOfDefensePage", () => {
 
     // risk-1 (default makeData): status "open" -> RISK_STATUS_SEVERITY.open
     // = "medium" -> severityBadgeClasses("medium") includes the amber
-    // background/text pair, not a flat muted-foreground gray. Only "Open"
-    // resolves through the i18n mock's HUMANIZED map; the category half
-    // falls back to its raw key, so match on the humanized suffix.
-    const meta = screen.getByText(/· Open$/)
-    expect(meta.className).not.toContain("text-muted-foreground")
-    expect(meta.className).toContain("rounded-full")
-    expect(meta.className).toMatch(/amber/)
+    // background/text pair, not a flat muted-foreground gray. Category and
+    // status are separate pills now (integration-axis fix, quality-bar-loop)
+    // -- this test only covers the status half; the category half's own
+    // color is covered by the "category color matches" test below.
+    const status = screen.getByText("Open")
+    expect(status.className).not.toContain("text-muted-foreground")
+    expect(status.className).toContain("rounded-full")
+    expect(status.className).toMatch(/amber/)
+  })
+
+  // Integration-axis fix (quality-bar-loop): a risk's category used to be
+  // colored by that row's STATUS severity, not by the category itself --
+  // so the same category ("Cyber") could render in a different color on
+  // every row depending on its status, and never matched RiskDetails.tsx's
+  // own dedicated per-category color (RISK_CATEGORIES). Now uses the same
+  // color source RiskDetails.tsx does.
+  it("colors a risk's category pill with its own dedicated color, matching RiskDetails/RiskRegister", () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData({
+        risks: [
+          {
+            id: "risk-1",
+            title: "Supply chain disruption",
+            category: "cyber",
+            status: "closed",
+            line_of_defense: "FIRST",
+          },
+        ],
+      }),
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const category = screen.getByText("Cyber")
+    // RISK_CATEGORIES.cyber.color from riskConfig.ts (hsl(199, 89%, 48%),
+    // normalized to rgb by jsdom's computed style) -- must be the actual
+    // category color, not the status-driven severityBadgeClasses output
+    // (this test's risk status is "closed", which maps to the "neutral"
+    // severity; if the category pill were still status-colored, it would
+    // carry a text-muted-foreground-style neutral class instead).
+    expect(category.style.color).toBe("rgb(13, 162, 231)")
   })
 
   // aexa-frontend round-4 audit bug #334: a failed query used to render
@@ -1540,6 +1584,12 @@ describe("ThreeLinesOfDefensePage", () => {
       expect(
         within(secondCard).getByText("GDPR data mapping")
       ).toBeInTheDocument()
+      // Integration-axis fix (quality-bar-loop): a line mixing >=2 entity
+      // types now shows a filter-chip row using these same section labels
+      // (restores the filtering PR #940 removed) -- so the label CAN
+      // appear once, as a chip. What must never come back is the old
+      // per-item stacked <h3> header repeated between rows; assert on the
+      // tag, not the text's mere presence.
       for (const sectionKey of [
         "risks",
         "actions",
@@ -1547,11 +1597,10 @@ describe("ThreeLinesOfDefensePage", () => {
         "compliance",
         "audits",
       ]) {
-        expect(
-          within(secondCard).queryByText(
-            `organization.threeLinesOfDefense.sections.${sectionKey}`
-          )
-        ).not.toBeInTheDocument()
+        const label = `organization.threeLinesOfDefense.sections.${sectionKey}`
+        for (const match of within(secondCard).queryAllByText(label)) {
+          expect(match.closest("h3")).toBeNull()
+        }
       }
     })
 
@@ -1577,6 +1626,233 @@ describe("ThreeLinesOfDefensePage", () => {
         within(governingBodyCard).queryByText(
           "organization.threeLinesOfDefense.sections.risks"
         )
+      ).not.toBeInTheDocument()
+    })
+
+    // Integration-axis fix (quality-bar-loop): PR #940 removed the only
+    // way to filter or isolate one entity type within a line when it
+    // removed the 5 stacked Section headers. These tests cover the
+    // restored filter chips directly.
+    it("does not show filter chips for a line with only one entity type present", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // Default makeData: FIRST line only has a risk -- a single-type
+      // line gets no redundant "All / Risks" toggle.
+      const firstCard = cardForLine(
+        "organization.threeLinesOfDefense.lines.first"
+      )
+      expect(
+        within(firstCard).queryByRole("group", {
+          name: "organization.threeLinesOfDefense.filterLabel",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows a filter chip per entity type present for a mixed line, and filters the list on click", async () => {
+      const user = userEvent.setup()
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // Default makeData: SECOND line has an action, a kri, and a
+      // compliance obligation -- 3 types present.
+      const secondCard = cardForLine(
+        "organization.threeLinesOfDefense.lines.second"
+      )
+      const filterGroup = within(secondCard).getByRole("group", {
+        name: "organization.threeLinesOfDefense.filterLabel",
+      })
+      expect(
+        within(filterGroup).getByRole("button", {
+          name: /organization\.threeLinesOfDefense\.filterAll/,
+        })
+      ).toBeInTheDocument()
+      expect(
+        within(filterGroup).getByRole("button", {
+          name: /organization\.threeLinesOfDefense\.sections\.kris/,
+        })
+      ).toBeInTheDocument()
+
+      // All three items visible by default (filter = "all").
+      expect(
+        within(secondCard).getByText("Patch critical vulnerability")
+      ).toBeInTheDocument()
+      expect(
+        within(secondCard).getByText("Supplier Lead Time")
+      ).toBeInTheDocument()
+      expect(
+        within(secondCard).getByText("GDPR data mapping")
+      ).toBeInTheDocument()
+
+      await user.click(
+        within(filterGroup).getByRole("button", {
+          name: /organization\.threeLinesOfDefense\.sections\.kris/,
+        })
+      )
+
+      // Only the KRI remains; the action and compliance rows are filtered
+      // out (not just visually hidden -- actually absent from the DOM).
+      expect(
+        within(secondCard).getByText("Supplier Lead Time")
+      ).toBeInTheDocument()
+      expect(
+        within(secondCard).queryByText("Patch critical vulnerability")
+      ).not.toBeInTheDocument()
+      expect(
+        within(secondCard).queryByText("GDPR data mapping")
+      ).not.toBeInTheDocument()
+    })
+
+    it("only ever offers a chip for a type actually present in that line (never a zero-count chip)", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // SECOND line's entity types are action/kri/compliance only (default
+      // makeData) -- risk and audit chips must not exist for this line,
+      // since a chip for a type with 0 items would be dead UI.
+      const secondCard = cardForLine(
+        "organization.threeLinesOfDefense.lines.second"
+      )
+      const filterGroup = within(secondCard).getByRole("group", {
+        name: "organization.threeLinesOfDefense.filterLabel",
+      })
+      expect(
+        within(filterGroup).queryByRole("button", {
+          name: /organization\.threeLinesOfDefense\.sections\.risks/,
+        })
+      ).not.toBeInTheDocument()
+      expect(
+        within(filterGroup).queryByRole("button", {
+          name: /organization\.threeLinesOfDefense\.sections\.audits/,
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("returns to showing every type when the 'All' chip is clicked again after filtering", async () => {
+      const user = userEvent.setup()
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const secondCard = cardForLine(
+        "organization.threeLinesOfDefense.lines.second"
+      )
+      const filterGroup = within(secondCard).getByRole("group", {
+        name: "organization.threeLinesOfDefense.filterLabel",
+      })
+
+      await user.click(
+        within(filterGroup).getByRole("button", {
+          name: /organization\.threeLinesOfDefense\.sections\.kris/,
+        })
+      )
+      expect(
+        within(secondCard).queryByText("Patch critical vulnerability")
+      ).not.toBeInTheDocument()
+
+      await user.click(
+        within(filterGroup).getByRole("button", {
+          name: /organization\.threeLinesOfDefense\.filterAll/,
+        })
+      )
+      expect(
+        within(secondCard).getByText("Patch critical vulnerability")
+      ).toBeInTheDocument()
+      expect(
+        within(secondCard).getByText("Supplier Lead Time")
+      ).toBeInTheDocument()
+      expect(
+        within(secondCard).getByText("GDPR data mapping")
+      ).toBeInTheDocument()
+    })
+
+    // Review round 1 on PR #957: filtering to a type, then having that
+    // type's last item reassigned away (via the existing move-to-another-
+    // line flow) while the filter is still active, used to leave the list
+    // stuck empty with no chip left to click back to "all" once
+    // presentTypes no longer included the selected type.
+    it("falls back to showing all items if the filtered type's last item disappears from the line", async () => {
+      const user = userEvent.setup()
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      const { rerender } = renderPage()
+
+      const secondCard = cardForLine(
+        "organization.threeLinesOfDefense.lines.second"
+      )
+      const filterGroup = within(secondCard).getByRole("group", {
+        name: "organization.threeLinesOfDefense.filterLabel",
+      })
+      await user.click(
+        within(filterGroup).getByRole("button", {
+          name: /organization\.threeLinesOfDefense\.sections\.kris/,
+        })
+      )
+      expect(
+        within(secondCard).getByText("Supplier Lead Time")
+      ).toBeInTheDocument()
+      expect(
+        within(secondCard).queryByText("Patch critical vulnerability")
+      ).not.toBeInTheDocument()
+
+      // Simulate the KRI having moved to a different line: SECOND now has
+      // only the action, no KRI, no compliance obligation (default
+      // makeData's SECOND line has all 3) -- same instance still mounted
+      // (that's what carries the stale `filter="kri"` state across this
+      // update).
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({
+          actions: [
+            {
+              id: "action-1",
+              title: "Patch critical vulnerability",
+              priority: "High",
+              status: "TO_DO",
+              line_of_defense: "SECOND",
+            },
+          ],
+          kris: [],
+          complianceObligations: [],
+        }),
+        isLoading: false,
+      })
+      rerender(
+        <MemoryRouter>
+          <ThreeLinesOfDefensePage />
+        </MemoryRouter>
+      )
+
+      const secondCardAfter = cardForLine(
+        "organization.threeLinesOfDefense.lines.second"
+      )
+      // No longer 2+ types present, so the whole filter row (including the
+      // stale "KRIs" chip) is gone -- but the fallback must still show the
+      // one remaining item, not an empty list.
+      expect(
+        within(secondCardAfter).getByText("Patch critical vulnerability")
+      ).toBeInTheDocument()
+      expect(
+        within(secondCardAfter).queryByRole("group", {
+          name: "organization.threeLinesOfDefense.filterLabel",
+        })
       ).not.toBeInTheDocument()
     })
   })

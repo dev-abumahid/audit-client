@@ -1433,6 +1433,8 @@
       "empty": "No items in this line yet",
       "itemCount_one": "{{count}} item",
       "itemCount_other": "{{count}} items",
+      "filterLabel": "Filter by type",
+      "filterAll": "All",
       "noLeadAuditor": "No lead auditor assigned",
       "moveItem": "Move {{title}} to another line",
       "moveToFirst": "Move to 1st Line",
