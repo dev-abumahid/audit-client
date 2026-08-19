@@ -138,6 +138,39 @@ it("does not render a source link when source_url is null", async () => {
   ).not.toBeInTheDocument()
 })
 
+// Round-1 quality-bar-loop review (security axis): aexa-ai's own
+// _normalize already drops a non-http(s) source_url, but this is a
+// sink-side guard against a stale cached response or a future call site
+// that bypasses the backend guard -- must not render as a real link.
+it("does not render a source link for a non-http(s) source_url", async () => {
+  mockSuggestRegulatorySources.mockReturnValue({
+    unwrap: () =>
+      Promise.resolve({
+        data: {
+          suggestions: [
+            {
+              name: "GDPR",
+              domain: "data_protection",
+              jurisdiction: "EU",
+              rationale: "x",
+              source_url: "javascript:alert(document.cookie)",
+            },
+          ],
+        },
+      }),
+  })
+  renderPanel()
+
+  await selectSiteAndCheck("HQ Casablanca")
+
+  await screen.findByText("GDPR")
+  expect(
+    screen.queryByRole("link", {
+      name: "organization.compliance.regulatoryCoverage.source",
+    })
+  ).not.toBeInTheDocument()
+})
+
 it("calls onAddSuggestion with the selected site id and the suggestion when 'Add as obligation' is clicked", async () => {
   const suggestion = {
     name: "GDPR",

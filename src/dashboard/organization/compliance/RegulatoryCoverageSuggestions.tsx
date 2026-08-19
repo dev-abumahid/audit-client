@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { Loader2, Sparkles } from "lucide-react"
 import type { SuggestedRegulatorySource } from "@/redux/apis/organization/compliance.api"
 import { useSuggestRegulatorySourcesMutation } from "@/redux/apis/organization/compliance.api"
+import { isHttpUrl } from "@/utils/isHttpUrl"
 import { toast } from "sonner"
 
 interface Site {
@@ -142,7 +143,18 @@ export default function RegulatoryCoverageSuggestions({
                       <p className="mt-1 text-xs text-muted-foreground">
                         {suggestion.rationale}
                       </p>
-                      {suggestion.source_url && (
+                      {/* Round-1 quality-bar-loop review (security axis):
+                          source_url comes from an LLM response grounded in
+                          web search results -- attacker-influenceable
+                          content if a malicious/compromised page ever got
+                          indexed. aexa-ai's own _normalize already drops a
+                          non-http(s) scheme at the source, but this sink-
+                          side guard (the same isHttpUrl helper used
+                          elsewhere in this app for user-supplied URLs)
+                          means a stale cached response or a future call
+                          site that bypasses the backend guard still can't
+                          render a javascript:/data: link here. */}
+                      {isHttpUrl(suggestion.source_url) && (
                         <a
                           href={suggestion.source_url}
                           target="_blank"
