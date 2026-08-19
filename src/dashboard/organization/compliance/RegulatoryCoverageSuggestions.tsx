@@ -4,6 +4,7 @@ import { CircleCheck, Loader2, Sparkles } from "lucide-react"
 import type { SuggestedRegulatorySource } from "@/redux/apis/organization/compliance.api"
 import { useSuggestRegulatorySourcesMutation } from "@/redux/apis/organization/compliance.api"
 import { isHttpUrl } from "@/utils/isHttpUrl"
+import RiskBadge from "@/components/dashboard/organization/RiskBadge"
 import { toast } from "sonner"
 
 interface Site {
@@ -213,6 +214,19 @@ export default function RegulatoryCoverageSuggestions({
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
+                          {/* Round-14 quality-bar-loop review
+                              (industry-standards axis, streak 8): reuses the
+                              app's existing RiskBadge + riskLevel.* i18n
+                              keys (same component AlertRow/Overview/
+                              IntelligencePage already use for
+                              severity/risk) rather than a one-off badge, so
+                              a gap's materiality reads first, before its
+                              name -- same triage-first ordering those other
+                              severity lists use. */}
+                          <RiskBadge
+                            level={suggestion.severity as "high" | "medium" | "low"}
+                            size="sm"
+                          />
                           <span className="text-xs font-semibold text-foreground">
                             {suggestion.name}
                           </span>

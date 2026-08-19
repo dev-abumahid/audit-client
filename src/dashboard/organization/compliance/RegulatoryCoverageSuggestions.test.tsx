@@ -124,6 +124,7 @@ it("renders each suggestion's name, domain, jurisdiction, and rationale", async 
               domain: "data_protection",
               jurisdiction: "European Union",
               rationale: "The site processes EU personal data.",
+              severity: "medium",
               source_url: "https://example.com/gdpr",
             },
           ],
@@ -147,6 +148,36 @@ it("renders each suggestion's name, domain, jurisdiction, and rationale", async 
   ).toHaveAttribute("href", "https://example.com/gdpr")
 })
 
+// Round-14 quality-bar-loop review (industry-standards axis, streak 8):
+// suggestions previously had no severity/materiality signal. Reuses the
+// app's existing RiskBadge component, so this just confirms the right
+// level reaches it -- RiskBadge's own tests cover the badge's rendering.
+it("renders a severity badge for each suggestion", async () => {
+  mockSuggestRegulatorySources.mockReturnValue({
+    unwrap: () =>
+      Promise.resolve({
+        data: {
+          suggestions: [
+            {
+              name: "GDPR",
+              domain: "data_protection",
+              jurisdiction: "European Union",
+              rationale: "The site processes EU personal data.",
+              severity: "high",
+              source_url: null,
+            },
+          ],
+        },
+      }),
+  })
+  renderPanel()
+
+  await selectSiteAndCheck("HQ Casablanca")
+
+  await screen.findByText("GDPR")
+  expect(screen.getByText("riskLevel.high")).toBeInTheDocument()
+})
+
 it("does not render a source link when source_url is null", async () => {
   mockSuggestRegulatorySources.mockReturnValue({
     unwrap: () =>
@@ -158,6 +189,7 @@ it("does not render a source link when source_url is null", async () => {
               domain: "data_protection",
               jurisdiction: "EU",
               rationale: "x",
+              severity: "medium",
               source_url: null,
             },
           ],
@@ -191,6 +223,7 @@ it("does not render a source link for a non-http(s) source_url", async () => {
               domain: "data_protection",
               jurisdiction: "EU",
               rationale: "x",
+              severity: "medium",
               source_url: "javascript:alert(document.cookie)",
             },
           ],
@@ -215,6 +248,7 @@ it("calls onAddSuggestion with the selected site id and the suggestion when 'Add
     domain: "data_protection",
     jurisdiction: "EU",
     rationale: "x",
+    severity: "medium",
     source_url: null,
   }
   mockSuggestRegulatorySources.mockReturnValue({
@@ -242,6 +276,7 @@ it("disables 'Add as obligation' and relabels it after use, without re-calling o
     domain: "data_protection",
     jurisdiction: "EU",
     rationale: "x",
+    severity: "medium",
     source_url: null,
   }
   mockSuggestRegulatorySources.mockReturnValue({
@@ -282,6 +317,7 @@ it("cleanly removes a suggestion from view if it's dismissed after being added",
     domain: "data_protection",
     jurisdiction: "EU",
     rationale: "x",
+    severity: "medium",
     source_url: null,
   }
   mockSuggestRegulatorySources.mockReturnValue({
@@ -315,6 +351,7 @@ it("resets the added state on a fresh check", async () => {
     domain: "data_protection",
     jurisdiction: "EU",
     rationale: "x",
+    severity: "medium",
     source_url: null,
   }
   mockSuggestRegulatorySources.mockReturnValue({
@@ -353,6 +390,7 @@ it("removes a dismissed suggestion from view without calling onAddSuggestion", a
               domain: "data_protection",
               jurisdiction: "EU",
               rationale: "x",
+              severity: "medium",
               source_url: null,
             },
           ],
@@ -423,6 +461,7 @@ it("resets suggestions and re-runs a fresh check when switching to a different s
               domain: "data_protection",
               jurisdiction: "EU",
               rationale: "x",
+              severity: "medium",
               source_url: null,
             },
           ],
@@ -460,6 +499,7 @@ it("restores a previously dismissed suggestion when re-checking the same site", 
               domain: "data_protection",
               jurisdiction: "EU",
               rationale: "x",
+              severity: "medium",
               source_url: null,
             },
           ],
@@ -509,6 +549,7 @@ it("clears the previous suggestions list (not just dismissed/added) as soon as a
                 domain: "data_protection",
                 jurisdiction: "EU",
                 rationale: "x",
+                severity: "medium",
                 source_url: null,
               },
             ],
@@ -588,6 +629,7 @@ it("discards a stale response for a site the user has since switched away from",
           domain: "data_protection",
           jurisdiction: "EU",
           rationale: "x",
+          severity: "medium",
           source_url: null,
         },
       ],
@@ -641,6 +683,7 @@ describe("accessibility fixes (round 4)", () => {
                 domain: "data_protection",
                 jurisdiction: "EU",
                 rationale: "x",
+                severity: "medium",
                 source_url: null,
               },
             ],
@@ -731,6 +774,7 @@ describe("accessibility fixes (round 4)", () => {
                 domain: "data_protection",
                 jurisdiction: "European Union",
                 rationale: "x",
+                severity: "medium",
                 source_url: null,
               },
             ],

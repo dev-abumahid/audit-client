@@ -160,6 +160,10 @@ export interface SuggestedRegulatorySource {
   domain: string
   jurisdiction: string
   rationale: string
+  // How material this gap is -- "high" | "medium" | "low", but kept as
+  // `string` (not a union) to match `domain`'s existing loose-typing
+  // convention in this same interface.
+  severity: string
   source_url: string | null
 }
 

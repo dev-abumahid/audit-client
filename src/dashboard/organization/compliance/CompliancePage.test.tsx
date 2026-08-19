@@ -1729,6 +1729,7 @@ describe("CompliancePage", () => {
                   domain: "data_protection",
                   jurisdiction: "European Union",
                   rationale: "The site processes EU personal data.",
+                  severity: "high",
                   source_url: null,
                 },
               ],
