@@ -461,6 +461,38 @@ describe("ThreeLinesOfDefensePage", () => {
     expect(cardContent.className).toContain("overflow-y-auto")
   })
 
+  // aexa-frontend#939 (visual polish loop, round-3 finding): the previous
+  // xl:grid-cols-4 breakpoint put all 4 line columns into effect at
+  // 1280px, live-measured to give each card only ~235px of usable width
+  // and cause the majority of titles to wrap. 4 columns now only kick in
+  // at the wider 2xl breakpoint; xl (the realistic 1280-1535px desktop
+  // range) gets 2 wider columns instead.
+  it("only reaches 4 line columns at the wider 2xl breakpoint, not the first desktop breakpoint", () => {
+    mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+      data: makeData(),
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const grid = screen
+      .getByRole("heading", {
+        level: 2,
+        name: "organization.threeLinesOfDefense.lines.first",
+      })
+      .closest('[data-slot="card"]')!.parentElement!
+    expect(grid.className).toContain("grid-cols-1")
+    expect(grid.className).toContain("md:grid-cols-2")
+    expect(grid.className).toContain("xl:grid-cols-2")
+    expect(grid.className).toContain("2xl:grid-cols-4")
+    // "2xl:grid-cols-4" itself contains "xl:grid-cols-4" as a substring, so
+    // this checks the space-separated token list instead of a bare
+    // toContain -- that would trivially "pass" against the 2xl variant
+    // even if the bad xl:grid-cols-4 class were still present.
+    const classes = grid.className.split(/\s+/)
+    expect(classes).not.toContain("xl:grid-cols-4")
+  })
+
   it("shows the Unclassified Actions bucket for an Action with a null line_of_defense", () => {
     mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
       data: makeData(),

@@ -793,7 +793,17 @@ export default function ThreeLinesOfDefensePage() {
         <>
           <CoverageOverview rows={coverageRows} />
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {/* aexa-frontend#939 (visual polish loop, round-3 finding): the
+              previous `xl:grid-cols-4` breakpoint (1280px) put all 4 line
+              columns into effect at the FIRST desktop breakpoint reached,
+              live-measured to give each card only ~235px of usable width
+              and cause 65% of visible titles to hit their line-clamp-2
+              wrap limit. Splitting into two steps -- 2 wider columns at
+              the realistic 1280-1535px desktop range (`xl`), 4 only once
+              there's genuinely enough width for them (`2xl`, 1536px+) --
+              keeps every column's content readable at the viewport most
+              real users actually have, not just ultra-wide monitors. */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4">
             {LINES.map((line) => {
               const lineRisks = risksByLine[line]
               const lineActions = actionsByLine[line]
