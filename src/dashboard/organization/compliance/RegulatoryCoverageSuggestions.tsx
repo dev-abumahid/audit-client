@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Loader2, Sparkles } from "lucide-react"
 import type { SuggestedRegulatorySource } from "@/redux/apis/organization/compliance.api"
@@ -47,13 +47,33 @@ export default function RegulatoryCoverageSuggestions({
   const [dismissed, setDismissed] = useState<Set<number>>(() => new Set())
   const [suggestRegulatorySources, { isLoading }] = useSuggestRegulatorySourcesMutation()
 
+  // Round-2 quality-bar-loop review (resilience axis): checkCoverage's
+  // closure captures selectedSiteId as it was WHEN THE REQUEST STARTED --
+  // if the user switches to a different site (or the AI round-trip is slow
+  // enough to overlap a second check) before it resolves, the stale
+  // response used to land unconditionally and silently repopulate the
+  // panel with the WRONG site's suggestions, even though the dropdown
+  // shows the new site selected. A ref always holds the CURRENT
+  // selectedSiteId (unlike the closure's frozen copy), so the response
+  // handler can compare "the site I asked about" against "the site
+  // actually selected right now" and discard a stale result -- for both
+  // the success and error paths, since an error toast for a check the
+  // user has already abandoned would be equally misleading.
+  const selectedSiteIdRef = useRef(selectedSiteId)
+  useEffect(() => {
+    selectedSiteIdRef.current = selectedSiteId
+  }, [selectedSiteId])
+
   const checkCoverage = async () => {
     if (!selectedSiteId) return
+    const requestedSiteId = selectedSiteId
     setDismissed(new Set())
     try {
-      const res = await suggestRegulatorySources({ site_id: selectedSiteId }).unwrap()
+      const res = await suggestRegulatorySources({ site_id: requestedSiteId }).unwrap()
+      if (selectedSiteIdRef.current !== requestedSiteId) return
       setSuggestions(res.data.suggestions)
     } catch {
+      if (selectedSiteIdRef.current !== requestedSiteId) return
       toast.error(t("organization.compliance.regulatoryCoverage.checkFailed"))
     }
   }

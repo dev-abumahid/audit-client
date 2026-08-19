@@ -319,3 +319,80 @@ it("restores a previously dismissed suggestion when re-checking the same site", 
 
   expect(await screen.findByText("GDPR")).toBeInTheDocument()
 })
+
+// Round-2 quality-bar-loop review (resilience axis, below floor both
+// rounds): checkCoverage's closure used to capture selectedSiteId as it
+// was when the request STARTED -- a slow response for the site the user
+// has since navigated away from used to land unconditionally and silently
+// repopulate the panel with the wrong site's suggestions.
+it("discards a stale response for a site the user has since switched away from", async () => {
+  let resolveSiteOneCheck: (value: unknown) => void = () => {}
+  mockSuggestRegulatorySources.mockImplementationOnce(() => ({
+    unwrap: () =>
+      new Promise((resolve) => {
+        resolveSiteOneCheck = resolve
+      }),
+  }))
+
+  renderPanel()
+
+  const select = screen.getByRole("combobox", {
+    name: "organization.compliance.regulatoryCoverage.selectSite",
+  }) as HTMLSelectElement
+  await userEvent.selectOptions(select, "HQ Casablanca")
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "organization.compliance.regulatoryCoverage.checkButton",
+    })
+  )
+
+  // User switches to a different site before site 1's slow request settles.
+  await userEvent.selectOptions(select, "Warehouse Tangier")
+
+  // Site 1's request finally resolves -- it must be discarded, not applied.
+  resolveSiteOneCheck({
+    data: {
+      suggestions: [
+        {
+          name: "Site 1 stale suggestion",
+          domain: "data_protection",
+          jurisdiction: "EU",
+          rationale: "x",
+          source_url: null,
+        },
+      ],
+    },
+  })
+  await new Promise((resolve) => setTimeout(resolve, 0))
+
+  expect(screen.queryByText("Site 1 stale suggestion")).not.toBeInTheDocument()
+})
+
+it("does not show an error toast for a stale request the user has already switched away from", async () => {
+  let rejectSiteOneCheck: (reason: unknown) => void = () => {}
+  mockSuggestRegulatorySources.mockImplementationOnce(() => ({
+    unwrap: () =>
+      new Promise((_resolve, reject) => {
+        rejectSiteOneCheck = reject
+      }),
+  }))
+
+  renderPanel()
+
+  const select = screen.getByRole("combobox", {
+    name: "organization.compliance.regulatoryCoverage.selectSite",
+  }) as HTMLSelectElement
+  await userEvent.selectOptions(select, "HQ Casablanca")
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "organization.compliance.regulatoryCoverage.checkButton",
+    })
+  )
+
+  await userEvent.selectOptions(select, "Warehouse Tangier")
+
+  rejectSiteOneCheck(new Error("network error"))
+  await new Promise((resolve) => setTimeout(resolve, 0))
+
+  expect(mockToastError).not.toHaveBeenCalled()
+})
