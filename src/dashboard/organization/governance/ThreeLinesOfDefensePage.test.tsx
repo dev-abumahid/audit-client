@@ -693,6 +693,56 @@ describe("ThreeLinesOfDefensePage", () => {
         )
       ).toBeInTheDocument()
     })
+
+    it("shows an always-visible legend distinguishing independent from self-review once reviews exist", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({
+          risks: [
+            {
+              id: "risk-1",
+              title: "Supply chain disruption",
+              category: "supply_chain",
+              status: "open",
+              line_of_defense: "FIRST",
+              line_reviews: [
+                { line: "SECOND", reviewedById: "u1", reviewedAt: "2026-01-01" },
+              ],
+            },
+          ],
+        }),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const card = coverageCard()
+      expect(
+        within(card).getByText(
+          "organization.threeLinesOfDefense.coverage.legendIndependent"
+        )
+      ).toBeInTheDocument()
+      expect(
+        within(card).getByText(
+          "organization.threeLinesOfDefense.coverage.legendSelf"
+        )
+      ).toBeInTheDocument()
+    })
+
+    it("does not show the review-type legend in the onboarding empty state (no reviews yet)", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const card = coverageCard()
+      expect(
+        within(card).queryByText(
+          "organization.threeLinesOfDefense.coverage.legendIndependent"
+        )
+      ).not.toBeInTheDocument()
+    })
   })
 
   // aexa-frontend#465 -- the page previously had only one <h1> then jumped

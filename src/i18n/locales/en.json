@@ -1484,7 +1484,9 @@
         "gapTitle_one": "{{count}} item has no independent (2nd/3rd-line) review:",
         "gapTitle_other": "{{count}} items have no independent (2nd/3rd-line) review:",
         "gapMore_one": "+{{count}} more",
-        "gapMore_other": "+{{count}} more"
+        "gapMore_other": "+{{count}} more",
+        "legendIndependent": "Independent review",
+        "legendSelf": "Self-review"
       },
       "toast": {
         "reassignSuccess": "Item reassigned",

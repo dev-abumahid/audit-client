@@ -1484,7 +1484,9 @@
         "gapTitle_one": "{{count}} élément n'a aucune revue indépendante (2e/3e ligne) :",
         "gapTitle_other": "{{count}} éléments n'ont aucune revue indépendante (2e/3e ligne) :",
         "gapMore_one": "+{{count}} de plus",
-        "gapMore_other": "+{{count}} de plus"
+        "gapMore_other": "+{{count}} de plus",
+        "legendIndependent": "Revue indépendante",
+        "legendSelf": "Auto-évaluation"
       },
       "toast": {
         "reassignSuccess": "Élément réassigné",

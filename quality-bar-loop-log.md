@@ -1377,3 +1377,72 @@ unmodified since no assertions reference comment content), and a live
 Deferred: everything else from prior rounds' deferred lists, unchanged. The
 file's overall size (1866 lines, 53 top-level declarations) remains the
 single dominant standing code-quality issue, still `large-scope`.
+
+## Round 5 (re-score after PR #962, targeted panel)
+
+Round 4's diff was comment-only (code-quality hotspot), so only that axis was
+re-run. Industry-standards, UX, Efficiency, Accessibility, Visual, Resilience,
+and Cross-view carried forward unchanged from round 4 (7, 7, 9, 9, 9, 9, 9).
+
+| Axis | Score | Note |
+|---|---|---|
+| Industry-standards | 7/10 | carried forward, not touched by round 4's diff |
+| UX | 7/10 | carried forward, not touched |
+| Efficiency | 9/10 | carried forward, not touched |
+| Accessibility | 9/10 | carried forward, not touched |
+| Visual/design polish | 9/10 | carried forward, not touched |
+| Resilience & edge cases | 9/10 | carried forward, not touched |
+| Code quality/maintainability | 8/10 | **up from 6 -- now clears the floor.** Independently re-measured the hotspot: comment ratio dropped from 66% (43/65 lines, exact pre-fix baseline) to 35.6% (16/45 lines) -- under the claimed <40% target. Confirmed the surviving comments still carry real WHY (coverage-block rationale, the WCAG 1.4.11/1.4.3 border-vs-text split), nothing load-bearing was cut. Zero logic drift verified via a non-comment-line diff filter -- byte-identical `isSelfReview`/`badgeLabel`/className logic before and after. Standing large-scope finding (file size, now 1839 lines / ~37-53 top-level declarations depending on counting method) confirmed still the single dominant remaining issue, nothing new and cheap has appeared elsewhere |
+| Cross-view integration | 9/10 | carried forward, not touched |
+| **Average** | **8.375/10** | **(7+7+9+9+9+9+8+9)/8** |
+
+**stuck_streak**: Industry-standards = 4 (7→7→7→7→7, unchanged 5 rounds running, at floor -- exactly at 7, satisfies "at or below floor"). UX = 2 (6→6→7→7→7, streak reset when it moved to 7 in round 3, unchanged since). Code quality = 0 (6→8, changed, now above floor).
+
+### Convergence / guardrail check
+
+Average = 8.375 (up from 8.125). **Every active axis now clears the floor of
+7/10 for the first time in this loop.** Not converged on average (need ≥9).
+No regression, no stagnation (average has risen 3 rounds running: 7.625→
+8.125→8.375).
+
+### Fix selected for round 5
+
+No axis is below floor, so priority order falls to 5c-2 (highest
+`stuck_streak`) among axes still below *target*. Mechanically this points to
+Industry-standards (streak 4, highest of any axis) over UX (streak 2). **But
+industry-standards' only 3 open findings (round 1) are all tagged
+`large-scope` real feature work**: (a) coverage rings have no drill-down/
+click-through to underlying items, (b) no trend-over-time or export, (c) the
+4-column kanban-card layout isn't how reference tools present assurance-
+mapping as a primary view.
+
+Finding (c) specifically re-treads ground the user explicitly rejected earlier
+in this same session ("wait dude i actually don't like this, i think it's
+cluttered" -- said about an assurance-matrix-table redesign of this exact
+page). Building any of (a)/(b)/(c) autonomously overnight, without a check-in,
+risks re-shipping a direction already vetoed once, or committing real new-
+feature scope (a drill-down modal, an export pipeline) beyond what this loop's
+"polish to a bar" mandate covers. Deliberately deviating from the mechanical
+streak-priority rule this round: **selecting UX's real, `contained`, cheap
+finding instead** -- round 3's open note that the self-review-vs-independent
+badge distinction (outlined vs. filled) has no on-screen legend, discoverable
+only via hover/inspection. Added an always-visible 2-item legend ("Independent
+review" / "Self-review") to the Coverage Overview panel, shown whenever at
+least one review has been recorded (suppressed in the onboarding empty state,
+where there's nothing yet to explain). Tier 1 (pure additive UI + copy, no new
+state/branches, no auth surface) -- self-review, QA gate (typecheck clean,
+lint 0 errors, 76/76 tests passing incl. 2 new tests for the legend's
+presence/absence), live `read_page`/screenshot check substituted for the full
+review-agent loop.
+
+This is a logged, deliberate override of the mechanical selection rule, not a
+silent skip -- industry-standards' streak and its exact reason for being
+passed over are recorded here so a future round (or the user) can revisit
+whether to actually tackle (a)/(b)/(c) as real scoped feature work, with
+product input, rather than mechanically selecting them next round purely
+because the streak counter is now even higher.
+
+Deferred: everything else from prior rounds' deferred lists, unchanged.
+Industry-standards' 3 large-scope findings remain the loop's biggest lever
+left, but need a product decision (especially (c), given the prior rejection)
+before any of them should be built.

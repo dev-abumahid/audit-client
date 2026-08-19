@@ -1038,6 +1038,20 @@ function CoverageOverview({ items }: { items: CoverageItem[] }) {
                 />
               ))}
             </div>
+            {/* Round 5 (UX): the same solid-vs-outlined distinction each
+                item row's badges use for independent-vs-self-review was
+                only discoverable via hover -- an always-visible legend
+                next to the rings that drive that same coverage math. */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 shrink-0 rounded-full bg-foreground" />
+                {t("organization.threeLinesOfDefense.coverage.legendIndependent")}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 shrink-0 rounded-full border-2 border-foreground" />
+                {t("organization.threeLinesOfDefense.coverage.legendSelf")}
+              </span>
+            </div>
             {gapItems.length > 0 && (
               // Review round 1 (a11y): role="status" is a live region --
               // meant for content that CHANGES and should be announced on
