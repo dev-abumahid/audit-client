@@ -6,7 +6,10 @@ import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
 import { formatEbitdaSectorLabel } from "@/utils/ebitdaSector"
 import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { severityBadgeClasses } from "@/utils/severityStyles"
-import { LINE_OF_DEFENSE_LABEL_KEY as LINE_OF_DEFENSE_KEY } from "@/utils/lineOfDefense"
+import {
+  LINE_OF_DEFENSE_COLOR,
+  LINE_OF_DEFENSE_LABEL_KEY as LINE_OF_DEFENSE_KEY,
+} from "@/utils/lineOfDefense"
 import {
   AlertCircle,
   Bot,
@@ -467,7 +470,14 @@ export default function RiskDetails() {
           <h2 className="mt-4 mb-1 text-sm font-semibold text-foreground">
             {t("organization.riskRegister.lineOfDefenseLabel")}
           </h2>
-          <p className="text-sm text-foreground">
+          <p className="flex items-center gap-1.5 text-sm text-foreground">
+            {/* quality-bar-loop round 6 (cross-view integration): same
+                color the Three Lines of Defense page uses for this line,
+                so the concept reads consistently across screens. */}
+            <span
+              aria-hidden="true"
+              className={`inline-block h-2 w-2 shrink-0 rounded-full ${LINE_OF_DEFENSE_COLOR[risk.line_of_defense]}`}
+            />
             {t(LINE_OF_DEFENSE_KEY[risk.line_of_defense])}
           </p>
         </div>

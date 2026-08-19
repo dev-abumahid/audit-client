@@ -1446,3 +1446,62 @@ Deferred: everything else from prior rounds' deferred lists, unchanged.
 Industry-standards' 3 large-scope findings remain the loop's biggest lever
 left, but need a product decision (especially (c), given the prior rejection)
 before any of them should be built.
+
+## Round 6 (re-score after PR #963, targeted panel)
+
+Round 5's diff was a pure additive UI element (Coverage Overview legend), so
+re-ran UX (the target axis), Visual, and Accessibility -- the three axes a
+new visible page element plausibly touches. Industry-standards, Efficiency,
+Resilience, and Cross-view carried forward unchanged (7, 9, 9, 9); Code
+quality carried forward at round 5's re-verified 8.
+
+| Axis | Score | Note |
+|---|---|---|
+| Industry-standards | 7/10 | carried forward, not touched by round 5's diff |
+| UX | 9/10 | **up from 7 -- the legend fix confirmed working well.** Legend's filled/outlined swatches genuinely match the real badges' fill-vs-outline encoding (verified via DOM inspection of an actual 1L self-review badge and an independent-review badge elsewhere on the page). Placement reads as native to the panel (same typography/spacing as the rest of Coverage Overview), not bolted on. Empty-state gating (suppressed until totalReviewsRecorded > 0) confirmed correct via source. Nothing new found |
+| Efficiency | 9/10 | carried forward, not touched |
+| Accessibility | 9/10 | unchanged -- the two swatch spans are correctly non-semantic (no role/aria-label/alt, pruned from the a11y tree, no unlabeled-icon noise since adjacent text already conveys meaning). Legend's own `text-muted-foreground` label text independently measured at 6.04:1 (light) / 5.86:1 (dark) against the card -- both clear WCAG 1.4.3's 4.5:1, a NEW text element that hadn't been contrast-checked before this round |
+| Visual/design polish | 9/10 | unchanged -- legend uses the same `text-[11px] text-muted-foreground` treatment as other secondary text on the page, wraps gracefully at narrow viewports, doesn't compete visually with the gap-list box below it. Confirmed in both themes |
+| Resilience & edge cases | 9/10 | carried forward, not touched |
+| Code quality/maintainability | 8/10 | carried forward, not touched |
+| Cross-view integration | 9/10 | carried forward, not touched -- but this round's own fix (below) directly addresses cross-view's oldest open finding |
+| **Average** | **8.625/10** | **(7+9+9+9+9+9+8+9)/8** |
+
+**stuck_streak**: Industry-standards = 5 (7→7→7→7→7→7, unchanged 6 rounds
+running, at floor). UX = 0 (7→9, changed, now well above floor).
+
+### Convergence / guardrail check
+
+Average = 8.625 (up from 8.375). Every axis clears the floor. Not converged
+on average (need ≥9). No regression, no stagnation (average has risen 4
+rounds running).
+
+### Fix selected for round 6
+
+Same situation as round 5: industry-standards has the highest `stuck_streak`
+(5, now even longer) but its only 3 open findings remain `large-scope`, one
+of which re-treads the coverage-panel-layout direction the user already
+rejected. Deferring it again for the same, already-logged reason (see round
+5) rather than re-litigating it here.
+
+Selected cross-view integration's oldest open, `contained`, `cosmetic/
+convention`-tagged finding instead (open since round 1): `line_of_defense`
+was only colored on this page (`LINE_COLOR`) while RiskDetails and
+ComplianceObligationRow showed it as plain uncolored text -- a
+visual-language gap between the page that owns the Three Lines concept and
+the pages that reference it. Extracted the palette into the already-shared
+`src/utils/lineOfDefense.ts` (which already held the label-key mapping, per
+round 4 of an earlier loop) as `LINE_OF_DEFENSE_COLOR`, removed
+ThreeLinesOfDefensePage.tsx's now-duplicate local copy in favor of importing
+the shared one, and added a small colored dot next to the existing text
+label in both RiskDetails.tsx and ComplianceObligationRow.tsx. Tier 2
+(cross-file but mechanical, no new state/branches, no auth surface) --
+self-review, QA gate (typecheck clean, 226/226 tests across all 4 touched
+test files passing unmodified), live verification in both consumers (teal
+dot next to "1st Line" on RiskDetails, matching dot next to "1st Line" in
+ComplianceObligationRow's compact row line) confirmed working correctly, no
+console errors, no layout regression from the `hidden ... sm:block` →
+`hidden ... sm:flex` change needed to lay the dot out inline.
+
+Deferred: everything else unchanged. Industry-standards' 3 large-scope
+findings remain deferred pending product input (see round 5's note).

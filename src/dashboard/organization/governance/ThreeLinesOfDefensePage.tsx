@@ -54,7 +54,10 @@ import {
   FINDING_PRIORITY_LABEL_KEYS,
   FINDING_STATUS_LABEL_KEYS,
 } from "@/utils/findingLabels"
-import { LINE_OF_DEFENSE_LABEL_KEY as LINE_TITLE_KEY } from "@/utils/lineOfDefense"
+import {
+  LINE_OF_DEFENSE_LABEL_KEY as LINE_TITLE_KEY,
+  LINE_OF_DEFENSE_COLOR as LINE_COLOR,
+} from "@/utils/lineOfDefense"
 import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
 import { severityBadgeClasses, type SeverityLevel } from "@/utils/severityStyles"
 import {
@@ -803,33 +806,6 @@ function FilterChip({
   )
 }
 
-// quality-bar-loop round 6 (industry-standards, round-1 finding).
-// Review round 1 (angle B) found --chart-2 (199°) and --chart-3 (38°)
-// are color-IDENTICAL to --risk-info and --risk-medium (src/index.css)
-// -- this page renders severity badges (severityBadgeClasses) using
-// those exact risk colors on every item row, so reusing the full
-// chart-1..4 set would make a line-color indistinguishable from an
-// unrelated severity indicator on the same screen. Keeps --chart-1
-// (168°, teal), which doesn't collide with any --risk-* hue
-// (0°/38°/142°/199°), and replaces the remaining 3 slots with literal
-// hues chosen to stay >=25 degrees clear of every --risk-* hue and of
-// each other. GOVERNING_BODY uses a yellow-green/olive hue (88°),
-// the nearest clear gap once every --risk-* hue and FIRST/SECOND/
-// THIRD's own hues are each buffered by >=25° (live-confirmed by two
-// independent judges as distinguishable from SECOND's indigo, unlike
-// the --chart-4 purple this replaced).
-// Review round 2 (a11y): darkened from the original bar/dot lightness
-// (36-60%L) to 28-42%L -- white text on the original values measured as
-// low as 2.85:1 (WCAG 1.4.3 requires >=4.5:1 for text this size). Computed
-// against the sRGB relative-luminance formula for each hue at its new L;
-// all 4 now land between 5.8:1 and 8.3:1 against white. Only consumer is
-// the review badge below (grep LINE_COLOR\[) -- safe to darken globally.
-const LINE_COLOR: Record<LineOfDefense, string> = {
-  FIRST: "bg-[hsl(168_60%_28%)]",
-  SECOND: "bg-[hsl(250_70%_50%)]",
-  THIRD: "bg-[hsl(320_65%_38%)]",
-  GOVERNING_BODY: "bg-[hsl(88_55%_28%)]",
-}
 const LINE_COLOR_TEXT: Record<LineOfDefense, string> = {
   FIRST: "text-chart-1",
   SECOND: "text-[hsl(250_70%_60%)]",

@@ -26,7 +26,10 @@ import {
 import { formatDateOnlyForDisplay } from "@/dashboard/organization/findings/dueDateInput"
 import type { ComplianceObligation } from "@/redux/apis/organization/compliance.api"
 import { frameworkForReference } from "@/utils/complianceFrameworks"
-import { LINE_OF_DEFENSE_LABEL_KEY as LINE_OF_DEFENSE_KEY } from "@/utils/lineOfDefense"
+import {
+  LINE_OF_DEFENSE_COLOR,
+  LINE_OF_DEFENSE_LABEL_KEY as LINE_OF_DEFENSE_KEY,
+} from "@/utils/lineOfDefense"
 import { SEVERITY_STYLES } from "@/utils/severityStyles"
 
 interface ComplianceObligationRowProps {
@@ -141,9 +144,20 @@ export default function ComplianceObligationRow({
             in this UI -- same compact, conditional treatment as
             regulation_reference above, not a new table column (this
             table's mobile columns were already tightened in round 2). */}
-        <p className="hidden max-w-xs truncate text-[10px] text-muted-foreground/80 sm:block">
-          {t("organization.compliance.col.lineOfDefenseShort")}:{" "}
-          {t(LINE_OF_DEFENSE_KEY[obl.line_of_defense])}
+        <p className="hidden max-w-xs items-center gap-1 text-[10px] text-muted-foreground/80 sm:flex">
+          {/* quality-bar-loop round 6 (cross-view integration): dot kept
+              outside the truncating span -- `truncate`'s text-overflow:
+              ellipsis only applies to a single text run, not a flex
+              container's children, so it can't sit on the same element
+              that lays the dot out inline. */}
+          <span className="min-w-0 truncate">
+            {t("organization.compliance.col.lineOfDefenseShort")}:{" "}
+            {t(LINE_OF_DEFENSE_KEY[obl.line_of_defense])}
+          </span>
+          <span
+            aria-hidden="true"
+            className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${LINE_OF_DEFENSE_COLOR[obl.line_of_defense]}`}
+          />
         </p>
         {/* aexa-server#346: shows whether this obligation flows into the
             Risk Register yet. Deliberately visible even when unlinked (not
