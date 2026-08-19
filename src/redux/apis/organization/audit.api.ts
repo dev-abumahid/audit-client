@@ -2,6 +2,7 @@ import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
 import type { LineOfDefense } from "@/types/organization"
+import type { LineReview } from "./governance.api"
 
 // A real Risk record linked to an engagement, as flattened by aexa-server's
 // audit GET responses (aexa-frontend#165). Replaces the former free-text
@@ -102,6 +103,22 @@ const auditApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["AUDIT"],
     }),
+    // #97: records that `line` independently reviewed this engagement --
+    // distinct from updateAuditEngagement's line_of_defense, which
+    // reassigns OWNERSHIP (see governance.api.ts's LineReview doc comment).
+    // Only invalidates GOVERNANCE, not AUDIT -- a review doesn't change any
+    // engagement field.
+    recordAuditEngagementLineReview: builder.mutation<
+      ApiResponse<LineReview[]>,
+      { id: string; line: LineOfDefense; notes?: string }
+    >({
+      query: ({ id, line, notes }) => ({
+        url: `/audit/${id}/line-reviews`,
+        method: "POST",
+        body: { line, notes },
+      }),
+      invalidatesTags: ["GOVERNANCE"],
+    }),
     deleteAuditEngagement: builder.mutation<ApiResponse<AuditEngagement>, string>(
       {
         query: (id) => ({
@@ -119,5 +136,6 @@ export const {
   useGetAuditEngagementByIdQuery,
   useCreateAuditEngagementMutation,
   useUpdateAuditEngagementMutation,
+  useRecordAuditEngagementLineReviewMutation,
   useDeleteAuditEngagementMutation,
 } = auditApi

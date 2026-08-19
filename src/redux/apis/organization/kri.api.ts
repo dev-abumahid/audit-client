@@ -2,6 +2,7 @@ import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
 import type { KRI, KriReading, LineOfDefense } from "@/types/organization"
+import type { LineReview } from "./governance.api"
 
 // Mirrors kri.validation.ts's create_kri zod schema on aexa-server exactly
 // -- frequency is optional there, and target_value/alert_threshold must
@@ -79,6 +80,21 @@ const kriApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["KRI", "ALERT"],
     }),
+    // #97: records that `line` independently reviewed this KRI -- distinct
+    // from updateKri's line_of_defense, which reassigns OWNERSHIP (see
+    // governance.api.ts's LineReview doc comment). Only invalidates
+    // GOVERNANCE, not KRI -- a review doesn't change any KRI field.
+    recordKriLineReview: builder.mutation<
+      ApiResponse<LineReview[]>,
+      { id: string; line: LineOfDefense; notes?: string }
+    >({
+      query: ({ id, line, notes }) => ({
+        url: `/kri/${id}/line-reviews`,
+        method: "POST",
+        body: { line, notes },
+      }),
+      invalidatesTags: ["GOVERNANCE"],
+    }),
     // The delete path doesn't run with_status(), so unlike every other KRI
     // endpoint this one returns the bare row with no `status` field.
     deleteKri: builder.mutation<ApiResponse<Omit<KRI, "status">>, string>({
@@ -109,6 +125,7 @@ export const {
   useGetAllKriQuery,
   useCreateNewKriMutation,
   useUpdateKriMutation,
+  useRecordKriLineReviewMutation,
   useSubmitKriValueMutation,
   useDeleteKriMutation,
   useGetKriReadingsQuery,

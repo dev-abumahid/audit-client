@@ -2,7 +2,8 @@ import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
 import type { RiskFieldSuggestionResult } from "@/types/ai"
-import type { Risk } from "@/types/organization"
+import type { Risk, LineOfDefense } from "@/types/organization"
+import type { LineReview } from "./governance.api"
 
 interface SuggestRiskFieldsArgs {
   name: string
@@ -105,6 +106,23 @@ const risksApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["RISK", "CORRELATION_MATRIX"],
     }),
+    // #97: records that `line` independently reviewed this risk -- distinct
+    // from updateRisk's line_of_defense, which reassigns OWNERSHIP (see
+    // governance.api.ts's LineReview doc comment). Only invalidates
+    // GOVERNANCE, not RISK -- a review doesn't change any Risk field, so
+    // refetching the risk register/list pages would be wasted work; the
+    // Three Lines board is the only view that needs to know.
+    recordRiskLineReview: builder.mutation<
+      ApiResponse<LineReview[]>,
+      { id: string; line: LineOfDefense; notes?: string }
+    >({
+      query: ({ id, line, notes }) => ({
+        url: `/risk/${id}/line-reviews`,
+        method: "POST",
+        body: { line, notes },
+      }),
+      invalidatesTags: ["GOVERNANCE"],
+    }),
     // RiskFormModal's AI pre-fill -- non-persisting suggestion, same
     // convention as useAnalyzeSiteRisksMutation (ai.api.ts): no
     // invalidatesTags, since this doesn't change any stored Risk data,
@@ -131,6 +149,7 @@ export const {
   useCreateNewRiskMutation,
   useUpdateRiskMutation,
   useSuggestRiskFieldsMutation,
+  useRecordRiskLineReviewMutation,
 } = risksApi
 
 // aexa-frontend#261: exported so risk.api.test.ts can dispatch

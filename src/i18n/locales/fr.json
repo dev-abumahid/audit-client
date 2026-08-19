@@ -1437,6 +1437,7 @@
       "filterAll": "Tous",
       "noLeadAuditor": "Aucun auditeur principal assigné",
       "moveItem": "Déplacer {{title}} vers une autre ligne",
+      "moveToLabel": "Déplacer vers",
       "moveToFirst": "Déplacer vers la 1re ligne",
       "moveToSecond": "Déplacer vers la 2e ligne",
       "moveToThird": "Déplacer vers la 3e ligne",
@@ -1445,6 +1446,16 @@
       "confirmReassignDescription": "« {{title}} » sera réaffecté à {{line}}.",
       "confirmReassignConfirm": "Déplacer",
       "confirmReassignCancel": "Annuler",
+      "confirmReviewTitle": "Enregistrer cette revue ?",
+      "confirmReviewDescription": "Vous attestez que {{line}} a revu « {{title}} » de façon indépendante.",
+      "confirmReviewConfirm": "Enregistrer la revue",
+      "reviewedByLine": "Revu par {{line}}",
+      "recordReviewLabel": "Enregistrer une revue",
+      "recordReviewFor": "Marquer comme revu par {{line}}",
+      "abbrFirst": "1L",
+      "abbrSecond": "2L",
+      "abbrThird": "3L",
+      "abbrGoverningBody": "OG",
       "lines": {
         "first": "1re ligne",
         "second": "2e ligne",
@@ -1464,12 +1475,21 @@
       },
       "coverage": {
         "title": "Aperçu de la couverture",
-        "totalLabel": "Tous les éléments",
-        "none": "Aucun élément pour l'instant"
+        "subtitle_one": "{{count}} élément",
+        "subtitle_other": "{{count}} éléments",
+        "none": "Aucun élément pour l'instant",
+        "noReviewsYet": "Aucune ligne n'a encore enregistré de revue indépendante. Utilisez le menu d'un élément pour en enregistrer une.",
+        "ringLabel": "{{line}} : {{count}} sur {{total}} éléments revus",
+        "gapTitle_one": "{{count}} élément n'a aucune revue indépendante (2e/3e ligne) :",
+        "gapTitle_other": "{{count}} éléments n'ont aucune revue indépendante (2e/3e ligne) :",
+        "gapMore_one": "+{{count}} de plus",
+        "gapMore_other": "+{{count}} de plus"
       },
       "toast": {
         "reassignSuccess": "Élément réassigné",
-        "reassignFailed": "Échec de la réassignation de l'élément"
+        "reassignFailed": "Échec de la réassignation de l'élément",
+        "reviewRecorded": "Revue enregistrée",
+        "reviewFailed": "Échec de l'enregistrement de la revue"
       }
     },
     "siteFilter": {

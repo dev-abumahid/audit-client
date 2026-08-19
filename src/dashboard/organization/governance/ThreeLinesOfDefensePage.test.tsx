@@ -94,29 +94,54 @@ vi.mock("@/redux/apis/organization/governance.api", () => ({
 }))
 
 const mockUpdateRisk = vi.fn()
+const mockRecordRiskLineReview = vi.fn()
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useUpdateRiskMutation: () => [mockUpdateRisk, { isLoading: false }],
+  useRecordRiskLineReviewMutation: () => [
+    mockRecordRiskLineReview,
+    { isLoading: false },
+  ],
 }))
 
 const mockUpdateFindingById = vi.fn()
+const mockRecordFindingLineReview = vi.fn()
 vi.mock("@/redux/apis/organization/findings.api", () => ({
   useUpdateFindingByIdMutation: () => [mockUpdateFindingById, { isLoading: false }],
+  useRecordFindingLineReviewMutation: () => [
+    mockRecordFindingLineReview,
+    { isLoading: false },
+  ],
 }))
 
 const mockUpdateKri = vi.fn()
+const mockRecordKriLineReview = vi.fn()
 vi.mock("@/redux/apis/organization/kri.api", () => ({
   useUpdateKriMutation: () => [mockUpdateKri, { isLoading: false }],
+  useRecordKriLineReviewMutation: () => [
+    mockRecordKriLineReview,
+    { isLoading: false },
+  ],
 }))
 
 const mockUpdateCompliance = vi.fn()
+const mockRecordComplianceLineReview = vi.fn()
 vi.mock("@/redux/apis/organization/compliance.api", () => ({
   useUpdateComplianceMutation: () => [mockUpdateCompliance, { isLoading: false }],
+  useRecordComplianceLineReviewMutation: () => [
+    mockRecordComplianceLineReview,
+    { isLoading: false },
+  ],
 }))
 
 const mockUpdateAuditEngagement = vi.fn()
+const mockRecordAuditEngagementLineReview = vi.fn()
 vi.mock("@/redux/apis/organization/audit.api", () => ({
   useUpdateAuditEngagementMutation: () => [
     mockUpdateAuditEngagement,
+    { isLoading: false },
+  ],
+  useRecordAuditEngagementLineReviewMutation: () => [
+    mockRecordAuditEngagementLineReview,
     { isLoading: false },
   ],
 }))
@@ -131,6 +156,7 @@ function makeData(overrides: Record<string, unknown> = {}) {
           category: "supply_chain",
           status: "open",
           line_of_defense: "FIRST",
+          line_reviews: [],
         },
       ],
       actions: [
@@ -140,6 +166,7 @@ function makeData(overrides: Record<string, unknown> = {}) {
           priority: "High",
           status: "TO_DO",
           line_of_defense: "SECOND",
+          line_reviews: [],
         },
         {
           id: "action-unclassified",
@@ -147,6 +174,7 @@ function makeData(overrides: Record<string, unknown> = {}) {
           priority: "Low",
           status: "IN_PROGRESS",
           line_of_defense: null,
+          line_reviews: [],
         },
       ],
       kris: [
@@ -156,6 +184,7 @@ function makeData(overrides: Record<string, unknown> = {}) {
           unit: "days",
           status: "OK",
           line_of_defense: "SECOND",
+          line_reviews: [],
         },
       ],
       complianceObligations: [
@@ -165,6 +194,7 @@ function makeData(overrides: Record<string, unknown> = {}) {
           domain: "data_protection",
           status: "compliant",
           line_of_defense: "SECOND",
+          line_reviews: [],
         },
       ],
       auditEngagements: [
@@ -174,6 +204,7 @@ function makeData(overrides: Record<string, unknown> = {}) {
           status: "planned",
           lead_auditor: "Jane Doe",
           line_of_defense: "THIRD",
+          line_reviews: [],
         },
       ],
       ...overrides,
@@ -190,6 +221,11 @@ describe("ThreeLinesOfDefensePage", () => {
     mockUpdateKri.mockReset()
     mockUpdateCompliance.mockReset()
     mockUpdateAuditEngagement.mockReset()
+    mockRecordRiskLineReview.mockReset()
+    mockRecordFindingLineReview.mockReset()
+    mockRecordKriLineReview.mockReset()
+    mockRecordComplianceLineReview.mockReset()
+    mockRecordAuditEngagementLineReview.mockReset()
     mockToastError.mockReset()
     mockToastSuccess.mockReset()
   })
@@ -248,6 +284,7 @@ describe("ThreeLinesOfDefensePage", () => {
             category: "supply_chain",
             status: "open",
             line_of_defense: "FOURTH_LINE_THAT_DOES_NOT_EXIST",
+            line_reviews: [],
           },
           // A valid sibling record alongside the malformed one, to prove
           // the bounds-check guard only skips the bad record and doesn't
@@ -258,6 +295,7 @@ describe("ThreeLinesOfDefensePage", () => {
             category: "supply_chain",
             status: "open",
             line_of_defense: "SECOND",
+            line_reviews: [],
           },
         ],
       }),
@@ -280,20 +318,16 @@ describe("ThreeLinesOfDefensePage", () => {
     ).toBeInTheDocument()
   })
 
-  // quality-bar-loop round 6 (industry-standards, round-1 finding): the
-  // IIA Three Lines Model's central diagnostic question -- "is 3rd line
-  // reviewing enough of what 1st/2nd line own" -- was previously only
-  // answerable by manually counting raw per-column totals. A coverage
-  // overview panel now surfaces the actual per-line distribution at a
-  // glance.
-  //
-  // aexa-frontend#939 (visual polish loop, round-5 finding): the panel
-  // originally rendered one bar+row PER entity type (5 total) -- flagged
-  // as the dominant remaining clutter/redundancy source (duplicating
-  // what the grid below already shows via each row's own type icon) by
-  // two independent judges across 4 rounds. Collapsed to a single
-  // combined bar of total items per line, across all 5 entity types.
-  describe("coverage overview (round 6, collapsed round-5 visual polish)", () => {
+  // #97: the IIA Three Lines Model's central diagnostic question -- "is 3rd
+  // line (independent assurance) reviewing enough of what 1st line
+  // (operations) owns" -- can only be answered honestly once ownership and
+  // review are two separate facts. CoverageOverview was rewritten from a
+  // per-line ownership headcount bar (round 6/#939) to a review-coverage
+  // panel: rings for the lines that actually PERFORM independent review
+  // (2nd/3rd/governing body) plus a gap callout for items nobody
+  // independent has reviewed yet. See CoverageOverview's own doc comment
+  // in the source for the full history.
+  describe("coverage overview (#97 review-coverage rewrite)", () => {
     // The line names also appear inside the per-line column cards, so
     // every assertion here is scoped to the coverage panel's own Card via
     // its unique "Coverage Overview" heading.
@@ -303,79 +337,23 @@ describe("ThreeLinesOfDefensePage", () => {
         .closest('[data-slot="card"]') as HTMLElement
     }
 
-    it("renders one combined bar segment per line with a real count, plus a legend for all 4 lines", () => {
-      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
-        data: makeData(),
-        isLoading: false,
-      })
+    // Locates a single CoverageRing's wrapper <div> via its own line-name
+    // label (a plain <span>, not a heading), so a test can inspect that
+    // ring's svg <text> (the literal "count/total" string, not run through
+    // the interpolation-blind t() mock) without conflating it with the
+    // other 2 rings' labels.
+    function ringFor(card: HTMLElement, lineLabelKey: string): HTMLElement {
+      const label = within(card).getByText(lineLabelKey)
+      return label.parentElement as HTMLElement
+    }
 
-      renderPage()
+    const FIRST_LABEL = "organization.threeLinesOfDefense.lines.first"
+    const SECOND_LABEL = "organization.threeLinesOfDefense.lines.second"
+    const THIRD_LABEL = "organization.threeLinesOfDefense.lines.third"
+    const GOVERNING_BODY_LABEL =
+      "organization.threeLinesOfDefense.lines.governingBody"
 
-      const card = coverageCard()
-
-      // Default makeData: FIRST has 1 item (risk-1), SECOND has 3
-      // (action-1, kri-1, compliance-1), THIRD has 1 (audit-1) -- summed
-      // across all 5 entity types into one combined bar, not one row per
-      // type.
-      const totalRow = within(card).getByText(
-        "organization.threeLinesOfDefense.coverage.totalLabel"
-      ).parentElement as HTMLElement
-      const bar = totalRow.querySelector('[role="img"]') as HTMLElement
-      expect(bar).not.toBeNull()
-      const segments = bar.querySelectorAll(":scope > div")
-      expect(segments).toHaveLength(3)
-      expect(segments[0]).toHaveAttribute(
-        "title",
-        "organization.threeLinesOfDefense.lines.first: 1"
-      )
-      expect(segments[1]).toHaveAttribute(
-        "title",
-        "organization.threeLinesOfDefense.lines.second: 3"
-      )
-      expect(segments[2]).toHaveAttribute(
-        "title",
-        "organization.threeLinesOfDefense.lines.third: 1"
-      )
-
-      // The legend lists all 4 lines, not just the ones with data.
-      expect(
-        within(card).getByText("organization.threeLinesOfDefense.lines.first")
-      ).toBeInTheDocument()
-      expect(
-        within(card).getByText(
-          "organization.threeLinesOfDefense.lines.second"
-        )
-      ).toBeInTheDocument()
-      expect(
-        within(card).getByText("organization.threeLinesOfDefense.lines.third")
-      ).toBeInTheDocument()
-      expect(
-        within(card).getByText(
-          "organization.threeLinesOfDefense.lines.governingBody"
-        )
-      ).toBeInTheDocument()
-    })
-
-    it("surfaces the unclassified-actions count separately from the classified total", () => {
-      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
-        data: makeData(),
-        isLoading: false,
-      })
-
-      renderPage()
-
-      // 4 classified items total (risk-1, action-1, kri-1, compliance-1;
-      // audit-1 is THIRD so it's part of the 5-item combined total) + 1
-      // unclassified action (action-unclassified) -- the combined total
-      // should reflect only classified items, with the unclassified one
-      // called out separately rather than silently diluting the bar.
-      const totalRow = within(coverageCard()).getByText(
-        "organization.threeLinesOfDefense.coverage.totalLabel"
-      ).parentElement as HTMLElement
-      expect(totalRow).toHaveTextContent("5 (+1)")
-    })
-
-    it("shows a 'no items' message instead of an empty bar when there is genuinely no data at all", () => {
+    it("shows a 'no items yet' message when there is genuinely no data at all", () => {
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
         data: makeData({
           risks: [],
@@ -389,33 +367,232 @@ describe("ThreeLinesOfDefensePage", () => {
 
       renderPage()
 
-      const totalRow = within(coverageCard()).getByText(
-        "organization.threeLinesOfDefense.coverage.totalLabel"
-      ).parentElement as HTMLElement
-      expect(totalRow).toHaveTextContent(
-        "organization.threeLinesOfDefense.coverage.none"
-      )
-      expect(totalRow.querySelector('[role="img"]')).toBeNull()
+      const card = coverageCard()
+      expect(
+        within(card).getByText("organization.threeLinesOfDefense.coverage.none")
+      ).toBeInTheDocument()
+      expect(card.querySelector('svg[role="img"]')).toBeNull()
     })
 
-    // Review round 1 finding on PR #943: total===0 governs only whether the
-    // bar-or-"none" element renders; the trailing count span is a sibling
-    // rendered unconditionally, so an unclassified-only data state (0
-    // classified items anywhere, but 1 unclassified action) must still show
-    // the "(+1)" alongside the "no items" message, not silently drop it.
-    it("still shows the unclassified count alongside the 'no items' message when there are zero classified items anywhere", () => {
+    it("shows a distinct onboarding empty state when items exist but no reviews have been recorded yet", () => {
+      // Default makeData: 6 items total (risk-1, action-1,
+      // action-unclassified, kri-1, compliance-1, audit-1), every one with
+      // line_reviews: [] -- the expected first-use state.
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const card = coverageCard()
+      expect(
+        within(card).getByText(
+          "organization.threeLinesOfDefense.coverage.noReviewsYet"
+        )
+      ).toBeInTheDocument()
+      // Distinct from the total===0 empty state.
+      expect(
+        within(card).queryByText("organization.threeLinesOfDefense.coverage.none")
+      ).not.toBeInTheDocument()
+      expect(card.querySelector('svg[role="img"]')).toBeNull()
+    })
+
+    it("renders rings for SECOND, THIRD, and GOVERNING_BODY (not FIRST) with the correct count/total once reviews exist", () => {
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
         data: makeData({
-          risks: [],
-          actions: [
+          risks: [
             {
-              id: "action-unclassified",
-              title: "Legacy remediation item",
-              priority: "Low",
-              status: "IN_PROGRESS",
-              line_of_defense: null,
+              id: "risk-1",
+              title: "Supply chain disruption",
+              category: "supply_chain",
+              status: "open",
+              line_of_defense: "FIRST",
+              line_reviews: [
+                { line: "SECOND", reviewedById: "u1", reviewedAt: "2026-01-01" },
+              ],
             },
           ],
+          auditEngagements: [
+            {
+              id: "audit-1",
+              title: "Q3 internal audit",
+              status: "planned",
+              lead_auditor: "Jane Doe",
+              line_of_defense: "THIRD",
+              line_reviews: [
+                { line: "THIRD", reviewedById: "u2", reviewedAt: "2026-01-01" },
+              ],
+            },
+          ],
+          kris: [
+            {
+              id: "kri-1",
+              title: "Supplier Lead Time",
+              unit: "days",
+              status: "OK",
+              line_of_defense: "SECOND",
+              line_reviews: [
+                {
+                  line: "GOVERNING_BODY",
+                  reviewedById: "u3",
+                  reviewedAt: "2026-01-01",
+                },
+              ],
+            },
+          ],
+        }),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const card = coverageCard()
+      // Total = 6 items (risk-1, action-1, action-unclassified, kri-1,
+      // compliance-1, audit-1). 1 has a SECOND review, 1 has a THIRD
+      // review, 1 has a GOVERNING_BODY review.
+      expect(
+        within(ringFor(card, SECOND_LABEL)).getByText("1/6")
+      ).toBeInTheDocument()
+      expect(
+        within(ringFor(card, THIRD_LABEL)).getByText("1/6")
+      ).toBeInTheDocument()
+      expect(
+        within(ringFor(card, GOVERNING_BODY_LABEL)).getByText("1/6")
+      ).toBeInTheDocument()
+      // FIRST-line "coverage" would just restate near-100% ownership, so
+      // no ring renders for it.
+      expect(within(card).queryByText(FIRST_LABEL)).not.toBeInTheDocument()
+      expect(card.querySelectorAll('svg[role="img"]')).toHaveLength(3)
+    })
+
+    it("shows the gap callout listing items with no SECOND or THIRD line review", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({
+          risks: [
+            {
+              id: "risk-1",
+              title: "Supply chain disruption",
+              category: "supply_chain",
+              status: "open",
+              line_of_defense: "FIRST",
+              line_reviews: [
+                { line: "SECOND", reviewedById: "u1", reviewedAt: "2026-01-01" },
+              ],
+            },
+          ],
+          // kri-1 only has a GOVERNING_BODY review -- oversight of the
+          // process isn't independent review of the item's content, so
+          // it's still a gap.
+          kris: [
+            {
+              id: "kri-1",
+              title: "Supplier Lead Time",
+              unit: "days",
+              status: "OK",
+              line_of_defense: "SECOND",
+              line_reviews: [
+                {
+                  line: "GOVERNING_BODY",
+                  reviewedById: "u3",
+                  reviewedAt: "2026-01-01",
+                },
+              ],
+            },
+          ],
+        }),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const card = coverageCard()
+      // Gap items: action-1, action-unclassified, kri-1, compliance-1,
+      // audit-1 (5 of the 6 total items) -- risk-1 has a SECOND review so
+      // it's excluded.
+      expect(
+        within(card).getByText(
+          "organization.threeLinesOfDefense.coverage.gapTitle_other"
+        )
+      ).toBeInTheDocument()
+      expect(
+        within(card).getByText("Patch critical vulnerability")
+      ).toBeInTheDocument()
+      expect(
+        within(card).getByText("Supplier Lead Time")
+      ).toBeInTheDocument()
+      expect(within(card).getByText("GDPR data mapping")).toBeInTheDocument()
+      expect(within(card).getByText("Q3 internal audit")).toBeInTheDocument()
+      expect(
+        within(card).queryByText("Supply chain disruption")
+      ).not.toBeInTheDocument()
+    })
+
+    it("uses the singular gap title when exactly one item lacks independent review", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({
+          risks: [
+            {
+              id: "risk-1",
+              title: "Supply chain disruption",
+              category: "supply_chain",
+              status: "open",
+              line_of_defense: "FIRST",
+              line_reviews: [],
+            },
+          ],
+          actions: [],
+          kris: [],
+          complianceObligations: [],
+          auditEngagements: [
+            {
+              id: "audit-1",
+              title: "Q3 internal audit",
+              status: "planned",
+              lead_auditor: "Jane Doe",
+              line_of_defense: "THIRD",
+              line_reviews: [
+                { line: "THIRD", reviewedById: "u2", reviewedAt: "2026-01-01" },
+              ],
+            },
+          ],
+        }),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // Total 2 items: audit-1 has a THIRD review (not a gap), risk-1 has
+      // none (the single gap item) -- exercises the count===1 branch.
+      const card = coverageCard()
+      expect(
+        within(card).getByText(
+          "organization.threeLinesOfDefense.coverage.gapTitle_one"
+        )
+      ).toBeInTheDocument()
+      expect(
+        within(card).queryByText(
+          "organization.threeLinesOfDefense.coverage.gapTitle_other"
+        )
+      ).not.toBeInTheDocument()
+    })
+
+    it("does not show the gap callout once every item has a covering SECOND or THIRD review", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({
+          risks: [
+            {
+              id: "risk-1",
+              title: "Supply chain disruption",
+              category: "supply_chain",
+              status: "open",
+              line_of_defense: "FIRST",
+              line_reviews: [
+                { line: "SECOND", reviewedById: "u1", reviewedAt: "2026-01-01" },
+              ],
+            },
+          ],
+          actions: [],
           kris: [],
           complianceObligations: [],
           auditEngagements: [],
@@ -425,13 +602,96 @@ describe("ThreeLinesOfDefensePage", () => {
 
       renderPage()
 
-      const totalRow = within(coverageCard()).getByText(
-        "organization.threeLinesOfDefense.coverage.totalLabel"
-      ).parentElement as HTMLElement
-      expect(totalRow).toHaveTextContent(
-        "organization.threeLinesOfDefense.coverage.none"
-      )
-      expect(totalRow).toHaveTextContent("0 (+1)")
+      const card = coverageCard()
+      expect(within(card).queryByRole("status")).not.toBeInTheDocument()
+      expect(
+        within(card).queryByText(
+          "organization.threeLinesOfDefense.coverage.gapTitle_other"
+        )
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows '+N more' once there are more than 5 gap items, listing only the first 5 titles", () => {
+      const manyUnreviewedRisks = Array.from({ length: 6 }, (_, i) => ({
+        id: `risk-${i}`,
+        title: `Unreviewed risk ${i}`,
+        category: "supply_chain",
+        status: "open",
+        line_of_defense: "FIRST",
+        line_reviews: [],
+      }))
+
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({
+          risks: manyUnreviewedRisks,
+          actions: [],
+          kris: [],
+          complianceObligations: [],
+          auditEngagements: [
+            {
+              id: "audit-1",
+              title: "Q3 internal audit",
+              status: "planned",
+              lead_auditor: "Jane Doe",
+              line_of_defense: "THIRD",
+              line_reviews: [
+                { line: "THIRD", reviewedById: "u2", reviewedAt: "2026-01-01" },
+              ],
+            },
+          ],
+        }),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const card = coverageCard()
+      // 6 unreviewed risks are gap items (audit-1 has a THIRD review, so
+      // it's the only non-gap item).
+      for (let i = 0; i < 5; i++) {
+        expect(
+          within(card).getByText(`Unreviewed risk ${i}`)
+        ).toBeInTheDocument()
+      }
+      expect(
+        within(card).queryByText("Unreviewed risk 5")
+      ).not.toBeInTheDocument()
+      expect(
+        within(card).getByText(
+          "organization.threeLinesOfDefense.coverage.gapMore"
+        )
+      ).toBeInTheDocument()
+    })
+
+    it("shows the item-count subtitle, pluralized by total item count", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({
+          risks: [],
+          actions: [],
+          kris: [],
+          complianceObligations: [],
+          auditEngagements: [
+            {
+              id: "audit-1",
+              title: "Q3 internal audit",
+              status: "planned",
+              lead_auditor: "Jane Doe",
+              line_of_defense: "THIRD",
+              line_reviews: [],
+            },
+          ],
+        }),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const card = coverageCard()
+      expect(
+        within(card).getByText(
+          "organization.threeLinesOfDefense.coverage.subtitle"
+        )
+      ).toBeInTheDocument()
     })
   })
 
@@ -626,16 +886,22 @@ describe("ThreeLinesOfDefensePage", () => {
       })
     )
 
+    // #97: the menu now also has a "Record review" section below "Move
+    // to" (this ADMIN-role item has all 3 non-THIRD lines recordable) --
+    // scope to just the "Move to" destinations, which is what this test is
+    // actually about.
     const menuItems = await screen.findAllByRole("menuitem")
-    const labels = menuItems.map((item) => item.textContent)
-    expect(labels).toEqual([
+    const moveLabels = menuItems
+      .map((item) => item.textContent)
+      .filter((text) => text?.startsWith("organization.threeLinesOfDefense.moveTo"))
+    expect(moveLabels).toEqual([
       "organization.threeLinesOfDefense.moveToFirst",
       "organization.threeLinesOfDefense.moveToSecond",
       "organization.threeLinesOfDefense.moveToThird",
       "organization.threeLinesOfDefense.moveToGoverningBody",
     ])
     // Distinct labels, not 4 copies of the same string.
-    expect(new Set(labels).size).toBe(labels.length)
+    expect(new Set(moveLabels).size).toBe(moveLabels.length)
   })
 
   // quality-bar-loop round 2 (mobile, round-1 finding): the old per-line
@@ -1185,7 +1451,14 @@ describe("ThreeLinesOfDefensePage", () => {
       expect(complianceRow.querySelector("button")).toBeInTheDocument()
     })
 
-    it("LEAD_AUDITOR cannot reassign Risk/Kri/Compliance (management line requires ADMIN specifically)", () => {
+    // #97: LEAD_AUDITOR still can't reassign OWNERSHIP of Risk/Kri/
+    // Compliance -- but the dropdown trigger now also gates a second,
+    // unrelated action (recording a THIRD-line review, which LEAD_AUDITOR
+    // *can* do on any entity type -- see the "recording line reviews"
+    // describe block below). So the trigger button itself can no longer be
+    // used as a stand-in for "can reassign" -- these tests now open the
+    // menu and assert the "Move to" section specifically is absent.
+    it("LEAD_AUDITOR cannot reassign Risk/Kri/Compliance (management line requires ADMIN specifically)", async () => {
       mockRole = "LEAD_AUDITOR"
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
         data: makeData(),
@@ -1194,21 +1467,26 @@ describe("ThreeLinesOfDefensePage", () => {
 
       renderPage()
 
-      const riskRow = screen.getByText("Supply chain disruption").closest("div")!
-        .parentElement!
-        .parentElement!
-      const kriRow = screen.getByText("Supplier Lead Time").closest("div")!
-        .parentElement!
-        .parentElement!
-      const complianceRow = screen.getByText("GDPR data mapping").closest("div")!
-        .parentElement!
-        .parentElement!
-      expect(riskRow.querySelector("button")).not.toBeInTheDocument()
-      expect(kriRow.querySelector("button")).not.toBeInTheDocument()
-      expect(complianceRow.querySelector("button")).not.toBeInTheDocument()
+      for (const title of [
+        "Supply chain disruption",
+        "Supplier Lead Time",
+        "GDPR data mapping",
+      ]) {
+        const row = rowFor(title)
+        await userEvent.click(
+          within(row).getByRole("button", {
+            name: "organization.threeLinesOfDefense.moveItem",
+          })
+        )
+        expect(
+          screen.queryByText("organization.threeLinesOfDefense.moveToLabel")
+        ).not.toBeInTheDocument()
+        // Close the menu before moving to the next row.
+        await userEvent.keyboard("{Escape}")
+      }
     })
 
-    it("LEAD_AUDITOR CAN reassign an AuditEngagement (audit line)", () => {
+    it("LEAD_AUDITOR CAN reassign an AuditEngagement (audit line)", async () => {
       mockRole = "LEAD_AUDITOR"
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
         data: makeData(),
@@ -1217,13 +1495,20 @@ describe("ThreeLinesOfDefensePage", () => {
 
       renderPage()
 
-      const auditRow = screen.getByText("Q3 internal audit").closest("div")!
-        .parentElement!
-        .parentElement!
-      expect(auditRow.querySelector("button")).toBeInTheDocument()
+      const auditRow = rowFor("Q3 internal audit")
+      await userEvent.click(
+        within(auditRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+      expect(
+        await screen.findByText(
+          "organization.threeLinesOfDefense.moveToLabel"
+        )
+      ).toBeInTheDocument()
     })
 
-    it("ADMIN cannot reassign an AuditEngagement (audit line requires LEAD_AUDITOR specifically)", () => {
+    it("ADMIN cannot reassign an AuditEngagement (audit line requires LEAD_AUDITOR specifically)", async () => {
       mockRole = "ADMIN"
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
         data: makeData(),
@@ -1232,10 +1517,15 @@ describe("ThreeLinesOfDefensePage", () => {
 
       renderPage()
 
-      const auditRow = screen.getByText("Q3 internal audit").closest("div")!
-        .parentElement!
-        .parentElement!
-      expect(auditRow.querySelector("button")).not.toBeInTheDocument()
+      const auditRow = rowFor("Q3 internal audit")
+      await userEvent.click(
+        within(auditRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+      expect(
+        screen.queryByText("organization.threeLinesOfDefense.moveToLabel")
+      ).not.toBeInTheDocument()
     })
 
     it("both ADMIN and LEAD_AUDITOR can reassign an Action (unchanged)", () => {
@@ -1260,7 +1550,12 @@ describe("ThreeLinesOfDefensePage", () => {
       expect(actionRow.querySelector("button")).toBeInTheDocument()
     })
 
-    it("does not attempt updateCompliance when a LEAD_AUDITOR has no button to click (server 403 avoided client-side)", () => {
+    // #97: the trigger button itself now also renders for a LEAD_AUDITOR on
+    // this row (they can record a THIRD-line review even though they can't
+    // reassign ownership), so the real regression check is that the
+    // reassignment mutation specifically is never attempted -- not that no
+    // button exists at all.
+    it("does not attempt updateCompliance when a LEAD_AUDITOR has no reassignment option to click (server 403 avoided client-side)", async () => {
       mockRole = "LEAD_AUDITOR"
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
         data: makeData(),
@@ -1269,11 +1564,375 @@ describe("ThreeLinesOfDefensePage", () => {
 
       renderPage()
 
+      const complianceRow = rowFor("GDPR data mapping")
+      await userEvent.click(
+        within(complianceRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+      expect(
+        screen.queryByText("organization.threeLinesOfDefense.moveToLabel")
+      ).not.toBeInTheDocument()
       expect(mockUpdateCompliance).not.toHaveBeenCalled()
-      const complianceRow = screen.getByText("GDPR data mapping").closest("div")!
-        .parentElement!
-        .parentElement!
-      expect(complianceRow.querySelector("button")).toBeNull()
+    })
+  })
+
+  // #97: recording that a line independently reviewed an item is a
+  // separate action from reassigning who owns it -- canRecordReviewForLine
+  // mirrors the backend's assertCanRecordLineReview exactly: THIRD-line
+  // review requires LEAD_AUDITOR, every other line requires ADMIN, and
+  // (unlike ownership reassignment) this permission applies uniformly
+  // across every entity type.
+  describe("recording line reviews (#97)", () => {
+    // This file's mock t() never interpolates (see the HUMANIZED map
+    // comment at the top), so every "Mark reviewed by X" menu item renders
+    // the SAME raw "recordReviewFor" key regardless of which line it's for
+    // -- unlike "Move to" (MOVE_TO_KEY uses a distinct hardcoded key per
+    // line). Tests below distinguish which line a record-review item
+    // targets either by using rows/roles where only one line is ever
+    // recordable, or by the line-specific color class on each item's
+    // ShieldCheck icon (LINE_COLOR_TEXT, the same palette the coverage
+    // rings and review dots use).
+    function recordReviewIcons(menu: HTMLElement): SVGElement[] {
+      return Array.from(menu.querySelectorAll("svg.lucide-shield-check"))
+    }
+
+    it("shows an ADMIN 'Mark reviewed by' options for 1st/2nd Line and Governing Body but not 3rd Line", async () => {
+      mockRole = "ADMIN"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // Audit's reassignment requires LEAD_AUDITOR specifically, so an
+      // ADMIN's dropdown on the audit row contains ONLY record-review
+      // items -- no "Move to" items to disambiguate from.
+      const auditRow = rowFor("Q3 internal audit")
+      await userEvent.click(
+        within(auditRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+      const menu = (await screen.findAllByRole("menuitem"))[0]
+        .closest('[role="menu"]') as HTMLElement
+
+      expect(
+        within(menu).getByText(
+          "organization.threeLinesOfDefense.recordReviewLabel"
+        )
+      ).toBeInTheDocument()
+      const icons = recordReviewIcons(menu)
+      expect(icons).toHaveLength(3)
+      expect(icons.some((i) => i.classList.contains("text-chart-1"))).toBe(
+        true
+      ) // FIRST
+      expect(
+        icons.some((i) => i.classList.contains("text-[hsl(250_70%_60%)]"))
+      ).toBe(true) // SECOND
+      expect(
+        icons.some((i) => i.classList.contains("text-[hsl(88_55%_42%)]"))
+      ).toBe(true) // GOVERNING_BODY
+      expect(
+        icons.some((i) => i.classList.contains("text-[hsl(320_65%_55%)]"))
+      ).toBe(false) // THIRD absent
+    })
+
+    it("shows a LEAD_AUDITOR only the 3rd Line 'Mark reviewed by' option", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // Risk reassignment requires ADMIN specifically, so a LEAD_AUDITOR's
+      // dropdown on the risk row contains ONLY record-review items too.
+      const riskRow = rowFor("Supply chain disruption")
+      await userEvent.click(
+        within(riskRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+      const menu = (await screen.findAllByRole("menuitem"))[0]
+        .closest('[role="menu"]') as HTMLElement
+
+      const icons = recordReviewIcons(menu)
+      expect(icons).toHaveLength(1)
+      expect(icons[0].classList.contains("text-[hsl(320_65%_55%)]")).toBe(
+        true
+      ) // THIRD only
+    })
+
+    it("calls the matching entity's record-review mutation with {id, line} when a 'Mark reviewed by' item is clicked", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+      mockRecordRiskLineReview.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true, data: [] }),
+      })
+
+      renderPage()
+
+      // LEAD_AUDITOR + risk row: exactly one recordable line (THIRD), no
+      // "Move to" items to disambiguate from -- an unambiguous single menu
+      // item to click.
+      const riskRow = rowFor("Supply chain disruption")
+      await userEvent.click(
+        within(riskRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+      const menuItem = await screen.findByRole("menuitem")
+      await userEvent.click(menuItem)
+
+      // Review round 1: recording a review is now confirmed the same way
+      // reassignment is (see confirmRequest's own comment) -- the menu
+      // click opens the dialog, the mutation only fires once confirmed.
+      const confirmButton = await screen.findByRole("button", {
+        name: "organization.threeLinesOfDefense.confirmReviewConfirm",
+      })
+      await userEvent.click(confirmButton)
+
+      await waitFor(() =>
+        expect(mockRecordRiskLineReview).toHaveBeenCalledWith({
+          id: "risk-1",
+          line: "THIRD",
+        })
+      )
+    })
+
+    it("calls recordFindingLineReview for an Action's record-review item", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+      mockRecordFindingLineReview.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true, data: [] }),
+      })
+
+      renderPage()
+
+      // Action reassignment is ADMIN-or-LEAD_AUDITOR, so a LEAD_AUDITOR's
+      // menu here mixes "Move to" items with the single THIRD record-review
+      // item -- click the record-review item specifically (last menuitem).
+      const actionRow = rowFor("Patch critical vulnerability")
+      await userEvent.click(
+        within(actionRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+      const menuItems = await screen.findAllByRole("menuitem")
+      await userEvent.click(menuItems[menuItems.length - 1])
+
+      const confirmButton = await screen.findByRole("button", {
+        name: "organization.threeLinesOfDefense.confirmReviewConfirm",
+      })
+      await userEvent.click(confirmButton)
+
+      await waitFor(() =>
+        expect(mockRecordFindingLineReview).toHaveBeenCalledWith({
+          id: "action-1",
+          line: "THIRD",
+        })
+      )
+    })
+
+    it("excludes a line that already has a live review from the recordable options", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({
+          risks: [
+            {
+              id: "risk-1",
+              title: "Supply chain disruption",
+              category: "supply_chain",
+              status: "open",
+              line_of_defense: "FIRST",
+              line_reviews: [
+                { line: "THIRD", reviewedById: "u1", reviewedAt: "2026-01-01" },
+              ],
+            },
+          ],
+        }),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const riskRow = rowFor("Supply chain disruption")
+      // No recordable lines left (THIRD is the only one LEAD_AUDITOR may
+      // record, and it's already reviewed) and reassignment requires ADMIN
+      // -- so the trigger shouldn't render at all for this row.
+      expect(
+        within(riskRow).queryByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows one colored review dot per line with a live review", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({
+          risks: [
+            {
+              id: "risk-1",
+              title: "Supply chain disruption",
+              category: "supply_chain",
+              status: "open",
+              line_of_defense: "FIRST",
+              line_reviews: [
+                { line: "SECOND", reviewedById: "u1", reviewedAt: "2026-01-01" },
+                { line: "THIRD", reviewedById: "u2", reviewedAt: "2026-01-01" },
+              ],
+            },
+          ],
+        }),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const riskRow = rowFor("Supply chain disruption")
+      const dots = within(riskRow).getAllByTitle(
+        "organization.threeLinesOfDefense.reviewedByLine"
+      )
+      expect(dots).toHaveLength(2)
+      expect(
+        dots.some((d) => d.classList.contains("bg-[hsl(250_70%_60%)]"))
+      ).toBe(true) // SECOND
+      expect(
+        dots.some((d) => d.classList.contains("bg-[hsl(320_65%_55%)]"))
+      ).toBe(true) // THIRD
+    })
+
+    it("renders no review dots for an item with an empty line_reviews array", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const riskRow = rowFor("Supply chain disruption")
+      expect(
+        within(riskRow).queryAllByTitle(
+          "organization.threeLinesOfDefense.reviewedByLine"
+        )
+      ).toHaveLength(0)
+    })
+
+    it("shows a success toast when a review is recorded successfully", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+      mockRecordRiskLineReview.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true, data: [] }),
+      })
+
+      renderPage()
+
+      const riskRow = rowFor("Supply chain disruption")
+      await userEvent.click(
+        within(riskRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+      const menuItem = await screen.findByRole("menuitem")
+      await userEvent.click(menuItem)
+
+      const confirmButton = await screen.findByRole("button", {
+        name: "organization.threeLinesOfDefense.confirmReviewConfirm",
+      })
+      await userEvent.click(confirmButton)
+
+      await waitFor(() =>
+        expect(mockToastSuccess).toHaveBeenCalledWith(
+          "organization.threeLinesOfDefense.toast.reviewRecorded"
+        )
+      )
+    })
+
+    it("shows an error toast when recording a review fails", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+      mockRecordRiskLineReview.mockReturnValue({
+        unwrap: () =>
+          Promise.reject({ data: { message: "Only LEAD_AUDITOR can record a 3rd Line review" } }),
+      })
+
+      renderPage()
+
+      const riskRow = rowFor("Supply chain disruption")
+      await userEvent.click(
+        within(riskRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+      const menuItem = await screen.findByRole("menuitem")
+      await userEvent.click(menuItem)
+
+      const confirmButton = await screen.findByRole("button", {
+        name: "organization.threeLinesOfDefense.confirmReviewConfirm",
+      })
+      await userEvent.click(confirmButton)
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith(
+          "Only LEAD_AUDITOR can record a 3rd Line review"
+        )
+      )
+    })
+
+    // Review round 1 (UX): recording a review is at least as governance-
+    // significant as reassignment -- it's a permanent-feeling attestation
+    // with no visible undo in the UI -- so it now gets the SAME
+    // confirm-before-fire treatment as "Move to", not none.
+    it("fires a confirmation dialog before recording a review, same as reassignment", async () => {
+      mockRole = "LEAD_AUDITOR"
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+      mockRecordRiskLineReview.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true, data: [] }),
+      })
+
+      renderPage()
+
+      const riskRow = rowFor("Supply chain disruption")
+      await userEvent.click(
+        within(riskRow).getByRole("button", {
+          name: "organization.threeLinesOfDefense.moveItem",
+        })
+      )
+      const menuItem = await screen.findByRole("menuitem")
+      await userEvent.click(menuItem)
+
+      // The mutation must NOT fire until the dialog is confirmed.
+      expect(
+        await screen.findByText(
+          "organization.threeLinesOfDefense.confirmReviewTitle"
+        )
+      ).toBeInTheDocument()
+      expect(mockRecordRiskLineReview).not.toHaveBeenCalled()
+
+      const confirmButton = screen.getByRole("button", {
+        name: "organization.threeLinesOfDefense.confirmReviewConfirm",
+      })
+      await userEvent.click(confirmButton)
+
+      await waitFor(() => expect(mockRecordRiskLineReview).toHaveBeenCalled())
     })
   })
 
@@ -1292,6 +1951,7 @@ describe("ThreeLinesOfDefensePage", () => {
             category: "cyber",
             status: "open",
             line_of_defense: "FIRST",
+            line_reviews: [],
           },
         ],
         actions: [
@@ -1301,6 +1961,7 @@ describe("ThreeLinesOfDefensePage", () => {
             priority: "High",
             status: "TO_DO",
             line_of_defense: "SECOND",
+            line_reviews: [],
           },
           {
             id: "action-unclassified",
@@ -1308,6 +1969,7 @@ describe("ThreeLinesOfDefensePage", () => {
             priority: "High",
             status: "TO_DO",
             line_of_defense: null,
+            line_reviews: [],
           },
         ],
         kris: [
@@ -1317,6 +1979,7 @@ describe("ThreeLinesOfDefensePage", () => {
             unit: "days",
             status: "OK",
             line_of_defense: "SECOND",
+            line_reviews: [],
           },
         ],
         complianceObligations: [
@@ -1326,6 +1989,7 @@ describe("ThreeLinesOfDefensePage", () => {
             domain: "data_protection",
             status: "non_compliant",
             line_of_defense: "SECOND",
+            line_reviews: [],
           },
         ],
         auditEngagements: [
@@ -1335,6 +1999,7 @@ describe("ThreeLinesOfDefensePage", () => {
             status: "planned",
             lead_auditor: "Jane Doe",
             line_of_defense: "THIRD",
+            line_reviews: [],
           },
         ],
       }),
@@ -1409,6 +2074,7 @@ describe("ThreeLinesOfDefensePage", () => {
             category: "cyber",
             status: "closed",
             line_of_defense: "FIRST",
+            line_reviews: [],
           },
         ],
       }),
@@ -1827,6 +2493,7 @@ describe("ThreeLinesOfDefensePage", () => {
               priority: "High",
               status: "TO_DO",
               line_of_defense: "SECOND",
+              line_reviews: [],
             },
           ],
           kris: [],
@@ -2004,6 +2671,7 @@ describe("ThreeLinesOfDefensePage", () => {
               category: "supply_chain",
               status: "open",
               line_of_defense: "THIRD",
+              line_reviews: [],
             },
           ],
         }),

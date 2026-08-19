@@ -2,6 +2,7 @@ import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
 import type { LineOfDefense } from "@/types/organization"
+import type { LineReview } from "./governance.api"
 
 // Real response shape returned by aexa-server's /api/compliance endpoints (the
 // Prisma ComplianceObligation model), not the old mockCompliance fixture shape.
@@ -218,6 +219,22 @@ const complianceApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["COMPLIANCE"],
     }),
+    // #97: records that `line` independently reviewed this obligation --
+    // distinct from updateCompliance's line_of_defense, which reassigns
+    // OWNERSHIP (see governance.api.ts's LineReview doc comment). Only
+    // invalidates GOVERNANCE, not COMPLIANCE -- a review doesn't change any
+    // obligation field.
+    recordComplianceLineReview: builder.mutation<
+      ApiResponse<LineReview[]>,
+      { id: string; line: LineOfDefense; notes?: string }
+    >({
+      query: ({ id, line, notes }) => ({
+        url: `/compliance/${id}/line-reviews`,
+        method: "POST",
+        body: { line, notes },
+      }),
+      invalidatesTags: ["GOVERNANCE"],
+    }),
     deleteCompliance: builder.mutation<
       ApiResponse<ComplianceObligation>,
       string
@@ -335,6 +352,7 @@ export const {
   useGetComplianceScorecardQuery,
   useCreateComplianceMutation,
   useUpdateComplianceMutation,
+  useRecordComplianceLineReviewMutation,
   useDeleteComplianceMutation,
   useAttestComplianceMutation,
   useGetComplianceAttestationsQuery,

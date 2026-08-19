@@ -1437,6 +1437,7 @@
       "filterAll": "All",
       "noLeadAuditor": "No lead auditor assigned",
       "moveItem": "Move {{title}} to another line",
+      "moveToLabel": "Move to",
       "moveToFirst": "Move to 1st Line",
       "moveToSecond": "Move to 2nd Line",
       "moveToThird": "Move to 3rd Line",
@@ -1445,6 +1446,16 @@
       "confirmReassignDescription": "\"{{title}}\" will be reassigned to {{line}}.",
       "confirmReassignConfirm": "Move",
       "confirmReassignCancel": "Cancel",
+      "confirmReviewTitle": "Record this review?",
+      "confirmReviewDescription": "You're vouching that {{line}} independently reviewed \"{{title}}\".",
+      "confirmReviewConfirm": "Record review",
+      "reviewedByLine": "Reviewed by {{line}}",
+      "recordReviewLabel": "Record review",
+      "recordReviewFor": "Mark reviewed by {{line}}",
+      "abbrFirst": "1L",
+      "abbrSecond": "2L",
+      "abbrThird": "3L",
+      "abbrGoverningBody": "GB",
       "lines": {
         "first": "1st Line",
         "second": "2nd Line",
@@ -1464,12 +1475,21 @@
       },
       "coverage": {
         "title": "Coverage Overview",
-        "totalLabel": "All items",
-        "none": "No items yet"
+        "subtitle_one": "{{count}} item",
+        "subtitle_other": "{{count}} items",
+        "none": "No items yet",
+        "noReviewsYet": "No lines have recorded an independent review yet. Use any item's menu to record one.",
+        "ringLabel": "{{line}}: {{count}} of {{total}} items reviewed",
+        "gapTitle_one": "{{count}} item has no independent (2nd/3rd-line) review:",
+        "gapTitle_other": "{{count}} items have no independent (2nd/3rd-line) review:",
+        "gapMore_one": "+{{count}} more",
+        "gapMore_other": "+{{count}} more"
       },
       "toast": {
         "reassignSuccess": "Item reassigned",
-        "reassignFailed": "Failed to reassign item"
+        "reassignFailed": "Failed to reassign item",
+        "reviewRecorded": "Review recorded",
+        "reviewFailed": "Failed to record review"
       }
     },
     "siteFilter": {

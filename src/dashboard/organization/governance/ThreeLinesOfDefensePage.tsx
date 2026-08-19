@@ -18,15 +18,35 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
-import { useUpdateAuditEngagementMutation } from "@/redux/apis/organization/audit.api"
-import { useUpdateComplianceMutation } from "@/redux/apis/organization/compliance.api"
-import { useUpdateFindingByIdMutation } from "@/redux/apis/organization/findings.api"
-import { useGetThreeLinesOfDefenseQuery } from "@/redux/apis/organization/governance.api"
-import { useUpdateKriMutation } from "@/redux/apis/organization/kri.api"
-import { useUpdateRiskMutation } from "@/redux/apis/organization/risk.api"
+import {
+  useRecordAuditEngagementLineReviewMutation,
+  useUpdateAuditEngagementMutation,
+} from "@/redux/apis/organization/audit.api"
+import {
+  useRecordComplianceLineReviewMutation,
+  useUpdateComplianceMutation,
+} from "@/redux/apis/organization/compliance.api"
+import {
+  useRecordFindingLineReviewMutation,
+  useUpdateFindingByIdMutation,
+} from "@/redux/apis/organization/findings.api"
+import {
+  useGetThreeLinesOfDefenseQuery,
+  type LineReview,
+} from "@/redux/apis/organization/governance.api"
+import {
+  useRecordKriLineReviewMutation,
+  useUpdateKriMutation,
+} from "@/redux/apis/organization/kri.api"
+import {
+  useRecordRiskLineReviewMutation,
+  useUpdateRiskMutation,
+} from "@/redux/apis/organization/risk.api"
 import type { LineOfDefense } from "@/types/organization"
 import { COMPLIANCE_DOMAINS } from "@/utils/complianceConfig"
 import { getEnumLabel } from "@/utils/enumLabel"
@@ -45,6 +65,7 @@ import {
   Loader2,
   Scale,
   Shield,
+  ShieldCheck,
 } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -166,6 +187,16 @@ const ENTITY_LABEL_KEY: Record<EntityKind, string> = {
 // sitting above the three lines.
 const LINES: LineOfDefense[] = ["FIRST", "SECOND", "THIRD", "GOVERNING_BODY"]
 
+// Review round 1 (a11y): short VISIBLE label for each line's review badge
+// (ItemRow) -- see that badge's own comment for why color-only dots aren't
+// enough here.
+const LINE_ABBR_KEY: Record<LineOfDefense, string> = {
+  FIRST: "organization.threeLinesOfDefense.abbrFirst",
+  SECOND: "organization.threeLinesOfDefense.abbrSecond",
+  THIRD: "organization.threeLinesOfDefense.abbrThird",
+  GOVERNING_BODY: "organization.threeLinesOfDefense.abbrGoverningBody",
+}
+
 const MOVE_TO_KEY: Record<LineOfDefense, string> = {
   FIRST: "organization.threeLinesOfDefense.moveToFirst",
   SECOND: "organization.threeLinesOfDefense.moveToSecond",
@@ -200,6 +231,18 @@ function canReassignEntity(
     case "action":
       return role === "ADMIN" || role === "LEAD_AUDITOR"
   }
+}
+
+// #97: mirrors aexa-server's assertCanRecordLineReview/ownerRoleForLine
+// (line_of_defense_review.ts) exactly -- THIRD-line review is internal
+// audit's own independent check (LEAD_AUDITOR only), every other line is a
+// management-line judgment call (ADMIN only). Client-side mirror only gates
+// which controls render; the server re-checks this on every write.
+function canRecordReviewForLine(
+  line: LineOfDefense,
+  role: string | undefined
+): boolean {
+  return line === "THIRD" ? role === "LEAD_AUDITOR" : role === "ADMIN"
 }
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -287,6 +330,21 @@ interface ItemRowProps {
     title: string,
     line: LineOfDefense
   ) => void
+  // #97: COVERAGE, not ownership -- every line that has independently
+  // reviewed this item and hasn't since been invalidated by an edit. See
+  // governance.api.ts's LineReview doc comment.
+  lineReviews: LineReview[]
+  // Lines the CURRENT caller is permitted to record a review for (per
+  // canRecordReviewForLine) -- drives which "record review" menu items
+  // render, same gating discipline as canReassign above.
+  myReviewableLines: LineOfDefense[]
+  onRecordReview: (
+    entityType: EntityKind,
+    id: string,
+    title: string,
+    line: LineOfDefense
+  ) => void
+  isReviewPending: boolean
   // aexa-frontend#532: the only way to act on an item here was reassigning
   // its line -- there was no way to drill into the record itself. Optional
   // since Compliance and Audit have no per-record detail page (aexa-frontend
@@ -324,9 +382,22 @@ const ItemRow = memo(function ItemRow({
   onReassign,
   linkTo,
   icon: Icon,
+  lineReviews,
+  myReviewableLines,
+  onRecordReview,
+  isReviewPending,
 }: ItemRowProps) {
   const { t } = useTranslation()
   const otherLines = LINES.filter((line) => line !== currentLine)
+  const reviewedLines = new Set(lineReviews.map((r) => r.line))
+  // Lines this caller could record a review for that DON'T already have a
+  // live one -- recording again for an already-reviewed line is legitimate
+  // (it just supersedes the prior one, see the backend's soft-supersede
+  // behavior) but re-reviewing every unchanged item isn't the common case,
+  // so only genuinely new coverage gets a menu entry.
+  const recordableLines = myReviewableLines.filter(
+    (line) => !reviewedLines.has(line)
+  )
 
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 px-2 py-1.5">
@@ -371,9 +442,45 @@ const ItemRow = memo(function ItemRow({
               {statusLabel}
             </span>
           </div>
+          {/* #97: real independent-review coverage, distinct from the
+              ownership badge above -- one small badge per line that has
+              actually reviewed this item, in that line's own color (same
+              palette LINE_COLOR drives on the coverage overview below, so
+              the two views read consistently). Nothing renders when no
+              line has reviewed it yet -- an empty state here is normal for
+              a brand-new item, not an error.
+              Review round 1 (a11y): a bare color dot with only a `title`
+              attribute has no reliable accessible name (title alone isn't
+              consistently exposed by screen readers on a plain span) and,
+              for a compliance tool, color-only encoding is a real gap for
+              colorblind/touch/non-hovering users too -- every OTHER
+              indicator on this row (category, status) shows visible text
+              at all times, not color-only. Now a tiny labeled badge
+              (role="img" + full aria-label, same as the coverage rings
+              below) instead of a bare dot. */}
+          {lineReviews.length > 0 && (
+            <div className="mt-0.5 flex items-center gap-1">
+              {LINES.filter((line) => reviewedLines.has(line)).map((line) => (
+                <span
+                  key={line}
+                  role="img"
+                  aria-label={t(
+                    "organization.threeLinesOfDefense.reviewedByLine",
+                    { line: t(LINE_TITLE_KEY[line]) }
+                  )}
+                  title={t("organization.threeLinesOfDefense.reviewedByLine", {
+                    line: t(LINE_TITLE_KEY[line]),
+                  })}
+                  className={`inline-flex h-3.5 min-w-3.5 shrink-0 items-center justify-center rounded-full px-0.5 text-[8px] font-semibold text-white ${LINE_COLOR[line]}`}
+                >
+                  {t(LINE_ABBR_KEY[line])}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-      {canReassign && (
+      {(canReassign || recordableLines.length > 0) && (
         // quality-bar-loop round 4 (UX, round-1 finding): with
         // GOVERNING_BODY added as a 4th line, an item can have up to 3
         // "move to" destinations, each previously rendered as its own
@@ -409,22 +516,58 @@ const ItemRow = memo(function ItemRow({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {otherLines.map((line) => (
-              // quality-bar-loop (mobile, round-9 finding): the shared
-              // DropdownMenuItem defaults to min-h-7 (28px), under the
-              // 44px touch-target minimum -- scoped here via className
-              // rather than bumping the shared component's default,
-              // since 6 other pages use DropdownMenuItem for compact
-              // desktop-only menus (e.g. the theme toggle) that don't
-              // need the larger touch target.
-              <DropdownMenuItem
-                key={line}
-                onClick={() => onReassign(entityType, id, title, line)}
-                className="min-h-11"
-              >
-                {t(MOVE_TO_KEY[line])}
-              </DropdownMenuItem>
-            ))}
+            {canReassign && (
+              <>
+                <DropdownMenuLabel className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  {t("organization.threeLinesOfDefense.moveToLabel")}
+                </DropdownMenuLabel>
+                {otherLines.map((line) => (
+                  // quality-bar-loop (mobile, round-9 finding): the shared
+                  // DropdownMenuItem defaults to min-h-7 (28px), under the
+                  // 44px touch-target minimum -- scoped here via className
+                  // rather than bumping the shared component's default,
+                  // since 6 other pages use DropdownMenuItem for compact
+                  // desktop-only menus (e.g. the theme toggle) that don't
+                  // need the larger touch target.
+                  <DropdownMenuItem
+                    key={line}
+                    onClick={() => onReassign(entityType, id, title, line)}
+                    className="min-h-11"
+                  >
+                    {t(MOVE_TO_KEY[line])}
+                  </DropdownMenuItem>
+                ))}
+              </>
+            )}
+            {/* #97: recording that a line independently reviewed this item
+                is a SEPARATE action from reassigning who owns it -- see
+                lineReviews' own doc comment above. Only lines the caller is
+                actually permitted to vouch for (canRecordReviewForLine)
+                that don't already have a live review show up here. */}
+            {recordableLines.length > 0 && (
+              <>
+                {canReassign && <DropdownMenuSeparator />}
+                <DropdownMenuLabel className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  {t("organization.threeLinesOfDefense.recordReviewLabel")}
+                </DropdownMenuLabel>
+                {recordableLines.map((line) => (
+                  <DropdownMenuItem
+                    key={line}
+                    disabled={isReviewPending}
+                    onClick={() => onRecordReview(entityType, id, title, line)}
+                    className="min-h-11"
+                  >
+                    <ShieldCheck
+                      className={`mr-1.5 h-3.5 w-3.5 shrink-0 ${LINE_COLOR_TEXT[line]}`}
+                      aria-hidden="true"
+                    />
+                    {t("organization.threeLinesOfDefense.recordReviewFor", {
+                      line: t(LINE_TITLE_KEY[line]),
+                    })}
+                  </DropdownMenuItem>
+                ))}
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
@@ -623,136 +766,244 @@ function FilterChip({
 // Review round 1 (angle B) found --chart-2 (199°) and --chart-3 (38°)
 // are color-IDENTICAL to --risk-info and --risk-medium (src/index.css)
 // -- this page renders severity badges (severityBadgeClasses) using
-// those exact risk colors on every item row directly below this bar, so
-// reusing the
-// full chart-1..4 set would make a line-color segment indistinguishable
-// from an unrelated severity indicator on the same screen. Keeps
-// --chart-1 (168°, teal), which doesn't collide with any --risk-* hue
+// those exact risk colors on every item row, so reusing the full
+// chart-1..4 set would make a line-color indistinguishable from an
+// unrelated severity indicator on the same screen. Keeps --chart-1
+// (168°, teal), which doesn't collide with any --risk-* hue
 // (0°/38°/142°/199°), and replaces the remaining 3 slots with literal
 // hues chosen to stay >=25 degrees clear of every --risk-* hue and of
-// each other.
-//
-// aexa-frontend#939 (visual polish loop, round-1 finding): GOVERNING_BODY
-// previously reused --chart-4 (280°, purple) alongside SECOND's 250°
-// indigo -- only 30° apart and both read as "purple" at the segment
-// widths/opacities this bar actually renders at, live-confirmed by two
-// independent judges as indistinguishable in the coverage legend.
-// Replaced with a yellow-green/olive hue (88°), the nearest clear gap
-// once every --risk-* hue and FIRST/SECOND/THIRD's own hues are each
-// buffered by >=25°.
-const LINE_CHART_COLOR: Record<LineOfDefense, string> = {
+// each other. GOVERNING_BODY uses a yellow-green/olive hue (88°),
+// the nearest clear gap once every --risk-* hue and FIRST/SECOND/
+// THIRD's own hues are each buffered by >=25° (live-confirmed by two
+// independent judges as distinguishable from SECOND's indigo, unlike
+// the --chart-4 purple this replaced).
+const LINE_COLOR: Record<LineOfDefense, string> = {
   FIRST: "bg-chart-1",
   SECOND: "bg-[hsl(250_70%_60%)]",
   THIRD: "bg-[hsl(320_65%_55%)]",
   GOVERNING_BODY: "bg-[hsl(88_55%_42%)]",
 }
+const LINE_COLOR_TEXT: Record<LineOfDefense, string> = {
+  FIRST: "text-chart-1",
+  SECOND: "text-[hsl(250_70%_60%)]",
+  THIRD: "text-[hsl(320_65%_55%)]",
+  GOVERNING_BODY: "text-[hsl(88_55%_42%)]",
+}
+const LINE_STROKE: Record<LineOfDefense, string> = {
+  FIRST: "hsl(168 60% 42%)",
+  SECOND: "hsl(250 70% 60%)",
+  THIRD: "hsl(320 65% 55%)",
+  GOVERNING_BODY: "hsl(88 55% 42%)",
+}
 
-// quality-bar-loop round 6 (industry-standards, round-1 finding): the
-// IIA Three Lines Model's central diagnostic question -- "is 3rd line
-// (independent assurance) reviewing enough of what 1st/2nd line
-// (operations/risk-management) own" -- was previously only answerable
-// by manually counting raw per-column totals across 4 separate cards.
-// A proportional coverage bar makes the actual distribution visible at
-// a glance, the same way real GRC/audit tools (e.g. AuditBoard's
-// coverage dashboards, TeamMate+'s risk-coverage views) surface this as
-// a first-class summary rather than leaving it to the reader to tally.
-//
-// aexa-frontend#939 (visual polish loop, round-5 finding): this panel
-// originally rendered one bar+row PER entity type (5 total), each
-// re-showing the same per-line distribution the grid immediately below
-// also shows via each row's own type icon -- flagged as the dominant
-// remaining clutter/redundancy source by two independent judges across
-// 4 consecutive rounds. Collapsed to a single combined bar (total items
-// per line, across all 5 entity types) -- keeps the genuinely useful
-// cross-line comparison the IIA-reasoning comment above describes,
-// while dropping the per-entity-type breakdown that's redundant with
-// scanning a line's own column (each row already shows its type icon).
-function CoverageOverview({
-  rows,
+// #97: the IIA Three Lines Model's central diagnostic question -- "is 3rd
+// line (independent assurance) reviewing enough of what 1st line
+// (operations) owns" -- can only be answered honestly once ownership and
+// review are two separate facts (see line_reviews' own doc comment on
+// ItemRowProps). This panel replaced an earlier version that answered a
+// DIFFERENT, easier question ("how many items does each line own") by
+// mistake, because ownership was the only data that existed at the time --
+// see this file's git history on aexa-frontend#97/#941 for the full story.
+// Now grounded in real review data: one ring per line that actually
+// PERFORMS independent review (2nd/3rd/governing body -- 1st line's own
+// ring would just restate near-100% ownership, which line_of_defense
+// already shows per-item), plus the one number that's actually
+// actionable: how many items have NEVER been independently reviewed by
+// anyone outside the line that owns them.
+interface CoverageItem {
+  id: string
+  title: string
+  line_of_defense: LineOfDefense | null
+  line_reviews: LineReview[]
+}
+
+const REVIEW_RING_LINES: LineOfDefense[] = ["SECOND", "THIRD", "GOVERNING_BODY"]
+
+function CoverageRing({
+  line,
+  count,
+  total,
 }: {
-  rows: { labelKey: string; unclassifiedCount?: number; byLine: Record<LineOfDefense, unknown[]> }[]
+  line: LineOfDefense
+  count: number
+  total: number
 }) {
   const { t } = useTranslation()
+  const pct = total === 0 ? 0 : count / total
+  const radius = 30
+  const circumference = 2 * Math.PI * radius
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <svg
+        width="72"
+        height="72"
+        viewBox="0 0 72 72"
+        role="img"
+        aria-label={t("organization.threeLinesOfDefense.coverage.ringLabel", {
+          line: t(LINE_TITLE_KEY[line]),
+          count,
+          total,
+        })}
+      >
+        <circle
+          cx="36"
+          cy="36"
+          r={radius}
+          fill="none"
+          stroke="var(--border)"
+          strokeWidth="7"
+        />
+        {pct > 0 && (
+          <circle
+            cx="36"
+            cy="36"
+            r={radius}
+            fill="none"
+            stroke={LINE_STROKE[line]}
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - pct)}
+            transform="rotate(-90 36 36)"
+          />
+        )}
+        {/* Review round 1 (a11y): the parent svg's own aria-label already
+            carries this same count/total as a full sentence -- without
+            aria-hidden here, some screen reader/browser pairings expose
+            this bare "4/10" text a second time alongside it. */}
+        <text
+          x="36"
+          y="40"
+          textAnchor="middle"
+          aria-hidden="true"
+          className="fill-foreground text-[13px] font-medium"
+        >
+          {count}/{total}
+        </text>
+      </svg>
+      <span className="text-center text-[11px] text-muted-foreground">
+        {t(LINE_TITLE_KEY[line])}
+      </span>
+    </div>
+  )
+}
 
-  const totalByLine = useMemo(() => {
-    const totals: Record<LineOfDefense, number> = {
+function CoverageOverview({ items }: { items: CoverageItem[] }) {
+  const { t } = useTranslation()
+  const total = items.length
+
+  const reviewedCountByLine = useMemo(() => {
+    const counts: Record<LineOfDefense, number> = {
       FIRST: 0,
       SECOND: 0,
       THIRD: 0,
       GOVERNING_BODY: 0,
     }
-    for (const row of rows) {
-      for (const line of LINES) {
-        totals[line] += row.byLine[line].length
-      }
+    for (const item of items) {
+      const lines = new Set(item.line_reviews.map((r) => r.line))
+      for (const line of lines) counts[line]++
     }
-    return totals
-  }, [rows])
+    return counts
+  }, [items])
 
-  const total = LINES.reduce((sum, line) => sum + totalByLine[line], 0)
-  const unclassifiedTotal = rows.reduce(
-    (sum, row) => sum + (row.unclassifiedCount ?? 0),
-    0
+  // The one actionable finding: items with NO independent (2nd/3rd-line)
+  // review at all -- still relying entirely on 1st-line self-assessment,
+  // regardless of who formally owns them. Governing-body sign-off alone
+  // doesn't count as independent operational assurance either (it's
+  // oversight of the process, not a review of the item's content).
+  const gapItems = useMemo(
+    () =>
+      items.filter((item) => {
+        const lines = new Set(item.line_reviews.map((r) => r.line))
+        return !lines.has("SECOND") && !lines.has("THIRD")
+      }),
+    [items]
+  )
+
+  const totalReviewsRecorded = useMemo(
+    () => items.reduce((sum, item) => sum + item.line_reviews.length, 0),
+    [items]
   )
 
   return (
     <Card>
       <CardHeader>
-        {/* Subtitle removed per CEO feedback (page felt cluttered) -- it
-            restated what the coverage bar below already shows visually. */}
         <h2 className="font-heading text-sm font-medium">
           {t("organization.threeLinesOfDefense.coverage.title")}
         </h2>
+        <CardDescription>
+          {t("organization.threeLinesOfDefense.coverage.subtitle", {
+            count: total,
+          })}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2.5">
-        <div className="flex items-center gap-3">
-          <span className="w-28 shrink-0 truncate text-[11px] text-muted-foreground">
-            {t("organization.threeLinesOfDefense.coverage.totalLabel")}
-          </span>
-          {total === 0 ? (
-            <span className="flex-1 text-[11px] text-muted-foreground">
-              {t("organization.threeLinesOfDefense.coverage.none")}
-            </span>
-          ) : (
-            <div
-              role="img"
-              aria-label={LINES.filter((line) => totalByLine[line] > 0)
-                .map((line) => `${t(LINE_TITLE_KEY[line])}: ${totalByLine[line]}`)
-                .join(", ")}
-              className="flex h-3.5 flex-1 overflow-hidden rounded-full bg-muted"
-            >
-              {LINES.map((line) => {
-                const count = totalByLine[line]
-                if (count === 0) return null
-                return (
-                  <div
-                    key={line}
-                    title={`${t(LINE_TITLE_KEY[line])}: ${count}`}
-                    className={`h-full ${LINE_CHART_COLOR[line]}`}
-                    style={{ width: `${(count / total) * 100}%` }}
-                  />
-                )
-              })}
+      <CardContent>
+        {total === 0 ? (
+          <p className="text-[11px] text-muted-foreground">
+            {t("organization.threeLinesOfDefense.coverage.none")}
+          </p>
+        ) : totalReviewsRecorded === 0 ? (
+          // Onboarding empty state: this is expected the first time the
+          // feature is used org-wide (every item starts with zero reviews),
+          // not an alarming "0% coverage" reading -- distinct copy from the
+          // steady-state gap list below so it doesn't read as a crisis.
+          <p className="text-[11px] text-muted-foreground">
+            {t("organization.threeLinesOfDefense.coverage.noReviewsYet")}
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-wrap justify-center gap-6 sm:justify-start">
+              {REVIEW_RING_LINES.map((line) => (
+                <CoverageRing
+                  key={line}
+                  line={line}
+                  count={reviewedCountByLine[line]}
+                  total={total}
+                />
+              ))}
             </div>
-          )}
-          <span className="w-16 shrink-0 text-right font-mono text-[11px] text-muted-foreground">
-            {total}
-            {!!unclassifiedTotal && ` (+${unclassifiedTotal})`}
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
-          {LINES.map((line) => (
-            <span
-              key={line}
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
-            >
-              <span
-                className={`h-2 w-2 rounded-full ${LINE_CHART_COLOR[line]}`}
-              />
-              {t(LINE_TITLE_KEY[line])}
-            </span>
-          ))}
-        </div>
+            {gapItems.length > 0 && (
+              // Review round 1 (a11y): role="status" is a live region --
+              // meant for content that CHANGES and should be announced on
+              // update, not for a list that's already present on first
+              // page load (the typical case here, since a fresh org starts
+              // with zero reviews). Left in place, some screen readers
+              // auto-announce this whole block on load, competing with the
+              // page's own normal heading/landmark reading order. Plain
+              // semantic markup (the list below already has real list
+              // semantics) is the correct default; a live region is only
+              // warranted for an actual in-place update, which this isn't.
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+                <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                  {t(
+                    gapItems.length === 1
+                      ? "organization.threeLinesOfDefense.coverage.gapTitle_one"
+                      : "organization.threeLinesOfDefense.coverage.gapTitle_other",
+                    { count: gapItems.length }
+                  )}
+                </p>
+                <ul className="mt-1.5 flex flex-col gap-0.5">
+                  {gapItems.slice(0, 5).map((item) => (
+                    <li
+                      key={item.id}
+                      className="truncate text-[11px] text-muted-foreground"
+                      title={item.title}
+                    >
+                      {item.title}
+                    </li>
+                  ))}
+                </ul>
+                {gapItems.length > 5 && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {t("organization.threeLinesOfDefense.coverage.gapMore", {
+                      count: gapItems.length - 5,
+                    })}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -774,6 +1025,21 @@ export default function ThreeLinesOfDefensePage() {
   const [updateKri] = useUpdateKriMutation()
   const [updateCompliance] = useUpdateComplianceMutation()
   const [updateAuditEngagement] = useUpdateAuditEngagementMutation()
+  // #97: recording a review is a separate action from reassigning
+  // ownership -- see lineReviews' own doc comment on ItemRowProps.
+  const [recordRiskLineReview] = useRecordRiskLineReviewMutation()
+  const [recordFindingLineReview] = useRecordFindingLineReviewMutation()
+  const [recordKriLineReview] = useRecordKriLineReviewMutation()
+  const [recordComplianceLineReview] = useRecordComplianceLineReviewMutation()
+  const [recordAuditEngagementLineReview] =
+    useRecordAuditEngagementLineReviewMutation()
+
+  // Every line the caller may record a review FOR, per
+  // canRecordReviewForLine -- computed once from role rather than per row.
+  const myReviewableLines = useMemo(
+    () => LINES.filter((line) => canRecordReviewForLine(line, role)),
+    [role]
+  )
 
   // quality-bar-loop round 8 (resilience, round-7 finding): a single
   // `string | null` let a second reassign (row B) overwrite the first
@@ -838,44 +1104,47 @@ export default function ThreeLinesOfDefensePage() {
     [auditEngagements]
   )
 
-  // quality-bar-loop round 6 (industry-standards, round-1 finding): one
-  // row per entity type for the coverage overview below. Actions use
-  // `classifiedActions` (the same source `actionsByLine` is grouped
-  // from) so the coverage bar's percentages reflect distribution across
-  // lines, not diluted by not-yet-classified items -- the unclassified
-  // count is surfaced separately via `unclassifiedCount` instead.
-  const coverageRows = useMemo(
+  // #97: flat list of every item across all 5 entity types, carrying real
+  // review coverage (line_reviews) alongside ownership -- what
+  // CoverageOverview actually needs now that it answers a genuine
+  // assurance question instead of a headcount-by-owner one. Unclassified
+  // (no-owner) actions are included too -- an item with zero independent
+  // review is exactly as much a coverage gap whether or not it has an
+  // owner yet.
+  const coverageItems = useMemo(
     () => [
-      {
-        labelKey: "organization.threeLinesOfDefense.sections.risks",
-        byLine: risksByLine,
-      },
-      {
-        labelKey: "organization.threeLinesOfDefense.sections.actions",
-        byLine: actionsByLine,
-        unclassifiedCount: unclassifiedActions.length,
-      },
-      {
-        labelKey: "organization.threeLinesOfDefense.sections.kris",
-        byLine: krisByLine,
-      },
-      {
-        labelKey: "organization.threeLinesOfDefense.sections.compliance",
-        byLine: complianceByLine,
-      },
-      {
-        labelKey: "organization.threeLinesOfDefense.sections.audits",
-        byLine: auditsByLine,
-      },
+      ...risks.map((r) => ({
+        id: r.id,
+        title: r.title,
+        line_of_defense: r.line_of_defense,
+        line_reviews: r.line_reviews,
+      })),
+      ...actions.map((a) => ({
+        id: a.id,
+        title: a.title,
+        line_of_defense: a.line_of_defense,
+        line_reviews: a.line_reviews,
+      })),
+      ...kris.map((k) => ({
+        id: k.id,
+        title: k.title,
+        line_of_defense: k.line_of_defense,
+        line_reviews: k.line_reviews,
+      })),
+      ...complianceObligations.map((c) => ({
+        id: c.id,
+        title: c.title,
+        line_of_defense: c.line_of_defense,
+        line_reviews: c.line_reviews,
+      })),
+      ...auditEngagements.map((e) => ({
+        id: e.id,
+        title: e.title,
+        line_of_defense: e.line_of_defense,
+        line_reviews: e.line_reviews,
+      })),
     ],
-    [
-      risksByLine,
-      actionsByLine,
-      unclassifiedActions.length,
-      krisByLine,
-      complianceByLine,
-      auditsByLine,
-    ]
+    [risks, actions, kris, complianceObligations, auditEngagements]
   )
 
   // quality-bar-loop round 10 (industry-standards, round-7 finding):
@@ -889,7 +1158,16 @@ export default function ThreeLinesOfDefensePage() {
   // One shared piece of state (not one per row) since only one
   // reassignment can be awaiting confirmation at a time -- same pattern
   // as ReportsPage's confirmPublishId.
+  // Review round 1 (UX): recording a review is at least as governance-
+  // significant as reassigning ownership -- it's an attestation written to
+  // a real audit trail (reviewedById/reviewedAt) that feeds the org-wide
+  // coverage metrics on this same page, and (unlike reassignment) has no
+  // visible "undo" affordance in this UI if a wrong line gets clicked by
+  // mistake. `action` discriminates which confirmation copy/handler to use
+  // -- same shared single-request-at-a-time state as before, now covering
+  // both governance-significant actions on this page instead of just one.
   const [confirmRequest, setConfirmRequest] = useState<{
+    action: "reassign" | "recordReview"
     entityType: EntityKind
     id: string
     title: string
@@ -918,7 +1196,26 @@ export default function ThreeLinesOfDefensePage() {
     (entityType: EntityKind, id: string, title: string, line: LineOfDefense) => {
       hasConfirmedRef.current = false
       requestAnimationFrame(() => {
-        setConfirmRequest({ entityType, id, title, line })
+        setConfirmRequest({ action: "reassign", entityType, id, title, line })
+      })
+    },
+    []
+  )
+
+  // Review round 1 (UX): same confirm-before-fire treatment as
+  // requestReassign above, for the same reasons -- see confirmRequest's
+  // own comment.
+  const requestRecordReview = useCallback(
+    (entityType: EntityKind, id: string, title: string, line: LineOfDefense) => {
+      hasConfirmedRef.current = false
+      requestAnimationFrame(() => {
+        setConfirmRequest({
+          action: "recordReview",
+          entityType,
+          id,
+          title,
+          line,
+        })
       })
     },
     []
@@ -988,6 +1285,62 @@ export default function ThreeLinesOfDefensePage() {
     ]
   )
 
+  // #97: records that `line` independently reviewed this item -- reuses
+  // the same pendingIds tracking as doReassign above (an item mid-review-
+  // record shouldn't also be reassignable, and vice versa; both are
+  // mutually-exclusive single-item writes).
+  const doRecordReview = useCallback(
+    async (
+      entityType: EntityKind,
+      id: string,
+      _title: string,
+      line: LineOfDefense
+    ) => {
+      setPendingIds((prev) => new Set(prev).add(id))
+      try {
+        switch (entityType) {
+          case "risk":
+            await recordRiskLineReview({ id, line }).unwrap()
+            break
+          case "action":
+            await recordFindingLineReview({ id, line }).unwrap()
+            break
+          case "kri":
+            await recordKriLineReview({ id, line }).unwrap()
+            break
+          case "compliance":
+            await recordComplianceLineReview({ id, line }).unwrap()
+            break
+          case "audit":
+            await recordAuditEngagementLineReview({ id, line }).unwrap()
+            break
+        }
+        toast.success(t("organization.threeLinesOfDefense.toast.reviewRecorded"))
+      } catch (err) {
+        toast.error(
+          getErrorMessage(
+            err,
+            t("organization.threeLinesOfDefense.toast.reviewFailed")
+          )
+        )
+      } finally {
+        setPendingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+      }
+    },
+    [
+      recordRiskLineReview,
+      recordFindingLineReview,
+      recordKriLineReview,
+      recordComplianceLineReview,
+      recordAuditEngagementLineReview,
+      t,
+    ]
+  )
+
   return (
     <div className="space-y-6 p-4 lg:p-6">
       {/* aexa-frontend#930: subtitle removed -- it named the same 5 entity
@@ -1025,7 +1378,7 @@ export default function ThreeLinesOfDefensePage() {
         </div>
       ) : (
         <>
-          <CoverageOverview rows={coverageRows} />
+          <CoverageOverview items={coverageItems} />
 
           {/* aexa-frontend#939 (visual polish loop, round-3 finding): the
               previous `xl:grid-cols-4` breakpoint (1280px) put all 4 line
@@ -1101,6 +1454,10 @@ export default function ThreeLinesOfDefensePage() {
                     canReassign={canReassignRisk}
                     isPending={pendingIds.has(risk.id)}
                     onReassign={requestReassign}
+                    lineReviews={risk.line_reviews}
+                    myReviewableLines={myReviewableLines}
+                    onRecordReview={requestRecordReview}
+                    isReviewPending={pendingIds.has(risk.id)}
                     linkTo={`/organization/risks/${risk.id}`}
                   />
                   ),
@@ -1131,6 +1488,10 @@ export default function ThreeLinesOfDefensePage() {
                     canReassign={canReassignAction}
                     isPending={pendingIds.has(action.id)}
                     onReassign={requestReassign}
+                    lineReviews={action.line_reviews}
+                    myReviewableLines={myReviewableLines}
+                    onRecordReview={requestRecordReview}
+                    isReviewPending={pendingIds.has(action.id)}
                     linkTo={`/organization/finding/${action.id}`}
                   />
                   ),
@@ -1155,6 +1516,10 @@ export default function ThreeLinesOfDefensePage() {
                     canReassign={canReassignKri}
                     isPending={pendingIds.has(kri.id)}
                     onReassign={requestReassign}
+                    lineReviews={kri.line_reviews}
+                    myReviewableLines={myReviewableLines}
+                    onRecordReview={requestRecordReview}
+                    isReviewPending={pendingIds.has(kri.id)}
                     linkTo={`/organization/kri?highlight=${encodeURIComponent(kri.id)}`}
                   />
                   ),
@@ -1183,6 +1548,10 @@ export default function ThreeLinesOfDefensePage() {
                     canReassign={canReassignCompliance}
                     isPending={pendingIds.has(obligation.id)}
                     onReassign={requestReassign}
+                    lineReviews={obligation.line_reviews}
+                    myReviewableLines={myReviewableLines}
+                    onRecordReview={requestRecordReview}
+                    isReviewPending={pendingIds.has(obligation.id)}
                     // aexa-frontend#561: CompliancePage has no
                     // per-obligation route or ?search= support of its own
                     // (unlike SitesEntities), so this links to the list,
@@ -1216,6 +1585,10 @@ export default function ThreeLinesOfDefensePage() {
                     canReassign={canReassignAudit}
                     isPending={pendingIds.has(engagement.id)}
                     onReassign={requestReassign}
+                    lineReviews={engagement.line_reviews}
+                    myReviewableLines={myReviewableLines}
+                    onRecordReview={requestRecordReview}
+                    isReviewPending={pendingIds.has(engagement.id)}
                     // AuditPage has no per-engagement URL/route -- it opens
                     // engagements in an edit modal driven by local state,
                     // not a navigable id. Links to the list rather than
@@ -1283,6 +1656,10 @@ export default function ThreeLinesOfDefensePage() {
                     canReassign={canReassignAction}
                     isPending={pendingIds.has(action.id)}
                     onReassign={requestReassign}
+                    lineReviews={action.line_reviews}
+                    myReviewableLines={myReviewableLines}
+                    onRecordReview={requestRecordReview}
+                    isReviewPending={pendingIds.has(action.id)}
                     linkTo={`/organization/finding/${action.id}`}
                   />
                 ))}
@@ -1296,8 +1673,10 @@ export default function ThreeLinesOfDefensePage() {
           confirms a reassignment before it fires, matching reference GRC
           tools' treatment of line-of-defense reclassification as a
           governance-significant action. One shared dialog (not one per
-          row) since only one reassignment can be awaiting confirmation
-          at a time -- same pattern as ReportsPage's confirmPublishId. */}
+          row) since only one reassignment/review-record can be awaiting
+          confirmation at a time -- same pattern as ReportsPage's
+          confirmPublishId. Review round 1: extended to also confirm
+          "record review" -- see confirmRequest's own comment for why. */}
       <AlertDialog
         open={confirmRequest !== null}
         onOpenChange={(open) => {
@@ -1307,17 +1686,27 @@ export default function ThreeLinesOfDefensePage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t("organization.threeLinesOfDefense.confirmReassignTitle")}
+              {confirmRequest?.action === "recordReview"
+                ? t("organization.threeLinesOfDefense.confirmReviewTitle")
+                : t("organization.threeLinesOfDefense.confirmReassignTitle")}
             </AlertDialogTitle>
             {confirmRequest && (
               <AlertDialogDescription>
-                {t(
-                  "organization.threeLinesOfDefense.confirmReassignDescription",
-                  {
-                    title: confirmRequest.title,
-                    line: t(LINE_TITLE_KEY[confirmRequest.line]),
-                  }
-                )}
+                {confirmRequest.action === "recordReview"
+                  ? t(
+                      "organization.threeLinesOfDefense.confirmReviewDescription",
+                      {
+                        title: confirmRequest.title,
+                        line: t(LINE_TITLE_KEY[confirmRequest.line]),
+                      }
+                    )
+                  : t(
+                      "organization.threeLinesOfDefense.confirmReassignDescription",
+                      {
+                        title: confirmRequest.title,
+                        line: t(LINE_TITLE_KEY[confirmRequest.line]),
+                      }
+                    )}
               </AlertDialogDescription>
             )}
           </AlertDialogHeader>
@@ -1329,16 +1718,27 @@ export default function ThreeLinesOfDefensePage() {
               onClick={() => {
                 if (confirmRequest && !hasConfirmedRef.current) {
                   hasConfirmedRef.current = true
-                  doReassign(
-                    confirmRequest.entityType,
-                    confirmRequest.id,
-                    confirmRequest.line
-                  )
+                  if (confirmRequest.action === "recordReview") {
+                    doRecordReview(
+                      confirmRequest.entityType,
+                      confirmRequest.id,
+                      confirmRequest.title,
+                      confirmRequest.line
+                    )
+                  } else {
+                    doReassign(
+                      confirmRequest.entityType,
+                      confirmRequest.id,
+                      confirmRequest.line
+                    )
+                  }
                 }
                 setConfirmRequest(null)
               }}
             >
-              {t("organization.threeLinesOfDefense.confirmReassignConfirm")}
+              {confirmRequest?.action === "recordReview"
+                ? t("organization.threeLinesOfDefense.confirmReviewConfirm")
+                : t("organization.threeLinesOfDefense.confirmReassignConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -3,6 +3,7 @@ import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
 import type { IAction } from "@/types/finding"
 import type { LineOfDefense } from "@/types/organization"
+import type { LineReview } from "./governance.api"
 
 interface GetAllFindingsArgs {
   page: number
@@ -121,6 +122,22 @@ const findingsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["FINDINGS"],
     }),
+    // #97: records that `line` independently reviewed this finding --
+    // distinct from updateFindingById's line_of_defense, which reassigns
+    // OWNERSHIP (see governance.api.ts's LineReview doc comment). Only
+    // invalidates GOVERNANCE, not FINDINGS -- a review doesn't change any
+    // Action field.
+    recordFindingLineReview: builder.mutation<
+      ApiResponse<LineReview[]>,
+      { id: string; line: LineOfDefense; notes?: string }
+    >({
+      query: ({ id, line, notes }) => ({
+        url: `/action/${id}/line-reviews`,
+        method: "POST",
+        body: { line, notes },
+      }),
+      invalidatesTags: ["GOVERNANCE"],
+    }),
     // update_action_into_db (the PATCH handler above) never reads
     // body.messages -- it only persists actionTitle/actionDisc/priority/
     // dueDate/status/attachments/assignBy (see action.service.ts on
@@ -180,6 +197,7 @@ export const {
   useDeleteFindingByIdMutation,
   useCreateNewFindingMutation,
   useUpdateFindingByIdMutation,
+  useRecordFindingLineReviewMutation,
   useAddFindingMessageMutation,
   useGetFindingByIdQuery,
   useUploadFindingAttachmentMutation,
