@@ -471,7 +471,10 @@ const ItemRow = memo(function ItemRow({
                   title={t("organization.threeLinesOfDefense.reviewedByLine", {
                     line: t(LINE_TITLE_KEY[line]),
                   })}
-                  className={`inline-flex h-3.5 min-w-3.5 shrink-0 items-center justify-center rounded-full px-0.5 text-[8px] font-semibold text-white ${LINE_COLOR[line]}`}
+                  // Review round 2: was text-[8px]/h-3.5, a full 2px
+                  // smaller than the adjacent category/status pills
+                  // (text-[10px]) on the same row -- now matches them.
+                  className={`inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white ${LINE_COLOR[line]}`}
                 >
                   {t(LINE_ABBR_KEY[line])}
                 </span>
@@ -501,6 +504,16 @@ const ItemRow = memo(function ItemRow({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
+              // Review round 2 (a11y, WCAG 2.4.3): stable id so the page's
+              // shared AlertDialog can return focus here on close -- see
+              // that dialog's own closeConfirmDialog comment.
+              // Review round 1 follow-up: qualified by entityType, not just
+              // id -- 5 different entity types render on this page at once
+              // and nothing guarantees their backend ids are drawn from a
+              // shared namespace; an unqualified id risked two different
+              // rows (e.g. a risk and an action) colliding and misdirecting
+              // focus restoration to the wrong one.
+              id={`three-lines-trigger-${entityType}-${id}`}
               type="button"
               disabled={isPending}
               aria-label={t("organization.threeLinesOfDefense.moveItem", {
@@ -777,11 +790,17 @@ function FilterChip({
 // THIRD's own hues are each buffered by >=25° (live-confirmed by two
 // independent judges as distinguishable from SECOND's indigo, unlike
 // the --chart-4 purple this replaced).
+// Review round 2 (a11y): darkened from the original bar/dot lightness
+// (36-60%L) to 28-42%L -- white text on the original values measured as
+// low as 2.85:1 (WCAG 1.4.3 requires >=4.5:1 for text this size). Computed
+// against the sRGB relative-luminance formula for each hue at its new L;
+// all 4 now land between 5.8:1 and 8.3:1 against white. Only consumer is
+// the review badge below (grep LINE_COLOR\[) -- safe to darken globally.
 const LINE_COLOR: Record<LineOfDefense, string> = {
-  FIRST: "bg-chart-1",
-  SECOND: "bg-[hsl(250_70%_60%)]",
-  THIRD: "bg-[hsl(320_65%_55%)]",
-  GOVERNING_BODY: "bg-[hsl(88_55%_42%)]",
+  FIRST: "bg-[hsl(168_60%_28%)]",
+  SECOND: "bg-[hsl(250_70%_50%)]",
+  THIRD: "bg-[hsl(320_65%_38%)]",
+  GOVERNING_BODY: "bg-[hsl(88_55%_28%)]",
 }
 const LINE_COLOR_TEXT: Record<LineOfDefense, string> = {
   FIRST: "text-chart-1",
@@ -845,12 +864,18 @@ function CoverageRing({
           total,
         })}
       >
+        {/* Review round 2: --border is a bare "H S% L%" triplet (see
+            index.css), not a full color -- used directly (outside a
+            Tailwind utility class, which wraps it in hsl() internally)
+            this resolved to stroke: none, making the ring's track
+            invisible. hsl(var(--border)) is the fix Tailwind's own
+            utilities apply for you. */}
         <circle
           cx="36"
           cy="36"
           r={radius}
           fill="none"
-          stroke="var(--border)"
+          stroke="hsl(var(--border))"
           strokeWidth="7"
         />
         {pct > 0 && (
@@ -1185,6 +1210,17 @@ export default function ThreeLinesOfDefensePage() {
   // actually block a second click within the same render frame.
   const hasConfirmedRef = useRef(false)
 
+  // Review round 2 (a11y, WCAG 2.4.3): a keyboard user who opens this
+  // dialog from a row's trigger button, then confirms/cancels/Escapes,
+  // was landing on `<body>` afterward -- they'd have to re-Tab from the
+  // top of the page to find their place again. Remembers which row's
+  // trigger to return focus to, independent of `confirmRequest` itself
+  // (which gets cleared before the focus restore should run). Holds the
+  // trigger's `${entityType}-${id}` DOM-id suffix, not just `id` -- 5
+  // entity types render on this page at once with no guaranteed shared
+  // id namespace, so `id` alone could collide across types.
+  const pendingFocusIdRef = useRef<string | null>(null)
+
   // Review round 1 finding on PR #811: opening the AlertDialog synchronously
   // from a DropdownMenuItem click is a known Radix footgun -- the closing
   // menu's focus-return and the new dialog's focus-trap can fight over
@@ -1195,6 +1231,7 @@ export default function ThreeLinesOfDefensePage() {
   const requestReassign = useCallback(
     (entityType: EntityKind, id: string, title: string, line: LineOfDefense) => {
       hasConfirmedRef.current = false
+      pendingFocusIdRef.current = `${entityType}-${id}`
       requestAnimationFrame(() => {
         setConfirmRequest({ action: "reassign", entityType, id, title, line })
       })
@@ -1208,6 +1245,7 @@ export default function ThreeLinesOfDefensePage() {
   const requestRecordReview = useCallback(
     (entityType: EntityKind, id: string, title: string, line: LineOfDefense) => {
       hasConfirmedRef.current = false
+      pendingFocusIdRef.current = `${entityType}-${id}`
       requestAnimationFrame(() => {
         setConfirmRequest({
           action: "recordReview",
@@ -1220,6 +1258,23 @@ export default function ThreeLinesOfDefensePage() {
     },
     []
   )
+
+  // Review round 2 (a11y): the single place that closes the confirm
+  // dialog, used by both the Cancel/Escape/outside-click path (via
+  // onOpenChange) and the Confirm path (via AlertDialogAction's onClick,
+  // which sets the controlled `open` prop directly and so does NOT itself
+  // trigger onOpenChange) -- centralizing here means the focus-restore
+  // logic isn't duplicated across both call sites.
+  const closeConfirmDialog = useCallback(() => {
+    setConfirmRequest(null)
+    const idToFocus = pendingFocusIdRef.current
+    pendingFocusIdRef.current = null
+    if (idToFocus) {
+      requestAnimationFrame(() => {
+        document.getElementById(`three-lines-trigger-${idToFocus}`)?.focus()
+      })
+    }
+  }, [])
 
   // quality-bar-loop round 3 (efficiency, round-1 finding): wrapped in
   // useCallback so ItemRow receives a stable `onReassign` reference across
@@ -1680,7 +1735,7 @@ export default function ThreeLinesOfDefensePage() {
       <AlertDialog
         open={confirmRequest !== null}
         onOpenChange={(open) => {
-          if (!open) setConfirmRequest(null)
+          if (!open) closeConfirmDialog()
         }}
       >
         <AlertDialogContent>
@@ -1733,7 +1788,7 @@ export default function ThreeLinesOfDefensePage() {
                     )
                   }
                 }
-                setConfirmRequest(null)
+                closeConfirmDialog()
               }}
             >
               {confirmRequest?.action === "recordReview"

@@ -1185,6 +1185,64 @@ describe("ThreeLinesOfDefensePage", () => {
         expect(mockUpdateRisk).toHaveBeenCalledTimes(1)
       )
     })
+
+    // Review round 2 (a11y, WCAG 2.4.3): confirming/cancelling used to
+    // leave focus on <body>, forcing a keyboard user to re-Tab from the
+    // page top to find their place again.
+    it("returns focus to the row's trigger button after the dialog is confirmed", async () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+      mockUpdateRisk.mockReturnValue({
+        unwrap: () => Promise.resolve({ success: true }),
+      })
+
+      renderPage()
+
+      const riskRow = rowFor("Supply chain disruption")
+      const trigger = within(riskRow).getByRole("button", {
+        name: "organization.threeLinesOfDefense.moveItem",
+      })
+      await userEvent.click(trigger)
+      const menuItem = await screen.findByRole("menuitem", {
+        name: "organization.threeLinesOfDefense.moveToSecond",
+      })
+      await userEvent.click(menuItem)
+
+      const confirmButton = await screen.findByRole("button", {
+        name: "organization.threeLinesOfDefense.confirmReassignConfirm",
+      })
+      await userEvent.click(confirmButton)
+
+      await waitFor(() => expect(trigger).toHaveFocus())
+    })
+
+    it("returns focus to the row's trigger button after the dialog is cancelled", async () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const riskRow = rowFor("Supply chain disruption")
+      const trigger = within(riskRow).getByRole("button", {
+        name: "organization.threeLinesOfDefense.moveItem",
+      })
+      await userEvent.click(trigger)
+      const menuItem = await screen.findByRole("menuitem", {
+        name: "organization.threeLinesOfDefense.moveToSecond",
+      })
+      await userEvent.click(menuItem)
+
+      const cancelButton = await screen.findByRole("button", {
+        name: "organization.threeLinesOfDefense.confirmReassignCancel",
+      })
+      await userEvent.click(cancelButton)
+
+      await waitFor(() => expect(trigger).toHaveFocus())
+    })
   })
 
   // Review round 1 (angle B) on PR #664: flagged as untested (a
@@ -1804,10 +1862,10 @@ describe("ThreeLinesOfDefensePage", () => {
       )
       expect(dots).toHaveLength(2)
       expect(
-        dots.some((d) => d.classList.contains("bg-[hsl(250_70%_60%)]"))
+        dots.some((d) => d.classList.contains("bg-[hsl(250_70%_50%)]"))
       ).toBe(true) // SECOND
       expect(
-        dots.some((d) => d.classList.contains("bg-[hsl(320_65%_55%)]"))
+        dots.some((d) => d.classList.contains("bg-[hsl(320_65%_38%)]"))
       ).toBe(true) // THIRD
     })
 

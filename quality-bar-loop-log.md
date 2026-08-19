@@ -1140,3 +1140,66 @@ structure) — none blocks convergence under the 8.5 bar, but they're real and
 would be the natural starting point if the target is ever raised again.
 
 Org Dashboard is done for this sweep. Moving to the next feature.
+
+---
+
+# Quality Bar Loop — Three Lines of Defense (`/organization/three-lines-of-defense`, ThreeLinesOfDefensePage.tsx)
+
+Target: average >= 9/10, every axis >= 7/10 floor. No max-round cap.
+Active judges: industry-standards, UX, efficiency, accessibility, visual polish,
+resilience & edge cases, code quality, cross-view integration (mobile/responsive
+and security both skipped — not mobile-heavy, no new sensitive-auth surface).
+
+This page had an earlier quality-bar-loop pass (visible in source comments citing
+"quality-bar-loop round N" up to ~round 11) tracked against a GitHub issue not
+available to this session — round numbering below restarts at 1 for this new
+loop, which is scoring the page fresh after a same-day architecture change
+(issue #97: real multi-line review coverage, PRs aexa-server#357 +
+aexa-frontend#958, both merged) rather than continuing that prior loop's count.
+
+## Round 1 (baseline, post-#97)
+
+| Axis | Score | Note |
+|---|---|---|
+| Industry-standards | 7/10 | attestation-confirmation UX matches real GRC tools (AuditBoard/LogicManager/Resolver); coverage rings have no drill-down/click-through to underlying items (reference tools have this); no trend-over-time or export; 4-column kanban-card layout is a workflow-movement pattern, not how reference tools present assurance-mapping/coverage as a primary view |
+| UX | 6/10 | dropdown menu (Move to / Record review) is clear and well-scoped; confirmation dialog copy reads like a real audit attestation; **found a real stale-UI issue**: after recording a review, network logs confirm the POST + board refetch both return the new review, but the rendered page (ring count, gap list, badge) doesn't update without a manual reload; 1st-line self-review badge visually indistinguishable from a genuinely independent 2nd/3rd-line badge despite the coverage panel's copy implying only 2nd/3rd counts as independent |
+| Efficiency | 9/10 | `coverageItems`/`reviewedCountByLine`/`gapItems` all correctly `useMemo`'d against stable references; `myReviewableLines` and the reassign/record-review callbacks are stable so `ItemRow`'s `React.memo` still skips unaffected rows; all 5 new mutations scope `invalidatesTags` to `GOVERNANCE` only, not the 5 entity list caches |
+| Accessibility | 6/10 | confirmed all 3 review-round-1 a11y fixes (badge aria-label, ring text aria-hidden, gap-box role="status" removal) are correctly implemented and live; **found 2 new real bugs**: (1) WCAG 1.4.3 contrast failure — white badge text on 3 of 4 line colors (FIRST 2.85:1, THIRD 4.04:1, GOVERNING_BODY 2.93:1, only SECOND passes at 5.41:1); (2) WCAG 2.4.3 — focus is not returned to the row's trigger button after the AlertDialog closes (cancel or confirm), a keyboard user loses their place and must re-Tab from the page top |
+| Visual/design polish | 3/10 | **found a real, high-severity bug**: the coverage ring's background-track circle uses `stroke="var(--border)"`, but `--border` is a bare HSL triplet (`"220 13% 89%"`, confirmed in src/index.css) requiring an `hsl()` wrapper for use outside a Tailwind utility class — the track renders as `stroke: none`, i.e. invisible; live screenshots confirm the rings show only a thin colored progress arc (or nothing at 0%) floating with no track behind it. Also: review badges (14x14px, 8px font) are a full 2px smaller than the adjacent category/status pills (10px) on the same row |
+| Resilience & edge cases | 8/10 | error path (getErrorMessage) verified safe with a real unit test; empty `line_reviews: []` renders no badges, no crash; unclassified actions (`line_of_defense: null`) correctly still participate in coverage rings/gap list per an explicit unit test, only excluded from the per-line board columns by design; loading/error/retry states unchanged and still covered. Minor test gap noted (no explicit test for the toast fallback string when the server sends no message) but not scored down for it |
+| Code quality/maintainability | 6/10 | file has grown to 1749 lines holding 6 subcomponents (`MetaPill`/`ItemRow`/`Section`/`LineCard`/`FilterChip`/`CoverageRing`/`CoverageOverview`) plus the page itself — past the point where extraction into sibling files would help; comment density in several stretches now exceeds code volume (e.g. a 14-line comment re-deriving hue math a reader can just look at); the new `confirmRequest` discriminated union is a clean generalization but its 4 separate `action === "recordReview"` ternaries in the AlertDialog JSX is a real "collapse to a lookup object" smell; test file (2698 lines, 71 tests) is in noticeably better shape, real describe-block organization, no meaningful duplication found |
+| Cross-view integration | 8/10 | risk category color confirmed identical to RiskDetails/RiskRegisterPage (same shared `RISK_CATEGORIES` import); compliance domain color confirmed identical to CompliancePage/ComplianceObligationRow (same shared `COMPLIANCE_DOMAINS` import); the new `LINE_COLOR` palette is unique to this page (RiskDetails/ComplianceObligationRow show `line_of_defense` as plain uncolored text) — a visual-language gap, not a clash, tagged cosmetic/convention; old `unclassifiedCount` "(+N)" indicator from the pre-#97 CoverageOverview was relocated (still shown via the full "Unclassified Actions" section's own count badge), not lost |
+| **Average** | **6.625/10** | **(7+6+9+6+3+8+6+8)/8** |
+
+### Convergence check
+
+Average = 6.625 < target (9). Four axes below floor (7): UX (6), Accessibility (6),
+Visual (3), Code quality (6). **Not converged.**
+
+### Fix selected for round 1
+
+No `data-correctness`/`security` findings. Round 1 has no `stuck_streak` history
+yet, so selection falls to "furthest below target" plus batching same-tier,
+same-file findings into one round (`ship-with-review-loop`'s Tier 1/2 batching
+guidance — same-file edits in one PR are fine since there's no concurrent-edit
+risk, the "pairwise disjoint" rule is about avoiding merge conflicts between
+*separate parallel* fixes, not about a single PR touching one file several ways).
+
+Bundling 4 findings into one round, all touching `ThreeLinesOfDefensePage.tsx`,
+all Tier 1/2, all addressing the two furthest-below-floor axes:
+1. **Visual**: fix the invisible ring track (`stroke="var(--border)"` →
+   `stroke="hsl(var(--border))"`) — the headline bug this round.
+2. **Visual**: bump the review-badge font-size/padding to match the adjacent
+   10px pills.
+3. **Accessibility**: fix the WCAG 1.4.3 contrast failure on 3 of 4 line-badge
+   text colors.
+4. **Accessibility**: return focus to the row's trigger button when the
+   AlertDialog closes (confirm or cancel).
+
+Deferred to a later round: UX's stale-UI-after-review finding (needs isolated
+verification first — shared-dev-server load makes a same-round repro unreliable,
+and it's the only judge that reported it), code quality's file-size/comment-
+density findings (a real but larger, riskier refactor to bundle with correctness
+fixes), industry-standards' drill-down/trend/export gaps (large-scope, real
+feature work), cross-view's line-of-defense-color-elsewhere gap (cosmetic,
+low priority next to 2 real bugs).
