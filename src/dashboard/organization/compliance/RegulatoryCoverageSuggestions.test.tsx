@@ -269,11 +269,13 @@ it("disables 'Add as obligation' and relabels it after use, without re-calling o
   expect(onAddSuggestion).toHaveBeenCalledTimes(1)
 })
 
-// Round-8 review round 1 finding: no test exercised marking a suggestion
-// added and then dismissing that same item -- confirms `dismissed` (which
-// visibleSuggestions filters on) is what actually controls visibility, so
-// an added-then-dismissed suggestion cleanly disappears rather than leaving
-// a stale "Added" ghost row behind.
+// Exercises marking a suggestion added and then dismissing that same item.
+// `status` is a single Map<index, "dismissed" | "added">, so the two states
+// are mutually exclusive by construction (a round-12 cleanup of what used to
+// be two independent Sets, which a reviewer flagged as leaving "can an index
+// be both?" unspecified) -- dismissing an already-added suggestion
+// overwrites its status to "dismissed" and it cleanly disappears, no stale
+// "Added" ghost row left behind.
 it("cleanly removes a suggestion from view if it's dismissed after being added", async () => {
   const suggestion = {
     name: "GDPR",
