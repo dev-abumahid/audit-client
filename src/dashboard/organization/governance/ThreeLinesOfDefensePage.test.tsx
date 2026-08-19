@@ -755,24 +755,27 @@ describe("ThreeLinesOfDefensePage", () => {
     // reference GRC tools (AuditBoard, LogicManager, Resolver) let a user
     // drill from a coverage ring into the items behind it -- these tests
     // exercise that click-to-highlight interaction end to end.
-    describe("drill-down: clicking a ring highlights reviewed items (round 7)", () => {
-      function makeDrilldownData() {
-        return makeData({
-          risks: [
-            {
-              id: "risk-1",
-              title: "Supply chain disruption",
-              category: "supply_chain",
-              status: "open",
-              line_of_defense: "FIRST",
-              line_reviews: [
-                { line: "SECOND", reviewedById: "u1", reviewedAt: "2026-01-01" },
-              ],
-            },
-          ],
-        })
-      }
+    // Shared by both describe blocks below -- the drill-down interaction
+    // tests (round 7) and the isolate tests (round 9) exercise the same
+    // fixture (risk-1 owned by 1st Line, reviewed by 2nd Line).
+    function makeDrilldownData() {
+      return makeData({
+        risks: [
+          {
+            id: "risk-1",
+            title: "Supply chain disruption",
+            category: "supply_chain",
+            status: "open",
+            line_of_defense: "FIRST",
+            line_reviews: [
+              { line: "SECOND", reviewedById: "u1", reviewedAt: "2026-01-01" },
+            ],
+          },
+        ],
+      })
+    }
 
+    describe("drill-down: clicking a ring highlights reviewed items (round 7)", () => {
       it("renders coverage rings as buttons with an accessible name and no separate img role", () => {
         mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
           data: makeDrilldownData(),
@@ -914,6 +917,165 @@ describe("ThreeLinesOfDefensePage", () => {
         expect(rowFor("Supply chain disruption").className).not.toContain(
           "border-primary"
         )
+      })
+    })
+
+    describe("isolate: narrowing each line's own list to the drill-down match set (round 9)", () => {
+      function lineCardFor(labelKey: string): HTMLElement {
+        return screen
+          .getByRole("heading", { level: 2, name: labelKey })
+          .closest('[data-slot="card"]') as HTMLElement
+      }
+
+      it("only shows the Isolate checkbox once a ring is active", async () => {
+        const user = userEvent.setup()
+        mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+          data: makeDrilldownData(),
+          isLoading: false,
+        })
+
+        renderPage()
+
+        const card = coverageCard()
+        expect(
+          within(card).queryByText(
+            "organization.threeLinesOfDefense.coverage.isolateLabel"
+          )
+        ).not.toBeInTheDocument()
+
+        await user.click(ringFor(card, SECOND_LABEL))
+
+        expect(
+          within(card).getByText(
+            "organization.threeLinesOfDefense.coverage.isolateLabel"
+          )
+        ).toBeInTheDocument()
+      })
+
+      it("hides non-matching items from each line's own list when checked, and restores them when unchecked", async () => {
+        const user = userEvent.setup()
+        mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+          data: makeDrilldownData(),
+          isLoading: false,
+        })
+
+        renderPage()
+
+        const card = coverageCard()
+        await user.click(ringFor(card, SECOND_LABEL))
+        await user.click(
+          within(card).getByText(
+            "organization.threeLinesOfDefense.coverage.isolateLabel"
+          )
+        )
+
+        // "Patch critical vulnerability" is owned by 2nd Line but was never
+        // reviewed by 2nd Line -- isolating to 2nd Line's reviews should
+        // remove it from 2nd Line's own list entirely, not just leave it
+        // unhighlighted. Scoped to the 2nd Line card itself: the title
+        // also legitimately appears in the coverage panel's own gap-list
+        // (it has no independent review at all), which isolate doesn't
+        // touch.
+        const secondLineCard = lineCardFor(SECOND_LABEL)
+        expect(
+          within(secondLineCard).queryByText("Patch critical vulnerability")
+        ).not.toBeInTheDocument()
+        // "Supply chain disruption" (owned by 1st Line) WAS reviewed by
+        // 2nd Line -- it should still be visible under 1st Line's list.
+        expect(
+          within(lineCardFor(FIRST_LABEL)).getByText(
+            "Supply chain disruption"
+          )
+        ).toBeInTheDocument()
+
+        // Unchecking restores the full, un-narrowed list.
+        await user.click(
+          within(card).getByText(
+            "organization.threeLinesOfDefense.coverage.isolateLabel"
+          )
+        )
+        expect(
+          within(lineCardFor(SECOND_LABEL)).getByText(
+            "Patch critical vulnerability"
+          )
+        ).toBeInTheDocument()
+      })
+
+      it("shows an isolate-specific empty message (not the generic 'no items' one) when isolating leaves a line with zero matches", async () => {
+        const user = userEvent.setup()
+        mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+          data: makeDrilldownData(),
+          isLoading: false,
+        })
+
+        renderPage()
+
+        const card = coverageCard()
+        await user.click(ringFor(card, SECOND_LABEL))
+        await user.click(
+          within(card).getByText(
+            "organization.threeLinesOfDefense.coverage.isolateLabel"
+          )
+        )
+
+        // 2nd Line owns "Patch critical vulnerability", "Supplier Lead
+        // Time", and "GDPR data mapping" -- none reviewed by 2nd Line --
+        // so isolating leaves 2nd Line's own list with zero matches.
+        const secondLineCard = lineCardFor(SECOND_LABEL)
+        expect(
+          within(secondLineCard).getByText(
+            "organization.threeLinesOfDefense.isolateEmpty"
+          )
+        ).toBeInTheDocument()
+        expect(
+          within(secondLineCard).queryByText(
+            "organization.threeLinesOfDefense.empty"
+          )
+        ).not.toBeInTheDocument()
+      })
+
+      it("resets isolate when the highlight is cleared", async () => {
+        const user = userEvent.setup()
+        mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+          data: makeDrilldownData(),
+          isLoading: false,
+        })
+
+        renderPage()
+
+        const card = coverageCard()
+        const secondRing = ringFor(card, SECOND_LABEL)
+        await user.click(secondRing)
+        await user.click(
+          within(card).getByText(
+            "organization.threeLinesOfDefense.coverage.isolateLabel"
+          )
+        )
+        expect(
+          within(lineCardFor(SECOND_LABEL)).queryByText(
+            "Patch critical vulnerability"
+          )
+        ).not.toBeInTheDocument()
+
+        await user.click(secondRing) // toggle the ring off -> clears highlight
+        expect(
+          within(lineCardFor(SECOND_LABEL)).getByText(
+            "Patch critical vulnerability"
+          )
+        ).toBeInTheDocument()
+        expect(
+          within(card).queryByText(
+            "organization.threeLinesOfDefense.coverage.isolateLabel"
+          )
+        ).not.toBeInTheDocument()
+
+        // Isolate should not silently re-apply on the next highlight.
+        await user.click(secondRing)
+        expect(
+          within(lineCardFor(SECOND_LABEL)).getByText(
+            "Patch critical vulnerability"
+          )
+        ).toBeInTheDocument()
       })
     })
   })

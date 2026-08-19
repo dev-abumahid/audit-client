@@ -1431,8 +1431,11 @@
       "retry": "Retry",
       "retrying": "Retrying...",
       "empty": "No items in this line yet",
+      "isolateEmpty": "None of this line's items match the current filter",
       "itemCount_one": "{{count}} item",
       "itemCount_other": "{{count}} items",
+      "matchingItemCount_one": "{{count}} matching item",
+      "matchingItemCount_other": "{{count}} matching items",
       "filterLabel": "Filter by type",
       "filterAll": "All",
       "noLeadAuditor": "No lead auditor assigned",
@@ -1489,7 +1492,8 @@
         "legendSelf": "Self-review",
         "highlightActive": "Showing {{count}} of {{total}} items reviewed by {{line}}",
         "clearHighlight": "Clear",
-        "ringHint": "Click a ring to see what it's reviewed"
+        "ringHint": "Click a ring to see what it's reviewed",
+        "isolateLabel": "Isolate"
       },
       "toast": {
         "reassignSuccess": "Item reassigned",

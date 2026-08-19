@@ -302,6 +302,20 @@ function groupByLine<T extends { line_of_defense: LineOfDefense | null }>(
   return grouped
 }
 
+// quality-bar-loop round 9 (industry-standards, round-8 finding): "isolate"
+// for the ring drill-down -- narrows each line's own item list to only
+// what a given line has reviewed, instead of just highlighting it among
+// everything else. Shared across all 5 entity types since each carries
+// the same `line_reviews` shape.
+function filterByReviewLine<T extends { line_reviews: LineReview[] }>(
+  items: T[],
+  line: LineOfDefense
+): T[] {
+  return items.filter((item) =>
+    item.line_reviews.some((review) => review.line === line)
+  )
+}
+
 // Cross-view integration fix (quality-bar-loop, integration axis): this
 // row used to render "category · status" as ONE pill colored entirely by
 // status severity -- so a risk's category (which has its own dedicated
@@ -682,10 +696,17 @@ function LineCard({
   line,
   items,
   totalCount,
+  isIsolating,
 }: {
   line: LineOfDefense
   items: { entityType: EntityKind; node: React.ReactNode }[]
   totalCount: number
+  // Round 9: totalCount reflects the narrowed (isolated) set when true, so
+  // a genuinely-empty line and an isolate filter with zero matches both
+  // hit the totalCount===0 branch below -- they need different copy, or
+  // "isolated to nothing" would misleadingly read as "this line has no
+  // items at all."
+  isIsolating: boolean
 }) {
   const { t } = useTranslation()
   const [filter, setFilter] = useState<EntityKind | "all">("all")
@@ -720,9 +741,16 @@ function LineCard({
           {t(LINE_TITLE_KEY[line])}
         </h2>
         <CardDescription>
-          {t("organization.threeLinesOfDefense.itemCount", {
-            count: totalCount,
-          })}
+          {/* Round 9 review fix: totalCount is the isolated MATCH count
+              while isolating, not the line's true ownership count -- the
+              header needs to say so, or "3 items" reads as the whole
+              line owning only 3, not 3 out of however many. */}
+          {t(
+            isIsolating
+              ? "organization.threeLinesOfDefense.matchingItemCount"
+              : "organization.threeLinesOfDefense.itemCount",
+            { count: totalCount }
+          )}
         </CardDescription>
       </CardHeader>
       {/* Only worth showing when a line genuinely mixes >=2 entity types --
@@ -768,7 +796,11 @@ function LineCard({
       <CardContent className="max-h-[560px] overflow-y-auto">
         {totalCount === 0 ? (
           <p className="text-[11px] text-muted-foreground">
-            {t("organization.threeLinesOfDefense.empty")}
+            {t(
+              isIsolating
+                ? "organization.threeLinesOfDefense.isolateEmpty"
+                : "organization.threeLinesOfDefense.empty"
+            )}
           </p>
         ) : (
           // A filter chip only ever exists for a type with count > 0
@@ -975,10 +1007,14 @@ function CoverageOverview({
   items,
   highlightLine,
   onToggleHighlight,
+  isIsolated,
+  onToggleIsolate,
 }: {
   items: CoverageItem[]
   highlightLine: LineOfDefense | null
   onToggleHighlight: (line: LineOfDefense) => void
+  isIsolated: boolean
+  onToggleIsolate: () => void
 }) {
   const { t } = useTranslation()
   const total = items.length
@@ -1082,6 +1118,19 @@ function CoverageOverview({
                 >
                   {t("organization.threeLinesOfDefense.coverage.clearHighlight")}
                 </button>
+                {/* Round 9 (industry-standards, round-8 finding): "no
+                    isolate option" -- highlighting alone still leaves
+                    non-matching items in every line's own list; isolate
+                    actually narrows each list to the match set. */}
+                <label className="focus-ring ml-1 flex cursor-pointer items-center gap-1.5 rounded">
+                  <input
+                    type="checkbox"
+                    checked={isIsolated}
+                    onChange={onToggleIsolate}
+                    className="h-3.5 w-3.5 accent-primary"
+                  />
+                  {t("organization.threeLinesOfDefense.coverage.isolateLabel")}
+                </label>
               </div>
             )}
             {/* Round 5 (UX): the same solid-vs-outlined distinction each
@@ -1196,9 +1245,23 @@ export default function ThreeLinesOfDefensePage() {
   const [highlightLine, setHighlightLine] = useState<LineOfDefense | null>(
     null
   )
-  const toggleHighlightLine = useCallback((line: LineOfDefense) => {
-    setHighlightLine((prev) => (prev === line ? null : line))
-  }, [])
+  // quality-bar-loop round 9 (industry-standards, round-8 finding): "no
+  // isolate option" -- meaningless without an active highlight, so it's
+  // reset whenever highlightLine clears (in toggleHighlightLine below).
+  const [isIsolated, setIsIsolated] = useState(false)
+  // Round 9 review fix: setIsIsolated was called as a side effect inside
+  // setHighlightLine's functional updater -- updaters can run more than
+  // once (StrictMode's double-invoke check, batched replays), so a second
+  // state setter shouldn't live inside one. Reads highlightLine directly
+  // instead; safe here since this only ever runs from a real click.
+  const toggleHighlightLine = useCallback(
+    (line: LineOfDefense) => {
+      const next = highlightLine === line ? null : line
+      setHighlightLine(next)
+      if (next === null) setIsIsolated(false)
+    },
+    [highlightLine]
+  )
 
   useEffect(() => {
     if (isError) {
@@ -1558,6 +1621,8 @@ export default function ThreeLinesOfDefensePage() {
             items={coverageItems}
             highlightLine={highlightLine}
             onToggleHighlight={toggleHighlightLine}
+            isIsolated={isIsolated}
+            onToggleIsolate={() => setIsIsolated((prev) => !prev)}
           />
 
           {/* aexa-frontend#939 (visual polish loop, round-3 finding): the
@@ -1581,11 +1646,26 @@ export default function ThreeLinesOfDefensePage() {
               card size to its own content instead. */}
           <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4">
             {LINES.map((line) => {
-              const lineRisks = risksByLine[line]
-              const lineActions = actionsByLine[line]
-              const lineKris = krisByLine[line]
-              const lineCompliance = complianceByLine[line]
-              const lineAudits = auditsByLine[line]
+              // Round 9: isolate only narrows THIS list rendering, not the
+              // ownership groupings above (risksByLine etc. stay the full
+              // set) -- reassigning an item while isolated still needs its
+              // real, un-narrowed ownership data.
+              const isolateLine = isIsolated ? highlightLine : null
+              const lineRisks = isolateLine
+                ? filterByReviewLine(risksByLine[line], isolateLine)
+                : risksByLine[line]
+              const lineActions = isolateLine
+                ? filterByReviewLine(actionsByLine[line], isolateLine)
+                : actionsByLine[line]
+              const lineKris = isolateLine
+                ? filterByReviewLine(krisByLine[line], isolateLine)
+                : krisByLine[line]
+              const lineCompliance = isolateLine
+                ? filterByReviewLine(complianceByLine[line], isolateLine)
+                : complianceByLine[line]
+              const lineAudits = isolateLine
+                ? filterByReviewLine(auditsByLine[line], isolateLine)
+                : auditsByLine[line]
               const totalCount =
                 lineRisks.length +
                 lineActions.length +
@@ -1790,6 +1870,7 @@ export default function ThreeLinesOfDefensePage() {
                   line={line}
                   items={lineItems}
                   totalCount={totalCount}
+                  isIsolating={isolateLine !== null}
                 />
               )
             })}

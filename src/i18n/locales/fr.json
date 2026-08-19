@@ -1431,8 +1431,11 @@
       "retry": "Réessayer",
       "retrying": "Nouvelle tentative...",
       "empty": "Aucun élément dans cette ligne pour le moment",
+      "isolateEmpty": "Aucun élément de cette ligne ne correspond au filtre actuel",
       "itemCount_one": "{{count}} élément",
       "itemCount_other": "{{count}} éléments",
+      "matchingItemCount_one": "{{count}} élément correspondant",
+      "matchingItemCount_other": "{{count}} éléments correspondants",
       "filterLabel": "Filtrer par type",
       "filterAll": "Tous",
       "noLeadAuditor": "Aucun auditeur principal assigné",
@@ -1489,7 +1492,8 @@
         "legendSelf": "Auto-évaluation",
         "highlightActive": "{{count}} sur {{total}} éléments revus par {{line}}",
         "clearHighlight": "Effacer",
-        "ringHint": "Cliquez sur un anneau pour voir ce qu'il a revu"
+        "ringHint": "Cliquez sur un anneau pour voir ce qu'il a revu",
+        "isolateLabel": "Isoler"
       },
       "toast": {
         "reassignSuccess": "Élément réassigné",
