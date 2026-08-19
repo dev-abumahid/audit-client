@@ -150,6 +150,19 @@ interface GetAllComplianceArgs {
   domain?: string
 }
 
+// aexa-frontend#939 (CEO feedback follow-up: "how do I know if all
+// regulatory sources are covered") — AI-suggested regulatory sources likely
+// applicable to a site, grounded in a web search, and cross-checked
+// server-side against this org's already-tracked obligations for that site
+// so a covered source is never re-suggested.
+export interface SuggestedRegulatorySource {
+  name: string
+  domain: string
+  jurisdiction: string
+  rationale: string
+  source_url: string | null
+}
+
 const complianceApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getAllCompliance: builder.query<
@@ -296,6 +309,19 @@ const complianceApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["COMPLIANCE", "RISK"],
     }),
+    // No persistence -- pure proxy, same "review and selectively import"
+    // shape as suggestRiskFields. Not tagged with COMPLIANCE since it
+    // creates nothing itself.
+    suggestRegulatorySources: builder.mutation<
+      ApiResponse<{ suggestions: SuggestedRegulatorySource[] }>,
+      { site_id: string }
+    >({
+      query: ({ site_id }) => ({
+        url: `/compliance/suggest-regulatory-sources`,
+        method: "POST",
+        body: { site_id },
+      }),
+    }),
   }),
 })
 
@@ -312,6 +338,7 @@ export const {
   useCreateRiskFromObligationMutation,
   useLinkRiskToObligationMutation,
   useUnlinkRiskFromObligationMutation,
+  useSuggestRegulatorySourcesMutation,
 } = complianceApi
 
 export { complianceApi }

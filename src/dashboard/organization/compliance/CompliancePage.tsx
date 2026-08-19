@@ -9,11 +9,13 @@ import ComplianceFrameworkCoverage from "./ComplianceFrameworkCoverage"
 import ComplianceObligationRow from "./ComplianceObligationRow"
 import ComplianceRiskLinkModal from "./ComplianceRiskLinkModal"
 import ComplianceScorecardMatrix from "./ComplianceScorecardMatrix"
+import RegulatoryCoverageSuggestions from "./RegulatoryCoverageSuggestions"
 import { useComplianceData } from "./useComplianceData"
 import type {
   ComplianceMatrixCell,
   ComplianceObligation,
   ComplianceScoreBand,
+  SuggestedRegulatorySource,
 } from "@/redux/apis/organization/compliance.api"
 import {
   useGetComplianceAttestationsQuery,
@@ -347,6 +349,30 @@ export default function CompliancePage() {
       recurrence:
         obl.recurrence && obl.recurrence !== "one_time" ? obl.recurrence : "",
       line_of_defense: obl.line_of_defense,
+    })
+    setShowForm(true)
+  }
+
+  // aexa-frontend#939: pre-fills the create form from an AI-suggested
+  // regulatory source rather than creating an obligation directly -- same
+  // "review before it becomes real data" principle as RiskFormModal's AI
+  // pre-fill, just applied to a brand-new record instead of an existing
+  // one's fields. The suggestion's rationale is folded into the
+  // description as context for whoever reviews/edits before saving, since
+  // there's no dedicated field to keep it in once this becomes a real
+  // ComplianceObligation.
+  const openFromSuggestion = (
+    siteId: string,
+    suggestion: SuggestedRegulatorySource
+  ) => {
+    setEditingId(null)
+    setForm({
+      ...EMPTY_FORM,
+      title: suggestion.name,
+      description: suggestion.rationale,
+      domain: suggestion.domain,
+      site_id: siteId,
+      regulation_reference: suggestion.name,
     })
     setShowForm(true)
   }
@@ -696,6 +722,12 @@ export default function CompliancePage() {
       </div>
 
       <ComplianceFrameworkCoverage obligations={obligations} />
+
+      <RegulatoryCoverageSuggestions
+        sites={sites}
+        domainLabel={domainLabel}
+        onAddSuggestion={openFromSuggestion}
+      />
 
       {/* Scorecard: site × domain matrix */}
       <div className="animate-slide-up stagger-1 overflow-hidden rounded-xl border border-border bg-card">

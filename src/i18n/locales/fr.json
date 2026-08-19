@@ -1313,6 +1313,18 @@
         "subtitle": "Obligations actuellement filtrées associées à un référentiel réglementaire reconnu -- pas un total pour toute l'organisation",
         "compliantOf": "{{compliant}}/{{total}} conformes"
       },
+      "regulatoryCoverage": {
+        "title": "Couverture réglementaire",
+        "subtitle": "Sources réglementaires suggérées par l'IA, probablement applicables à un site et pas encore suivies",
+        "selectSite": "Sélectionner un site…",
+        "checkButton": "Vérifier la couverture",
+        "checkFailed": "Échec de la vérification de la couverture réglementaire. Veuillez réessayer.",
+        "noGaps": "Aucune lacune de couverture trouvée pour ce site.",
+        "allDismissed": "Toutes les suggestions ont été ignorées pour cette vérification.",
+        "addAsObligation": "Ajouter comme obligation",
+        "dismiss": "Ignorer",
+        "source": "Voir la source"
+      },
       "col": {
         "obligation": "OBLIGATION",
         "domain": "DOMAINE",

@@ -1313,6 +1313,18 @@
         "subtitle": "Currently filtered obligations mapped to a recognized regulatory framework -- not an org-wide total",
         "compliantOf": "{{compliant}}/{{total}} compliant"
       },
+      "regulatoryCoverage": {
+        "title": "Regulatory Coverage",
+        "subtitle": "AI-suggested regulatory sources likely applicable to a site that aren't already tracked",
+        "selectSite": "Select a site…",
+        "checkButton": "Check coverage",
+        "checkFailed": "Failed to check regulatory coverage. Please try again.",
+        "noGaps": "No coverage gaps found for this site.",
+        "allDismissed": "All suggestions dismissed for this check.",
+        "addAsObligation": "Add as obligation",
+        "dismiss": "Dismiss",
+        "source": "View source"
+      },
       "col": {
         "obligation": "OBLIGATION",
         "domain": "DOMAIN",

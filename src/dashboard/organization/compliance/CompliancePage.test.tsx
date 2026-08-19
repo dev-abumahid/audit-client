@@ -82,6 +82,7 @@ const mockUseGetComplianceEditHistoryQuery = vi.fn()
 const mockCreateRiskFromObligation = vi.fn()
 const mockLinkRiskToObligation = vi.fn()
 const mockUnlinkRiskFromObligation = vi.fn()
+const mockSuggestRegulatorySources = vi.fn()
 
 vi.mock("@/redux/apis/organization/compliance.api", () => ({
   useGetAllComplianceQuery: (...args: unknown[]) =>
@@ -116,6 +117,11 @@ vi.mock("@/redux/apis/organization/compliance.api", () => ({
     { isLoading: false },
   ],
   useUnlinkRiskFromObligationMutation: () => [mockUnlinkRiskFromObligation],
+  // aexa-frontend#939
+  useSuggestRegulatorySourcesMutation: () => [
+    mockSuggestRegulatorySources,
+    { isLoading: false },
+  ],
 }))
 
 // aexa-server#346 -- ComplianceRiskLinkModal (only mounted once a row's
@@ -1697,6 +1703,66 @@ describe("CompliancePage", () => {
           "organization.compliance.form.regulationReference"
         )
       ).toBeInTheDocument()
+    })
+
+    // aexa-frontend#939: clicking "Add as obligation" on a suggestion from
+    // the Regulatory Coverage panel pre-fills the create form (title,
+    // domain, regulation_reference, site_id, description) instead of
+    // creating an obligation directly -- the suggestion still goes through
+    // the same review-before-save step every other obligation does.
+    it("pre-fills the create form from a regulatory-coverage suggestion", async () => {
+      const user = userEvent.setup()
+      mockUseGetAllSitesQuery.mockReturnValue({
+        data: { data: [{ id: "site-1", name: "HQ Casablanca" }] },
+      })
+      mockUseGetAllComplianceQuery.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+      mockSuggestRegulatorySources.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            data: {
+              suggestions: [
+                {
+                  name: "GDPR",
+                  domain: "data_protection",
+                  jurisdiction: "European Union",
+                  rationale: "The site processes EU personal data.",
+                  source_url: null,
+                },
+              ],
+            },
+          }),
+      })
+
+      renderPage()
+
+      await user.selectOptions(
+        screen.getByRole("combobox", {
+          name: "organization.compliance.regulatoryCoverage.selectSite",
+        }),
+        "HQ Casablanca"
+      )
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.compliance.regulatoryCoverage.checkButton",
+        })
+      )
+      await user.click(
+        await screen.findByRole("button", {
+          name: "organization.compliance.regulatoryCoverage.addAsObligation",
+        })
+      )
+
+      const titleInput = screen.getByLabelText(
+        /organization\.compliance\.form\.title/
+      ) as HTMLInputElement
+      expect(titleInput.value).toBe("GDPR")
+      const regInput = screen.getByLabelText(
+        "organization.compliance.form.regulationReference"
+      ) as HTMLInputElement
+      expect(regInput.value).toBe("GDPR")
     })
 
     // Round 13: a regulation_reference that exactly matches the curated
