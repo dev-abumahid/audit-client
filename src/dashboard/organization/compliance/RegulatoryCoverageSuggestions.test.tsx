@@ -757,6 +757,27 @@ describe("accessibility fixes (round 4)", () => {
     ).not.toBeInTheDocument()
   })
 
+  // Round-16 quality-bar-loop review (visual polish axis, streak 3): a
+  // same-site re-check used to render nothing while in flight (suggestions
+  // cleared, no placeholder), reading as a flicker/layout-jump once the
+  // fresh list mounted a beat later. Placeholder rows now fill that window.
+  it("shows loading placeholder rows while a check is in flight", () => {
+    mockIsLoading = true
+    renderPanel()
+
+    const list = document.querySelector('[aria-live="polite"] ul[aria-hidden="true"]')
+    expect(list).not.toBeNull()
+    expect(list?.querySelectorAll("li").length).toBe(2)
+  })
+
+  it("does not show loading placeholder rows when idle", () => {
+    renderPanel()
+
+    expect(
+      document.querySelector('[aria-live="polite"] ul[aria-hidden="true"]')
+    ).toBeNull()
+  })
+
   // Round-6 quality-bar-loop review (visual polish axis) computed the real
   // contrast ratios for these tokens and found muted-foreground already
   // clears 4.5:1 AA at this size -- round-4's earlier foreground swap was an

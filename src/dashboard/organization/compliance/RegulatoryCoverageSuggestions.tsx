@@ -189,11 +189,34 @@ export default function RegulatoryCoverageSuggestions({
 
       <div className="mt-3" aria-live="polite">
         {isLoading && (
-          <span className="sr-only">
-            {t("organization.compliance.regulatoryCoverage.checking")}
-          </span>
+          <>
+            <span className="sr-only">
+              {t("organization.compliance.regulatoryCoverage.checking")}
+            </span>
+            {/* Round-16 quality-bar-loop review (visual polish axis, streak
+                3): checkCoverage clears `suggestions` the instant a fresh
+                check starts (round 10/11 resilience fix) with nothing
+                rendered in its place, so a same-site re-check visibly
+                emptied the panel, then filled it back in a beat later --
+                a flicker plus a layout jump (no reserved height). These
+                two placeholder rows give the loading window real content
+                sized like the cards it's about to replace, aria-hidden
+                since the sr-only announcement above already covers screen
+                readers. */}
+            <ul className="flex flex-col gap-2" aria-hidden="true">
+              {[0, 1].map((i) => (
+                <li
+                  key={i}
+                  className="animate-pulse rounded-lg border border-border bg-muted/30 p-3"
+                >
+                  <div className="h-3 w-1/3 rounded bg-muted" />
+                  <div className="mt-2 h-2 w-2/3 rounded bg-muted" />
+                </li>
+              ))}
+            </ul>
+          </>
         )}
-        {suggestions !== null && (
+        {!isLoading && suggestions !== null && (
           suggestions.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               {t("organization.compliance.regulatoryCoverage.noGaps")}
