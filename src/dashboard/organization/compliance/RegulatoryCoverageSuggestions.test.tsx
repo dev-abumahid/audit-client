@@ -535,7 +535,13 @@ describe("accessibility fixes (round 4)", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("renders the metadata pill and jurisdiction text with foreground (not muted) contrast", async () => {
+  // Round-6 quality-bar-loop review (visual polish axis) computed the real
+  // contrast ratios for these tokens and found muted-foreground already
+  // clears 4.5:1 AA at this size -- round-4's earlier foreground swap was an
+  // unnecessary overcorrection that made secondary metadata visually
+  // outrank the rationale text below it. Reverted; this test now asserts
+  // the restored (and still AA-compliant) muted state.
+  it("renders the metadata pill and jurisdiction text with muted (not foreground) contrast", async () => {
     mockSuggestRegulatorySources.mockReturnValue({
       unwrap: () =>
         Promise.resolve({
@@ -558,13 +564,10 @@ describe("accessibility fixes (round 4)", () => {
     await screen.findByText("GDPR")
 
     expect(screen.getByText("data_protection").className).toContain(
-      "text-foreground"
-    )
-    expect(screen.getByText("data_protection").className).not.toContain(
       "text-muted-foreground"
     )
     expect(screen.getByText("European Union").className).toContain(
-      "text-foreground"
+      "text-muted-foreground"
     )
   })
 })
