@@ -224,6 +224,14 @@ interface ItemRowProps {
   // discipline as #529/#530/#531 rather than building pages just for this
   // back-link.
   linkTo?: string
+  // aexa-frontend#939 (visual polish, round-1 finding): each line's card
+  // used to stack 5 separate per-entity-type Section headers (icon + label
+  // + count) even though most lines only populate 1-2 of the 5 -- a CEO-
+  // flagged clutter source (up to ~20 header instances across the board for
+  // ~2 items' worth of real content). The 5 entity-type lists are now
+  // merged into one flat per-line list, so the header's icon -- previously
+  // the only visual cue for an item's type -- moves onto the row itself.
+  icon: React.ElementType
 }
 
 // quality-bar-loop round 3 (efficiency, round-1 finding): wrapped in
@@ -243,6 +251,7 @@ const ItemRow = memo(function ItemRow({
   isPending,
   onReassign,
   linkTo,
+  icon: Icon,
 }: ItemRowProps) {
   const { t } = useTranslation()
   const otherLines = LINES.filter((line) => line !== currentLine)
@@ -250,6 +259,13 @@ const ItemRow = memo(function ItemRow({
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 px-2 py-1.5">
       <div className="flex min-w-0 items-start gap-1.5">
+        {/* aexa-frontend#939: replaces the removed per-type Section header
+            as the item's only type indicator now that all 5 entity types
+            render in one flat per-line list. */}
+        <Icon
+          aria-hidden="true"
+          className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground"
+        />
         <span
           className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_STYLES[severity].dot}`}
         />
@@ -346,32 +362,14 @@ function Section({
   label,
   count,
   emptyLabel,
-  hideWhenEmpty,
   children,
 }: {
   icon: React.ElementType
   label: string
   count: number
   emptyLabel: string
-  // aexa-frontend#930: CEO feedback ("still a bit cluttered, remove the
-  // superfluous text") on the per-line board below. Each of the 4 line
-  // columns renders one Section per entity type (5), and most lines only
-  // have items in 1-2 of those 5 -- live-verified before this change: the
-  // 3rd Line column showed "No items in this line yet" 3 times stacked in
-  // a row, Governing Body 2-3 times, for up to ~10 near-identical empty
-  // sentences per screen. Reference kanban/board tools (Jira, Trello,
-  // generic kanban libraries) solve this exact pattern by hiding empty
-  // columns/swimlanes rather than repeating an empty-state label per
-  // category -- see PR body for the full research citation. When true,
-  // an empty Section renders nothing at all; the parent (the per-line
-  // Card below) is responsible for showing ONE empty message if every
-  // section in that card is empty, so a line with truly zero items
-  // anywhere still tells the user that instead of going silent.
-  hideWhenEmpty?: boolean
   children: React.ReactNode
 }) {
-  if (count === 0 && hideWhenEmpty) return null
-
   return (
     <div className="mb-4 last:mb-0">
       <div className="mb-1.5 flex items-center justify-between">
@@ -399,16 +397,24 @@ function Section({
 // colors on every item row directly below this bar, so reusing the
 // full chart-1..4 set would make a line-color segment indistinguishable
 // from an unrelated severity indicator on the same screen. Keeps
-// --chart-1 (168°, teal) and --chart-4 (280°, purple), which don't
-// collide with any --risk-* hue (0°/38°/142°/199°), and replaces the
-// two colliding slots with new literal hues (250° indigo, 320°
-// magenta) chosen to stay >=25 degrees clear of every --risk-* hue and
-// of the two chart-N hues kept above.
+// --chart-1 (168°, teal), which doesn't collide with any --risk-* hue
+// (0°/38°/142°/199°), and replaces the remaining 3 slots with literal
+// hues chosen to stay >=25 degrees clear of every --risk-* hue and of
+// each other.
+//
+// aexa-frontend#939 (visual polish loop, round-1 finding): GOVERNING_BODY
+// previously reused --chart-4 (280°, purple) alongside SECOND's 250°
+// indigo -- only 30° apart and both read as "purple" at the segment
+// widths/opacities this bar actually renders at, live-confirmed by two
+// independent judges as indistinguishable in the coverage legend.
+// Replaced with a yellow-green/olive hue (88°), the nearest clear gap
+// once every --risk-* hue and FIRST/SECOND/THIRD's own hues are each
+// buffered by >=25°.
 const LINE_CHART_COLOR: Record<LineOfDefense, string> = {
   FIRST: "bg-chart-1",
   SECOND: "bg-[hsl(250_70%_60%)]",
   THIRD: "bg-[hsl(320_65%_55%)]",
-  GOVERNING_BODY: "bg-chart-4",
+  GOVERNING_BODY: "bg-[hsl(88_55%_42%)]",
 }
 
 // quality-bar-loop round 6 (industry-standards, round-1 finding): the
@@ -786,6 +792,114 @@ export default function ThreeLinesOfDefensePage() {
                 lineCompliance.length +
                 lineAudits.length
 
+              // aexa-frontend#939 (visual polish loop, round-1 finding):
+              // one flat, ordered list per line (risks, then actions, then
+              // kris, then compliance, then audits) replaces the previous
+              // 5 separate <Section> blocks -- each with its own icon+
+              // label+count header -- that used to stack per line even
+              // though most lines only populate 1-2 of the 5 types. The
+              // type indicator that header used to carry now lives on each
+              // row itself (ItemRow's new `icon` prop).
+              const lineItems = [
+                ...lineRisks.map((risk) => (
+                  <ItemRow
+                    key={risk.id}
+                    icon={Shield}
+                    entityType="risk"
+                    id={risk.id}
+                    title={risk.title}
+                    meta={`${riskCategoryLabel(t, risk.category)} · ${getEnumLabel(t, RISK_STATUS_LABEL_KEYS, risk.status)}`}
+                    severity={
+                      RISK_STATUS_SEVERITY[risk.status] ?? "neutral"
+                    }
+                    currentLine={risk.line_of_defense}
+                    canReassign={canReassignRisk}
+                    isPending={pendingIds.has(risk.id)}
+                    onReassign={requestReassign}
+                    linkTo={`/organization/risks/${risk.id}`}
+                  />
+                )),
+                ...lineActions.map((action) => (
+                  <ItemRow
+                    key={action.id}
+                    icon={AlertTriangle}
+                    entityType="action"
+                    id={action.id}
+                    title={action.title}
+                    meta={`${getEnumLabel(t, FINDING_PRIORITY_LABEL_KEYS, action.priority)} · ${getEnumLabel(t, FINDING_STATUS_LABEL_KEYS, action.status)}`}
+                    severity={
+                      ACTION_STATUS_SEVERITY[action.status] ?? "neutral"
+                    }
+                    currentLine={action.line_of_defense}
+                    canReassign={canReassignAction}
+                    isPending={pendingIds.has(action.id)}
+                    onReassign={requestReassign}
+                    linkTo={`/organization/finding/${action.id}`}
+                  />
+                )),
+                ...lineKris.map((kri) => (
+                  <ItemRow
+                    key={kri.id}
+                    icon={Activity}
+                    entityType="kri"
+                    id={kri.id}
+                    title={kri.title}
+                    meta={`${kri.unit} · ${getEnumLabel(t, KRI_STATUS_LABEL_KEYS, kri.status)}`}
+                    severity={KRI_STATUS_SEVERITY[kri.status] ?? "neutral"}
+                    currentLine={kri.line_of_defense}
+                    canReassign={canReassignKri}
+                    isPending={pendingIds.has(kri.id)}
+                    onReassign={requestReassign}
+                    linkTo={`/organization/kri?highlight=${encodeURIComponent(kri.id)}`}
+                  />
+                )),
+                ...lineCompliance.map((obligation) => (
+                  <ItemRow
+                    key={obligation.id}
+                    icon={Scale}
+                    entityType="compliance"
+                    id={obligation.id}
+                    title={obligation.title}
+                    meta={`${complianceDomainLabel(t, obligation.domain)} · ${getEnumLabel(t, COMPLIANCE_STATUS_LABEL_KEYS, obligation.status)}`}
+                    severity={
+                      COMPLIANCE_STATUS_SEVERITY[obligation.status] ??
+                      "neutral"
+                    }
+                    currentLine={obligation.line_of_defense}
+                    canReassign={canReassignCompliance}
+                    isPending={pendingIds.has(obligation.id)}
+                    onReassign={requestReassign}
+                    // aexa-frontend#561: CompliancePage has no
+                    // per-obligation route or ?search= support of its own
+                    // (unlike SitesEntities), so this links to the list,
+                    // same as Audit's own linkTo below.
+                    linkTo="/organization/compliance"
+                  />
+                )),
+                ...lineAudits.map((engagement) => (
+                  <ItemRow
+                    key={engagement.id}
+                    icon={ClipboardCheck}
+                    entityType="audit"
+                    id={engagement.id}
+                    title={engagement.title}
+                    meta={`${engagement.lead_auditor ?? t("organization.threeLinesOfDefense.noLeadAuditor")} · ${getEnumLabel(t, AUDIT_ENGAGEMENT_STATUS_LABEL_KEYS, engagement.status)}`}
+                    severity={
+                      AUDIT_STATUS_SEVERITY[engagement.status] ?? "neutral"
+                    }
+                    currentLine={engagement.line_of_defense}
+                    canReassign={canReassignAudit}
+                    isPending={pendingIds.has(engagement.id)}
+                    onReassign={requestReassign}
+                    // AuditPage has no per-engagement URL/route -- it opens
+                    // engagements in an edit modal driven by local state,
+                    // not a navigable id. Links to the list rather than
+                    // nothing.
+                    linkTo="/organization/audit"
+                  />
+                )),
+              ]
+
               return (
                 <Card key={line}>
                   <CardHeader>
@@ -810,167 +924,17 @@ export default function ThreeLinesOfDefensePage() {
                       CorrelationMatrixPage's panels) keeps every column
                       a consistent height regardless of item count. */}
                   <CardContent className="max-h-[560px] overflow-y-auto">
-                    {/* aexa-frontend#930: one empty message for the whole
-                        card when every section in it has zero items,
-                        instead of each of the 5 sections below repeating
-                        its own "No items in this line yet" -- see the
-                        hideWhenEmpty comment on Section above. */}
-                    {totalCount === 0 && (
+                    {/* aexa-frontend#930/#939: one empty message for the
+                        whole card when every entity type is empty for this
+                        line; otherwise the single flat, ordered list built
+                        above. */}
+                    {totalCount === 0 ? (
                       <p className="text-[11px] text-muted-foreground">
                         {t("organization.threeLinesOfDefense.empty")}
                       </p>
+                    ) : (
+                      <div className="flex flex-col gap-1">{lineItems}</div>
                     )}
-                    <Section
-                      icon={Shield}
-                      label={t(
-                        "organization.threeLinesOfDefense.sections.risks"
-                      )}
-                      count={lineRisks.length}
-                      emptyLabel={t("organization.threeLinesOfDefense.empty")}
-                      hideWhenEmpty
-                    >
-                      {lineRisks.map((risk) => (
-                        <ItemRow
-                          key={risk.id}
-                          entityType="risk"
-                          id={risk.id}
-                          title={risk.title}
-                          meta={`${riskCategoryLabel(t, risk.category)} · ${getEnumLabel(t, RISK_STATUS_LABEL_KEYS, risk.status)}`}
-                          severity={
-                            RISK_STATUS_SEVERITY[risk.status] ?? "neutral"
-                          }
-                          currentLine={risk.line_of_defense}
-                          canReassign={canReassignRisk}
-                          isPending={pendingIds.has(risk.id)}
-                          onReassign={requestReassign}
-                          linkTo={`/organization/risks/${risk.id}`}
-                        />
-                      ))}
-                    </Section>
-
-                    <Section
-                      icon={AlertTriangle}
-                      label={t(
-                        "organization.threeLinesOfDefense.sections.actions"
-                      )}
-                      count={lineActions.length}
-                      emptyLabel={t("organization.threeLinesOfDefense.empty")}
-                      hideWhenEmpty
-                    >
-                      {lineActions.map((action) => (
-                        <ItemRow
-                          key={action.id}
-                          entityType="action"
-                          id={action.id}
-                          title={action.title}
-                          meta={`${getEnumLabel(t, FINDING_PRIORITY_LABEL_KEYS, action.priority)} · ${getEnumLabel(t, FINDING_STATUS_LABEL_KEYS, action.status)}`}
-                          severity={
-                            ACTION_STATUS_SEVERITY[action.status] ?? "neutral"
-                          }
-                          currentLine={action.line_of_defense}
-                          canReassign={canReassignAction}
-                          isPending={pendingIds.has(action.id)}
-                          onReassign={requestReassign}
-                          linkTo={`/organization/finding/${action.id}`}
-                        />
-                      ))}
-                    </Section>
-
-                    <Section
-                      icon={Activity}
-                      label={t(
-                        "organization.threeLinesOfDefense.sections.kris"
-                      )}
-                      count={lineKris.length}
-                      emptyLabel={t("organization.threeLinesOfDefense.empty")}
-                      hideWhenEmpty
-                    >
-                      {lineKris.map((kri) => (
-                        <ItemRow
-                          key={kri.id}
-                          entityType="kri"
-                          id={kri.id}
-                          title={kri.title}
-                          meta={`${kri.unit} · ${getEnumLabel(t, KRI_STATUS_LABEL_KEYS, kri.status)}`}
-                          severity={
-                            KRI_STATUS_SEVERITY[kri.status] ?? "neutral"
-                          }
-                          currentLine={kri.line_of_defense}
-                          canReassign={canReassignKri}
-                          isPending={pendingIds.has(kri.id)}
-                          onReassign={requestReassign}
-                          linkTo={`/organization/kri?highlight=${encodeURIComponent(kri.id)}`}
-                        />
-                      ))}
-                    </Section>
-
-                    <Section
-                      icon={Scale}
-                      label={t(
-                        "organization.threeLinesOfDefense.sections.compliance"
-                      )}
-                      count={lineCompliance.length}
-                      emptyLabel={t("organization.threeLinesOfDefense.empty")}
-                      hideWhenEmpty
-                    >
-                      {lineCompliance.map((obligation) => (
-                        <ItemRow
-                          key={obligation.id}
-                          entityType="compliance"
-                          id={obligation.id}
-                          title={obligation.title}
-                          meta={`${complianceDomainLabel(t, obligation.domain)} · ${getEnumLabel(t, COMPLIANCE_STATUS_LABEL_KEYS, obligation.status)}`}
-                          severity={
-                            COMPLIANCE_STATUS_SEVERITY[obligation.status] ??
-                            "neutral"
-                          }
-                          currentLine={obligation.line_of_defense}
-                          canReassign={canReassignCompliance}
-                          isPending={pendingIds.has(obligation.id)}
-                          onReassign={requestReassign}
-                          // aexa-frontend#561: this was the only one of the
-                          // 5 entity sections on this board with no linkTo
-                          // at all. CompliancePage has no per-obligation
-                          // route or ?search= support of its own (unlike
-                          // SitesEntities), so this links to the list, same
-                          // as Audit's own linkTo below.
-                          linkTo="/organization/compliance"
-                        />
-                      ))}
-                    </Section>
-
-                    <Section
-                      icon={ClipboardCheck}
-                      label={t(
-                        "organization.threeLinesOfDefense.sections.audits"
-                      )}
-                      count={lineAudits.length}
-                      emptyLabel={t("organization.threeLinesOfDefense.empty")}
-                      hideWhenEmpty
-                    >
-                      {lineAudits.map((engagement) => (
-                        <ItemRow
-                          key={engagement.id}
-                          entityType="audit"
-                          id={engagement.id}
-                          title={engagement.title}
-                          meta={`${engagement.lead_auditor ?? t("organization.threeLinesOfDefense.noLeadAuditor")} · ${getEnumLabel(t, AUDIT_ENGAGEMENT_STATUS_LABEL_KEYS, engagement.status)}`}
-                          severity={
-                            AUDIT_STATUS_SEVERITY[engagement.status] ??
-                            "neutral"
-                          }
-                          currentLine={engagement.line_of_defense}
-                          canReassign={canReassignAudit}
-                          isPending={pendingIds.has(engagement.id)}
-                          onReassign={requestReassign}
-                          // AuditPage has no per-engagement URL/route -- it
-                          // opens engagements in an edit modal driven by
-                          // local state, not a navigable id. Links to the
-                          // list rather than nothing.
-                          linkTo="/organization/audit"
-                        />
-                      ))}
-                    </Section>
                   </CardContent>
                 </Card>
               )
@@ -1002,6 +966,7 @@ export default function ThreeLinesOfDefensePage() {
                 {unclassifiedActions.map((action) => (
                   <ItemRow
                     key={action.id}
+                    icon={AlertTriangle}
                     entityType="action"
                     id={action.id}
                     title={action.title}

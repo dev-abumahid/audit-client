@@ -1321,9 +1321,18 @@ describe("ThreeLinesOfDefensePage", () => {
   // items in only 1-2 of the 5 entity-type sections still rendered a full
   // header + "No items in this line yet" for every OTHER section, e.g. up
   // to 3-4 near-identical empty sentences stacked in a single column.
-  // Empty sections within an otherwise-populated line are now hidden
-  // entirely; only a truly all-empty line still shows one empty message.
-  describe("hides empty sections instead of repeating empty-state text (#930)", () => {
+  //
+  // aexa-frontend#939 (visual polish loop, round-1 finding): a fresh CEO
+  // "still cluttered" complaint after #930 traced to the STRUCTURAL cause
+  // #930 didn't touch -- every line still rendered up to 5 separate
+  // per-entity-type headers (icon+label+count) even once the empty ones
+  // were hidden, so a line with real items in just 1-2 types still showed
+  // 1-2 near-identical headers for essentially no content. The 5 sections
+  // are now merged into one flat, unheaded list per line -- these tests
+  // now assert that no per-type headers render at all within a line card,
+  // and that the single empty message still only appears when the whole
+  // line is genuinely empty.
+  describe("flat per-line item list, no per-type section headers (#930, #939)", () => {
     function cardForLine(lineHeadingText: string): HTMLElement {
       const heading = screen.getByRole("heading", {
         level: 2,
@@ -1336,7 +1345,7 @@ describe("ThreeLinesOfDefensePage", () => {
       return card as HTMLElement
     }
 
-    it("does not repeat the empty-state label for a line that has items in some but not all sections", () => {
+    it("does not render any per-entity-type section header within a populated line's card", () => {
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
         data: makeData(),
         isLoading: false,
@@ -1344,9 +1353,9 @@ describe("ThreeLinesOfDefensePage", () => {
 
       renderPage()
 
-      // Default makeData: FIRST line only has a risk (no actions, kris,
-      // compliance, or audits assigned to FIRST) -- the other 4 sections
-      // must be hidden entirely, not rendered with an empty label each.
+      // Default makeData: FIRST line only has a risk -- no per-type
+      // headers (risks/actions/kris/compliance/audits) should render at
+      // all, only the item itself.
       const firstCard = cardForLine(
         "organization.threeLinesOfDefense.lines.first"
       )
@@ -1355,36 +1364,63 @@ describe("ThreeLinesOfDefensePage", () => {
           "organization.threeLinesOfDefense.empty"
         )
       ).not.toBeInTheDocument()
-      // Only the Risks section heading should be present -- the other 4
-      // entity-type sections have nothing to show for this line.
+      for (const sectionKey of [
+        "risks",
+        "actions",
+        "kris",
+        "compliance",
+        "audits",
+      ]) {
+        expect(
+          within(firstCard).queryByText(
+            `organization.threeLinesOfDefense.sections.${sectionKey}`
+          )
+        ).not.toBeInTheDocument()
+      }
       expect(
-        within(firstCard).getByText(
-          "organization.threeLinesOfDefense.sections.risks"
-        )
+        within(firstCard).getByText("Supply chain disruption")
       ).toBeInTheDocument()
-      expect(
-        within(firstCard).queryByText(
-          "organization.threeLinesOfDefense.sections.actions"
-        )
-      ).not.toBeInTheDocument()
-      expect(
-        within(firstCard).queryByText(
-          "organization.threeLinesOfDefense.sections.kris"
-        )
-      ).not.toBeInTheDocument()
-      expect(
-        within(firstCard).queryByText(
-          "organization.threeLinesOfDefense.sections.compliance"
-        )
-      ).not.toBeInTheDocument()
-      expect(
-        within(firstCard).queryByText(
-          "organization.threeLinesOfDefense.sections.audits"
-        )
-      ).not.toBeInTheDocument()
     })
 
-    it("shows exactly one empty message for a line where every section is empty, not one per section", () => {
+    it("renders multiple entity types in one flat list per line with no headers between them", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData(),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      // Default makeData: SECOND line has an action, a kri, and a
+      // compliance obligation -- all 3 must render in the same card with
+      // no section header separating them.
+      const secondCard = cardForLine(
+        "organization.threeLinesOfDefense.lines.second"
+      )
+      expect(
+        within(secondCard).getByText("Patch critical vulnerability")
+      ).toBeInTheDocument()
+      expect(
+        within(secondCard).getByText("Supplier Lead Time")
+      ).toBeInTheDocument()
+      expect(
+        within(secondCard).getByText("GDPR data mapping")
+      ).toBeInTheDocument()
+      for (const sectionKey of [
+        "risks",
+        "actions",
+        "kris",
+        "compliance",
+        "audits",
+      ]) {
+        expect(
+          within(secondCard).queryByText(
+            `organization.threeLinesOfDefense.sections.${sectionKey}`
+          )
+        ).not.toBeInTheDocument()
+      }
+    })
+
+    it("shows exactly one empty message for a line where every entity type is empty", () => {
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
         data: makeData(),
         isLoading: false,
@@ -1393,8 +1429,7 @@ describe("ThreeLinesOfDefensePage", () => {
       renderPage()
 
       // Default makeData never assigns anything to GOVERNING_BODY -- it
-      // must show the empty message exactly once for the whole card, not
-      // 5 times (one per entity-type section).
+      // must show the empty message exactly once for the whole card.
       const governingBodyCard = cardForLine(
         "organization.threeLinesOfDefense.lines.governingBody"
       )
@@ -1403,7 +1438,6 @@ describe("ThreeLinesOfDefensePage", () => {
           "organization.threeLinesOfDefense.empty"
         )
       ).toHaveLength(1)
-      // No per-section headings should render at all for a fully-empty line.
       expect(
         within(governingBodyCard).queryByText(
           "organization.threeLinesOfDefense.sections.risks"
