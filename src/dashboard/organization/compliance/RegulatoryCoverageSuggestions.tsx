@@ -89,6 +89,18 @@ export default function RegulatoryCoverageSuggestions({
   const checkCoverage = async () => {
     if (!selectedSiteId) return
     const requestedSiteId = selectedSiteId
+    // Round-10 quality-bar-loop review (resilience axis): resetting
+    // dismissed/added here without also clearing the visible suggestions
+    // list left the PREVIOUS batch on screen -- with every "Add as
+    // obligation" button now re-enabled -- for the full duration of the
+    // fresh AI round-trip (up to the 45s server-side timeout). A user who
+    // re-ran the check for the same site and clicked Add again during that
+    // window could re-add an already-added suggestion, reintroducing the
+    // exact duplicate-obligation bug the `added` state exists to prevent.
+    // Clearing suggestions here (same as the site-select onChange handler
+    // already does) shows the loading state instead of a stale, falsely
+    // re-enabled list.
+    setSuggestions(null)
     setDismissed(new Set())
     setAdded(new Set())
     try {

@@ -487,6 +487,72 @@ it("restores a previously dismissed suggestion when re-checking the same site", 
 // was when the request STARTED -- a slow response for the site the user
 // has since navigated away from used to land unconditionally and silently
 // repopulate the panel with the wrong site's suggestions.
+// Round-10 quality-bar-loop review (resilience axis, dropped below floor):
+// checkCoverage reset dismissed/added synchronously but left the PREVIOUS
+// suggestions list on screen (with every Add button re-enabled) for the
+// entire duration of a fresh, same-site check -- letting a user re-add an
+// already-added suggestion mid-refresh and reintroduce the exact
+// duplicate-obligation bug PR #952 fixed. suggestions must clear
+// immediately, not just dismissed/added.
+it("clears the previous suggestions list (not just dismissed/added) as soon as a fresh check starts", async () => {
+  let resolveCheck: (value: unknown) => void = () => {}
+  mockSuggestRegulatorySources
+    .mockReturnValueOnce({
+      unwrap: () =>
+        Promise.resolve({
+          data: {
+            suggestions: [
+              {
+                name: "GDPR",
+                domain: "data_protection",
+                jurisdiction: "EU",
+                rationale: "x",
+                source_url: null,
+              },
+            ],
+          },
+        }),
+    })
+    .mockImplementationOnce(() => ({
+      unwrap: () =>
+        new Promise((resolve) => {
+          resolveCheck = resolve
+        }),
+    }))
+
+  renderPanel()
+
+  await selectSiteAndCheck("HQ Casablanca")
+  await screen.findByText("GDPR")
+  await userEvent.click(
+    screen.getByRole("button", { name: "Add GDPR as obligation" })
+  )
+  expect(
+    screen.getByRole("button", { name: "GDPR already added as obligation" })
+  ).toBeInTheDocument()
+
+  // Re-run the check for the SAME site -- the AI call is now in flight
+  // (unresolved).
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "organization.compliance.regulatoryCoverage.checkButton",
+    })
+  )
+
+  // The stale "GDPR" suggestion -- and its now-re-enabled Add button --
+  // must be gone immediately, not still showing with the fix available to
+  // re-click while the fresh response is still pending.
+  expect(screen.queryByText("GDPR")).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole("button", { name: "Add GDPR as obligation" })
+  ).not.toBeInTheDocument()
+
+  resolveCheck({ data: { suggestions: [] } })
+  await screen.findByText(
+    "organization.compliance.regulatoryCoverage.noGaps"
+  )
+})
+
 it("discards a stale response for a site the user has since switched away from", async () => {
   let resolveSiteOneCheck: (value: unknown) => void = () => {}
   mockSuggestRegulatorySources.mockImplementationOnce(() => ({
