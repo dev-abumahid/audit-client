@@ -1751,7 +1751,7 @@ describe("CompliancePage", () => {
       )
       await user.click(
         await screen.findByRole("button", {
-          name: "organization.compliance.regulatoryCoverage.addAsObligation",
+          name: /organization\.compliance\.regulatoryCoverage\.addAsObligationFor/,
         })
       )
 

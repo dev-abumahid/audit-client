@@ -4,11 +4,42 @@ import RegulatoryCoverageSuggestions from "./RegulatoryCoverageSuggestions"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+// This file never triggers src/i18n/i18n.ts's real init, so react-i18next's
+// real t() falls back to the raw key with no interpolation -- fine for
+// every other assertion here, but round-4's per-suggestion aria-label fix
+// (addAsObligationFor/dismissFor, interpolating {{name}}) is untestable
+// without the real template string to interpolate against. Overriding just
+// these two keys with their real en.json templates (same technique
+// CompliancePage.test.tsx already uses for a handful of keys) lets the
+// tests confirm the suggestion name actually reaches the label; every
+// other key still falls back to itself unchanged.
+vi.mock("react-i18next", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-i18next")>()
+  const TEMPLATES: Record<string, string> = {
+    "organization.compliance.regulatoryCoverage.addAsObligationFor":
+      "Add {{name}} as obligation",
+    "organization.compliance.regulatoryCoverage.dismissFor": "Dismiss {{name}}",
+  }
+  return {
+    ...mod,
+    useTranslation: () => ({
+      t: (key: string, options?: Record<string, unknown>) => {
+        const template = TEMPLATES[key] ?? key
+        if (!options) return template
+        return template.replace(/\{\{(\w+)\}\}/g, (_match, varName) =>
+          String(options[varName] ?? "")
+        )
+      },
+    }),
+  }
+})
+
 const mockSuggestRegulatorySources = vi.fn()
+let mockIsLoading = false
 vi.mock("@/redux/apis/organization/compliance.api", () => ({
   useSuggestRegulatorySourcesMutation: () => [
     mockSuggestRegulatorySources,
-    { isLoading: false },
+    { get isLoading() { return mockIsLoading } },
   ],
 }))
 
@@ -50,6 +81,7 @@ async function selectSiteAndCheck(siteName: string) {
 beforeEach(() => {
   mockSuggestRegulatorySources.mockReset()
   mockToastError.mockReset()
+  mockIsLoading = false
 })
 
 it("disables the check button until a site is selected", () => {
@@ -104,7 +136,7 @@ it("renders each suggestion's name, domain, jurisdiction, and rationale", async 
   ).toBeInTheDocument()
   expect(
     screen.getByRole("link", {
-      name: "organization.compliance.regulatoryCoverage.source",
+      name: /organization\.compliance\.regulatoryCoverage\.source/,
     })
   ).toHaveAttribute("href", "https://example.com/gdpr")
 })
@@ -187,9 +219,7 @@ it("calls onAddSuggestion with the selected site id and the suggestion when 'Add
   await selectSiteAndCheck("HQ Casablanca")
   await screen.findByText("GDPR")
   await userEvent.click(
-    screen.getByRole("button", {
-      name: "organization.compliance.regulatoryCoverage.addAsObligation",
-    })
+    screen.getByRole("button", { name: "Add GDPR as obligation" })
   )
 
   expect(onAddSuggestion).toHaveBeenCalledWith("site-1", suggestion)
@@ -217,9 +247,7 @@ it("removes a dismissed suggestion from view without calling onAddSuggestion", a
   await selectSiteAndCheck("HQ Casablanca")
   await screen.findByText("GDPR")
   await userEvent.click(
-    screen.getByRole("button", {
-      name: "organization.compliance.regulatoryCoverage.dismiss",
-    })
+    screen.getByRole("button", { name: "Dismiss GDPR" })
   )
 
   expect(screen.queryByText("GDPR")).not.toBeInTheDocument()
@@ -305,9 +333,7 @@ it("restores a previously dismissed suggestion when re-checking the same site", 
   await selectSiteAndCheck("HQ Casablanca")
   await screen.findByText("GDPR")
   await userEvent.click(
-    screen.getByRole("button", {
-      name: "organization.compliance.regulatoryCoverage.dismiss",
-    })
+    screen.getByRole("button", { name: "Dismiss GDPR" })
   )
   expect(screen.queryByText("GDPR")).not.toBeInTheDocument()
 
@@ -395,4 +421,125 @@ it("does not show an error toast for a stale request the user has already switch
   await new Promise((resolve) => setTimeout(resolve, 0))
 
   expect(mockToastError).not.toHaveBeenCalled()
+})
+
+// Round-4 quality-bar-loop review (accessibility axis, 3 consecutive
+// below-floor rounds).
+describe("accessibility fixes (round 4)", () => {
+  it("moves focus to the panel heading after dismissing a suggestion", async () => {
+    mockSuggestRegulatorySources.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          data: {
+            suggestions: [
+              {
+                name: "GDPR",
+                domain: "data_protection",
+                jurisdiction: "EU",
+                rationale: "x",
+                source_url: null,
+              },
+            ],
+          },
+        }),
+    })
+    renderPanel()
+
+    await selectSiteAndCheck("HQ Casablanca")
+    await screen.findByText("GDPR")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Dismiss GDPR" })
+    )
+
+    const heading = screen.getByRole("heading", {
+      name: "organization.compliance.regulatoryCoverage.title",
+    })
+    expect(heading).toHaveFocus()
+  })
+
+  // Review round 1 finding on PR #949: an earlier version of this fix used
+  // `focus:outline-none` with no replacement indicator -- moving focus
+  // somewhere with zero visible indication is arguably worse than not
+  // managing focus at all (WCAG 2.4.7). The heading must reuse the same
+  // focus-ring utility every other focusable element in this file already
+  // uses, not suppress the outline.
+  it("gives the dismiss-focused heading a visible focus indicator, not a suppressed outline", () => {
+    renderPanel()
+
+    const heading = screen.getByRole("heading", {
+      name: "organization.compliance.regulatoryCoverage.title",
+    })
+    expect(heading.className).toContain("focus-ring")
+    expect(heading.className).not.toContain("outline-none")
+  })
+
+  it("keeps the live region mounted before any check has run, for reliable AT announcement", () => {
+    renderPanel()
+
+    // The region itself (not just its eventual content) must exist from
+    // first render -- an aria-live container that only appears once
+    // already populated is unreliable across AT/browser combos.
+    const region = document.querySelector('[aria-live="polite"]')
+    expect(region).not.toBeNull()
+  })
+
+  it("marks the check button aria-busy and announces a loading message while a check is in flight", () => {
+    mockIsLoading = true
+    renderPanel()
+
+    const button = screen.getByRole("button", {
+      name: "organization.compliance.regulatoryCoverage.checkButton",
+    })
+    expect(button).toHaveAttribute("aria-busy", "true")
+    expect(
+      screen.getByText("organization.compliance.regulatoryCoverage.checking")
+    ).toBeInTheDocument()
+  })
+
+  it("does not mark the check button aria-busy or announce loading when idle", () => {
+    renderPanel()
+
+    const button = screen.getByRole("button", {
+      name: "organization.compliance.regulatoryCoverage.checkButton",
+    })
+    expect(button).toHaveAttribute("aria-busy", "false")
+    expect(
+      screen.queryByText(
+        "organization.compliance.regulatoryCoverage.checking"
+      )
+    ).not.toBeInTheDocument()
+  })
+
+  it("renders the metadata pill and jurisdiction text with foreground (not muted) contrast", async () => {
+    mockSuggestRegulatorySources.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          data: {
+            suggestions: [
+              {
+                name: "GDPR",
+                domain: "data_protection",
+                jurisdiction: "European Union",
+                rationale: "x",
+                source_url: null,
+              },
+            ],
+          },
+        }),
+    })
+    renderPanel()
+
+    await selectSiteAndCheck("HQ Casablanca")
+    await screen.findByText("GDPR")
+
+    expect(screen.getByText("data_protection").className).toContain(
+      "text-foreground"
+    )
+    expect(screen.getByText("data_protection").className).not.toContain(
+      "text-muted-foreground"
+    )
+    expect(screen.getByText("European Union").className).toContain(
+      "text-foreground"
+    )
+  })
 })

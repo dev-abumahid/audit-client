@@ -1322,8 +1322,12 @@
         "noGaps": "No coverage gaps found for this site.",
         "allDismissed": "All suggestions dismissed for this check.",
         "addAsObligation": "Add as obligation",
+        "addAsObligationFor": "Add {{name}} as obligation",
         "dismiss": "Dismiss",
-        "source": "View source"
+        "dismissFor": "Dismiss {{name}}",
+        "source": "View source",
+        "opensInNewTab": "(opens in a new tab)",
+        "checking": "Checking regulatory coverage…"
       },
       "col": {
         "obligation": "OBLIGATION",

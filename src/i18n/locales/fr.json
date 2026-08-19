@@ -1322,8 +1322,12 @@
         "noGaps": "Aucune lacune de couverture trouvée pour ce site.",
         "allDismissed": "Toutes les suggestions ont été ignorées pour cette vérification.",
         "addAsObligation": "Ajouter comme obligation",
+        "addAsObligationFor": "Ajouter {{name}} comme obligation",
         "dismiss": "Ignorer",
-        "source": "Voir la source"
+        "dismissFor": "Ignorer {{name}}",
+        "source": "Voir la source",
+        "opensInNewTab": "(ouvre dans un nouvel onglet)",
+        "checking": "Vérification de la couverture réglementaire…"
       },
       "col": {
         "obligation": "OBLIGATION",
