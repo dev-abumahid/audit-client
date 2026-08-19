@@ -204,6 +204,28 @@ const MOVE_TO_KEY: Record<LineOfDefense, string> = {
   GOVERNING_BODY: "organization.threeLinesOfDefense.moveToGoverningBody",
 }
 
+// Review round 2 (code quality): the shared confirmation dialog's title/
+// description/confirm-label were 3 separate `action === "recordReview" ?
+// ... : ...` ternaries repeated in the JSX -- collapsed to one lookup, one
+// branch point. Which mutation to actually call on confirm stays as its
+// own if/else where it's used (doReassign/doRecordReview have genuinely
+// different arities, not just different copy), not folded in here.
+const CONFIRM_COPY: Record<
+  "reassign" | "recordReview",
+  { titleKey: string; descriptionKey: string; confirmKey: string }
+> = {
+  reassign: {
+    titleKey: "organization.threeLinesOfDefense.confirmReassignTitle",
+    descriptionKey: "organization.threeLinesOfDefense.confirmReassignDescription",
+    confirmKey: "organization.threeLinesOfDefense.confirmReassignConfirm",
+  },
+  recordReview: {
+    titleKey: "organization.threeLinesOfDefense.confirmReviewTitle",
+    descriptionKey: "organization.threeLinesOfDefense.confirmReviewDescription",
+    confirmKey: "organization.threeLinesOfDefense.confirmReviewConfirm",
+  },
+}
+
 // aexa-server#208: reassigning line_of_defense is no longer a single
 // ADMIN-or-LEAD_AUDITOR check for every entity type. Risk/Kri/Compliance
 // ("management line") now require ADMIN specifically
@@ -457,28 +479,63 @@ const ItemRow = memo(function ItemRow({
               indicator on this row (category, status) shows visible text
               at all times, not color-only. Now a tiny labeled badge
               (role="img" + full aria-label, same as the coverage rings
-              below) instead of a bare dot. */}
+              below) instead of a bare dot.
+              Review round 2 (UX): a review by the SAME line that owns this
+              item (line === currentLine) isn't independent assurance --
+              it's the owner re-confirming their own work, exactly what the
+              Coverage Overview's own copy excludes from "independent
+              (2nd/3rd-line) review." Rendering it identically to a
+              genuinely independent review (a different line reviewing)
+              would misrepresent self-assessment as assurance -- the two
+              now get visually distinct treatments (outlined/hollow for
+              self, solid for independent), not just the same filled pill. */}
           {lineReviews.length > 0 && (
             <div className="mt-0.5 flex items-center gap-1">
-              {LINES.filter((line) => reviewedLines.has(line)).map((line) => (
+              {LINES.filter((line) => reviewedLines.has(line)).map((line) => {
+                const isSelfReview = line === currentLine
+                return (
                 <span
                   key={line}
                   role="img"
-                  aria-label={t(
-                    "organization.threeLinesOfDefense.reviewedByLine",
-                    { line: t(LINE_TITLE_KEY[line]) }
-                  )}
-                  title={t("organization.threeLinesOfDefense.reviewedByLine", {
-                    line: t(LINE_TITLE_KEY[line]),
-                  })}
+                  aria-label={
+                    isSelfReview
+                      ? t(
+                          "organization.threeLinesOfDefense.reviewedByLineSelf",
+                          { line: t(LINE_TITLE_KEY[line]) }
+                        )
+                      : t("organization.threeLinesOfDefense.reviewedByLine", {
+                          line: t(LINE_TITLE_KEY[line]),
+                        })
+                  }
+                  title={
+                    isSelfReview
+                      ? t(
+                          "organization.threeLinesOfDefense.reviewedByLineSelf",
+                          { line: t(LINE_TITLE_KEY[line]) }
+                        )
+                      : t("organization.threeLinesOfDefense.reviewedByLine", {
+                          line: t(LINE_TITLE_KEY[line]),
+                        })
+                  }
                   // Review round 2: was text-[8px]/h-3.5, a full 2px
                   // smaller than the adjacent category/status pills
                   // (text-[10px]) on the same row -- now matches them.
-                  className={`inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white ${LINE_COLOR[line]}`}
+                  // Self-review renders outlined/hollow (border + colored
+                  // text, transparent fill) instead of the solid fill an
+                  // independent review gets -- same hue either way, so the
+                  // line is still identifiable, but the fill/outline
+                  // distinction reads as "not the same as a genuinely
+                  // independent check" at a glance, not just on hover.
+                  className={
+                    isSelfReview
+                      ? `inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full border-2 px-1 text-[10px] font-semibold ${LINE_COLOR_TEXT[line]} border-current`
+                      : `inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white ${LINE_COLOR[line]}`
+                  }
                 >
                   {t(LINE_ABBR_KEY[line])}
                 </span>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -1741,27 +1798,14 @@ export default function ThreeLinesOfDefensePage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmRequest?.action === "recordReview"
-                ? t("organization.threeLinesOfDefense.confirmReviewTitle")
-                : t("organization.threeLinesOfDefense.confirmReassignTitle")}
+              {t(CONFIRM_COPY[confirmRequest?.action ?? "reassign"].titleKey)}
             </AlertDialogTitle>
             {confirmRequest && (
               <AlertDialogDescription>
-                {confirmRequest.action === "recordReview"
-                  ? t(
-                      "organization.threeLinesOfDefense.confirmReviewDescription",
-                      {
-                        title: confirmRequest.title,
-                        line: t(LINE_TITLE_KEY[confirmRequest.line]),
-                      }
-                    )
-                  : t(
-                      "organization.threeLinesOfDefense.confirmReassignDescription",
-                      {
-                        title: confirmRequest.title,
-                        line: t(LINE_TITLE_KEY[confirmRequest.line]),
-                      }
-                    )}
+                {t(CONFIRM_COPY[confirmRequest.action].descriptionKey, {
+                  title: confirmRequest.title,
+                  line: t(LINE_TITLE_KEY[confirmRequest.line]),
+                })}
               </AlertDialogDescription>
             )}
           </AlertDialogHeader>
@@ -1791,9 +1835,7 @@ export default function ThreeLinesOfDefensePage() {
                 closeConfirmDialog()
               }}
             >
-              {confirmRequest?.action === "recordReview"
-                ? t("organization.threeLinesOfDefense.confirmReviewConfirm")
-                : t("organization.threeLinesOfDefense.confirmReassignConfirm")}
+              {t(CONFIRM_COPY[confirmRequest?.action ?? "reassign"].confirmKey)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

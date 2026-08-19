@@ -1450,6 +1450,7 @@
       "confirmReviewDescription": "Vous attestez que {{line}} a revu « {{title}} » de façon indépendante.",
       "confirmReviewConfirm": "Enregistrer la revue",
       "reviewedByLine": "Revu par {{line}}",
+      "reviewedByLineSelf": "Revu par {{line}} (auto-évaluation, non indépendant)",
       "recordReviewLabel": "Enregistrer une revue",
       "recordReviewFor": "Marquer comme revu par {{line}}",
       "abbrFirst": "1L",

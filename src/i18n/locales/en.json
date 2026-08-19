@@ -1450,6 +1450,7 @@
       "confirmReviewDescription": "You're vouching that {{line}} independently reviewed \"{{title}}\".",
       "confirmReviewConfirm": "Record review",
       "reviewedByLine": "Reviewed by {{line}}",
+      "reviewedByLineSelf": "Reviewed by {{line}} (self-review, not independent)",
       "recordReviewLabel": "Record review",
       "recordReviewFor": "Mark reviewed by {{line}}",
       "abbrFirst": "1L",

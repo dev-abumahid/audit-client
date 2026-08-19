@@ -1203,3 +1203,51 @@ density findings (a real but larger, riskier refactor to bundle with correctness
 fixes), industry-standards' drill-down/trend/export gaps (large-scope, real
 feature work), cross-view's line-of-defense-color-elsewhere gap (cosmetic,
 low priority next to 2 real bugs).
+
+## Round 2 (re-score after PR #959)
+
+| Axis | Score | Note |
+|---|---|---|
+| Industry-standards | 7/10 | round 1's 3 open findings (ring drill-down, no trend/export, kanban-not-matrix layout) reconfirmed still open. Judge also reported a NEW "detached dropdown menu" finding (menu rendering ~430px from its trigger) -- **personally investigated and refuted**: measured the menu's actual rect (bottom edge y=667) against the trigger's rect (top edge y=671) -- a 4px gap, exactly matching `sideOffset={4}`. This is Radix's own collision-avoidance flip-to-open-upward behavior (correct, expected) for a trigger near the bottom of the viewport with a tall menu, not a positioning bug. Screenshot confirms the menu visually anchored directly above its row. Scored at round 1's level, not the judge's erroneous 6 |
+| UX | 6/10 | dropdown clarity and confirmation-dialog copy reconfirmed good; finding (4) (1st-line self-review badge indistinguishable from independent 2nd/3rd-line review) reconfirmed still open; **finding (3) (stale UI after recording a review) could not be confirmed this round** -- judge's own re-test was inconclusive due to shared-dev-server contention (8 concurrent judges), and my own follow-up attempt to reproduce it hit the same kind of tooling/contention noise (duplicate menus from imperfect synthetic-click cleanup, not an app bug) rather than a clean repro either way. Weighed against this same session's own earlier clean, successful end-to-end verification of this exact flow (ring/gap-list/badge all updated correctly after recording a review, right after shipping the feature) -- treating (3) as an unconfirmed artifact, not a real bug, unless a future round reproduces it cleanly. New observation (not yet a finding): live data showed one item with the same `reviewedById` recorded across FIRST/SECOND/GOVERNING_BODY lines -- worth checking in a later round whether the real UI actually permits one person to self-attest all lines, which would undermine "independent review" as a concept |
+| Efficiency | 9/10 | unchanged -- `closeConfirmDialog`/`pendingFocusIdRef` confirmed not to break `ItemRow` memoization (never passed as a row prop), no new re-render-triggering state |
+| Accessibility | 9/10 | both round-1 fixes independently re-verified: all 4 badge colors re-measured live at 5.78-8.32:1 (comfortably clear 4.5:1); all 3 dialog-close paths (Escape/Cancel/Confirm) confirmed to correctly return focus to the row's trigger, tested with real ref-based interaction, not synthetic shortcuts |
+| Visual/design polish | 8/10 | both round-1 fixes confirmed live: ring track now clearly visible (incl. the 0%-progress ring, which still reads as "an empty ring" via the track alone, not blank space); badge font-size now matches adjacent pills. Minor nit: badge height (16px) vs pill height (20px) still differs slightly -- shape difference (circular vs pill), not a real problem. Honest assessment of the darkened palette: still distinct/legible, some vibrancy cost accepted as a fair a11y tradeoff |
+| Resilience & edge cases | 9/10 | `closeConfirmDialog`'s `getElementById(...)?.focus()` live-forced against a real race (removed all 34 trigger elements mid-dialog, then confirmed) -- no crash, no console error, clean no-op. `getElementById` confirmed to have no selector-injection surface (exact string match, not a CSS selector parse) |
+| Code quality/maintainability | 5/10 | **regressed from 6** -- file grew 1749→1803 lines with no extraction; the `confirmRequest` 4-ternary AlertDialog block (finding 3) untouched; round 1's own diff added ~40 comment lines against a small amount of actual logic, several restating what the code already says rather than explaining a genuine invariant (only the WCAG-math and `closeConfirmDialog` comments earn their length) -- the loop's own logging convention of citing round numbers inline is now visibly compounding, not just the finding from round 1 |
+| Cross-view integration | 9/10 | up from 8 -- confirmed no other file in the codebase hardcodes the OLD lighter `LINE_COLOR` values expecting to match this page's badges (single consumer); risk-category-color / compliance-domain-color consistency re-confirmed live against RiskDetails/CompliancePage; `line_of_defense` still shown as plain uncolored text elsewhere (unchanged cosmetic gap); capability-regression check clean (round 1's diff was purely additive) |
+| **Average** | **7.625/10** | **(7+6+9+9+8+9+5+9)/8** |
+
+**stuck_streak**: Industry-standards = 1 (7→7, unchanged, at floor). UX = 1 (6→6, unchanged, below floor). Code quality = 0 (6→5, changed -- a regression, not a stuck streak, per the streak definition).
+
+### Convergence / guardrail check
+
+Average = 7.625 < target (9). Two axes below floor: UX (6), Code quality (5).
+**Not converged.**
+
+Code quality's 6→5 is a real decline but NOT a fresh below-floor regression (it
+was already below floor at 6 in round 1) -- doesn't trip the hard-stop guardrail.
+The one candidate below-floor-crossing regression (industry-standards 7→6) was
+investigated and refuted as a judge misreading of correct Radix behavior, not a
+real code regression -- no guardrail trip this round.
+
+### Fix selected for round 2
+
+Priority order: no data-correctness/security findings. Highest `stuck_streak`
+ties between industry-standards (1, refuted finding aside, real open findings
+are large-scope) and UX (1) -- UX wins the tie-break on lower raw score (6 vs 7).
+
+UX's real, actionable, non-large-scope finding: **(4) 1st-line self-review badge
+is visually indistinguishable from a genuinely independent 2nd/3rd-line review**,
+despite the Coverage Overview's own copy stating only 2nd/3rd-line counts as
+independent. Batching with code quality's cheap, disjoint-scope win (same
+file, but a small mechanical extraction, no correctness risk): collapse the
+`confirmRequest` 4-ternary AlertDialog block (finding 3) into a single
+`CONFIRM_COPY[action]` lookup.
+
+Deferred: UX's unconfirmed stale-UI finding (3) (needs a genuinely clean,
+uncontested re-test before it's actionable), the self-attestation-across-all-lines
+question (needs product/business-logic input on whether that should even be
+possible -- out of scope for a mechanical UI fix), code quality's file-size
+finding (large-scope refactor, real but risky to bundle), industry-standards'
+drill-down/trend/export gaps (large-scope feature work).

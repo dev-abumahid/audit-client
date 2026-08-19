@@ -1869,6 +1869,52 @@ describe("ThreeLinesOfDefensePage", () => {
       ).toBe(true) // THIRD
     })
 
+    // Review round 2 (UX): a review by the SAME line that owns the item
+    // isn't independent assurance -- the Coverage Overview's own copy says
+    // only 2nd/3rd-line review counts. Self-review now renders outlined
+    // (border + colored text, no solid fill), distinct from an
+    // independent review's solid fill, with a distinguishing aria-label.
+    it("renders a self-review (same line as ownership) outlined, distinct from an independent review", () => {
+      mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
+        data: makeData({
+          risks: [
+            {
+              id: "risk-1",
+              title: "Supply chain disruption",
+              category: "supply_chain",
+              status: "open",
+              line_of_defense: "FIRST",
+              line_reviews: [
+                { line: "FIRST", reviewedById: "u1", reviewedAt: "2026-01-01" },
+                { line: "SECOND", reviewedById: "u2", reviewedAt: "2026-01-01" },
+              ],
+            },
+          ],
+        }),
+        isLoading: false,
+      })
+
+      renderPage()
+
+      const riskRow = rowFor("Supply chain disruption")
+      const selfBadge = within(riskRow).getByTitle(
+        "organization.threeLinesOfDefense.reviewedByLineSelf"
+      )
+      const independentBadge = within(riskRow).getByTitle(
+        "organization.threeLinesOfDefense.reviewedByLine"
+      )
+      // Self-review: outlined (border-current), no solid bg-* fill class.
+      expect(selfBadge.classList.contains("border-current")).toBe(true)
+      expect(
+        Array.from(selfBadge.classList).some((c) => c.startsWith("bg-["))
+      ).toBe(false)
+      // Independent review: solid fill, no outline.
+      expect(independentBadge.classList.contains("bg-[hsl(250_70%_50%)]")).toBe(
+        true
+      )
+      expect(independentBadge.classList.contains("border-current")).toBe(false)
+    })
+
     it("renders no review dots for an item with an empty line_reviews array", () => {
       mockUseGetThreeLinesOfDefenseQuery.mockReturnValue({
         data: makeData(),
