@@ -11,7 +11,7 @@ import {
 } from "redux-persist"
 import storage from "redux-persist/lib/storage"
 import { baseApi } from "./baseApi"
-import { aiSuggestionsReducer } from "./slices/aiSuggestions.slice"
+import { aiRiskAnalysisRunReducer } from "./slices/aiRiskAnalysisRun.slice"
 import { externalUserReducer } from "./slices/externalUser.slice"
 import { userReducer } from "./slices/user.slice"
 
@@ -42,7 +42,7 @@ export const store = configureStore({
     externalUser: externalUserPersistReducer,
     // Not persisted -- surviving in-session navigation (aexa-frontend#924)
     // is the goal, not surviving a hard reload.
-    aiSuggestions: aiSuggestionsReducer,
+    aiRiskAnalysisRun: aiRiskAnalysisRunReducer,
   },
   middleware: (getDefaultMiddlewares) =>
     getDefaultMiddlewares({

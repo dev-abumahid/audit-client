@@ -20,13 +20,10 @@ import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
-import enTranslations from "@/i18n/locales/en.json"
-import { useAnalyzeSiteRisksMutation } from "@/redux/apis/organization/ai.api"
 import {
-  useDismissSuggestionMutation,
-  useGetSiteSuggestionStatesQuery,
-  useMarkSuggestionImportedMutation,
-} from "@/redux/apis/organization/aiSuggestions.api"
+  useGetAiRiskAnalysisRunByIdQuery,
+  useStartAiRiskAnalysisMutation,
+} from "@/redux/apis/organization/aiRiskAnalysis.api"
 import {
   useCreateNewRiskMutation,
   useDeleteRiskMutation,
@@ -41,17 +38,10 @@ import {
 } from "@/redux/apis/organization/sites.api"
 import { useAppDispatch, useAppSelector } from "@/redux/hooks"
 import {
-  failSiteAnalysis,
-  removeImportedSuggestions,
-  removeSuggestion,
-  setSiteSuggestions,
-  startSiteAnalysis,
-  toggleSuggestionSelected as toggleSuggestionSelectedAction,
-} from "@/redux/slices/aiSuggestions.slice"
-import type { RiskSuggestion } from "@/types/ai"
+  clearActiveAiRiskAnalysisRun,
+  setActiveAiRiskAnalysisRun,
+} from "@/redux/slices/aiRiskAnalysisRun.slice"
 import type { Risk, SiteSummary } from "@/types/organization"
-import { buildSuggestionFingerprint } from "@/utils/aiSuggestionFingerprint"
-import { formatLocaleDate } from "@/utils/formatDate"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { SEVERITY_STYLES } from "@/utils/severityStyles"
@@ -63,7 +53,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  History,
   Loader2,
   MoreVertical,
   Pencil,
@@ -76,64 +65,11 @@ import {
   Trash2,
   X,
 } from "lucide-react"
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { Link, useSearchParams } from "react-router"
 import { toast } from "sonner"
-
-// The AI is prompted for Title-Case category names close to (but not always
-// exactly matching) RISK_CATEGORIES' keys/labels — e.g. "Cybersecurity" vs
-// the "cyber" key. Best-effort match by label so the imported risk gets a
-// real category badge/color instead of falling through to the unstyled
-// default; falls back to the raw AI string if nothing matches; nothing is
-// lost either way since risk.category on the backend is a free string.
-// This is a plain function outside any component, so it can't use the
-// useTranslation() hook — it resolves each label straight from the English
-// locale resource instead (the AI is always prompted in English, regardless
-// of the UI's active language), without needing a live i18next instance.
-const matchKnownCategory = (aiCategory: string): string => {
-  const normalized = aiCategory.trim().toLowerCase()
-  const match = Object.entries(RISK_CATEGORIES).find(([key, cat]) => {
-    // Falls back to the key match alone if a labelKey ever has no matching
-    // en.json entry, rather than crashing on .toLowerCase() of undefined —
-    // this function's whole point is a safe fallback, so a key-parity slip
-    // must degrade gracefully here too, not become a harder failure than
-    // the "no match at all" case it's designed to already tolerate.
-    const label = (
-      enTranslations.organization.riskCategories as Record<
-        string,
-        string | undefined
-      >
-    )[cat.labelKey]?.toLowerCase()
-    return (
-      key.toLowerCase() === normalized ||
-      label === normalized ||
-      label?.includes(normalized) ||
-      (label !== undefined && normalized.includes(label))
-    )
-  })
-  return match ? match[0] : aiCategory
-}
-
-// AI returns a qualitative High/Medium/Low label for these two scores. The
-// Risk model stores them as Int?, and src/utils/riskScoring.ts documents the
-// real scale used everywhere else in the app: 0-100, with >75 critical,
-// >50 high, >25 medium, else low (aexa-ai's risk-generation prompts spec
-// inherent_risk_score/residual_risk_score as 0-100). Map each qualitative
-// label into the matching severity band on that scale, rather than a 1-10
-// guess that made every AI-imported "High" risk render as "low" severity
-// (aexa-frontend#398).
-const mapQualitativeScore = (level: string): number => {
-  const normalized = level.trim().toLowerCase()
-  // riskScoring.ts's bands are >75 critical / >50 high / >25 medium / else
-  // low -- 70 lands inside the "high" band itself rather than spilling into
-  // "critical" the way 80 would (found in review round 1: aexa-frontend#398).
-  if (normalized === "high") return 70
-  if (normalized === "medium") return 50
-  if (normalized === "low") return 20
-  return 50
-}
 
 // Types for the form
 interface SiteFormValues {
@@ -170,7 +106,7 @@ const EMPTY_SITE_FORM_VALUES: SiteFormValues = {
 }
 
 export default function SitesEntities() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   // aexa-frontend#217
   const role = useMyOrgRole()
   const canWrite = canWriteOrgResource(role)
@@ -324,7 +260,6 @@ export default function SitesEntities() {
   const aiGeneratedRiskCount = allRisks.filter((r) => r.ai_generated).length
   const [deleteRisk, { isLoading: isRiskDeleting }] = useDeleteRiskMutation()
   const [createNewRisk] = useCreateNewRiskMutation()
-  const [analyzeSiteRisks] = useAnalyzeSiteRisksMutation()
   // Reset page when search changes
   useEffect(() => {
     setPage(1)
@@ -343,70 +278,76 @@ export default function SitesEntities() {
 
   const [showRiskForm, setShowRiskForm] = useState<string | null>(null)
 
-  // AI risk-analysis state. Suggestions/selection are scoped to a single
-  // site at a time (analyzingSiteId) rather than keyed per-site, since only
-  // one site's panel realistically drives this at once and it keeps the
-  // state reset trivial when switching sites.
-  //
-  // suggestions/analyzingSiteId/selectedSuggestionIds live in the
-  // aiSuggestions Redux slice, not component state -- aexa-frontend#924:
-  // this page previously discarded AI-suggested risks (forcing a full
-  // re-run of the AI analysis) whenever it unmounted, e.g. navigating to a
-  // different route and back. isAnalyzing/importingIds stay local: they're
-  // in-flight-request indicators tied to this mount's own request
-  // lifecycle, not data worth preserving across navigation.
+  // AI risk-analysis state. docs/design-docs/site-ai-risk-register-generation.md
+  // §2/§6: unlike the old single-call flow this replaces, there's no
+  // pending-suggestion list to hold -- generated risks are persisted
+  // directly as they're produced, so all this needs to track is WHICH run
+  // to keep polling. Lives in the aiRiskAnalysisRun Redux slice (not
+  // component state) for the same aexa-frontend#924 reason the old
+  // suggestions slice did: survive in-session navigation away and back,
+  // resuming the poll against the same real run id rather than losing
+  // track of an in-flight analysis. Single site at a time, same "only one
+  // panel realistically drives this at once" reasoning as before.
   const dispatch = useAppDispatch()
-  const analyzingSiteId = useAppSelector(
-    (state) => state.aiSuggestions.analyzingSiteId
+  const activeAnalysisSiteId = useAppSelector(
+    (state) => state.aiRiskAnalysisRun.siteId
   )
-  const suggestions = useAppSelector((state) => state.aiSuggestions.suggestions)
-  const selectedSuggestionIdsList = useAppSelector(
-    (state) => state.aiSuggestions.selectedSuggestionIds
+  const activeAnalysisRunId = useAppSelector(
+    (state) => state.aiRiskAnalysisRun.runId
   )
-  const selectedSuggestionIds = useMemo(
-    () => new Set(selectedSuggestionIdsList),
-    [selectedSuggestionIdsList]
-  )
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [importingIds, setImportingIds] = useState<Set<string>>(new Set())
-  const [dismissingIds, setDismissingIds] = useState<Set<string>>(new Set())
-
-  // aexa-frontend#922: AI-suggested-risk lifecycle -- dismiss, per-site
-  // dismissed history, previously-dismissed marking on re-analysis.
-  // showDismissedHistory is plain component state (not the Redux slice):
-  // only one site panel is ever expanded at a time (expandedSite), so it
-  // doesn't need cross-navigation persistence like suggestions/
-  // analyzingSiteId/selectedSuggestionIds do.
-  const [showDismissedHistory, setShowDismissedHistory] = useState(false)
+  // Set synchronously on click, before the POST even resolves -- unlike
+  // activeAnalysisSiteId (only dispatched once startAiRiskAnalysis
+  // resolves), this closes the window where the just-clicked site's own
+  // button stayed enabled (and un-spun) between click and response,
+  // letting a double-click fire two POSTs (review finding on this PR).
+  const [startingSiteId, setStartingSiteId] = useState<string | null>(null)
+  // design-docs §6: "the skipped categories and their one-line reasoning
+  // shown" -- a collapsed-by-default toggle rather than always-inline,
+  // since a full run can skip a dozen+ categories and the coverage
+  // summary line above is already the primary at-a-glance signal.
+  const [showSkippedCategories, setShowSkippedCategories] = useState(false)
+  const [startAiRiskAnalysis] = useStartAiRiskAnalysisMutation()
+  // ReportsPage.tsx's established polling shape: a fixed interval while
+  // genuinely in flight, off once a terminal status arrives -- RTK Query's
+  // pollingInterval option has no "stop" call of its own, so toggling this
+  // value via the effect below IS the stop mechanism. Starts polling as
+  // soon as a run id exists (before the first fetch resolves, activeRun is
+  // still undefined, so it's treated as "keep polling" until proven
+  // otherwise) rather than gating on the not-yet-fetched status. Also
+  // stops on a persistent fetch error (isFetchError below) rather than
+  // polling forever with nothing to show -- review finding: the original
+  // version had no error handling at all, so a run that 404s or a
+  // network blip left the app quietly polling forever with an
+  // indefinitely-spinning button and no panel, since the panel's own
+  // render guard requires a defined activeRun.
+  const [runPollingInterval, setRunPollingInterval] = useState(0)
+  const {
+    data: activeRunData,
+    isError: isFetchError,
+  } = useGetAiRiskAnalysisRunByIdQuery(activeAnalysisRunId ?? "", {
+    skip: !activeAnalysisRunId,
+    pollingInterval: runPollingInterval,
+  })
+  const activeRun = activeRunData?.data
   useEffect(() => {
-    setShowDismissedHistory(false)
-  }, [expandedSite])
-
-  const [dismissSuggestion] = useDismissSuggestionMutation()
-  const [markSuggestionImported] = useMarkSuggestionImportedMutation()
-  // Fetched whenever a site panel is expanded (not gated on suggestions
-  // existing) -- both the "previously dismissed" marker on freshly
-  // analyzed suggestions and the read-only dismissed-history view need it,
-  // and the history view must be reachable even with zero active
-  // suggestions in the aiSuggestions slice this session.
-  const { data: siteSuggestionStatesData } = useGetSiteSuggestionStatesQuery(
-    expandedSite ?? "",
-    { skip: !expandedSite }
-  )
-  const dismissedSuggestionStates = useMemo(
-    () =>
-      (siteSuggestionStatesData?.data ?? []).filter(
-        (s) => s.status === "DISMISSED"
-      ),
-    [siteSuggestionStatesData]
-  )
-  // Rows already carry the server-computed fingerprint -- only fresh
-  // suggestions (from analyzeSiteRisks, which never got a stored row) need
-  // buildSuggestionFingerprint recomputed against this set.
-  const dismissedFingerprints = useMemo(
-    () => new Set(dismissedSuggestionStates.map((s) => s.fingerprint)),
-    [dismissedSuggestionStates]
-  )
+    setRunPollingInterval(
+      activeAnalysisRunId &&
+        !isFetchError &&
+        (!activeRun || activeRun.status === "running")
+        ? 3000
+        : 0
+    )
+    if ((activeRun && activeRun.status !== "running") || isFetchError) {
+      // Terminal status (or a persistent fetch error) arrived -- clear the
+      // in-flight-POST indicator too, in case it's still set (a very fast
+      // Phase 1 failure can resolve before startAiRiskAnalysis's own .then
+      // runs).
+      setStartingSiteId(null)
+    }
+  }, [activeAnalysisRunId, activeRun, isFetchError])
+  useEffect(() => {
+    setShowSkippedCategories(false)
+  }, [activeAnalysisRunId])
   // The Analyze button is only disabled for the site currently being
   // analyzed, so nothing stops clicking Analyze on a different site while
   // one request is still in flight. This ref (not state, so it's readable
@@ -625,24 +566,27 @@ export default function SitesEntities() {
     }
   }
 
+  // docs/design-docs/site-ai-risk-register-generation.md §2/§6: kicks off
+  // the two-phase generation and stores the created run's id so the
+  // progress panel below can start polling it -- no suggestions to hold
+  // here, generated risks land directly in the register as each category
+  // completes.
   const handleAnalyzeSite = async (site: SiteSummary) => {
-    // Tracks which site's analysis is the "current" one independent of React
-    // state timing — if the user clicks Analyze on a different site before
-    // this request resolves, latestAnalysisRequestRef will have moved on by
-    // the time this .then/.catch runs, and every state update below is
-    // skipped rather than overwriting a different site's already-displayed
-    // suggestions with this stale response.
+    // Same latestAnalysisRequestRef race guard as before: if the user
+    // clicks Analyze on a different site before this POST resolves, this
+    // ref will have moved on by the time .then/.catch runs, and the state
+    // update below is skipped rather than overwriting a different site's
+    // already-active run with this stale response.
     latestAnalysisRequestRef.current = site.id
-    dispatch(startSiteAnalysis(site.id))
-    setIsAnalyzing(true)
+    setStartingSiteId(site.id)
     setExpandedSite(site.id)
     try {
-      const res = await analyzeSiteRisks(site.id).unwrap()
+      const res = await startAiRiskAnalysis({ siteId: site.id }).unwrap()
       if (latestAnalysisRequestRef.current !== site.id) return
-      const risks: RiskSuggestion[] = res?.data ?? []
-      dispatch(setSiteSuggestions(risks))
-      if (risks.length === 0) {
-        toast(t("organization.site&entities.noAdditionalRisks"))
+      if (res?.data?.id) {
+        dispatch(
+          setActiveAiRiskAnalysisRun({ siteId: site.id, runId: res.data.id })
+        )
       }
     } catch (error) {
       if (latestAnalysisRequestRef.current !== site.id) return
@@ -650,125 +594,20 @@ export default function SitesEntities() {
       // backend always responds in English regardless of the UI's active
       // language, so leading with error?.data?.message leaked English text
       // into a French UI even when a correct FR string already existed
-      // (aexa-frontend#399).
+      // (aexa-frontend#399). The 429 re-run-cooldown response carries its
+      // own actionable message (design-docs §6), so it's shown as-is
+      // rather than the generic failure copy.
+      const err = error as { status?: number; data?: { message?: string } }
       toast.error(
-        t("organization.site&entities.aiRiskAnalysisFailed") ||
-          (error as { data?: { message?: string } })?.data?.message,
+        err?.status === 429
+          ? err.data?.message
+          : t("organization.site&entities.aiRiskAnalysisFailed") ||
+              err?.data?.message,
       )
-      dispatch(failSiteAnalysis())
     } finally {
       if (latestAnalysisRequestRef.current === site.id) {
-        setIsAnalyzing(false)
+        setStartingSiteId(null)
       }
-    }
-  }
-
-  const toggleSuggestionSelected = (riskId: string) => {
-    dispatch(toggleSuggestionSelectedAction(riskId))
-  }
-
-  const handleImportSuggestions = async (siteId: string) => {
-    const toImport = suggestions.filter((s) =>
-      selectedSuggestionIds.has(s.risk_id)
-    )
-    if (toImport.length === 0) return
-
-    setImportingIds(new Set(toImport.map((s) => s.risk_id)))
-    // quality-bar-loop round 11 (UX finding, open since round 1): this
-    // used to build the below "remove from list" set from every
-    // ATTEMPTED suggestion (toImport), not just the ones that actually
-    // succeeded -- a failed import (network error, backend rejection)
-    // still got silently evicted from the list alongside a real error
-    // toast, with no way to retry it short of re-running AI analysis
-    // from scratch. Now tracks successes explicitly.
-    const importedIds = new Set<string>()
-    for (const suggestion of toImport) {
-      try {
-        const payload = {
-          name: suggestion.title,
-          description: suggestion.description,
-          category: matchKnownCategory(suggestion.category),
-          status: "open",
-          site_id: siteId,
-          source_info: "AI Suggested",
-          ai_generated: true,
-          velocity: suggestion.Velocity,
-          trend: suggestion.Trend,
-          inherent_score: mapQualitativeScore(suggestion.inherent_risk_score),
-          residual_score: mapQualitativeScore(suggestion.residual_risk_score),
-          probability: Math.round(suggestion.Probability * 100),
-        }
-        const res = await createNewRisk(payload).unwrap()
-        if (res?.success) {
-          importedIds.add(suggestion.risk_id)
-        }
-      } catch {
-        toast.error(
-          t("organization.site&entities.importRiskFailed", {
-            title: suggestion.title,
-          }),
-        )
-      }
-    }
-    setImportingIds(new Set())
-    if (importedIds.size > 0) {
-      toast.success(
-        importedIds.size === 1
-          ? t("organization.site&entities.riskImportedSingle")
-          : t("organization.site&entities.riskImportedMultiple", {
-              count: importedIds.size,
-            })
-      )
-    }
-    // Remove only the suggestions that actually imported successfully;
-    // a failed one stays visible in the list so the user can find and
-    // re-select it to retry, instead of a genuinely failed attempt
-    // silently vanishing the same as a successful one. Selection itself
-    // is still cleared below (matching this handler's pre-existing
-    // behavior for a fully-successful import) -- retrying means
-    // re-checking the box, not an auto-preserved selection.
-    dispatch(removeImportedSuggestions(Array.from(importedIds)))
-
-    // aexa-frontend#922: fire-and-forget -- record each successfully
-    // imported suggestion server-side so a later re-analysis run's
-    // dismissed/imported history reflects it. Not awaited and doesn't
-    // block the UI; a failure here doesn't affect the risk that was
-    // already successfully created, so it's only logged, not toasted.
-    for (const suggestion of toImport) {
-      if (!importedIds.has(suggestion.risk_id)) continue
-      markSuggestionImported({ siteId, suggestion })
-        .unwrap()
-        .catch((err) => {
-          console.warn("Failed to mark AI suggestion as imported", err)
-        })
-    }
-  }
-
-  // aexa-frontend#922: single-suggestion dismiss (one row's "Dismiss"
-  // button), separate from the bulk import flow above. On success, drops
-  // the suggestion from the local slice so it disappears from the active
-  // panel immediately; on failure, leaves it visible so the user can
-  // retry, same resilience pattern as handleImportSuggestions.
-  const handleDismissSuggestion = async (
-    siteId: string,
-    suggestion: RiskSuggestion
-  ) => {
-    setDismissingIds((prev) => new Set(prev).add(suggestion.risk_id))
-    try {
-      await dismissSuggestion({ siteId, suggestion }).unwrap()
-      dispatch(removeSuggestion(suggestion.risk_id))
-    } catch {
-      toast.error(
-        t("organization.site&entities.dismissSuggestionFailed", {
-          title: suggestion.title,
-        })
-      )
-    } finally {
-      setDismissingIds((prev) => {
-        const next = new Set(prev)
-        next.delete(suggestion.risk_id)
-        return next
-      })
     }
   }
 
@@ -1102,10 +941,16 @@ export default function SitesEntities() {
                   <button
                     type="button"
                     onClick={() => handleAnalyzeSite(site)}
-                    disabled={isAnalyzing && analyzingSiteId === site.id}
+                    disabled={
+                      startingSiteId === site.id ||
+                      (activeAnalysisSiteId === site.id &&
+                        activeRun?.status === "running")
+                    }
                     className="focus-ring flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary hover:bg-primary/20 disabled:opacity-50"
                   >
-                    {isAnalyzing && analyzingSiteId === site.id ? (
+                    {startingSiteId === site.id ||
+                    (activeAnalysisSiteId === site.id &&
+                      activeRun?.status === "running") ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Brain className="h-4 w-4" />
@@ -1348,212 +1193,166 @@ export default function SitesEntities() {
                 </form>
               )}
 
-              {/* aexa-frontend#922: dismissed-history toggle -- reachable
-                  whenever the site panel is expanded, independent of
-                  whether this session has any active AI suggestions (the
-                  CEO's own framing: "comme une sorte d'historique de
-                  recherche" -- a search history, not tied to a live
-                  analysis run). Viewing history is read-only, so it's not
-                  gated behind canWrite the way Import/Dismiss are. */}
-              {isExpanded && (
-                <div className="border-t border-border bg-muted/10 px-5 py-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowDismissedHistory((prev) => !prev)}
-                    className="focus-ring flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-                  >
-                    <History className="h-3.5 w-3.5" />
-                    {showDismissedHistory
-                      ? t("organization.site&entities.backToSuggestions")
-                      : t("organization.site&entities.dismissedHistoryToggle")}
-                  </button>
-
-                  {showDismissedHistory &&
-                    (dismissedSuggestionStates.length === 0 ? (
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        {t("organization.site&entities.noDismissedHistory")}
-                      </p>
-                    ) : (
-                      <div className="mt-3 space-y-2 text-start">
-                        {/* Read-only by design: no "undismiss" action in this
-                            round -- out of scope, this is a search-history
-                            view, not a reversible-state editor. */}
-                        {dismissedSuggestionStates.map((state) => (
-                          <div
-                            key={state.id}
-                            className="rounded-lg border border-border bg-card p-3"
-                          >
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm font-medium text-foreground">
-                                {state.title}
-                              </p>
-                              <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                                {state.category}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {state.suggestion.description}
-                            </p>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              {t("organization.site&entities.dismissedOnLabel")}{" "}
-                              {formatLocaleDate(state.actedAt, i18n.language)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                </div>
-              )}
-
-              {/* AI-suggested risks — pending review, not yet in the register */}
+              {/* docs/design-docs/site-ai-risk-register-generation.md §2/§6:
+                  progress panel for the two-phase run -- unlike the old
+                  suggestions panel it replaces, generated risks are
+                  persisted directly as they're produced (see the
+                  Confirmed Risks section below, which picks them up via
+                  the polling query's RISK-tag invalidation), so this only
+                  ever shows progress/coverage, never a review-and-import
+                  step. */}
+              {/* Review finding: a persistently-failing poll (network blip,
+                  a run that 404s) previously left activeRun undefined
+                  forever -- the panel's guard below never rendered, so the
+                  user saw nothing while the app quietly kept polling.
+                  Surface it explicitly and let the panel be dismissed
+                  rather than polling indefinitely with no feedback. */}
               {isExpanded &&
-                !showDismissedHistory &&
-                analyzingSiteId === site.id &&
-                suggestions.length > 0 && (
-                  <div className="border-t border-border bg-primary/5 p-5">
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                      <p className="flex items-center gap-1.5 text-start text-[10px] font-semibold tracking-wider text-primary uppercase">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        {t("organization.site&entities.aiSuggestedRisksHeading")}
+                activeAnalysisSiteId === site.id &&
+                isFetchError && (
+                  <div className="border-t border-border bg-destructive/5 p-5 text-start">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="flex items-start gap-2.5 text-sm font-medium text-destructive">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                        {t("organization.site&entities.aiAnalysisFetchError")}
                       </p>
-                      {canWrite && (
-                        <button
-                          type="button"
-                          onClick={() => handleImportSuggestions(site.id)}
-                          disabled={
-                            selectedSuggestionIds.size === 0 ||
-                            importingIds.size > 0
-                          }
-                          className="focus-ring flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                        >
-                          {importingIds.size > 0 ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Check className="h-3.5 w-3.5" />
-                          )}
-                          {t("organization.site&entities.importSelected", {
-                            count: selectedSuggestionIds.size,
-                          })}
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 text-start">
-                      {suggestions.map((suggestion) => {
-                        const isPreviouslyDismissed = dismissedFingerprints.has(
-                          buildSuggestionFingerprint(
-                            suggestion.title,
-                            suggestion.category
-                          )
-                        )
-                        return (
-                          <label
-                            key={suggestion.risk_id}
-                            className={`flex cursor-pointer flex-col gap-2 rounded-lg border-2 border-primary/20 bg-card p-3 sm:flex-row sm:items-start ${
-                              isPreviouslyDismissed
-                                ? "bg-muted/40 opacity-60"
-                                : ""
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedSuggestionIds.has(
-                                suggestion.risk_id
-                              )}
-                              onChange={() =>
-                                toggleSuggestionSelected(suggestion.risk_id)
-                              }
-                              className="mt-1 h-4 w-4 shrink-0"
-                            />
-                            <div className="min-w-0 flex-1">
-                              {/* quality-bar-loop round 15 (visual-polish
-                                  finding, open since round 1): this metadata
-                                  (category, description, inherent/residual/
-                                  probability/velocity/trend/owner) was
-                                  text-[10px], below the app's text-xs (12px)
-                                  type-scale floor used everywhere else in
-                                  this file -- bumped to text-xs. */}
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-medium text-foreground">
-                                  {suggestion.title}
-                                </p>
-                                <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                                  {suggestion.category}
-                                </span>
-                                {isPreviouslyDismissed && (
-                                  <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
-                                    {t(
-                                      "organization.site&entities.previouslyDismissedBadge",
-                                    )}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {suggestion.description}
-                              </p>
-                              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                <span>
-                                  {t("organization.site&entities.inherentLabel")}{" "}
-                                  {suggestion.inherent_risk_score}
-                                </span>
-                                <span>
-                                  {t("organization.site&entities.residualLabel")}{" "}
-                                  {suggestion.residual_risk_score}
-                                </span>
-                                <span>
-                                  {t(
-                                    "organization.site&entities.probabilityLabel",
-                                  )}{" "}
-                                  {Math.round(suggestion.Probability * 100)}%
-                                </span>
-                                <span>
-                                  {t("organization.site&entities.velocityLabel")}{" "}
-                                  {suggestion.Velocity}
-                                </span>
-                                <span>
-                                  {t("organization.site&entities.trendLabel")}{" "}
-                                  {suggestion.Trend}
-                                </span>
-                                {suggestion.Responsable && (
-                                  <span>
-                                    {t(
-                                      "organization.site&entities.suggestedOwnerLabel",
-                                    )}{" "}
-                                    {suggestion.Responsable}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            {canWrite && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  // Nested inside the <label> above so the
-                                  // checkbox it's paired with doesn't also
-                                  // toggle from this click (browsers forward
-                                  // a click anywhere in a <label> to its
-                                  // associated control unless prevented).
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  handleDismissSuggestion(site.id, suggestion)
-                                }}
-                                disabled={dismissingIds.has(suggestion.risk_id)}
-                                className="focus-ring flex shrink-0 items-center gap-1 rounded-lg border border-input px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
-                              >
-                                {dismissingIds.has(suggestion.risk_id) ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <X className="h-3.5 w-3.5" />
-                                )}
-                                {t("organization.site&entities.dismissSuggestion")}
-                              </button>
-                            )}
-                          </label>
-                        )
-                      })}
+                      <button
+                        type="button"
+                        onClick={() => dispatch(clearActiveAiRiskAnalysisRun())}
+                        aria-label={t(
+                          "organization.site&entities.dismissAiAnalysisPanel"
+                        )}
+                        className="focus-ring shrink-0 rounded-lg p-1 text-muted-foreground hover:bg-muted"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
                 )}
+
+              {isExpanded && activeAnalysisSiteId === site.id && activeRun && (
+                <div className="border-t border-border bg-primary/5 p-5 text-start">
+                  {activeRun.status === "running" ? (
+                    <div className="flex items-center gap-2.5">
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {t("organization.site&entities.aiAnalysisRunningHeading")}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {t("organization.site&entities.aiAnalysisRunningBody")}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {activeRun.status === "failed"
+                                ? t("organization.site&entities.aiAnalysisFailedHeading")
+                                : t("organization.site&entities.aiAnalysisCompletedHeading")}
+                            </p>
+                            {activeRun.status !== "failed" && (
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                {t(
+                                  "organization.site&entities.aiAnalysisCoverageSummary",
+                                  {
+                                    applicable:
+                                      activeRun.categories_applicable
+                                        ?.length ?? 0,
+                                    total:
+                                      (activeRun.categories_applicable
+                                        ?.length ?? 0) +
+                                      (activeRun.categories_skipped
+                                        ?.length ?? 0),
+                                    skipped:
+                                      activeRun.categories_skipped?.length ??
+                                      0,
+                                  }
+                                )}
+                              </p>
+                            )}
+                            {activeRun.risks_created > 0 && (
+                              <p className="mt-1 text-xs font-medium text-primary">
+                                {t(
+                                  "organization.site&entities.aiAnalysisRisksCreatedSummary",
+                                  { count: activeRun.risks_created }
+                                )}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => dispatch(clearActiveAiRiskAnalysisRun())}
+                          aria-label={t(
+                            "organization.site&entities.dismissAiAnalysisPanel"
+                          )}
+                          className="focus-ring shrink-0 rounded-lg p-1 text-muted-foreground hover:bg-muted"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      {activeRun.categories_failed &&
+                        activeRun.categories_failed.length > 0 && (
+                          <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 p-2.5 text-xs text-destructive">
+                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            {t(
+                              "organization.site&entities.aiAnalysisCategoriesFailed",
+                              {
+                                categories: activeRun.categories_failed
+                                  .map((c) => c.category)
+                                  .join(", "),
+                              }
+                            )}
+                          </p>
+                        )}
+
+                      {activeRun.categories_skipped &&
+                        activeRun.categories_skipped.length > 0 && (
+                          <div className="mt-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowSkippedCategories((prev) => !prev)
+                              }
+                              className="focus-ring text-xs font-medium text-muted-foreground hover:text-foreground"
+                            >
+                              {showSkippedCategories
+                                ? t(
+                                    "organization.site&entities.hideSkippedCategories"
+                                  )
+                                : t(
+                                    "organization.site&entities.showSkippedCategories"
+                                  )}
+                            </button>
+                            {showSkippedCategories && (
+                              <ul className="mt-2 space-y-1.5">
+                                {activeRun.categories_skipped.map((c) => (
+                                  <li
+                                    key={c.category}
+                                    className="rounded-lg border border-border bg-card p-2 text-xs"
+                                  >
+                                    <span className="font-medium text-foreground">
+                                      {c.category}
+                                    </span>{" "}
+                                    <span className="text-muted-foreground">
+                                      {c.reasoning}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Expanded Risks Section */}
               {isExpanded && (

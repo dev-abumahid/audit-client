@@ -1,6 +1,5 @@
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse } from "@/types/api"
-import type { RiskSuggestion } from "@/types/ai"
 import type { Recommendation } from "@/types/recommendation"
 import type { ITemplate } from "@/types/template"
 
@@ -52,17 +51,6 @@ const aiApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["RECOMMENDATION"],
     }),
-    // Doesn't persist anything -- returns candidate risk suggestions for the
-    // caller to review and selectively import via createNewRisk, which
-    // already invalidates RISK. Field casing (Probability/Velocity/Trend/
-    // Responsable) is deliberately kept exactly as aexa-ai produces it.
-    analyzeSiteRisks: builder.mutation<ApiResponse<RiskSuggestion[]>, string>({
-      query: (siteId) => ({
-        url: `/ai/analyze-site-risks`,
-        method: "POST",
-        body: { siteId },
-      }),
-    }),
   }),
 })
 
@@ -71,5 +59,4 @@ export const {
   useGenerateTemplateWithPdfMutation,
   useGenerateTemplateWithRiskMutation,
   useGenerateRecommendationFromAiMutation,
-  useAnalyzeSiteRisksMutation,
 } = aiApi

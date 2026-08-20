@@ -123,8 +123,7 @@ const risksApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["GOVERNANCE"],
     }),
-    // RiskFormModal's AI pre-fill -- non-persisting suggestion, same
-    // convention as useAnalyzeSiteRisksMutation (ai.api.ts): no
+    // RiskFormModal's AI pre-fill -- non-persisting suggestion: no
     // invalidatesTags, since this doesn't change any stored Risk data,
     // just returns values for the caller to review/apply client-side.
     suggestRiskFields: builder.mutation<

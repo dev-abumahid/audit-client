@@ -93,7 +93,7 @@ export const baseApi = createApi({
     "CORRELATION_MATRIX",
     "EXTERNAL_MEMBER",
     "ACTION_CLOSURE",
-    "AI_SUGGESTION_STATE",
+    "AI_RISK_ANALYSIS_RUN",
   ],
   endpoints: () => ({}),
 })

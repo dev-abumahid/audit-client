@@ -4,18 +4,18 @@ import userEvent from "@testing-library/user-event"
 import React from "react"
 import { Provider } from "react-redux"
 import { MemoryRouter } from "react-router"
-import { aiSuggestionsReducer } from "@/redux/slices/aiSuggestions.slice"
+import { aiRiskAnalysisRunReducer } from "@/redux/slices/aiRiskAnalysisRun.slice"
 import SitesEntities from "./SitesEntities"
 
-// aexa-frontend#924: suggestions/analyzingSiteId/selectedSuggestionIds now
-// live in the aiSuggestions Redux slice (not component state) so they
-// survive navigation -- see aiSuggestions.slice.ts's own comment. A real
-// store (not a hand-mocked useAppSelector/useAppDispatch) gives the closest
-// fidelity to production reducer behavior, and a fresh one per render call
-// keeps each test's AI-suggestions state isolated from every other test.
+// aexa-frontend#924: the active analysis run's (siteId, runId) pointer
+// lives in the aiRiskAnalysisRun Redux slice (not component state) so it
+// survives navigation -- see that slice's own comment. A real store (not a
+// hand-mocked useAppSelector/useAppDispatch) gives the closest fidelity to
+// production reducer behavior, and a fresh one per render call keeps each
+// test's state isolated from every other test.
 function createTestStore() {
   return configureStore({
-    reducer: { aiSuggestions: aiSuggestionsReducer },
+    reducer: { aiRiskAnalysisRun: aiRiskAnalysisRunReducer },
   })
 }
 
@@ -69,10 +69,8 @@ const mockFetchSiteById = vi.fn()
 const mockUseGetAllRisksQuery = vi.fn()
 const mockDeleteRisk = vi.fn()
 const mockCreateNewRisk = vi.fn()
-const mockAnalyzeSiteRisks = vi.fn()
-const mockDismissSuggestion = vi.fn()
-const mockMarkSuggestionImported = vi.fn()
-const mockUseGetSiteSuggestionStatesQuery = vi.fn()
+const mockStartAiRiskAnalysis = vi.fn()
+const mockUseGetAiRiskAnalysisRunByIdQuery = vi.fn()
 
 vi.mock("@/redux/apis/organization/sites.api", () => ({
   useGetAllSitesQuery: (...args: unknown[]) => mockUseGetAllSitesQuery(...args),
@@ -88,22 +86,13 @@ vi.mock("@/redux/apis/organization/risk.api", () => ({
   useCreateNewRiskMutation: () => [mockCreateNewRisk, { isLoading: false }],
 }))
 
-vi.mock("@/redux/apis/organization/ai.api", () => ({
-  useAnalyzeSiteRisksMutation: () => [mockAnalyzeSiteRisks, { isLoading: false }],
-}))
-
-// aexa-frontend#922: AI-suggestion lifecycle (dismiss / dismissed history /
-// previously-dismissed marking). getSiteSuggestionStates defaults to an
-// empty list so existing tests (written before this feature) that never
-// set up this mock don't blow up on an undefined return value.
-vi.mock("@/redux/apis/organization/aiSuggestions.api", () => ({
-  useDismissSuggestionMutation: () => [mockDismissSuggestion, { isLoading: false }],
-  useMarkSuggestionImportedMutation: () => [
-    mockMarkSuggestionImported,
+vi.mock("@/redux/apis/organization/aiRiskAnalysis.api", () => ({
+  useStartAiRiskAnalysisMutation: () => [
+    mockStartAiRiskAnalysis,
     { isLoading: false },
   ],
-  useGetSiteSuggestionStatesQuery: (...args: unknown[]) =>
-    mockUseGetSiteSuggestionStatesQuery(...args),
+  useGetAiRiskAnalysisRunByIdQuery: (...args: unknown[]) =>
+    mockUseGetAiRiskAnalysisRunByIdQuery(...args),
 }))
 
 vi.mock("@/components/shared/DeleteAlertModal", () => ({
@@ -187,26 +176,15 @@ describe("SitesEntities", () => {
     mockUseGetAllRisksQuery.mockReset()
     mockDeleteRisk.mockReset()
     mockCreateNewRisk.mockReset()
-    mockAnalyzeSiteRisks.mockReset()
-    mockDismissSuggestion.mockReset()
-    mockMarkSuggestionImported.mockReset()
-    mockUseGetSiteSuggestionStatesQuery.mockReset()
+    mockStartAiRiskAnalysis.mockReset()
+    mockUseGetAiRiskAnalysisRunByIdQuery.mockReset()
     mockToastError.mockReset()
     mockToastSuccess.mockReset()
     ;(Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>).mockClear()
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
-    // aexa-frontend#922: default to an empty dismissed-history list --
-    // individual tests override with real rows where the feature under
-    // test needs them.
-    mockUseGetSiteSuggestionStatesQuery.mockReturnValue({
-      data: { success: true, data: [] },
-    })
-    mockDismissSuggestion.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true }),
-    })
-    mockMarkSuggestionImported.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true }),
-    })
+    // No active run by default -- individual tests override once a run id
+    // is in the store (via startAiRiskAnalysis or a pre-seeded store).
+    mockUseGetAiRiskAnalysisRunByIdQuery.mockReturnValue({ data: undefined })
     // Edit opens a per-site detail fetch (aexa-frontend#401); default to a
     // never-resolving promise so tests that don't care about it aren't
     // affected, individual tests override with a resolved/rejected value.
@@ -374,36 +352,6 @@ describe("SitesEntities", () => {
       screen
         .getByRole("button", {
           name: "organization.site&entities.closeModalLabel",
-        })
-        .getAttribute("type")
-    ).toBe("button")
-  })
-
-  it("gives the AI-suggestions 'Import selected' button an explicit type=\"button\"", async () => {
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-      error: undefined,
-    })
-    mockAnalyzeSiteRisks.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
-    })
-
-    renderPage()
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization.site&entities.analyzeAi/i,
-      })
-    )
-    await waitFor(() =>
-      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-    )
-
-    expect(
-      screen
-        .getByRole("button", {
-          name: /organization\.site&entities\.importSelected/i,
         })
         .getAttribute("type")
     ).toBe("button")
@@ -2613,506 +2561,6 @@ describe("SitesEntities", () => {
     expect(mockCreateNewRisk).not.toHaveBeenCalled()
   })
 
-  function makeSuggestion(overrides = {}) {
-    return {
-      risk_id: "sugg-1",
-      title: "Supplier concentration",
-      description: "Single supplier for a critical part",
-      category: "Operational",
-      site: "HQ Casablanca",
-      inherent_risk_score: "High",
-      residual_risk_score: "Medium",
-      Probability: 0.6,
-      minimum_Impact: "€500K",
-      maximum_impact: "€2M",
-      Velocity: "fast",
-      Trend: "increasing",
-      Responsable: "Supply Chain Manager",
-      score: 14,
-      ...overrides,
-    }
-  }
-
-  it("runs AI analysis and renders the returned suggestions", async () => {
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-      error: undefined,
-    })
-    mockAnalyzeSiteRisks.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
-    })
-
-    renderPage()
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization.site&entities.analyzeAi/i,
-      })
-    )
-
-    await waitFor(() =>
-      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-    )
-    expect(mockAnalyzeSiteRisks).toHaveBeenCalledWith("site-1")
-  })
-
-  // Regression (audit round 3): the AI-suggested-risks panel heading, the
-  // "Import selected (n)" button, and the Inherent/Residual/Probability/
-  // Velocity/Trend/Suggested owner detail labels were all hardcoded English,
-  // bypassing t(). t() is mocked to return the raw key in this file (with no
-  // interpolation), so asserting the keys -- not the old hardcoded strings
-  // -- proves the panel now goes through translation.
-  it("renders the AI-suggested-risks panel heading and detail labels through t(), not hardcoded English", async () => {
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-      error: undefined,
-    })
-    mockAnalyzeSiteRisks.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
-    })
-
-    renderPage()
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization.site&entities.analyzeAi/i,
-      })
-    )
-
-    await waitFor(() =>
-      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-    )
-
-    expect(
-      screen.getByText(
-        "organization.site&entities.aiSuggestedRisksHeading"
-      )
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText("organization.site&entities.importSelected")
-    ).toBeInTheDocument()
-    expect(
-      screen.queryByText(/AI-suggested risks — review before importing/)
-    ).not.toBeInTheDocument()
-    expect(screen.queryByText(/^Import selected/)).not.toBeInTheDocument()
-
-    for (const key of [
-      "inherentLabel",
-      "residualLabel",
-      "probabilityLabel",
-      "velocityLabel",
-      "trendLabel",
-      "suggestedOwnerLabel",
-    ]) {
-      expect(
-        screen.getByText(
-          new RegExp(`organization\\.site&entities\\.${key}`)
-        )
-      ).toBeInTheDocument()
-    }
-  })
-
-  // quality-bar-loop round 15 (visual-polish finding, open since round
-  // 1): this metadata (category, description, and the inherent/
-  // residual/probability/velocity/trend row) was text-[10px], below the
-  // app's text-xs (12px) type-scale floor used everywhere else.
-  it("renders the AI-suggestion metadata at text-xs, not below the app's type-scale floor", async () => {
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-      error: undefined,
-    })
-    mockAnalyzeSiteRisks.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
-    })
-
-    renderPage()
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization.site&entities.analyzeAi/i,
-      })
-    )
-
-    await waitFor(() =>
-      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-    )
-
-    expect(screen.getByText("Operational")).toHaveClass("text-xs")
-    expect(
-      screen.getByText("Single supplier for a critical part")
-    ).toHaveClass("text-xs")
-    expect(
-      screen
-        .getByText(/organization\.site&entities\.inherentLabel/)
-        .closest("div")
-    ).toHaveClass("text-xs")
-  })
-
-  it("hides the Import selected button for a VIEWER even with suggestions shown", async () => {
-    mockRole = "VIEWER"
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-      error: undefined,
-    })
-    mockAnalyzeSiteRisks.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
-    })
-
-    renderPage()
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization.site&entities.analyzeAi/i,
-      })
-    )
-
-    await waitFor(() =>
-      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-    )
-    expect(screen.queryByText(/Import selected/i)).not.toBeInTheDocument()
-  })
-
-  it("shows an error toast and no suggestions panel when AI analysis fails", async () => {
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-      error: undefined,
-    })
-    mockAnalyzeSiteRisks.mockReturnValue({
-      unwrap: () =>
-        Promise.reject({ data: { message: "AI service unavailable" } }),
-    })
-
-    renderPage()
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization.site&entities.analyzeAi/i,
-      })
-    )
-
-    // Regression (aexa-frontend#399): translated fallback now takes
-    // precedence over the raw (always-English) backend message.
-    await waitFor(() =>
-      expect(mockToastError).toHaveBeenCalledWith(
-        "organization.site&entities.aiRiskAnalysisFailed"
-      )
-    )
-    expect(mockToastError).not.toHaveBeenCalledWith("AI service unavailable")
-    expect(screen.queryByText(/review before importing/i)).toBeNull()
-  })
-
-  it("imports a selected suggestion into the register with the mapped payload", async () => {
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-      error: undefined,
-    })
-    mockAnalyzeSiteRisks.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
-    })
-    mockCreateNewRisk.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true }),
-    })
-
-    renderPage()
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization.site&entities.analyzeAi/i,
-      })
-    )
-    await waitFor(() =>
-      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-    )
-
-    await userEvent.click(screen.getByRole("checkbox"))
-    await userEvent.click(
-      screen.getByRole("button", { name: /organization\.site&entities\.importSelected/i })
-    )
-
-    await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
-    const payload = mockCreateNewRisk.mock.calls[0][0]
-    expect(payload).toMatchObject({
-      name: "Supplier concentration",
-      description: "Single supplier for a critical part",
-      category: "operational",
-      site_id: "site-1",
-      status: "open",
-      ai_generated: true,
-      source_info: "AI Suggested",
-      velocity: "fast",
-      trend: "increasing",
-      // Regression (aexa-frontend#398): inherent/residual scores are on a
-      // 0-100 scale (see src/utils/riskScoring.ts), not 1-10 -- High/Medium
-      // map to 70/50 so they land in the matching severity band (>75 is
-      // "critical", not "high" -- 80 would have overshot into that band).
-      inherent_score: 70,
-      residual_score: 50,
-      probability: 60,
-    })
-    // financial_impact_min/max are free text on the AI response ("€500K",
-    // "€2M") and don't reliably parse to the Risk model's Int fields — must
-    // never be forwarded, not even as unparsed strings.
-    expect(payload).not.toHaveProperty("financial_impact_min")
-    expect(payload).not.toHaveProperty("financial_impact_max")
-  })
-
-  // quality-bar-loop round 11 (UX finding, open since round 1):
-  // handleImportSuggestions used to evict every ATTEMPTED suggestion from
-  // the list, not just the ones that actually succeeded -- a failed
-  // import (still shown as an error toast) silently vanished from the
-  // list too, with no way to retry it short of re-running AI analysis.
-  it("keeps a suggestion whose import fails visible in the list, while removing the one that succeeded", async () => {
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-      error: undefined,
-    })
-    mockAnalyzeSiteRisks.mockReturnValue({
-      unwrap: () =>
-        Promise.resolve({
-          success: true,
-          data: [
-            makeSuggestion({ risk_id: "sugg-ok", title: "Succeeds fine" }),
-            makeSuggestion({ risk_id: "sugg-fail", title: "Fails to import" }),
-          ],
-        }),
-    })
-    mockCreateNewRisk
-      .mockReturnValueOnce({ unwrap: () => Promise.resolve({ success: true }) })
-      .mockReturnValueOnce({ unwrap: () => Promise.reject(new Error("boom")) })
-
-    renderPage()
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization.site&entities.analyzeAi/i,
-      })
-    )
-    await waitFor(() =>
-      expect(screen.getByText("Succeeds fine")).toBeInTheDocument()
-    )
-
-    const checkboxes = screen.getAllByRole("checkbox")
-    await userEvent.click(checkboxes[0])
-    await userEvent.click(checkboxes[1])
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization\.site&entities\.importSelected/i,
-      })
-    )
-
-    await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalledTimes(2))
-    await waitFor(() =>
-      expect(screen.queryByText("Succeeds fine")).not.toBeInTheDocument()
-    )
-    expect(screen.getByText("Fails to import")).toBeInTheDocument()
-  })
-
-  it("falls back to the raw AI category string when it doesn't match a known category", async () => {
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-      error: undefined,
-    })
-    mockAnalyzeSiteRisks.mockReturnValue({
-      unwrap: () =>
-        Promise.resolve({
-          success: true,
-          data: [makeSuggestion({ category: "Something Unrecognized" })],
-        }),
-    })
-    mockCreateNewRisk.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true }),
-    })
-
-    renderPage()
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization.site&entities.analyzeAi/i,
-      })
-    )
-    await waitFor(() =>
-      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-    )
-    await userEvent.click(screen.getByRole("checkbox"))
-    await userEvent.click(
-      screen.getByRole("button", { name: /organization\.site&entities\.importSelected/i })
-    )
-
-    await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
-    expect(mockCreateNewRisk.mock.calls[0][0]).toMatchObject({
-      category: "Something Unrecognized",
-    })
-  })
-
-  // Regression test for the labelKey refactor (aexa-frontend#199): matching
-  // now resolves each category's label from en.json rather than a hardcoded
-  // string, so this exercises the actual label-substring match path (not
-  // just the trivial key === normalized case every category also satisfies
-  // when the AI happens to return the exact key) — "Cybersecurity" only
-  // matches "cyber" through its English label, per the code's own comment.
-  it("matches an AI category to a known category by label, not just by exact key", async () => {
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-      error: undefined,
-    })
-    mockAnalyzeSiteRisks.mockReturnValue({
-      unwrap: () =>
-        Promise.resolve({
-          success: true,
-          data: [makeSuggestion({ category: "Cybersecurity" })],
-        }),
-    })
-    mockCreateNewRisk.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true }),
-    })
-
-    renderPage()
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization.site&entities.analyzeAi/i,
-      })
-    )
-    await waitFor(() =>
-      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-    )
-    await userEvent.click(screen.getByRole("checkbox"))
-    await userEvent.click(
-      screen.getByRole("button", { name: /organization\.site&entities\.importSelected/i })
-    )
-
-    await waitFor(() => expect(mockCreateNewRisk).toHaveBeenCalled())
-    expect(mockCreateNewRisk.mock.calls[0][0]).toMatchObject({
-      category: "cyber",
-    })
-  })
-
-  it("does not let a slow analysis for one site overwrite the suggestions already shown for another", async () => {
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: {
-        data: [
-          makeSite({ id: "site-1", name: "HQ Casablanca" }),
-          makeSite({ id: "site-2", name: "Lyon Plant" }),
-        ],
-        meta: { page: 1, limit: 10, total: 2 },
-      },
-      error: undefined,
-    })
-
-    let resolveSiteOne: (value: unknown) => void = () => {}
-    const siteOnePromise = new Promise((resolve) => {
-      resolveSiteOne = resolve
-    })
-    mockAnalyzeSiteRisks.mockImplementationOnce(() => ({
-      unwrap: () => siteOnePromise,
-    }))
-    mockAnalyzeSiteRisks.mockImplementationOnce(() => ({
-      unwrap: () =>
-        Promise.resolve({
-          success: true,
-          data: [makeSuggestion({ risk_id: "sugg-2", title: "Flood exposure" })],
-        }),
-    }))
-
-    renderPage()
-    const analyzeButtons = screen.getAllByRole("button", {
-      name: /organization.site&entities.analyzeAi/i,
-    })
-
-    // Start analyzing site 1 (slow, not yet resolved) then switch to site 2
-    // before it finishes.
-    await userEvent.click(analyzeButtons[0])
-    await userEvent.click(analyzeButtons[1])
-
-    await waitFor(() =>
-      expect(screen.getByText("Flood exposure")).toBeInTheDocument()
-    )
-
-    // Site 1's request finally resolves after the user has moved on — its
-    // suggestions must not appear under site 2's now-current panel.
-    resolveSiteOne({
-      success: true,
-      data: [makeSuggestion({ risk_id: "sugg-1", title: "Supplier concentration" })],
-    })
-
-    await waitFor(() => Promise.resolve())
-    expect(screen.queryByText("Supplier concentration")).not.toBeInTheDocument()
-    expect(screen.getByText("Flood exposure")).toBeInTheDocument()
-  })
-
-  // aexa-frontend#924: AI-suggested risks previously lived in component
-  // useState, discarded the moment this page unmounted (e.g. navigating to
-  // a different route and back), forcing a full AI-analysis re-run to see
-  // the same suggestions again. Now backed by the aiSuggestions Redux
-  // slice, so a genuine unmount+remount against the SAME store (unlike
-  // renderPage()'s helper, which creates a fresh store every call) must
-  // still show the previously-fetched suggestions with no second
-  // analyzeSiteRisks call.
-  it("keeps AI-suggested risks visible after the page unmounts and remounts (navigating away and back)", async () => {
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-      error: undefined,
-    })
-    mockAnalyzeSiteRisks.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true, data: [makeSuggestion()] }),
-    })
-
-    const sharedStore = createTestStore()
-    const renderWithSharedStore = () =>
-      render(
-        <Provider store={sharedStore}>
-          <MemoryRouter initialEntries={["/"]}>
-            <SitesEntities />
-          </MemoryRouter>
-        </Provider>
-      )
-
-    const { unmount } = renderWithSharedStore()
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization.site&entities.analyzeAi/i,
-      })
-    )
-    await waitFor(() =>
-      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-    )
-    expect(mockAnalyzeSiteRisks).toHaveBeenCalledTimes(1)
-
-    // Simulate navigating to a different route and back -- the whole
-    // component tree unmounts and a fresh instance mounts, same as a real
-    // route change would do, but the Redux store (unlike component state)
-    // persists across that.
-    unmount()
-    renderWithSharedStore()
-
-    // The site row itself is freshly collapsed on this new mount (row
-    // expand/collapse is ordinary per-mount UI state, not part of this fix)
-    // -- re-expand it, same as a user would by clicking the site again.
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization\.site&entities\.expandSiteLabel/i,
-      })
-    )
-
-    expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-    // No re-run of the (slow, costly) AI analysis -- the whole point of the
-    // fix is not forcing the user through it again.
-    expect(mockAnalyzeSiteRisks).toHaveBeenCalledTimes(1)
-  })
-
   // Regression (audit round 3): the pagination summary ("Showing X-Y of Z")
   // was a hardcoded English template string, bypassing t(). t() is mocked
   // to return the raw key with no interpolation in this file, so asserting
@@ -3188,67 +2636,44 @@ describe("SitesEntities", () => {
     )
   })
 
-  it("removes an imported suggestion from the panel but keeps unselected ones", async () => {
-    mockUseGetAllSitesQuery.mockReturnValue({
-      isLoading: false,
-      isFetching: false,
-      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-      error: undefined,
-    })
-    mockAnalyzeSiteRisks.mockReturnValue({
-      unwrap: () =>
-        Promise.resolve({
-          success: true,
-          data: [
-            makeSuggestion({ risk_id: "sugg-1", title: "Supplier concentration" }),
-            makeSuggestion({ risk_id: "sugg-2", title: "Flood exposure" }),
-          ],
-        }),
-    })
-    mockCreateNewRisk.mockReturnValue({
-      unwrap: () => Promise.resolve({ success: true }),
-    })
+  // docs/design-docs/site-ai-risk-register-generation.md §2/§6: replaces
+  // the old single-call analyze-and-review-suggestions flow (aexa-frontend#922)
+  // -- Analyze AI now kicks off a two-phase run and polls its progress;
+  // generated risks land directly in the register, there's no
+  // suggestion-review step to test here.
+  describe("AI risk analysis (two-phase, docs/design-docs/site-ai-risk-register-generation.md)", () => {
+    function makeRun(overrides = {}) {
+      return {
+        id: "run-1",
+        site_id: "site-1",
+        org_account_id: "org-1",
+        triggered_by_account_id: "acct-1",
+        status: "running",
+        started_at: "2026-08-20T10:00:00.000Z",
+        completed_at: null,
+        categories_applicable: null,
+        categories_skipped: null,
+        categories_failed: null,
+        createdAt: "2026-08-20T10:00:00.000Z",
+        updatedAt: "2026-08-20T10:00:00.000Z",
+        risks_created: 0,
+        ...overrides,
+      }
+    }
 
-    renderPage()
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /organization.site&entities.analyzeAi/i,
-      })
-    )
-    await waitFor(() =>
-      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-    )
-
-    const [firstCheckbox] = screen.getAllByRole("checkbox")
-    await userEvent.click(firstCheckbox)
-    await userEvent.click(
-      screen.getByRole("button", { name: /organization\.site&entities\.importSelected/i })
-    )
-
-    await waitFor(() =>
-      expect(
-        screen.queryByText("Supplier concentration")
-      ).not.toBeInTheDocument()
-    )
-    expect(screen.getByText("Flood exposure")).toBeInTheDocument()
-  })
-
-  // aexa-frontend#922: AI-suggestion lifecycle -- dismiss, per-site
-  // dismissed history, previously-dismissed marking on re-analysis.
-  describe("AI-suggestion lifecycle (aexa-frontend#922)", () => {
-    it("dismisses a suggestion: calls the mutation with siteId+suggestion and removes it from the panel", async () => {
+    it("starts a run on Analyze AI click and shows the running progress panel", async () => {
       mockUseGetAllSitesQuery.mockReturnValue({
         isLoading: false,
         isFetching: false,
         data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
         error: undefined,
       })
-      const suggestion = makeSuggestion({
-        risk_id: "sugg-1",
-        title: "Supplier concentration",
+      mockStartAiRiskAnalysis.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, data: makeRun({ status: "running" }) }),
       })
-      mockAnalyzeSiteRisks.mockReturnValue({
-        unwrap: () => Promise.resolve({ success: true, data: [suggestion] }),
+      mockUseGetAiRiskAnalysisRunByIdQuery.mockReturnValue({
+        data: { success: true, data: makeRun({ status: "running" }) },
       })
 
       renderPage()
@@ -3257,45 +2682,36 @@ describe("SitesEntities", () => {
           name: /organization.site&entities.analyzeAi/i,
         })
       )
-      await waitFor(() =>
-        expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-      )
 
-      await userEvent.click(
-        screen.getByRole("button", {
-          name: "organization.site&entities.dismissSuggestion",
-        })
-      )
-
-      await waitFor(() =>
-        expect(mockDismissSuggestion).toHaveBeenCalledWith({
-          siteId: "site-1",
-          suggestion,
-        })
-      )
+      expect(mockStartAiRiskAnalysis).toHaveBeenCalledWith({ siteId: "site-1" })
       await waitFor(() =>
         expect(
-          screen.queryByText("Supplier concentration")
-        ).not.toBeInTheDocument()
+          screen.getByText("organization.site&entities.aiAnalysisRunningHeading")
+        ).toBeInTheDocument()
       )
     })
 
-    it("shows an error toast and keeps the suggestion visible when dismiss fails", async () => {
+    it("shows the coverage summary and risks-created count once the run completes", async () => {
       mockUseGetAllSitesQuery.mockReturnValue({
         isLoading: false,
         isFetching: false,
         data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
         error: undefined,
       })
-      mockAnalyzeSiteRisks.mockReturnValue({
+      mockStartAiRiskAnalysis.mockReturnValue({
         unwrap: () =>
-          Promise.resolve({
-            success: true,
-            data: [makeSuggestion({ risk_id: "sugg-1", title: "Supplier concentration" })],
-          }),
+          Promise.resolve({ success: true, data: makeRun({ status: "running" }) }),
       })
-      mockDismissSuggestion.mockReturnValue({
-        unwrap: () => Promise.reject(new Error("network error")),
+      mockUseGetAiRiskAnalysisRunByIdQuery.mockReturnValue({
+        data: {
+          success: true,
+          data: makeRun({
+            status: "completed",
+            categories_applicable: ["cyber", "fire"],
+            categories_skipped: [{ category: "atex", reasoning: "no explosive atmospheres" }],
+            risks_created: 12,
+          }),
+        },
       })
 
       renderPage()
@@ -3304,69 +2720,256 @@ describe("SitesEntities", () => {
           name: /organization.site&entities.analyzeAi/i,
         })
       )
-      await waitFor(() =>
-        expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-      )
 
+      await waitFor(() =>
+        expect(
+          screen.getByText("organization.site&entities.aiAnalysisCompletedHeading")
+        ).toBeInTheDocument()
+      )
+      expect(
+        screen.getByText("organization.site&entities.aiAnalysisCoverageSummary")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText("organization.site&entities.aiAnalysisRisksCreatedSummary")
+      ).toBeInTheDocument()
+    })
+
+    it("lists failed categories without hiding the run as a silent success", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockStartAiRiskAnalysis.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, data: makeRun({ status: "running" }) }),
+      })
+      mockUseGetAiRiskAnalysisRunByIdQuery.mockReturnValue({
+        data: {
+          success: true,
+          data: makeRun({
+            status: "partial",
+            categories_applicable: ["cyber"],
+            categories_failed: [{ category: "fire", error: "AI service error: 502" }],
+            risks_created: 4,
+          }),
+        },
+      })
+
+      renderPage()
       await userEvent.click(
         screen.getByRole("button", {
-          name: "organization.site&entities.dismissSuggestion",
+          name: /organization.site&entities.analyzeAi/i,
+        })
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("organization.site&entities.aiAnalysisCategoriesFailed")
+        ).toBeInTheDocument()
+      )
+    })
+
+    it("shows the failed heading, no coverage summary, when the whole run fails", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockStartAiRiskAnalysis.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, data: makeRun({ status: "running" }) }),
+      })
+      mockUseGetAiRiskAnalysisRunByIdQuery.mockReturnValue({
+        data: { success: true, data: makeRun({ status: "failed" }) },
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization.site&entities.analyzeAi/i,
+        })
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("organization.site&entities.aiAnalysisFailedHeading")
+        ).toBeInTheDocument()
+      )
+      expect(
+        screen.queryByText("organization.site&entities.aiAnalysisCoverageSummary")
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows the 429 cooldown message from the server instead of the generic failure copy", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockStartAiRiskAnalysis.mockReturnValue({
+        unwrap: () =>
+          Promise.reject({
+            status: 429,
+            data: { message: "This site was analyzed recently. Try again in 8 minute(s)." },
+          }),
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization.site&entities.analyzeAi/i,
         })
       )
 
       await waitFor(() =>
         expect(mockToastError).toHaveBeenCalledWith(
-          "organization.site&entities.dismissSuggestionFailed"
+          "This site was analyzed recently. Try again in 8 minute(s)."
         )
       )
-      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
     })
 
-    it("marks a freshly analyzed suggestion whose fingerprint matches a dismissed row as 'Previously dismissed', and leaves a non-matching one unmarked", async () => {
+    it("disables the Analyze AI button for the site with a running analysis, not other sites", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: {
+          data: [makeSite(), makeSite({ id: "site-2", name: "Other Site" })],
+          meta: { page: 1, limit: 10, total: 2 },
+        },
+        error: undefined,
+      })
+      mockStartAiRiskAnalysis.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, data: makeRun({ status: "running" }) }),
+      })
+      mockUseGetAiRiskAnalysisRunByIdQuery.mockReturnValue({
+        data: { success: true, data: makeRun({ status: "running" }) },
+      })
+
+      renderPage()
+      const analyzeButtons = screen.getAllByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+      await userEvent.click(analyzeButtons[0])
+
+      await waitFor(() => expect(analyzeButtons[0]).toBeDisabled())
+      expect(analyzeButtons[1]).not.toBeDisabled()
+    })
+
+    // Review finding on PR #982: the just-clicked button previously stayed
+    // enabled (and un-spun) in the window between click and the POST
+    // resolving, because the disable condition only checked the Redux
+    // siteId (set after resolution), not an immediate click-time signal --
+    // a double-click could fire two POSTs. Uses a controllable promise
+    // (not an immediately-resolved mock) to actually observe that window.
+    it("disables the just-clicked site's button synchronously, before the POST resolves", async () => {
       mockUseGetAllSitesQuery.mockReturnValue({
         isLoading: false,
         isFetching: false,
         data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
         error: undefined,
       })
-      mockAnalyzeSiteRisks.mockReturnValue({
+      let resolvePost: (value: { success: boolean; data: unknown }) => void =
+        () => {}
+      mockStartAiRiskAnalysis.mockReturnValue({
         unwrap: () =>
-          Promise.resolve({
-            success: true,
-            data: [
-              makeSuggestion({
-                risk_id: "sugg-1",
-                title: "Supplier concentration",
-                category: "Operational",
-              }),
-              makeSuggestion({
-                risk_id: "sugg-2",
-                title: "Flood exposure",
-                category: "Environmental",
-              }),
-            ],
+          new Promise((resolve) => {
+            resolvePost = resolve
           }),
       })
-      // "Supplier concentration"/"Operational" normalizes to
-      // "supplier concentration::operational" -- matches sugg-1 only.
-      mockUseGetSiteSuggestionStatesQuery.mockReturnValue({
+
+      renderPage()
+      const analyzeButton = screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+      await userEvent.click(analyzeButton)
+
+      // POST hasn't resolved yet -- the button must already be disabled.
+      expect(analyzeButton).toBeDisabled()
+
+      resolvePost({ success: true, data: makeRun({ status: "running" }) })
+      await waitFor(() => expect(mockStartAiRiskAnalysis).toHaveBeenCalledTimes(1))
+    })
+
+    it("does not fire a second POST from a second click while the first is still in flight", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockStartAiRiskAnalysis.mockReturnValue({
+        unwrap: () => new Promise(() => {}), // never resolves in this test
+      })
+
+      renderPage()
+      const analyzeButton = screen.getByRole("button", {
+        name: /organization.site&entities.analyzeAi/i,
+      })
+      await userEvent.click(analyzeButton)
+      // Button is now disabled -- a real user can't click it again, but
+      // fire the handler directly to prove the guard, not just the DOM's
+      // own disabled attribute.
+      await userEvent.click(analyzeButton)
+
+      expect(mockStartAiRiskAnalysis).toHaveBeenCalledTimes(1)
+    })
+
+    it("shows an error state and stops polling when the run status can't be fetched", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockStartAiRiskAnalysis.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, data: makeRun({ status: "running" }) }),
+      })
+      mockUseGetAiRiskAnalysisRunByIdQuery.mockReturnValue({
+        data: undefined,
+        isError: true,
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization.site&entities.analyzeAi/i,
+        })
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("organization.site&entities.aiAnalysisFetchError")
+        ).toBeInTheDocument()
+      )
+    })
+
+    it("shows skipped-category reasoning behind a toggle, not always inline", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockStartAiRiskAnalysis.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, data: makeRun({ status: "running" }) }),
+      })
+      mockUseGetAiRiskAnalysisRunByIdQuery.mockReturnValue({
         data: {
           success: true,
-          data: [
-            {
-              id: "state-1",
-              siteId: "site-1",
-              fingerprint: "supplier concentration::operational",
-              title: "Supplier concentration",
-              category: "Operational",
-              suggestion: makeSuggestion(),
-              status: "DISMISSED",
-              actedById: "user-1",
-              actedAt: "2026-08-01T00:00:00.000Z",
-              createdAt: "2026-08-01T00:00:00.000Z",
-              updatedAt: "2026-08-01T00:00:00.000Z",
-            },
-          ],
+          data: makeRun({
+            status: "completed",
+            categories_applicable: ["cyber"],
+            categories_skipped: [
+              { category: "atex", reasoning: "No explosive atmospheres on site." },
+            ],
+          }),
         },
       })
 
@@ -3377,114 +2980,24 @@ describe("SitesEntities", () => {
         })
       )
       await waitFor(() =>
-        expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
+        expect(
+          screen.getByText("organization.site&entities.aiAnalysisCompletedHeading")
+        ).toBeInTheDocument()
       )
 
-      const badges = screen.getAllByText(
-        "organization.site&entities.previouslyDismissedBadge"
-      )
-      expect(badges).toHaveLength(1)
-      // The badge sits alongside "Supplier concentration", not "Flood
-      // exposure" -- walk up to the row and assert the non-matching
-      // suggestion's row has no badge of its own.
-      const floodRow = screen.getByText("Flood exposure").closest("label")
       expect(
-        within(floodRow!).queryByText(
-          "organization.site&entities.previouslyDismissedBadge"
-        )
+        screen.queryByText("No explosive atmospheres on site.")
       ).not.toBeInTheDocument()
-    })
-
-    it("shows the dismissed-history view with rows from the API, reachable even with zero active suggestions", async () => {
-      mockUseGetAllSitesQuery.mockReturnValue({
-        isLoading: false,
-        isFetching: false,
-        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-        error: undefined,
-      })
-      mockUseGetSiteSuggestionStatesQuery.mockReturnValue({
-        data: {
-          success: true,
-          data: [
-            {
-              id: "state-1",
-              siteId: "site-1",
-              fingerprint: "supplier concentration::operational",
-              title: "Supplier concentration",
-              category: "Operational",
-              suggestion: makeSuggestion({
-                description: "Single supplier for a critical part",
-              }),
-              status: "DISMISSED",
-              actedById: "user-1",
-              actedAt: "2026-08-01T00:00:00.000Z",
-              createdAt: "2026-08-01T00:00:00.000Z",
-              updatedAt: "2026-08-01T00:00:00.000Z",
-            },
-          ],
-        },
-      })
-
-      renderPage()
-      // Expand the site without ever running AI analysis -- the history
-      // toggle must still be reachable (not gated on suggestions.length).
-      const expandButton = screen
-        .getAllByRole("button")
-        .find((b) => b.querySelector("svg.lucide-chevron-down"))!
-      await userEvent.click(expandButton)
 
       await userEvent.click(
         screen.getByRole("button", {
-          name: "organization.site&entities.dismissedHistoryToggle",
+          name: "organization.site&entities.showSkippedCategories",
         })
       )
 
-      expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-      expect(screen.getByText("Operational")).toBeInTheDocument()
       expect(
-        screen.getByText("Single supplier for a critical part")
+        screen.getByText("No explosive atmospheres on site.")
       ).toBeInTheDocument()
-    })
-
-    it("fires markSuggestionImported (fire-and-forget) for each successfully imported suggestion", async () => {
-      mockUseGetAllSitesQuery.mockReturnValue({
-        isLoading: false,
-        isFetching: false,
-        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
-        error: undefined,
-      })
-      const suggestion = makeSuggestion({
-        risk_id: "sugg-1",
-        title: "Supplier concentration",
-      })
-      mockAnalyzeSiteRisks.mockReturnValue({
-        unwrap: () => Promise.resolve({ success: true, data: [suggestion] }),
-      })
-      mockCreateNewRisk.mockReturnValue({
-        unwrap: () => Promise.resolve({ success: true }),
-      })
-
-      renderPage()
-      await userEvent.click(
-        screen.getByRole("button", {
-          name: /organization.site&entities.analyzeAi/i,
-        })
-      )
-      await waitFor(() =>
-        expect(screen.getByText("Supplier concentration")).toBeInTheDocument()
-      )
-
-      await userEvent.click(screen.getByRole("checkbox"))
-      await userEvent.click(
-        screen.getByRole("button", { name: /organization\.site&entities\.importSelected/i })
-      )
-
-      await waitFor(() =>
-        expect(mockMarkSuggestionImported).toHaveBeenCalledWith({
-          siteId: "site-1",
-          suggestion,
-        })
-      )
     })
   })
 
