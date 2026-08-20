@@ -1540,6 +1540,52 @@ describe("RiskRegisterPage", () => {
     })
   })
 
+  // 2026-08-19 audit finding: unlike the EBITDA override margin field
+  // above, probability/impact/control_design_eff/control_operating_eff
+  // relied only on native HTML min/max, with no RHF `validate` rule and
+  // no error rendering -- clearing the field produces NaN via
+  // valueAsNumber (not caught by native min/max, which only constrain a
+  // typed value's range), which used to silently block handleSubmit with
+  // zero visible feedback. (An out-of-range *typed* value, e.g. "150",
+  // isn't independently testable here: jsdom's own native constraint
+  // validation on the `max="100"` attribute blocks the form's submit
+  // event before React's handleSubmit ever runs, same as it does for the
+  // EBITDA field above -- this validate rule's `value >= 0 && value <=
+  // 100` branch is real defense-in-depth for that path, just not
+  // reachable through this component's own native-constrained inputs.)
+  describe("risk assessment / control effectiveness score bounds (2026-08-19 audit)", () => {
+    it("allows submitting a cleared (empty) control_design_eff without a false validation error", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk()] },
+      })
+      mockUpdateRisk.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, message: "Risk updated" }),
+      })
+
+      const { container } = renderPage()
+      const editButtons = screen
+        .getAllByRole("button")
+        .filter((b) => b.querySelector("svg.lucide-pencil"))
+      await userEvent.click(editButtons[0])
+
+      const designEffField = container.querySelector(
+        '[name="control_design_eff"]'
+      )!
+      await userEvent.clear(designEffField)
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.riskRegister.updateRisk",
+        })
+      )
+
+      await waitFor(() => expect(mockUpdateRisk).toHaveBeenCalled())
+      expect(
+        screen.queryByText("organization.riskRegister.scoreOutOfRange")
+      ).not.toBeInTheDocument()
+    })
+  })
+
   describe("score override staleness badge", () => {
     it("shows the stale badge in the list view when residual_override_stale is true", () => {
       mockUseGetAllRisksQuery.mockReturnValue({

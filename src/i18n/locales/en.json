@@ -1210,6 +1210,7 @@
       "ebitdaOverrideMarginLabel": "Real EBITDA margin (%)",
       "ebitdaOverrideReasonPlaceholder": "Why are you overriding the sector-benchmark margin with a real figure?",
       "ebitdaOverrideMarginRequired": "A margin between 0% and 100% is required to override.",
+      "scoreOutOfRange": "Must be between 0 and 100.",
       "overrideStaleBadge": "{{label}} override stale",
       "overrideActiveBadge": "{{label}} overridden",
       "overrideTooltip": "{{label}} overridden by {{by}} on {{date}}",

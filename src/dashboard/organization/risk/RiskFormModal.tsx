@@ -767,9 +767,25 @@ function RiskFinancialImpactSection() {
   )
 }
 
+// Round-1 review finding on the sibling EBITDA field applies equally
+// here: these 0-100 inputs relied only on native HTML min/max, with no
+// RHF `validate` rule and no error rendering -- an out-of-range value
+// (or a cleared field, which produces NaN via valueAsNumber) silently
+// blocked handleSubmit with zero visible feedback. Backend zod
+// (risk.validation.ts) enforces the same 0-100 bound, so a bad value
+// here just became an unfriendly raw 400 instead.
+const scoreValidate = (value: number | undefined | null, t: (key: string) => string) =>
+  value == null ||
+  Number.isNaN(value) ||
+  (value >= 0 && value <= 100) ||
+  t("organization.riskRegister.scoreOutOfRange")
+
 function RiskAssessmentSection() {
   const { t } = useTranslation()
-  const { register } = useFormContext<Risk>()
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext<Risk>()
 
   return (
     <div className="space-y-2">
@@ -782,13 +798,17 @@ function RiskAssessmentSection() {
           labelTitle={t("organization.riskRegister.probabilityExplainer")}
           htmlFor="risk-probability"
           aiControl={useAiFieldControl("probability")}
+          error={errors.probability?.message}
         >
           <input
             id="risk-probability"
             type="number"
             min="0"
             max="100"
-            {...register("probability", { valueAsNumber: true })}
+            {...register("probability", {
+              valueAsNumber: true,
+              validate: (value) => scoreValidate(value, t),
+            })}
             className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
           />
         </FormField>
@@ -805,13 +825,17 @@ function RiskAssessmentSection() {
           labelTitle={t("organization.riskRegister.impactExplainer")}
           htmlFor="risk-impact"
           aiControl={useAiFieldControl("impact")}
+          error={errors.impact?.message}
         >
           <input
             id="risk-impact"
             type="number"
             min="0"
             max="100"
-            {...register("impact", { valueAsNumber: true })}
+            {...register("impact", {
+              valueAsNumber: true,
+              validate: (value) => scoreValidate(value, t),
+            })}
             className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
           />
         </FormField>
@@ -1059,7 +1083,10 @@ function RiskStatusSection() {
 
 function RiskControlEffectivenessSection() {
   const { t } = useTranslation()
-  const { register } = useFormContext<Risk>()
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext<Risk>()
 
   return (
     <div className="space-y-2">
@@ -1074,13 +1101,17 @@ function RiskControlEffectivenessSection() {
           )}
           htmlFor="risk-control_design_eff"
           aiControl={useAiFieldControl("control_design_eff")}
+          error={errors.control_design_eff?.message}
         >
           <input
             id="risk-control_design_eff"
             type="number"
             min="0"
             max="100"
-            {...register("control_design_eff", { valueAsNumber: true })}
+            {...register("control_design_eff", {
+              valueAsNumber: true,
+              validate: (value) => scoreValidate(value, t),
+            })}
             className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
           />
         </FormField>
@@ -1091,13 +1122,17 @@ function RiskControlEffectivenessSection() {
           )}
           htmlFor="risk-control_operating_eff"
           aiControl={useAiFieldControl("control_operating_eff")}
+          error={errors.control_operating_eff?.message}
         >
           <input
             id="risk-control_operating_eff"
             type="number"
             min="0"
             max="100"
-            {...register("control_operating_eff", { valueAsNumber: true })}
+            {...register("control_operating_eff", {
+              valueAsNumber: true,
+              validate: (value) => scoreValidate(value, t),
+            })}
             className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
           />
         </FormField>

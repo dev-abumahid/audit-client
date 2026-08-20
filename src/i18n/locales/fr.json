@@ -1210,6 +1210,7 @@
       "ebitdaOverrideMarginLabel": "Marge EBITDA réelle (%)",
       "ebitdaOverrideReasonPlaceholder": "Pourquoi remplacez-vous le benchmark sectoriel par un chiffre réel ?",
       "ebitdaOverrideMarginRequired": "Une marge entre 0 % et 100 % est requise pour remplacer.",
+      "scoreOutOfRange": "Doit être compris entre 0 et 100.",
       "overrideStaleBadge": "{{label}} remplacement obsolète",
       "overrideActiveBadge": "{{label}} remplacé",
       "overrideTooltip": "{{label}} remplacé par {{by}} le {{date}}",
