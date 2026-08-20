@@ -41,6 +41,11 @@ export interface Site {
   location?: string | null
   country?: string | null
   activity?: string | null
+  // docs/design-docs/site-ai-risk-register-generation.md §3 -- fed into
+  // the AI risk-generation prompt. Only present on the full-detail row
+  // (GET /site/:id), same "list select is narrower" pattern as
+  // site_type/lat/lng below (see SiteSummary's own comment).
+  description?: string | null
   revenue: number
   employees_count: number
   site_type: string

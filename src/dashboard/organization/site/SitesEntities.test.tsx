@@ -1448,6 +1448,52 @@ describe("SitesEntities", () => {
     })
   })
 
+  // docs/design-docs/site-ai-risk-register-generation.md §3: description
+  // is optional and fed into the AI risk-generation prompt.
+  it("submits an entered description, and defaults to an empty string when left blank", async () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+      error: undefined,
+    })
+    mockCreateNewSite.mockReturnValue({
+      unwrap: () => Promise.resolve({ success: true }),
+    })
+
+    const { container } = renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /organization.site&entities.newSite/i,
+      })
+    )
+
+    expect(
+      screen.getByText("organization.site&entities.siteDescriptionLabel")
+    ).toBeInTheDocument()
+
+    await userEvent.type(
+      container.querySelector('[name="name"]')!,
+      "New Factory"
+    )
+    await userEvent.type(
+      container.querySelector('[name="activity"]')!,
+      "Manufacturing"
+    )
+    await userEvent.type(
+      container.querySelector('[name="description"]')!,
+      "Welding and induction bending line"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "organization.site&entities.add" })
+    )
+
+    await waitFor(() => expect(mockCreateNewSite).toHaveBeenCalled())
+    expect(mockCreateNewSite.mock.calls[0][0]).toMatchObject({
+      description: "Welding and induction bending line",
+    })
+  })
+
   // quality-bar-loop round 12 (UX finding, open since round 1 -- round 9
   // fixed this same pattern for handleConfirmDelete but missed this
   // handler): a non-throwing success: false response fell through

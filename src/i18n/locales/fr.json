@@ -966,6 +966,7 @@
       "warehouse": "Entrepôt",
       "other": "Autre",
       "activity": "Activité",
+      "siteDescriptionLabel": "Description (facultatif)",
       "siteLocationLabel": "Adresse",
       "siteCountryLabel": "Pays",
       "noCountryMatch": "Aucun pays correspondant -- vous pouvez toujours saisir n'importe quel nom",

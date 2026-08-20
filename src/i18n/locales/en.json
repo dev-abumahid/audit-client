@@ -966,6 +966,7 @@
       "warehouse": "Warehouse",
       "other": "Other",
       "activity": "Activity",
+      "siteDescriptionLabel": "Description (optional)",
       "siteLocationLabel": "Address",
       "siteCountryLabel": "Country",
       "noCountryMatch": "No matching country -- you can still type any name",

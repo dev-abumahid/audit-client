@@ -141,6 +141,7 @@ interface SiteFormValues {
   location: string
   country: string
   activity: string
+  description: string
   revenue: number
   employees_count: number
   site_type: string
@@ -162,6 +163,7 @@ const EMPTY_SITE_FORM_VALUES: SiteFormValues = {
   location: "",
   country: "",
   activity: "",
+  description: "",
   revenue: 0,
   employees_count: 0,
   site_type: "production",
@@ -204,6 +206,7 @@ export default function SitesEntities() {
   // starts tracking real input the moment the user types.
   const [countryQuery, setCountryQuery] = useState("")
   const siteActivityId = useId()
+  const siteDescriptionId = useId()
   const siteRevenueId = useId()
   const siteEmployeesId = useId()
   const riskNameId = useId()
@@ -517,6 +520,10 @@ export default function SitesEntities() {
       location: site.location || "",
       country: site.country || "",
       activity: site.activity || "",
+      // SiteSummary (the list row) omits description the same way it
+      // omits site_type/lat/lng -- corrected below once the full-detail
+      // fetch resolves, same pattern as site_type's "production" fallback.
+      description: "",
       revenue: site.revenue || 0,
       employees_count: site.employees_count || 0,
       site_type: site.site_type || "production",
@@ -538,6 +545,7 @@ export default function SitesEntities() {
           location: fullSite.location || "",
           country: fullSite.country || "",
           activity: fullSite.activity || "",
+          description: fullSite.description || "",
           revenue: fullSite.revenue || 0,
           employees_count: fullSite.employees_count || 0,
           site_type: fullSite.site_type || "production",
@@ -2105,6 +2113,26 @@ export default function SitesEntities() {
                       {siteForm.formState.errors.activity.message}
                     </p>
                   )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor={siteDescriptionId}
+                    className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  >
+                    {t("organization.site&entities.siteDescriptionLabel")}
+                  </label>
+                  <textarea
+                    id={siteDescriptionId}
+                    rows={3}
+                    // docs/design-docs/site-ai-risk-register-generation.md
+                    // §7: same 2,000-char cap site.validation.ts enforces
+                    // server-side -- caught client-side too so the error is
+                    // immediate rather than a round trip.
+                    maxLength={2000}
+                    {...siteForm.register("description")}
+                    className="w-full rounded-lg border border-input bg-background p-2 text-sm"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

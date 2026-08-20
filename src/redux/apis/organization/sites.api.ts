@@ -17,6 +17,10 @@ interface SiteFormPayload {
   location?: string
   country?: string
   activity?: string
+  // docs/design-docs/site-ai-risk-register-generation.md §3: fed into the
+  // AI risk-generation prompt, capped at 2,000 chars server-side
+  // (site.validation.ts) before it ever reaches one.
+  description?: string
   revenue: number
   employees_count: number
   site_type: string
