@@ -92,6 +92,13 @@ export function useRiskCsvExport({
         "Velocity",
         "Trend",
         "Source",
+        // docs/design-docs/site-ai-risk-register-generation.md §3/§7: two
+        // new AI-generated free-text fields -- routed through the same
+        // csvTextField() CSV-formula-injection guard as every other text
+        // column here (leading =/+/-/@ neutralized, embedded quotes/commas/
+        // newlines properly quoted), not a special case.
+        "Citation Note",
+        "Internal Pilot",
       ]
       const rows = exportRows.map((risk) => [
         csvTextField(risk.ref),
@@ -108,6 +115,8 @@ export function useRiskCsvExport({
         csvTextField(risk.velocity),
         csvTextField(risk.trend),
         csvTextField(risk.ai_generated ? "AI" : (risk.source_info ?? "Manual")),
+        csvTextField(risk.regulatory_citation_note ?? ""),
+        csvTextField(risk.internal_pilot ?? ""),
       ])
       const csv = [header, ...rows].map((row) => row.join(",")).join("\r\n")
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })

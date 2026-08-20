@@ -165,6 +165,28 @@ export interface Risk {
   approvalStatus?: RiskApprovalDisplayState
   // Issue #97. Always set — DB default is FIRST for pre-existing rows.
   line_of_defense: LineOfDefense
+  // docs/design-docs/site-ai-risk-register-generation.md §3: AI risk
+  // register generation fields, added to the Prisma model in
+  // aexa-server#369 but not previously surfaced anywhere in the frontend
+  // type -- every Risk row already carries these (null on a manually
+  // created risk), they just weren't typed/exported yet. legal_status
+  // replaces a flawed binary mandatory/voluntary distinction (see the
+  // design doc's table for the 5-value taxonomy); citation_confidence is
+  // "the single most important trust signal" per that doc's review notes.
+  legal_status:
+    | "active_statutory"
+    | "pending_statutory"
+    | "conditional_statutory"
+    | "recognized_standard"
+    | "voluntary_best_practice"
+    | null
+  regulatory_framework_id: string | null
+  regulatory_citation_note: string | null
+  citation_confidence: "curated_verified" | "ai_estimate" | "none" | null
+  // AI-suggested role hint (e.g. "HSE Manager"), not a real user identity --
+  // deliberate scope decision, design-docs §3/§8.
+  internal_pilot: string | null
+  ai_generation_run_id: string | null
 }
 
 // Mirrors aexa-server's RiskApproval Prisma model (issue #95). A risk's
