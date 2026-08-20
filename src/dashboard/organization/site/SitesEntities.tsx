@@ -22,6 +22,7 @@ import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import {
   useGetAiRiskAnalysisRunByIdQuery,
+  useRetryAiRiskAnalysisMutation,
   useStartAiRiskAnalysisMutation,
 } from "@/redux/apis/organization/aiRiskAnalysis.api"
 import {
@@ -307,6 +308,8 @@ export default function SitesEntities() {
   // summary line above is already the primary at-a-glance signal.
   const [showSkippedCategories, setShowSkippedCategories] = useState(false)
   const [startAiRiskAnalysis] = useStartAiRiskAnalysisMutation()
+  const [retryAiRiskAnalysis, { isLoading: isRetryingAnalysis }] =
+    useRetryAiRiskAnalysisMutation()
   // ReportsPage.tsx's established polling shape: a fixed interval while
   // genuinely in flight, off once a terminal status arrives -- RTK Query's
   // pollingInterval option has no "stop" call of its own, so toggling this
@@ -608,6 +611,21 @@ export default function SitesEntities() {
       if (latestAnalysisRequestRef.current === site.id) {
         setStartingSiteId(null)
       }
+    }
+  }
+
+  // design-docs §7: scoped retry, same run row -- the mutation's own
+  // invalidatesTags refetches the polling query, which picks the run back
+  // up as "running" and re-arms polling via the existing effect above, no
+  // extra state needed here beyond surfacing the request's own failure.
+  const handleRetryAnalysis = async (runId: string) => {
+    try {
+      await retryAiRiskAnalysis(runId).unwrap()
+    } catch (error) {
+      const err = error as { data?: { message?: string } }
+      toast.error(
+        t("organization.site&entities.aiRiskAnalysisFailed") || err?.data?.message,
+      )
     }
   }
 
@@ -944,13 +962,15 @@ export default function SitesEntities() {
                     disabled={
                       startingSiteId === site.id ||
                       (activeAnalysisSiteId === site.id &&
-                        activeRun?.status === "running")
+                        (activeRun?.status === "running" ||
+                          isRetryingAnalysis))
                     }
                     className="focus-ring flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary hover:bg-primary/20 disabled:opacity-50"
                   >
                     {startingSiteId === site.id ||
                     (activeAnalysisSiteId === site.id &&
-                      activeRun?.status === "running") ? (
+                      (activeRun?.status === "running" ||
+                        isRetryingAnalysis)) ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Brain className="h-4 w-4" />
@@ -1299,17 +1319,34 @@ export default function SitesEntities() {
 
                       {activeRun.categories_failed &&
                         activeRun.categories_failed.length > 0 && (
-                          <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 p-2.5 text-xs text-destructive">
-                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                            {t(
-                              "organization.site&entities.aiAnalysisCategoriesFailed",
-                              {
-                                categories: activeRun.categories_failed
-                                  .map((c) => c.category)
-                                  .join(", "),
-                              }
+                          <div className="mt-3 flex flex-wrap items-start justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-2.5">
+                            <p className="flex items-start gap-1.5 text-xs text-destructive">
+                              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                              {t(
+                                "organization.site&entities.aiAnalysisCategoriesFailed",
+                                {
+                                  categories: activeRun.categories_failed
+                                    .map((c) => c.category)
+                                    .join(", "),
+                                }
+                              )}
+                            </p>
+                            {canWrite && (
+                              <button
+                                type="button"
+                                onClick={() => handleRetryAnalysis(activeRun.id)}
+                                disabled={isRetryingAnalysis}
+                                className="focus-ring flex shrink-0 items-center gap-1.5 rounded-lg border border-destructive/40 px-2.5 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                              >
+                                {isRetryingAnalysis ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Brain className="h-3.5 w-3.5" />
+                                )}
+                                {t("organization.site&entities.retryFailedCategories")}
+                              </button>
                             )}
-                          </p>
+                          </div>
                         )}
 
                       {activeRun.categories_skipped &&

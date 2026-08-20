@@ -993,6 +993,7 @@
       "dismissAiAnalysisPanel": "Ignorer",
       "aiAnalysisFetchError": "Impossible de vérifier l'état de l'analyse. Vérifiez votre connexion et réessayez.",
       "showSkippedCategories": "Afficher les catégories non analysées",
+      "retryFailedCategories": "Réessayer",
       "hideSkippedCategories": "Masquer les catégories non analysées",
       "riskCreatedSuccess": "Risque créé avec succès",
       "createRiskFailed": "Échec de la création du risque",

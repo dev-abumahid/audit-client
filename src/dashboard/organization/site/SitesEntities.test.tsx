@@ -71,6 +71,8 @@ const mockDeleteRisk = vi.fn()
 const mockCreateNewRisk = vi.fn()
 const mockStartAiRiskAnalysis = vi.fn()
 const mockUseGetAiRiskAnalysisRunByIdQuery = vi.fn()
+const mockRetryAiRiskAnalysis = vi.fn()
+let mockIsRetryingAnalysis = false
 
 vi.mock("@/redux/apis/organization/sites.api", () => ({
   useGetAllSitesQuery: (...args: unknown[]) => mockUseGetAllSitesQuery(...args),
@@ -93,6 +95,10 @@ vi.mock("@/redux/apis/organization/aiRiskAnalysis.api", () => ({
   ],
   useGetAiRiskAnalysisRunByIdQuery: (...args: unknown[]) =>
     mockUseGetAiRiskAnalysisRunByIdQuery(...args),
+  useRetryAiRiskAnalysisMutation: () => [
+    mockRetryAiRiskAnalysis,
+    { isLoading: mockIsRetryingAnalysis },
+  ],
 }))
 
 vi.mock("@/components/shared/DeleteAlertModal", () => ({
@@ -178,6 +184,8 @@ describe("SitesEntities", () => {
     mockCreateNewRisk.mockReset()
     mockStartAiRiskAnalysis.mockReset()
     mockUseGetAiRiskAnalysisRunByIdQuery.mockReset()
+    mockRetryAiRiskAnalysis.mockReset()
+    mockIsRetryingAnalysis = false
     mockToastError.mockReset()
     mockToastSuccess.mockReset()
     ;(Element.prototype.scrollIntoView as ReturnType<typeof vi.fn>).mockClear()
@@ -2768,6 +2776,180 @@ describe("SitesEntities", () => {
         expect(
           screen.getByText("organization.site&entities.aiAnalysisCategoriesFailed")
         ).toBeInTheDocument()
+      )
+    })
+
+    // design-docs §7: "a scoped retry limited to just those categories."
+    it("shows a Retry button next to failed categories and calls the retry mutation with the run id", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockStartAiRiskAnalysis.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, data: makeRun({ status: "running" }) }),
+      })
+      mockUseGetAiRiskAnalysisRunByIdQuery.mockReturnValue({
+        data: {
+          success: true,
+          data: makeRun({
+            id: "run-1",
+            status: "partial",
+            categories_applicable: ["cyber"],
+            categories_failed: [{ category: "fire", error: "AI service error: 502" }],
+            risks_created: 4,
+          }),
+        },
+      })
+      mockRetryAiRiskAnalysis.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, data: makeRun({ status: "running" }) }),
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization.site&entities.analyzeAi/i,
+        })
+      )
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.site&entities.retryFailedCategories",
+        })
+      )
+
+      expect(mockRetryAiRiskAnalysis).toHaveBeenCalledWith("run-1")
+    })
+
+    it("hides the Retry button for a VIEWER even with failed categories shown", async () => {
+      mockRole = "VIEWER"
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockStartAiRiskAnalysis.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, data: makeRun({ status: "running" }) }),
+      })
+      mockUseGetAiRiskAnalysisRunByIdQuery.mockReturnValue({
+        data: {
+          success: true,
+          data: makeRun({
+            id: "run-1",
+            status: "partial",
+            categories_applicable: ["cyber"],
+            categories_failed: [{ category: "fire", error: "AI service error: 502" }],
+            risks_created: 4,
+          }),
+        },
+      })
+
+      renderPage()
+      // VIEWER keeps read-only access to Analyze AI (a separate existing
+      // test confirms this) -- clicking it is what sets activeAnalysisSiteId
+      // and makes the progress panel render at all.
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization.site&entities.analyzeAi/i,
+        })
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("organization.site&entities.aiAnalysisCategoriesFailed")
+        ).toBeInTheDocument()
+      )
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.site&entities.retryFailedCategories",
+        })
+      ).not.toBeInTheDocument()
+    })
+
+    it("shows an error toast when the retry request fails", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockStartAiRiskAnalysis.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, data: makeRun({ status: "running" }) }),
+      })
+      mockUseGetAiRiskAnalysisRunByIdQuery.mockReturnValue({
+        data: {
+          success: true,
+          data: makeRun({
+            id: "run-1",
+            status: "partial",
+            categories_applicable: ["cyber"],
+            categories_failed: [{ category: "fire", error: "AI service error: 502" }],
+            risks_created: 4,
+          }),
+        },
+      })
+      mockRetryAiRiskAnalysis.mockReturnValue({
+        unwrap: () => Promise.reject({ data: { message: "Retry failed" } }),
+      })
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization.site&entities.analyzeAi/i,
+        })
+      )
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "organization.site&entities.retryFailedCategories",
+        })
+      )
+
+      await waitFor(() => expect(mockToastError).toHaveBeenCalled())
+    })
+
+    it("disables the Analyze AI button for the active site while a retry is in flight", async () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        isLoading: false,
+        isFetching: false,
+        data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+        error: undefined,
+      })
+      mockStartAiRiskAnalysis.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({ success: true, data: makeRun({ status: "running" }) }),
+      })
+      mockUseGetAiRiskAnalysisRunByIdQuery.mockReturnValue({
+        data: {
+          success: true,
+          data: makeRun({
+            id: "run-1",
+            status: "partial",
+            categories_applicable: ["cyber"],
+            categories_failed: [{ category: "fire", error: "AI service error: 502" }],
+            risks_created: 4,
+          }),
+        },
+      })
+      mockIsRetryingAnalysis = true
+
+      renderPage()
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: /organization.site&entities.analyzeAi/i,
+        })
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", {
+            name: /organization.site&entities.analyzeAi/i,
+          })
+        ).toBeDisabled()
       )
     })
 

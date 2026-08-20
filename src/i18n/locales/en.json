@@ -993,6 +993,7 @@
       "dismissAiAnalysisPanel": "Dismiss",
       "aiAnalysisFetchError": "Couldn't check the analysis status. Check your connection and try again.",
       "showSkippedCategories": "Show categories not analyzed",
+      "retryFailedCategories": "Retry",
       "hideSkippedCategories": "Hide categories not analyzed",
       "riskCreatedSuccess": "Risk created successfully",
       "createRiskFailed": "Failed to create risk",

@@ -103,10 +103,25 @@ export const aiRiskAnalysisApi = baseApi.injectEndpoints({
         }
       },
     }),
+    // design-docs §7: "a scoped retry limited to just those categories,
+    // updating the same run row" -- backed by aexa-server's POST
+    // /ai/risk-analysis-runs/:id/retry (aexa-server#375). No body: the run
+    // id in the URL is the only input, the server already knows which
+    // categories failed.
+    retryAiRiskAnalysis: builder.mutation<ApiResponse<AiRiskAnalysisRun>, string>({
+      query: (id) => ({
+        url: `/ai/risk-analysis-runs/${id}/retry`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, id) => [
+        { type: "AI_RISK_ANALYSIS_RUN", id },
+      ],
+    }),
   }),
 })
 
 export const {
   useStartAiRiskAnalysisMutation,
   useGetAiRiskAnalysisRunByIdQuery,
+  useRetryAiRiskAnalysisMutation,
 } = aiRiskAnalysisApi
