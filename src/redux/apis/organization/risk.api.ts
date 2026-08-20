@@ -20,14 +20,6 @@ interface GetAllRisksArgs {
   searchTerm: string
   siteId: string
   category: string
-  // docs/design-docs/ai-risk-review-approval-workflow.md -- omitted (the
-  // default) matches the backend default: APPROVED-only, and every
-  // existing caller of this endpoint needs no changes at all. "all" shows
-  // every status (the Risk Register's main view); a specific status scopes
-  // to just that one, without re-fetching the whole register to find a
-  // handful of matching rows (the Pending AI Review / Dismissed panels,
-  // and the Sites & Entities pending-count tile).
-  reviewStatus?: "all" | "APPROVED" | "PENDING_REVIEW" | "DISMISSED"
 }
 
 // aexa-server#347: org-wide EBITDA-at-risk distribution backing the
@@ -46,8 +38,8 @@ export interface EbitdaAtRiskSummary {
 const risksApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getAllRisks: builder.query<PaginatedApiResponse<Risk>, GetAllRisksArgs>({
-      query: ({ page, limit, searchTerm, siteId, category, reviewStatus }) => ({
-        url: `/risk?${buildQueryString({ page, limit, searchTerm, siteId, category, reviewStatus })}`,
+      query: ({ page, limit, searchTerm, siteId, category }) => ({
+        url: `/risk?${buildQueryString({ page, limit, searchTerm, siteId, category })}`,
         method: "GET",
       }),
       providesTags: ["RISK"],
@@ -144,59 +136,6 @@ const risksApi = baseApi.injectEndpoints({
         body: data,
       }),
     }),
-    // docs/design-docs/ai-risk-review-approval-workflow.md -- same
-    // CORRELATION_MATRIX invalidation as delete/create/update above: an
-    // approved risk can immediately appear on the matrix/graph, and those
-    // pages' cached getCorrelationMatrixData result must refetch to pick
-    // it up (RTK Query's tag invalidation forces an immediate refetch of
-    // any currently-subscribed query regardless of that query's own args).
-    approveRisk: builder.mutation<ApiResponse<Risk>, string>({
-      query: (id) => ({
-        url: `/risk/${id}/approve`,
-        method: "POST",
-      }),
-      invalidatesTags: ["RISK", "CORRELATION_MATRIX"],
-    }),
-    dismissRisk: builder.mutation<
-      ApiResponse<{
-        risk: Risk
-        referencedBy: {
-          kris: number
-          complianceObligations: number
-          auditEngagements: number
-          riskLinks: number
-        }
-      }>,
-      string
-    >({
-      query: (id) => ({
-        url: `/risk/${id}/dismiss`,
-        method: "POST",
-      }),
-      invalidatesTags: ["RISK", "CORRELATION_MATRIX"],
-    }),
-    bulkApproveRisks: builder.mutation<
-      ApiResponse<{ updated: number; skipped: number }>,
-      string[]
-    >({
-      query: (riskIds) => ({
-        url: `/risk/bulk-approve`,
-        method: "POST",
-        body: { riskIds },
-      }),
-      invalidatesTags: ["RISK", "CORRELATION_MATRIX"],
-    }),
-    bulkDismissRisks: builder.mutation<
-      ApiResponse<{ updated: number; skipped: number }>,
-      string[]
-    >({
-      query: (riskIds) => ({
-        url: `/risk/bulk-dismiss`,
-        method: "POST",
-        body: { riskIds },
-      }),
-      invalidatesTags: ["RISK", "CORRELATION_MATRIX"],
-    }),
   }),
 })
 
@@ -210,10 +149,6 @@ export const {
   useUpdateRiskMutation,
   useSuggestRiskFieldsMutation,
   useRecordRiskLineReviewMutation,
-  useApproveRiskMutation,
-  useDismissRiskMutation,
-  useBulkApproveRisksMutation,
-  useBulkDismissRisksMutation,
 } = risksApi
 
 // aexa-frontend#261: exported so risk.api.test.ts can dispatch

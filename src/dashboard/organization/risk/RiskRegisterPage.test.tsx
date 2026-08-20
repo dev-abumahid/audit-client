@@ -68,15 +68,6 @@ const mockToastError = vi.mocked(toast.error)
 const mockToastWarning = vi.mocked(toast.warning)
 
 const mockUseGetAllRisksQuery = vi.fn()
-// docs/design-docs/ai-risk-review-approval-workflow.md -- PendingAiReviewPanel
-// (rendered unconditionally by this page) calls the SAME useGetAllRisksQuery
-// hook, scoped via reviewStatus:"PENDING_REVIEW"/"DISMISSED". Routed to a
-// separate mock, defaulting to empty in beforeEach below, so the hundreds of
-// existing tests here -- which only ever configure the main table's query --
-// don't unexpectedly render pending/dismissed content neither they nor this
-// panel are being tested. PendingAiReviewPanel.test.tsx covers the panel
-// itself directly.
-const mockUsePendingReviewRisksQuery = vi.fn()
 const mockUseGetAllSitesQuery = vi.fn()
 const mockCreateNewRisk = vi.fn()
 const mockUpdateRisk = vi.fn()
@@ -104,16 +95,7 @@ const mockSuggestRiskFields = vi.fn()
 let mockIsSuggesting = false
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
-  useGetAllRisksQuery: (...args: unknown[]) => {
-    const options = args[0] as { reviewStatus?: string } | undefined
-    if (
-      options?.reviewStatus === "PENDING_REVIEW" ||
-      options?.reviewStatus === "DISMISSED"
-    ) {
-      return mockUsePendingReviewRisksQuery(...args)
-    }
-    return mockUseGetAllRisksQuery(...args)
-  },
+  useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
   useLazyGetAllRisksQuery: () => [
     mockTriggerRisksExport,
     { isFetching: mockIsExporting },
@@ -131,10 +113,6 @@ vi.mock("@/redux/apis/organization/risk.api", () => ({
     mockSuggestRiskFields,
     { isLoading: mockIsSuggesting },
   ],
-  useApproveRiskMutation: () => [vi.fn(), { isLoading: false }],
-  useDismissRiskMutation: () => [vi.fn(), { isLoading: false }],
-  useBulkApproveRisksMutation: () => [vi.fn(), { isLoading: false }],
-  useBulkDismissRisksMutation: () => [vi.fn(), { isLoading: false }],
 }))
 
 vi.mock("@/redux/apis/organization/sites.api", () => ({
@@ -212,11 +190,6 @@ describe("RiskRegisterPage", () => {
   beforeEach(() => {
     mockRole = "ADMIN"
     mockUseGetAllRisksQuery.mockReset()
-    mockUsePendingReviewRisksQuery.mockReset()
-    mockUsePendingReviewRisksQuery.mockReturnValue({
-      data: { data: [] },
-      isLoading: false,
-    })
     mockUseGetAllSitesQuery.mockReset()
     mockCreateNewRisk.mockReset()
     mockUpdateRisk.mockReset()
