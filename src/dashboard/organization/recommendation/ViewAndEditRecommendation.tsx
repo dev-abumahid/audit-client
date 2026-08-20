@@ -80,7 +80,14 @@ export default function ViewAndEditRecommendation({
 
   const summaryValue = watch("summary")
   const recommendation = data?.data
-  const hasRecommendation = !!recommendation?.questions?.length
+  // A fully-compliant inspection legitimately generates a recommendation
+  // with zero questions (aexa-ai only returns entries for non-compliant
+  // answers). Checking questions.length here treated that as "not
+  // generated yet", so a compliant inspection could never leave the
+  // "Generate Now" state -- clicking it again 400s server-side with
+  // "Recommendation already exist !!". Existence, not question count, is
+  // what determines whether one was already generated.
+  const hasRecommendation = !!recommendation
 
   // Load data - reset everything when new data comes
   useEffect(() => {
@@ -437,6 +444,17 @@ export default function ViewAndEditRecommendation({
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Questions List */}
           <div className="space-y-4 lg:col-span-2">
+            {questions.length === 0 && (
+              <div className="flex flex-col items-center rounded-xl border border-border bg-card p-8 text-center shadow-sm">
+                <CheckCircle className={`mb-3 h-8 w-8 ${severityTextClasses("low")}`} />
+                <p className="font-medium">
+                  {t("organization.recommendation.allCompliantTitle")}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t("organization.recommendation.allCompliantDesc")}
+                </p>
+              </div>
+            )}
             {/* 🔥 FIX #1: Using stable ID as key - NEVER use index */}
             {questions.map((question) => (
               <div

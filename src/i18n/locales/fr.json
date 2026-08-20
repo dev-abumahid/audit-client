@@ -2146,6 +2146,8 @@
       "missingIds": "Certaines questions n'ont pas d'identifiant",
       "noRecommendation": "Aucune recommandation disponible",
       "noRecommendationDesc": "Générez une recommandation basée sur l'IA à partir des constats d'inspection",
+      "allCompliantTitle": "Toutes les réponses étaient conformes",
+      "allCompliantDesc": "L'IA n'a trouvé aucune réponse non conforme pour laquelle formuler une recommandation.",
       "generatingShort": "Génération...",
       "generateNow": "Générer la recommandation maintenant",
       "title": "Afficher et modifier la recommandation",

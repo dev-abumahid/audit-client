@@ -2146,6 +2146,8 @@
       "missingIds": "Some questions are missing IDs",
       "noRecommendation": "No Recommendation Available",
       "noRecommendationDesc": "Generate an AI-powered recommendation based on inspection findings",
+      "allCompliantTitle": "All answers were compliant",
+      "allCompliantDesc": "The AI found no non-compliant answers to recommend on for this inspection.",
       "generatingShort": "Generating...",
       "generateNow": "Generate Recommendation Now",
       "title": "View and Edit Recommendation",

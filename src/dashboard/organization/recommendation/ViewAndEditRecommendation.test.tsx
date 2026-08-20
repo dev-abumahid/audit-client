@@ -99,7 +99,7 @@ describe("ViewAndEditRecommendation", () => {
 
   it("shows the generate button when there is no recommendation yet", () => {
     mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
-      data: { data: { questions: [] } },
+      data: undefined,
       isLoading: false,
       refetch: vi.fn(),
     })
@@ -116,10 +116,33 @@ describe("ViewAndEditRecommendation", () => {
     ).toBeInTheDocument()
   })
 
+  it("shows an all-compliant empty state (not the generate button) when a recommendation exists with zero questions", () => {
+    // Regression: a fully-compliant inspection legitimately generates a
+    // recommendation with zero questions (aexa-ai only returns entries for
+    // non-compliant answers). Treating that as "not generated yet" trapped
+    // the user -- clicking "Generate" again 400s server-side.
+    mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
+      data: { data: { id: "rec-1", questions: [], summary: "" } },
+      isLoading: false,
+      refetch: vi.fn(),
+    })
+
+    render(<ViewAndEditRecommendation inspectionId="insp-1" />)
+
+    expect(
+      screen.queryByRole("button", {
+        name: "organization.recommendation.generateNow",
+      })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText("organization.recommendation.allCompliantTitle")
+    ).toBeInTheDocument()
+  })
+
   it("calls generateRecommendation and refetches on click", async () => {
     const refetch = vi.fn()
     mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
-      data: { data: { questions: [] } },
+      data: undefined,
       isLoading: false,
       refetch,
     })
@@ -255,7 +278,7 @@ describe("ViewAndEditRecommendation", () => {
   it("does not refetch and re-enables the button when generating a recommendation fails", async () => {
     const refetch = vi.fn()
     mockUseGetRecommendationByInspectionIdQuery.mockReturnValue({
-      data: { data: { questions: [] } },
+      data: undefined,
       isLoading: false,
       refetch,
     })
