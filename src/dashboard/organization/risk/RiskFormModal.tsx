@@ -309,18 +309,35 @@ function FormField({
           buttons' aria-labels (both contain the field's label text). A
           flex row holding both as siblings keeps the same visual layout
           without that association. */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex min-w-0 items-center gap-1.5">
+        {/* CEO-reported (2026-08-19): on the narrower lg:grid-cols-4 fields
+            (Probability/Severity/Velocity/Trend), this row's two children
+            had no way to shrink -- the label's own intrinsic width plus the
+            AI badge + 3 icon buttons (~150px+) together exceeded the
+            column's available width, and with neither child allowed to
+            shrink below its content size (flexbox's default), the row
+            overflowed and visually overlapped the input below it instead
+            of wrapping or clipping. min-w-0 (on the row and the label) lets
+            the label truncate under real width pressure; shrink-0 on the
+            controls (below) keeps the actually-clickable buttons always
+            fully visible instead of the two competing for space evenly. */}
         <label
           htmlFor={htmlFor}
           title={labelTitle}
-          className="text-xs font-medium text-muted-foreground"
+          className="min-w-0 truncate text-xs font-medium text-muted-foreground"
         >
           {label}
         </label>
         {aiControl?.pending && (
-          <span className="ml-auto inline-flex items-center gap-1">
+          <span className="ml-auto inline-flex shrink-0 items-center gap-1">
             <span
-              className={`inline-flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary${aiControl.rationale ? " cursor-help" : ""}`}
+              className="inline-flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary"
+              // CEO-reported (2026-08-19): cursor-help (a "?") on this badge
+              // read as "this must be clickable" and was confusing when it
+              // wasn't -- removed. The native title= tooltip below still
+              // works on hover regardless of cursor style, so nothing about
+              // the actual rationale-on-hover feature is lost.
+              //
               // quality-bar-loop round 5 (industry-standards): native
               // title= tooltip, matching this codebase's existing de-facto
               // hover-explainer convention (see FormField's own
@@ -378,7 +395,7 @@ function FormField({
                 ? "Suggest with AI"
                 : "Enter a site, name, and category first"
             }
-            className="focus-ring ml-auto rounded p-1.5 text-muted-foreground/60 hover:text-primary disabled:cursor-not-allowed disabled:hover:text-muted-foreground/60"
+            className="focus-ring ml-auto shrink-0 rounded p-1.5 text-muted-foreground/60 hover:text-primary disabled:cursor-not-allowed disabled:hover:text-muted-foreground/60"
           >
             <Sparkles
               className={`h-3 w-3 ${aiControl.isSuggesting ? "animate-pulse" : ""}`}
