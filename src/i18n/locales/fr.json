@@ -841,6 +841,7 @@
       "generateFailed": "Échec de la génération du rapport. Veuillez réessayer.",
       "publishSuccess": "Rapport publié.",
       "publishFailed": "Échec de la publication du rapport.",
+      "downloadFailed": "Impossible d'obtenir un lien de téléchargement pour ce rapport.",
       "confirmPublishTitle": "Publier ce rapport ?",
       "confirmPublishDescription": "Une fois publié, ce rapport devient visible pour le conseil et n'est plus un simple brouillon en attente de révision.",
       "confirmPublishConfirm": "Publier",

@@ -123,6 +123,21 @@ const reportApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["REPORT"],
     }),
+    // #222's confidentiality design: the server mints a short-lived signed
+    // URL at request time instead of ever handing back the permanent stored
+    // file_url. A mutation (not a query) because every call must mint a
+    // fresh URL -- caching this under RTK Query's normal query semantics
+    // would serve a stale, possibly-expired signed URL from cache instead
+    // of hitting the endpoint again.
+    downloadReport: builder.mutation<
+      ApiResponse<{ file_url: string; expires_in: number }>,
+      string
+    >({
+      query: (id) => ({
+        url: `/report/${id}/download`,
+        method: "GET",
+      }),
+    }),
   }),
 })
 
@@ -131,4 +146,5 @@ export const {
   useGetReportByIdQuery,
   useGenerateReportMutation,
   usePublishReportMutation,
+  useDownloadReportMutation,
 } = reportApi

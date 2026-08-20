@@ -40,6 +40,7 @@ const mockToastError = vi.mocked(toast.error)
 const mockUseGetAllReportsQuery = vi.fn()
 const mockGenerate = vi.fn()
 const mockPublish = vi.fn()
+const mockDownload = vi.fn()
 // Reactive (not a static return), so the round-6 aria-describedby test can
 // flip it mid-test to exercise the real isGenerating-derived UI, the same
 // way mockLanguage below is used for the locale test.
@@ -51,6 +52,7 @@ vi.mock("@/redux/apis/organization/report.api", () => ({
   useGetReportByIdQuery: () => ({ data: undefined }),
   useGenerateReportMutation: () => [mockGenerate, { isLoading: mockIsGenerating }],
   usePublishReportMutation: () => [mockPublish, { isLoading: false }],
+  useDownloadReportMutation: () => [mockDownload, { isLoading: false }],
 }))
 
 const mockUseMyOrgRole = vi.fn()
@@ -92,6 +94,17 @@ describe("ReportsPage", () => {
     mockUseGetAllReportsQuery.mockReset()
     mockGenerate.mockReset()
     mockPublish.mockReset()
+    mockDownload.mockReset()
+    // Default: mint a signed URL matching makeReport()'s default file_url,
+    // so every existing Preview/Download test keeps working against the
+    // same URL value it already asserts on -- tests that need a different
+    // signed URL (or a failure) override this per-test.
+    mockDownload.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          data: { file_url: "https://cdn.example/report.pdf", expires_in: 300 },
+        }),
+    })
     mockToastSuccess.mockReset()
     mockToastError.mockReset()
     mockUseMyOrgRole.mockReset()
@@ -1123,6 +1136,81 @@ describe("ReportsPage", () => {
         "_blank",
         "noopener"
       )
+      openSpy.mockRestore()
+    })
+  })
+
+  // 2026-08-19 audit finding: Preview/Download used to open report.file_url
+  // (the permanent stored object URL) directly, bypassing the short-lived
+  // signed-URL endpoint (/report/:id/download) that exists specifically so
+  // a leaked link expires quickly (#222). Confirm the mutation is actually
+  // called and its returned URL -- not the report's own file_url -- is what
+  // gets opened.
+  describe("signed download URL (2026-08-19 audit)", () => {
+    it("mints a signed URL via the download mutation and opens THAT, not report.file_url", async () => {
+      const user = userEvent.setup()
+      const openSpy = vi.spyOn(window, "open").mockImplementation(() => null)
+      mockDownload.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            data: {
+              file_url: "https://cdn.example/signed?token=abc123",
+              expires_in: 300,
+            },
+          }),
+      })
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: {
+          data: [
+            makeReport({
+              file_url: "https://cdn.example/permanent-object-url.pdf",
+            }),
+          ],
+        },
+        isLoading: false,
+      })
+
+      render(<ReportsPage />)
+      await user.click(
+        screen.getByRole("button", { name: /organization\.reports\.preview/i })
+      )
+
+      expect(mockDownload).toHaveBeenCalledWith("rep-1")
+      await waitFor(() =>
+        expect(openSpy).toHaveBeenCalledWith(
+          "https://cdn.example/signed?token=abc123",
+          "_blank",
+          "noopener"
+        )
+      )
+      expect(openSpy).not.toHaveBeenCalledWith(
+        "https://cdn.example/permanent-object-url.pdf",
+        expect.anything(),
+        expect.anything()
+      )
+      openSpy.mockRestore()
+    })
+
+    it("shows an error toast and does not open anything when minting the signed URL fails", async () => {
+      const user = userEvent.setup()
+      const openSpy = vi.spyOn(window, "open").mockImplementation(() => null)
+      mockDownload.mockReturnValue({
+        unwrap: () => Promise.reject({ data: { message: "Report not found" } }),
+      })
+      mockUseGetAllReportsQuery.mockReturnValue({
+        data: { data: [makeReport()] },
+        isLoading: false,
+      })
+
+      render(<ReportsPage />)
+      await user.click(
+        screen.getByRole("button", { name: /organization\.reports\.preview/i })
+      )
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith("Report not found")
+      )
+      expect(openSpy).not.toHaveBeenCalled()
       openSpy.mockRestore()
     })
   })

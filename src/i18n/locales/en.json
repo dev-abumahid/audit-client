@@ -841,6 +841,7 @@
       "generateFailed": "Failed to generate report. Please try again.",
       "publishSuccess": "Report published.",
       "publishFailed": "Failed to publish report.",
+      "downloadFailed": "Failed to get a download link for this report.",
       "confirmPublishTitle": "Publish this report?",
       "confirmPublishDescription": "Once published, this report becomes visible to the board and is no longer just a draft awaiting review.",
       "confirmPublishConfirm": "Publish",

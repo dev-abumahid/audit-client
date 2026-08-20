@@ -12,6 +12,7 @@ import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import type { Report, ReportType } from "@/redux/apis/organization/report.api"
 import {
+  useDownloadReportMutation,
   useGenerateReportMutation,
   useGetAllReportsQuery,
   usePublishReportMutation,
@@ -110,6 +111,7 @@ export default function ReportsPage() {
   const [generateReport, { isLoading: isGenerating }] =
     useGenerateReportMutation()
   const [publishReport] = usePublishReportMutation()
+  const [downloadReportUrl] = useDownloadReportMutation()
 
   const [selectedType, setSelectedType] = useState<ReportType>("BOARD")
   const [publishingId, setPublishingId] = useState<string | null>(null)
@@ -229,16 +231,35 @@ export default function ReportsPage() {
     }
   }
 
-  // Round 1/2 security finding: report.file_url is server-returned data
-  // reaching window.open()/an anchor href with no scheme guard -- the
-  // exact bug class isHttpUrl() exists to prevent (already applied in
-  // FindingDetails.tsx, MediaThumbnail.tsx, InspectionReport.tsx, and
-  // others), just never imported here. noopener alone only blocks
-  // reverse-tabnabbing, not a javascript:/data: URL reaching the sink.
-  const openPdf = (report: Report) => {
-    if (report.file_url && canOpenReport(report)) {
-      window.open(report.file_url, "_blank", "noopener")
+  // Audit finding (2026-08-19): file_url was used directly here, bypassing
+  // the signed-URL mechanism /report/:id/download exists specifically to
+  // enforce (#222) -- the stored file_url is a permanent object URL, so a
+  // leaked link (referrer/history/screenshot) stayed valid forever, fully
+  // defeating the confidentiality design for a "CONFIDENTIEL" board report.
+  // Mint a fresh short-lived signed URL at click time instead.
+  //
+  // Round 1/2 security finding (still applies to the signed URL itself):
+  // isHttpUrl()/canOpenReport() guard against a javascript:/data: URL
+  // reaching window.open()/an anchor href -- noopener alone only blocks
+  // reverse-tabnabbing, not a scheme-based sink.
+  const getSignedUrl = async (report: Report): Promise<string | null> => {
+    if (!canOpenReport(report)) return null
+    try {
+      const res = await downloadReportUrl(report.id).unwrap()
+      const url = res.data?.file_url
+      return url && canOpenReport({ ...report, file_url: url }) ? url : null
+    } catch (err) {
+      toast.error(
+        (err as { data?: { message?: string } })?.data?.message ||
+          t("organization.reports.downloadFailed")
+      )
+      return null
     }
+  }
+
+  const openPdf = async (report: Report) => {
+    const url = await getSignedUrl(report)
+    if (url) window.open(url, "_blank", "noopener")
   }
 
   // Preview and Download used to share openPdf(), which only ever opens the
@@ -252,14 +273,15 @@ export default function ReportsPage() {
   // is free-text with no such guarantee -- a title containing "/" or "\"
   // would otherwise be read as path separators and mangle/truncate the
   // downloaded filename. Strip filesystem-unsafe characters first.
-  const downloadReport = (report: Report) => {
-    if (!report.file_url || !canOpenReport(report)) return
+  const downloadReport = async (report: Report) => {
+    const url = await getSignedUrl(report)
+    if (!url) return
     const safeTitle = report.title
       .replace(/[\\/:*?"<>|]+/g, "_")
       .trim()
       .replace(/^_+|_+$/g, "")
     const link = document.createElement("a")
-    link.href = report.file_url
+    link.href = url
     link.download = `${safeTitle || "report"}.pdf`
     link.target = "_blank"
     link.rel = "noopener noreferrer"
