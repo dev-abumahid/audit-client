@@ -730,6 +730,39 @@ describe("SitesEntities", () => {
     expect(criticalTile).not.toHaveAttribute("title")
   })
 
+  // docs/design-docs/ai-risk-review-approval-workflow.md
+  it("shows the exact pending-AI-review count from the server, and links to the register", () => {
+    mockUseGetAllSitesQuery.mockReturnValue({
+      isLoading: false,
+      isFetching: false,
+      data: { data: [makeSite()], meta: { page: 1, limit: 10, total: 1 } },
+      error: undefined,
+    })
+    mockUseGetAllRisksQuery.mockImplementation(
+      (args: { siteId?: string; reviewStatus?: string }) => {
+        if (args?.reviewStatus === "PENDING_REVIEW") {
+          return { data: { data: [], meta: { total: 7 } }, isError: false }
+        }
+        if (args?.siteId) {
+          return { data: { data: [] }, isError: false }
+        }
+        return {
+          data: { data: [], meta: { total: 0 } },
+          isError: false,
+        }
+      }
+    )
+
+    renderPage()
+
+    const pendingTile = screen.getByText(
+      "organization.site&entities.summary.pendingAiReview"
+    ).previousElementSibling as HTMLElement
+    expect(pendingTile).toHaveTextContent("7")
+    const link = pendingTile.closest("a")
+    expect(link).toHaveAttribute("href", "/organization/risks")
+  })
+
   it("renders site rows with name, location and country", () => {
     mockUseGetAllSitesQuery.mockReturnValue({
       isLoading: false,
