@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import Logo from "@/components/shared/Logo"
 import { useResetPasswordMutation } from "@/redux/apis/auth.api"
 import { CheckCircle2, XCircle } from "lucide-react"
@@ -21,6 +20,7 @@ export default function ResetPasswordPage() {
     register,
     handleSubmit,
     watch,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<ResetPasswordFormData>({
     defaultValues: { newPassword: "", confirmPassword: "" },
@@ -36,8 +36,27 @@ export default function ResetPasswordPage() {
       if (res?.success !== false) {
         toast.success(t("auth.resetPassword.successMessage"))
       }
-    } catch (error: any) {
-      toast.error(error?.data?.message || t("auth.genericError"))
+    } catch (error: unknown) {
+      // The backend's real password rule (10+ chars, a letter, a number --
+      // account.validation.ts's passwordSchema) is stricter than this
+      // form's own minLength check below. A Zod failure's top-level
+      // `message` is always the generic "Validation Error"; the actual
+      // reason lives in `errorSources`, same shape SignUpModal.tsx already
+      // maps into a field-level error instead of an unhelpful toast.
+      const apiError = error as {
+        data?: {
+          message?: string
+          errorSources?: Array<{ path?: string; message?: string }>
+        }
+      }
+      const passwordError = apiError?.data?.errorSources?.find(
+        (source) => source.path === "newPass" && source.message
+      )
+      if (passwordError?.message) {
+        setError("newPassword", { type: "server", message: passwordError.message })
+      } else {
+        toast.error(apiError?.data?.message || t("auth.genericError"))
+      }
     }
   }
 
@@ -101,8 +120,15 @@ export default function ResetPasswordPage() {
                   autoComplete="new-password"
                   {...register("newPassword", {
                     required: t("auth.resetPassword.newPasswordReqText"),
+                    // Matches the backend's real rule (account.validation.ts's
+                    // passwordSchema: 10+ chars, a letter, a number). The
+                    // letter/number half isn't duplicated here -- same
+                    // "server round-trip via errorSources" pattern
+                    // SignUpModal.tsx already uses -- but the length check
+                    // catches the single most common failure instantly
+                    // instead of always requiring a round trip.
                     minLength: {
-                      value: 8,
+                      value: 10,
                       message: t("auth.resetPassword.newPasswordMinLength"),
                     },
                   })}

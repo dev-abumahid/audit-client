@@ -158,6 +158,45 @@ describe("ResetPasswordPage", () => {
     )
   })
 
+  // The backend's real password rule (10+ chars, a letter, a number) is
+  // stricter than this form's own minLength check, so a password that
+  // passes client-side validation can still be rejected server-side. A Zod
+  // failure's top-level message is always the generic "Validation Error";
+  // the real reason lives in errorSources, which must be mapped to the
+  // field instead of shown as an unhelpful toast (same pattern
+  // SignUpModal.test.tsx already covers for the signup form).
+  it("surfaces a password-rule violation from errorSources as a field error, not a generic toast", async () => {
+    const user = userEvent.setup()
+    const { toast } = await import("sonner")
+    // Other tests in this suite call toast.error without resetting it
+    // afterward -- clear the shared mock so this test's assertion isn't
+    // polluted by calls made earlier in the run (same convention
+    // SignUpModal.test.tsx already uses).
+    vi.mocked(toast.error).mockClear()
+    mockResetPasswordTrigger.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({
+          data: {
+            message: "Validation Error",
+            errorSources: [
+              { path: "newPass", message: "Password must contain at least one number." },
+            ],
+          },
+        }),
+    })
+
+    renderAt("/reset-password?token=abc123")
+
+    await user.type(screen.getByLabelText("New Password"), "onlyletters")
+    await user.type(screen.getByLabelText("Confirm Password"), "onlyletters")
+    await user.click(screen.getByRole("button", { name: "Reset Password" }))
+
+    expect(
+      await screen.findByText("Password must contain at least one number.")
+    ).toBeInTheDocument()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
   it("falls back to the generic i18n error when the server response has no message", async () => {
     const user = userEvent.setup()
     const { toast } = await import("sonner")

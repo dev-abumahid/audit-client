@@ -212,6 +212,41 @@ describe("PasswordChangeForm", () => {
     expect(mockT).toHaveBeenCalledWith("auth.resetPassword.newPasswordMinLength")
   })
 
+  // Same fix as ResetPasswordPage.test.tsx's equivalent test -- a Zod
+  // failure's top-level message is always the generic "Validation Error";
+  // the real password-rule violation lives in errorSources and must map to
+  // the field, not an unhelpful toast.
+  it("surfaces a password-rule violation from errorSources as a field error, not a generic toast", async () => {
+    const user = userEvent.setup()
+    const { toast } = await import("sonner")
+    vi.mocked(toast.error).mockClear()
+    mockChangePasswordTrigger.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({
+          data: {
+            message: "Validation Error",
+            errorSources: [
+              { path: "newPassword", message: "Password must contain at least one number." },
+            ],
+          },
+        }),
+    })
+
+    render(<PasswordChangeForm />)
+    await user.type(screen.getByLabelText("Current Password"), "current-pass-1")
+    await user.type(screen.getByLabelText("New Password"), "onlylettersnew")
+    await user.type(
+      screen.getByLabelText("Confirm New Password"),
+      "onlylettersnew",
+    )
+    await user.click(screen.getByRole("button", { name: "Change Password" }))
+
+    expect(
+      await screen.findByText("Password must contain at least one number.")
+    ).toBeInTheDocument()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
   it("surfaces the backend error message on rejection (e.g. incorrect password)", async () => {
     const user = userEvent.setup()
     const { toast } = await import("sonner")
@@ -247,9 +282,12 @@ describe("PasswordChangeForm", () => {
     })
 
     render(<PasswordChangeForm />)
-    await user.type(screen.getByLabelText("Current Password"), "same-pass")
-    await user.type(screen.getByLabelText("New Password"), "same-pass")
-    await user.type(screen.getByLabelText("Confirm New Password"), "same-pass")
+    await user.type(screen.getByLabelText("Current Password"), "same-password-1")
+    await user.type(screen.getByLabelText("New Password"), "same-password-1")
+    await user.type(
+      screen.getByLabelText("Confirm New Password"),
+      "same-password-1",
+    )
     await user.click(screen.getByRole("button", { name: "Change Password" }))
 
     await waitFor(() =>

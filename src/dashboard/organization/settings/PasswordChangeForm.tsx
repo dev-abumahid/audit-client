@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useChangePasswordMutation } from "@/redux/apis/auth.api"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -18,6 +17,7 @@ export default function PasswordChangeForm() {
     handleSubmit,
     watch,
     reset,
+    setError,
     formState: { errors },
   } = useForm<PasswordChangeFormData>({
     defaultValues: { oldPassword: "", newPassword: "", confirmPassword: "" },
@@ -31,12 +31,36 @@ export default function PasswordChangeForm() {
       }).unwrap()
       toast.success(t("organization.settings.passwordChange.successMessage"))
       reset()
-    } catch (error: any) {
-      // Surfaces the backend's specific messages as-is (e.g. "Incorrect
-      // password", "Old and new password are same, Please provide
-      // different password") rather than a generic failure string.
+    } catch (error: unknown) {
+      // A Zod validation failure's top-level message is always the generic
+      // "Validation Error" -- the backend's real password rule (10+ chars,
+      // a letter, a number, account.validation.ts's passwordSchema) only
+      // shows up in errorSources. Same pattern SignUpModal.tsx already
+      // uses instead of an unhelpful generic toast.
+      const apiError = error as {
+        status?: number
+        data?: {
+          message?: string
+          errorSources?: Array<{ path?: string; message?: string }>
+        }
+      }
+      const passwordError = apiError?.data?.errorSources?.find(
+        (source) => source.path === "newPassword" && source.message,
+      )
+      if (passwordError?.message) {
+        setError("newPassword", { type: "server", message: passwordError.message })
+        return
+      }
+      // A 401 here is ambiguous server-side (account.service.ts throws the
+      // same status for "wrong current password" and this component can't
+      // tell that apart from a genuinely expired session, since baseApi.ts
+      // deliberately excludes /auth/* routes from the app's normal
+      // expired-session redirect). Surfacing the backend's own message
+      // (e.g. "Incorrect password") is still correct for the common case;
+      // only the truly-expired-session case would show a slightly
+      // misleading message, which reloading/re-navigating self-corrects.
       toast.error(
-        error?.data?.message ??
+        apiError?.data?.message ??
           t("organization.settings.passwordChange.failedMessage"),
       )
     }
@@ -89,8 +113,11 @@ export default function PasswordChangeForm() {
             autoComplete="new-password"
             {...register("newPassword", {
               required: t("organization.settings.passwordChange.newPasswordReqText"),
+              // Matches the backend's real rule (account.validation.ts's
+              // passwordSchema). See onSubmit's catch block for the
+              // errorSources fallback that catches the letter/number half.
               minLength: {
-                value: 8,
+                value: 10,
                 message: t("auth.resetPassword.newPasswordMinLength"),
               },
             })}
