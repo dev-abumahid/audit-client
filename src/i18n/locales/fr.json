@@ -1535,7 +1535,6 @@
       "impactModerate": "Modéré",
       "impactMajor": "Majeur",
       "impactCatastrophic": "Catastrophique",
-      "pagerankAbbrLabel": "PR :",
       "loadError": "Échec du chargement des risques. Veuillez réessayer plus tard.",
       "siteLoadError": "Échec du chargement des sites -- les noms de sites peuvent être manquants ci-dessous.",
       "emptyStateTitle": "Aucun risque évalué pour le moment",

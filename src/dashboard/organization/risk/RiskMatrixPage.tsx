@@ -965,10 +965,6 @@ function RiskCard({
           />
           {riskCategoryLabel(t, risk.category)}
         </span>
-        <span>
-          {t("organization.riskMatrix.pagerankAbbrLabel")}{" "}
-          {Number(risk.pagerank_score).toFixed(0)}
-        </span>
       </div>
     </div>
   )

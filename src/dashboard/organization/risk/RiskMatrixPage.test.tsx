@@ -1168,34 +1168,6 @@ describe("RiskMatrixPage", () => {
     expect(cell).toHaveAttribute("aria-pressed", "false")
   })
 
-  // Regression (aexa-frontend#412): the PageRank badge on a risk card was a
-  // hardcoded "PR: {score}" string that never ran through t(), so it stayed
-  // English under the French UI while every other label in the card
-  // translated correctly.
-  it("routes the PageRank badge through t() instead of a hardcoded 'PR:' string", async () => {
-    mockUseGetAllRisksQuery.mockReturnValue({
-      data: {
-        data: [
-          makeRisk({
-            pagerank_score: 42,
-            probability: 0,
-            inherent_score: 0,
-          }),
-        ],
-      },
-      isLoading: false,
-    })
-    renderPage()
-
-    // The risk card (and its PageRank badge) only renders once its matrix
-    // cell is selected.
-    await userEvent.click(
-      screen.getByTitle(/Very Unlikely × Negligible : 1 risk/)
-    )
-
-    expect(screen.getByText("PR: 42")).toBeInTheDocument()
-  })
-
   // Regression (aexa-frontend#519): the risk-detail card in the matrix's
   // side panel showed the raw risk.id (UUID) instead of risk.ref (the
   // human-readable code, e.g. "CYB-001") -- unlike the identical

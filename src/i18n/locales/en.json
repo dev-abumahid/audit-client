@@ -1535,7 +1535,6 @@
       "impactModerate": "Moderate",
       "impactMajor": "Major",
       "impactCatastrophic": "Catastrophic",
-      "pagerankAbbrLabel": "PR:",
       "loadError": "Failed to load risks. Please try again later.",
       "siteLoadError": "Failed to load sites -- site names may be missing below.",
       "emptyStateTitle": "No risks scored yet",
