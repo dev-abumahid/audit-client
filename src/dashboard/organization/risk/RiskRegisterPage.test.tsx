@@ -825,6 +825,57 @@ describe("RiskRegisterPage", () => {
     expect(pagerankInput).not.toHaveAttribute("max")
   })
 
+  // CEO-reported (2026-08-19): inherent_score/residual_score were plain,
+  // always-editable inputs -- typing a value here without also checking
+  // "Override inherent/residual score" LOOKED like it took effect, but
+  // risk_scoring.ts's resolveInherentFields/resolveResidualFields ignore
+  // these fields entirely unless the matching *_override flag is true,
+  // silently discarding whatever was typed on save. pagerank_score has no
+  // override mechanism at all -- risk.service.ts never reads it from the
+  // request body (matches RiskMatrixPage's own #973 fix). Disabling these
+  // inputs until the override is actually checked makes the constraint
+  // visible instead of a silent trap.
+  it("disables inherent/residual score until their override checkbox is checked, and always disables pagerank_score", async () => {
+    mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+
+    const { container } = renderPage()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.addNewRisk",
+      })
+    )
+
+    const inherentInput = container.querySelector(
+      '[name="inherent_score"]'
+    ) as HTMLInputElement
+    const residualInput = container.querySelector(
+      '[name="residual_score"]'
+    ) as HTMLInputElement
+    const pagerankInput = container.querySelector(
+      '[name="pagerank_score"]'
+    ) as HTMLInputElement
+
+    expect(inherentInput).toBeDisabled()
+    expect(residualInput).toBeDisabled()
+    expect(pagerankInput).toBeDisabled()
+
+    await userEvent.click(
+      container.querySelector('[name="inherent_is_override"]')!
+    )
+    expect(inherentInput).toBeEnabled()
+    // Checking inherent's override doesn't also enable residual's --
+    // they're independent toggles.
+    expect(residualInput).toBeDisabled()
+    expect(pagerankInput).toBeDisabled()
+
+    await userEvent.click(
+      container.querySelector('[name="residual_is_override"]')!
+    )
+    expect(residualInput).toBeEnabled()
+    // Nothing enables pagerank_score -- it has no override mechanism.
+    expect(pagerankInput).toBeDisabled()
+  })
+
   it("shows validation errors when submitting with required fields empty", async () => {
     mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
 

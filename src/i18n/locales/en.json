@@ -1101,6 +1101,8 @@
       "residualScoreExplainer": "Risk level remaining after existing controls are applied.",
       "pagerankScoreLabel": "PageRank Score",
       "pagerankScoreExplainer": "This risk's structural importance in the dependency graph -- the more it causes or amplifies other risks, the higher this score. Not a severity score.",
+      "scoreAutoCalculatedTitle": "Auto-calculated from probability and impact. Check \"Override\" below to enter a manual value.",
+      "pagerankAutoCalculatedTitle": "Recalculated automatically across the whole risk graph. Not directly editable.",
       "financialImpactTitle": "Financial Impact",
       "minImpactLabel": "Min Impact (k€)",
       "maxImpactLabel": "Max Impact (k€)",

@@ -300,7 +300,7 @@ function FormField({
     // both themes with margin. Lesson: reusing a design-system color token
     // does not exempt a NEW usage (different opacity/weight) from its own
     // contrast check.
-    <div className={ringed ? "rounded-lg ring-1 ring-primary/90" : ""}>
+    <div className={ringed ? "rounded-lg p-2 ring-1 ring-primary/90" : ""}>
       {/* AI controls are deliberately siblings of <label>, not children of
           it -- testing-library's getByLabelText (and browsers' own
           implicit-label association) treats any labelable descendant of a
@@ -593,13 +593,27 @@ export function RiskScoresSection({ editId }: { editId: string | null }) {
           labelTitle={t("organization.riskRegister.inherentScoreExplainer")}
           htmlFor="risk-inherent_score"
         >
+          {/* Was a plain always-editable input -- CEO-reported (2026-08-19):
+              typing a new value here without also checking "Override
+              inherent score" below LOOKED like it took effect, but
+              risk_scoring.ts's resolveInherentFields ignores this field
+              entirely unless inherent_override is true, silently discarding
+              whatever was typed on save. Disabling the input until the
+              override checkbox is checked makes that constraint visible
+              instead of a silent trap. */}
           <input
             id="risk-inherent_score"
             type="number"
             min="0"
             max="100"
+            disabled={!inherentIsOverride}
+            title={
+              inherentIsOverride
+                ? undefined
+                : t("organization.riskRegister.scoreAutoCalculatedTitle")
+            }
             {...register("inherent_score", { valueAsNumber: true })}
-            className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
+            className="mt-1 h-9 w-full rounded-lg border px-3 text-sm disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
           />
         </FormField>
         <FormField
@@ -612,8 +626,14 @@ export function RiskScoresSection({ editId }: { editId: string | null }) {
             type="number"
             min="0"
             max="100"
+            disabled={!residualIsOverride}
+            title={
+              residualIsOverride
+                ? undefined
+                : t("organization.riskRegister.scoreAutoCalculatedTitle")
+            }
             {...register("residual_score", { valueAsNumber: true })}
-            className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
+            className="mt-1 h-9 w-full rounded-lg border px-3 text-sm disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
           />
         </FormField>
         <FormField
@@ -621,11 +641,20 @@ export function RiskScoresSection({ editId }: { editId: string | null }) {
           labelTitle={t("organization.riskRegister.pagerankScoreExplainer")}
           htmlFor="risk-pagerank_score"
         >
+          {/* Unlike inherent/residual, PageRank has no override mechanism
+              at all -- risk.service.ts never reads pagerank_score from the
+              request body, it's recomputed graph-wide by a separate job
+              (matches RiskMatrixPage's own #973 fix, which stopped treating
+              this same field as a directly settable value). Always
+              read-only; nothing this form does can make a typed value here
+              take effect. */}
           <input
             id="risk-pagerank_score"
             type="number"
+            disabled
+            title={t("organization.riskRegister.pagerankAutoCalculatedTitle")}
             {...register("pagerank_score", { valueAsNumber: true })}
-            className="mt-1 h-9 w-full rounded-lg border px-3 text-sm"
+            className="mt-1 h-9 w-full rounded-lg border px-3 text-sm disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
           />
         </FormField>
       </div>

@@ -1101,6 +1101,8 @@
       "residualScoreExplainer": "Niveau de risque restant après application des contrôles existants.",
       "pagerankScoreLabel": "Score PageRank",
       "pagerankScoreExplainer": "Mesure l'importance structurelle de ce risque dans le graphe de dépendances -- plus il déclenche ou amplifie d'autres risques, plus ce score est élevé. Ce n'est pas un score de sévérité.",
+      "scoreAutoCalculatedTitle": "Calculé automatiquement à partir de la probabilité et de l'impact. Cochez « Remplacer » ci-dessous pour saisir une valeur manuelle.",
+      "pagerankAutoCalculatedTitle": "Recalculé automatiquement pour l'ensemble du graphe de risques. Non modifiable directement.",
       "financialImpactTitle": "Impact financier",
       "minImpactLabel": "Impact minimum (k€)",
       "maxImpactLabel": "Impact maximum (k€)",
