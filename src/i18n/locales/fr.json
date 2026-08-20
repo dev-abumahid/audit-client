@@ -937,7 +937,7 @@
         "totalSites": "Sites",
         "totalRisks": "Risques (tous sites)",
         "criticalRisks": "Risques critiques",
-        "aiGeneratedRisks": "Risques signalés par l'IA",
+        "pendingAiReview": "En attente de révision IA",
         "cappedHint": "Calculé sur les 100 premiers risques (tous sites) — le total réel peut être plus élevé",
         "unscoredHint": "Un ou plusieurs risques n'ont pas de score de gravité valide et sont exclus de ce total — le total réel peut être plus élevé"
       },
@@ -1068,6 +1068,29 @@
       "siteFilterLabel": "Filtrer par site",
       "categoryFilterLabel": "Filtrer par catégorie",
       "filterPendingApproval": "En attente de mon approbation",
+      "citationConfidence": {
+        "curated_verified": "Vérifié",
+        "ai_estimate": "Estimation IA",
+        "none": "Aucune citation"
+      },
+      "pendingReview": {
+        "heading_one": "{{count}} risque en attente de révision",
+        "heading_other": "{{count}} risques en attente de révision",
+        "empty": "Aucun risque généré par l'IA en attente de révision.",
+        "selectedCount_one": "{{count}} sélectionné",
+        "selectedCount_other": "{{count}} sélectionnés",
+        "approve": "Approuver",
+        "dismiss": "Rejeter",
+        "approveAll": "Tout approuver",
+        "dismissAll": "Tout rejeter",
+        "selectRisk": "Sélectionner {{name}}",
+        "approveFailed": "Échec de l'approbation du risque. Veuillez réessayer.",
+        "dismissFailed": "Échec du rejet du risque. Veuillez réessayer.",
+        "dismissedButReferenced_one": "Rejeté, mais encore lié à {{count}} autre élément — vous voudrez peut-être le vérifier.",
+        "dismissedButReferenced_other": "Rejeté, mais encore lié à {{count}} autres éléments — vous voudrez peut-être les vérifier.",
+        "showDismissed": "Afficher les risques rejetés",
+        "noDismissed": "Aucun risque rejeté."
+      },
       "colName": "NOM",
       "colSite": "SITE",
       "colCat": "CAT",

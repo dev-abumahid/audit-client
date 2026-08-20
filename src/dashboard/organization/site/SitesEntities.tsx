@@ -236,6 +236,22 @@ export default function SitesEntities() {
     category: "",
   })
   const allRisks: Risk[] = allRisksData?.data ?? []
+  // docs/design-docs/ai-risk-review-approval-workflow.md -- allRisksData
+  // above is now APPROVED-only (server-side default), so it no longer
+  // contains PENDING_REVIEW rows at all -- filtering it for the AI-flagged
+  // tile would always read 0. A separate limit:1 query reads just
+  // meta.total, the server's exact pending count, cheaper than fetching
+  // rows this tile doesn't otherwise need and exact rather than an
+  // approximate "100-row cap" count.
+  const { data: pendingReviewData, isError: pendingReviewError } =
+    useGetAllRisksQuery({
+      page: 1,
+      limit: 1,
+      searchTerm: "",
+      siteId: "",
+      category: "",
+      reviewStatus: "PENDING_REVIEW",
+    })
   // The critical/AI-flagged tiles are filtered client-side over the
   // limit:100 page fetched above, so once an org has more than 100 risks
   // those two counts become a lower bound, not an exact total (unlike the
@@ -258,7 +274,11 @@ export default function SitesEntities() {
       isValidScoreValue(r.residual_score) &&
       getRiskSeverityLevel(r.residual_score) === "critical"
   ).length
-  const aiGeneratedRiskCount = allRisks.filter((r) => r.ai_generated).length
+  // docs/design-docs/ai-risk-review-approval-workflow.md -- repurposed from
+  // "ever AI-generated regardless of status" to "awaiting your review,"
+  // turning a static label into an actionable badge that links to the
+  // Pending AI Review panel on the register.
+  const pendingReviewCount = pendingReviewData?.meta?.total ?? 0
   const [deleteRisk, { isLoading: isRiskDeleting }] = useDeleteRiskMutation()
   const [createNewRisk] = useCreateNewRiskMutation()
   // Reset page when search changes
@@ -849,33 +869,22 @@ export default function SitesEntities() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-5">
+        <Link
+          to="/organization/risks"
+          className="focus-ring flex items-center gap-3 rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
+        >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
             <Bot className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p
-              className="font-mono-data text-2xl font-bold text-foreground"
-              title={
-                isRiskSummaryCapped
-                  ? t("organization.site&entities.summary.cappedHint")
-                  : undefined
-              }
-            >
-              {allRisksError ? (
-                "—"
-              ) : (
-                <>
-                  {aiGeneratedRiskCount}
-                  {isRiskSummaryCapped && "+"}
-                </>
-              )}
+            <p className="font-mono-data text-2xl font-bold text-foreground">
+              {pendingReviewError ? "—" : pendingReviewCount}
             </p>
             <p className="text-sm text-muted-foreground">
-              {t("organization.site&entities.summary.aiGeneratedRisks")}
+              {t("organization.site&entities.summary.pendingAiReview")}
             </p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Sites List */}

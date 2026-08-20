@@ -187,6 +187,13 @@ export interface Risk {
   // deliberate scope decision, design-docs §3/§8.
   internal_pilot: string | null
   ai_generation_run_id: string | null
+  // docs/design-docs/ai-risk-review-approval-workflow.md -- distinct from
+  // approvalStatus above (that's the maker-checker sign-off on an already-
+  // confirmed risk's assessment; this is whether the risk exists as a
+  // confirmed register entry at all yet). Manually-created risks and every
+  // pre-existing row default to APPROVED; AI-generated risks start
+  // PENDING_REVIEW.
+  review_status: "APPROVED" | "PENDING_REVIEW" | "DISMISSED"
 }
 
 // Mirrors aexa-server's RiskApproval Prisma model (issue #95). A risk's

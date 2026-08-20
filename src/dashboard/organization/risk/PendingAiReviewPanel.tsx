@@ -1,0 +1,369 @@
+// docs/design-docs/ai-risk-review-approval-workflow.md -- AI-generated
+// risks land as review_status=PENDING_REVIEW, not straight into the
+// confirmed register. This panel is where they get approved or dismissed,
+// individually or in bulk. Self-contained (own query, own selection state)
+// rather than reusing useRiskBulkActions, since that hook's mutations
+// (delete/status-update) and reset-on-filter-change semantics don't match
+// approve/dismiss's much simpler, filter-independent shape.
+import {
+  useApproveRiskMutation,
+  useBulkApproveRisksMutation,
+  useBulkDismissRisksMutation,
+  useDismissRiskMutation,
+  useGetAllRisksQuery,
+} from "@/redux/apis/organization/risk.api"
+import type { Risk } from "@/types/organization"
+import { Bot, Check, ChevronDown, ChevronUp, Loader2, X } from "lucide-react"
+import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
+
+interface PendingAiReviewPanelProps {
+  canWrite: boolean
+}
+
+// design-docs/site-ai-risk-register-generation.md §3 -- "the single most
+// important trust signal" per that doc's own review notes. Not previously
+// surfaced anywhere in the frontend; first use here, since this is exactly
+// the moment a reviewer needs it most: which pending suggestions to
+// scrutinize closest before approving.
+const CONFIDENCE_RANK: Record<string, number> = {
+  none: 0,
+  ai_estimate: 1,
+  curated_verified: 2,
+}
+
+function ConfidenceBadge({
+  confidence,
+}: {
+  confidence: Risk["citation_confidence"]
+}) {
+  const { t } = useTranslation()
+  if (!confidence) return null
+  const styles: Record<string, string> = {
+    curated_verified:
+      "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+    ai_estimate: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+    none: "bg-muted text-muted-foreground",
+  }
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${styles[confidence]}`}
+    >
+      {t(`organization.riskRegister.citationConfidence.${confidence}`)}
+    </span>
+  )
+}
+
+export default function PendingAiReviewPanel({
+  canWrite,
+}: PendingAiReviewPanelProps) {
+  const { t } = useTranslation()
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showDismissed, setShowDismissed] = useState(false)
+
+  // limit:100 -- same "approximate above N, review queues don't
+  // realistically accumulate hundreds of untouched rows" precedent as
+  // SitesEntities.tsx's dashboard tiles.
+  const { data: pendingData, isLoading: pendingLoading } = useGetAllRisksQuery({
+    page: 1,
+    limit: 100,
+    searchTerm: "",
+    siteId: "",
+    category: "",
+    reviewStatus: "PENDING_REVIEW",
+  })
+  const { data: dismissedData, isLoading: dismissedLoading } =
+    useGetAllRisksQuery(
+      {
+        page: 1,
+        limit: 100,
+        searchTerm: "",
+        siteId: "",
+        category: "",
+        reviewStatus: "DISMISSED",
+      },
+      { skip: !showDismissed }
+    )
+
+  const pendingRisks = useMemo(() => {
+    const rows = pendingData?.data ?? []
+    // Lowest-confidence first -- the rows most likely to need a close look
+    // surface at the top instead of being buried under a long list.
+    return [...rows].sort(
+      (a, b) =>
+        (CONFIDENCE_RANK[a.citation_confidence ?? "none"] ?? 0) -
+        (CONFIDENCE_RANK[b.citation_confidence ?? "none"] ?? 0)
+    )
+  }, [pendingData])
+  const dismissedRisks = dismissedData?.data ?? []
+
+  const [approveRisk, { isLoading: isApproving }] = useApproveRiskMutation()
+  const [dismissRisk, { isLoading: isDismissing }] = useDismissRiskMutation()
+  const [bulkApproveRisks, { isLoading: isBulkApproving }] =
+    useBulkApproveRisksMutation()
+  const [bulkDismissRisks, { isLoading: isBulkDismissing }] =
+    useBulkDismissRisksMutation()
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  // Every mutation shares one disabled gate across per-row AND bulk
+  // buttons -- without this, a user could click a row's own Approve while
+  // that same row is selected, then immediately click "Approve all",
+  // firing two mutations for the same risk concurrently (round-1 review
+  // finding).
+  const anyReviewActionInFlight =
+    isApproving || isDismissing || isBulkApproving || isBulkDismissing
+
+  const extractErrorMessage = (err: unknown, fallback: string): string =>
+    (err as { data?: { message?: string } })?.data?.message || fallback
+
+  const handleApprove = async (id: string) => {
+    try {
+      await approveRisk(id).unwrap()
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(
+          err,
+          t("organization.riskRegister.pendingReview.approveFailed")
+        )
+      )
+    }
+  }
+
+  const handleDismiss = async (id: string) => {
+    try {
+      const result = await dismissRisk(id).unwrap()
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+      const refs = result.data?.referencedBy
+      const referencedCount = refs
+        ? refs.kris +
+          refs.complianceObligations +
+          refs.auditEngagements +
+          refs.riskLinks
+        : 0
+      if (referencedCount > 0) {
+        toast.warning(
+          t("organization.riskRegister.pendingReview.dismissedButReferenced", {
+            count: referencedCount,
+          })
+        )
+      }
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(
+          err,
+          t("organization.riskRegister.pendingReview.dismissFailed")
+        )
+      )
+    }
+  }
+
+  const handleBulkApprove = async () => {
+    try {
+      await bulkApproveRisks(Array.from(selectedIds)).unwrap()
+      setSelectedIds(new Set())
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(
+          err,
+          t("organization.riskRegister.pendingReview.approveFailed")
+        )
+      )
+    }
+  }
+
+  const handleBulkDismiss = async () => {
+    try {
+      await bulkDismissRisks(Array.from(selectedIds)).unwrap()
+      setSelectedIds(new Set())
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(
+          err,
+          t("organization.riskRegister.pendingReview.dismissFailed")
+        )
+      )
+    }
+  }
+
+  if (pendingLoading) return null
+  if (pendingRisks.length === 0 && !showDismissed) {
+    return (
+      <div className="flex items-center justify-between rounded-lg border border-dashed border-border px-4 py-2 text-xs text-muted-foreground">
+        <span>{t("organization.riskRegister.pendingReview.empty")}</span>
+        <button
+          type="button"
+          onClick={() => setShowDismissed(true)}
+          aria-expanded={false}
+          className="focus-ring flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted"
+        >
+          {t("organization.riskRegister.pendingReview.showDismissed")}
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="rounded-lg border border-amber-500/30 bg-amber-500/5"
+      aria-live="polite"
+    >
+      {pendingRisks.length > 0 && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/20 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-amber-700 dark:text-amber-400" />
+              <span className="text-sm font-semibold text-foreground">
+                {t("organization.riskRegister.pendingReview.heading", {
+                  count: pendingRisks.length,
+                })}
+              </span>
+            </div>
+            {canWrite && selectedIds.size > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {t("organization.riskRegister.pendingReview.selectedCount", {
+                    count: selectedIds.size,
+                  })}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleBulkApprove}
+                  disabled={anyReviewActionInFlight}
+                  className="focus-ring flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {isBulkApproving ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Check className="h-3.5 w-3.5" />
+                  )}
+                  {t("organization.riskRegister.pendingReview.approveAll")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkDismiss}
+                  disabled={anyReviewActionInFlight}
+                  className="focus-ring flex items-center gap-1 rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                >
+                  {isBulkDismissing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <X className="h-3.5 w-3.5" />
+                  )}
+                  {t("organization.riskRegister.pendingReview.dismissAll")}
+                </button>
+              </div>
+            )}
+          </div>
+          <ul className="divide-y divide-amber-500/10">
+            {pendingRisks.map((risk) => (
+              <li key={risk.id} className="flex items-center gap-3 px-4 py-2.5">
+                {canWrite && (
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(risk.id)}
+                    onChange={() => toggleSelect(risk.id)}
+                    aria-label={t(
+                      "organization.riskRegister.pendingReview.selectRisk",
+                      { name: risk.name }
+                    )}
+                    className="h-4 w-4 shrink-0 rounded border-input"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {risk.name}
+                    </span>
+                    <ConfidenceBadge confidence={risk.citation_confidence} />
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {risk.category}
+                  </span>
+                </div>
+                {canWrite && (
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleApprove(risk.id)}
+                      disabled={anyReviewActionInFlight}
+                      className="focus-ring flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      {t("organization.riskRegister.pendingReview.approve")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDismiss(risk.id)}
+                      disabled={anyReviewActionInFlight}
+                      className="focus-ring flex items-center gap-1 rounded-md border border-input bg-card px-2 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      {t("organization.riskRegister.pendingReview.dismiss")}
+                    </button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <div className="px-4 py-2">
+        <button
+          type="button"
+          onClick={() => setShowDismissed((prev) => !prev)}
+          aria-expanded={showDismissed}
+          className="focus-ring flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          {showDismissed ? (
+            <ChevronUp className="h-3 w-3" />
+          ) : (
+            <ChevronDown className="h-3 w-3" />
+          )}
+          {t("organization.riskRegister.pendingReview.showDismissed")}
+        </button>
+        {showDismissed && (
+          <ul className="mt-2 space-y-1">
+            {dismissedLoading && (
+              <li className="text-xs text-muted-foreground">
+                {t("organization.riskRegister.loading")}
+              </li>
+            )}
+            {!dismissedLoading && dismissedRisks.length === 0 && (
+              <li className="text-xs text-muted-foreground">
+                {t("organization.riskRegister.pendingReview.noDismissed")}
+              </li>
+            )}
+            {dismissedRisks.map((risk) => (
+              <li
+                key={risk.id}
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+              >
+                <X className="h-3 w-3 shrink-0" />
+                <span className="truncate line-through">{risk.name}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}

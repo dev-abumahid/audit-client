@@ -17,6 +17,7 @@ import type { Risk, SiteSummary } from "@/types/organization"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { severityBadgeClasses } from "@/utils/severityStyles"
+import PendingAiReviewPanel from "./PendingAiReviewPanel"
 import RiskApprovalControls from "./RiskApprovalControls"
 import RiskFormModal from "./RiskFormModal"
 import RiskOverrideBadge from "./RiskOverrideBadge"
@@ -856,6 +857,7 @@ export default function RiskRegisterPage() {
           )}
         </div>
       </div>
+      <PendingAiReviewPanel canWrite={canWrite} />
       {statusParam && (
         <FilteredByNotice
           label={t("organization.riskRegister.filteredByStatus", {
