@@ -16,7 +16,7 @@ import { formatEbitdaSectorLabel } from "@/utils/ebitdaSector"
 import { removeNulls } from "@/utils/removeNulls"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import RiskOverrideBadge from "./RiskOverrideBadge"
-import { Check, Loader, RotateCw, Sparkles, X } from "lucide-react"
+import { Check, CheckCircle2, Info, Loader, RotateCw, Sparkles, X } from "lucide-react"
 import type { ReactNode } from "react"
 import { createContext, useCallback, useContext, useMemo, useState } from "react"
 import type { SubmitHandler } from "react-hook-form"
@@ -975,11 +975,20 @@ function RiskEbitdaSection({ editId }: { editId: string | null }) {
       <h3 className="text-sm font-semibold">
         {t("organization.riskRegister.ebitdaTitle")}
       </h3>
-      <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+      <div
+        className={
+          ebitdaAtRisk == null
+            ? "flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm"
+            : "rounded-lg border bg-muted/40 p-3 text-sm"
+        }
+      >
         {ebitdaAtRisk == null ? (
-          <p className="text-xs text-muted-foreground">
-            {t("organization.riskRegister.ebitdaNotCalculated")}
-          </p>
+          <>
+            <Info className="mt-px h-4 w-4 shrink-0 text-primary" />
+            <p className="text-xs text-foreground">
+              {t("organization.riskRegister.ebitdaNotCalculated")}
+            </p>
+          </>
         ) : (
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <span className="font-mono-data text-base font-semibold">
@@ -1796,7 +1805,7 @@ export default function RiskFormModal({ risk, onClose }: RiskFormModalProps) {
 
         <FormProvider {...formMethods}>
           <AiPrefillContext.Provider value={aiPrefillContextValue}>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <RiskBasicInfoFields />
               <AiPrefillTrigger canSuggest={canSuggest} />
               <RiskScoresSection editId={editId} />
@@ -1885,17 +1894,20 @@ function AiPrefillTrigger({ canSuggest }: { canSuggest: boolean }) {
           </>
         )}
       </button>
-      <div className="flex items-center justify-between px-1">
-        <p className="text-xs text-muted-foreground">
-          {!canSuggest
-            ? "Enter a site, name, and category to enable AI suggestions."
-            : hasOpenSuggestions
-              ? `${ai.suggestions.size} field${ai.suggestions.size === 1 ? "" : "s"} awaiting review -- accept all, or accept/reject each one below.`
-              : ai.hasEverSuggested
-                ? "AI suggestions applied — edit any field above to override."
-                : "Or suggest just one field at a time using the ✨ next to its label."}
-        </p>
-        {hasOpenSuggestions && (
+      {hasOpenSuggestions ? (
+        // CEO-requested visual-polish pass (2026-08-19): this used to be
+        // plain muted text easy to miss next to a small text-only "Accept
+        // all" link. A tinted, bordered banner with a status icon reads as
+        // the actionable "review this" moment it actually is -- same
+        // border-primary/30 bg-primary/5 tinted-box convention already
+        // used elsewhere in this codebase (RiskGraphPage, OnboardingWizard)
+        // rather than a one-off style.
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+          <p className="flex items-center gap-2 text-xs text-foreground">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+            {ai.suggestions.size} field{ai.suggestions.size === 1 ? "" : "s"}{" "}
+            awaiting review -- accept all, or accept/reject each one below.
+          </p>
           <button
             type="button"
             onClick={ai.acceptAll}
@@ -1904,8 +1916,16 @@ function AiPrefillTrigger({ canSuggest }: { canSuggest: boolean }) {
             <Check className="h-3 w-3" />
             Accept all
           </button>
-        )}
-      </div>
+        </div>
+      ) : (
+        <p className="px-1 text-xs text-muted-foreground">
+          {!canSuggest
+            ? "Enter a site, name, and category to enable AI suggestions."
+            : ai.hasEverSuggested
+              ? "AI suggestions applied — edit any field above to override."
+              : "Or suggest just one field at a time using the ✨ next to its label."}
+        </p>
+      )}
     </div>
   )
 }
