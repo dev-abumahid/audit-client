@@ -309,7 +309,7 @@ function FormField({
           buttons' aria-labels (both contain the field's label text). A
           flex row holding both as siblings keeps the same visual layout
           without that association. */}
-      <div className="flex min-w-0 items-center gap-1.5">
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {/* CEO-reported (2026-08-19): on the narrower lg:grid-cols-4 fields
             (Probability/Severity/Velocity/Trend), this row's two children
             had no way to shrink -- the label's own intrinsic width plus the
@@ -317,10 +317,21 @@ function FormField({
             column's available width, and with neither child allowed to
             shrink below its content size (flexbox's default), the row
             overflowed and visually overlapped the input below it instead
-            of wrapping or clipping. min-w-0 (on the row and the label) lets
-            the label truncate under real width pressure; shrink-0 on the
-            controls (below) keeps the actually-clickable buttons always
-            fully visible instead of the two competing for space evenly. */}
+            of wrapping or clipping.
+
+            First fix attempt (min-w-0 truncate on the label, shrink-0 on
+            the controls) stopped the overlap but traded it for a worse
+            problem: at this column's real width (~147px at a typical
+            desktop viewport), the controls cluster alone needs ~120px+,
+            leaving the label only ~24px -- "Severity" truncated down to a
+            single character plus ellipsis, unreadable. flex-wrap lets the
+            controls drop to their own line below the label instead of
+            fighting it for the same line -- the label renders at its full
+            natural width (truncate stays on as a safety net for a
+            genuinely long label), and the row grows to two lines only
+            when the AI controls are actually visible (pending state),
+            which is already a transient, attention-grabbing state where
+            extra height is expected. */}
         <label
           htmlFor={htmlFor}
           title={labelTitle}

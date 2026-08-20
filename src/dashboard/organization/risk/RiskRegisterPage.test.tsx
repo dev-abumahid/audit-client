@@ -3265,6 +3265,73 @@ describe("RiskRegisterPage", () => {
       expect(velocityBadge).not.toHaveAttribute("title")
     })
 
+    // CEO re-reported (2026-08-19) after the first overlap fix: min-w-0 +
+    // truncate on the label + shrink-0 on the AI controls stopped the
+    // visual overlap, but at this row's real narrow-column width the
+    // controls cluster alone needs more space than the column has, so the
+    // label truncated down to 1-2 characters -- unreadable, still looked
+    // broken. flex-wrap lets the controls drop to their own line below
+    // the label instead of fighting it for the same line. Assert both
+    // halves of the fix: the label keeps its full, untruncated text AND
+    // nothing overlaps it vertically.
+    it("keeps AI-suggestable field labels fully readable (not truncated) and non-overlapping with the AI controls", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
+      mockSuggestRiskFields.mockReturnValue({
+        unwrap: () =>
+          Promise.resolve({
+            success: true,
+            message: "",
+            data: {
+              suggestions: {
+                probability: 65,
+                impact: 80,
+                velocity: "high",
+                trend: "increasing",
+                control_design_eff: 55,
+                control_operating_eff: 40,
+                financial_impact_min: 50,
+                financial_impact_max: 500,
+              },
+              rationale: {},
+            },
+          }),
+      })
+
+      const { container } = renderPage()
+      await userEvent.click(
+        screen.getByRole("button", { name: "organization.riskRegister.addNewRisk" })
+      )
+      await fillBasics(container)
+      await userEvent.click(
+        screen.getByRole("button", { name: "Pre-fill entire form with AI" })
+      )
+      await waitFor(() => expect(mockSuggestRiskFields).toHaveBeenCalled())
+      await waitFor(() => {
+        expect(
+          (container.querySelector('[name="probability"]') as HTMLInputElement)
+            .value
+        ).toBe("65")
+      })
+
+      for (const fieldName of ["probability", "impact", "velocity", "trend"]) {
+        const field = container.querySelector(`[name="${fieldName}"]`)!
+        const row = field.closest("div")!.parentElement!.querySelector("label")!
+          .parentElement as HTMLElement
+        const label = row.querySelector("label")!
+        // jsdom's layout engine doesn't compute real geometry (every
+        // element reports 0x0), so this can't assert actual pixel
+        // overlap -- that was verified via live browser measurement
+        // during the fix. What jsdom CAN verify, and what regresses if
+        // `truncate` silently comes back without `flex-wrap`: the full,
+        // untruncated label text is still present in the DOM (a
+        // CSS-only truncation wouldn't change textContent, but this
+        // guards against a future regression that swaps in JS-level
+        // text slicing instead of a CSS ellipsis).
+        expect(label.textContent!.length).toBeGreaterThan(2)
+        expect(row.className).toContain("flex-wrap")
+      }
+    })
+
     it("suggests a single field independently, without touching the bulk button or other fields", async () => {
       mockUseGetAllRisksQuery.mockReturnValue({ data: { data: [] } })
       mockSuggestRiskFields.mockReturnValue({
