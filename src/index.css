@@ -447,6 +447,36 @@
   }
 }
 
+/* Phase C (theme-improvement-initiative): live-value-update signal, paired
+   with useValueChangeFlash. Two-phase trick, not a single animation: the
+   base rule's LONG transition only applies once .is-flashing is removed,
+   so the highlight snaps on instantly (see the .is-flashing override
+   below) then decays slowly back to nothing over 1.2s -- fast enough to
+   notice a value just changed, slow enough to read as "this changed," not
+   "alarm." A pulsing/blinking treatment was deliberately rejected for
+   this: KRI status pills separately use severityBadgeClasses for their
+   actual alert state, and this signal must never be confusable with that.
+   Under reduced motion the color change still happens (it's real
+   information, not decoration) but without the animated transition. */
+@layer utilities {
+  .value-flash {
+    transition: background-color 1.2s ease-out;
+    border-radius: 0.375rem;
+  }
+
+  .value-flash.is-flashing {
+    transition: background-color 0.1s ease-out;
+    background-color: hsl(var(--primary) / 0.16);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .value-flash,
+  .value-flash.is-flashing {
+    transition: none;
+  }
+}
+
 /* =========================
    SCROLLBAR
 ========================= */

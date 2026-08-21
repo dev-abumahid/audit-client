@@ -1823,9 +1823,10 @@ describe("KriDashboardPage", () => {
     // Spotted live right after the thousands-grouping fix shipped: a large
     // value (now wider still with comma separators) had nowhere to go but
     // into the action-button row's space, shrinking the 44px touch targets
-    // round 2 established. The value now truncates (with a title fallback)
-    // instead of compressing its siblings.
-    it("truncates a very large current value instead of shrinking the action buttons below their touch-target size", () => {
+    // round 2 established. Truncating the value itself was rejected (Phase
+    // C2 live-verify pass) -- the value always renders in full, and the
+    // action-button row wraps to its own line instead of compressing.
+    it("renders a very large current value in full instead of shrinking or truncating it", () => {
       mockUseGetAllKriQuery.mockReturnValue({
         data: { data: [makeKri({ current_value: 1241153215 })] },
         isLoading: false,
@@ -1833,8 +1834,8 @@ describe("KriDashboardPage", () => {
 
       renderPage()
 
-      const value = screen.getByTitle("1,241,153,215")
-      expect(value.className).toContain("truncate")
+      const value = screen.getByText("1,241,153,215")
+      expect(value.className).not.toContain("truncate")
 
       for (const title of [
         "organization.kri.trend.viewTooltip",
@@ -2388,6 +2389,86 @@ describe("KriDashboardPage", () => {
       expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
       const card = document.getElementById("kri-kri-1")
       expect(card?.className).not.toContain("ring-2")
+    })
+  })
+
+  // Phase C (theme-improvement-initiative): live-update flash on a KRI's
+  // current_value, via useValueChangeFlash. Exercises the real page +
+  // hook wiring together, not just the hook in isolation (already covered
+  // by useValueChangeFlash.test.ts).
+  describe("live-update flash on a KRI's value", () => {
+    function rerenderWithKris(
+      rerender: ReturnType<typeof renderPage>["rerender"],
+      kris: ReturnType<typeof makeKri>[]
+    ) {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: kris },
+        isLoading: false,
+      })
+      rerender(
+        <MemoryRouter initialEntries={["/"]}>
+          <KriDashboardPage />
+        </MemoryRouter>
+      )
+    }
+
+    it("does not flash any card on first load, even though every KRI is technically new", () => {
+      mockUseGetAllKriQuery.mockReturnValue({
+        data: { data: [makeKri({ id: "kri-1" })] },
+        isLoading: false,
+      })
+
+      renderPage("/")
+
+      const valueEl = screen.getByText("50").closest(".value-flash")
+      expect(valueEl?.className).not.toContain("is-flashing")
+    })
+
+    it("flashes a card's value and announces the change when current_value updates on refetch", async () => {
+      const { rerender } = renderPage("/")
+      rerenderWithKris(rerender, [makeKri({ id: "kri-1", current_value: 50 })])
+
+      rerenderWithKris(rerender, [makeKri({ id: "kri-1", current_value: 65 })])
+
+      const valueEl = await screen.findByText("65")
+      expect(valueEl.closest(".value-flash")?.className).toContain(
+        "is-flashing"
+      )
+
+      // t() in this file returns the raw key (see the file-level comment
+      // on the react-i18next mock), so the announcer region's rendered
+      // text is just the key itself -- asserting on `tCalls` (this file's
+      // own established pattern for checking interpolation args) confirms
+      // the *right* key was actually called with the right values, which
+      // is the real thing worth proving here.
+      await waitFor(() => {
+        const call = tCalls.find(
+          ([key]) => key === "organization.kri.valueUpdatedAnnouncement"
+        )
+        expect(call).toBeDefined()
+        expect(call?.[1]).toMatchObject({
+          name: "Overdue actions",
+          value: "65",
+          unit: "%",
+        })
+      })
+    })
+
+    it("does not flash a card whose value is unchanged when a sibling KRI updates", async () => {
+      const { rerender } = renderPage("/")
+      rerenderWithKris(rerender, [
+        makeKri({ id: "kri-1", current_value: 50 }),
+        makeKri({ id: "kri-2", name: "Patch lag", current_value: 3 }),
+      ])
+
+      rerenderWithKris(rerender, [
+        makeKri({ id: "kri-1", current_value: 50 }),
+        makeKri({ id: "kri-2", name: "Patch lag", current_value: 9 }),
+      ])
+
+      await screen.findByText("9")
+      const unchangedValueEl = screen.getByText("50").closest(".value-flash")
+      expect(unchangedValueEl?.className).not.toContain("is-flashing")
     })
   })
 })

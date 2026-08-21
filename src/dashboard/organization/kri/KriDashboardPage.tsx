@@ -2,6 +2,7 @@ import { useGetKriReadingsQuery } from "@/redux/apis/organization/kri.api"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import FilteredByNotice from "@/components/shared/FilteredByNotice"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
+import { useValueChangeFlash } from "@/hooks/useValueChangeFlash"
 import { formatLocaleDate } from "@/utils/formatDate"
 import type { KRI } from "@/types/organization"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
@@ -87,6 +88,46 @@ export default function KriDashboardPage() {
     updateKri,
     deleteKri,
   } = useKriData()
+
+  // Phase C (theme-improvement-initiative): flags a KRI card's value as
+  // "just changed" for ~1.4s after a real update (editing a value via
+  // UpdateValueModal, or any other write that changes what GET /kri
+  // returns) -- `kris` is safe to depend on directly here since
+  // useKriData.ts already memoizes it off the RTK Query response itself,
+  // so a new reference only ever means new data actually arrived, not an
+  // unrelated re-render. See useValueChangeFlash.ts for why the very
+  // first render with real data never flashes everything as "changed."
+  const { flashingKeys: flashingKriIds, changes: kriValueChanges } =
+    useValueChangeFlash(
+      kris,
+      (kri: KRI) => kri.id,
+      (kri: KRI) => kri.current_value
+    )
+  // Visually-hidden live announcer, one shared region for the whole page
+  // rather than one per card -- a screen-reader user only needs to hear
+  // that a value changed and to what, not re-navigate to each card to
+  // discover it (the same gap a live-update flash without this region
+  // would have, per the accessibility review that flagged this pattern's
+  // first draft). Capped to naming the KRIs individually only when few
+  // changed at once; a full-panel refetch touching many KRIs announces a
+  // count instead of an unreadable wall of names.
+  const kriChangeAnnouncement = useMemo(() => {
+    if (kriValueChanges.length === 0) return ""
+    if (kriValueChanges.length > 3) {
+      return t("organization.kri.multipleUpdated", {
+        count: kriValueChanges.length,
+      })
+    }
+    return kriValueChanges
+      .map(({ item }) =>
+        t("organization.kri.valueUpdatedAnnouncement", {
+          name: item.name,
+          value: formatKriNumber(Number(item.current_value), i18n.language),
+          unit: item.unit,
+        })
+      )
+      .join(" ")
+  }, [kriValueChanges, t, i18n.language])
 
   // aexa-frontend#530: scrolls to and briefly highlights the KRI card an
   // AlertsPage "View KRI" link was clicked for. Only fires once the KRI
@@ -452,6 +493,12 @@ export default function KriDashboardPage() {
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
+      {/* Visually-hidden announcer for the value-change flash above -- see
+          the kriChangeAnnouncement derivation for why this only names KRIs
+          individually below a small threshold. */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {kriChangeAnnouncement}
+      </div>
       <div className="animate-fade-in flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
@@ -655,23 +702,35 @@ export default function KriDashboardPage() {
                 </div>
               </div>
 
-              <div className="mt-3 flex items-baseline gap-2">
-                {/* Round 13 (layout finding, spotted live after the
-                    thousands-grouping fix): a large value (e.g. a
-                    9-10-digit KRI, now wider still with comma
-                    separators) had nowhere to go but into the button
-                    row's space -- flex's default shrink:1 let the 44px
-                    touch targets below compress well under the round-2
-                    guideline instead. Truncating the value (with a
-                    title fallback, same pattern used elsewhere on this
-                    page) and pinning the buttons to shrink-0 keeps the
-                    touch targets fixed-size no matter how wide the
-                    number gets. */}
-                <div className="flex min-w-0 flex-1 items-baseline gap-2">
-                  <span
-                    title={formatKriNumber(Number(kri.current_value), i18n.language)}
-                    className="font-mono-data truncate text-2xl font-bold text-foreground lg:text-3xl"
-                  >
+              {/* Round 13 (layout finding, spotted live after the
+                  thousands-grouping fix): a large value (e.g. a 9-10-digit
+                  KRI, now wider still with comma separators) had nowhere
+                  to go but into the button row's space. Round 13's own fix
+                  (truncate + shrink-0 buttons) traded that for a DIFFERENT
+                  live bug (theme-improvement-initiative Phase C2): with 4
+                  fixed 44px touch-target buttons and a several-character
+                  unit label both competing for the same row, an ordinary
+                  2-3 digit value truncated too ("77" rendered as "7."),
+                  and a first attempt at reserving the number a minimum
+                  width just pushed the overflow onto the unit label
+                  instead, spilling text over the first button with no gap
+                  (caught live, same live-verify pass). Truncating the
+                  value itself was rejected outright (a KRI's number is the
+                  one thing on this card that must never be partially
+                  hidden) in favor of flex-wrap on this row plus a shrink-0
+                  button-group wrapper: the value+unit span keeps its full
+                  natural width (no min-w-0 on its flex item, so it can't
+                  be squeezed below its content), and the whole button
+                  group instead drops to its own line -- the card grows
+                  taller -- whenever the value+unit genuinely don't leave
+                  enough space on one line. */}
+              <div className="mt-3 flex flex-wrap items-baseline gap-2">
+                <div
+                  className={`value-flash flex flex-1 items-baseline gap-2 ${
+                    flashingKriIds.has(kri.id) ? "is-flashing" : ""
+                  }`}
+                >
+                  <span className="font-mono-data text-2xl font-bold text-foreground lg:text-3xl">
                     {formatKriNumber(Number(kri.current_value), i18n.language)}
                   </span>
                   <span className="shrink-0 text-sm text-muted-foreground">
@@ -684,60 +743,66 @@ export default function KriDashboardPage() {
                     controls on every card. Same h-11 w-11 fix already
                     established on RiskMatrixPage/CorrelationMatrixPage:
                     the wrapper gets the full touch target while the icon
-                    inside stays visually small. */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeAllModals()
-                    setTrendKriId(kri.id)
-                  }}
-                  className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  title={t("organization.kri.trend.viewTooltip")}
-                  aria-label={t("organization.kri.trend.viewTooltip")}
-                >
-                  <ChartLine className="h-3.5 w-3.5" />
-                </button>
-                {canWrite && (
-                  <button
-                    type="button"
-                    onClick={() => openUpdateValue(kri)}
-                    className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    title={t("organization.kri.updateValueTooltip")}
-                    aria-label={t("organization.kri.updateValueTooltip")}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                {/* Round-5 industry-standards finding: updateKri/deleteKri
-                    existed server-side with zero frontend consumer -- a
-                    KRI's own fields (name/unit/thresholds/frequency)
-                    could never be corrected, and a mistakenly created one
-                    could never be removed, without going around the UI. */}
-                {canWrite && (
-                  <button
-                    type="button"
-                    onClick={() => openEdit(kri)}
-                    className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    title={t("organization.kri.editTooltip")}
-                    aria-label={t("organization.kri.editTooltip")}
-                  >
-                    <Settings2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                {canWrite && (
+                    inside stays visually small. Grouped into their own
+                    shrink-0 flex wrapper (Phase C2) so flex-wrap on the
+                    outer row treats all four as one unit that either fits
+                    on the value's line or wraps together, never splits
+                    mid-group. */}
+                <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
                     onClick={() => {
                       closeAllModals()
-                      setDeletingKri(kri)
+                      setTrendKriId(kri.id)
                     }}
-                    className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                    title={t("organization.kri.deleteTooltip")}
-                    aria-label={t("organization.kri.deleteTooltip")}
+                    className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    title={t("organization.kri.trend.viewTooltip")}
+                    aria-label={t("organization.kri.trend.viewTooltip")}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <ChartLine className="h-3.5 w-3.5" />
                   </button>
-                )}
+                  {canWrite && (
+                    <button
+                      type="button"
+                      onClick={() => openUpdateValue(kri)}
+                      className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      title={t("organization.kri.updateValueTooltip")}
+                      aria-label={t("organization.kri.updateValueTooltip")}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {/* Round-5 industry-standards finding: updateKri/deleteKri
+                      existed server-side with zero frontend consumer -- a
+                      KRI's own fields (name/unit/thresholds/frequency)
+                      could never be corrected, and a mistakenly created one
+                      could never be removed, without going around the UI. */}
+                  {canWrite && (
+                    <button
+                      type="button"
+                      onClick={() => openEdit(kri)}
+                      className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      title={t("organization.kri.editTooltip")}
+                      aria-label={t("organization.kri.editTooltip")}
+                    >
+                      <Settings2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {canWrite && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeAllModals()
+                        setDeletingKri(kri)
+                      }}
+                      className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      title={t("organization.kri.deleteTooltip")}
+                      aria-label={t("organization.kri.deleteTooltip")}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="mt-1 flex items-center gap-4 text-[11px] text-muted-foreground">
