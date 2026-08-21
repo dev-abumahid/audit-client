@@ -80,8 +80,8 @@
     },
     "productDemo": {
       "eyebrow": "See it in action",
-      "title": "Real analysis, not a screenshot",
-      "description": "Every number below is computed the same way the live product computes it — real severity scoring, real KRI thresholds, real risk-correlation graph — just fed sample data instead of your org's.",
+      "title": "Try the real thing",
+      "description": "Drag the reading, click a matrix cell, explore the graph — every result below runs the same scoring and thresholds as the live product, just on sample data.",
       "riskMatrix": {
         "title": "Risk Matrix",
         "dimensions": "5 × 5",

@@ -80,8 +80,8 @@
     },
     "productDemo": {
       "eyebrow": "En action",
-      "title": "Une vraie analyse, pas une capture d'écran",
-      "description": "Chaque chiffre ci-dessous est calculé exactement comme le produit réel le calcule — notation de gravité réelle, seuils d'ICR réels, graphe de corrélation des risques réel — avec des données d'exemple à la place des vôtres.",
+      "title": "Essayez pour de vrai",
+      "description": "Faites glisser la mesure, cliquez sur une cellule de la matrice, explorez le graphe — chaque résultat ci-dessous applique la même notation et les mêmes seuils que le produit réel, avec des données d'exemple.",
       "riskMatrix": {
         "title": "Matrice des risques",
         "dimensions": "5 × 5",
