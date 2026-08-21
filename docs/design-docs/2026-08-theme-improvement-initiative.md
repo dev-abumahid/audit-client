@@ -41,6 +41,18 @@ requirement for how these PRs are scoped, not just a nice-to-have.
   to drop in favor of native CSS (`<dialog>`, `animation-timeline: view()`,
   `:has()`, container queries), each with a progressive-enhancement
   fallback documented in the relevant PR.
+- **Preview-pattern convention, established in Phase B1/B2**: split a page
+  into a thin data-fetching wrapper + a presentational `*View.tsx` taking
+  props, plus a `*Preview.tsx` demo entry point with mock data via the
+  shared `assertPreviewOnly()` guard (`src/utils/assertPreviewOnly.ts`).
+  For a page with more than a couple of data sources (Overview.tsx had 8),
+  group props by domain — `{ risks: {data, isLoading, isError}, kris: {...},
+  ... }` — not flat props per field; a `useMemo` depending on a group must
+  depend on the group's `.data` field specifically, not the group object
+  itself, since both the real wrapper and the preview construct a fresh
+  literal every render. Neither B1 nor B2 wired their preview into a public
+  route — that's deliberately deferred to Phase E, so there's no unused
+  public surface sitting in production between phases.
 
 ## Phases
 
@@ -49,7 +61,7 @@ requirement for how these PRs are scoped, not just a nice-to-have.
 | A1 | `role="switch"`/`aria-checked` audit (found stale — no fix needed) + add `eslint-plugin-jsx-a11y` | **shipped** | [#991](https://github.com/Qiyrix/aexa-frontend/pull/991) |
 | A2 | Badge primitive + severity-color migration | **shipped** (partial — 4 of ~25 files migrated, rest listed as follow-up in the PR) | [#992](https://github.com/Qiyrix/aexa-frontend/pull/992) |
 | B1 | Land the `RiskMatrixPage` → `RiskMatrixView` + preview pattern for real | **shipped** (not yet wired to a public route — that's Phase E) | [#994](https://github.com/Qiyrix/aexa-frontend/pull/994) |
-| B2 | Extend the preview pattern to `Overview.tsx` | not started | — |
+| B2 | Extend the preview pattern to `Overview.tsx` | **shipped** (not yet wired to a public route — that's Phase E) | [#996](https://github.com/Qiyrix/aexa-frontend/pull/996) |
 | C | Motion: drop framer-motion, native `<dialog>`, scroll reveals, `:has()` filtering, container queries, live-update flash pattern | not started | — |
 | D | Modal consolidation (~24 files, smallest/safest first, `FindingDetails.tsx`/`AuditPage.tsx` last) — sequenced with Phase C since both touch modal files | not started | — |
 | E | Landing page rebuild using real preview components + interactive demos + Phase C motion | not started | — |
