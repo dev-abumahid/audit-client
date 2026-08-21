@@ -27,7 +27,7 @@ describe("ProductDemoSection", () => {
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
   })
 
-  it("renders all three widgets", () => {
+  it("renders all four widgets", () => {
     renderSection()
     expect(
       screen.getByText("home.productDemo.riskMatrix.title")
@@ -38,6 +38,9 @@ describe("ProductDemoSection", () => {
     expect(
       screen.getByText("home.productDemo.riskGraph.title")
     ).toBeInTheDocument()
+    expect(
+      screen.getByText("home.productDemo.kriSlider.title")
+    ).toBeInTheDocument()
   })
 
   // The whole point of this redesign: every widget still computes from real
@@ -46,9 +49,11 @@ describe("ProductDemoSection", () => {
   // from the shared mock fixtures actually render.
   it("renders real mock data, not fabricated placeholder content", () => {
     renderSection()
-    // KriTrendWidget shows MOCK_KRIS[0]'s real name.
+    // Both KriTrendWidget and the new KriThresholdSliderWidget show
+    // MOCK_KRIS[0]'s real name -- two independent widgets legitimately
+    // agreeing on the same real KRI, not a duplicate render.
     expect(
-      screen.getByText("Unpatched critical CVEs on internet-facing systems")
-    ).toBeInTheDocument()
+      screen.getAllByText("Unpatched critical CVEs on internet-facing systems")
+    ).toHaveLength(2)
   })
 })

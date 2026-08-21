@@ -1,6 +1,7 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
 import { useRevealOnScroll } from "@/hooks/useRevealOnScroll"
+import KriThresholdSliderWidget from "./productDemo/KriThresholdSliderWidget"
 import KriTrendWidget from "./productDemo/KriTrendWidget"
 import RiskGraphWidget from "./productDemo/RiskGraphWidget"
 import RiskMatrixWidget from "./productDemo/RiskMatrixWidget"
@@ -136,6 +137,21 @@ const ProductDemoSection: React.FC = () => {
                 <Widget animate={revealVisible} />
               </div>
             ))}
+          </div>
+
+          {/* Landing overhaul PR2: transitional placement. This becomes the
+              first of three tabs (slider -> matrix -> role-scoped register)
+              once PR3 converts this whole section to a tabbed layout --
+              standalone here rather than a 4th grid column since the
+              connector rail above is hand-built for exactly 3 nodes, and
+              reworking it for 4 now would just be undone next PR. */}
+          <div
+            className={`mt-5 max-w-md rounded-xl bg-gradient-to-br from-accent/50 to-border/60 p-px shadow-lg shadow-foreground/[0.03] transition-all duration-500 ease-out motion-reduce:transition-none ${
+              revealVisible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+            }`}
+            style={revealVisible ? { transitionDelay: "360ms" } : undefined}
+          >
+            <KriThresholdSliderWidget />
           </div>
         </div>
       </div>

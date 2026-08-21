@@ -106,6 +106,13 @@
         "plots": "Positionne le risque",
         "correlates": "Le corrèle",
         "triggers": "Déclenche l'alerte"
+      },
+      "kriSlider": {
+        "title": "Faites glisser la mesure",
+        "sliderLabel": "Mesure actuelle de {{name}}",
+        "targetLabel": "Cible : {{value}}",
+        "thresholdLabel": "Alerte : {{value}}",
+        "caption": "La même formule de statut que le tableau de bord des KRI — faites glisser la mesure et regardez-la franchir les seuils réels de cible et d'alerte."
       }
     },
     "featureSection": {
