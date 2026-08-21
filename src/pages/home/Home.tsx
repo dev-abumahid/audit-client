@@ -1,4 +1,5 @@
 import CredibilityBand from "./components/CredibilityBand"
+import ConnectedDataModelSection from "./components/connectedDataModel/ConnectedDataModelSection"
 import FAQSection from "./components/FAQSection"
 import FeaturesSection from "./components/FeaturesSection"
 import HeroFeatures from "./components/HeroFeatures"
@@ -14,6 +15,7 @@ export default function Home() {
       <HeroFeatures />
       <ProductDemoSection />
       <FeaturesSection />
+      <ConnectedDataModelSection />
       <TestimonialsSection />
       <FAQSection />
     </div>

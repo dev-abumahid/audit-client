@@ -144,7 +144,7 @@
       "eyebrow": "Platform",
       "title1": "One workspace for",
       "title2": "risk, audits, and action",
-      "description": "One data model underlies every module: a risk, a control test, and the audit that verifies it all point to the same record.",
+      "description": "The modules a governance team actually runs on.",
       "features": [
         {
           "title": "Compliance-grade templates",
@@ -171,6 +171,20 @@
           "description": "AI-assisted recommendations rank the register by real exposure score."
         }
       ]
+    },
+    "connectedDataModel": {
+      "eyebrow": "One shared record",
+      "title": "Click a risk. Watch it show up everywhere.",
+      "description": "The same risk object underlies its register entry, its KRI, an audit finding, and a mitigation — updating one updates what everyone else sees.",
+      "hint": "Click any card — the same risk reference highlights across all five, because it's the same record.",
+      "groupLabel": "Risk CYB-014 shown across the register, a KRI, an audit finding, and a mitigation",
+      "highlightAnnouncement": "Highlighting the same risk across all 5 linked records.",
+      "cards": {
+        "register": "Register entry",
+        "kri": "KRI",
+        "finding": "Audit finding",
+        "mitigation": "Mitigation"
+      }
     },
     "testimonials": {
       "eyebrow": "In practice",

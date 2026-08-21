@@ -144,7 +144,7 @@
       "eyebrow": "Plateforme",
       "title1": "Un seul espace pour le risque,",
       "title2": "les audits et l'action",
-      "description": "Un seul modèle de données sous-tend chaque module : un risque, un test de contrôle et l'audit qui le vérifie pointent tous vers le même enregistrement.",
+      "description": "Les modules sur lesquels une équipe de gouvernance s'appuie réellement.",
       "features": [
         {
           "title": "Modèles conformes, prêts pour l'audit",
@@ -171,6 +171,20 @@
           "description": "Des recommandations assistées par IA classent le registre selon un score d'exposition réel."
         }
       ]
+    },
+    "connectedDataModel": {
+      "eyebrow": "Un enregistrement partagé",
+      "title": "Cliquez sur un risque. Regardez-le apparaître partout.",
+      "description": "Le même objet risque sous-tend son entrée dans le registre, son KRI, un constat d'audit et une mesure d'atténuation — en mettre un à jour met à jour ce que tous les autres voient.",
+      "hint": "Cliquez sur une carte — la même référence de risque s'illumine sur les cinq, car c'est le même enregistrement.",
+      "groupLabel": "Risque CYB-014 présenté dans le registre, un KRI, un constat d'audit et une mesure d'atténuation",
+      "highlightAnnouncement": "Mise en évidence du même risque sur les 5 enregistrements liés.",
+      "cards": {
+        "register": "Entrée du registre",
+        "kri": "KRI",
+        "finding": "Constat d'audit",
+        "mitigation": "Mesure d'atténuation"
+      }
     },
     "testimonials": {
       "eyebrow": "En pratique",
