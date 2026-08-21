@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 
 // Animates a number from 0 to `target` once `start` becomes true, using
 // requestAnimationFrame with an ease-out curve. Built for the landing page's
@@ -11,13 +11,22 @@ import { useEffect, useRef, useState } from "react"
 // straight to the final value instead of animating, rather than skipping
 // the hook's effect and leaving the number at 0 -- a reduced-motion user
 // should still see the real number immediately, not a stuck placeholder.
+//
+// No "already started" ref guard: React 18 StrictMode double-invokes this
+// effect in dev (mount -> cleanup -> mount), and a ref-based guard survives
+// that fake unmount while state doesn't -- the first invocation's RAF chain
+// gets cancelled by the synthetic cleanup, then the guard silently blocks
+// the second invocation from restarting it, freezing the count partway
+// through (caught live: a 92% target visibly stuck at 6%). Relying only on
+// `start` in the dependency array is safe because callers pass a boolean
+// that flips false->true once (useRevealOnScroll's isVisible, which
+// disconnects its observer after firing) -- the effect cannot legitimately
+// re-fire for the same mount unless `start` itself changes.
 export function useCountUp(target: number, start: boolean, duration = 1200) {
   const [value, setValue] = useState(0)
-  const startedRef = useRef(false)
 
   useEffect(() => {
-    if (!start || startedRef.current) return
-    startedRef.current = true
+    if (!start) return
 
     if (
       typeof window !== "undefined" &&

@@ -38,6 +38,22 @@
         "media": "Media"
       }
     },
+    "credibilityBand": {
+      "stats": [
+        {
+          "value": "6",
+          "label": "modules on one shared data model"
+        },
+        {
+          "value": "3",
+          "label": "roles with scoped access out of the box"
+        },
+        {
+          "value": "5×5",
+          "label": "severity scoring on every risk"
+        }
+      ]
+    },
     "heroFeatures": {
       "eyebrow": "How it works",
       "title1": "Built for how risk actually",

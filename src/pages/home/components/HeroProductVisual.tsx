@@ -1,6 +1,7 @@
 import React from "react"
 import Logo from "@/components/shared/Logo"
 import { useTranslation } from "react-i18next"
+import { useCountUp } from "@/hooks/useCountUp"
 
 // Replaces the static hero-visual.svg: that asset had hardcoded hex colors
 // baked in at authoring time, so it ignored the theme entirely (a bright
@@ -43,7 +44,7 @@ const COMPLIANCE_ITEMS = [
     // technically clears AA on its own (9.08:1), but real Tailwind shades
     // for both themes -- not the raw token -- keeps this consistent with
     // src/utils/severityStyles.ts's low entry (round-4 final-review fix).
-    // Also used directly (no chip) on the 92% stat below.
+    // Also used directly (no chip) on the compliance-rate stat below.
     chip: "bg-emerald-500/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-400",
   },
   {
@@ -79,8 +80,24 @@ const CATEGORY_BARS = [
   { key: "strategic", height: "h-7", fill: "bg-primary/60" },
 ]
 
-const HeroProductVisual: React.FC = () => {
+// v3 motion pass (theme-improvement-initiative, landing overhaul): the
+// hero's four quadrants previously entered as one opaque block via the
+// parent's own visualRef transition. `visible` lets each quadrant stagger
+// in independently on top of that, plus one real data point (compliance
+// rate) counts up once -- the plan's single deliberate exception to
+// "hero polish is spacing/copy only", bounded to a one-time reveal with
+// no ambient loop.
+const HeroProductVisual: React.FC<{ visible?: boolean }> = ({
+  visible = true,
+}) => {
   const { t } = useTranslation()
+  const complianceRate = useCountUp(92, visible)
+
+  const quadrantClass = `bg-card p-4 transition-all duration-500 ease-out motion-reduce:transition-none ${
+    visible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+  }`
+  const quadrantStyle = (index: number) =>
+    visible ? { transitionDelay: `${index * 90}ms` } : undefined
 
   return (
     // No hover state: this is a static illustrative product screenshot
@@ -114,7 +131,7 @@ const HeroProductVisual: React.FC = () => {
 
       <div className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2">
         {/* Risk matrix */}
-        <div className="bg-card p-4">
+        <div className={quadrantClass} style={quadrantStyle(0)}>
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-semibold text-foreground">
               {t("home.hero.visual.riskMatrix")}
@@ -161,7 +178,7 @@ const HeroProductVisual: React.FC = () => {
         </div>
 
         {/* Compliance obligations */}
-        <div className="bg-card p-4">
+        <div className={quadrantClass} style={quadrantStyle(1)}>
           <div className="mb-3">
             <span className="text-xs font-semibold text-foreground">
               {t("home.hero.visual.compliance")}
@@ -188,7 +205,7 @@ const HeroProductVisual: React.FC = () => {
         </div>
 
         {/* Executive overview */}
-        <div className="bg-card p-4">
+        <div className={quadrantClass} style={quadrantStyle(2)}>
           <span className="mb-3 block text-xs font-semibold text-foreground">
             {t("home.hero.visual.executiveOverview")}
           </span>
@@ -203,7 +220,7 @@ const HeroProductVisual: React.FC = () => {
             </div>
             <div>
               <p className="font-mono-data text-lg font-bold text-emerald-700 dark:text-emerald-400">
-                92%
+                {complianceRate}%
               </p>
               <p className="text-[10px] text-muted-foreground">
                 {t("home.hero.visual.complianceRate")}
@@ -221,7 +238,7 @@ const HeroProductVisual: React.FC = () => {
         </div>
 
         {/* AI-generated audit template */}
-        <div className="bg-card p-4">
+        <div className={quadrantClass} style={quadrantStyle(3)}>
           <span className="mb-3 block text-xs font-semibold text-foreground">
             {t("home.hero.visual.generateTemplate")}
           </span>

@@ -167,7 +167,7 @@ const HeroSection = () => {
                   glow) is the generic dev-tool-SaaS hero signature. */}
               <div className="absolute -inset-4 -z-10 rounded-3xl bg-foreground/[0.03] blur-2xl" />
               <div role="img" aria-label={t("home.hero.heroImageAlt")}>
-                <HeroProductVisual />
+                <HeroProductVisual visible={visualVisible} />
               </div>
               <p className="mt-3 text-center text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 {t("home.hero.heroCaption")}

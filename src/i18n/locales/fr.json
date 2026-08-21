@@ -38,6 +38,22 @@
         "media": "Média"
       }
     },
+    "credibilityBand": {
+      "stats": [
+        {
+          "value": "6",
+          "label": "modules sur un seul modèle de données"
+        },
+        {
+          "value": "3",
+          "label": "rôles à accès délimité, prêts à l'emploi"
+        },
+        {
+          "value": "5×5",
+          "label": "notation de gravité sur chaque risque"
+        }
+      ]
+    },
     "heroFeatures": {
       "eyebrow": "Comment ça marche",
       "title1": "Conçu pour la façon dont le risque",
