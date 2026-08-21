@@ -85,12 +85,68 @@ requirement for how these PRs are scoped, not just a nice-to-have.
 | C1 | Drop `framer-motion` (its one usage site ported to a CSS `animate-fade-in` class) | **shipped** | [#998](https://github.com/Qiyrix/aexa-frontend/pull/998) |
 | C2 | Live-update flash pattern: `useValueChangeFlash` hook + two-phase CSS transition + `aria-live` announcement, applied to the KRI dashboard | **shipped** | [#999](https://github.com/Qiyrix/aexa-frontend/pull/999) |
 | C3 | `:has()`-based row-select highlighting on `RiskRegisterPage`/`InspectionTable` (native `<dialog>` and scroll-driven-animation ideas dropped from scope — see below) | **shipped** | [#1001](https://github.com/Qiyrix/aexa-frontend/pull/1001) |
-| D | Modal consolidation (~24 files, smallest/safest first, `FindingDetails.tsx`/`AuditPage.tsx` last) — sequenced with Phase C since both touch modal files | in progress | — |
+| D | Modal consolidation (~24 files, smallest/safest first, `FindingDetails.tsx`/`AuditPage.tsx` last) — sequenced with Phase C since both touch modal files | **in progress** (4 of ~24 done — see below) | [#1003](https://github.com/Qiyrix/aexa-frontend/pull/1003), [#1004](https://github.com/Qiyrix/aexa-frontend/pull/1004), [#1005](https://github.com/Qiyrix/aexa-frontend/pull/1005) |
 | E | Landing page rebuild using real preview components + interactive demos + Phase C motion | not started | — |
 | F | Remaining primitives (Checkbox/Avatar/Skeleton/Tooltip), opportunistic | not started | — |
 
 This table is the source of truth for status — update the Status/PR
 columns as each phase ships, rather than tracking progress anywhere else.
+
+## Phase D status detail
+
+**Pattern established** (4 modals shipped: `AttestConfirmModal`,
+`ComplianceRiskLinkModal`, `RiskApprovalControls`'s Reject modal,
+`FindingClosureControls`'s Reject modal): swap a hand-rolled
+`fixed inset-0` overlay + the bespoke `useModalA11y` hook
+(`src/hooks/useModalA11y.ts`) for the shared Radix-backed `Dialog`
+(`src/components/ui/dialog.tsx`) — `Dialog`/`DialogContent`/
+`DialogHeader`/`DialogTitle`/`DialogFooter`, `open`/`onOpenChange`
+wired to whatever state already controlled the modal (a real boolean if
+one existed, or a literal `true` for conditionally-mounted modals),
+internal content otherwise untouched. Two real, reusable fixes came out
+of the first migration: (1) this `radix-ui` version (1.4.3) never emits
+`aria-modal` on `DialogContent` itself — fixed once in the shared
+component, not per-caller; (2) a couple of `CompliancePage.test.tsx`
+tests modeled clicking a different row's action while a modal was open
+— Radix's stricter (correct) modality makes the rest of the page
+`aria-hidden` while a dialog is open, so that's no longer reachable via
+role queries (and, given the full-viewport overlay both old and new
+implementations render, was likely never reachable by a real click
+either — only jsdom's lack of pixel-occlusion checking let it "work"
+before). Watch for the same pattern in any other modal-switching test.
+
+**Remaining candidates, by risk** (`grep -rl useModalA11y src --include="*.tsx"`
+minus the four done):
+
+- **Small/standalone, likely safe next** — none currently identified;
+  the four done were exactly the standalone small modal files. Re-run
+  the grep and check line counts before assuming a new one qualifies.
+- **Deliberately deferred, explicit warning already in the code**:
+  `KriDashboardPage.tsx`'s three modals (`UpdateValueModal.tsx`,
+  `EditKriModal.tsx`, `NewKriModal.tsx`) — `useModalA11y.ts`'s own
+  comment (written before this initiative) explains these were
+  deliberately kept on `useModalA11y` instead of the shared `Dialog`
+  because migrating would mean re-styling all three to fit
+  `DialogContent`'s own layout, a larger change than that a11y fix
+  called for. Respect that unless doing the restyling work properly,
+  with real layout comparison, not just a wrapper swap.
+- **Everything else is embedded in a large page-level file, not a
+  standalone modal component** — `IntelligencePage.tsx` (1478 lines),
+  `InspectionReport.tsx` (1230), `AuditPage.tsx` (1109),
+  `FindingDetails.tsx` (1227), `SitesEntities.tsx` (2062),
+  `EditTemplatePage.tsx` (758), `CreateTemplatePage.tsx` (483),
+  `RiskGraphPage.tsx` (2562), `RiskFormModal.tsx` (1931),
+  `ComplianceFormModal.tsx` (469), `AttestHistoryModal.tsx` (303, plus
+  its own roving-tabindex tab management — more complex than a plain
+  confirm modal), `QnASettingsPanel.tsx` (415), `TrendModal.tsx`
+  (KRI folder, likely shares the KRI restyling risk above). Migrating
+  the modal wrapper *within* one of these is meaningfully higher-risk
+  than the four done tonight — larger diff, harder to isolate the
+  modal-only change, more surface area for an unrelated regression in
+  the same file. Treat each as its own careful pass, not a batch.
+- `DeleteAlertModal.tsx` only mentions `useModalA11y` in a comment
+  (explaining a related fix) — it already uses `AlertDialog`, no work
+  needed.
 
 ## How to revert this whole initiative
 
