@@ -9,6 +9,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -160,17 +161,17 @@ export default function ExternalMembersSection() {
                 </td>
                 <td className="px-5 py-3">
                   {member.isExpired ? (
-                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                    <Badge variant="secondary">
                       {t("organization.externalMembers.statusExpired")}
-                    </span>
+                    </Badge>
                   ) : member.isActive ? (
-                    <span className="rounded-full bg-green-500/10 px-2.5 py-1 text-xs font-medium text-green-600 dark:text-green-400">
+                    <Badge variant="success">
                       {t("organization.externalMembers.statusActive")}
-                    </span>
+                    </Badge>
                   ) : (
-                    <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+                    <Badge variant="destructive">
                       {t("organization.externalMembers.statusInactive")}
-                    </span>
+                    </Badge>
                   )}
                 </td>
                 <td className="px-5 py-3">

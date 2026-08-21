@@ -10,6 +10,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -44,11 +45,7 @@ const ROLE_LABEL_KEYS: Record<string, string> = {
 function RoleBadge({ role }: { role: string }) {
   const { t } = useTranslation()
   const key = ROLE_LABEL_KEYS[role]
-  return (
-    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-      {key ? t(key) : role}
-    </span>
-  )
+  return <Badge variant="primary">{key ? t(key) : role}</Badge>
 }
 
 function StatusBadge({
@@ -61,22 +58,20 @@ function StatusBadge({
   const { t } = useTranslation()
   if (isExpired) {
     return (
-      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+      <Badge variant="secondary">
         {t("organization.teamMembers.statusExpired")}
-      </span>
+      </Badge>
     )
   }
   if (status === "SUSPENDED") {
     return (
-      <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+      <Badge variant="destructive">
         {t("organization.teamMembers.statusSuspended")}
-      </span>
+      </Badge>
     )
   }
   return (
-    <span className="rounded-full bg-green-500/10 px-2.5 py-1 text-xs font-medium text-green-600 dark:text-green-400">
-      {t("organization.teamMembers.statusActive")}
-    </span>
+    <Badge variant="success">{t("organization.teamMembers.statusActive")}</Badge>
   )
 }
 
@@ -369,9 +364,9 @@ export default function TeamMembersTab() {
                           })}
                         </span>
                         {isInviteExpired && (
-                          <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                          <Badge variant="secondary">
                             {t("organization.teamMembers.statusExpired")}
-                          </span>
+                          </Badge>
                         )}
                       </div>
                     </td>

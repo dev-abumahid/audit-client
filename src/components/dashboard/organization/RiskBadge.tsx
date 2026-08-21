@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge"
 import { SEVERITY_STYLES } from "@/utils/severityStyles"
 import { useTranslation } from "react-i18next"
 
@@ -18,16 +19,15 @@ export default function RiskBadge({
   // values, but this component is fed real API data (alert.severity,
   // risk severity, etc.) at several call sites with no runtime guard --
   // an unrecognized value crashed every caller of this shared component,
-  // not just the one that first surfaced it.
-  const c = SEVERITY_STYLES[level] ?? SEVERITY_STYLES.neutral
+  // not just the one that first surfaced it. Badge's `variant` prop is
+  // typed to the same canonical severity keys, so the same runtime guard
+  // still applies before it's used as a variant.
+  const safeLevel = level in SEVERITY_STYLES ? level : "neutral"
+  const dot = SEVERITY_STYLES[safeLevel].dot
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full ${c.bg} ${c.text} font-medium ${
-        size === "sm" ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-xs"
-      }`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
+    <Badge variant={safeLevel} size={size}>
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
       {label || t(`riskLevel.${level}`)}
-    </span>
+    </Badge>
   )
 }
