@@ -80,7 +80,7 @@ const fillEntry = async () => {
     screen.getByPlaceholderText("admin.onboarding.entry.adminEmailPlaceholder"),
     "admin@acme.test"
   )
-  await userEvent.type(screen.getByPlaceholderText("••••••••"), "supersecret")
+  await userEvent.type(screen.getByPlaceholderText("••••••••"), "supersecret1")
 }
 
 const okUnwrap = (data: unknown) => ({
@@ -131,7 +131,12 @@ describe("OnboardingWizard", () => {
     expect(mockIdentify).not.toHaveBeenCalled()
   })
 
-  it("enforces the 8-char password minimum before calling identify", async () => {
+  // Matches the backend's real rule (account.validation.ts's passwordSchema,
+  // reused by organization.validation.ts's create_organization schema as of
+  // aexa-server#380): 10+ chars, at least one letter, at least one number.
+  // The old 8-char-only client check let through passwords the backend
+  // would reject.
+  it("enforces the 10-char/letter/number password rule before calling identify", async () => {
     render(<OnboardingWizard onClose={vi.fn()} />)
     await userEvent.type(
       screen.getByPlaceholderText(
@@ -145,12 +150,39 @@ describe("OnboardingWizard", () => {
       ),
       "admin@acme.test"
     )
-    await userEvent.type(screen.getByPlaceholderText("••••••••"), "short")
+    await userEvent.type(screen.getByPlaceholderText("••••••••"), "short1")
     await userEvent.click(
       screen.getByRole("button", { name: "admin.onboarding.entry.analyze" })
     )
     expect(
-      screen.getByText("admin.onboarding.errors.passwordLength")
+      screen.getByText("auth.resetPassword.newPasswordMinLength")
+    ).toBeInTheDocument()
+    expect(mockIdentify).not.toHaveBeenCalled()
+  })
+
+  it("blocks Analyze when the password has 10+ characters but no number", async () => {
+    render(<OnboardingWizard onClose={vi.fn()} />)
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "admin.onboarding.entry.companyNamePlaceholder"
+      ),
+      "Acme"
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "admin.onboarding.entry.adminEmailPlaceholder"
+      ),
+      "admin@acme.test"
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText("••••••••"),
+      "longenoughpassword"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.entry.analyze" })
+    )
+    expect(
+      screen.getByText("auth.resetPassword.newPasswordMinLength")
     ).toBeInTheDocument()
     expect(mockIdentify).not.toHaveBeenCalled()
   })
@@ -483,6 +515,58 @@ describe("OnboardingWizard", () => {
 
     // Done step: header close X, close button.
     expectEveryButtonTyped()
+  })
+
+  // The client-side check mirrors the backend rule but isn't a substitute for
+  // it -- if the backend still rejects the password (e.g. a rule change), the
+  // commit's zod failure comes back as a generic top-level "Validation
+  // Error" message with the real reason in errorSources[{path: "password"}].
+  // That must surface as a specific, actionable error back on the entry
+  // step (where the password field lives), not a useless toast.
+  it("maps a commit-time password errorSources entry back onto the entry step instead of a generic toast", async () => {
+    mockIdentify.mockReturnValue(okUnwrap(profile))
+    mockGenerate.mockReturnValue(okUnwrap(draft))
+    mockCommit.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({
+          data: {
+            message: "Validation Error",
+            errorSources: [
+              { path: "password", message: "Password must contain at least one number." },
+            ],
+          },
+        }),
+    })
+    render(<OnboardingWizard onClose={vi.fn()} />)
+    await fillEntry()
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.entry.analyze" })
+    )
+    await waitFor(() =>
+      screen.getByText("admin.onboarding.confirm.discoveredSites")
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "admin.onboarding.confirm.continue" })
+    )
+    await waitFor(() => screen.getByDisplayValue("Supplier concentration"))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "admin.onboarding.review.createOrganization",
+      })
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Password must contain at least one number.")
+      ).toBeInTheDocument()
+    )
+    // Back on the entry step, not a generic toast.
+    expect(
+      screen.getByPlaceholderText(
+        "admin.onboarding.entry.companyNamePlaceholder"
+      )
+    ).toBeInTheDocument()
+    expect(mockToastError).not.toHaveBeenCalled()
   })
 
   it("shows a toast and stays on entry when identify fails", async () => {

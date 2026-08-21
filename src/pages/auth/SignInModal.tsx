@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog"
 import { useSignInUserMutation } from "@/redux/apis/auth.api"
 import type { SignInPayload } from "@/redux/apis/auth.api"
+import PasswordInput from "@/components/shared/PasswordInput"
 import { baseApi } from "@/redux/baseApi"
 import { useAppDispatch } from "@/redux/hooks"
 import { setUser } from "@/redux/slices/user.slice"
@@ -177,19 +178,25 @@ const SignInModal: React.FC<SignInModalProps> = ({
               >
                 {t("auth.signUp.password")}
               </label>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="current-password"
                 {...register("password", {
                   required: t("auth.signUp.passwordReqText"),
                 })}
                 placeholder="********"
-                className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
                 disabled={isSubmitting}
+                aria-invalid={errors.password ? true : undefined}
+                aria-describedby={
+                  errors.password ? "password-error" : undefined
+                }
               />
               {errors.password && (
-                <p className="mt-1 text-xs text-destructive">
+                <p
+                  id="password-error"
+                  role="alert"
+                  className="mt-1 text-xs text-destructive"
+                >
                   {t("auth.signUp.passwordReqText")}
                 </p>
               )}

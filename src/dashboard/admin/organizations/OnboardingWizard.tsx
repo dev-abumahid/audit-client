@@ -71,6 +71,22 @@ const errMessage = (error: unknown, fallback: string): string => {
   return data?.message || fallback
 }
 
+type ApiValidationError = {
+  data?: {
+    message?: string
+    errorSources?: Array<{ path?: string; message?: string }>
+  }
+}
+
+// Mirrors the backend's real password rule (10+ chars, a letter, a number --
+// account.validation.ts's passwordSchema, reused by organization.validation.ts's
+// create_organization schema as of aexa-server#380). Checked client-side to
+// fail fast; the commit handler below also maps a server-side rejection of
+// this same rule into a field-level error, same "errorSources" pattern
+// ResetPasswordPage.tsx / PasswordChangeForm.tsx already use.
+const isPasswordValid = (value: string): boolean =>
+  value.length >= 10 && /[A-Za-z]/.test(value) && /[0-9]/.test(value)
+
 // The AI-generated badge, matching the "🤖 AI" convention used across the
 // Risk Register / Sites views.
 function AiBadge({ label }: { label: string }) {
@@ -116,8 +132,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       setFormError(t("admin.onboarding.errors.required"))
       return
     }
-    if (password.length < 8) {
-      setFormError(t("admin.onboarding.errors.passwordLength"))
+    if (!isPasswordValid(password)) {
+      setFormError(t("auth.resetPassword.newPasswordMinLength"))
       return
     }
     try {
@@ -343,6 +359,21 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       setStep("done")
       onCreated?.(res.data)
     } catch (error) {
+      // A Zod validation failure's top-level message is always the generic
+      // "Validation Error" -- the backend's real password rule only shows up
+      // in errorSources (path "password", see organization.validation.ts's
+      // create_organization schema). The password field itself lives back on
+      // the entry step, so surface it there via formError rather than a
+      // toast the user can't act on from the review step.
+      const apiError = error as ApiValidationError
+      const passwordError = apiError?.data?.errorSources?.find(
+        (source) => source.path === "password" && source.message
+      )
+      if (passwordError?.message) {
+        setFormError(passwordError.message)
+        setStep("entry")
+        return
+      }
       toast.error(errMessage(error, t("admin.onboarding.errors.commit")))
     }
   }

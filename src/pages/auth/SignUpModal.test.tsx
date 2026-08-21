@@ -220,6 +220,80 @@ describe("SignUpModal", () => {
     expect(mockT).toHaveBeenCalledWith("auth.signUp.signingUp")
   })
 
+  it("toggles the password field between hidden and visible text via the show/hide button", async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    const passwordInput = screen.getByLabelText("Password")
+    expect(passwordInput).toHaveAttribute("type", "password")
+
+    const toggleButton = screen.getByRole("button", {
+      name: "common.showPassword",
+    })
+    await user.click(toggleButton)
+
+    expect(passwordInput).toHaveAttribute("type", "text")
+    expect(
+      screen.getByRole("button", { name: "common.hidePassword" })
+    ).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole("button", { name: "common.hidePassword" })
+    )
+    expect(passwordInput).toHaveAttribute("type", "password")
+  })
+
+  it("wires the password field's error to an aria-describedby id with role=alert, only when an error is present", async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    const passwordInput = screen.getByLabelText("Password")
+    expect(passwordInput).not.toHaveAttribute("aria-describedby")
+
+    await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
+    await user.type(screen.getByLabelText("Email"), "admin@acme.com")
+    await user.click(screen.getByRole("button", { name: "Sign Up" }))
+
+    const errorMessage = await screen.findByText("Password is required")
+    expect(errorMessage).toHaveAttribute("id", "password-error")
+    expect(errorMessage).toHaveAttribute("role", "alert")
+    expect(passwordInput).toHaveAttribute("aria-describedby", "password-error")
+  })
+
+  // Server-side password errors (errorSources) go through a manual
+  // setError() call, which react-hook-form's shouldFocusError default does
+  // NOT cover -- so this asserts the component explicitly moves focus there
+  // itself, rather than leaving a keyboard/screen-reader user to tab-hunt.
+  it("moves focus to the password field when a server-side password error is mapped via errorSources", async () => {
+    const user = userEvent.setup()
+
+    mockSignUpTrigger.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({
+          data: {
+            message: "Validation Error",
+            errorSources: [
+              {
+                path: "password",
+                message: "Password must contain at least one number.",
+              },
+            ],
+          },
+        }),
+    })
+
+    renderModal()
+
+    await user.type(screen.getByLabelText("Organization Name"), "Acme Corp")
+    await user.type(screen.getByLabelText("Email"), "admin@acme.com")
+    await user.type(screen.getByLabelText("Password"), "onlyletters")
+    await user.click(screen.getByRole("button", { name: "Sign Up" }))
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByLabelText("Password"))
+    )
+  })
+
   it("shows a translated message when password is left empty", async () => {
     const user = userEvent.setup()
     renderModal()

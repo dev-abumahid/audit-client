@@ -4,6 +4,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog"
+import PasswordInput from "@/components/shared/PasswordInput"
 import {
   useResendOtpMutation,
   useSignUpUserMutation,
@@ -62,6 +63,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
     handleSubmit,
     reset,
     setError,
+    setFocus,
     formState: { errors },
   } = useForm<SignUpFormData>({
     defaultValues: {
@@ -142,6 +144,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
       // mix of one known-field error and one unrecognized one doesn't lose
       // the unrecognized one just because the known one already rendered.
       let mappedAny = false
+      let passwordFieldErrored = false
       const unmapped: string[] = []
       errorSources.forEach(({ path, message }) => {
         if (!path || !message) return
@@ -151,10 +154,20 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
             message,
           })
           mappedAny = true
+          if (path === "password") passwordFieldErrored = true
         } else {
           unmapped.push(message)
         }
       })
+
+      // react-hook-form's shouldFocusError default only covers
+      // client-triggered validation, not a manual setError() call like the
+      // one above for a server-side password rule -- without this, a
+      // keyboard/screen-reader user has to tab-hunt to find the field the
+      // error actually landed on.
+      if (passwordFieldErrored) {
+        setFocus("password")
+      }
 
       if (unmapped.length > 0) {
         toast.error(unmapped.join(" "))
@@ -416,9 +429,8 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                   >
                     {t("auth.signUp.password")}
                   </label>
-                  <input
+                  <PasswordInput
                     id="password"
-                    type="password"
                     autoComplete="new-password"
                     {...formRegister("password", {
                       required: t("auth.signUp.passwordReqText"),
@@ -428,11 +440,18 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
                       },
                     })}
                     placeholder="********"
-                    className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
                     disabled={isLoading}
+                    aria-invalid={errors.password ? true : undefined}
+                    aria-describedby={
+                      errors.password ? "password-error" : undefined
+                    }
                   />
                   {errors.password && (
-                    <p className="mt-1 text-xs text-destructive">
+                    <p
+                      id="password-error"
+                      role="alert"
+                      className="mt-1 text-xs text-destructive"
+                    >
                       {errors.password.message}
                     </p>
                   )}

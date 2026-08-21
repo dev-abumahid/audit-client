@@ -2615,7 +2615,6 @@
       },
       "errors": {
         "required": "Le nom de l'entreprise, l'e-mail administrateur et le mot de passe sont requis.",
-        "passwordLength": "Le mot de passe doit comporter au moins 8 caractères.",
         "noSites": "Sélectionnez au moins un site pour continuer.",
         "identify": "Impossible de rechercher cette entreprise. Veuillez réessayer.",
         "generate": "Impossible de générer une base de risques. Veuillez réessayer.",
@@ -2625,6 +2624,8 @@
   },
   "common": {
     "close": "Fermer",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
     "dark": "Sombre",
     "light": "Clair",
     "system": "Système",

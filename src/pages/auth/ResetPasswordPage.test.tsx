@@ -104,6 +104,79 @@ describe("ResetPasswordPage", () => {
     )
   })
 
+  it("toggles the new-password field between hidden and visible text via the show/hide button, independently per field", async () => {
+    const user = userEvent.setup()
+    renderAt("/reset-password?token=abc123")
+
+    const newPasswordInput = screen.getByLabelText("New Password")
+    const confirmPasswordInput = screen.getByLabelText("Confirm Password")
+    expect(newPasswordInput).toHaveAttribute("type", "password")
+    expect(confirmPasswordInput).toHaveAttribute("type", "password")
+
+    const toggleButtons = screen.getAllByRole("button", { name: "common.showPassword" })
+    expect(toggleButtons).toHaveLength(2)
+
+    await user.click(toggleButtons[0])
+
+    expect(newPasswordInput).toHaveAttribute("type", "text")
+    // The other field's toggle is untouched -- confirms each PasswordInput
+    // manages its own visibility state independently.
+    expect(confirmPasswordInput).toHaveAttribute("type", "password")
+    expect(
+      screen.getByRole("button", { name: "common.hidePassword" })
+    ).toBeInTheDocument()
+  })
+
+  it("wires the new-password field's error to an aria-describedby id with role=alert, only when an error is present", async () => {
+    const user = userEvent.setup()
+    renderAt("/reset-password?token=abc123")
+
+    const newPasswordInput = screen.getByLabelText("New Password")
+    expect(newPasswordInput).not.toHaveAttribute("aria-describedby")
+
+    await user.type(screen.getByLabelText("Confirm Password"), "x")
+    await user.click(screen.getByRole("button", { name: "Reset Password" }))
+
+    const errorMessage = await screen.findByText("[i18n] Password is required")
+    expect(errorMessage).toHaveAttribute("id", "newPassword-error")
+    expect(errorMessage).toHaveAttribute("role", "alert")
+    expect(newPasswordInput).toHaveAttribute(
+      "aria-describedby",
+      "newPassword-error"
+    )
+  })
+
+  // Server-side password errors (errorSources) go through a manual
+  // setError() call, which react-hook-form's shouldFocusError default does
+  // NOT cover -- so this asserts the component explicitly moves focus there
+  // itself, rather than leaving a keyboard/screen-reader user to tab-hunt.
+  it("moves focus to the new-password field when a server-side password error is mapped via errorSources", async () => {
+    const user = userEvent.setup()
+    mockResetPasswordTrigger.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({
+          data: {
+            message: "Validation Error",
+            errorSources: [
+              { path: "newPass", message: "Password must contain at least one number." },
+            ],
+          },
+        }),
+    })
+
+    renderAt("/reset-password?token=abc123")
+
+    await user.type(screen.getByLabelText("New Password"), "onlyletters")
+    await user.type(screen.getByLabelText("Confirm Password"), "onlyletters")
+    await user.click(screen.getByRole("button", { name: "Reset Password" }))
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByLabelText("New Password")
+      )
+    )
+  })
+
   it("rejects mismatched passwords before submitting", async () => {
     const user = userEvent.setup()
 

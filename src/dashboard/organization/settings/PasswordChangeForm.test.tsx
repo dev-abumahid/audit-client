@@ -128,6 +128,84 @@ describe("PasswordChangeForm", () => {
     )
   })
 
+  it("toggles each password field between hidden and visible text independently via its own show/hide button", async () => {
+    const user = userEvent.setup()
+    render(<PasswordChangeForm />)
+
+    const oldPasswordInput = screen.getByLabelText("Current Password")
+    const newPasswordInput = screen.getByLabelText("New Password")
+    const confirmPasswordInput = screen.getByLabelText("Confirm New Password")
+    ;[oldPasswordInput, newPasswordInput, confirmPasswordInput].forEach(
+      (input) => expect(input).toHaveAttribute("type", "password")
+    )
+
+    const toggleButtons = screen.getAllByRole("button", {
+      name: "common.showPassword",
+    })
+    expect(toggleButtons).toHaveLength(3)
+
+    await user.click(toggleButtons[1]) // New Password's toggle
+
+    expect(newPasswordInput).toHaveAttribute("type", "text")
+    expect(oldPasswordInput).toHaveAttribute("type", "password")
+    expect(confirmPasswordInput).toHaveAttribute("type", "password")
+    expect(
+      screen.getByRole("button", { name: "common.hidePassword" })
+    ).toBeInTheDocument()
+  })
+
+  it("wires the new-password field's error to an aria-describedby id with role=alert, only when an error is present", async () => {
+    const user = userEvent.setup()
+    render(<PasswordChangeForm />)
+
+    const newPasswordInput = screen.getByLabelText("New Password")
+    expect(newPasswordInput).not.toHaveAttribute("aria-describedby")
+
+    await user.click(screen.getByRole("button", { name: "Change Password" }))
+
+    const errorMessage = await screen.findByText("New password is required")
+    expect(errorMessage).toHaveAttribute("id", "newPassword-error")
+    expect(errorMessage).toHaveAttribute("role", "alert")
+    expect(newPasswordInput).toHaveAttribute(
+      "aria-describedby",
+      "newPassword-error"
+    )
+  })
+
+  // Server-side password errors (errorSources) go through a manual
+  // setError() call, which react-hook-form's shouldFocusError default does
+  // NOT cover -- so this asserts the component explicitly moves focus there
+  // itself, rather than leaving a keyboard/screen-reader user to tab-hunt.
+  it("moves focus to the new-password field when a server-side password error is mapped via errorSources", async () => {
+    const user = userEvent.setup()
+    mockChangePasswordTrigger.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({
+          data: {
+            message: "Validation Error",
+            errorSources: [
+              { path: "newPassword", message: "Password must contain at least one number." },
+            ],
+          },
+        }),
+    })
+
+    render(<PasswordChangeForm />)
+    await user.type(screen.getByLabelText("Current Password"), "current-pass-1")
+    await user.type(screen.getByLabelText("New Password"), "onlylettersnew")
+    await user.type(
+      screen.getByLabelText("Confirm New Password"),
+      "onlylettersnew",
+    )
+    await user.click(screen.getByRole("button", { name: "Change Password" }))
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByLabelText("New Password")
+      )
+    )
+  })
+
   it("submits oldPassword/newPassword (not confirmPassword) on valid input", async () => {
     const user = userEvent.setup()
     mockChangePasswordTrigger.mockReturnValue({

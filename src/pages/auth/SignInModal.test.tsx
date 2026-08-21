@@ -294,6 +294,44 @@ describe("SignInModal", () => {
     )
   })
 
+  it("toggles the password field between hidden and visible text via the show/hide button", async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    const passwordInput = screen.getByLabelText("Password")
+    expect(passwordInput).toHaveAttribute("type", "password")
+
+    const toggleButton = screen.getByRole("button", {
+      name: "common.showPassword",
+    })
+    await user.click(toggleButton)
+
+    expect(passwordInput).toHaveAttribute("type", "text")
+    expect(
+      screen.getByRole("button", { name: "common.hidePassword" })
+    ).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole("button", { name: "common.hidePassword" })
+    )
+    expect(passwordInput).toHaveAttribute("type", "password")
+  })
+
+  it("wires the password field's error to an aria-describedby id with role=alert, only when an error is present", async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    const passwordInput = screen.getByLabelText("Password")
+    expect(passwordInput).not.toHaveAttribute("aria-describedby")
+
+    await user.click(screen.getByRole("button", { name: "Sign In" }))
+
+    const errorMessage = await screen.findByText("Password is required")
+    expect(errorMessage).toHaveAttribute("id", "password-error")
+    expect(errorMessage).toHaveAttribute("role", "alert")
+    expect(passwordInput).toHaveAttribute("aria-describedby", "password-error")
+  })
+
   it("uses a real email input with format validation, not a bare text field", async () => {
     const user = userEvent.setup()
     renderModal()

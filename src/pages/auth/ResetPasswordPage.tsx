@@ -1,4 +1,5 @@
 import Logo from "@/components/shared/Logo"
+import PasswordInput from "@/components/shared/PasswordInput"
 import { useResetPasswordMutation } from "@/redux/apis/auth.api"
 import { CheckCircle2, XCircle } from "lucide-react"
 import { useForm } from "react-hook-form"
@@ -21,6 +22,7 @@ export default function ResetPasswordPage() {
     handleSubmit,
     watch,
     setError,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<ResetPasswordFormData>({
     defaultValues: { newPassword: "", confirmPassword: "" },
@@ -54,6 +56,11 @@ export default function ResetPasswordPage() {
       )
       if (passwordError?.message) {
         setError("newPassword", { type: "server", message: passwordError.message })
+        // react-hook-form's shouldFocusError default only covers
+        // client-triggered validation, not this manual setError() call for
+        // a server-side password rule -- without this, a keyboard/screen-
+        // reader user has to tab-hunt to find where the error landed.
+        setFocus("newPassword")
       } else {
         toast.error(apiError?.data?.message || t("auth.genericError"))
       }
@@ -114,9 +121,8 @@ export default function ResetPasswordPage() {
                 >
                   {t("auth.resetPassword.newPassword")}
                 </label>
-                <input
+                <PasswordInput
                   id="newPassword"
-                  type="password"
                   autoComplete="new-password"
                   {...register("newPassword", {
                     required: t("auth.resetPassword.newPasswordReqText"),
@@ -133,11 +139,18 @@ export default function ResetPasswordPage() {
                     },
                   })}
                   placeholder="********"
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
                   disabled={isSubmitting}
+                  aria-invalid={errors.newPassword ? true : undefined}
+                  aria-describedby={
+                    errors.newPassword ? "newPassword-error" : undefined
+                  }
                 />
                 {errors.newPassword && (
-                  <p className="mt-1 text-xs text-destructive">
+                  <p
+                    id="newPassword-error"
+                    role="alert"
+                    className="mt-1 text-xs text-destructive"
+                  >
                     {errors.newPassword.message}
                   </p>
                 )}
@@ -150,9 +163,8 @@ export default function ResetPasswordPage() {
                 >
                   {t("auth.resetPassword.confirmPassword")}
                 </label>
-                <input
+                <PasswordInput
                   id="confirmPassword"
-                  type="password"
                   autoComplete="new-password"
                   {...register("confirmPassword", {
                     required: t("auth.resetPassword.confirmPasswordReqText"),
@@ -161,11 +173,18 @@ export default function ResetPasswordPage() {
                       t("auth.resetPassword.passwordMismatch"),
                   })}
                   placeholder="********"
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground transition-all focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:opacity-50"
                   disabled={isSubmitting}
+                  aria-invalid={errors.confirmPassword ? true : undefined}
+                  aria-describedby={
+                    errors.confirmPassword ? "confirmPassword-error" : undefined
+                  }
                 />
                 {errors.confirmPassword && (
-                  <p className="mt-1 text-xs text-destructive">
+                  <p
+                    id="confirmPassword-error"
+                    role="alert"
+                    className="mt-1 text-xs text-destructive"
+                  >
                     {errors.confirmPassword.message}
                   </p>
                 )}

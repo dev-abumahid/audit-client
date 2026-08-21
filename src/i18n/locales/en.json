@@ -2615,7 +2615,6 @@
       },
       "errors": {
         "required": "Company name, admin email and password are required.",
-        "passwordLength": "Password must be at least 8 characters.",
         "noSites": "Select at least one site to continue.",
         "identify": "Could not look up that company. Please try again.",
         "generate": "Could not generate a risk baseline. Please try again.",
@@ -2625,6 +2624,8 @@
   },
   "common": {
     "close": "Close",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "dark": "Dark",
     "light": "Light",
     "system": "System",
