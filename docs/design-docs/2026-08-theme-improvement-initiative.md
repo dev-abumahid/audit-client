@@ -48,7 +48,7 @@ requirement for how these PRs are scoped, not just a nice-to-have.
 |---|---|---|---|
 | A1 | `role="switch"`/`aria-checked` audit (found stale — no fix needed) + add `eslint-plugin-jsx-a11y` | **shipped** | [#991](https://github.com/Qiyrix/aexa-frontend/pull/991) |
 | A2 | Badge primitive + severity-color migration | **shipped** (partial — 4 of ~25 files migrated, rest listed as follow-up in the PR) | [#992](https://github.com/Qiyrix/aexa-frontend/pull/992) |
-| B1 | Land the `RiskMatrixPage` → `RiskMatrixView` + preview pattern for real | planned | — |
+| B1 | Land the `RiskMatrixPage` → `RiskMatrixView` + preview pattern for real | **shipped** (not yet wired to a public route — that's Phase E) | [#994](https://github.com/Qiyrix/aexa-frontend/pull/994) |
 | B2 | Extend the preview pattern to `Overview.tsx` | not started | — |
 | C | Motion: drop framer-motion, native `<dialog>`, scroll reveals, `:has()` filtering, container queries, live-update flash pattern | not started | — |
 | D | Modal consolidation (~24 files, smallest/safest first, `FindingDetails.tsx`/`AuditPage.tsx` last) — sequenced with Phase C since both touch modal files | not started | — |
