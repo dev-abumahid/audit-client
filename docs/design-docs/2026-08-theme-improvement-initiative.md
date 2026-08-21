@@ -53,6 +53,26 @@ requirement for how these PRs are scoped, not just a nice-to-have.
   literal every render. Neither B1 nor B2 wired their preview into a public
   route — that's deliberately deferred to Phase E, so there's no unused
   public surface sitting in production between phases.
+- **Two Phase C ideas dropped from scope after investigation (Phase C3):**
+  - *Native `<dialog>`*: the shared `Dialog` component (`src/components/ui/dialog.tsx`)
+    is already built on Radix UI's `Dialog` primitive — fully accessible
+    (focus trap, Escape, backdrop-click, return-focus-on-close) and used by
+    14+ consumers. Rewriting it to the native `<dialog>` element would be a
+    large, risky change to shared infrastructure for no real accessibility
+    gain, since Radix already delivers equivalent behavior. The actual
+    modal-consistency problem — ~24 *hand-rolled* modals not using the
+    shared `Dialog` at all — is Phase D's job instead.
+  - *Scroll-driven animation (`animation-timeline: view()`)*: researched as
+    a replacement for the existing `useRevealOnScroll` IntersectionObserver
+    hook (already reduced-motion-aware, used on the landing page's hero/
+    features/testimonials sections). As of August 2026 this still isn't
+    safe to ship without a JS fallback — Firefox requires a flag and Safari
+    only just landed support in a 26 beta. Migrating would regress those
+    users for a "remove some JS" benefit that isn't worth it yet. Revisit
+    once support is broader; the existing hook stays as-is.
+  - What *did* ship from Phase C3: `has-[:checked]`-based row-select
+    highlighting on `RiskRegisterPage`/`InspectionTable` — CSS `:has()` is
+    Baseline-safe everywhere as of 2026, no fallback needed.
 
 ## Phases
 
@@ -64,8 +84,8 @@ requirement for how these PRs are scoped, not just a nice-to-have.
 | B2 | Extend the preview pattern to `Overview.tsx` | **shipped** (not yet wired to a public route — that's Phase E) | [#996](https://github.com/Qiyrix/aexa-frontend/pull/996) |
 | C1 | Drop `framer-motion` (its one usage site ported to a CSS `animate-fade-in` class) | **shipped** | [#998](https://github.com/Qiyrix/aexa-frontend/pull/998) |
 | C2 | Live-update flash pattern: `useValueChangeFlash` hook + two-phase CSS transition + `aria-live` announcement, applied to the KRI dashboard | **shipped** | [#999](https://github.com/Qiyrix/aexa-frontend/pull/999) |
-| C3 | Remaining Phase C motion: native `<dialog>`, scroll reveals, `:has()` filtering, container queries | not started | — |
-| D | Modal consolidation (~24 files, smallest/safest first, `FindingDetails.tsx`/`AuditPage.tsx` last) — sequenced with Phase C since both touch modal files | not started | — |
+| C3 | `:has()`-based row-select highlighting on `RiskRegisterPage`/`InspectionTable` (native `<dialog>` and scroll-driven-animation ideas dropped from scope — see below) | **shipped** | [#1001](https://github.com/Qiyrix/aexa-frontend/pull/1001) |
+| D | Modal consolidation (~24 files, smallest/safest first, `FindingDetails.tsx`/`AuditPage.tsx` last) — sequenced with Phase C since both touch modal files | in progress | — |
 | E | Landing page rebuild using real preview components + interactive demos + Phase C motion | not started | — |
 | F | Remaining primitives (Checkbox/Avatar/Skeleton/Tooltip), opportunistic | not started | — |
 
