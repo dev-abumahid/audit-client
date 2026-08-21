@@ -86,7 +86,7 @@ requirement for how these PRs are scoped, not just a nice-to-have.
 | C2 | Live-update flash pattern: `useValueChangeFlash` hook + two-phase CSS transition + `aria-live` announcement, applied to the KRI dashboard | **shipped** | [#999](https://github.com/Qiyrix/aexa-frontend/pull/999) |
 | C3 | `:has()`-based row-select highlighting on `RiskRegisterPage`/`InspectionTable` (native `<dialog>` and scroll-driven-animation ideas dropped from scope — see below) | **shipped** | [#1001](https://github.com/Qiyrix/aexa-frontend/pull/1001) |
 | D | Modal consolidation (~24 files, smallest/safest first, `FindingDetails.tsx`/`AuditPage.tsx` last) — sequenced with Phase C since both touch modal files | **in progress** (4 of ~24 done — see below) | [#1003](https://github.com/Qiyrix/aexa-frontend/pull/1003), [#1004](https://github.com/Qiyrix/aexa-frontend/pull/1004), [#1005](https://github.com/Qiyrix/aexa-frontend/pull/1005) |
-| E | Landing page rebuild using real preview components + interactive demos + Phase C motion | **in progress** (stylized/animated/polished demo section shipped — see below) | [#1007](https://github.com/Qiyrix/aexa-frontend/pull/1007) (superseded), [#1009](https://github.com/Qiyrix/aexa-frontend/pull/1009) (superseded), [#1011](https://github.com/Qiyrix/aexa-frontend/pull/1011) |
+| E | Landing page rebuild using real preview components + interactive demos + Phase C motion | **shipped** (v1-v3 demo-section polish, then a full v2/v3-plan overhaul — see below) | [#1007](https://github.com/Qiyrix/aexa-frontend/pull/1007) (superseded), [#1009](https://github.com/Qiyrix/aexa-frontend/pull/1009) (superseded), [#1011](https://github.com/Qiyrix/aexa-frontend/pull/1011), [#1013](https://github.com/Qiyrix/aexa-frontend/pull/1013)–[#1023](https://github.com/Qiyrix/aexa-frontend/pull/1023) (11-PR overhaul, see below) |
 | F | Remaining primitives (Checkbox/Avatar/Skeleton/Tooltip), opportunistic | not started | — |
 
 This table is the source of truth for status — update the Status/PR
@@ -219,12 +219,48 @@ own sake. Also fixed a live-caught mobile truncation bug (`truncate`
 clipped "Catastrophic" mid-word with no way to recover it on a touch
 device — switched to word-wrap).
 
-**Not done — remaining Phase E scope**: "interactive demos" beyond
-scroll-triggered animation (no click-to-explore yet) and using
-`RiskMatrixPreview`'s dedicated mock dataset for anything beyond what
-`RiskMatrixWidget` already derives from the same underlying fixture —
-neither is a hard requirement, both are reasonable candidates for a
-future pass.
+**Not done — remaining Phase E scope** (as of PR #1011): "interactive
+demos" beyond scroll-triggered animation (no click-to-explore yet) and
+using `RiskMatrixPreview`'s dedicated mock dataset for anything beyond
+what `RiskMatrixWidget` already derives from the same underlying
+fixture. Both were addressed in the follow-up 11-PR overhaul below.
+
+## Phase E, round two: full landing-page overhaul (PRs #1013–#1023)
+
+Direct user feedback after the round-one demo section shipped: the
+static "See it in action" widgets weren't the "designs, motion, demos"
+the initiative had earlier explored, and several real product moments
+(interactive demos, a signature "one data model" interaction) hadn't
+made it into the actual page. A synthesized plan (external review +
+this project's own design-exploration findings, revised twice against
+follow-up feedback — see the plan's own v1→v2→v3 changelog for detail)
+became this second build pass, sequenced as 11 small, independently
+revertable PRs:
+
+| PR | What shipped | Real bug/gap caught during review |
+|---|---|---|
+| [#1013](https://github.com/Qiyrix/aexa-frontend/pull/1013) | Hero motion polish (bounded stagger + one count-up) + new `CredibilityBand` (real, checkable stats — no fabricated usage metrics) | `useCountUp` froze mid-animation under React StrictMode's dev-mode double-effect-invocation (a 92% target stuck at 6%) — root-caused and fixed at the hook level, not worked around |
+| [#1014](https://github.com/Qiyrix/aexa-frontend/pull/1014) | KRI threshold slider demo, porting `compute_kri_status` verbatim from aexa-server | — |
+| [#1015](https://github.com/Qiyrix/aexa-frontend/pull/1015) | Copy fix: replaced defensive "Real analysis, not a screenshot" framing (argued against an objection nobody raised) with copy that leads with the interaction itself | — |
+| [#1016](https://github.com/Qiyrix/aexa-frontend/pull/1016) | Extracted `RiskMatrixView`'s pure calc functions into shared `riskMatrixCalc.ts`; built the clickable `LandingRiskMatrixWidget` on that same layer; added a reusable `DemoTabs` component (grid-stacked crossfade, `inert` on the inactive panel) | The widget passed the display-flipped grid row straight to `getMatrixColor`, inverting the color ramp on the likelihood axis (a real critical risk rendered as `bg-risk-high`) — caught, root-caused, fixed with a negative-control-verified regression test |
+| [#1017](https://github.com/Qiyrix/aexa-frontend/pull/1017) | Role-scoped register demo (Admin/Lead Auditor/Light User), gated by the real, unmodified `canWriteOrgResource` | Missing ARIA APG arrow-key navigation on the role radiogroup; an inconsistent French translation for "Light User" | 
+| [#1018](https://github.com/Qiyrix/aexa-frontend/pull/1018) | Connector-line motion on the `HeroFeatures` "how it works" band (horizontal rail desktop, vertical rail mobile) | — |
+| [#1019](https://github.com/Qiyrix/aexa-frontend/pull/1019) | Rebuilt `FeaturesSection`'s module showcase with 4 real UI crops sourced from a dedicated research pass (`AllFindingsPage`'s overdue treatment, `AuditPage`'s engagement cards, the Compliance Scorecard heatmap, `AlertsPage`'s severity chips) | The 4 crops rendered fabricated illustrative content with no `aria-hidden` — a screen reader would announce it as real page data |
+| [#1020](https://github.com/Qiyrix/aexa-frontend/pull/1020) | Authored `MOCK_AUDIT_FINDINGS`/`MOCK_MITIGATIONS` — real fields on real types (`AuditFinding.linked_risk_id`, `Mitigation.risk_id`) that had zero populated mock rows anywhere in the codebase, linked to the same hub risk (`CYB-014`/`risk-1`) the rest of the page already uses | — |
+| [#1021](https://github.com/Qiyrix/aexa-frontend/pull/1021) | The Connected Data Model interaction — the signature piece. One risk, shown simultaneously as a register row, a KRI, an audit finding, and a mitigation; clicking any of the 5 cards highlights all 5 at once | `aria-pressed` misused on 5 buttons sharing one boolean (two of three independent review angles caught this); no hover affordance on any of the 5 cards; the SVG fan-out geometry rendered too flat under `preserveAspectRatio="none"`'s non-uniform scale; the "one data model" claim was duplicated verbatim across two adjacent sections' copy |
+| [#1022](https://github.com/Qiyrix/aexa-frontend/pull/1022) | New `FinalCTASection` | A pre-existing mismatch caught while duplicating `HeroSection`'s modal-flow handler: the Contact Sales button's label had been corrected in an earlier pass, but its `mailto` subject/body still said "Demo Request" |
+| [#1023](https://github.com/Qiyrix/aexa-frontend/pull/1023) | Closing pass: audited all `home.*` copy for hype adjectives/exclamation points (clean, no changes needed); closed 3 pre-existing `motion-reduce` gaps in `HeroSection`/`FeaturesSection`; added a `border-t` to break up 3 consecutive same-background sections | — |
+
+Every PR in this sequence went through this initiative's established
+review discipline: self-QA gate (typecheck/lint/full suite), live
+browser verification (not just unit tests), then 1-3 independent review
+agents per PR (scaled to risk — 3 angles for #1021, the highest-risk
+PR in the sequence), with a verified fix round before merge whenever a
+review surfaced a real finding. Every real risk/KRI/finding/mitigation
+shown across all 11 PRs traces back to the same shared mock fixtures
+(`riskMatrixMockData.ts` / `overviewMockData.ts` / the new PR #1020
+file) — no page in this sequence fabricates its own disconnected mock
+data.
 
 ## How to revert this whole initiative
 
