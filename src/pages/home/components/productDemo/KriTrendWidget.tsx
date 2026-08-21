@@ -40,7 +40,7 @@ export default function KriTrendWidget({ animate }: { animate: boolean }) {
   const currentValue = useCountUp(KRI.current_value, animate, 1400)
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="rounded-[11px] bg-card p-5">
       <div className="mb-1 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">
           {t("home.productDemo.kriTrend.title")}

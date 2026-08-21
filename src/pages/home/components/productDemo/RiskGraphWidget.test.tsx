@@ -19,11 +19,34 @@ describe("RiskGraphWidget", () => {
     expect(lines.length).toBe(MOCK_RISK_LINKS.length)
   })
 
-  it("does not label the hub node with its own ref text (only satellites get ref labels)", () => {
+  // Visual-fidelity pass: the real RiskGraphPage labels every node with its
+  // own ref, hub included -- an earlier version of this widget deliberately
+  // omitted the hub's own label, which this test used to assert. Updated to
+  // match the real page's convention instead.
+  it("labels the hub node with its own ref, same as every satellite", () => {
     render(<RiskGraphWidget animate={false} />)
-    // CYB-014 is the real hub in overviewMockData.ts -- it should never
-    // appear as a small node-ref label the way satellite refs do.
-    expect(screen.queryByText("CYB-014")).not.toBeInTheDocument()
+    expect(screen.getByText("CYB-014")).toBeInTheDocument()
+  })
+
+  it("shows a real computed PageRank score for the hub and every satellite", () => {
+    const { container } = render(<RiskGraphWidget animate={false} />)
+    // The label text is split across sibling text nodes ({prLabel}{score}),
+    // so match on textContent (which concatenates them) rather than
+    // getByText, which only matches a single text node by default. Test
+    // env doesn't interpolate i18n, so the raw key "...pagerankAbbrLabel"
+    // is the literal prefix each of these renders here.
+    const prTexts = Array.from(container.querySelectorAll("text")).filter(
+      (el) => /pagerankAbbrLabel\d+$/.test(el.textContent ?? "")
+    )
+    // One per node: the hub + every satellite.
+    expect(prTexts.length).toBe(MOCK_RISK_LINKS.length + 1)
+    // The hub has 3 inbound links, every satellite has 0 -- confirms
+    // computePageRank actually ran on this widget's own node/edge set (its
+    // score should normalize to the maximum, 100), not a fabricated value.
+    const hubPrText = prTexts.find((el) =>
+      el.textContent?.endsWith("100")
+    )
+    expect(hubPrText).toBeDefined()
   })
 
   it("marks the graph as an accessible image describing the real hub and link count", () => {

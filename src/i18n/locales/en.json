@@ -85,6 +85,11 @@
         "nodeCount": "{{count}} nodes",
         "chartLabel": "Risk correlation graph, {{count}} risks linked to {{name}}",
         "caption": "{{count}} risks link to \"{{name}}\" — the graph's highest-centrality node."
+      },
+      "rail": {
+        "plots": "Plots risk",
+        "correlates": "Correlates it",
+        "triggers": "Triggers alert"
       }
     },
     "featureSection": {
