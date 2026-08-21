@@ -11,13 +11,19 @@ import {
   useSubmitFindingForClosureMutation,
 } from "@/redux/apis/organization/findingClosure.api"
 import type { ClosureDisplayState, IAction } from "@/types/finding"
-import { useModalA11y } from "@/hooks/useModalA11y"
 import { canWriteFinding } from "@/utils/assignmentScope"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { severityBadgeClasses } from "@/utils/severityStyles"
 import { AlertTriangle, Check, Send, X } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { toast } from "sonner"
 
 // Tailwind classes + i18n label key per display state, same pattern as
@@ -80,11 +86,13 @@ export default function FindingClosureControls({ action }: Props) {
   const [rejectReason, setRejectReason] = useState("")
 
   // Round 13 (#506) -- role="dialog"/focus-trap/Escape for the reject modal,
-  // same pattern RiskApprovalControls' Reject modal uses (#488).
-  const rejectModalRef = useModalA11y(showRejectModal, () => {
+  // same pattern RiskApprovalControls' Reject modal uses (#488). Phase D
+  // (modal consolidation): now the shared Radix-backed Dialog, same
+  // migration as RiskApprovalControls.tsx.
+  const closeRejectModal = () => {
     setShowRejectModal(false)
     setRejectReason("")
-  })
+  }
 
   const isClosed = action.status === "COMPLETE" || action.status === "CANT_DO"
   const status: ClosureDisplayState = closureData?.data?.status ?? "NOT_SUBMITTED"
@@ -287,59 +295,62 @@ export default function FindingClosureControls({ action }: Props) {
         </p>
       )}
 
-      {showRejectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div
-            ref={rejectModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={`finding-closure-reject-modal-title-${action.id}`}
-            className="w-full max-w-md space-y-3 rounded-2xl border bg-card p-5 shadow-xl"
-          >
-            <h2
-              id={`finding-closure-reject-modal-title-${action.id}`}
-              className="text-base font-bold"
-            >
+      <Dialog
+        open={showRejectModal}
+        onOpenChange={(next) => {
+          if (!next) closeRejectModal()
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
               {t("organization.findings.closure.rejectModalTitle")}
-            </h2>
+            </DialogTitle>
+          </DialogHeader>
+          <div>
+            {/* Was unscoped ("finding-closure-reject-reason", no action.id) --
+                a pre-existing inconsistency with this modal's own title id
+                just above, which WAS already scoped. Fixed as part of this
+                migration since it's in the same touched markup: this
+                component renders once per finding/action, so an unscoped id
+                would collide across rows once more than one has its Reject
+                modal in the DOM at once (the title already guarded against
+                exactly this). */}
             <label
-              htmlFor="finding-closure-reject-reason"
+              htmlFor={`finding-closure-reject-reason-${action.id}`}
               className="text-xs font-medium text-muted-foreground"
             >
               {t("organization.findings.closure.rejectReasonLabel")}
             </label>
             <textarea
-              id="finding-closure-reject-reason"
+              id={`finding-closure-reject-reason-${action.id}`}
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               placeholder={t(
                 "organization.findings.closure.rejectReasonPlaceholder"
               )}
-              className="min-h-24 w-full rounded-lg border bg-muted px-3 py-2 text-sm"
+              className="mt-1 min-h-24 w-full rounded-lg border bg-muted px-3 py-2 text-sm"
             />
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowRejectModal(false)
-                  setRejectReason("")
-                }}
-                className="focus-ring rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted"
-              >
-                {t("organization.findings.closure.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleReject}
-                disabled={isRejecting}
-                className="focus-ring rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground disabled:opacity-50"
-              >
-                {t("organization.findings.closure.rejectConfirm")}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={closeRejectModal}
+              className="focus-ring flex h-11 items-center justify-center rounded-lg border px-3 text-xs font-medium hover:bg-muted"
+            >
+              {t("organization.findings.closure.cancel")}
+            </button>
+            <button
+              type="button"
+              onClick={handleReject}
+              disabled={isRejecting}
+              className="focus-ring flex h-11 items-center justify-center rounded-lg bg-destructive px-3 text-xs font-medium text-destructive-foreground disabled:opacity-50"
+            >
+              {t("organization.findings.closure.rejectConfirm")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

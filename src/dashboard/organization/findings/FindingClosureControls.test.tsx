@@ -490,7 +490,8 @@ describe("FindingClosureControls", () => {
 
   // Round 13 (#506) -- the reject-reason modal had no role="dialog"/
   // aria-modal/focus-trap/Escape, same gap RiskApprovalControls' Reject
-  // modal had before #488. Now migrated to the shared useModalA11y() hook.
+  // modal had before #488. Migrated to useModalA11y() then, and to the
+  // shared Radix-backed Dialog component in Phase D (modal consolidation).
   describe("modal accessibility", () => {
     it("marks the reject modal as a labeled dialog and closes it on Escape", async () => {
       mockClosureState("PENDING_APPROVAL", makeClosure("PENDING_APPROVAL"))
