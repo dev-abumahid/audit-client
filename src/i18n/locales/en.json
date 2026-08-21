@@ -64,10 +64,28 @@
     },
     "productDemo": {
       "eyebrow": "See it in action",
-      "title": "This is the real Overview page",
-      "description": "Not a mockup — the actual dashboard, rendered with sample data. Risks, KRIs, alerts, findings, and inspections in one org-wide view.",
-      "liveLabel": "Live · Overview",
-      "badge": "Sample data"
+      "title": "Real analysis, not a screenshot",
+      "description": "Every number below is computed the same way the live product computes it — real severity scoring, real KRI thresholds, real risk-correlation graph — just fed sample data instead of your org's.",
+      "riskMatrix": {
+        "title": "Risk Matrix",
+        "dimensions": "5 × 5",
+        "likelihood": "Likelihood",
+        "impact": "Impact",
+        "caption": "{{count}} sample risks plotted by likelihood and impact.",
+        "gridLabel": "Risk matrix showing {{total}} sample risks by likelihood and impact — {{critical}} critical, {{high}} high severity."
+      },
+      "kriTrend": {
+        "title": "KRI Trend",
+        "alertBadge": "Alert",
+        "chartLabel": "Trend chart, current value {{value}} {{unit}}",
+        "thresholdLabel": "Threshold: {{value}}"
+      },
+      "riskGraph": {
+        "title": "Risk Correlation",
+        "nodeCount": "{{count}} nodes",
+        "chartLabel": "Risk correlation graph, {{count}} risks linked to {{name}}",
+        "caption": "{{count}} risks link to \"{{name}}\" — the graph's highest-centrality node."
+      }
     },
     "featureSection": {
       "eyebrow": "Platform",

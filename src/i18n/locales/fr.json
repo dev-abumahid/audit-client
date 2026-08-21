@@ -64,10 +64,28 @@
     },
     "productDemo": {
       "eyebrow": "En action",
-      "title": "La vraie page Vue d'ensemble",
-      "description": "Pas une maquette — le tableau de bord réel, avec des données d'exemple. Risques, ICR, alertes, constats et inspections dans une vue unique.",
-      "liveLabel": "En direct · Vue d'ensemble",
-      "badge": "Données d'exemple"
+      "title": "Une vraie analyse, pas une capture d'écran",
+      "description": "Chaque chiffre ci-dessous est calculé exactement comme le produit réel le calcule — notation de gravité réelle, seuils d'ICR réels, graphe de corrélation des risques réel — avec des données d'exemple à la place des vôtres.",
+      "riskMatrix": {
+        "title": "Matrice des risques",
+        "dimensions": "5 × 5",
+        "likelihood": "Probabilité",
+        "impact": "Impact",
+        "caption": "{{count}} risques d'exemple positionnés par probabilité et impact.",
+        "gridLabel": "Matrice des risques montrant {{total}} risques d'exemple par probabilité et impact — {{critical}} critiques, {{high}} élevés."
+      },
+      "kriTrend": {
+        "title": "Tendance ICR",
+        "alertBadge": "Alerte",
+        "chartLabel": "Graphique de tendance, valeur actuelle {{value}} {{unit}}",
+        "thresholdLabel": "Seuil : {{value}}"
+      },
+      "riskGraph": {
+        "title": "Corrélation des risques",
+        "nodeCount": "{{count}} nœuds",
+        "chartLabel": "Graphe de corrélation des risques, {{count}} risques liés à {{name}}",
+        "caption": "{{count}} risques sont liés à « {{name}} » — le nœud de plus haute centralité du graphe."
+      }
     },
     "featureSection": {
       "eyebrow": "Plateforme",
