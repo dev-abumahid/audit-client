@@ -86,7 +86,7 @@ requirement for how these PRs are scoped, not just a nice-to-have.
 | C2 | Live-update flash pattern: `useValueChangeFlash` hook + two-phase CSS transition + `aria-live` announcement, applied to the KRI dashboard | **shipped** | [#999](https://github.com/Qiyrix/aexa-frontend/pull/999) |
 | C3 | `:has()`-based row-select highlighting on `RiskRegisterPage`/`InspectionTable` (native `<dialog>` and scroll-driven-animation ideas dropped from scope — see below) | **shipped** | [#1001](https://github.com/Qiyrix/aexa-frontend/pull/1001) |
 | D | Modal consolidation (~24 files, smallest/safest first, `FindingDetails.tsx`/`AuditPage.tsx` last) — sequenced with Phase C since both touch modal files | **in progress** (4 of ~24 done — see below) | [#1003](https://github.com/Qiyrix/aexa-frontend/pull/1003), [#1004](https://github.com/Qiyrix/aexa-frontend/pull/1004), [#1005](https://github.com/Qiyrix/aexa-frontend/pull/1005) |
-| E | Landing page rebuild using real preview components + interactive demos + Phase C motion | **in progress** (core "real product" section shipped — see below) | [#1007](https://github.com/Qiyrix/aexa-frontend/pull/1007) |
+| E | Landing page rebuild using real preview components + interactive demos + Phase C motion | **in progress** (stylized/animated demo section shipped — see below) | [#1007](https://github.com/Qiyrix/aexa-frontend/pull/1007) (superseded), [#1009](https://github.com/Qiyrix/aexa-frontend/pull/1009) |
 | F | Remaining primitives (Checkbox/Avatar/Skeleton/Tooltip), opportunistic | not started | — |
 
 This table is the source of truth for status — update the Status/PR
@@ -150,46 +150,56 @@ minus the four done):
 
 ## Phase E status detail
 
-**Shipped**: a new `ProductDemoSection.tsx` on the public landing page
-(`src/pages/home/Home.tsx`, between `HeroFeatures` and
-`FeaturesSection`) embeds the real `OverviewView` component fed the
-same mock fixtures `OverviewPreview.tsx` uses — a genuine "see it in
-action" section, not fabricated placeholder numbers.
+**Shipped, v2 (current)**: `ProductDemoSection.tsx` on the public
+landing page (`src/pages/home/Home.tsx`, between `HeroFeatures` and
+`FeaturesSection`) renders three purpose-built, animated widgets under
+`src/pages/home/components/productDemo/` — `RiskMatrixWidget`,
+`KriTrendWidget`, `RiskGraphWidget`. Each computes its displayed values
+from the same real mock fixtures and scoring functions the live app
+uses (`getRiskSeverityLevel`, `MOCK_RISKS`/`MOCK_KRIS`/`MOCK_RISK_LINKS`),
+presented in the same stylized, theme-token-driven-DOM idiom
+`HeroProductVisual.tsx` already established for the hero — not a
+literal page embed. Genuine motion throughout (staggered cell/node
+entrance, SVG `stroke-dashoffset` draw-in for the trend line and graph
+edges, a new `useCountUp` hook for the KRI value), all gated behind
+`prefers-reduced-motion` via `motion-safe:`/`motion-reduce:`.
+
+**v1 → v2, why it changed**: the first version (PR #1007) literally
+embedded the authenticated `OverviewView` dashboard component fed mock
+data. It was real (no fabricated numbers) and technically sound, but
+direct user feedback was that it read as a cropped admin screenshot,
+not a designed marketing moment — the ask was "designs, motion" not
+"the actual dashboard verbatim." PR #1009 replaced it entirely with the
+three widgets above. `OverviewView`'s `titleHeadingLevel` prop (added
+for v1's heading-hierarchy fix) was reverted as dead code once nothing
+rendered `OverviewView` on the landing page anymore. v1's disclosed
+mock-link-redirect limitation is now moot — the widgets don't render
+any `<Link>` elements at all.
 
 **Deliberately untouched**: `HeroSection`'s existing product visual
-(`HeroProductVisual.tsx`) — it's a well-crafted, theme-token-driven,
-accessibility-reviewed compact illustration, not the "hand-drawn
-mockup" this phase set out to replace. `OverviewView`/`RiskMatrixView`
-are full authenticated pages (own `<h1>`, full chrome) that don't fit
-that tight hero slot without looking cramped, hence the separate
-section instead of a hero-visual swap.
+(`HeroProductVisual.tsx`) — still a well-crafted, theme-token-driven,
+accessibility-reviewed compact illustration, and the direct stylistic
+ancestor of the three new widgets. Kept as-is; the new section is a
+separate, larger showcase further down the page, not a hero-visual
+swap.
 
-**Key implementation pattern**: go around `OverviewPreview.tsx`/
-`RiskMatrixPreview.tsx` entirely for a permanent public embed —
-`assertPreviewOnly()` throws unconditionally in dev builds by design
-(catching an accidental preview-route leak), which would crash the dev
-server on every visit to `/` if a `*Preview.tsx` component were mounted
-there directly. Render the underlying `*View.tsx` component directly
-with the same mock data instead — that's what the `*Preview.tsx` entry
-points themselves render once their guard passes.
+**Review findings fixed during v2's own review loop** (both rounds
+clean before merge): a `RiskGraphWidget` non-null assertion on a mock-
+data lookup that would crash the entire public homepage if a future
+fixture edit ever removed the hub risk (now returns `null` gracefully);
+`RiskMatrixWidget`'s grid had no accessible name (cells were plain divs
+with only a `title` attribute, not reliably read by screen readers) —
+fixed with `role="img"` + a real `aria-label` summarizing the actual
+computed severity counts, individual cells `aria-hidden`. Both fixes
+have dedicated regression tests (`RiskMatrixWidget.test.tsx`,
+`RiskGraphWidget.test.tsx` — neither existed before this review round).
 
-**Known, disclosed limitation** (flagged in PR #1007's review, not
-fixed yet): `OverviewView`'s risk/KPI links use mock IDs pointing to
-real authenticated `/organization/*` routes. A logged-out visitor
-clicking one gets redirected by `ProtectedRoute` back to `/` — not
-broken, just a mildly confusing "click, briefly navigate, land back
-where you started" moment. A proper fix (redirect these specific links
-to a signup CTA instead) is real design work, tracked separately.
-
-**Not done — remaining Phase E scope**: the tracking table's original
-description also named "interactive demos" (this section is scrollable/
-hoverable but not click-to-interact beyond that) and "Phase C motion"
-integration (the section uses the existing `useRevealOnScroll` pattern,
-not any new C3-era technique) — neither is a hard requirement, both are
-reasonable candidates for a future pass if the current static-embed
-version proves out. `RiskMatrixPreview`'s own mock data/component is
-still unused on the public site — a second demo section (or a tabbed
-view alternating between Overview/Risk Matrix) is a natural next step.
+**Not done — remaining Phase E scope**: "interactive demos" beyond
+scroll-triggered animation (no click-to-explore yet) and using
+`RiskMatrixPreview`'s dedicated mock dataset for anything beyond what
+`RiskMatrixWidget` already derives from the same underlying fixture —
+neither is a hard requirement, both are reasonable candidates for a
+future pass.
 
 ## How to revert this whole initiative
 
