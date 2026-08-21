@@ -7,6 +7,7 @@ import KriTrendWidget from "./productDemo/KriTrendWidget"
 import LandingRiskMatrixWidget from "./productDemo/LandingRiskMatrixWidget"
 import RiskGraphWidget from "./productDemo/RiskGraphWidget"
 import RiskMatrixWidget from "./productDemo/RiskMatrixWidget"
+import RoleScopedRegisterWidget from "./productDemo/RoleScopedRegisterWidget"
 
 // Phase E (theme-improvement-initiative), redesigned twice after live
 // feedback: v1 literally embedded the authenticated OverviewView dashboard
@@ -141,23 +142,24 @@ const ProductDemoSection: React.FC = () => {
             ))}
           </div>
 
-          {/* Landing overhaul PR3: the tabbed interactive-demo block --
-              slider and clickable matrix now, role-scoped register added as
-              a third tab in PR4. Separate from the static 3-widget grid
-              above (own signature rail, hand-built for exactly 3 nodes)
-              rather than folded into it. */}
+          {/* Landing overhaul PR3+PR4: the tabbed interactive-demo block --
+              slider, clickable matrix, and role-scoped register. Separate
+              from the static 3-widget grid above (own signature rail,
+              hand-built for exactly 3 nodes) rather than folded into it.
+              Wider than the grid's cards (max-w-2xl, not max-w-md): the
+              register's table needs more horizontal room than the
+              slider/matrix's roughly-square layouts. */}
           <div
-            className={`mt-5 max-w-md rounded-xl bg-gradient-to-br from-accent/50 to-border/60 p-px shadow-lg shadow-foreground/[0.03] transition-all duration-500 ease-out motion-reduce:transition-none ${
+            className={`mt-5 max-w-2xl rounded-xl bg-gradient-to-br from-accent/50 to-border/60 p-px shadow-lg shadow-foreground/[0.03] transition-all duration-500 ease-out motion-reduce:transition-none ${
               revealVisible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
             }`}
             style={revealVisible ? { transitionDelay: "360ms" } : undefined}
           >
-            {/* No extra card wrapper here -- KriThresholdSliderWidget and
-                LandingRiskMatrixWidget each already supply their own
-                rounded-[11px] bg-card p-5 shell (matching every sibling
-                widget's convention), so DemoTabs sits directly in the
-                glow-border container; wrapping it in a second card would
-                nest a card inside a card. */}
+            {/* No extra card wrapper here -- each panel widget already
+                supplies its own rounded-[11px] bg-card p-5 shell (matching
+                every sibling widget's convention), so DemoTabs sits
+                directly in the glow-border container; wrapping it in a
+                second card would nest a card inside a card. */}
             <DemoTabs
               tabs={[
                 {
@@ -169,6 +171,11 @@ const ProductDemoSection: React.FC = () => {
                   id: "riskMatrixClick",
                   label: t("home.productDemo.riskMatrixClick.title"),
                   Component: LandingRiskMatrixWidget,
+                },
+                {
+                  id: "roleRegister",
+                  label: t("home.productDemo.roleRegister.title"),
+                  Component: RoleScopedRegisterWidget,
                 },
               ]}
             />

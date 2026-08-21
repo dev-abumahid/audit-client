@@ -120,6 +120,24 @@
         "cellLabel": "{{count}} risks in this cell",
         "emptyHint": "Click a cell above to see the risks plotted there.",
         "noRisks": "No sample risks in this cell."
+      },
+      "roleRegister": {
+        "title": "Switch roles",
+        "hint": "Same access gate the real app uses — switch roles and watch the interface change.",
+        "roles": {
+          "ADMIN": "Admin",
+          "LEAD_AUDITOR": "Lead Auditor",
+          "LIGHT_USER": "Light User"
+        },
+        "columns": {
+          "ref": "Ref",
+          "name": "Risk",
+          "severity": "Severity",
+          "action": "Action"
+        },
+        "editButton": "Edit",
+        "captionReadOnly": "Light User can view the register but can't edit it — the Action column disappears.",
+        "captionSameGate": "Admin and Lead Auditor share this specific access gate today; finer per-row access exists server-side."
       }
     },
     "featureSection": {

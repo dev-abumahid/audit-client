@@ -40,11 +40,11 @@ describe("ProductDemoSection", () => {
     ).toBeInTheDocument()
   })
 
-  // Landing overhaul PR3: the slider's title now appears twice by design --
-  // once as the DemoTabs tab button label, once as the active panel's own
-  // <h3> heading (KriThresholdSliderWidget renders its own title
-  // regardless of where it's mounted).
-  it("renders the tabbed demo block with both tabs available", () => {
+  // Landing overhaul PR3/PR4: the slider's title now appears twice by
+  // design -- once as the DemoTabs tab button label, once as the active
+  // panel's own <h3> heading (KriThresholdSliderWidget renders its own
+  // title regardless of where it's mounted).
+  it("renders the tabbed demo block with all three tabs available", () => {
     renderSection()
     expect(
       screen.getAllByText("home.productDemo.kriSlider.title").length
@@ -55,6 +55,11 @@ describe("ProductDemoSection", () => {
     expect(
       screen.getByRole("tab", {
         name: "home.productDemo.riskMatrixClick.title",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("tab", {
+        name: "home.productDemo.roleRegister.title",
       })
     ).toBeInTheDocument()
   })
