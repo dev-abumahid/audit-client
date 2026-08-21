@@ -62,6 +62,13 @@
         }
       ]
     },
+    "productDemo": {
+      "eyebrow": "En action",
+      "title": "La vraie page Vue d'ensemble",
+      "description": "Pas une maquette — le tableau de bord réel, avec des données d'exemple. Risques, ICR, alertes, constats et inspections dans une vue unique.",
+      "liveLabel": "En direct · Vue d'ensemble",
+      "badge": "Données d'exemple"
+    },
     "featureSection": {
       "eyebrow": "Plateforme",
       "title1": "Un seul espace pour le risque,",

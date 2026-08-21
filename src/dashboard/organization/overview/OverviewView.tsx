@@ -74,6 +74,14 @@ export interface OverviewViewProps {
   correlationMatrix: QueryGroup<CorrelationMatrixData | undefined>
   sites: QueryGroup<SiteSummary[]>
   ebitda: QueryGroup<EbitdaAtRiskSummary | undefined>
+  // Phase E (theme-improvement-initiative): the landing page's
+  // ProductDemoSection.tsx embeds this exact component as a real product
+  // demo, inside a page that already has its own <h1> (HeroSection's main
+  // title) -- a second <h1> here would break the one-h1-per-page heading
+  // hierarchy this codebase already fixed once for the landing page (see
+  // FeaturesSection.test.tsx's own regression comment). Defaults to "h1",
+  // preserving the real authenticated Overview.tsx's existing semantics.
+  titleHeadingLevel?: "h1" | "h2"
 }
 
 // PREVIEW-PROTO NOTE: this is the pure/presentational split of the former
@@ -96,8 +104,10 @@ export default function OverviewView({
   correlationMatrix: correlationMatrixGroup,
   sites: sitesGroup,
   ebitda: ebitdaGroup,
+  titleHeadingLevel = "h1",
 }: OverviewViewProps) {
   const { t, i18n } = useTranslation()
+  const TitleHeading = titleHeadingLevel
 
   const risks = risksGroup.data
   const risksLoading = risksGroup.isLoading
@@ -338,9 +348,9 @@ export default function OverviewView({
       />
       {/* Title */}
       <div className="animate-fade-in">
-        <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
+        <TitleHeading className="font-heading text-2xl font-bold tracking-tight text-foreground">
           {t("organization.overview.title")}
-        </h1>
+        </TitleHeading>
         <p className="text-sm text-muted-foreground">
           {t("organization.overview.description", { orgName })}
         </p>

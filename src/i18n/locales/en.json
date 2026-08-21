@@ -62,6 +62,13 @@
         }
       ]
     },
+    "productDemo": {
+      "eyebrow": "See it in action",
+      "title": "This is the real Overview page",
+      "description": "Not a mockup — the actual dashboard, rendered with sample data. Risks, KRIs, alerts, findings, and inspections in one org-wide view.",
+      "liveLabel": "Live · Overview",
+      "badge": "Sample data"
+    },
     "featureSection": {
       "eyebrow": "Platform",
       "title1": "One workspace for",
