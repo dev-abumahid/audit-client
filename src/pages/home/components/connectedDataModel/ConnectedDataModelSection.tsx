@@ -61,7 +61,15 @@ export default function ConnectedDataModelSection() {
     : ""
 
   return (
-    <section className="scroll-mt-16 bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+    // Landing overhaul PR11 (density/rhythm pass): a real border-t here --
+    // ProductDemoSection, FeaturesSection, and this section were three
+    // consecutive bg-background, same-padding-scale sections in a row with
+    // no visual break, exactly the "wall" risk the v3 motion plan's
+    // density section warned about. Same thin-delineation technique
+    // already established (HeroFeatures' border-y, FinalCTASection's
+    // border-t) rather than a heavier background-color change, since this
+    // section's own content already carries plenty of visual weight.
+    <section className="scroll-mt-16 border-t border-border bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
       <div className="mx-auto max-w-5xl">
         <div className="mb-10 max-w-2xl sm:mb-14">
           <span className="text-xs font-semibold tracking-wide text-teal-700 uppercase dark:text-primary">

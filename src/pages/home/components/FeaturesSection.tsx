@@ -93,7 +93,7 @@ const FeaturesSection: React.FC = () => {
           {features.map((feature, index) => (
             <div
               key={index}
-              className={`transition-all duration-700 ease-out ${
+              className={`transition-all duration-700 ease-out motion-reduce:transition-none ${
                 revealVisible
                   ? "translate-y-0 opacity-100"
                   : "translate-y-4 opacity-0"

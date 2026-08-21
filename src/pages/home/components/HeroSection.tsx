@@ -93,7 +93,7 @@ const HeroSection = () => {
             {/* Copy column */}
             <div
               ref={copyRef}
-              className={`text-left transition-all duration-700 ease-out ${
+              className={`text-left transition-all duration-700 ease-out motion-reduce:transition-none ${
                 copyVisible
                   ? "translate-y-0 opacity-100"
                   : "translate-y-4 opacity-0"
@@ -160,7 +160,7 @@ const HeroSection = () => {
             {/* Visual column */}
             <div
               ref={visualRef}
-              className={`relative transition-all delay-150 duration-700 ease-out ${
+              className={`relative transition-all delay-150 duration-700 ease-out motion-reduce:transition-none ${
                 visualVisible
                   ? "translate-y-0 opacity-100"
                   : "translate-y-4 opacity-0"
