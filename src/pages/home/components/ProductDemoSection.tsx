@@ -224,12 +224,21 @@ const ProductDemoSection: React.FC = () => {
             ))}
           </div>
 
-          {/* Landing overhaul, post-launch pass: three full-width numbered
-              moments (matrix -> register -> KRI), replacing the old
-              DemoTabs tab-switcher card. Separate from the static 3-widget
-              grid above (own signature rail, hand-built for exactly 3
-              nodes) rather than folded into it. */}
-          <div className="mt-16 space-y-10 sm:mt-20">
+          {/* Landing overhaul, post-launch pass: three numbered moments
+              (matrix -> register -> KRI), replacing the old DemoTabs
+              tab-switcher card. Separate from the static 3-widget grid
+              above (own signature rail, hand-built for exactly 3 nodes)
+              rather than folded into it.
+              Centered at mx-auto max-w-3xl, not left-aligned across the
+              section's full max-w-7xl -- live review at real desktop
+              widths (1440px) showed each moment's max-w-2xl card stranded
+              on the left edge with a huge dead void to its right, since
+              nothing here (unlike the 3-column rail above) is meant to
+              use the full section width. Matches this same page's own
+              established centered-narrow-column convention (FAQSection's
+              max-w-4xl, ConnectedDataModelSection's max-w-5xl) instead of
+              inventing a third, currently-broken pattern. */}
+          <div className="mx-auto mt-16 max-w-3xl space-y-10 sm:mt-20">
             {INTERACTIVE_DEMOS.map((demo, i) => (
               <DemoMoment
                 key={demo.id}
