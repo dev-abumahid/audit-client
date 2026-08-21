@@ -86,7 +86,7 @@ requirement for how these PRs are scoped, not just a nice-to-have.
 | C2 | Live-update flash pattern: `useValueChangeFlash` hook + two-phase CSS transition + `aria-live` announcement, applied to the KRI dashboard | **shipped** | [#999](https://github.com/Qiyrix/aexa-frontend/pull/999) |
 | C3 | `:has()`-based row-select highlighting on `RiskRegisterPage`/`InspectionTable` (native `<dialog>` and scroll-driven-animation ideas dropped from scope — see below) | **shipped** | [#1001](https://github.com/Qiyrix/aexa-frontend/pull/1001) |
 | D | Modal consolidation (~24 files, smallest/safest first, `FindingDetails.tsx`/`AuditPage.tsx` last) — sequenced with Phase C since both touch modal files | **in progress** (4 of ~24 done — see below) | [#1003](https://github.com/Qiyrix/aexa-frontend/pull/1003), [#1004](https://github.com/Qiyrix/aexa-frontend/pull/1004), [#1005](https://github.com/Qiyrix/aexa-frontend/pull/1005) |
-| E | Landing page rebuild using real preview components + interactive demos + Phase C motion | not started | — |
+| E | Landing page rebuild using real preview components + interactive demos + Phase C motion | **in progress** (core "real product" section shipped — see below) | [#1007](https://github.com/Qiyrix/aexa-frontend/pull/1007) |
 | F | Remaining primitives (Checkbox/Avatar/Skeleton/Tooltip), opportunistic | not started | — |
 
 This table is the source of truth for status — update the Status/PR
@@ -147,6 +147,49 @@ minus the four done):
 - `DeleteAlertModal.tsx` only mentions `useModalA11y` in a comment
   (explaining a related fix) — it already uses `AlertDialog`, no work
   needed.
+
+## Phase E status detail
+
+**Shipped**: a new `ProductDemoSection.tsx` on the public landing page
+(`src/pages/home/Home.tsx`, between `HeroFeatures` and
+`FeaturesSection`) embeds the real `OverviewView` component fed the
+same mock fixtures `OverviewPreview.tsx` uses — a genuine "see it in
+action" section, not fabricated placeholder numbers.
+
+**Deliberately untouched**: `HeroSection`'s existing product visual
+(`HeroProductVisual.tsx`) — it's a well-crafted, theme-token-driven,
+accessibility-reviewed compact illustration, not the "hand-drawn
+mockup" this phase set out to replace. `OverviewView`/`RiskMatrixView`
+are full authenticated pages (own `<h1>`, full chrome) that don't fit
+that tight hero slot without looking cramped, hence the separate
+section instead of a hero-visual swap.
+
+**Key implementation pattern**: go around `OverviewPreview.tsx`/
+`RiskMatrixPreview.tsx` entirely for a permanent public embed —
+`assertPreviewOnly()` throws unconditionally in dev builds by design
+(catching an accidental preview-route leak), which would crash the dev
+server on every visit to `/` if a `*Preview.tsx` component were mounted
+there directly. Render the underlying `*View.tsx` component directly
+with the same mock data instead — that's what the `*Preview.tsx` entry
+points themselves render once their guard passes.
+
+**Known, disclosed limitation** (flagged in PR #1007's review, not
+fixed yet): `OverviewView`'s risk/KPI links use mock IDs pointing to
+real authenticated `/organization/*` routes. A logged-out visitor
+clicking one gets redirected by `ProtectedRoute` back to `/` — not
+broken, just a mildly confusing "click, briefly navigate, land back
+where you started" moment. A proper fix (redirect these specific links
+to a signup CTA instead) is real design work, tracked separately.
+
+**Not done — remaining Phase E scope**: the tracking table's original
+description also named "interactive demos" (this section is scrollable/
+hoverable but not click-to-interact beyond that) and "Phase C motion"
+integration (the section uses the existing `useRevealOnScroll` pattern,
+not any new C3-era technique) — neither is a hard requirement, both are
+reasonable candidates for a future pass if the current static-embed
+version proves out. `RiskMatrixPreview`'s own mock data/component is
+still unused on the public site — a second demo section (or a tabbed
+view alternating between Overview/Risk Matrix) is a natural next step.
 
 ## How to revert this whole initiative
 
