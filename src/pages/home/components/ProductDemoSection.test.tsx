@@ -27,7 +27,7 @@ describe("ProductDemoSection", () => {
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
   })
 
-  it("renders all four widgets", () => {
+  it("renders all four static widgets", () => {
     renderSection()
     expect(
       screen.getByText("home.productDemo.riskMatrix.title")
@@ -38,8 +38,24 @@ describe("ProductDemoSection", () => {
     expect(
       screen.getByText("home.productDemo.riskGraph.title")
     ).toBeInTheDocument()
+  })
+
+  // Landing overhaul PR3: the slider's title now appears twice by design --
+  // once as the DemoTabs tab button label, once as the active panel's own
+  // <h3> heading (KriThresholdSliderWidget renders its own title
+  // regardless of where it's mounted).
+  it("renders the tabbed demo block with both tabs available", () => {
+    renderSection()
     expect(
-      screen.getByText("home.productDemo.kriSlider.title")
+      screen.getAllByText("home.productDemo.kriSlider.title").length
+    ).toBeGreaterThanOrEqual(2)
+    expect(
+      screen.getByRole("tab", { name: "home.productDemo.kriSlider.title" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("tab", {
+        name: "home.productDemo.riskMatrixClick.title",
+      })
     ).toBeInTheDocument()
   })
 

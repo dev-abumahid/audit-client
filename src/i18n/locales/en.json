@@ -113,6 +113,13 @@
         "targetLabel": "Target: {{value}}",
         "thresholdLabel": "Alert: {{value}}",
         "caption": "Same status formula the KRI dashboard uses — drag the reading and watch it cross the real target and alert thresholds."
+      },
+      "riskMatrixClick": {
+        "title": "Click a cell",
+        "hint": "Same cell-mapping logic as the real risk register — click any cell to see what's in it.",
+        "cellLabel": "{{count}} risks in this cell",
+        "emptyHint": "Click a cell above to see the risks plotted there.",
+        "noRisks": "No sample risks in this cell."
       }
     },
     "featureSection": {

@@ -1,8 +1,10 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
 import { useRevealOnScroll } from "@/hooks/useRevealOnScroll"
+import DemoTabs from "./productDemo/DemoTabs"
 import KriThresholdSliderWidget from "./productDemo/KriThresholdSliderWidget"
 import KriTrendWidget from "./productDemo/KriTrendWidget"
+import LandingRiskMatrixWidget from "./productDemo/LandingRiskMatrixWidget"
 import RiskGraphWidget from "./productDemo/RiskGraphWidget"
 import RiskMatrixWidget from "./productDemo/RiskMatrixWidget"
 
@@ -139,19 +141,37 @@ const ProductDemoSection: React.FC = () => {
             ))}
           </div>
 
-          {/* Landing overhaul PR2: transitional placement. This becomes the
-              first of three tabs (slider -> matrix -> role-scoped register)
-              once PR3 converts this whole section to a tabbed layout --
-              standalone here rather than a 4th grid column since the
-              connector rail above is hand-built for exactly 3 nodes, and
-              reworking it for 4 now would just be undone next PR. */}
+          {/* Landing overhaul PR3: the tabbed interactive-demo block --
+              slider and clickable matrix now, role-scoped register added as
+              a third tab in PR4. Separate from the static 3-widget grid
+              above (own signature rail, hand-built for exactly 3 nodes)
+              rather than folded into it. */}
           <div
             className={`mt-5 max-w-md rounded-xl bg-gradient-to-br from-accent/50 to-border/60 p-px shadow-lg shadow-foreground/[0.03] transition-all duration-500 ease-out motion-reduce:transition-none ${
               revealVisible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
             }`}
             style={revealVisible ? { transitionDelay: "360ms" } : undefined}
           >
-            <KriThresholdSliderWidget />
+            {/* No extra card wrapper here -- KriThresholdSliderWidget and
+                LandingRiskMatrixWidget each already supply their own
+                rounded-[11px] bg-card p-5 shell (matching every sibling
+                widget's convention), so DemoTabs sits directly in the
+                glow-border container; wrapping it in a second card would
+                nest a card inside a card. */}
+            <DemoTabs
+              tabs={[
+                {
+                  id: "kriSlider",
+                  label: t("home.productDemo.kriSlider.title"),
+                  Component: KriThresholdSliderWidget,
+                },
+                {
+                  id: "riskMatrixClick",
+                  label: t("home.productDemo.riskMatrixClick.title"),
+                  Component: LandingRiskMatrixWidget,
+                },
+              ]}
+            />
           </div>
         </div>
       </div>

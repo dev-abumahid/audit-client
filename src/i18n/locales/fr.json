@@ -113,6 +113,13 @@
         "targetLabel": "Cible : {{value}}",
         "thresholdLabel": "Alerte : {{value}}",
         "caption": "La même formule de statut que le tableau de bord des KRI — faites glisser la mesure et regardez-la franchir les seuils réels de cible et d'alerte."
+      },
+      "riskMatrixClick": {
+        "title": "Cliquez sur une cellule",
+        "hint": "La même logique de positionnement que le vrai registre des risques — cliquez sur une cellule pour voir ce qu'elle contient.",
+        "cellLabel": "{{count}} risques dans cette cellule",
+        "emptyHint": "Cliquez sur une cellule ci-dessus pour voir les risques qui y sont positionnés.",
+        "noRisks": "Aucun risque d'exemple dans cette cellule."
       }
     },
     "featureSection": {
