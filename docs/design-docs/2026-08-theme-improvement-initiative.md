@@ -86,7 +86,7 @@ requirement for how these PRs are scoped, not just a nice-to-have.
 | C2 | Live-update flash pattern: `useValueChangeFlash` hook + two-phase CSS transition + `aria-live` announcement, applied to the KRI dashboard | **shipped** | [#999](https://github.com/Qiyrix/aexa-frontend/pull/999) |
 | C3 | `:has()`-based row-select highlighting on `RiskRegisterPage`/`InspectionTable` (native `<dialog>` and scroll-driven-animation ideas dropped from scope — see below) | **shipped** | [#1001](https://github.com/Qiyrix/aexa-frontend/pull/1001) |
 | D | Modal consolidation (~24 files, smallest/safest first, `FindingDetails.tsx`/`AuditPage.tsx` last) — sequenced with Phase C since both touch modal files | **in progress** (4 of ~24 done — see below) | [#1003](https://github.com/Qiyrix/aexa-frontend/pull/1003), [#1004](https://github.com/Qiyrix/aexa-frontend/pull/1004), [#1005](https://github.com/Qiyrix/aexa-frontend/pull/1005) |
-| E | Landing page rebuild using real preview components + interactive demos + Phase C motion | **in progress** (stylized/animated demo section shipped — see below) | [#1007](https://github.com/Qiyrix/aexa-frontend/pull/1007) (superseded), [#1009](https://github.com/Qiyrix/aexa-frontend/pull/1009) |
+| E | Landing page rebuild using real preview components + interactive demos + Phase C motion | **in progress** (stylized/animated/polished demo section shipped — see below) | [#1007](https://github.com/Qiyrix/aexa-frontend/pull/1007) (superseded), [#1009](https://github.com/Qiyrix/aexa-frontend/pull/1009) (superseded), [#1011](https://github.com/Qiyrix/aexa-frontend/pull/1011) |
 | F | Remaining primitives (Checkbox/Avatar/Skeleton/Tooltip), opportunistic | not started | — |
 
 This table is the source of truth for status — update the Status/PR
@@ -193,6 +193,31 @@ fixed with `role="img"` + a real `aria-label` summarizing the actual
 computed severity counts, individual cells `aria-hidden`. Both fixes
 have dedicated regression tests (`RiskMatrixWidget.test.tsx`,
 `RiskGraphWidget.test.tsx` — neither existed before this review round).
+
+**v2 → v3, why it changed**: v2's widgets were structurally correct
+(real computed data, real motion) but read as flat and generic —
+direct feedback was that the visual execution didn't match the ask
+("designs, motion... premium feel") and was a much cruder abstraction
+of the real product than it needed to be. PR #1011 (two review rounds,
+both clean before merge) closed that gap two ways: (1) **fidelity to
+the real pages, verified line-by-line, not approximated** — pulled the
+actual axis labels/legend/array order from `RiskMatrixView.tsx`'s
+`LABEL_KEYS[5]`, the actual dark-mode-contrast-corrected cell opacities
+from that same file's `getRiskCellClass` (a fix quality-bar-loop rounds
+10-12 specifically tuned — the first widget pass missed it and shipped
+the pre-fix flat values), and the actual node/edge opacities + category-
+color ring styling + a genuine `computePageRank` result from
+`RiskGraphPage.tsx`, not a fabricated "PR:100"; (2) **depth and a
+signature element**: the section background reuses `HeroSection`'s own
+grid+radial-glow treatment for visual continuity with the hero, each
+card gets a gradient-glow border in its own dominant accent color, and
+a decorative connector rail above the three cards (three animated nodes
+labeled "Plots risk" / "Correlates it" / "Triggers alert") literalizes
+the "one data model underlies every module" claim `FeaturesSection`
+already makes in copy — a real narrative device, not decoration for its
+own sake. Also fixed a live-caught mobile truncation bug (`truncate`
+clipped "Catastrophic" mid-word with no way to recover it on a touch
+device — switched to word-wrap).
 
 **Not done — remaining Phase E scope**: "interactive demos" beyond
 scroll-triggered animation (no click-to-explore yet) and using
