@@ -2806,7 +2806,18 @@ describe("CompliancePage", () => {
     // attestObligation/historyObligation used to be independent state, so
     // opening one modal without dismissing another left the first one
     // stacked underneath, invisible but still mounted.
-    it("closes the re-attest modal when the history modal is opened for a different row", async () => {
+    // Phase D (modal consolidation): AttestConfirmModal/AttestHistoryModal
+    // now use the shared Radix-backed Dialog, which correctly marks the
+    // rest of the page aria-hidden while a dialog is open (true ARIA
+    // modality) -- background rows are no longer reachable while a modal
+    // is up, in a real browser or via role queries here, so this now
+    // closes the first modal (Escape) before opening the second, rather
+    // than clicking a still-open modal's background directly (an
+    // interaction the full-viewport overlay never actually allowed a real
+    // mouse click to reach anyway, before or after this migration -- only
+    // jsdom's lack of pixel-occlusion checking ever let this test click
+    // "through" it).
+    it("closes the re-attest modal, then opens the history modal for a different row", async () => {
       const user = userEvent.setup()
       mockUseGetAllComplianceQuery.mockReturnValue({
         data: {
@@ -2832,6 +2843,13 @@ describe("CompliancePage", () => {
         })
       ).toBeInTheDocument()
 
+      await user.keyboard("{Escape}")
+      expect(
+        screen.queryByRole("button", {
+          name: "organization.compliance.attest.confirmButton",
+        })
+      ).not.toBeInTheDocument()
+
       const rowB = screen.getByText("SOX annual filing").closest("tr")!
       await user.click(
         within(rowB).getByRole("button", {
@@ -2839,16 +2857,9 @@ describe("CompliancePage", () => {
         })
       )
 
-      // History modal (row B) is open...
       expect(
         screen.getByText("organization.compliance.attest.historyEmpty")
       ).toBeInTheDocument()
-      // ...and the re-attest modal (row A) is gone, not just hidden behind it.
-      expect(
-        screen.queryByRole("button", {
-          name: "organization.compliance.attest.confirmButton",
-        })
-      ).not.toBeInTheDocument()
     })
   })
 
@@ -3189,18 +3200,27 @@ describe("CompliancePage", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     })
 
-    // Round-11 review finding: attestObligation/historyObligation each have
-    // their own useModalA11y() instance, and openAttest/openHistory close
-    // the sibling before opening the new one -- so React runs the closing
-    // modal's cleanup (which returns focus to ITS OWN trigger) and the
-    // opening modal's setup (which captures document.activeElement as ITS
-    // trigger) in the same commit, cleanup-before-setup. Without the
-    // pendingFocusRef fix, that ordering steals focus away from the
-    // just-clicked button before the new modal's setup can capture it, so
-    // closing the newly opened modal would wrongly return focus to the
-    // OTHER modal's trigger. This asserts the real clicked button gets
-    // focus back, not the sibling's.
-    it("returns focus to the History button (not the stale Attest trigger) after switching directly from the Attest modal to the History modal and closing it", async () => {
+    // Round-11 review finding (pre-Radix-migration): attestObligation/
+    // historyObligation each had their own useModalA11y() instance, and a
+    // same-commit close-then-open (switching directly between modals
+    // without an intervening close) could steal focus to the WRONG
+    // trigger without a pendingFocusRef fix. Phase D moved AttestConfirmModal
+    // (only -- AttestHistoryModal is unmigrated, still on useModalA11y) onto
+    // the shared Radix-backed Dialog, which makes the rest of the page
+    // aria-hidden while IT specifically is open -- switching directly away
+    // from Attest without closing it first is no longer reachable (see the
+    // previous test's comment for why that was never really reachable by a
+    // real click either, on either modal, both before and after this
+    // migration -- the full-viewport overlay both implementations render
+    // was always in the way). This test still only opens one modal at a
+    // time, sequentially, so the direct-switch case doesn't come up either
+    // way. What's still worth guarding: that each modal, opened and closed
+    // in its own turn, returns focus to ITS OWN trigger and not a stale one
+    // left over from a previous modal -- pendingFocusRef (CompliancePage.tsx)
+    // still owns this for both, with Radix's own restoration now redundant
+    // but harmless on the Attest side specifically (see pendingFocusRef's
+    // own comment).
+    it("returns focus to each modal's own trigger, not a stale one, across sequential opens", async () => {
       const user = userEvent.setup()
       mockUseGetAllComplianceQuery.mockReturnValue({
         data: { data: [makeObligation()] },
@@ -3218,13 +3238,15 @@ describe("CompliancePage", () => {
       })
       await user.click(attestButton)
       expect(screen.getByRole("dialog")).toBeInTheDocument()
+      await user.keyboard("{Escape}")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      expect(document.activeElement).toBe(attestButton)
 
       const historyButton = screen.getByRole("button", {
         name: "organization.compliance.attest.historyButton",
       })
       await user.click(historyButton)
       expect(screen.getByRole("dialog")).toBeInTheDocument()
-
       await user.keyboard("{Escape}")
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
       expect(document.activeElement).toBe(historyButton)

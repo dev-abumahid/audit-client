@@ -1,7 +1,6 @@
-import { Link2, Loader2, PlusCircle, X } from "lucide-react"
+import { Link2, Loader2, PlusCircle } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useModalA11y } from "@/hooks/useModalA11y"
 import type { ComplianceObligation } from "@/redux/apis/organization/compliance.api"
 import {
   useCreateRiskFromObligationMutation,
@@ -10,6 +9,13 @@ import {
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import { useGetAllSitesQuery } from "@/redux/apis/organization/sites.api"
 import { submitWithToast } from "@/utils/submitWithToast"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface ComplianceRiskLinkModalProps {
   obligation: ComplianceObligation
@@ -36,15 +42,17 @@ const SEVERITY_OPTIONS = ["critical", "high", "medium", "low"] as const
 //     already exists in the register, for the case where the regulatory
 //     risk was entered independently and just needs tying back to its
 //     source obligation.
-// Only ever mounted while an obligation is selected (parent renders
-// `{riskLinkObligation && <ComplianceRiskLinkModal .../>}`), same
-// always-isOpen-true useModalA11y convention as this folder's other modals.
+// Phase D (modal consolidation): was a hand-rolled overlay + useModalA11y,
+// same pattern as AttestConfirmModal.tsx -- now uses the shared Radix-backed
+// Dialog for focus trap/Escape/backdrop-click/return-focus instead. Only
+// ever mounted while an obligation is selected (parent renders
+// `{riskLinkObligation && <ComplianceRiskLinkModal .../>}`), so `open` is
+// always true.
 export default function ComplianceRiskLinkModal({
   obligation,
   onClose,
 }: ComplianceRiskLinkModalProps) {
   const { t } = useTranslation()
-  const modalRef = useModalA11y(true, onClose)
   const [mode, setMode] = useState<Mode>("create")
   const [siteId, setSiteId] = useState("")
   const [severity, setSeverity] = useState<(typeof SEVERITY_OPTIONS)[number] | "">("")
@@ -105,35 +113,19 @@ export default function ComplianceRiskLinkModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose()
+      }}
     >
-      <div
-        ref={modalRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="compliance-risk-link-modal-title"
-        className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-1 flex items-center justify-between">
-          <h2
-            id="compliance-risk-link-modal-title"
-            className="text-lg font-bold text-foreground"
-          >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
             {t("organization.compliance.riskLink.modalTitle")}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("organization.compliance.form.close")}
-            className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <p className="mb-3 text-sm text-muted-foreground">
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
           {t("organization.compliance.riskLink.modalSubtitle", {
             title: obligation.title,
           })}
@@ -281,11 +273,11 @@ export default function ComplianceRiskLinkModal({
           </div>
         )}
 
-        <div className="mt-5 flex justify-end gap-2">
+        <DialogFooter>
           <button
             type="button"
             onClick={onClose}
-            className="focus-ring flex h-11 items-center rounded-lg border border-input px-4 text-sm text-muted-foreground hover:bg-muted"
+            className="focus-ring flex h-11 items-center justify-center rounded-lg border border-input px-4 text-sm text-muted-foreground hover:bg-muted"
           >
             {t("organization.compliance.form.cancel")}
           </button>
@@ -293,15 +285,15 @@ export default function ComplianceRiskLinkModal({
             type="button"
             onClick={mode === "create" ? handleCreate : handleLinkExisting}
             disabled={isSubmitting || (mode === "existing" && !selectedRiskId)}
-            className="focus-ring flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            className="focus-ring flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {mode === "create"
               ? t("organization.compliance.riskLink.create")
               : t("organization.compliance.riskLink.link")}
           </button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

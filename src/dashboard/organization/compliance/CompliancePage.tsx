@@ -207,25 +207,23 @@ export default function CompliancePage() {
   const riskLinkObligation =
     activeModal?.type === "riskLink" ? activeModal.obligation : null
 
-  // Round-11 review: attestObligation/historyObligation are two of three
-  // sibling-exclusive modals above, each mounting its own useModalA11y()
-  // instance (now inside AttestConfirmModal/AttestHistoryModal
-  // respectively). Switching activeModal directly from one to the other
-  // (e.g. Re-attest -> History without closing) still unmounts one
-  // component and mounts the other in the same commit -- cleanup always
-  // runs before setup, so the closing modal's cleanup (useModalA11y.ts
-  // returning focus to ITS OWN trigger) would steal document.activeElement
-  // away from the just-clicked button before the opening modal's setup
-  // captures it as its own trigger. Without this ref, closing the newly
-  // opened modal would return focus to the OTHER modal's trigger button
-  // instead of the one actually clicked. pendingFocusRef captures the real
-  // trigger synchronously in each row button's onClick (before
-  // setActiveModal runs); this single effect (one instead of the former
-  // two, since there's now one state instead of two) runs after the
-  // children (and their useModalA11y hooks) mount/unmount in the same
-  // commit, letting this correction win. Only attest/history participate
-  // -- the action modal (CreateNewFindingModal) never used this
-  // convention, so it's excluded here exactly as it always was.
+  // Round-11 review, updated by Phase D (modal consolidation): originally
+  // both attestObligation/historyObligation mounted their own
+  // useModalA11y() instance, and direct switching between them (e.g.
+  // Re-attest -> History without closing) could steal focus from the
+  // just-clicked trigger -- see git history for the original bug. Phase D
+  // moved AttestConfirmModal onto the shared Radix-backed Dialog (Radix
+  // owns its own focus-trap/restore internally now); AttestHistoryModal
+  // is UNCHANGED and still uses useModalA11y directly. This ref/effect
+  // still needs to exist for the history side (and as a safety net for
+  // attest, redundant with Radix's own restoration but harmless since
+  // both target the same trigger element) until AttestHistoryModal is
+  // migrated too. pendingFocusRef captures the real trigger synchronously
+  // in each row button's onClick (before setActiveModal runs); this
+  // effect runs on every activeModal change, restoring focus to that
+  // captured trigger on cleanup. Only attest/history participate -- the
+  // action modal (CreateNewFindingModal) never used this convention, so
+  // it's excluded here exactly as it always was.
   const pendingFocusRef = useRef<HTMLElement | null>(null)
   useEffect(() => {
     if (activeModal?.type !== "attest" && activeModal?.type !== "history") {

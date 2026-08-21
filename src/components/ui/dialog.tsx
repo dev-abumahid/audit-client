@@ -60,6 +60,14 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        // Phase D finding: this radix-ui version (1.4.3, the unified
+        // package) never emits aria-modal itself despite Dialog.Root's
+        // modal behavior (focus trap, scroll lock, background inert) --
+        // confirmed by grepping the bundled dist for "aria-modal" (zero
+        // matches). WAI-ARIA's dialog-modal pattern calls for this
+        // attribute explicitly; setting it here fixes it once for every
+        // consumer of this shared component instead of per-caller.
+        aria-modal="true"
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-xs/relaxed text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
