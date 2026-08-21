@@ -109,6 +109,9 @@
       },
       "kriSlider": {
         "title": "Drag the reading",
+        "sectionHeading": "Drag a KRI past its threshold",
+        "sectionDescription": "KRIs are tracked against owner-defined thresholds, and the status chip is computed live — not hand-set. Move the slider to watch a real indicator cross from OK to Warning to Alert.",
+        "pill": "Illustrative data — not a live indicator",
         "sliderLabel": "{{name}} current reading",
         "targetLabel": "Target: {{value}}",
         "thresholdLabel": "Alert: {{value}}",
@@ -116,6 +119,9 @@
       },
       "riskMatrixClick": {
         "title": "Click a cell",
+        "sectionHeading": "Click into the risk matrix",
+        "sectionDescription": "This is the same 5×5 likelihood-by-impact grid used in the real risk register. Cells with a number have a sample risk sitting in them — click one to see what that entry actually looks like.",
+        "pill": "Illustrative data — not a real register",
         "hint": "Same cell-mapping logic as the real risk register — click any cell to see what's in it.",
         "cellLabel": "{{count}} risks in this cell",
         "emptyHint": "Click a cell above to see the risks plotted there.",
@@ -123,6 +129,9 @@
       },
       "roleRegister": {
         "title": "Switch roles",
+        "sectionHeading": "Same register, scoped access",
+        "sectionDescription": "Every role sees the full register — segregation of duties happens at the action level. An Admin can edit or approve anything; a Lead Auditor can only act on risks tied to inspections or actions they're personally assigned to. Switch roles below.",
+        "pill": "Illustrative data — not a real org",
         "hint": "Same access gate the real app uses — switch roles and watch the interface change.",
         "roles": {
           "ADMIN": "Admin",

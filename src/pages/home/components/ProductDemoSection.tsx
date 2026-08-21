@@ -1,13 +1,91 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
 import { useRevealOnScroll } from "@/hooks/useRevealOnScroll"
-import DemoTabs from "./productDemo/DemoTabs"
 import KriThresholdSliderWidget from "./productDemo/KriThresholdSliderWidget"
 import KriTrendWidget from "./productDemo/KriTrendWidget"
 import LandingRiskMatrixWidget from "./productDemo/LandingRiskMatrixWidget"
 import RiskGraphWidget from "./productDemo/RiskGraphWidget"
 import RiskMatrixWidget from "./productDemo/RiskMatrixWidget"
 import RoleScopedRegisterWidget from "./productDemo/RoleScopedRegisterWidget"
+
+// Landing overhaul, post-launch pass: replaces the DemoTabs tab-switcher
+// (one demo visible at a time, hidden behind a click) with three full-width
+// "moments" the visitor scrolls through -- direct response to feedback that
+// an external design exploration's one-demo-per-screen pacing read better
+// than the boxed tabbed card. Order (matrix -> register -> KRI) matches
+// that exploration. Each entry's own widget component is unchanged; only
+// how it's introduced and mounted changed.
+const INTERACTIVE_DEMOS = [
+  {
+    id: "riskMatrixClick",
+    headingKey: "home.productDemo.riskMatrixClick.sectionHeading",
+    descriptionKey: "home.productDemo.riskMatrixClick.sectionDescription",
+    pillKey: "home.productDemo.riskMatrixClick.pill",
+    Widget: LandingRiskMatrixWidget,
+  },
+  {
+    id: "roleRegister",
+    headingKey: "home.productDemo.roleRegister.sectionHeading",
+    descriptionKey: "home.productDemo.roleRegister.sectionDescription",
+    pillKey: "home.productDemo.roleRegister.pill",
+    Widget: RoleScopedRegisterWidget,
+  },
+  {
+    id: "kriSlider",
+    headingKey: "home.productDemo.kriSlider.sectionHeading",
+    descriptionKey: "home.productDemo.kriSlider.sectionDescription",
+    pillKey: "home.productDemo.kriSlider.pill",
+    Widget: KriThresholdSliderWidget,
+  },
+] as const
+
+// One numbered "moment" section: eyebrow number, heading, description,
+// illustrative-data pill, then the real widget in its glow-border shell.
+// Its own useRevealOnScroll (not the parent's) so each moment animates in
+// as the visitor actually scrolls to it, rather than all three firing
+// together the instant the section's top edge is reached.
+function DemoMoment({
+  index,
+  headingKey,
+  descriptionKey,
+  pillKey,
+  Widget,
+}: {
+  index: number
+  headingKey: string
+  descriptionKey: string
+  pillKey: string
+  Widget: React.ComponentType
+}) {
+  const { t } = useTranslation()
+  const [revealRef, revealVisible] = useRevealOnScroll<HTMLDivElement>()
+
+  return (
+    <div
+      ref={revealRef}
+      className={`border-t border-border pt-10 transition-all duration-700 ease-out first:border-t-0 first:pt-0 motion-reduce:transition-none ${
+        revealVisible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+      }`}
+    >
+      <span className="font-heading text-sm text-muted-foreground italic">
+        {String(index + 1).padStart(2, "0")}
+      </span>
+      <h3 className="mt-2 font-heading text-xl font-bold text-balance text-foreground sm:text-2xl">
+        {t(headingKey)}
+      </h3>
+      <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+        {t(descriptionKey)}
+      </p>
+      <span className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+        {t(pillKey)}
+      </span>
+
+      <div className="mt-6 max-w-2xl rounded-xl bg-gradient-to-br from-accent/50 to-border/60 p-px shadow-lg shadow-foreground/[0.03]">
+        <Widget />
+      </div>
+    </div>
+  )
+}
 
 // Phase E (theme-improvement-initiative), redesigned twice after live
 // feedback: v1 literally embedded the authenticated OverviewView dashboard
@@ -79,7 +157,9 @@ const ProductDemoSection: React.FC = () => {
               y2="12"
               pathLength={1}
               className={`stroke-primary/40 transition-[stroke-dashoffset] duration-1000 ease-out motion-reduce:transition-none ${
-                revealVisible ? "[stroke-dashoffset:0]" : "[stroke-dashoffset:1]"
+                revealVisible
+                  ? "[stroke-dashoffset:0]"
+                  : "[stroke-dashoffset:1]"
               }`}
               strokeWidth={0.5}
               strokeDasharray={1}
@@ -134,7 +214,9 @@ const ProductDemoSection: React.FC = () => {
                     : "translate-y-3 opacity-0"
                 }`}
                 style={
-                  revealVisible ? { transitionDelay: `${i * 120}ms` } : undefined
+                  revealVisible
+                    ? { transitionDelay: `${i * 120}ms` }
+                    : undefined
                 }
               >
                 <Widget animate={revealVisible} />
@@ -142,43 +224,22 @@ const ProductDemoSection: React.FC = () => {
             ))}
           </div>
 
-          {/* Landing overhaul PR3+PR4: the tabbed interactive-demo block --
-              slider, clickable matrix, and role-scoped register. Separate
-              from the static 3-widget grid above (own signature rail,
-              hand-built for exactly 3 nodes) rather than folded into it.
-              Wider than the grid's cards (max-w-2xl, not max-w-md): the
-              register's table needs more horizontal room than the
-              slider/matrix's roughly-square layouts. */}
-          <div
-            className={`mt-5 max-w-2xl rounded-xl bg-gradient-to-br from-accent/50 to-border/60 p-px shadow-lg shadow-foreground/[0.03] transition-all duration-500 ease-out motion-reduce:transition-none ${
-              revealVisible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
-            }`}
-            style={revealVisible ? { transitionDelay: "360ms" } : undefined}
-          >
-            {/* No extra card wrapper here -- each panel widget already
-                supplies its own rounded-[11px] bg-card p-5 shell (matching
-                every sibling widget's convention), so DemoTabs sits
-                directly in the glow-border container; wrapping it in a
-                second card would nest a card inside a card. */}
-            <DemoTabs
-              tabs={[
-                {
-                  id: "kriSlider",
-                  label: t("home.productDemo.kriSlider.title"),
-                  Component: KriThresholdSliderWidget,
-                },
-                {
-                  id: "riskMatrixClick",
-                  label: t("home.productDemo.riskMatrixClick.title"),
-                  Component: LandingRiskMatrixWidget,
-                },
-                {
-                  id: "roleRegister",
-                  label: t("home.productDemo.roleRegister.title"),
-                  Component: RoleScopedRegisterWidget,
-                },
-              ]}
-            />
+          {/* Landing overhaul, post-launch pass: three full-width numbered
+              moments (matrix -> register -> KRI), replacing the old
+              DemoTabs tab-switcher card. Separate from the static 3-widget
+              grid above (own signature rail, hand-built for exactly 3
+              nodes) rather than folded into it. */}
+          <div className="mt-16 space-y-10 sm:mt-20">
+            {INTERACTIVE_DEMOS.map((demo, i) => (
+              <DemoMoment
+                key={demo.id}
+                index={i}
+                headingKey={demo.headingKey}
+                descriptionKey={demo.descriptionKey}
+                pillKey={demo.pillKey}
+                Widget={demo.Widget}
+              />
+            ))}
           </div>
         </div>
       </div>

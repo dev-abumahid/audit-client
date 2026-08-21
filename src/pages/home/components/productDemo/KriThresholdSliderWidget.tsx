@@ -73,9 +73,16 @@ export default function KriThresholdSliderWidget() {
   return (
     <div className="rounded-[11px] bg-card p-5">
       <div className="mb-1 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-foreground">
+        {/* Review finding on PR #1025: this widget only ever mounts under
+            ProductDemoSection's DemoMoment, which already renders the real
+            <h3> section heading right above it -- an inner <h3> here put
+            two headings back-to-back in the screen-reader outline with no
+            structural distinction between them. Demoted to a <p> with the
+            same visual weight; the section heading now carries the actual
+            heading semantics. */}
+        <p className="text-sm font-semibold text-foreground">
           {t("home.productDemo.kriSlider.title")}
-        </h3>
+        </p>
         <div
           className={`value-flash rounded-full px-1 ${isFlashing ? "is-flashing" : ""}`}
         >

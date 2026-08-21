@@ -62,9 +62,14 @@ export default function LandingRiskMatrixWidget() {
   return (
     <div className="rounded-[11px] bg-card p-5">
       <div className="mb-1 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">
+        {/* Review finding on PR #1025: demoted from <h3> -- this widget only
+            mounts under ProductDemoSection's DemoMoment, which already
+            supplies the real section <h3> right above it. See
+            KriThresholdSliderWidget's identical fix for the full
+            reasoning. */}
+        <p className="text-sm font-semibold text-foreground">
           {t("home.productDemo.riskMatrixClick.title")}
-        </h3>
+        </p>
         <span className="font-mono-data text-[10px] text-muted-foreground">
           {t("home.productDemo.riskMatrix.dimensions")}
         </span>

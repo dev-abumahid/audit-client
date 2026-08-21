@@ -109,6 +109,9 @@
       },
       "kriSlider": {
         "title": "Faites glisser la mesure",
+        "sectionHeading": "Faites franchir un seuil à un ICR",
+        "sectionDescription": "Les ICR sont suivis par rapport à des seuils définis par leur propriétaire, et la pastille de statut est calculée en direct — jamais fixée à la main. Déplacez le curseur pour voir un indicateur réel passer d'OK à Avertissement puis à Alerte.",
+        "pill": "Données d'exemple — pas un indicateur en direct",
         "sliderLabel": "Mesure actuelle de {{name}}",
         "targetLabel": "Cible : {{value}}",
         "thresholdLabel": "Alerte : {{value}}",
@@ -116,6 +119,9 @@
       },
       "riskMatrixClick": {
         "title": "Cliquez sur une cellule",
+        "sectionHeading": "Cliquez dans la matrice des risques",
+        "sectionDescription": "Il s'agit de la même grille 5×5 probabilité × impact que le registre des risques réel. Les cellules affichant un chiffre contiennent un risque d'exemple — cliquez sur l'une d'elles pour voir ce qu'elle contient.",
+        "pill": "Données d'exemple — pas un vrai registre",
         "hint": "La même logique de positionnement que le vrai registre des risques — cliquez sur une cellule pour voir ce qu'elle contient.",
         "cellLabel": "{{count}} risques dans cette cellule",
         "emptyHint": "Cliquez sur une cellule ci-dessus pour voir les risques qui y sont positionnés.",
@@ -123,6 +129,9 @@
       },
       "roleRegister": {
         "title": "Changez de rôle",
+        "sectionHeading": "Même registre, accès selon le rôle",
+        "sectionDescription": "Chaque rôle voit l'ensemble du registre — la séparation des tâches se joue au niveau de l'action. Un Admin peut modifier ou approuver n'importe quoi ; un Auditeur principal ne peut agir que sur les risques liés aux inspections ou actions qui lui sont personnellement assignées. Changez de rôle ci-dessous.",
+        "pill": "Données d'exemple — pas une vraie organisation",
         "hint": "La même barrière d'accès que l'application réelle — changez de rôle et regardez l'interface changer.",
         "roles": {
           "ADMIN": "Admin",

@@ -12,9 +12,7 @@ describe("ProductDemoSection", () => {
   it("renders the section header keys", () => {
     renderSection()
     expect(screen.getByText("home.productDemo.title")).toBeInTheDocument()
-    expect(
-      screen.getByText("home.productDemo.description")
-    ).toBeInTheDocument()
+    expect(screen.getByText("home.productDemo.description")).toBeInTheDocument()
   })
 
   // Regression test, same class of bug FeaturesSection.test.tsx already
@@ -22,7 +20,10 @@ describe("ProductDemoSection", () => {
   it("uses an h2 for its own section header, no h1", () => {
     renderSection()
     expect(
-      screen.getByRole("heading", { level: 2, name: /home\.productDemo\.title/ })
+      screen.getByRole("heading", {
+        level: 2,
+        name: /home\.productDemo\.title/,
+      })
     ).toBeInTheDocument()
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
   })
@@ -40,28 +41,53 @@ describe("ProductDemoSection", () => {
     ).toBeInTheDocument()
   })
 
-  // Landing overhaul PR3/PR4: the slider's title now appears twice by
-  // design -- once as the DemoTabs tab button label, once as the active
-  // panel's own <h3> heading (KriThresholdSliderWidget renders its own
-  // title regardless of where it's mounted).
-  it("renders the tabbed demo block with all three tabs available", () => {
+  // Post-launch pass: DemoTabs' tab-switcher card was replaced with three
+  // full-width numbered sections, always mounted simultaneously (no more
+  // `inert` panels hidden behind a tab click) -- so all three widgets and
+  // their own titles are in the DOM at once, with no role="tab"/
+  // role="tablist" anywhere. Each widget's own title is a <p>, not a
+  // second <h3> -- see the next test for the heading-outline assertion.
+  it("renders all three interactive demo moments simultaneously, no tabs", () => {
     renderSection()
     expect(
-      screen.getAllByText("home.productDemo.kriSlider.title").length
-    ).toBeGreaterThanOrEqual(2)
-    expect(
-      screen.getByRole("tab", { name: "home.productDemo.kriSlider.title" })
+      screen.getByText("home.productDemo.kriSlider.title")
     ).toBeInTheDocument()
     expect(
-      screen.getByRole("tab", {
-        name: "home.productDemo.riskMatrixClick.title",
-      })
+      screen.getByText("home.productDemo.riskMatrixClick.title")
     ).toBeInTheDocument()
     expect(
-      screen.getByRole("tab", {
-        name: "home.productDemo.roleRegister.title",
-      })
+      screen.getByText("home.productDemo.roleRegister.title")
     ).toBeInTheDocument()
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument()
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument()
+  })
+
+  // Review finding on PR #1025: the original version of this test only
+  // checked text presence, not heading role/level or DOM order -- it would
+  // still pass if a future edit demoted DemoMoment's own heading to a div,
+  // or reordered INTERACTIVE_DEMOS away from the intended matrix -> register
+  // -> KRI sequence. Asserts both explicitly now. Level 3 (not 2): the
+  // section's own home.productDemo.title is the h2 (see the "no h1" test
+  // above); each moment is a subsection of it.
+  it("renders each demo moment's numbered eyebrow and section heading, in order", () => {
+    renderSection()
+    expect(screen.getByText("01")).toBeInTheDocument()
+    expect(screen.getByText("02")).toBeInTheDocument()
+    expect(screen.getByText("03")).toBeInTheDocument()
+
+    // The static 3-widget rail above (RiskMatrixWidget/RiskGraphWidget/
+    // KriTrendWidget) has its own h3 titles too -- filter to just the
+    // three DemoMoment section headings by their known key suffix rather
+    // than asserting on getAllByRole("heading", { level: 3 }) directly,
+    // which would also catch the rail's headings.
+    const momentHeadings = screen
+      .getAllByRole("heading", { level: 3 })
+      .filter((h) => h.textContent?.includes(".sectionHeading"))
+    expect(momentHeadings.map((h) => h.textContent)).toEqual([
+      "home.productDemo.riskMatrixClick.sectionHeading",
+      "home.productDemo.roleRegister.sectionHeading",
+      "home.productDemo.kriSlider.sectionHeading",
+    ])
   })
 
   // The whole point of this redesign: every widget still computes from real
