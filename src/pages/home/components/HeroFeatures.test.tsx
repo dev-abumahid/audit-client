@@ -46,6 +46,26 @@ describe("HeroFeatures", () => {
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
   })
 
+  // Landing overhaul PR6: two decorative connector rails (horizontal for
+  // the true 4-column grid, vertical for the true 1-column stack), both
+  // aria-hidden since each card's own heading/description already carries
+  // the real content -- a screen reader shouldn't hear an orphaned "line
+  // connecting the cards" announcement with nothing to attach it to.
+  it("renders exactly two aria-hidden connector rail SVGs, each with 4 nodes", () => {
+    const { container } = render(<HeroFeatures />)
+    // Scoped to SVGs containing a <line> -- the 4 lucide feature icons are
+    // also aria-hidden SVGs, but none of them contain a <line> element, so
+    // this distinguishes the 2 connector rails from the 4 icons.
+    const rails = Array.from(
+      container.querySelectorAll('svg[aria-hidden="true"]')
+    ).filter((svg) => svg.querySelector("line"))
+    expect(rails).toHaveLength(2)
+    rails.forEach((rail) => {
+      expect(rail.querySelectorAll("circle")).toHaveLength(4)
+      expect(rail.querySelectorAll("line")).toHaveLength(1)
+    })
+  })
+
   // aexa-frontend#510 round 13: the feature cards had cursor-pointer +
   // hover:shadow-md + group-hover styling implying interactivity with no
   // onClick or keyboard handler behind them. Since no per-feature action
