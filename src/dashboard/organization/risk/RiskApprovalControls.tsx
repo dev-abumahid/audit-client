@@ -1,6 +1,12 @@
 import { useMyOrgRole } from "@/hooks/useMyOrgRole"
-import { useModalA11y } from "@/hooks/useModalA11y"
 import { useGetMeQuery } from "@/redux/apis/auth.api"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   useApproveRiskMutation,
   useRejectRiskMutation,
@@ -62,11 +68,16 @@ export default function RiskApprovalControls({ risk }: Props) {
   const [rejectReason, setRejectReason] = useState("")
 
   // aexa-frontend#488 -- role="dialog"/focus-trap/Escape for the Reject
-  // modal, same pattern KriDashboardPage uses (round 10, #487).
-  const rejectModalRef = useModalA11y(showRejectModal, () => {
+  // modal, same pattern KriDashboardPage uses (round 10, #487). Phase D
+  // (modal consolidation): now the shared Radix-backed Dialog instead of
+  // useModalA11y -- unlike the compliance modals this session migrated
+  // (always-mounted-when-open, conditional-mount-then-remove), this one
+  // already toggled a real `open` boolean while staying mounted, which is
+  // the more natural fit for Radix's own open/onOpenChange contract.
+  const closeRejectModal = () => {
     setShowRejectModal(false)
     setRejectReason("")
-  })
+  }
 
   const status: RiskApprovalDisplayState =
     risk.approvalStatus ?? "NOT_SUBMITTED"
@@ -228,25 +239,19 @@ export default function RiskApprovalControls({ risk }: Props) {
           </p>
         )}
 
-      {showRejectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div
-            ref={rejectModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={`risk-reject-modal-title-${risk.id}`}
-            className="w-full max-w-md space-y-3 rounded-2xl border bg-card p-5 shadow-xl"
-          >
-            {/* Round-11 review: this component renders once per risk row, so
-                the id must be scoped by risk.id -- a static id here would
-                collide across rows once more than one row has its Reject
-                modal in the DOM at the same time. */}
-            <h2
-              id={`risk-reject-modal-title-${risk.id}`}
-              className="text-base font-bold"
-            >
+      <Dialog
+        open={showRejectModal}
+        onOpenChange={(next) => {
+          if (!next) closeRejectModal()
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
               {t("organization.riskRegister.approval.rejectModalTitle")}
-            </h2>
+            </DialogTitle>
+          </DialogHeader>
+          <div>
             <label
               htmlFor={`risk-reject-reason-${risk.id}`}
               className="text-xs font-medium text-muted-foreground"
@@ -260,31 +265,28 @@ export default function RiskApprovalControls({ risk }: Props) {
               placeholder={t(
                 "organization.riskRegister.approval.rejectReasonPlaceholder"
               )}
-              className="min-h-24 w-full rounded-lg border bg-muted px-3 py-2 text-sm"
+              className="mt-1 min-h-24 w-full rounded-lg border bg-muted px-3 py-2 text-sm"
             />
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowRejectModal(false)
-                  setRejectReason("")
-                }}
-                className="focus-ring rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted"
-              >
-                {t("organization.riskRegister.approval.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleReject}
-                disabled={isRejecting}
-                className="focus-ring text-destructive-foreground rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-              >
-                {t("organization.riskRegister.approval.rejectConfirm")}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={closeRejectModal}
+              className="focus-ring flex h-11 items-center justify-center rounded-lg border px-3 text-xs font-medium hover:bg-muted"
+            >
+              {t("organization.riskRegister.approval.cancel")}
+            </button>
+            <button
+              type="button"
+              onClick={handleReject}
+              disabled={isRejecting}
+              className="focus-ring text-destructive-foreground flex h-11 items-center justify-center rounded-lg bg-destructive px-3 text-xs font-medium disabled:opacity-50"
+            >
+              {t("organization.riskRegister.approval.rejectConfirm")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
