@@ -49,10 +49,14 @@ const HeroSection = () => {
   // for "demo"/"calendly"/booking routes - none found), so this opens a
   // pre-filled mailto to the team as a minimal, honest fallback rather than
   // leaving the button dead. Replace with a real scheduling link/route when
-  // one exists.
+  // one exists. Landing overhaul PR10 fix: the button's own label already
+  // reads "Contact Sales" (a prior copy pass corrected it from "Book a
+  // Demo"), but this handler's mailto subject/body still said "Demo
+  // Request"/"book a demo" -- corrected to match, same wording
+  // FinalCTASection's own Contact Sales button now uses.
   const handleBookDemoClick = () => {
     window.location.href =
-      "mailto:hello@qiyrix.com?subject=Demo%20Request&body=Hi%20Qiyrix%20team%2C%20I%27d%20like%20to%20book%20a%20demo."
+      "mailto:hello@qiyrix.com?subject=Sales%20Inquiry&body=Hi%20Qiyrix%20team%2C%20I%27d%20like%20to%20talk%20to%20sales."
   }
 
   const capabilities = t("home.hero.capabilities", {

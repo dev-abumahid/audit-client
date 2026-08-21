@@ -243,6 +243,12 @@
         }
       ]
     },
+    "finalCta": {
+      "title": "See it running on your own data.",
+      "description": "Get started free, or talk to sales about rolling it out across your organization.",
+      "btnStart": "Get Started",
+      "btnContactSales": "Contact Sales"
+    },
     "navbar": {
       "howItWorksLink": "How It Works",
       "platformLink": "Platform",

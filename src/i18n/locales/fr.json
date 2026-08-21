@@ -243,6 +243,12 @@
         }
       ]
     },
+    "finalCta": {
+      "title": "Voyez-le fonctionner avec vos propres données.",
+      "description": "Commencez gratuitement, ou parlez à notre équipe commerciale pour le déployer dans toute votre organisation.",
+      "btnStart": "Commencer",
+      "btnContactSales": "Contacter les ventes"
+    },
     "navbar": {
       "howItWorksLink": "Comment ça marche",
       "platformLink": "Plateforme",

@@ -2,6 +2,7 @@ import CredibilityBand from "./components/CredibilityBand"
 import ConnectedDataModelSection from "./components/connectedDataModel/ConnectedDataModelSection"
 import FAQSection from "./components/FAQSection"
 import FeaturesSection from "./components/FeaturesSection"
+import FinalCTASection from "./components/FinalCTASection"
 import HeroFeatures from "./components/HeroFeatures"
 import HeroSection from "./components/HeroSection"
 import ProductDemoSection from "./components/ProductDemoSection"
@@ -18,6 +19,7 @@ export default function Home() {
       <ConnectedDataModelSection />
       <TestimonialsSection />
       <FAQSection />
+      <FinalCTASection />
     </div>
   )
 }

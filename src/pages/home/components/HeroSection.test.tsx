@@ -15,7 +15,7 @@ const { mockT } = vi.hoisted(() => ({
       "home.hero.title2": "with confidence",
       "home.hero.subtitle": "A GRC platform for modern teams",
       "home.hero.btnStart": "Get Started",
-      "home.hero.btnDemo": "Book a Demo",
+      "home.hero.btnDemo": "Contact Sales",
       "home.hero.heroCaption": "Executive risk overview inside Qiyrix",
       "auth.signUp.title": "Get Started with Us",
       "auth.signUp.subTitle": "Create your account to get started",
@@ -145,11 +145,17 @@ describe("HeroSection", () => {
     expect(screen.getByText("Reset Password")).toBeInTheDocument()
   })
 
-  // Regression test: the "Book a Demo" button had no onClick at all, so it
-  // was completely dead. No in-app demo-booking flow exists yet, so it opens
-  // a pre-filled mailto as a minimal fallback -- assert that actually fires
-  // rather than just checking the button renders.
-  it("opens a pre-filled mailto when Book a Demo is clicked", async () => {
+  // Regression test: the "Contact Sales" button had no onClick at all, so
+  // it was completely dead. No in-app demo-booking flow exists yet, so it
+  // opens a pre-filled mailto as a minimal fallback -- assert that
+  // actually fires rather than just checking the button renders.
+  //
+  // Review finding on PR #1022: this used to only check
+  // stringContaining("mailto:hello@qiyrix.com"), which wouldn't have
+  // caught the button's own label ("Contact Sales") disagreeing with its
+  // mailto content (which said "Demo Request"/"book a demo" until this
+  // same PR fixed it) -- closing that gap here.
+  it("opens a pre-filled mailto with Contact Sales wording when Contact Sales is clicked", async () => {
     const user = userEvent.setup()
     const hrefSetter = vi.fn()
     Object.defineProperty(window, "location", {
@@ -165,11 +171,12 @@ describe("HeroSection", () => {
     })
 
     renderHero()
-    await user.click(screen.getByRole("button", { name: /Book a Demo/ }))
+    await user.click(screen.getByRole("button", { name: /Contact Sales/ }))
 
-    expect(hrefSetter).toHaveBeenCalledWith(
-      expect.stringContaining("mailto:hello@qiyrix.com")
-    )
+    const calledWith = hrefSetter.mock.calls[0][0] as string
+    expect(calledWith).toContain("mailto:hello@qiyrix.com")
+    expect(calledWith).toContain("Sales%20Inquiry")
+    expect(calledWith).not.toContain("Demo%20Request")
   })
 
   // Raw <button>s default to type="submit" per HTML spec, which is a latent
