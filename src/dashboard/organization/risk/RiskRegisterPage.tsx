@@ -174,7 +174,21 @@ const RiskRow = memo(function RiskRow({
   const catColor = cat?.color || "hsl(220, 10%, 46%)"
 
   return (
-    <tr className="border-b transition-colors hover:bg-muted/30">
+    // Phase C3 finding: `isSelected` was already threaded down to this row
+    // (used only to set the checkbox's own `checked` state) but nothing
+    // visually distinguished a selected row from an unselected one in the
+    // table body itself -- bulk-selecting several rows gave no at-a-glance
+    // feedback beyond the small checkboxes. `has-[:checked]` (CSS `:has()`,
+    // Baseline-safe since 2023, already used elsewhere in this codebase --
+    // see UpdateInspection.tsx) tints the whole row from the checkbox's own
+    // checked state with zero extra JS or props. Review finding: plain
+    // `has-[:checked]:bg-primary/5` and `hover:bg-muted/30` are the same
+    // specificity, so which one painted on a hovered+selected row depended
+    // on Tailwind's generated output order, not something obvious from
+    // reading this className -- an explicit `hover:has-[:checked]` rule for
+    // that exact intersection removes the ambiguity instead of leaving it
+    // to be inferred.
+    <tr className="border-b transition-colors has-[:checked]:bg-primary/5 hover:bg-muted/30 hover:has-[:checked]:bg-primary/10">
       {/* quality-bar-loop industry-standards workstream: row-selection
           checkbox for bulk actions. Only rendered for writers -- a
           read-only viewer has no bulk-delete affordance to select rows

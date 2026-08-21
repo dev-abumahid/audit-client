@@ -561,8 +561,21 @@ const InspectionTable = () => {
                     item.id,
                     assignedInspectionIds
                   )
+                  // Phase C3 finding: same gap as RiskRegisterPage's row-select
+                  // checkbox -- selectedIds already drove the checkbox's own
+                  // checked state but nothing highlighted the row itself.
+                  // has-[:checked] (:has(), Baseline-safe, already used
+                  // elsewhere in this codebase) tints the row for free.
+                  // Review finding: an explicit hover:has-[:checked] rule
+                  // for the hovered+selected intersection avoids depending
+                  // on Tailwind's generated output order to know which of
+                  // two equal-specificity background rules wins -- see
+                  // RiskRegisterPage.tsx's identical fix.
                   return (
-                  <TableRow key={item.id} className="animate-fade-in hover:bg-muted/50">
+                  <TableRow
+                    key={item.id}
+                    className="animate-fade-in has-[:checked]:bg-primary/5 hover:bg-muted/50 hover:has-[:checked]:bg-primary/10"
+                  >
                     <TableCell>
                       {canWriteThisInspection && (
                         <span className="flex min-h-11 min-w-11 items-center justify-center">

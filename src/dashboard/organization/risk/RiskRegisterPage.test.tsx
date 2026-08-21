@@ -2542,6 +2542,27 @@ describe("RiskRegisterPage", () => {
       ).not.toBeInTheDocument()
     })
 
+    // Phase C3 finding: `isSelected` was already threaded to each row but
+    // never used to visually distinguish a selected row -- bulk-selecting
+    // several rows gave no at-a-glance feedback beyond the small checkbox
+    // itself. has-[:checked]:bg-primary/5 fixes this via CSS :has(), no
+    // extra state or props.
+    it("tints a row's own background once its checkbox is selected", async () => {
+      mockUseGetAllRisksQuery.mockReturnValue({
+        data: { data: [makeRisk({ id: "r1" })] },
+      })
+      renderPage()
+
+      const checkbox = screen.getByRole("checkbox", {
+        name: "organization.riskRegister.selectRiskLabel",
+      })
+      const row = checkbox.closest("tr")!
+      expect(row.className).toContain("has-[:checked]:bg-primary/5")
+
+      await userEvent.click(checkbox)
+      expect(checkbox).toBeChecked()
+    })
+
     // Round-10 judge finding (accessibility): the toolbar appearing after
     // a selection had no screen-reader announcement at all.
     it("announces the bulk-action toolbar to screen readers via role=status", async () => {

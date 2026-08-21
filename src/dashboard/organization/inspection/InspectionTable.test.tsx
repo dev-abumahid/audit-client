@@ -194,9 +194,13 @@ vi.mock("@/components/ui/table", () => ({
   TableBody: ({ children }: { children: React.ReactNode }) => (
     <tbody>{children}</tbody>
   ),
-  TableRow: ({ children }: { children: React.ReactNode }) => (
-    <tr>{children}</tr>
-  ),
+  TableRow: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode
+    className?: string
+  }) => <tr className={className}>{children}</tr>,
   TableHead: ({ children }: { children: React.ReactNode }) => (
     <th>{children}</th>
   ),
@@ -1203,6 +1207,31 @@ describe("InspectionTable", () => {
       expect(
         screen.getByText("organization.inspection.selectedCount")
       ).toBeInTheDocument()
+    })
+
+    // Phase C3 finding: selectedIds already drove each row checkbox's own
+    // checked state but never visually distinguished the row itself.
+    // has-[:checked]:bg-primary/5 fixes this via CSS :has(), no extra
+    // state or props.
+    it("tints a row's own background once its checkbox is selected", async () => {
+      mockUseGetAllInspectionQuery.mockReturnValue({
+        data: { data: [makeInspection({ id: "insp-1" })] },
+        isLoading: false,
+      })
+
+      renderTable()
+      await waitFor(() =>
+        expect(screen.getByText("Fire Safety Audit")).toBeInTheDocument()
+      )
+
+      const checkbox = screen.getByRole("checkbox", {
+        name: /organization\.inspection\.selectRowLabel/,
+      })
+      const row = checkbox.closest("tr")!
+      expect(row.className).toContain("has-[:checked]:bg-primary/5")
+
+      await userEvent.click(checkbox)
+      expect(checkbox).toBeChecked()
     })
 
     it("selects every writable row when the select-all checkbox is checked", async () => {
