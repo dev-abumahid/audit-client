@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import CriticalAlertBanner from "./CriticalAlertBanner"
+import type { Alert } from "@/types/organization"
 
 const mockUseGetAllAlertsQuery = vi.fn()
 
@@ -9,7 +10,7 @@ vi.mock("@/redux/apis/organization/alert.api", () => ({
     mockUseGetAllAlertsQuery(...args),
 }))
 
-function makeAlert(overrides = {}) {
+function makeAlert(overrides: Partial<Alert> = {}): Alert {
   return {
     id: "a1",
     org_account_id: "org-1",
@@ -230,6 +231,49 @@ describe("CriticalAlertBanner", () => {
     expect(buttons.length).toBeGreaterThan(0)
     buttons.forEach((button) => {
       expect(button.type).toBe("button")
+    })
+  })
+
+  // Regression coverage for alertsOverride/isErrorOverride (Phase B2, same
+  // pattern as SiteFilter's sitesOverride from Phase B1) -- previously only
+  // exercised indirectly through OverviewPreview.test.tsx. Direct tests here
+  // pin down this component's own contract independent of who's using it.
+  describe("alertsOverride / isErrorOverride", () => {
+    it("skips the live query and renders from the override array when alertsOverride is passed", () => {
+      render(
+        <CriticalAlertBanner
+          alertsOverride={[makeAlert({ severity: "critical", title: "Overridden breach" })]}
+        />
+      )
+
+      expect(mockUseGetAllAlertsQuery).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({ skip: true })
+      )
+      expect(screen.getByText("Overridden breach")).toBeInTheDocument()
+    })
+
+    it("does not skip the live query when alertsOverride is omitted, preserving original self-fetching behavior", () => {
+      render(<CriticalAlertBanner />)
+
+      expect(mockUseGetAllAlertsQuery).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({ skip: false })
+      )
+    })
+
+    it("renders the error notice when isErrorOverride is true, even though the (skipped) live query reports no error", () => {
+      render(
+        <CriticalAlertBanner alertsOverride={[]} isErrorOverride={true} />
+      )
+
+      expect(screen.getByRole("alert")).toBeInTheDocument()
+    })
+
+    it("treats isErrorOverride as false when omitted alongside an alertsOverride", () => {
+      const { container } = render(<CriticalAlertBanner alertsOverride={[]} />)
+
+      expect(container).toBeEmptyDOMElement()
     })
   })
 })

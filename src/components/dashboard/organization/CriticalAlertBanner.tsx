@@ -5,7 +5,28 @@ import { AlertTriangle, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-export default function CriticalAlertBanner() {
+interface CriticalAlertBannerProps {
+  // PREVIEW-PROTO addition (Phase B2, same pattern as SiteFilter's
+  // sitesOverride from Phase B1): OverviewView renders this banner
+  // unconditionally, and it fires its own independent useGetAllAlertsQuery
+  // -- a caller that already has the alert list (Overview.tsx, which fetches
+  // the same alerts for its own Critical Alerts KPI card and Recent Alerts
+  // panel) can pass it here to skip this component's own query entirely via
+  // RTK Query's `skip` option, avoiding a redundant second fetch in real
+  // usage and, as a side effect, letting OverviewPreview.tsx render this
+  // banner from mock data with zero live API calls. Omitting it preserves
+  // the original self-fetching behavior byte for byte.
+  alertsOverride?: Alert[]
+  // Paired with alertsOverride since isError can't be derived from a plain
+  // array -- Overview.tsx's own alertsError (from the same query) is the
+  // natural source for this when overriding.
+  isErrorOverride?: boolean
+}
+
+export default function CriticalAlertBanner({
+  alertsOverride,
+  isErrorOverride,
+}: CriticalAlertBannerProps = {}) {
   const { t } = useTranslation()
   const [dismissed, setDismissed] = useState(false)
   // Separate from `dismissed`: sharing one flag between the error notice and
@@ -14,8 +35,13 @@ export default function CriticalAlertBanner() {
   // the same false-all-clear failure mode this fix exists to close, just
   // moved one step later. Round 2 review of quality-bar-loop round 1.
   const [errorDismissed, setErrorDismissed] = useState(false)
-  const { data: alertResponse, isError } = useGetAllAlertsQuery()
-  const alerts: Alert[] = alertResponse?.data ?? []
+  const { data: alertResponse, isError: queryIsError } = useGetAllAlertsQuery(
+    undefined,
+    { skip: alertsOverride !== undefined }
+  )
+  const isError =
+    alertsOverride !== undefined ? (isErrorOverride ?? false) : queryIsError
+  const alerts: Alert[] = alertsOverride ?? alertResponse?.data ?? []
 
   // Round 2.5 accessibility fix: this notice can appear from a background
   // refetch failing after the page already rendered normally, not just on
