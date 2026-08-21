@@ -25,7 +25,6 @@ import {
 import { useGetAllRisksQuery } from "@/redux/apis/organization/risk.api"
 import type { Risk } from "@/types/organization"
 import { severityTextClasses } from "@/utils/severityStyles"
-import { AnimatePresence, motion } from "framer-motion"
 import { AlertCircleIcon, Brain, FileText, Upload } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -196,18 +195,25 @@ export default function CreateTemplateWithAIDialog({
                 <div className="h-14 w-14 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
               </div>
 
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={messageIndex}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.35 }}
-                  className="text-center text-sm font-medium text-muted-foreground"
-                >
-                  {loadingMessages[messageIndex]}
-                </motion.p>
-              </AnimatePresence>
+              {/* Phase C (theme-improvement-initiative): was framer-motion's
+                  AnimatePresence/motion.p, the library's only usage site in
+                  this repo -- replaced with the same CSS-only entrance
+                  pattern (animate-fade-in, src/index.css) every other
+                  reveal-on-mount in this app already uses, so this is the
+                  one place motion in this file relies on a dependency
+                  nothing else does. The `key` change on messageIndex forces
+                  a real remount, which is what re-triggers the CSS
+                  animation each time the loading message cycles.
+                  animate-fade-in already collapses to an instant, static
+                  end-state under prefers-reduced-motion (shared media query
+                  in index.css) -- framer-motion's transition had no
+                  reduced-motion handling at all. */}
+              <p
+                key={messageIndex}
+                className="animate-fade-in text-center text-sm font-medium text-muted-foreground"
+              >
+                {loadingMessages[messageIndex]}
+              </p>
             </div>
           </div>
         )}

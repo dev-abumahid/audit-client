@@ -76,6 +76,40 @@ describe("CreateTemplateWithAIDialog", () => {
     )
   })
 
+  // Phase C (theme-improvement-initiative): the cycling loading message
+  // used to cross-fade via framer-motion's AnimatePresence, the library's
+  // only usage site in this repo -- swapped for the same CSS-only
+  // animate-fade-in entrance class every other reveal-on-mount already
+  // uses. Not a framer-motion behavior test (that library is gone now);
+  // this proves the replacement actually renders with the class applied,
+  // not just that the message text itself still shows.
+  it("applies the shared CSS entrance animation class to the loading message", async () => {
+    let resolveMutation: (value: unknown) => void = () => {}
+    mockGenerateTemplateWithPrompt.mockReturnValue({
+      unwrap: () => new Promise((resolve) => (resolveMutation = resolve)),
+    })
+
+    render(<CreateTemplateWithAIDialog open setOpen={vi.fn()} />)
+
+    await userEvent.click(screen.getByText("organization.templates.ai.promptOption.title"))
+    await userEvent.type(
+      screen.getByPlaceholderText("organization.templates.ai.promptPlaceholder"),
+      "A safety checklist"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: /organization\.templates\.ai\.generateTemplate/i })
+    )
+
+    const loadingMessage = await screen.findByText(
+      /organization\.templates\.ai\.loading/i
+    )
+    expect(loadingMessage.className).toContain("animate-fade-in")
+
+    // Let the pending mutation resolve so the interval/effect it drives
+    // doesn't leak into the next test.
+    resolveMutation({ success: true })
+  })
+
   // Raw <button>s with no explicit type default to type="submit" per the
   // HTML spec -- a latent bug if this dialog ever ends up inside a <form>.
   // Scoped assertions (not a full sweep) since the dialog footer also
