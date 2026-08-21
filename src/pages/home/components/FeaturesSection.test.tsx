@@ -36,4 +36,20 @@ describe("FeaturesSection", () => {
     expect(container.querySelector(".cursor-pointer")).not.toBeInTheDocument()
     expect(container.querySelector(".group")).not.toBeInTheDocument()
   })
+
+  // Landing overhaul PR7: 4 of the 6 cards embed a real crop of that
+  // module's own distinctive UI. Confirm all 4 render (each has its own
+  // dedicated test file for its specific content) and that exactly 2 cards
+  // stay icon+text only.
+  it("renders all four module-showcase crops", () => {
+    render(<FeaturesSection />)
+    // FindingsOverdueCrop
+    expect(screen.getByText("Vendor access review")).toBeInTheDocument()
+    // AuditEngagementCrop
+    expect(screen.getByText("AUD-014")).toBeInTheDocument()
+    // ComplianceHeatmapCrop
+    expect(screen.getAllByText(/^\d+\/\d+$/).length).toBeGreaterThan(0)
+    // SeverityChipsCrop
+    expect(screen.getByText("riskLevel.critical")).toBeInTheDocument()
+  })
 })

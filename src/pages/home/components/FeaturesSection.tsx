@@ -9,7 +9,18 @@ import {
 } from "lucide-react"
 import React from "react"
 import { useTranslation } from "react-i18next"
+import AuditEngagementCrop from "./featuresShowcase/AuditEngagementCrop"
+import ComplianceHeatmapCrop from "./featuresShowcase/ComplianceHeatmapCrop"
+import FindingsOverdueCrop from "./featuresShowcase/FindingsOverdueCrop"
+import SeverityChipsCrop from "./featuresShowcase/SeverityChipsCrop"
 
+// Landing overhaul PR7: 4 of the 6 cards below now embed a compact real
+// crop of that module's own distinctive UI (see featuresShowcase/*.tsx for
+// each crop's real source page/line) instead of icon+text alone -- the
+// single highest-fidelity win the plan called for. The other 2 (templates,
+// board-ready reporting) stay icon+text: not every card needs a crop, and
+// a report/export card in particular doesn't have a small-scale visual
+// moment worth compressing into this space.
 const FeaturesSection: React.FC = () => {
   const { t } = useTranslation()
   const [revealRef, revealVisible] = useRevealOnScroll<HTMLDivElement>()
@@ -18,31 +29,37 @@ const FeaturesSection: React.FC = () => {
       icon: FileText,
       title: t("home.featureSection.features.0.title"),
       description: t("home.featureSection.features.0.description"),
+      Visual: ComplianceHeatmapCrop,
     },
     {
       icon: ClipboardCheck,
       title: t("home.featureSection.features.1.title"),
       description: t("home.featureSection.features.1.description"),
+      Visual: AuditEngagementCrop,
     },
     {
       icon: ListChecks,
       title: t("home.featureSection.features.2.title"),
       description: t("home.featureSection.features.2.description"),
+      Visual: FindingsOverdueCrop,
     },
     {
       icon: BarChart3,
       title: t("home.featureSection.features.3.title"),
       description: t("home.featureSection.features.3.description"),
+      Visual: null,
     },
     {
       icon: MapPin,
       title: t("home.featureSection.features.4.title"),
       description: t("home.featureSection.features.4.description"),
+      Visual: null,
     },
     {
       icon: Target,
       title: t("home.featureSection.features.5.title"),
       description: t("home.featureSection.features.5.description"),
+      Visual: SeverityChipsCrop,
     },
   ]
 
@@ -102,6 +119,7 @@ const FeaturesSection: React.FC = () => {
               <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
                 {feature.description}
               </p>
+              {feature.Visual && <feature.Visual />}
             </div>
           ))}
         </div>
