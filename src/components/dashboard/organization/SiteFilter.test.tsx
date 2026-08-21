@@ -130,4 +130,78 @@ describe("SiteFilter", () => {
 
     expect(onChange).toHaveBeenCalledWith(null)
   })
+
+  // PREVIEW-PROTO addition: sitesOverride lets a caller that already has
+  // the site list (RiskMatrixView) skip this component's own
+  // useGetAllSitesQuery entirely via RTK Query's `skip` option, avoiding a
+  // redundant fetch in real usage and, as a side effect, letting a caller
+  // render this component with injected mock data and zero live API calls
+  // (the preview use case). These tests assert both halves of that: the
+  // query is actually skipped, and the override array -- not a live-fetched
+  // result -- is what renders.
+  describe("sitesOverride", () => {
+    it("passes skip: true to useGetAllSitesQuery when sitesOverride is provided", () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        data: { data: [{ id: "live-site", name: "Should Not Render" }] },
+        isLoading: false,
+      })
+      render(
+        <SiteFilter
+          value={null}
+          onChange={vi.fn()}
+          sitesOverride={[{ id: "site-1", name: "Casablanca HQ" }]}
+        />
+      )
+
+      expect(mockUseGetAllSitesQuery).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ skip: true })
+      )
+    })
+
+    it("renders the override array, not the live-fetched result, when sitesOverride is provided", () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        data: { data: [{ id: "live-site", name: "Should Not Render" }] },
+        isLoading: false,
+      })
+      render(
+        <SiteFilter
+          value={null}
+          onChange={vi.fn()}
+          sitesOverride={[{ id: "site-1", name: "Casablanca HQ" }]}
+        />
+      )
+
+      expect(screen.getByText("Casablanca HQ")).toBeInTheDocument()
+      expect(screen.queryByText("Should Not Render")).not.toBeInTheDocument()
+    })
+
+    it("does not show a loading/disabled state for an override, even if the (skipped) query reports isLoading", () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+      })
+      render(
+        <SiteFilter
+          value={null}
+          onChange={vi.fn()}
+          sitesOverride={[{ id: "site-1", name: "Casablanca HQ" }]}
+        />
+      )
+
+      expect(screen.getByRole("combobox")).not.toBeDisabled()
+    })
+
+    it("renders nothing when sitesOverride is an empty array, without waiting on the skipped query", () => {
+      mockUseGetAllSitesQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+      })
+      const { container } = render(
+        <SiteFilter value={null} onChange={vi.fn()} sitesOverride={[]} />
+      )
+
+      expect(container).toBeEmptyDOMElement()
+    })
+  })
 })

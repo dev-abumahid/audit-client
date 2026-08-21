@@ -13,6 +13,15 @@ interface SiteFilterProps {
   value: string | null // null = all/group, site id otherwise
   onChange: (siteId: string | null) => void
   className?: string
+  // PREVIEW-PROTO addition: when a caller already has the site list (e.g.
+  // RiskMatrixView, which fetches it for its own RiskCard site-name
+  // lookups), passing it here skips this component's own
+  // useGetAllSitesQuery entirely via RTK Query's `skip` option -- avoiding
+  // a redundant second fetch of the same data in real usage, and, as a
+  // side effect, letting a caller render this component with injected
+  // mock data and no live API call at all (the preview use case). Omitting
+  // it preserves the original self-fetching behavior byte for byte.
+  sitesOverride?: { id: string; name: string; country?: string | null }[]
 }
 
 // Radix Select requires a non-empty string value for every item -- "" would
@@ -25,15 +34,20 @@ export default function SiteFilter({
   value,
   onChange,
   className = "",
+  sitesOverride,
 }: SiteFilterProps) {
   const { t } = useTranslation()
-  const { data, isLoading } = useGetAllSitesQuery({
-    page: 1,
-    limit: 100,
-    searchTerm: "",
-  })
+  const { data, isLoading: isQueryLoading } = useGetAllSitesQuery(
+    {
+      page: 1,
+      limit: 100,
+      searchTerm: "",
+    },
+    { skip: sitesOverride !== undefined }
+  )
+  const isLoading = sitesOverride !== undefined ? false : isQueryLoading
   const sites: { id: string; name: string; country?: string | null }[] =
-    data?.data ?? []
+    sitesOverride ?? data?.data ?? []
 
   // Only hide once we actually know there are no sites — hiding during the
   // loading window too (as a naive `sites.length === 0` check would, since
