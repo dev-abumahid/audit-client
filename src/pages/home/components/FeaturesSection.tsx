@@ -128,14 +128,19 @@ const FeaturesSection: React.FC = () => {
               {/* Asymmetric corner-rounding + accent underline, not a plain
                   filled rounded-square: that shape is the default "feature
                   grid" icon tile in essentially every Tailwind/shadcn
-                  template. This keeps the filled-tile language that
-                  distinguishes it from HeroFeatures' outlined tiles, but
-                  gives it its own identifiable silhouette rather than
-                  being the generic baseline. No hover state: these are
-                  static info cards with no onClick/keyboard handler behind
-                  them, and a hover-triggered style implies clickability
-                  that doesn't exist (aexa-frontend#510). */}
-              <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-tr-xl rounded-bl-xl border-b-2 border-primary bg-primary/10">
+                  template. This keeps that same silhouette, distinct from
+                  HeroFeatures' fully-outlined tiles, but drops the
+                  bg-primary/10 fill -- design-team finding: 6 identical
+                  filled-teal tiles in one grid diluted the color's impact
+                  everywhere else it's used for real emphasis (the CTA
+                  buttons, the active-role toggle). Neutral bg-muted fill
+                  keeps the accent underline + icon as the only teal per
+                  tile, same restraint HeroFeatures' own tiles already use.
+                  No hover state: these are static info cards with no
+                  onClick/keyboard handler behind them, and a
+                  hover-triggered style implies clickability that doesn't
+                  exist (aexa-frontend#510). */}
+              <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-tr-xl rounded-bl-xl border-b-2 border-primary bg-muted">
                 <feature.icon
                   className="h-5 w-5 text-primary"
                   strokeWidth={2}
