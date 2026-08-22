@@ -83,12 +83,8 @@
       "title": "Try the real thing",
       "description": "Drag the reading, click a matrix cell, explore the graph — every result below runs the same scoring and thresholds as the live product, just on sample data.",
       "riskMatrix": {
-        "title": "Risk Matrix",
         "dimensions": "5 × 5",
-        "likelihood": "Likelihood",
-        "impact": "Impact",
-        "caption": "{{count}} sample risks plotted by likelihood and impact.",
-        "gridLabel": "Risk matrix showing {{total}} sample risks by likelihood and impact — {{critical}} critical, {{high}} high severity."
+        "impact": "Impact"
       },
       "kriTrend": {
         "title": "KRI Trend",
@@ -119,9 +115,6 @@
       },
       "riskMatrixClick": {
         "title": "Click a cell",
-        "sectionHeading": "Click into the risk matrix",
-        "sectionDescription": "This is the same 5×5 likelihood-by-impact grid used in the real risk register. Cells with a number have a sample risk sitting in them — click one to see what that entry actually looks like.",
-        "pill": "Illustrative data — not a real register",
         "hint": "Same cell-mapping logic as the real risk register — click any cell to see what's in it.",
         "cellLabel": "{{count}} risks in this cell",
         "emptyHint": "Click a cell above to see the risks plotted there.",

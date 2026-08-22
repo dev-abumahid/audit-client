@@ -5,24 +5,25 @@ import KriThresholdSliderWidget from "./productDemo/KriThresholdSliderWidget"
 import KriTrendWidget from "./productDemo/KriTrendWidget"
 import LandingRiskMatrixWidget from "./productDemo/LandingRiskMatrixWidget"
 import RiskGraphWidget from "./productDemo/RiskGraphWidget"
-import RiskMatrixWidget from "./productDemo/RiskMatrixWidget"
 import RoleScopedRegisterWidget from "./productDemo/RoleScopedRegisterWidget"
 
+// Live audit finding: the static rail's risk-matrix card and this section's
+// own "Click into the risk matrix" moment were two different 5x5 risk
+// matrices shown back-to-back -- real, distracting redundancy, not
+// intentional reinforcement. Resolved by consolidating into one: the rail
+// slot below now mounts LandingRiskMatrixWidget directly (the interactive,
+// clickable one) instead of the separate non-interactive RiskMatrixWidget
+// (now deleted, it had no other callers), and the standalone matrix moment
+// is removed from this list entirely -- the smaller rail card is the
+// clickable one now, not a duplicate.
+//
 // Landing overhaul, post-launch pass: replaces the DemoTabs tab-switcher
-// (one demo visible at a time, hidden behind a click) with three full-width
+// (one demo visible at a time, hidden behind a click) with full-width
 // "moments" the visitor scrolls through -- direct response to feedback that
 // an external design exploration's one-demo-per-screen pacing read better
-// than the boxed tabbed card. Order (matrix -> register -> KRI) matches
-// that exploration. Each entry's own widget component is unchanged; only
-// how it's introduced and mounted changed.
+// than the boxed tabbed card. Each entry's own widget component is
+// unchanged; only how it's introduced and mounted changed.
 const INTERACTIVE_DEMOS = [
-  {
-    id: "riskMatrixClick",
-    headingKey: "home.productDemo.riskMatrixClick.sectionHeading",
-    descriptionKey: "home.productDemo.riskMatrixClick.sectionDescription",
-    pillKey: "home.productDemo.riskMatrixClick.pill",
-    Widget: LandingRiskMatrixWidget,
-  },
   {
     id: "roleRegister",
     headingKey: "home.productDemo.roleRegister.sectionHeading",
@@ -210,7 +211,7 @@ const ProductDemoSection: React.FC = () => {
               behavior, not a bug. */}
           <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
             {[
-              { Widget: RiskMatrixWidget, glow: "from-risk-info/50" },
+              { Widget: LandingRiskMatrixWidget, glow: "from-risk-info/50" },
               { Widget: RiskGraphWidget, glow: "from-risk-critical/50" },
               { Widget: KriTrendWidget, glow: "from-primary/50" },
             ].map(({ Widget, glow }, i) => (
@@ -232,11 +233,12 @@ const ProductDemoSection: React.FC = () => {
             ))}
           </div>
 
-          {/* Landing overhaul, post-launch pass: three numbered moments
-              (matrix -> register -> KRI), replacing the old DemoTabs
-              tab-switcher card. Separate from the static 3-widget grid
-              above (own signature rail, hand-built for exactly 3 nodes)
-              rather than folded into it.
+          {/* Landing overhaul, post-launch pass: numbered moments (register
+              -> KRI; the matrix moment was removed, see this file's own
+              top-of-file comment), replacing the old DemoTabs tab-switcher
+              card. Separate from the static 3-widget grid above (own
+              signature rail, hand-built for exactly 3 nodes) rather than
+              folded into it.
               Centered at mx-auto max-w-3xl, not left-aligned across the
               section's full max-w-7xl -- live review at real desktop
               widths (1440px) showed each moment's max-w-2xl card stranded

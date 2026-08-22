@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { MOCK_RISKS } from "@/dashboard/organization/risk/riskMatrixMockData"
 import {
@@ -12,22 +12,27 @@ import { SEVERITY_STYLES } from "@/utils/severityStyles"
 // Landing overhaul PR3: the clickable risk-matrix demo, built on top of
 // riskMatrixCalc.ts's extraction so cell placement and color are the exact
 // same real logic RiskMatrixView.tsx uses -- not a second hand-copied
-// implementation like the existing static RiskMatrixWidget (which buckets
+// implementation like the deleted static RiskMatrixWidget used to (buckets
 // by its own bucketIndex() and colors by top-risk-severity, a different,
-// also-real, but different approach). Fixed size=5, no URL sync, no size
-// toggle, no group-by-category, no site filter, no Escape handling -- a
-// marketing demo doesn't need RiskMatrixPage's full chrome, and forking
-// those out here (rather than threading them as optional props into the
-// real page) avoids adding dead conditional branches to production code
-// for a landing-only use case.
+// also-real, but different approach; see PR #1028's own removal note).
+// Fixed size=5, no URL sync, no size toggle, no group-by-category, no site
+// filter, no Escape handling -- a marketing demo doesn't need
+// RiskMatrixPage's full chrome, and forking those out here (rather than
+// threading them as optional props into the real page) avoids adding dead
+// conditional branches to production code for a landing-only use case.
 const GRID_SIZE = 5
 const LABELS = LABEL_KEYS[GRID_SIZE]
+// Longest per-cell entrance delay (last cell, see delayMs below) plus the
+// cell's own transition duration -- the point at which every cell is
+// guaranteed to have finished animating in, used to know when it's safe to
+// drop the transitionDelay style (see ENTERED_AFTER_MS's own usage below).
+const ENTERED_AFTER_MS = (GRID_SIZE * GRID_SIZE - 1) * 25 + 150
 
 // Rendered top-to-bottom as "highest likelihood first" (row 0 = top),
 // matching RiskMatrixView's own display order -- LABEL_KEYS[5].likelihood
 // is stored low-to-high, so it's reversed here for display only, same
-// convention the static RiskMatrixWidget's own LIKELIHOOD_KEYS comment
-// documents.
+// convention the deleted static RiskMatrixWidget's own LIKELIHOOD_KEYS
+// comment used to document.
 const LIKELIHOOD_DISPLAY_KEYS = [...LABELS.likelihood].reverse()
 
 // Each cell holds the MOCK_RISKS array indices of the risks that land in
@@ -48,11 +53,42 @@ function buildGrid(): number[][][] {
   return grid
 }
 
-export default function LandingRiskMatrixWidget() {
+// Live audit finding: this widget now also mounts in ProductDemoSection's
+// static 3-widget rail (replacing the old, separate, non-interactive
+// RiskMatrixWidget -- see that file's own removal comment), which passes
+// every widget an `animate` prop gating a staggered cell entrance. Default
+// true keeps this widget's other mount point (the standalone "register"/
+// "KRI" moments' matrix predecessor, now just this component alone under
+// DemoMoment) rendering cells at full visibility immediately, same as
+// before this prop existed -- DemoMoment's own ancestor fade already
+// handles that mount's reveal, so the cells themselves don't need a
+// second, redundant animate gate there.
+export default function LandingRiskMatrixWidget({
+  animate = true,
+}: {
+  animate?: boolean
+} = {}) {
   const { t } = useTranslation()
   const [selected, setSelected] = useState<{ row: number; col: number } | null>(
     null
   )
+
+  // Review finding on PR #1028: the per-cell `transitionDelay` below is
+  // only meaningful for the one-time staggered entrance -- without this,
+  // `animate` (true for the rest of this component's life once the rail's
+  // reveal fires, and true from the very first render in the DemoMoment
+  // mount) kept the delay applied forever, so every later hover on a cell
+  // inherited up to ENTERED_AFTER_MS of lag from `transition-all` covering
+  // the hover scale/brightness too. `entered` flips once, after the
+  // longest cell's entrance finishes, and from then on no cell gets an
+  // inline transitionDelay regardless of `animate`.
+  const [entered, setEntered] = useState(animate)
+  useEffect(() => {
+    if (!animate || entered) return
+    const timer = setTimeout(() => setEntered(true), ENTERED_AFTER_MS)
+    return () => clearTimeout(timer)
+  }, [animate, entered])
+
   const grid = buildGrid()
   const selectedRisks =
     selected !== null
@@ -100,6 +136,7 @@ export default function LandingRiskMatrixWidget() {
               const isSelected =
                 selected?.row === rowIdx && selected?.col === colIdx
               const hasRisks = cellRisks.length > 0
+              const delayMs = (rowIdx * GRID_SIZE + colIdx) * 25
               return (
                 <button
                   key={`${rowIdx}-${colIdx}`}
@@ -111,9 +148,14 @@ export default function LandingRiskMatrixWidget() {
                   aria-label={t("home.productDemo.riskMatrixClick.cellLabel", {
                     count: cellRisks.length,
                   })}
+                  style={
+                    entered ? undefined : { transitionDelay: `${delayMs}ms` }
+                  }
                   className={`focus-ring flex aspect-square items-center justify-center rounded-md text-xs font-bold transition-all duration-150 ease-out motion-reduce:transition-none hover:scale-105 hover:brightness-110 ${
-                    isSelected ? "ring-2 ring-primary ring-offset-1" : ""
-                  } ${
+                    animate
+                      ? "translate-y-0 scale-100 opacity-100"
+                      : "translate-y-1 scale-90 opacity-0"
+                  } ${isSelected ? "ring-2 ring-primary ring-offset-1" : ""} ${
                     hasRisks
                       ? // Review finding on PR #1016: getMatrixColor's contract
                         // expects row 0 = lowest likelihood (same convention

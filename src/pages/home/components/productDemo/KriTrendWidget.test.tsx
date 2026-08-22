@@ -1,12 +1,11 @@
 import { render, screen } from "@testing-library/react"
 import KriTrendWidget from "./KriTrendWidget"
 
-// Live audit finding: this was the only card in the 3-widget rail
-// (RiskMatrixWidget/RiskGraphWidget/KriTrendWidget) with no closing
-// border-t legend/caption row -- the CSS grid's default items-stretch
-// left a large empty block below its shorter content once stretched to
-// match its taller siblings. Fixed with a real OK/Warning/Alert status
-// legend, mirroring RiskMatrixWidget's own severity legend shape. These
+// Live audit finding: this was the only card in the 3-widget rail (risk
+// matrix / RiskGraphWidget / KriTrendWidget) with no closing border-t
+// legend/caption row -- the CSS grid's default items-stretch left a large
+// empty block below its shorter content once stretched to match its
+// taller siblings. Fixed with a real OK/Warning/Alert status legend. These
 // tests guard that legend, not the pre-existing chart logic above it.
 describe("KriTrendWidget", () => {
   it("renders a status legend with all three real KRI statuses, not a placeholder", () => {

@@ -28,10 +28,15 @@ describe("ProductDemoSection", () => {
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
   })
 
-  it("renders all four static widgets", () => {
+  // Live audit finding: the rail's separate, non-interactive risk-matrix
+  // widget was a real duplicate of the "click into the matrix" moment
+  // below it -- consolidated into one, so this rail slot now mounts the
+  // same LandingRiskMatrixWidget the (now-removed) standalone moment used,
+  // not a second, different matrix implementation.
+  it("renders the static rail widgets, including the now-shared clickable matrix", () => {
     renderSection()
     expect(
-      screen.getByText("home.productDemo.riskMatrix.title")
+      screen.getByText("home.productDemo.riskMatrixClick.title")
     ).toBeInTheDocument()
     expect(
       screen.getByText("home.productDemo.kriTrend.title")
@@ -41,19 +46,18 @@ describe("ProductDemoSection", () => {
     ).toBeInTheDocument()
   })
 
-  // Post-launch pass: DemoTabs' tab-switcher card was replaced with three
+  // Post-launch pass: DemoTabs' tab-switcher card was replaced with
   // full-width numbered sections, always mounted simultaneously (no more
-  // `inert` panels hidden behind a tab click) -- so all three widgets and
-  // their own titles are in the DOM at once, with no role="tab"/
-  // role="tablist" anywhere. Each widget's own title is a <p>, not a
-  // second <h3> -- see the next test for the heading-outline assertion.
-  it("renders all three interactive demo moments simultaneously, no tabs", () => {
+  // `inert` panels hidden behind a tab click) -- so both remaining demo
+  // widgets and their own titles are in the DOM at once, with no
+  // role="tab"/role="tablist" anywhere. Each widget's own title is a <p>,
+  // not a second <h3> -- see the next test for the heading-outline
+  // assertion. Only two moments remain (register, KRI) -- the matrix
+  // moment was removed, see the previous test's comment.
+  it("renders both remaining interactive demo moments simultaneously, no tabs", () => {
     renderSection()
     expect(
       screen.getByText("home.productDemo.kriSlider.title")
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText("home.productDemo.riskMatrixClick.title")
     ).toBeInTheDocument()
     expect(
       screen.getByText("home.productDemo.roleRegister.title")
@@ -65,26 +69,24 @@ describe("ProductDemoSection", () => {
   // Review finding on PR #1025: the original version of this test only
   // checked text presence, not heading role/level or DOM order -- it would
   // still pass if a future edit demoted DemoMoment's own heading to a div,
-  // or reordered INTERACTIVE_DEMOS away from the intended matrix -> register
-  // -> KRI sequence. Asserts both explicitly now. Level 3 (not 2): the
-  // section's own home.productDemo.title is the h2 (see the "no h1" test
-  // above); each moment is a subsection of it.
+  // or reordered INTERACTIVE_DEMOS. Asserts both explicitly now. Level 3
+  // (not 2): the section's own home.productDemo.title is the h2 (see the
+  // "no h1" test above); each moment is a subsection of it.
   it("renders each demo moment's numbered eyebrow and section heading, in order", () => {
     renderSection()
     expect(screen.getByText("01")).toBeInTheDocument()
     expect(screen.getByText("02")).toBeInTheDocument()
-    expect(screen.getByText("03")).toBeInTheDocument()
+    expect(screen.queryByText("03")).not.toBeInTheDocument()
 
-    // The static 3-widget rail above (RiskMatrixWidget/RiskGraphWidget/
-    // KriTrendWidget) has its own h3 titles too -- filter to just the
-    // three DemoMoment section headings by their known key suffix rather
-    // than asserting on getAllByRole("heading", { level: 3 }) directly,
-    // which would also catch the rail's headings.
+    // The static 3-widget rail above (LandingRiskMatrixWidget/
+    // RiskGraphWidget/KriTrendWidget) has its own h3 titles too -- filter
+    // to just the DemoMoment section headings by their known key suffix
+    // rather than asserting on getAllByRole("heading", { level: 3 })
+    // directly, which would also catch the rail's headings.
     const momentHeadings = screen
       .getAllByRole("heading", { level: 3 })
       .filter((h) => h.textContent?.includes(".sectionHeading"))
     expect(momentHeadings.map((h) => h.textContent)).toEqual([
-      "home.productDemo.riskMatrixClick.sectionHeading",
       "home.productDemo.roleRegister.sectionHeading",
       "home.productDemo.kriSlider.sectionHeading",
     ])

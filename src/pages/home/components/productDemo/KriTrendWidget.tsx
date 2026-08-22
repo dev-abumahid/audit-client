@@ -16,8 +16,9 @@ const KRI = MOCK_KRIS[0]
 const TREND_POINTS = [4, 5, 6, 6, 9, 11, 12, KRI.current_value]
 
 // Review finding: this card was the only one of the 3-widget rail with no
-// closing border-t legend/caption row (RiskMatrixWidget has a severity
-// legend, RiskGraphWidget has a caption), so the CSS grid's default
+// closing border-t legend/caption row (the rail's risk-matrix card has its
+// own selected-risks result panel, RiskGraphWidget has a caption), so the
+// CSS grid's default
 // items-stretch left a large blank block below its shorter content once
 // stretched to match its taller siblings' height. Real content, not
 // padding: the same KRI_STATUS_META the live KRI dashboard uses for its

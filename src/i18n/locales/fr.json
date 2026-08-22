@@ -83,12 +83,8 @@
       "title": "Essayez pour de vrai",
       "description": "Faites glisser la mesure, cliquez sur une cellule de la matrice, explorez le graphe — chaque résultat ci-dessous applique la même notation et les mêmes seuils que le produit réel, avec des données d'exemple.",
       "riskMatrix": {
-        "title": "Matrice des risques",
         "dimensions": "5 × 5",
-        "likelihood": "Probabilité",
-        "impact": "Impact",
-        "caption": "{{count}} risques d'exemple positionnés par probabilité et impact.",
-        "gridLabel": "Matrice des risques montrant {{total}} risques d'exemple par probabilité et impact — {{critical}} critiques, {{high}} élevés."
+        "impact": "Impact"
       },
       "kriTrend": {
         "title": "Tendance ICR",
@@ -119,9 +115,6 @@
       },
       "riskMatrixClick": {
         "title": "Cliquez sur une cellule",
-        "sectionHeading": "Cliquez dans la matrice des risques",
-        "sectionDescription": "Il s'agit de la même grille 5×5 probabilité × impact que le registre des risques réel. Les cellules affichant un chiffre contiennent un risque d'exemple — cliquez sur l'une d'elles pour voir ce qu'elle contient.",
-        "pill": "Données d'exemple — pas un vrai registre",
         "hint": "La même logique de positionnement que le vrai registre des risques — cliquez sur une cellule pour voir ce qu'elle contient.",
         "cellLabel": "{{count}} risques dans cette cellule",
         "emptyHint": "Cliquez sur une cellule ci-dessus pour voir les risques qui y sont positionnés.",

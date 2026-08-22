@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { act, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MOCK_RISKS } from "@/dashboard/organization/risk/riskMatrixMockData"
 import { getMatrixColor, mapRiskToCell } from "@/utils/riskMatrixCalc"
@@ -86,5 +86,54 @@ describe("LandingRiskMatrixWidget", () => {
     expect(
       screen.getByText("organization.riskMatrix.impactCatastrophic")
     ).toBeInTheDocument()
+  })
+
+  // Regression test (review finding on PR #1028): this widget also mounts
+  // in ProductDemoSection's static rail now, which drives an `animate`
+  // prop for a staggered cell entrance. The first version of that fix left
+  // an inline transitionDelay style on every cell permanently once
+  // `animate` became true, which -- because the cells' own className
+  // covers hover feedback with `transition-all` -- delayed every later
+  // hover, not just the one-time entrance. Cells must never carry an
+  // inline transitionDelay in the widget's default (non-rail) usage, and
+  // must drop it again once the rail's own entrance has finished.
+  describe("animate prop / entrance-delay cleanup", () => {
+    it("never applies an inline transitionDelay in the default (no animate prop) usage", () => {
+      const { container } = render(<LandingRiskMatrixWidget />)
+      const buttons = container.querySelectorAll("button")
+      buttons.forEach((button) => {
+        expect(button.style.transitionDelay).toBe("")
+      })
+    })
+
+    it("drops the inline transitionDelay after the rail's staggered entrance finishes", () => {
+      vi.useFakeTimers()
+      const { container, rerender } = render(
+        <LandingRiskMatrixWidget animate={false} />
+      )
+      // Still hidden: no cell has entered yet.
+      let buttons = container.querySelectorAll("button")
+      expect(buttons[buttons.length - 1].style.transitionDelay).not.toBe("")
+
+      // Entrance begins (matches ProductDemoSection's rail passing
+      // animate={revealVisible} once the section scrolls into view).
+      rerender(<LandingRiskMatrixWidget animate={true} />)
+      buttons = container.querySelectorAll("button")
+      expect(buttons[buttons.length - 1].style.transitionDelay).not.toBe("")
+
+      // Once every cell's own entrance transition has had time to finish,
+      // the delay must be gone -- otherwise it silently lingers on every
+      // subsequent hover. The setTimeout's setEntered() call happens
+      // outside any user-driven event, so it must be flushed inside act()
+      // for the DOM to reflect it before the assertion below.
+      act(() => {
+        vi.advanceTimersByTime(5000)
+      })
+      buttons = container.querySelectorAll("button")
+      buttons.forEach((button) => {
+        expect(button.style.transitionDelay).toBe("")
+      })
+      vi.useRealTimers()
+    })
   })
 })
