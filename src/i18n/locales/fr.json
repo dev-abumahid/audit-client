@@ -126,7 +126,8 @@
         "hint": "La même logique de positionnement que le vrai registre des risques — cliquez sur une cellule pour voir ce qu'elle contient.",
         "cellLabel": "{{count}} risques dans cette cellule",
         "emptyHint": "Cliquez sur une cellule ci-dessus pour voir les risques qui y sont positionnés.",
-        "noRisks": "Aucun risque d'exemple dans cette cellule."
+        "noRisks": "Aucun risque d'exemple dans cette cellule.",
+        "residualScoreLabel": "Score résiduel"
       },
       "roleRegister": {
         "title": "Changez de rôle",

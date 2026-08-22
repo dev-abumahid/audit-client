@@ -126,7 +126,8 @@
         "hint": "Same cell-mapping logic as the real risk register — click any cell to see what's in it.",
         "cellLabel": "{{count}} risks in this cell",
         "emptyHint": "Click a cell above to see the risks plotted there.",
-        "noRisks": "No sample risks in this cell."
+        "noRisks": "No sample risks in this cell.",
+        "residualScoreLabel": "Residual score"
       },
       "roleRegister": {
         "title": "Switch roles",

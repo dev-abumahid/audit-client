@@ -1,13 +1,23 @@
+import { MapPin, Tag } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { MOCK_RISKS } from "@/dashboard/organization/risk/riskMatrixMockData"
+import {
+  MOCK_RISKS,
+  MOCK_SITES,
+} from "@/dashboard/organization/risk/riskMatrixMockData"
+import { riskCategoryLabel } from "@/utils/riskConfig"
 import {
   getMatrixColor,
   LABEL_KEYS,
   mapRiskToCell,
 } from "@/utils/riskMatrixCalc"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
-import { SEVERITY_STYLES, type SeverityLevel } from "@/utils/severityStyles"
+import {
+  SEVERITY_STYLES,
+  severityBadgeClasses,
+  type SeverityLevel,
+} from "@/utils/severityStyles"
+import type { Risk } from "@/types/organization"
 
 // The clickable risk-matrix demo, built on riskMatrixCalc.ts's extraction
 // so cell placement and color are the exact same real logic
@@ -136,22 +146,41 @@ export default function LandingRiskMatrixWidget({
                   style={
                     entered ? undefined : { transitionDelay: `${delayMs}ms` }
                   }
-                  className={`focus-ring flex aspect-square items-center justify-center rounded-md text-xs font-bold transition-all duration-150 ease-out hover:scale-105 hover:brightness-110 motion-reduce:transition-none ${
+                  // Design-team finding: this cell only got its heat-map
+                  // color when it happened to contain a mock risk --
+                  // everything else fell back to a flat gray "bg-muted/30",
+                  // unlike RiskMatrixView.tsx (the real, authenticated
+                  // matrix), which colors every cell unconditionally via
+                  // this exact same getMatrixColor() and only dims empty
+                  // ones with opacity (see that file's own
+                  // `cellRisks.length ? "shadow-md" : "opacity-75"`). This
+                  // widget already imports getMatrixColor specifically so
+                  // its cell logic can't drift from the real page's --
+                  // applying it unconditionally closes that one remaining
+                  // gap. A small dot marks a cell that has real risk(s)
+                  // rather than a bold count digit, since a busy 25-cell
+                  // grid all showing digits was more visual noise than a
+                  // marketing demo needs -- the full detail is one click
+                  // away in the panel below.
+                  className={`focus-ring relative flex aspect-square items-center justify-center rounded-md transition-all duration-150 ease-out hover:scale-105 hover:brightness-110 motion-reduce:transition-none ${
                     animate
                       ? "translate-y-0 scale-100 opacity-100"
                       : "translate-y-1 scale-90 opacity-0"
                   } ${isSelected ? "ring-2 ring-primary ring-offset-1" : ""} ${
-                    hasRisks
-                      ? // getMatrixColor expects row 0 = lowest likelihood
-                        // (mapRiskToCell's convention), but `rowIdx` here is
-                        // the flipped DISPLAY row (row 0 = highest
-                        // likelihood) -- un-flip before calling it, same as
-                        // RiskMatrixView.tsx does.
-                        `${getMatrixColor(GRID_SIZE - 1 - rowIdx, colIdx, GRID_SIZE)} text-foreground`
-                      : "bg-muted/30 text-muted-foreground"
-                  }`}
+                    // getMatrixColor expects row 0 = lowest likelihood
+                    // (mapRiskToCell's convention), but `rowIdx` here is
+                    // the flipped DISPLAY row (row 0 = highest
+                    // likelihood) -- un-flip before calling it, same as
+                    // RiskMatrixView.tsx does.
+                    getMatrixColor(GRID_SIZE - 1 - rowIdx, colIdx, GRID_SIZE)
+                  } text-foreground ${hasRisks ? "shadow-sm" : "opacity-60"}`}
                 >
-                  {hasRisks ? cellRisks.length : ""}
+                  {hasRisks && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-foreground/70"
+                    />
+                  )}
                 </button>
               )
             })
@@ -190,7 +219,15 @@ export default function LandingRiskMatrixWidget({
           ))}
         </div>
 
-        <div className="mt-3 border-t border-border pt-3" aria-live="polite">
+        {/* Design-team finding: this used to be a bare list of ref+name
+            per risk -- clicking a cell answered "what's here" but not
+            "why does it matter." Each risk now gets a real detail card
+            (severity, location, category, description, residual score),
+            matching the depth a click into the real risk register gives. */}
+        <div
+          className="mt-3 max-h-64 space-y-3 overflow-y-auto border-t border-border pt-3"
+          aria-live="polite"
+        >
           {selected === null ? (
             <p className="text-xs text-muted-foreground">
               {t("home.productDemo.riskMatrixClick.emptyHint")}
@@ -200,29 +237,72 @@ export default function LandingRiskMatrixWidget({
               {t("home.productDemo.riskMatrixClick.noRisks")}
             </p>
           ) : (
-            <ul className="space-y-1.5">
-              {selectedRisks.map((risk) => {
-                const severity = getRiskSeverityLevel(risk.residual_score)
-                return (
-                  <li
-                    key={risk.id}
-                    className="flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-1.5"
-                  >
-                    <span
-                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_STYLES[severity].dot}`}
-                    />
-                    <span className="font-mono-data text-[10px] text-muted-foreground">
-                      {risk.ref}
-                    </span>
-                    <span className="truncate text-xs text-foreground">
-                      {risk.name}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
+            selectedRisks.map((risk) => (
+              <RiskDetailCard key={risk.id} risk={risk} />
+            ))
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function RiskDetailCard({ risk }: { risk: Risk }) {
+  const { t } = useTranslation()
+  const severity = getRiskSeverityLevel(risk.residual_score)
+  const siteName = MOCK_SITES.find((s) => s.id === risk.site_id)?.name
+
+  return (
+    <div className="rounded-lg border border-border bg-background/40 p-3">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="font-mono-data text-[10px] text-muted-foreground">
+          {risk.ref}
+        </span>
+        <span
+          className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase ${severityBadgeClasses(
+            severity,
+            { border: true }
+          )}`}
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${SEVERITY_STYLES[severity].dot}`}
+          />
+          {t(`riskLevel.${severity}`)}
+        </span>
+        {risk.ai_generated && (
+          <span className="rounded border border-sky-500/20 bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-medium text-sky-700 dark:border-sky-400/20 dark:bg-sky-400/15 dark:text-sky-400">
+            {t("organization.riskRegister.aiGenerated")}
+          </span>
+        )}
+      </div>
+
+      <p className="mt-1.5 text-xs font-semibold text-balance text-foreground">
+        {risk.name}
+      </p>
+
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+        {siteName && (
+          <span className="inline-flex items-center gap-1">
+            <MapPin className="h-3 w-3" />
+            {siteName}
+          </span>
+        )}
+        <span className="inline-flex items-center gap-1">
+          <Tag className="h-3 w-3" />
+          {riskCategoryLabel(t, risk.category)}
+        </span>
+      </div>
+
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+        {risk.description}
+      </p>
+
+      <div className="mt-2 flex items-baseline gap-1 border-t border-border pt-2 text-[10px] text-muted-foreground">
+        {t("home.productDemo.riskMatrixClick.residualScoreLabel")}
+        <span className="font-heading text-sm font-bold text-foreground">
+          {risk.residual_score}
+        </span>
+        /100
       </div>
     </div>
   )
