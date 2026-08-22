@@ -22,6 +22,63 @@ const LINK_TYPE_COLOR: Record<string, string> = {
   CORRELATES: "hsl(var(--risk-info))",
 }
 
+// CEO feedback: once a risk is selected, the abstract Causes/Amplifies/
+// Correlates definitions should give way to a real, readable sentence
+// about the SPECIFIC relationships now highlighted -- "CYB-009 causes
+// CYB-014" means nothing to a first-time visitor. Each real edge gets its
+// own plain-English mechanism (why, not just that), grounded in these
+// risks' own real descriptions in riskMatrixMockData.ts -- not a
+// templated "{ref} causes {ref}" plugged into an i18n string, which is
+// why this stays English-only content (same convention MOCK_RISKS' own
+// name/description fields already use -- those render as literal text,
+// never through t(), same as every other landing-page mock risk name).
+const RELATIONSHIP_VERB: Record<string, string> = {
+  CAUSES: "causes",
+  AMPLIFIES: "amplifies",
+  CORRELATES: "correlates with",
+}
+
+// Keyed by MOCK_RISK_LINKS' own `id` field -- one short, real "why" per
+// edge (kept to a few words: a visitor scanning several of these at once
+// won't read a paragraph per edge), not a generic placeholder. A link
+// with no entry falls back to a plain relationship statement (see
+// buildRelationshipSentence below) rather than rendering "undefined."
+const LINK_RATIONALE: Record<string, string> = {
+  "link-1":
+    "weak segmentation and an unpatched perimeter are the same underlying gap — once one gives ground, little contains the other",
+  "link-2": "both would drain the same limited incident-response capacity",
+  "link-3":
+    "this site's overdue access review and unpatched gateway are the same identity-oversight gap",
+  "link-4": "less slack to absorb a forced production stop",
+  "link-5": "same budget cycle, competing capital asks",
+  "link-6": "same gap: weak contractor and permit oversight at this hub",
+  "link-7": "a second open finding reads as a pattern, not a one-off",
+  "link-8":
+    "same pattern: a supply chain concentrated on one lane or one vendor, no built-in alternative",
+  "link-9": "no spare capacity if either supplier fails",
+  "link-10":
+    "thin redundancy either way — one person, one handwritten process, no backup for either",
+  "link-11": "both trade long-term reliability for keeping the line running today",
+}
+
+// One short sentence per edge: "{source name} ({ref}) {verb} {target
+// name} ({ref}) — {reason}." Names carry the meaning, refs stay in
+// parens for cross-referencing the graph/matrix, and the reason is this
+// specific edge's own real, terse rationale (LINK_RATIONALE above), not a
+// generic template or a paragraph.
+function buildRelationshipSentence(
+  link: RiskLink,
+  nodeByRef: Map<string, GraphNode>
+): string | null {
+  const source = nodeByRef.get(link.source_ref)
+  const target = nodeByRef.get(link.target_ref)
+  if (!source || !target) return null
+  const verb = RELATIONSHIP_VERB[link.link_type] ?? "is linked to"
+  const rationale = LINK_RATIONALE[link.id]
+  const base = `${source.name} (${source.ref}) ${verb} ${target.name} (${target.ref})`
+  return rationale ? `${base} — ${rationale}.` : `${base}.`
+}
+
 interface GraphNode {
   ref: string
   name: string
@@ -316,6 +373,16 @@ export default function RiskGraphWidget({
   function isEdgeDimmed(link: RiskLink): boolean {
     return hasSelection && !isEdgeHighlighted(link)
   }
+
+  // CEO feedback: while a selection is active, the legend below swaps the
+  // generic Causes/Amplifies/Correlates definitions for a factual list of
+  // THESE specific highlighted edges -- reuses isEdgeHighlighted (the
+  // exact same set the graph itself brightens/arrows), so the copy always
+  // matches what's actually lit up on screen, never a stale or invented
+  // example.
+  const highlightedLinks = hasSelection
+    ? MOCK_RISK_LINKS.filter((l) => isEdgeHighlighted(l))
+    : []
 
   const selectedNode = nodes.find((n) => selectedRefs.has(n.ref)) ?? null
 
@@ -619,10 +686,26 @@ export default function RiskGraphWidget({
         {/* CEO feedback: "Causes"/"Amplifies"/"Correlates" as single-word
             chips assumed the reader already knew what those distinctions
             mean for a risk register -- this line defines each one in
-            plain terms right above the chips it's explaining. */}
-        <p className="border-t border-border pt-3 text-[11px] text-muted-foreground">
-          {t("home.productDemo.riskGraph.linkTypeExplanation")}
-        </p>
+            plain terms while nothing is selected. Once a risk IS selected,
+            this swaps to real sentences about THESE specific highlighted
+            edges instead ("{{ref}} causes {{ref}}" reads as nothing to a
+            first-time visitor -- buildRelationshipSentence names both
+            risks and explains the actual mechanism from LINK_RATIONALE,
+            one full sentence per real edge, not a templated fragment).
+            Falls back to the generic definitions if a selection somehow
+            highlights zero edges, so this never renders a bare "." */}
+        <div className="border-t border-border pt-3 text-[11px] text-muted-foreground">
+          {hasSelection && highlightedLinks.length > 0 ? (
+            <div className="space-y-1.5">
+              {highlightedLinks.map((l) => {
+                const sentence = buildRelationshipSentence(l, nodeByRef)
+                return sentence ? <p key={l.id}>{sentence}</p> : null
+              })}
+            </div>
+          ) : (
+            <p>{t("home.productDemo.riskGraph.linkTypeExplanation")}</p>
+          )}
+        </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
           {(["CAUSES", "AMPLIFIES", "CORRELATES"] as const).map((type) => (
             <span

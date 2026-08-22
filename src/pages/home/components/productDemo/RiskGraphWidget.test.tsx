@@ -356,6 +356,109 @@ describe("RiskGraphWidget", () => {
     )
     expect(line).not.toBeNull()
   })
+
+  // CEO feedback: "explain what makes these risks linked here... in terms
+  // of the real risks", then "this doesn't mean anything to a human...
+  // use plain language... make a story" -- a bare "CYB-009 causes
+  // CYB-014" (this file's own earlier attempt) isn't readable either.
+  // When a selection is active, the generic Causes/Amplifies/Correlates
+  // paragraph is replaced by one full, plain-English sentence per real
+  // highlighted edge, naming both risks (ref in parens) and explaining
+  // the actual mechanism -- not a templated i18n fragment, so these
+  // assertions check real literal sentence content, same convention this
+  // file already uses for MOCK_RISKS' own name/description text.
+  describe("selection-driven relationship explanation", () => {
+    const LINK_TYPE_EXPLANATION_KEY =
+      "home.productDemo.riskGraph.linkTypeExplanation"
+    // Selector unique to the relationship-sentence container (see the
+    // component's own space-y-1.5 wrapper) -- distinguishes "no selection
+    // yet, zero relationship <p>s rendered" from "a selection with real
+    // sentences," without depending on exact wording for existence checks.
+    const relationshipParagraphs = (container: HTMLElement) =>
+      Array.from(container.querySelectorAll(".space-y-1\\.5 > p"))
+
+    it("shows the generic definitions when nothing is selected", () => {
+      const { container } = render(<RiskGraphWidget animate={false} />)
+      expect(screen.getByText(LINK_TYPE_EXPLANATION_KEY)).toBeInTheDocument()
+      expect(relationshipParagraphs(container)).toHaveLength(0)
+    })
+
+    it("replaces the generic definitions with one real, readable sentence on a 1-edge selection", async () => {
+      const user = userEvent.setup()
+      const { container } = render(<RiskGraphWidget animate={false} />)
+
+      // CYB-009's only real link in the full 11-edge fixture is CYB-009
+      // CAUSES CYB-014 -- exactly one highlighted edge once selected
+      // (unlike SUP-007, which has two: one to the hub and one from
+      // SUP-002, since this fixture's topology is a connected tree, not a
+      // flat star).
+      const cyb009Text = Array.from(container.querySelectorAll("text")).find(
+        (el) => el.textContent === "CYB-009"
+      )
+      const cyb009Node = cyb009Text?.closest('[role="button"]')
+      await user.click(cyb009Node!)
+
+      expect(
+        screen.queryByText(LINK_TYPE_EXPLANATION_KEY)
+      ).not.toBeInTheDocument()
+      const paragraphs = relationshipParagraphs(container)
+      expect(paragraphs).toHaveLength(1)
+      const text = paragraphs[0].textContent ?? ""
+      // Names both risks with their real refs in parens, states the real
+      // verb, and gives a short reason -- not a bare "CYB-009 causes
+      // CYB-014."
+      expect(text).toContain(
+        "Unsegmented OT network exposes plant-floor PLCs to the office LAN (CYB-009)"
+      )
+      expect(text).toContain("causes")
+      expect(text).toContain(
+        "Ransomware exposure via unpatched VPN gateway (CYB-014)"
+      )
+      expect(text).toContain("—")
+      expect(text.length).toBeGreaterThan(100)
+    })
+
+    it("lists every highlighted edge on a multi-edge selection, not just one", async () => {
+      const user = userEvent.setup()
+      const { container } = render(<RiskGraphWidget animate={false} />)
+
+      // CYB-014 (the hub) has 4 real inbound links: CYB-009 CAUSES,
+      // SUP-007/CYB-006/OPS-018 AMPLIFIES -- all 4 should get their own
+      // sentence, not just the first.
+      const hubText = Array.from(container.querySelectorAll("text")).find(
+        (el) => el.textContent === "CYB-014"
+      )
+      const hubNode = hubText?.closest('[role="button"]')
+      await user.click(hubNode!)
+
+      const paragraphs = relationshipParagraphs(container)
+      expect(paragraphs).toHaveLength(4)
+      const combined = paragraphs.map((p) => p.textContent).join(" | ")
+      expect(combined).toContain("(CYB-009)")
+      expect(combined).toContain("(SUP-007)")
+      expect(combined).toContain("(CYB-006)")
+      expect(combined).toContain("(OPS-018)")
+      // Every sentence targets the hub and explains why.
+      paragraphs.forEach((p) => {
+        expect(p.textContent).toContain("(CYB-014)")
+        expect(p.textContent).toContain("—")
+      })
+    })
+
+    it("restores the generic definitions after deselecting", async () => {
+      const user = userEvent.setup()
+      const { container } = render(<RiskGraphWidget animate={false} />)
+      const sup007Text = Array.from(container.querySelectorAll("text")).find(
+        (el) => el.textContent === "SUP-007"
+      )
+      const sup007Node = sup007Text?.closest('[role="button"]')
+      await user.click(sup007Node!)
+      await user.click(sup007Node!)
+
+      expect(screen.getByText(LINK_TYPE_EXPLANATION_KEY)).toBeInTheDocument()
+      expect(relationshipParagraphs(container)).toHaveLength(0)
+    })
+  })
 })
 
 // Isolated in its own describe/file-level mock so it doesn't affect the
