@@ -101,6 +101,276 @@ const DEFAULT_BOX = { width: 320, height: 320 }
 const PADDING = 28
 const MIN_RADIUS = 8
 const MAX_RADIUS = 20
+// Matches the r={node.radius + 5} selection/cascade ring below -- hoisted
+// so both the padding/overlap math in layoutNodesInBox and the edge
+// line-clipping in the render loop agree on the same margin.
+const RING_MARGIN = 5
+// How far clear of an unrelated node's circle a straight edge must pass
+// to read as "not touching it" -- same margin convention
+// resolveNodeOverlaps' own push-apart pass uses (margin=4).
+const LINE_CLEARANCE = 4
+
+// CEO feedback (live-verified, screenshot): a straight edge between two
+// nodes can pass directly through a THIRD, unrelated node that happens to
+// sit near/on that line -- e.g. OPS-011 to OPS-031's edge ran right
+// through OPS-009's circle even though OPS-009 isn't part of that link.
+// Rather than bending the edge's own line around the obstruction (edges
+// stay straight, full stop -- direct product feedback), this moves the
+// BLOCKING NODE itself instead, the same way resolveNodeOverlaps already
+// moves nodes to clear each other. Runs as its own bounded-pass loop
+// (nudging one node to clear one edge can put it too close to a
+// different edge or node, so this re-checks every pass) and mutates
+// `nodes` in place; the caller re-runs resolveNodeOverlaps afterward to
+// restore node/node separation and the box bounds clamp, since a push
+// here can reintroduce either.
+function resolveNodeEdgeOverlaps(nodes: GraphNode[], links: RiskLink[]) {
+  const nodeByRef = new Map(nodes.map((n) => [n.ref, n]))
+  const maxPasses = 6
+  for (let pass = 0; pass < maxPasses; pass++) {
+    let violated = false
+    for (const node of nodes) {
+      for (const link of links) {
+        if (link.source_ref === node.ref || link.target_ref === node.ref) {
+          continue
+        }
+        const a = nodeByRef.get(link.source_ref)
+        const b = nodeByRef.get(link.target_ref)
+        if (!a || !b) continue
+        const dx = b.x - a.x
+        const dy = b.y - a.y
+        const len = Math.hypot(dx, dy) || 1
+        const ux = dx / len
+        const uy = dy / len
+        const relX = node.x - a.x
+        const relY = node.y - a.y
+        const proj = relX * ux + relY * uy
+        // Only a node whose closest point on the edge actually falls
+        // within the segment (not off one end) can visually read as
+        // sitting "on" that edge's path.
+        if (proj <= 0 || proj >= len) continue
+        const px = -uy
+        const py = ux
+        const perp = relX * px + relY * py
+        const clearanceNeeded = node.radius + LINE_CLEARANCE
+        const dist = Math.abs(perp)
+        if (dist < clearanceNeeded) {
+          violated = true
+          const push = clearanceNeeded - dist + 0.5
+          const sign = perp >= 0 ? 1 : -1
+          node.x += px * push * sign
+          node.y += py * push * sign
+        }
+      }
+    }
+    if (!violated) break
+  }
+}
+
+// Standard cross-product-based segment intersection test -- true only for
+// a genuine crossing (each segment's endpoints fall on opposite sides of
+// the other), not merely touching or collinear-overlapping.
+function segmentsCross(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  c: { x: number; y: number },
+  d: { x: number; y: number }
+): boolean {
+  const cross = (
+    p: { x: number; y: number },
+    q: { x: number; y: number },
+    r: { x: number; y: number }
+  ) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)
+  const d1 = cross(c, d, a)
+  const d2 = cross(c, d, b)
+  const d3 = cross(a, b, c)
+  const d4 = cross(a, b, d)
+  return (
+    ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+    ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
+  )
+}
+
+function pointToSegmentDistance(
+  p: { x: number; y: number },
+  a: { x: number; y: number },
+  b: { x: number; y: number }
+): number {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const len2 = dx * dx + dy * dy || 1
+  const t = Math.max(
+    0,
+    Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)
+  )
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+}
+
+// Minimum distance between two SEGMENTS (not the infinite lines) -- 0 for
+// a genuine crossing, otherwise the smallest of each segment's endpoints
+// measured against the other segment. CEO feedback: eliminating outright
+// crossings wasn't enough on its own -- two edges that pass close beside
+// each other without technically crossing still read as "too close," so
+// resolveEdgeCrossings below treats ANY distance under a minimum
+// clearance as a violation, not just a literal intersection.
+function segmentDistance(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  c: { x: number; y: number },
+  d: { x: number; y: number }
+): number {
+  if (segmentsCross(a, b, c, d)) return 0
+  return Math.min(
+    pointToSegmentDistance(a, c, d),
+    pointToSegmentDistance(b, c, d),
+    pointToSegmentDistance(c, a, b),
+    pointToSegmentDistance(d, a, b)
+  )
+}
+
+// CEO feedback (live-verified, screenshot): two DIFFERENT edges (sharing
+// no node) can cross each other -- e.g. OPS-011 to OPS-031's edge and
+// OPS-009 to OPS-018's edge crossed right next to OPS-009, reading as a
+// confusing tangle. Same non-bending approach as resolveNodeEdgeOverlaps:
+// nudges one of the crossing edges' own endpoints (not the edges
+// themselves), just enough to uncross them. Doesn't guarantee zero
+// crossings for an arbitrary graph -- true crossing-minimization is a
+// much harder layout problem -- but resolves the common case of one or
+// two isolated crossings in a small graph like this one.
+//
+// Also generalized past literal crossings: CEO feedback found two edges
+// that never technically crossed but ran close enough beside each other
+// to read as overlapping. `minClearance` treats ANY pair closer than that
+// (via segmentDistance) as a violation, not just segmentsCross's binary
+// intersection test.
+//
+// `baseUnit` scales the push with the box's own node radii (the caller
+// passes maxRadius) -- live debugging found a small, fixed push (e.g. 8
+// units) essentially never actually flips a crossing's side-of-line
+// outcome for typical edge lengths in this graph; it just nudges the
+// mover a little and gets re-detected as "still crossing" every
+// subsequent pass, forever. A push proportional to the graph's own scale
+// (tried at increasing multiples below) reliably clears it in 1-2 tries
+// instead.
+function resolveEdgeCrossings(
+  nodes: GraphNode[],
+  links: RiskLink[],
+  baseUnit: number,
+  minClearance: number
+) {
+  const nodeByRef = new Map(nodes.map((n) => [n.ref, n]))
+  const maxPasses = 8
+  for (let pass = 0; pass < maxPasses; pass++) {
+    let violated = false
+    for (let i = 0; i < links.length; i++) {
+      for (let j = i + 1; j < links.length; j++) {
+        const l1 = links[i]
+        const l2 = links[j]
+        if (
+          l1.source_ref === l2.source_ref ||
+          l1.source_ref === l2.target_ref ||
+          l1.target_ref === l2.source_ref ||
+          l1.target_ref === l2.target_ref
+        ) {
+          continue
+        }
+        const a = nodeByRef.get(l1.source_ref)
+        const b = nodeByRef.get(l1.target_ref)
+        const c = nodeByRef.get(l2.source_ref)
+        const d = nodeByRef.get(l2.target_ref)
+        if (!a || !b || !c || !d) continue
+        if (segmentDistance(a, b, c, d) >= minClearance) continue
+        violated = true
+
+        // Moving a FAR endpoint barely changes the clearance between the
+        // two segments -- the node that actually determines it is
+        // whichever of the four sits closest to the OTHER segment. Push
+        // that one instead, perpendicular to the other edge, which
+        // directly moves it off that edge's line.
+        const candidates = [
+          {
+            node: a,
+            other: [c, d] as const,
+            self: [a, b] as const,
+            dist: pointToSegmentDistance(a, c, d),
+          },
+          {
+            node: b,
+            other: [c, d] as const,
+            self: [a, b] as const,
+            dist: pointToSegmentDistance(b, c, d),
+          },
+          {
+            node: c,
+            other: [a, b] as const,
+            self: [c, d] as const,
+            dist: pointToSegmentDistance(c, a, b),
+          },
+          {
+            node: d,
+            other: [a, b] as const,
+            self: [c, d] as const,
+            dist: pointToSegmentDistance(d, a, b),
+          },
+        ]
+        candidates.sort((x, y) => x.dist - y.dist)
+
+        // Tries both perpendicular directions, at increasing push
+        // magnitudes, on each of the (up to 4) candidate movers in
+        // distance-to-violation order -- actually re-testing segmentDistance
+        // after each simulated move, taking the first combination that
+        // genuinely clears it, rather than committing to a single
+        // heuristic guess that can dead-end (e.g. against the box's own
+        // bounds-clamp, re-applied every pass by resolveNodeOverlaps)
+        // without ever being large enough to flip the outcome.
+        let resolved = false
+        for (const { node: mover, other, self } of candidates) {
+          const [oa, ob] = other
+          const dx = ob.x - oa.x
+          const dy = ob.y - oa.y
+          const len = Math.hypot(dx, dy) || 1
+          const px = -dy / len
+          const py = dx / len
+          for (const multiplier of [1, 2, 3.5]) {
+            const push = baseUnit * multiplier
+            for (const sign of [1, -1]) {
+              const nx = mover.x + px * push * sign
+              const ny = mover.y + py * push * sign
+              const [s1, s2] = self
+              const movedA = mover === s1 ? { x: nx, y: ny } : s1
+              const movedB = mover === s2 ? { x: nx, y: ny } : s2
+              if (segmentDistance(movedA, movedB, oa, ob) >= minClearance) {
+                mover.x = nx
+                mover.y = ny
+                resolved = true
+                break
+              }
+            }
+            if (resolved) break
+          }
+          if (resolved) break
+        }
+        // Nothing tried cleared it outright (a rare, tightly-constrained
+        // layout) -- still apply a modest best-effort move on the closest
+        // candidate, so this doesn't silently leave the crossing
+        // completely untouched.
+        if (!resolved) {
+          const { node: mover, other } = candidates[0]
+          const [oa, ob] = other
+          const dx = ob.x - oa.x
+          const dy = ob.y - oa.y
+          const len = Math.hypot(dx, dy) || 1
+          const px = -dy / len
+          const py = dx / len
+          const rel = (mover.x - oa.x) * px + (mover.y - oa.y) * py
+          const sign = rel >= 0 ? 1 : -1
+          mover.x += px * baseUnit * sign
+          mover.y += py * baseUnit * sign
+        }
+      }
+    }
+    if (!violated) break
+  }
+}
 
 function categoryColor(category: string): string {
   return (
@@ -224,7 +494,6 @@ function layoutNodesInBox(
   // MAX_RADIUS (20) and never accounted for the ring at all. Reserving at
   // least maxRadius+RING_MARGIN of padding guarantees even the biggest
   // node's ring fits inside the box before any node is placed.
-  const RING_MARGIN = 5
   const effectivePadding = Math.max(PADDING, maxRadius + RING_MARGIN)
   const scaleX = (box.width - effectivePadding * 2) / contentWidth
   const scaleY = (box.height - effectivePadding * 2) / contentHeight
@@ -254,16 +523,45 @@ function layoutNodesInBox(
   // any node can end up selected/cascaded, so every node needs that
   // clearance, not just whichever one happens to be selected right now.
   // Restored to the real radius afterward so the rendered circles below
-  // aren't drawn inflated.
-  const nodesForOverlap = nodes.map((n) => ({
-    ...n,
-    radius: n.radius + RING_MARGIN,
-  }))
-  resolveNodeOverlaps(nodesForOverlap, 4, box.width, box.height)
-  nodesForOverlap.forEach((n, i) => {
-    nodes[i].x = n.x
-    nodes[i].y = n.y
-  })
+  // aren't drawn inflated. Extracted as a closure (not a top-level
+  // function) since it needs to run twice: once for the normal node/node
+  // pass, and again after resolveNodeEdgeOverlaps below, which can itself
+  // reintroduce a node/node overlap or push a node out of bounds while
+  // clearing it from an edge's path.
+  function applyNodeSeparation() {
+    const nodesForOverlap = nodes.map((n) => ({
+      ...n,
+      radius: n.radius + RING_MARGIN,
+    }))
+    resolveNodeOverlaps(nodesForOverlap, 4, box.width, box.height)
+    nodesForOverlap.forEach((n, i) => {
+      nodes[i].x = n.x
+      nodes[i].y = n.y
+    })
+  }
+  applyNodeSeparation()
+
+  // CEO feedback: two further, distinct layout problems neither node/node
+  // separation nor the render-time endpoint clip catch -- (1) an edge
+  // passing straight through an unrelated node's circle, and (2) two
+  // unrelated edges crossing each other. Both are fixed by repositioning
+  // a node (edges always stay straight, per direct product feedback), and
+  // both can reintroduce a node/node overlap or push a node out of bounds
+  // once they move something -- so this settles all three constraints
+  // together across a few rounds rather than a single fixed pass order,
+  // since fixing one can reopen another.
+  // CEO feedback: zero literal crossings wasn't sufficient on its own --
+  // two edges that pass close beside each other without technically
+  // crossing still read as overlapping. minClearance (scaled off the
+  // box's own node radius, same convention as every other constant here)
+  // makes resolveEdgeCrossings treat that near-miss as a violation too.
+  const minEdgeClearance = maxRadius * 0.3
+  for (let round = 0; round < 4; round++) {
+    resolveNodeEdgeOverlaps(nodes, MOCK_RISK_LINKS)
+    applyNodeSeparation()
+    resolveEdgeCrossings(nodes, MOCK_RISK_LINKS, maxRadius, minEdgeClearance)
+    applyNodeSeparation()
+  }
 
   return { nodes, nodeByRef: new Map(nodes.map((n) => [n.ref, n])) }
 }
@@ -505,22 +803,36 @@ export default function RiskGraphWidget({
             const dimmed = isEdgeDimmed(link)
             const edgeHighlighted = isEdgeHighlighted(link)
 
-            // Shortens the line so its head lands on the target node's own
-            // edge instead of its center -- otherwise the arrowhead below
-            // renders hidden under the node circle, same fix and reasoning
-            // as RiskGraphPage's own line-clip.
+            // Shortens BOTH ends so the line starts and ends at each
+            // node's own edge instead of its center. Originally only the
+            // target end was clipped (so the arrowhead wouldn't render
+            // hidden under the node circle, same as RiskGraphPage's own
+            // line-clip) -- but the source end still ran straight from
+            // the node's center, which visibly cut across that node's own
+            // selection/cascade ring (the ring is unfilled, so a line
+            // passing through its hollow interior stays visible instead
+            // of being covered). Clipping both ends to radius+RING_MARGIN
+            // -- not just radius -- keeps the line clear of that ring
+            // whether or not this specific node currently has one
+            // rendered, so nothing shifts when a selection changes.
             const dx = target.x - source.x
             const dy = target.y - source.y
             const len = Math.hypot(dx, dy) || 1
-            const ratio = len > target.radius ? (len - target.radius) / len : 1
-            const ex = source.x + dx * ratio
-            const ey = source.y + dy * ratio
+            const sourceGap = source.radius + RING_MARGIN
+            const targetGap = target.radius + RING_MARGIN
+            const startRatio = len > sourceGap ? sourceGap / len : 0
+            const endRatio =
+              len > targetGap ? (len - targetGap) / len : startRatio
+            const sx = source.x + dx * startRatio
+            const sy = source.y + dy * startRatio
+            const ex = source.x + dx * endRatio
+            const ey = source.y + dy * endRatio
 
             return (
               <line
                 key={link.id}
-                x1={source.x}
-                y1={source.y}
+                x1={sx}
+                y1={sy}
                 x2={ex}
                 y2={ey}
                 pathLength={1}
@@ -618,6 +930,22 @@ export default function RiskGraphWidget({
                     />
                   </circle>
                 )}
+                {/* CEO feedback (live-verified, screenshot): a straight
+                    edge that happens to pass behind an unrelated third
+                    node stayed visible right through it -- the node's own
+                    colored circle below is only 15-25% opaque, nowhere
+                    near enough to hide a bright highlighted line (up to
+                    80% stroke-opacity) passing underneath. An opaque
+                    backing disc, matching the card's own background,
+                    fully covers anything drawn behind a node regardless
+                    of the colored circle's own transparency, without
+                    touching the edges' geometry at all. */}
+                <circle
+                  cx={node.x}
+                  cy={node.y}
+                  r={node.radius}
+                  fill="hsl(var(--card))"
+                />
                 {/* fillOpacity/strokeOpacity match RiskGraphPage.tsx's own
                     unselected-node ring exactly (RiskGraphNode's base
                     circle) for a linked node; the hub gets a brighter fill

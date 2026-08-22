@@ -347,6 +347,66 @@ describe("RiskGraphWidget", () => {
   // link_type. Confirms a real CAUSES link in the fixture (CYB-009 causes
   // CYB-014, per riskMatrixMockData) now carries one of the two
   // marker-end ids this widget defines.
+  // CEO feedback (live-verified, screenshot): an edge's SOURCE end used to
+  // run straight from the node's center (only the target end was clipped,
+  // so the arrowhead wouldn't render under the node circle) -- visually
+  // cutting across that source node's own selection/cascade ring, since
+  // the ring is unfilled and a line through its hollow interior stays
+  // visible. Confirms every line's own endpoints sit at least
+  // radius+RING_MARGIN (5, matching the ring's own r={node.radius + 5})
+  // away from each of its two real connected nodes' centers -- for node
+  // pairs far enough apart that the full clip actually applies (very
+  // close pairs get a shorter clip by design, see the component's own
+  // startRatio/endRatio comment).
+  it("clips both ends of every edge line clear of each node's own ring radius", () => {
+    const { container } = render(<RiskGraphWidget animate={false} />)
+    const nodeByRef = new Map(
+      Array.from(container.querySelectorAll('g[role="button"]')).map((g) => {
+        const ref = g.querySelector("text")?.textContent ?? ""
+        const circle = Array.from(g.querySelectorAll("circle")).find(
+          (c) => c.getAttribute("fill") !== "none"
+        )
+        return [
+          ref,
+          {
+            cx: Number(circle?.getAttribute("cx")),
+            cy: Number(circle?.getAttribute("cy")),
+            radius: Number(circle?.getAttribute("r")),
+          },
+        ]
+      })
+    )
+    const lines = Array.from(container.querySelectorAll("line"))
+    expect(lines).toHaveLength(MOCK_RISK_LINKS.length)
+
+    const RING_MARGIN = 5
+    let checkedAtLeastOne = false
+    MOCK_RISK_LINKS.forEach((link, i) => {
+      const line = lines[i]
+      const source = nodeByRef.get(link.source_ref)
+      const target = nodeByRef.get(link.target_ref)
+      if (!source || !target) return
+      const x1 = Number(line.getAttribute("x1"))
+      const y1 = Number(line.getAttribute("y1"))
+      const x2 = Number(line.getAttribute("x2"))
+      const y2 = Number(line.getAttribute("y2"))
+      const totalDist = Math.hypot(target.cx - source.cx, target.cy - source.cy)
+      const requiredGap = source.radius + target.radius + RING_MARGIN * 2
+      if (totalDist <= requiredGap) return
+
+      checkedAtLeastOne = true
+      const distFromSource = Math.hypot(x1 - source.cx, y1 - source.cy)
+      const distFromTarget = Math.hypot(x2 - target.cx, y2 - target.cy)
+      expect(distFromSource).toBeGreaterThanOrEqual(
+        source.radius + RING_MARGIN - 0.5
+      )
+      expect(distFromTarget).toBeGreaterThanOrEqual(
+        target.radius + RING_MARGIN - 0.5
+      )
+    })
+    expect(checkedAtLeastOne).toBe(true)
+  })
+
   it("marks a real CAUSES edge with an arrowhead marker", () => {
     const causesLink = MOCK_RISK_LINKS.find((l) => l.link_type === "CAUSES")
     expect(causesLink).toBeDefined()
@@ -355,6 +415,193 @@ describe("RiskGraphWidget", () => {
       `line[marker-end="url(#riskGraphWidgetArrowCauses)"]`
     )
     expect(line).not.toBeNull()
+  })
+
+  // CEO feedback (live-verified, screenshot): a straight edge that
+  // happens to pass behind an unrelated third node (e.g. OPS-011 to
+  // OPS-031's edge running right through OPS-009, though OPS-009 isn't
+  // part of that link) stayed visible right through it -- the node's own
+  // colored circle is only 15-25% opaque (fillOpacity), nowhere near
+  // enough to hide a bright highlighted line underneath. Confirms every
+  // node now also renders a fully opaque card-background backing circle,
+  // at the exact same position/radius as its colored circle, so anything
+  // drawn behind a node is fully covered regardless of the colored
+  // circle's own transparency -- without touching edge geometry at all
+  // (explicitly NOT curving/bending edges around obstacles).
+  // CEO feedback (live-verified, screenshot): two unrelated edges (e.g.
+  // OPS-011-OPS-031 and OPS-009-OPS-018) visually crossed each other,
+  // reading as a confusing tangle. Confirms none of the real 11 rendered
+  // edges cross any other (standard segment-intersection test, same math
+  // resolveEdgeCrossings itself uses), using the real rendered line
+  // coordinates -- not a hand-picked pair, every pair.
+  it("renders no two edges crossing each other", () => {
+    const { container } = render(<RiskGraphWidget animate={false} />)
+    const lines = Array.from(container.querySelectorAll("line")).map((l) => ({
+      x1: Number(l.getAttribute("x1")),
+      y1: Number(l.getAttribute("y1")),
+      x2: Number(l.getAttribute("x2")),
+      y2: Number(l.getAttribute("y2")),
+    }))
+    expect(lines).toHaveLength(MOCK_RISK_LINKS.length)
+
+    const cross = (
+      p: { x: number; y: number },
+      q: { x: number; y: number },
+      r: { x: number; y: number }
+    ) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)
+    const segmentsCross = (
+      a: { x: number; y: number },
+      b: { x: number; y: number },
+      c: { x: number; y: number },
+      d: { x: number; y: number }
+    ) => {
+      const d1 = cross(c, d, a)
+      const d2 = cross(c, d, b)
+      const d3 = cross(a, b, c)
+      const d4 = cross(a, b, d)
+      return (
+        ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
+      )
+    }
+
+    const crossingPairs: [number, number][] = []
+    for (let i = 0; i < lines.length; i++) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const l1 = lines[i]
+        const l2 = lines[j]
+        if (
+          segmentsCross(
+            { x: l1.x1, y: l1.y1 },
+            { x: l1.x2, y: l1.y2 },
+            { x: l2.x1, y: l2.y1 },
+            { x: l2.x2, y: l2.y2 }
+          )
+        ) {
+          crossingPairs.push([i, j])
+        }
+      }
+    }
+    expect(crossingPairs).toEqual([])
+  })
+
+  // CEO feedback (live-verified, screenshot): zero literal crossings
+  // wasn't enough on its own -- two edges that pass close beside each
+  // other WITHOUT technically crossing still read as overlapping.
+  // resolveEdgeCrossings generalizes to a minimum-clearance check via
+  // segmentDistance; this confirms the real rendered layout actually
+  // honors that clearance, not just the narrower "never crosses" bar the
+  // test above already covers. Edge pairs sharing a node are excluded --
+  // those are expected to meet exactly at the shared node's center.
+  it("keeps every pair of unrelated edges at least a minimum clearance apart, not just non-crossing", () => {
+    const { container } = render(<RiskGraphWidget animate={false} />)
+    const lines = Array.from(container.querySelectorAll("line")).map((l) => ({
+      x1: Number(l.getAttribute("x1")),
+      y1: Number(l.getAttribute("y1")),
+      x2: Number(l.getAttribute("x2")),
+      y2: Number(l.getAttribute("y2")),
+    }))
+    expect(lines).toHaveLength(MOCK_RISK_LINKS.length)
+
+    const pointToSegmentDistance = (
+      p: { x: number; y: number },
+      a: { x: number; y: number },
+      b: { x: number; y: number }
+    ) => {
+      const dx = b.x - a.x
+      const dy = b.y - a.y
+      const len2 = dx * dx + dy * dy || 1
+      const t = Math.max(
+        0,
+        Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)
+      )
+      return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+    }
+    const segmentDistance = (
+      a: { x: number; y: number },
+      b: { x: number; y: number },
+      c: { x: number; y: number },
+      d: { x: number; y: number }
+    ) =>
+      Math.min(
+        pointToSegmentDistance(a, c, d),
+        pointToSegmentDistance(b, c, d),
+        pointToSegmentDistance(c, a, b),
+        pointToSegmentDistance(d, a, b)
+      )
+
+    // Two links "share a node" (and are excluded) when a rendered
+    // endpoint coordinate coincides -- clipped endpoints for the same
+    // shared node land on the exact same point regardless of which link
+    // owns them, so an exact-match compare is enough without re-deriving
+    // ref-level adjacency from MOCK_RISK_LINKS.
+    const sharesEndpoint = (
+      l1: (typeof lines)[number],
+      l2: (typeof lines)[number]
+    ) => {
+      const pts1 = [
+        [l1.x1, l1.y1],
+        [l1.x2, l1.y2],
+      ]
+      const pts2 = [
+        [l2.x1, l2.y1],
+        [l2.x2, l2.y2],
+      ]
+      return pts1.some(([x1, y1]) =>
+        pts2.some(([x2, y2]) => Math.hypot(x1 - x2, y1 - y2) < 0.5)
+      )
+    }
+
+    const tooClose: [number, number, number][] = []
+    // Production computes minEdgeClearance = maxRadius * 0.3. In this
+    // jsdom test environment ResizeObserver is a no-op, so the widget
+    // never leaves its DEFAULT_BOX (320x320) / MAX_RADIUS (20) starting
+    // point -- radiusScale stays 1, so production's real target here is
+    // 20 * 0.3 = 6. Asserting against a value close to that (rather than
+    // a near-zero threshold that would only catch literal overlaps)
+    // is what actually exercises the new near-miss behavior; a small
+    // margin below 6 absorbs the best-effort fallback path's own slack
+    // (see resolveEdgeCrossings) without making this flaky.
+    const minClearance = 5.5
+    for (let i = 0; i < lines.length; i++) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const l1 = lines[i]
+        const l2 = lines[j]
+        if (sharesEndpoint(l1, l2)) continue
+        const dist = segmentDistance(
+          { x: l1.x1, y: l1.y1 },
+          { x: l1.x2, y: l1.y2 },
+          { x: l2.x1, y: l2.y1 },
+          { x: l2.x2, y: l2.y2 }
+        )
+        if (dist < minClearance) tooClose.push([i, j, dist])
+      }
+    }
+    expect(tooClose).toEqual([])
+  })
+
+  it("gives every node an opaque backing circle so edges can't show through it", () => {
+    const { container } = render(<RiskGraphWidget animate={false} />)
+    const groups = Array.from(container.querySelectorAll('g[role="button"]'))
+    expect(groups.length).toBe(MOCK_RISKS.length)
+    groups.forEach((g) => {
+      const circles = Array.from(g.querySelectorAll("circle"))
+      const backing = circles.find(
+        (c) => c.getAttribute("fill") === "hsl(var(--card))"
+      )
+      const colored = circles.find(
+        (c) =>
+          c.getAttribute("fill") !== "none" &&
+          c.getAttribute("fill") !== "hsl(var(--card))"
+      )
+      expect(backing).toBeDefined()
+      expect(colored).toBeDefined()
+      // Same position and radius as the colored circle it's backing --
+      // otherwise it wouldn't fully cover what's drawn behind that circle.
+      expect(backing?.getAttribute("cx")).toBe(colored?.getAttribute("cx"))
+      expect(backing?.getAttribute("cy")).toBe(colored?.getAttribute("cy"))
+      expect(backing?.getAttribute("r")).toBe(colored?.getAttribute("r"))
+    })
   })
 
   // CEO feedback: "explain what makes these risks linked here... in terms
