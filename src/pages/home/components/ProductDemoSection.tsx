@@ -29,6 +29,7 @@ const INTERACTIVE_DEMOS = [
     descriptionKey: "home.productDemo.roleRegister.sectionDescription",
     pillKey: "home.productDemo.roleRegister.pill",
     Widget: RoleScopedRegisterWidget,
+    usesSelection: false,
   },
   {
     id: "kriSlider",
@@ -36,6 +37,7 @@ const INTERACTIVE_DEMOS = [
     descriptionKey: "home.productDemo.kriSlider.sectionDescription",
     pillKey: "home.productDemo.kriSlider.pill",
     Widget: KriThresholdSliderWidget,
+    usesSelection: true,
   },
 ] as const
 
@@ -56,6 +58,7 @@ function DemoMoment({
   descriptionKey,
   pillKey,
   Widget,
+  usesSelection,
   selectedRefs,
   onSelectionChange,
 }: {
@@ -63,15 +66,18 @@ function DemoMoment({
   headingKey: string
   descriptionKey: string
   pillKey: string
-  // Optional cross-highlight props, forwarded to whichever Widget is
-  // mounted -- only KriThresholdSliderWidget (the "kriSlider" entry)
-  // actually reads them today. RoleScopedRegisterWidget doesn't declare
-  // either prop, so React just ignores them there; no per-entry branching
-  // needed in this generic slot.
+  // Cross-highlight props, forwarded only when usesSelection is true --
+  // RoleScopedRegisterWidget doesn't read either prop, so it used to get
+  // them passed anyway (React just ignored them there). That still meant
+  // a new `selectedRefs` Set reference reached it on every selection
+  // change elsewhere on the page, which would defeat React.memo's shallow
+  // prop comparison; not passing them at all is what actually lets
+  // memoizing that widget skip real work, not just look memoized.
   Widget: React.ComponentType<{
     selectedRefs?: Set<string>
     onSelectionChange?: (refs: Set<string>) => void
   }>
+  usesSelection: boolean
   selectedRefs?: Set<string>
   onSelectionChange?: (refs: Set<string>) => void
 }) {
@@ -101,10 +107,14 @@ function DemoMoment({
       </div>
 
       <div className="mt-6 w-full rounded-xl bg-gradient-to-br from-accent/50 to-border/60 p-px shadow-lg shadow-foreground/[0.03] lg:mt-0">
-        <Widget
-          selectedRefs={selectedRefs}
-          onSelectionChange={onSelectionChange}
-        />
+        {usesSelection ? (
+          <Widget
+            selectedRefs={selectedRefs}
+            onSelectionChange={onSelectionChange}
+          />
+        ) : (
+          <Widget />
+        )}
       </div>
     </div>
   )
@@ -298,6 +308,7 @@ const ProductDemoSection: React.FC = () => {
                 descriptionKey={demo.descriptionKey}
                 pillKey={demo.pillKey}
                 Widget={demo.Widget}
+                usesSelection={demo.usesSelection}
                 selectedRefs={selectedRiskRefs}
                 onSelectionChange={setSelectedRiskRefs}
               />

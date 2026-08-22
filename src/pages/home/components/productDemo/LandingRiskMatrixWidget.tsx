@@ -58,6 +58,12 @@ function buildGrid(): number[][][] {
   return grid
 }
 
+// buildGrid() is pure with zero inputs (closes only over module-level,
+// never-mutated MOCK_RISKS) -- computing it once at module load instead of
+// every render avoids rebuilding an identical 5x5 nested array on every
+// re-render this widget's parent triggers.
+const GRID = buildGrid()
+
 // Mounts in ProductDemoSection's static rail, which passes
 // `animate={revealVisible}` for a staggered cell entrance. `animate`
 // defaults to true so cells render at full visibility if the prop is
@@ -110,7 +116,7 @@ export default function LandingRiskMatrixWidget({
     return () => clearTimeout(timer)
   }, [animate, entered])
 
-  const grid = buildGrid()
+  const grid = GRID
   // Iterates MOCK_RISKS' own order, not any one cell's -- selection can
   // now come from the graph widget too, so "the selected risks" isn't
   // necessarily everything in a single cell anymore.

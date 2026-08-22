@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from "react"
-import { useRef, useState } from "react"
+import { memo, useRef, useState } from "react"
 import { Check, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { MOCK_RISKS } from "@/dashboard/organization/risk/riskMatrixMockData"
@@ -35,7 +35,12 @@ const DEMO_RISKS = MOCK_RISKS.slice(0, 5)
 // button either role already had.
 const PENDING_APPROVAL_REF = DEMO_RISKS[1]?.ref
 
-export default function RoleScopedRegisterWidget() {
+// Takes no props (see ProductDemoSection.tsx's DemoMoment: this widget
+// doesn't consume the shared cross-highlight selection, so it isn't even
+// passed those props) -- memo here means it only re-renders from its own
+// internal state, not whenever ProductDemoSection's sibling widgets cause
+// a parent re-render.
+function RoleScopedRegisterWidget() {
   const { t } = useTranslation()
   const [role, setRole] = useState<OrgRole>("ADMIN")
   const canWrite = canWriteOrgResource(role)
@@ -233,3 +238,5 @@ export default function RoleScopedRegisterWidget() {
     </div>
   )
 }
+
+export default memo(RoleScopedRegisterWidget)

@@ -193,4 +193,44 @@ describe("ProductDemoSection", () => {
     expect(kriRefBadge).not.toBeUndefined()
     expect(kriRefBadge).toHaveAttribute("aria-pressed", "true")
   })
+
+  // Quality-bar-loop efficiency finding: RoleScopedRegisterWidget doesn't
+  // consume the shared cross-highlight selection at all, so it no longer
+  // gets those props passed (see ProductDemoSection.tsx's DemoMoment) and
+  // is wrapped in React.memo -- if a selection change elsewhere on the
+  // page ever caused it to remount instead of just not re-rendering, its
+  // own internal state (which role is selected) would silently reset.
+  // Asserts the real user-facing guarantee: switching to Light User, then
+  // triggering a selection change via the matrix, must not revert the
+  // role picker back to its Admin default.
+  it("keeps RoleScopedRegisterWidget's own role selection when an unrelated cross-highlight fires elsewhere", async () => {
+    const user = userEvent.setup()
+    renderSection()
+
+    await user.click(
+      screen.getByRole("radio", {
+        name: "home.productDemo.roleRegister.roles.LIGHT_USER",
+      })
+    )
+    expect(
+      screen.getByRole("radio", {
+        name: "home.productDemo.roleRegister.roles.LIGHT_USER",
+      })
+    ).toHaveAttribute("aria-checked", "true")
+
+    const matrixCells = screen
+      .getAllByRole("button")
+      .filter((el) =>
+        (el.getAttribute("aria-label") ?? "").startsWith(
+          "home.productDemo.riskMatrixClick.cellLabel"
+        )
+      )
+    await user.click(matrixCells[matrixButtonIndexFor("CYB-014")])
+
+    expect(
+      screen.getByRole("radio", {
+        name: "home.productDemo.roleRegister.roles.LIGHT_USER",
+      })
+    ).toHaveAttribute("aria-checked", "true")
+  })
 })

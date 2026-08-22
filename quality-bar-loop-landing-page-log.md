@@ -315,3 +315,102 @@ them together is a legitimate batch, not scope creep.
    `min-h-11` sizing so every row in the Action column shares a consistent
    height, closing the visual "bulge" the pending-approval row's larger
    Approve/Reject buttons created against it.
+
+Shipped as PR #1054. A review round on that PR found one real bug in fix #2
+(`flex`, block-level, with no width class made the Edit button stretch to
+fill its `<td>` instead of sizing to its text) — fixed in a follow-up commit
+on the same PR (`inline-flex` + reverting a padding bump back to match the
+button's pre-existing, unregressed width). Merged.
+
+---
+
+## Round 4 — 2026-08-22
+
+Focused re-verification panel: code-quality and visual-polish (the two
+regressed axes), plus mobile and UX (both had `RoleScopedRegisterWidget.tsx`
+touched again by round 3's fix + its follow-up bugfix). The other 5 axes
+carried forward unchanged from round 2/3 — round 3's diff (comment trims +
+one button-sizing fix) didn't touch their surface.
+
+| Axis | Round 2 | Round 4 | Δ | Stuck streak |
+|---|---|---|---|---|
+| Industry-standards conformance | 8 | 8 (carried forward) | 0 | 0 |
+| UX / interaction friction | 7.5 | 7.5 | 0 | 0 |
+| Efficiency | 7 | 7 (carried forward) | 0 | 0 |
+| Accessibility (a11y) | 7.8 | 7.8 (carried forward) | 0 | 0 |
+| Visual/design polish | 6.5 | 7 | +0.5 | 0 |
+| Resilience & edge cases | 9 | 9 (carried forward) | 0 | 0 |
+| Code quality/maintainability | 6 | **8.5** | **+2.5** | 0 |
+| Cross-view integration | 9 | 9 (carried forward) | 0 | 0 |
+| Mobile/responsive | 7.5 | 7.8 | +0.3 | 0 |
+| **Average** | **7.59** | **7.96** | **+0.37** | |
+
+**Convergence check:** 7.96 < 8.5 target. Not converged. All axes ≥ 6.5
+floor (lowest is 7, tied on UX/Efficiency/Visual-polish). **Guardrail
+check: the below-floor code-quality regression from round 2 is fully
+resolved** (6 → 8.5, now the single highest-scored axis) — the round-3
+corrective action worked as intended. No new regressions this round.
+
+### Judge findings (trimmed)
+
+**Code quality (8.5, +2.5):** Comment trims confirmed terse and durable —
+`RiskGraphWidget.tsx:487-488` now states the invariant in 2 lines, no
+judge/round preamble. The one genuinely load-bearing detail (jsdom's
+`ResizeObserver` no-op limitation, `RiskGraphWidget.test.tsx:604-606`)
+survived the trim. Edit-button bugfix (`inline-flex` + reverted padding)
+judged "a real, well-targeted fix, not a rushed patch." Round 1's other
+findings (inline geometry solvers, duplicated `GraphNode` type, unexported
+functions) confirmed still present, correctly untouched by this narrow fix.
+
+**Visual polish (7, +0.5):** Edit-button fix verified structurally sound in
+both themes via live `getBoundingClientRect()`/`getComputedStyle` (all 6
+Action-column controls now 44px tall). Round 1's 3 original findings (CDM
+panel border contrast, connector/accent color mismatch, cramped card text)
+and round 2's role-picker-vs-table tonal mismatch all confirmed still
+present, unaddressed — correctly out of scope for round 3's narrow fix.
+Judge's own framing: "the specific regression... is now genuinely and
+cleanly fixed... but three rounds in, the three original round-1 findings
+remain completely untouched."
+
+**Mobile (7.8, +0.3):** Edit button confirmed content-width + 44px tall at
+real 375px width in both English and French (synthetic-DOM technique for
+French, since the live locale toggle wasn't reliably clickable this round) —
+no overflow/clipping for either label length. RiskGraphWidget's still-partial
+touch-target gap (18-38px diameter) confirmed unchanged, not re-litigated.
+
+**UX (7.5, unchanged):** Edit button's narrower content-width sizing
+verified to introduce no click-boundary ambiguity — real `<button>` with a
+visible border, hit area matches visible area. All 3 roles' pending-approval
+behavior (Admin: Approve/Reject; Lead Auditor: read-only Pending badge;
+Light User: nothing) re-verified correct. Three deferred items (CDM mobile
+connector, graph/matrix scroll-distance link, KRI slider reset) confirmed
+still open via source, not re-litigated.
+
+**Carried forward unchanged (not touched by round 3's diff):**
+Industry-standards (8) — SOC2/ISO27001 badge gap and testimonial logo-wall
+gap remain large-scope. Efficiency (7) — unmemoized sibling re-renders,
+unmemoized `buildGrid()`, undebounced `ResizeObserver` all unchanged.
+Accessibility (7.8) — matrix grid's roving-tabindex gap remains open.
+Resilience (9) — no new findings. Cross-view integration (9) — no new
+findings.
+
+### Round 4 fix selection
+
+No regressions this round (rule 3 doesn't apply) and no axis is both stuck
+and at-or-below floor (rule 2 doesn't differentiate — every axis's
+stuck_streak is 0). Falls to rule 4: furthest below target (8.5), skipping
+large-scope-only axes. Efficiency and Visual-polish are tied furthest below
+(1.5 each); roster order picks **Efficiency**.
+
+Efficiency's findings, re-confirmed unchanged since round 1: unmemoized
+`ProductDemoSection` children (a click on one demo widget re-renders all 4,
+including `RoleScopedRegisterWidget`, which its own code comment already
+establishes doesn't consume the shared selection state at all), unmemoized
+`LandingRiskMatrixWidget.buildGrid()`, undebounced `RiskGraphWidget`
+`ResizeObserver`. Selecting the two most contained, best-evidenced items for
+this round: memoizing `RoleScopedRegisterWidget` (justified by its own
+existing comment proving it doesn't need the re-render) and
+`LandingRiskMatrixWidget.buildGrid()`. Deferring the `ResizeObserver` debounce
+(touches animation/layout timing, wants its own focused round) and a full
+memoization sweep of all 4 `ProductDemoSection` children to a later round if
+efficiency still needs work after this.
