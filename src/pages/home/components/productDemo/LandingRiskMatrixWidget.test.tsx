@@ -149,4 +149,64 @@ describe("LandingRiskMatrixWidget", () => {
       vi.useRealTimers()
     })
   })
+
+  // Review finding on PR #1043: every test above renders the widget with
+  // no selectedRefs/onSelectionChange props, so they only ever exercise
+  // the uncontrolled local-state fallback -- none of them actually cover
+  // the controlled API ProductDemoSection uses to cross-highlight this
+  // widget from RiskGraphWidget. These do.
+  describe("controlled selectedRefs prop (cross-highlight from the graph)", () => {
+    it("shows a cell as selected and expands its detail card when selectedRefs is supplied externally", () => {
+      render(<LandingRiskMatrixWidget selectedRefs={new Set(["CYB-014"])} />)
+      const buttons = screen.getAllByRole("button")
+      expect(buttons[displayIndexFor("CYB-014")]).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      )
+      expect(
+        screen.getByText("Ransomware exposure via unpatched VPN gateway")
+      ).toBeInTheDocument()
+    })
+
+    it("calls onSelectionChange with the clicked cell's refs, not just updating local state", async () => {
+      const user = userEvent.setup()
+      const onSelectionChange = vi.fn()
+      render(
+        <LandingRiskMatrixWidget
+          selectedRefs={new Set()}
+          onSelectionChange={onSelectionChange}
+        />
+      )
+      const buttons = screen.getAllByRole("button")
+      await user.click(buttons[displayIndexFor("CYB-014")])
+
+      expect(onSelectionChange).toHaveBeenCalledTimes(1)
+      const calledWith = onSelectionChange.mock.calls[0][0] as Set<string>
+      expect(calledWith).toBeInstanceOf(Set)
+      expect(Array.from(calledWith)).toEqual(["CYB-014"])
+    })
+
+    it("stays controlled by the parent's selectedRefs even after a click -- doesn't fall back to its own local state", async () => {
+      const user = userEvent.setup()
+      // onSelectionChange intentionally omitted: a real controlled
+      // component whose parent ignores the change callback should NOT
+      // start reflecting its own local state instead -- the displayed
+      // selection must keep matching whatever selectedRefs the parent
+      // actually re-renders it with.
+      const { rerender } = render(
+        <LandingRiskMatrixWidget selectedRefs={new Set()} />
+      )
+      const buttons = screen.getAllByRole("button")
+      await user.click(buttons[displayIndexFor("CYB-014")])
+      // No onSelectionChange, so the "parent" never re-renders with a new
+      // selectedRefs -- the prop passed back down is still the original
+      // empty Set, and the cell must still reflect that, not its own
+      // internal click.
+      rerender(<LandingRiskMatrixWidget selectedRefs={new Set()} />)
+      expect(buttons[displayIndexFor("CYB-014")]).toHaveAttribute(
+        "aria-pressed",
+        "false"
+      )
+    })
+  })
 })

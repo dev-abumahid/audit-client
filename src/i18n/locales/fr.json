@@ -23,9 +23,18 @@
         "compliance": "Conformité",
         "obligationsTracked": "12 obligations suivies",
         "obligations": {
-          "dataRetention": { "title": "Politique de conservation des données", "status": "Conforme" },
-          "vendorAccess": { "title": "Revue d'accès fournisseurs", "status": "Non conforme" },
-          "incidentDrill": { "title": "Exercice de réponse aux incidents", "status": "Bientôt dû" }
+          "dataRetention": {
+            "title": "Politique de conservation des données",
+            "status": "Conforme"
+          },
+          "vendorAccess": {
+            "title": "Revue d'accès fournisseurs",
+            "status": "Non conforme"
+          },
+          "incidentDrill": {
+            "title": "Exercice de réponse aux incidents",
+            "status": "Bientôt dû"
+          }
         },
         "executiveOverview": "Vue d'ensemble exécutive",
         "activeRisks": "Risques actifs",
@@ -86,12 +95,6 @@
         "dimensions": "5 × 5",
         "impact": "Impact"
       },
-      "kriTrend": {
-        "title": "Tendance ICR",
-        "alertBadge": "Alerte",
-        "chartLabel": "Graphique de tendance, valeur actuelle {{value}} {{unit}}",
-        "thresholdLabel": "Seuil : {{value}}"
-      },
       "riskGraph": {
         "title": "Corrélation des risques",
         "nodeCount": "{{count}} nœuds",
@@ -102,8 +105,7 @@
       },
       "rail": {
         "plots": "Positionne le risque",
-        "correlates": "Le corrèle",
-        "triggers": "Déclenche l'alerte"
+        "correlates": "Le corrèle"
       },
       "kriSlider": {
         "title": "Faites glisser la mesure",
@@ -128,7 +130,6 @@
         "hint": "La même logique de positionnement que le vrai registre des risques — cliquez sur une cellule pour voir ce qu'elle contient.",
         "cellLabel": "{{count}} risques dans cette cellule",
         "emptyHint": "Cliquez sur une cellule ci-dessus pour voir les risques qui y sont positionnés.",
-        "noRisks": "Aucun risque d'exemple dans cette cellule.",
         "residualScoreLabel": "Score résiduel"
       },
       "roleRegister": {

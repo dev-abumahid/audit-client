@@ -62,15 +62,42 @@ function buildGrid(): number[][][] {
 // `animate={revealVisible}` for a staggered cell entrance. `animate`
 // defaults to true so cells render at full visibility if the prop is
 // ever omitted.
+//
+// selectedRefs/onSelectionChange: user request -- the matrix and
+// RiskGraphWidget now share the exact same risk set (both read from this
+// same MOCK_RISKS), and a click on either should cross-highlight the
+// other. Optionally controlled: ProductDemoSection passes both props to
+// wire this widget into that shared selection; standalone usage (this
+// widget's own tests, or if it's ever reused without the rail's shared
+// state) falls back to its own local Set, unchanged from before.
 export default function LandingRiskMatrixWidget({
   animate = true,
+  selectedRefs: controlledSelectedRefs,
+  onSelectionChange,
 }: {
   animate?: boolean
+  selectedRefs?: Set<string>
+  onSelectionChange?: (refs: Set<string>) => void
 } = {}) {
   const { t } = useTranslation()
-  const [selected, setSelected] = useState<{ row: number; col: number } | null>(
-    null
+  const [localSelectedRefs, setLocalSelectedRefs] = useState<Set<string>>(
+    new Set()
   )
+  const selectedRefs = controlledSelectedRefs ?? localSelectedRefs
+
+  // Replaces the whole selection with this cell's refs -- re-clicking the
+  // exact same cell (or, from the graph side, the exact same node) clears
+  // it. Always updates local state too, even when controlled, so the
+  // uncontrolled fallback stays correct if a future caller stops passing
+  // selectedRefs mid-lifecycle.
+  function selectRefs(refs: string[]) {
+    const isSameSelection =
+      refs.length === selectedRefs.size &&
+      refs.every((ref) => selectedRefs.has(ref))
+    const next = isSameSelection ? new Set<string>() : new Set(refs)
+    setLocalSelectedRefs(next)
+    onSelectionChange?.(next)
+  }
 
   // `entered` flips once, after the longest cell's staggered-entrance
   // delay finishes -- past that point no cell gets an inline
@@ -84,12 +111,10 @@ export default function LandingRiskMatrixWidget({
   }, [animate, entered])
 
   const grid = buildGrid()
-  const selectedRisks =
-    selected !== null
-      ? grid[selected.row][selected.col].map(
-          (riskIndex) => MOCK_RISKS[riskIndex]
-        )
-      : []
+  // Iterates MOCK_RISKS' own order, not any one cell's -- selection can
+  // now come from the graph widget too, so "the selected risks" isn't
+  // necessarily everything in a single cell anymore.
+  const selectedRisks = MOCK_RISKS.filter((risk) => selectedRefs.has(risk.ref))
 
   return (
     <div className="flex h-full flex-col rounded-[11px] bg-card p-5">
@@ -126,19 +151,15 @@ export default function LandingRiskMatrixWidget({
         <div className="grid flex-1 grid-cols-5 gap-1.5">
           {grid.map((row, rowIdx) =>
             row.map((cellRisks, colIdx) => {
-              const isSelected =
-                selected?.row === rowIdx && selected?.col === colIdx
-              const hasRisks = cellRisks.length > 0
+              const cellRefs = cellRisks.map((idx) => MOCK_RISKS[idx].ref)
+              const hasRisks = cellRefs.length > 0
+              const isSelected = cellRefs.some((ref) => selectedRefs.has(ref))
               const delayMs = (rowIdx * GRID_SIZE + colIdx) * 25
               return (
                 <button
                   key={`${rowIdx}-${colIdx}`}
                   type="button"
-                  onClick={() =>
-                    setSelected(
-                      isSelected ? null : { row: rowIdx, col: colIdx }
-                    )
-                  }
+                  onClick={() => selectRefs(cellRefs)}
                   aria-pressed={isSelected}
                   aria-label={t("home.productDemo.riskMatrixClick.cellLabel", {
                     count: cellRisks.length,
@@ -228,13 +249,16 @@ export default function LandingRiskMatrixWidget({
           className="mt-3 max-h-64 space-y-3 overflow-y-auto border-t border-border pt-3"
           aria-live="polite"
         >
-          {selected === null ? (
+          {/* Clicking an empty cell (or an unlinked risk in the graph
+              widget) collapses to the same "nothing selected" state as
+              never having clicked at all, now that selection is a flat
+              Set<string> instead of a distinct {row, col} -- an empty
+              cell has no refs to add, so selecting it clears the shared
+              selection rather than landing in its own dedicated
+              "no risks here" state. */}
+          {selectedRisks.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               {t("home.productDemo.riskMatrixClick.emptyHint")}
-            </p>
-          ) : selectedRisks.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              {t("home.productDemo.riskMatrixClick.noRisks")}
             </p>
           ) : (
             selectedRisks.map((risk) => (

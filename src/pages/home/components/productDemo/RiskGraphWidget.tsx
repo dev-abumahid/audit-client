@@ -1,22 +1,21 @@
 import { Zap } from "lucide-react"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
-import {
-  MOCK_RISK_LINKS,
-  MOCK_RISKS,
-} from "@/dashboard/organization/overview/overviewMockData"
+import { MOCK_RISK_LINKS } from "@/dashboard/organization/overview/overviewMockData"
+import { MOCK_RISKS } from "@/dashboard/organization/risk/riskMatrixMockData"
 import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
 import { buildRiskCorrelationEdges, computePageRank } from "@/utils/pageRank"
+import { computeRiskGraphLayout } from "@/utils/riskGraphLayout"
+import type { RiskLink } from "@/types/organization"
 
-// A simplified, statically-laid-out stand-in for the real RiskGraphPage
-// (force-simulated/draggable -- unnecessary for a marketing visual). Real
-// mock data (MOCK_RISK_LINKS/MOCK_RISKS) and the same computePageRank
-// algorithm the real Overview/RiskGraph pages use -- a real, if tiny,
-// PageRank result, not a fabricated label. CYB-014 is the real hub three
-// other risks link to. Node rings, PageRank labels, and edge-type legend
-// colors match RiskGraphPage's own rendering.
-const HUB_REF = "CYB-014"
-
+// User request: this graph now shows the SAME risk set
+// LandingRiskMatrixWidget does (riskMatrixMockData's MOCK_RISKS, 12 real
+// mock risks), not a separate smaller fixture -- a click on either widget
+// cross-highlights the other. Real correlation links (MOCK_RISK_LINKS,
+// still sourced from overviewMockData.ts, the only place they're defined)
+// only exist between 4 of the 12; the other 8 render as real, honestly-
+// unlinked nodes rather than hiding them or inventing connections that
+// don't exist in the mock data.
 const LINK_TYPE_COLOR: Record<string, string> = {
   CAUSES: "hsl(var(--risk-critical))",
   AMPLIFIES: "hsl(var(--risk-high))",
@@ -33,54 +32,10 @@ interface GraphNode {
   pageRankDisplay: number
 }
 
-const VIEW_SIZE = 280
-const CENTER = VIEW_SIZE / 2
-
-function buildNodes(): { hub: GraphNode; satellites: GraphNode[] } | null {
-  // Returns null (renders nothing) rather than asserting -- a future
-  // mock-data edit removing the hub risk shouldn't crash the homepage.
-  const hubRisk = MOCK_RISKS.find((r) => r.ref === HUB_REF)
-  if (!hubRisk) return null
-
-  const satelliteRisks = MOCK_RISK_LINKS.map((link) =>
-    MOCK_RISKS.find((r) => r.ref === link.source_ref)
-  ).filter((r): r is NonNullable<typeof r> => !!r)
-
-  // SUP-007 and FIN-009 tie at the same normalized score on this fixture
-  // (both have zero inbound edges) -- correct PageRank output, not a bug.
-  const allRefs = [hubRisk.ref, ...satelliteRisks.map((r) => r.ref)]
-  const edges = buildRiskCorrelationEdges(MOCK_RISK_LINKS)
-  const rawScores = computePageRank(allRefs, edges)
-  const maxScore = Math.max(...Object.values(rawScores), 0)
-  const normalize = (ref: string) =>
-    maxScore > 0 ? Math.round((rawScores[ref] / maxScore) * 100) : 0
-
-  const orbitRadius = 100
-  const hub: GraphNode = {
-    ref: hubRisk.ref,
-    name: hubRisk.name,
-    category: hubRisk.category,
-    x: CENTER,
-    y: CENTER,
-    radius: 24,
-    pageRankDisplay: normalize(hubRisk.ref),
-  }
-
-  const satellites: GraphNode[] = satelliteRisks.map((risk, i) => {
-    const angle = (i / satelliteRisks.length) * Math.PI * 2 - Math.PI / 2
-    return {
-      ref: risk.ref,
-      name: risk.name,
-      category: risk.category,
-      x: CENTER + orbitRadius * Math.cos(angle),
-      y: CENTER + orbitRadius * Math.sin(angle),
-      radius: 15,
-      pageRankDisplay: normalize(risk.ref),
-    }
-  })
-
-  return { hub, satellites }
-}
+const VIEW_SIZE = 320
+const PADDING = 28
+const MIN_RADIUS = 8
+const MAX_RADIUS = 20
 
 function categoryColor(category: string): string {
   return (
@@ -89,50 +44,147 @@ function categoryColor(category: string): string {
   )
 }
 
-export default function RiskGraphWidget({ animate }: { animate: boolean }) {
+// A node's own ref plus every ref directly linked to it (either
+// direction) -- the "what should stay highlighted" set for a selection,
+// generalized from the previous version's star-topology-only logic (which
+// assumed every satellite linked straight to one fixed hub) to real
+// arbitrary topology now that most of the 12 nodes aren't linked to
+// anything at all.
+function connectedRefs(ref: string, links: RiskLink[]): Set<string> {
+  const set = new Set([ref])
+  for (const link of links) {
+    if (link.source_ref === ref) set.add(link.target_ref)
+    if (link.target_ref === ref) set.add(link.source_ref)
+  }
+  return set
+}
+
+function buildGraph(): {
+  nodes: GraphNode[]
+  nodeByRef: Map<string, GraphNode>
+} | null {
+  if (MOCK_RISKS.length === 0) return null
+
+  const refs = MOCK_RISKS.map((r) => r.ref)
+  const edges = buildRiskCorrelationEdges(MOCK_RISK_LINKS)
+  const rawScores = computePageRank(refs, edges)
+  const maxScore = Math.max(...Object.values(rawScores), 0)
+  const normalize = (ref: string) =>
+    maxScore > 0 ? Math.round((rawScores[ref] / maxScore) * 100) : 0
+
+  // Same real force-directed layout RiskGraphPage.tsx (the authenticated
+  // dashboard) uses -- d3-force seeded from a deterministic category-ring
+  // layout, so an isolated risk still lands somewhere sensible near its
+  // category's peers instead of drifting arbitrarily. This widget used to
+  // hand-roll a simple hub+orbit layout, which only worked because it only
+  // ever rendered the 4 linked risks; with the full 12-risk set (8 of them
+  // unlinked), a real topology-aware layout is what keeps this legible.
+  const layout = computeRiskGraphLayout(
+    MOCK_RISKS.map((r) => ({ ref: r.ref, category: r.category })),
+    MOCK_RISK_LINKS.map((l) => ({
+      source: l.source_ref,
+      target: l.target_ref,
+      kind: l.link_type,
+    }))
+  )
+
+  // Rescales the layout's own raw coordinate space (sized for a full
+  // dashboard canvas, e.g. up to ~900x600+) down into this compact card's
+  // fixed VIEW_SIZE, preserving relative spacing/topology exactly --
+  // uniform scale on both axes, centered.
+  const scale = Math.min(
+    (VIEW_SIZE - PADDING * 2) / layout.width,
+    (VIEW_SIZE - PADDING * 2) / layout.height
+  )
+  const offsetX = (VIEW_SIZE - layout.width * scale) / 2
+  const offsetY = (VIEW_SIZE - layout.height * scale) / 2
+
+  const nodes: GraphNode[] = MOCK_RISKS.map((risk) => {
+    const pos = layout.positions[risk.ref]
+    const pageRankDisplay = normalize(risk.ref)
+    return {
+      ref: risk.ref,
+      name: risk.name,
+      category: risk.category,
+      x: pos.x * scale + offsetX,
+      y: pos.y * scale + offsetY,
+      radius: MIN_RADIUS + (pageRankDisplay / 100) * (MAX_RADIUS - MIN_RADIUS),
+      pageRankDisplay,
+    }
+  })
+
+  return { nodes, nodeByRef: new Map(nodes.map((n) => [n.ref, n])) }
+}
+
+// selectedRefs/onSelectionChange: optionally controlled, same pattern
+// LandingRiskMatrixWidget uses -- ProductDemoSection wires both widgets to
+// one shared Set so a click on either cross-highlights the other;
+// standalone usage (this widget's own tests) falls back to local state.
+export default function RiskGraphWidget({
+  animate,
+  selectedRefs: controlledSelectedRefs,
+  onSelectionChange,
+}: {
+  animate: boolean
+  selectedRefs?: Set<string>
+  onSelectionChange?: (refs: Set<string>) => void
+}) {
   const { t } = useTranslation()
-  const built = buildNodes()
-  // Click-to-highlight, matching the real RiskGraphPage's own
-  // select/cascade behavior at the scope this star-topology demo actually
-  // has: every satellite links only to the hub (no satellite-satellite
-  // edges in MOCK_RISK_LINKS), so "cascade" here is just "the hub, plus
-  // whichever one satellite is selected" -- selecting the hub itself
-  // highlights everything, since it's already connected to all of them.
-  const [selectedRef, setSelectedRef] = useState<string | null>(null)
-  // Declared before the early return below so hook order stays fixed
-  // regardless of buildNodes()'s result -- an early `if (!built) return
-  // null` placed BEFORE a hook call would violate the rules of hooks the
-  // instant a future mock-data edit ever made buildNodes() return null.
+  const built = useMemo(() => buildGraph(), [])
+  const [localSelectedRefs, setLocalSelectedRefs] = useState<Set<string>>(
+    new Set()
+  )
+  const selectedRefs = controlledSelectedRefs ?? localSelectedRefs
+
   if (!built) return null
-  const { hub, satellites } = built
+  const { nodes, nodeByRef } = built
   const prLabel = t("organization.riskGraph.pagerankAbbrLabel")
 
-  function toggleSelect(ref: string) {
-    setSelectedRef((prev) => (prev === ref ? null : ref))
+  // The highest-PageRank node gets the hub's visual treatment (ping ring,
+  // Zap icon) -- computed from the real score rather than a hardcoded ref,
+  // so this stays correct if the mock data or link set ever changes.
+  const hubRef = nodes.reduce((best, n) =>
+    n.pageRankDisplay > best.pageRankDisplay ? n : best
+  ).ref
+  const linksToHub = MOCK_RISK_LINKS.filter((l) => l.target_ref === hubRef)
+
+  function selectRef(ref: string) {
+    const isSameSelection = selectedRefs.size === 1 && selectedRefs.has(ref)
+    const next = isSameSelection ? new Set<string>() : new Set([ref])
+    setLocalSelectedRefs(next)
+    onSelectionChange?.(next)
   }
+
+  const hasSelection = selectedRefs.size > 0
+  // Union of connectedRefs() for every currently-selected ref -- usually
+  // one (a click on this graph), but a matrix cell with more than one risk
+  // can select several at once.
+  const highlighted = new Set<string>()
+  selectedRefs.forEach((ref) => {
+    connectedRefs(ref, MOCK_RISK_LINKS).forEach((r) => highlighted.add(r))
+  })
 
   function isNodeDimmed(ref: string): boolean {
-    if (selectedRef === null || selectedRef === hub.ref) return false
-    return ref !== selectedRef && ref !== hub.ref
+    return hasSelection && !highlighted.has(ref)
   }
 
-  function isEdgeDimmed(sourceRef: string): boolean {
-    if (selectedRef === null || selectedRef === hub.ref) return false
-    return sourceRef !== selectedRef
+  // An edge only stays bright when it touches an actually-selected ref
+  // directly -- not just "somewhere in the highlighted set" -- so
+  // selecting a node doesn't light up an edge between two of its OTHER
+  // neighbors that has nothing to do with the click itself.
+  function isEdgeDimmed(link: RiskLink): boolean {
+    if (!hasSelection) return false
+    return (
+      !selectedRefs.has(link.source_ref) && !selectedRefs.has(link.target_ref)
+    )
   }
 
-  const selectedNode =
-    selectedRef === hub.ref
-      ? hub
-      : (satellites.find((s) => s.ref === selectedRef) ?? null)
+  const selectedNode = nodes.find((n) => selectedRefs.has(n.ref)) ?? null
 
-  // Every distinct category actually present among the hub + satellites,
-  // in the same order they first appear -- not the full RISK_CATEGORIES
-  // list, which would show categories no node on this graph actually
-  // uses.
-  const presentCategories = [
-    ...new Set([hub, ...satellites].map((n) => n.category)),
-  ]
+  // Every distinct category actually present among all 12 nodes, in the
+  // order they first appear -- not the full RISK_CATEGORIES list, which
+  // would include categories no risk on this graph actually has.
+  const presentCategories = [...new Set(nodes.map((n) => n.category))]
 
   return (
     <div className="flex h-full flex-col rounded-[11px] bg-card p-5">
@@ -141,9 +193,7 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
           {t("home.productDemo.riskGraph.title")}
         </h3>
         <span className="font-mono-data text-[10px] text-muted-foreground">
-          {t("home.productDemo.riskGraph.nodeCount", {
-            count: satellites.length + 1,
-          })}
+          {t("home.productDemo.riskGraph.nodeCount", { count: nodes.length })}
         </span>
       </div>
 
@@ -152,21 +202,22 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
         className="w-full"
         role="img"
         aria-label={t("home.productDemo.riskGraph.chartLabel", {
-          name: hub.name,
-          count: satellites.length,
+          name: nodeByRef.get(hubRef)?.name ?? hubRef,
+          count: linksToHub.length,
         })}
       >
         {MOCK_RISK_LINKS.map((link, i) => {
-          const node = satellites.find((s) => s.ref === link.source_ref)
-          if (!node) return null
-          const dimmed = isEdgeDimmed(link.source_ref)
+          const source = nodeByRef.get(link.source_ref)
+          const target = nodeByRef.get(link.target_ref)
+          if (!source || !target) return null
+          const dimmed = isEdgeDimmed(link)
           return (
             <line
               key={link.id}
-              x1={node.x}
-              y1={node.y}
-              x2={hub.x}
-              y2={hub.y}
+              x1={source.x}
+              y1={source.y}
+              x2={target.x}
+              y2={target.y}
               pathLength={1}
               stroke={LINK_TYPE_COLOR[link.link_type] ?? "hsl(var(--primary))"}
               className={`transition-[stroke-dashoffset,stroke-opacity] duration-700 ease-out motion-reduce:transition-none ${
@@ -175,7 +226,7 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
               style={animate ? { transitionDelay: `${i * 150}ms` } : undefined}
               // strokeWidth/strokeOpacity match RiskGraphPage's own
               // unselected-edge rendering; dimmed drops opacity further,
-              // same 0.15 floor RiskGraphPage's own cascade-dim uses.
+              // same floor RiskGraphPage's own cascade-dim uses.
               strokeWidth={dimmed ? 2 : 3}
               strokeOpacity={dimmed ? 0.15 : 0.35}
               strokeDasharray={1}
@@ -183,10 +234,11 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
           )
         })}
 
-        {satellites.map((node, i) => {
+        {nodes.map((node, i) => {
           const color = categoryColor(node.category)
           const dimmed = isNodeDimmed(node.ref)
-          const isSelected = selectedRef === node.ref
+          const isSelected = selectedRefs.has(node.ref)
+          const isHub = node.ref === hubRef
           return (
             <g
               key={node.ref}
@@ -197,11 +249,11 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
                 ref: node.ref,
                 name: node.name,
               })}
-              onClick={() => toggleSelect(node.ref)}
+              onClick={() => selectRef(node.ref)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault()
-                  toggleSelect(node.ref)
+                  selectRef(node.ref)
                 }
               }}
               className={`focus-ring-svg origin-center cursor-pointer transition-all duration-500 ease-out motion-reduce:transition-none ${
@@ -209,14 +261,20 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
               }`}
               style={
                 animate
-                  ? {
-                      transitionDelay: `${i * 150 + 500}ms`,
-                      transformBox: "fill-box",
-                    }
+                  ? { transitionDelay: `${i * 60}ms`, transformBox: "fill-box" }
                   : { transformBox: "fill-box" }
               }
               opacity={dimmed ? 0.3 : 1}
             >
+              {isHub && (
+                <circle
+                  cx={node.x}
+                  cy={node.y}
+                  r={node.radius + 6}
+                  className="fill-none stroke-risk-critical/40 motion-safe:animate-ping"
+                  style={{ animationDuration: "2.5s" }}
+                />
+              )}
               {/* Selected-node highlight ring, same dashed/animated
                   treatment RiskGraphPage's own cascade circle uses. */}
               {isSelected && (
@@ -239,30 +297,41 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
               )}
               {/* fillOpacity/strokeOpacity match RiskGraphPage.tsx's own
                   unselected-node ring exactly (RiskGraphNode's base
-                  circle), not an approximation. */}
+                  circle) for a linked node; the hub gets a brighter fill
+                  (0.25, between RiskGraphPage's unselected/selected
+                  states) since it's always at least the visual focus. */}
               <circle
                 cx={node.x}
                 cy={node.y}
                 r={node.radius}
                 fill={color}
-                fillOpacity={0.15}
+                fillOpacity={isHub ? 0.25 : 0.15}
                 stroke={color}
-                strokeWidth={2}
-                strokeOpacity={0.7}
+                strokeWidth={isHub ? 2.5 : 2}
+                strokeOpacity={isHub ? 1 : 0.7}
               />
+              {isHub && (
+                <Zap
+                  x={node.x + node.radius * 0.4}
+                  y={node.y - node.radius - 8}
+                  width={13}
+                  height={13}
+                  className="fill-accent text-accent"
+                />
+              )}
               <text
                 x={node.x}
                 y={node.y - 2}
                 textAnchor="middle"
-                className="fill-foreground text-[9px] font-bold select-none"
+                className="fill-foreground text-[7px] font-bold select-none"
               >
                 {node.ref}
               </text>
               <text
                 x={node.x}
-                y={node.y + 9}
+                y={node.y + 8}
                 textAnchor="middle"
-                className="font-mono-data fill-muted-foreground text-[7px] select-none"
+                className="font-mono-data fill-muted-foreground text-[6px] select-none"
               >
                 {prLabel}
                 {node.pageRankDisplay}
@@ -270,100 +339,12 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
             </g>
           )
         })}
-
-        <g
-          tabIndex={0}
-          role="button"
-          aria-pressed={selectedRef === hub.ref}
-          aria-label={t("home.productDemo.riskGraph.nodeAriaLabel", {
-            ref: hub.ref,
-            name: hub.name,
-          })}
-          onClick={() => toggleSelect(hub.ref)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault()
-              toggleSelect(hub.ref)
-            }
-          }}
-          className={`focus-ring-svg origin-center cursor-pointer transition-all delay-700 duration-500 ease-out motion-reduce:transition-none ${
-            animate ? "scale-100 opacity-100" : "scale-50 opacity-0"
-          }`}
-          style={{ transformBox: "fill-box" }}
-        >
-          <circle
-            cx={hub.x}
-            cy={hub.y}
-            r={hub.radius + 6}
-            className="fill-none stroke-risk-critical/40 motion-safe:animate-ping"
-            style={{ animationDuration: "2.5s" }}
-          />
-          {/* Selecting the hub highlights the whole graph (it's already
-              connected to every satellite), so it gets the same
-              selected-ring treatment satellites do rather than a
-              permanently-different "always focal" state. */}
-          {selectedRef === hub.ref && (
-            <circle
-              cx={hub.x}
-              cy={hub.y}
-              r={hub.radius + 10}
-              fill="none"
-              stroke="hsl(var(--primary))"
-              strokeWidth={2}
-              strokeDasharray="4 2"
-            >
-              <animate
-                attributeName="stroke-dashoffset"
-                values="0;12"
-                dur="1s"
-                repeatCount="indefinite"
-              />
-            </circle>
-          )}
-          {/* fillOpacity 0.25 sits between RiskGraphPage's unselected
-              (0.15) and selected (0.35) states -- this hub is always at
-              least the visual focus, brighter still while selected via
-              the ring above. */}
-          <circle
-            cx={hub.x}
-            cy={hub.y}
-            r={hub.radius}
-            fill={categoryColor(hub.category)}
-            fillOpacity={0.25}
-            stroke={categoryColor(hub.category)}
-            strokeWidth={2.5}
-          />
-          <Zap
-            x={hub.x + hub.radius * 0.4}
-            y={hub.y - hub.radius - 8}
-            width={13}
-            height={13}
-            className="fill-accent text-accent"
-          />
-          <text
-            x={hub.x}
-            y={hub.y - 3}
-            textAnchor="middle"
-            className="fill-foreground text-[10px] font-bold select-none"
-          >
-            {hub.ref}
-          </text>
-          <text
-            x={hub.x}
-            y={hub.y + 11}
-            textAnchor="middle"
-            className="font-mono-data fill-muted-foreground text-[8px] select-none"
-          >
-            {prLabel}
-            {hub.pageRankDisplay}
-          </text>
-        </g>
       </svg>
 
       {/* One announcement per selection change, same pattern
           ConnectedDataModelSection's own single aria-live region uses
-          rather than a per-node "pressed"/"not pressed" toggle on all 5
-          nodes -- fires once when the shared highlight state actually
+          rather than a per-node "pressed"/"not pressed" toggle on every
+          node -- fires once when the shared highlight state actually
           changes, not on every unrelated focus move. */}
       <span role="status" aria-live="polite" className="sr-only">
         {selectedNode
@@ -374,9 +355,7 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
       </span>
 
       {/* mt-auto wraps both trailing blocks -- pushes them to the bottom of
-          the card's stretched height as one unit (this is the rail's
-          tallest card today, but the wrapper keeps behavior consistent if
-          that ever changes). */}
+          the card's stretched height as one unit. */}
       <div className="mt-auto">
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3">
           {(["CAUSES", "AMPLIFIES", "CORRELATES"] as const).map((type) => (
@@ -395,11 +374,10 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
           ))}
         </div>
 
-        {/* Category legend: the node color-coding (categoryColor above)
+        {/* Category legend: node color-coding (categoryColor above)
             already existed, but nothing on this card explained what those
             colors meant -- only every distinct category actually present
-            on this graph, not the full RISK_CATEGORIES list, which would
-            show swatches for categories no node here uses. */}
+            on this graph, not the full RISK_CATEGORIES list. */}
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2">
           {presentCategories.map((category) => (
             <span
@@ -417,8 +395,8 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
 
         <p className="mt-2 text-xs text-muted-foreground">
           {t("home.productDemo.riskGraph.caption", {
-            name: hub.name,
-            count: satellites.length,
+            name: nodeByRef.get(hubRef)?.name ?? hubRef,
+            count: linksToHub.length,
           })}
         </p>
       </div>

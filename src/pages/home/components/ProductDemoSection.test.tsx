@@ -1,11 +1,30 @@
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+import { MOCK_RISKS } from "@/dashboard/organization/risk/riskMatrixMockData"
+import { mapRiskToCell } from "@/utils/riskMatrixCalc"
 import ProductDemoSection from "./ProductDemoSection"
 
 // The test environment does not initialize i18n, so t() echoes the raw key
 // unless a `defaultValue`/interpolation is passed, matching this repo's
-// established convention (see FeaturesSection.test.tsx).
+// established convention (see FeaturesSection.test.tsx). Raw JSX children
+// that aren't run through t() (a risk's own ref/name) render literally
+// either way -- those are what the cross-highlight test below queries by.
 function renderSection() {
   return render(<ProductDemoSection />)
+}
+
+const MATRIX_GRID_SIZE = 5
+
+// Same real function LandingRiskMatrixWidget.test.tsx itself uses to find
+// a given risk's cell button index, reused here so this integration test
+// doesn't hardcode a grid position that would silently go stale if
+// riskMatrixCalc.ts's mapping formula ever changes.
+function matrixButtonIndexFor(riskRef: string): number {
+  const risk = MOCK_RISKS.find((r) => r.ref === riskRef)
+  if (!risk) throw new Error(`fixture risk ${riskRef} not found`)
+  const { row, col } = mapRiskToCell(risk, MATRIX_GRID_SIZE)
+  const displayRow = MATRIX_GRID_SIZE - 1 - row
+  return displayRow * MATRIX_GRID_SIZE + col
 }
 
 describe("ProductDemoSection", () => {
@@ -33,13 +52,14 @@ describe("ProductDemoSection", () => {
   // below it -- consolidated into one, so this rail slot now mounts the
   // same LandingRiskMatrixWidget the (now-removed) standalone moment used,
   // not a second, different matrix implementation.
+  // User request: the rail dropped from 3 widgets to 2 -- KriTrendWidget
+  // (a static KRI trend card) was redundant with the interactive KRI
+  // threshold-slider demo moment below it, so it was deleted rather than
+  // kept as a second, weaker view of the same real KRI.
   it("renders the static rail widgets, including the now-shared clickable matrix", () => {
     renderSection()
     expect(
       screen.getByText("home.productDemo.riskMatrixClick.title")
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText("home.productDemo.kriTrend.title")
     ).toBeInTheDocument()
     expect(
       screen.getByText("home.productDemo.riskGraph.title")
@@ -82,11 +102,11 @@ describe("ProductDemoSection", () => {
     expect(screen.getByText("02")).toBeInTheDocument()
     expect(screen.queryByText("03")).not.toBeInTheDocument()
 
-    // The static 3-widget rail above (LandingRiskMatrixWidget/
-    // RiskGraphWidget/KriTrendWidget) has its own h3 titles too -- filter
-    // to just the DemoMoment section headings by their known key suffix
-    // rather than asserting on getAllByRole("heading", { level: 3 })
-    // directly, which would also catch the rail's headings.
+    // The static 2-widget rail above (LandingRiskMatrixWidget/
+    // RiskGraphWidget) has its own h3 titles too -- filter to just the
+    // DemoMoment section headings by their known key suffix rather than
+    // asserting on getAllByRole("heading", { level: 3 }) directly, which
+    // would also catch the rail's headings.
     const momentHeadings = screen
       .getAllByRole("heading", { level: 3 })
       .filter((h) => h.textContent?.includes(".sectionHeading"))
@@ -98,15 +118,51 @@ describe("ProductDemoSection", () => {
 
   // The whole point of this redesign: every widget still computes from real
   // mock data (not fabricated numbers), just presented as a stylized
-  // visual instead of a literal page embed -- confirm real risk/KRI names
-  // from the shared mock fixtures actually render.
+  // visual instead of a literal page embed -- confirm a real KRI name
+  // from the shared mock fixtures actually renders.
   it("renders real mock data, not fabricated placeholder content", () => {
     renderSection()
-    // Both KriTrendWidget and the new KriThresholdSliderWidget show
-    // MOCK_KRIS[0]'s real name -- two independent widgets legitimately
-    // agreeing on the same real KRI, not a duplicate render.
     expect(
-      screen.getAllByText("Unpatched critical CVEs on internet-facing systems")
-    ).toHaveLength(2)
+      screen.getByText("Unpatched critical CVEs on internet-facing systems")
+    ).toBeInTheDocument()
+  })
+
+  // User request: the matrix and correlation graph now read the same real
+  // risk set (riskMatrixMockData's MOCK_RISKS) and share one selection, so
+  // a click on either cross-highlights the same risk in the other. Clicks
+  // the graph's CYB-014 node and confirms the matrix's own CYB-014 cell
+  // (found via the real mapRiskToCell formula, not a hardcoded position)
+  // picks up aria-pressed -- the actual behavior this feature exists for,
+  // not just "both widgets render some real text."
+  it("cross-highlights the same risk when clicked in the correlation graph", async () => {
+    const user = userEvent.setup()
+    renderSection()
+
+    // RoleScopedRegisterWidget's own register table also renders "CYB-014"
+    // as plain text (it's the same real risk, shown a third place on this
+    // page) -- RiskGraphWidget's <svg role="img"> is the only role="img"
+    // element in this section, so scoping the ref-text lookup to inside
+    // it finds the graph's own CYB-014 node specifically.
+    const graphSvg = screen.getByRole("img")
+    const refText = Array.from(graphSvg.querySelectorAll("text")).find(
+      (el) => el.textContent === "CYB-014"
+    )
+    const graphNode = refText?.closest('[role="button"]')
+    expect(graphNode).not.toBeNull()
+    await user.click(graphNode!)
+
+    // Test env doesn't interpolate i18n (see the file-header comment), so
+    // every cell's aria-label renders as the identical literal raw key --
+    // that's still enough to reliably pick out just the 25 matrix cell
+    // buttons from every other button on the page.
+    const matrixCells = screen
+      .getAllByRole("button")
+      .filter(
+        (el) =>
+          el.getAttribute("aria-label") ===
+          "home.productDemo.riskMatrixClick.cellLabel"
+      )
+    const matrixCell = matrixCells[matrixButtonIndexFor("CYB-014")]
+    expect(matrixCell).toHaveAttribute("aria-pressed", "true")
   })
 })
