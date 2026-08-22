@@ -45,12 +45,38 @@ const SLIDER_MAX = 20
 // target/alert values, not the clamped display percentages).
 const MIN_ZONE_PCT = 6
 
-// Same two-phase background flash as the real KRI dashboard
-// (useValueChangeFlash + .value-flash/.is-flashing), reused as a
-// single-item list -- the hook's shape is "items keyed by id with a
-// comparable value," and one status counts.
-export default function KriThresholdSliderWidget() {
+// selectedRefs/onSelectionChange: user request -- link this widget into
+// the same shared cross-highlight selection LandingRiskMatrixWidget and
+// RiskGraphWidget already share, so the whole page keeps telling the
+// story that every demo (matrix, graph, and this KRI) is the same
+// company's real data, not three independent fixtures. Unlike those two
+// widgets, this one always shows the exact same fixed KRI (there's no
+// list to click through) -- so instead of changing WHAT renders, a click
+// on its own ref badge toggles CYB-014 into/out of the shared selection,
+// and the card gets a highlight ring when CYB-014 is selected from
+// elsewhere (the matrix or the graph). Optionally controlled, same
+// pattern as the other two widgets: falls back to local state when no
+// selectedRefs prop is given (this widget's own standalone tests).
+export default function KriThresholdSliderWidget({
+  selectedRefs: controlledSelectedRefs,
+  onSelectionChange,
+}: {
+  selectedRefs?: Set<string>
+  onSelectionChange?: (refs: Set<string>) => void
+} = {}) {
   const { t, i18n } = useTranslation()
+  const [localSelectedRefs, setLocalSelectedRefs] = useState<Set<string>>(
+    new Set()
+  )
+  const selectedRefs = controlledSelectedRefs ?? localSelectedRefs
+  const isSelected = selectedRefs.has(RISK.ref)
+
+  function toggleSelect() {
+    const next = isSelected ? new Set<string>() : new Set([RISK.ref])
+    setLocalSelectedRefs(next)
+    onSelectionChange?.(next)
+  }
+
   const [currentValue, setCurrentValue] = useState(KRI.current_value)
   const status = computeKriStatus(
     currentValue,
@@ -123,8 +149,16 @@ export default function KriThresholdSliderWidget() {
     100 - MIN_ZONE_PCT
   )
   const [zoneStartColor, zoneMidColor, zoneEndColor] = higherIsBetter
-    ? ["hsl(var(--risk-critical))", "hsl(var(--risk-medium))", "hsl(var(--risk-low))"]
-    : ["hsl(var(--risk-low))", "hsl(var(--risk-medium))", "hsl(var(--risk-critical))"]
+    ? [
+        "hsl(var(--risk-critical))",
+        "hsl(var(--risk-medium))",
+        "hsl(var(--risk-low))",
+      ]
+    : [
+        "hsl(var(--risk-low))",
+        "hsl(var(--risk-medium))",
+        "hsl(var(--risk-critical))",
+      ]
   const trackGradient = `linear-gradient(to right, ${zoneStartColor} 0%, ${zoneStartColor} ${boundary1}%, ${zoneMidColor} ${boundary1}%, ${zoneMidColor} ${boundary2}%, ${zoneEndColor} ${boundary2}%, ${zoneEndColor} 100%)`
 
   // Same direction-blindness as the gradient above: the warning range and
@@ -145,18 +179,45 @@ export default function KriThresholdSliderWidget() {
   const frequencyLabel = t(`organization.kri.frequency.${KRI.frequency}`)
 
   return (
-    <div className="rounded-[11px] bg-card p-5 sm:grid sm:grid-cols-[1.3fr_1fr] sm:items-start sm:gap-6 sm:p-6">
+    <div
+      className={`rounded-[11px] bg-card p-5 transition-shadow duration-300 ease-out motion-reduce:transition-none sm:grid sm:grid-cols-[1.3fr_1fr] sm:items-start sm:gap-6 sm:p-6 ${
+        isSelected
+          ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+          : ""
+      }`}
+    >
       <div>
         {/* Status shows once, in the right-hand card below -- not
             duplicated up here too. An earlier draft of this rework put a
             second copy of the same pill in this corner, which also broke
             the a11y story: a screen reader user would hear "Alert" twice
             with no indication they're the same fact. */}
-        <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-          {t("home.productDemo.kriSlider.eyebrow", {
-            category: riskCategoryLabel(t, RISK.category),
-          })}
-        </span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+            {t("home.productDemo.kriSlider.eyebrow", {
+              category: riskCategoryLabel(t, RISK.category),
+            })}
+          </span>
+          {/* Same real risk (CYB-014) the matrix and correlation graph
+              above show -- clicking this badge cross-highlights it there
+              too, same shared selection those two widgets already
+              participate in. */}
+          <button
+            type="button"
+            onClick={toggleSelect}
+            aria-pressed={isSelected}
+            aria-label={t("home.productDemo.kriSlider.refButtonLabel", {
+              ref: RISK.ref,
+            })}
+            className={`focus-ring font-mono-data rounded-full border px-2 py-0.5 text-[10px] transition-colors duration-150 ease-out ${
+              isSelected
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+            }`}
+          >
+            {RISK.ref}
+          </button>
+        </div>
         {/* <p>, not <h3> -- this widget only mounts under DemoMoment, which
             already supplies the real <h3> section heading above it. */}
         <p className="mb-4 font-heading text-base font-bold text-balance text-foreground sm:text-lg">
@@ -197,7 +258,9 @@ export default function KriThresholdSliderWidget() {
 
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            <span className={`h-1.5 w-1.5 rounded-full ${SEVERITY_STYLES.low.dot}`} />
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${SEVERITY_STYLES.low.dot}`}
+            />
             {t("home.productDemo.kriSlider.zoneOkLabel", {
               symbol: okComparator,
               value: KRI.target_value,
@@ -241,8 +304,7 @@ export default function KriThresholdSliderWidget() {
           </span>
         </div>
         <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-          {status === "OK" &&
-            t("home.productDemo.kriSlider.explanationOk")}
+          {status === "OK" && t("home.productDemo.kriSlider.explanationOk")}
           {status === "WARNING" &&
             t("home.productDemo.kriSlider.explanationWarning", {
               owner: KRI.owner,

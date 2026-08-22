@@ -123,7 +123,8 @@
         "reviewedLabel": "Reviewed {{frequency}}",
         "explanationOk": "Within target. No action needed — the current reading is at or below target.",
         "explanationWarning": "Past target, inside tolerance. This would surface on {{owner}}'s KRI watchlist but doesn't yet trigger an escalation.",
-        "explanationAlert": "Breach. This would auto-open a linked action for {{owner}} and flag on the next board report."
+        "explanationAlert": "Breach. This would auto-open a linked action for {{owner}} and flag on the next board report.",
+        "refButtonLabel": "Highlight {{ref}} in the risk matrix and correlation graph"
       },
       "riskMatrixClick": {
         "title": "Click a cell",

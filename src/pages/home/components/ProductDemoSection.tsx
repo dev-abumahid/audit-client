@@ -56,12 +56,24 @@ function DemoMoment({
   descriptionKey,
   pillKey,
   Widget,
+  selectedRefs,
+  onSelectionChange,
 }: {
   index: number
   headingKey: string
   descriptionKey: string
   pillKey: string
-  Widget: React.ComponentType
+  // Optional cross-highlight props, forwarded to whichever Widget is
+  // mounted -- only KriThresholdSliderWidget (the "kriSlider" entry)
+  // actually reads them today. RoleScopedRegisterWidget doesn't declare
+  // either prop, so React just ignores them there; no per-entry branching
+  // needed in this generic slot.
+  Widget: React.ComponentType<{
+    selectedRefs?: Set<string>
+    onSelectionChange?: (refs: Set<string>) => void
+  }>
+  selectedRefs?: Set<string>
+  onSelectionChange?: (refs: Set<string>) => void
 }) {
   const { t } = useTranslation()
   const [revealRef, revealVisible] = useRevealOnScroll<HTMLDivElement>()
@@ -89,7 +101,10 @@ function DemoMoment({
       </div>
 
       <div className="mt-6 w-full rounded-xl bg-gradient-to-br from-accent/50 to-border/60 p-px shadow-lg shadow-foreground/[0.03] lg:mt-0">
-        <Widget />
+        <Widget
+          selectedRefs={selectedRefs}
+          onSelectionChange={onSelectionChange}
+        />
       </div>
     </div>
   )
@@ -110,7 +125,12 @@ const ProductDemoSection: React.FC = () => {
   const { t } = useTranslation()
   const [revealRef, revealVisible] = useRevealOnScroll<HTMLDivElement>()
   // Shared cross-highlight state for the matrix + correlation graph rail
-  // cards below -- see their own onSelectionChange usage.
+  // cards, and the KRI threshold-slider demo moment further down the page
+  // -- see their own onSelectionChange usage. User request: keep the
+  // whole section telling the story that every demo is the same real
+  // company's data, not three independent fixtures -- so all three widgets
+  // that touch real risk refs share this one Set, not just the two in the
+  // rail.
   const [selectedRiskRefs, setSelectedRiskRefs] = useState<Set<string>>(
     new Set()
   )
@@ -278,6 +298,8 @@ const ProductDemoSection: React.FC = () => {
                 descriptionKey={demo.descriptionKey}
                 pillKey={demo.pillKey}
                 Widget={demo.Widget}
+                selectedRefs={selectedRiskRefs}
+                onSelectionChange={setSelectedRiskRefs}
               />
             ))}
           </div>

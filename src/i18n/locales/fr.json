@@ -123,7 +123,8 @@
         "reviewedLabel": "Revu {{frequency}}",
         "explanationOk": "Dans la cible. Aucune action requise — la mesure actuelle est à la cible ou en dessous.",
         "explanationWarning": "Au-delà de la cible, dans la tolérance. Ceci apparaîtrait sur la liste de surveillance ICR de {{owner}} mais ne déclenche pas encore d'escalade.",
-        "explanationAlert": "Dépassement. Ceci ouvrirait automatiquement une action liée pour {{owner}} et serait signalé dans le prochain rapport au conseil."
+        "explanationAlert": "Dépassement. Ceci ouvrirait automatiquement une action liée pour {{owner}} et serait signalé dans le prochain rapport au conseil.",
+        "refButtonLabel": "Mettre en évidence {{ref}} dans la matrice des risques et le graphe de corrélation"
       },
       "riskMatrixClick": {
         "title": "Cliquez sur une cellule",

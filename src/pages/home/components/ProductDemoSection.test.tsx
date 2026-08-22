@@ -165,4 +165,32 @@ describe("ProductDemoSection", () => {
     const matrixCell = matrixCells[matrixButtonIndexFor("CYB-014")]
     expect(matrixCell).toHaveAttribute("aria-pressed", "true")
   })
+
+  // User request: "make sure the kri drag thingy is also linked" -- the
+  // KRI threshold-slider demo moment (further down the page, outside the
+  // rail) shares the exact same selectedRiskRefs state as the matrix and
+  // graph now, not just those two. Continues the click from the previous
+  // test (graph -> matrix) one step further: the KRI widget's own ref
+  // badge (the only <button> anywhere in this section whose text content
+  // is literally "CYB-014" -- the matrix's cells don't render the ref as
+  // their own text, only in the detail card's <span> once selected) must
+  // also pick up aria-pressed after that same click.
+  it("also cross-highlights the KRI threshold-slider widget when the same risk is selected elsewhere", async () => {
+    const user = userEvent.setup()
+    renderSection()
+
+    const graphSvg = screen.getByRole("img")
+    const refText = Array.from(graphSvg.querySelectorAll("text")).find(
+      (el) => el.textContent === "CYB-014"
+    )
+    const graphNode = refText?.closest('[role="button"]')
+    expect(graphNode).not.toBeNull()
+    await user.click(graphNode!)
+
+    const kriRefBadge = screen
+      .getAllByRole("button")
+      .find((el) => el.textContent === "CYB-014")
+    expect(kriRefBadge).not.toBeUndefined()
+    expect(kriRefBadge).toHaveAttribute("aria-pressed", "true")
+  })
 })
