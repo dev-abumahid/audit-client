@@ -132,7 +132,8 @@
       "riskMatrixClick": {
         "title": "Click a cell",
         "hint": "Same cell-mapping logic as the real risk register — click any cell to see what's in it.",
-        "cellLabel": "{{count}} risks in this cell",
+        "cellLabel_one": "{{count}} risk in this cell",
+        "cellLabel_other": "{{count}} risks in this cell",
         "emptyHint": "Click a cell above to see the risks plotted there.",
         "residualScoreLabel": "Residual score"
       },

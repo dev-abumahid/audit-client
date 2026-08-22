@@ -604,6 +604,29 @@ describe("RiskGraphWidget", () => {
     })
   })
 
+  // Quality-bar-loop round 1 (mobile + UX judges, independently confirmed):
+  // proportional radius scaling shrank every node on a mobile-width card to
+  // ~37px diameter, under the 44px touch-target guideline. minRadius/
+  // maxRadius now floor at 12/18 SVG units (== CSS px, since the viewBox
+  // matches the box's own measured size) regardless of how small the box
+  // gets -- this can't be exercised at a real small box size in jsdom
+  // (ResizeObserver is a no-op here, box stays the 320x320 default), but it
+  // does confirm the floor doesn't regress the *smallest* real node's size
+  // even at the default box, where MIN_RADIUS(8) alone would render smaller
+  // than the new 12px floor.
+  it("keeps every node's radius at or above the 12px touch-target floor", () => {
+    const { container } = render(<RiskGraphWidget animate={false} />)
+    const groups = Array.from(container.querySelectorAll('g[role="button"]'))
+    groups.forEach((g) => {
+      const colored = Array.from(g.querySelectorAll("circle")).find(
+        (c) =>
+          c.getAttribute("fill") !== "none" &&
+          c.getAttribute("fill") !== "hsl(var(--card))"
+      )
+      expect(Number(colored?.getAttribute("r"))).toBeGreaterThanOrEqual(12)
+    })
+  })
+
   // CEO feedback: "explain what makes these risks linked here... in terms
   // of the real risks", then "this doesn't mean anything to a human...
   // use plain language... make a story" -- a bare "CYB-009 causes

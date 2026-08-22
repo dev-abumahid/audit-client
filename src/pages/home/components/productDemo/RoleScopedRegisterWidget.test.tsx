@@ -163,4 +163,25 @@ describe("RoleScopedRegisterWidget", () => {
       screen.getByText("Ransomware exposure via unpatched VPN gateway")
     ).toBeInTheDocument()
   })
+
+  // Quality-bar-loop round 1 (mobile + UX judges, independently confirmed):
+  // the role-picker pills were 28px tall and the Approve/Reject icon
+  // buttons were ~22x22px, both under the 44px touch-target guideline.
+  it("gives the role-picker buttons a real 44px touch target", () => {
+    render(<RoleScopedRegisterWidget />)
+    const admin = screen.getByRole("radio", {
+      name: "home.productDemo.roleRegister.roles.ADMIN",
+    })
+    expect(admin.className).toContain("min-h-11")
+  })
+
+  it("gives the Approve/Reject buttons a real 44x44px touch target", () => {
+    render(<RoleScopedRegisterWidget />)
+    const approve = screen.getByRole("button", { name: APPROVE_KEY })
+    const reject = screen.getByRole("button", { name: REJECT_KEY })
+    expect(approve.className).toContain("h-11")
+    expect(approve.className).toContain("w-11")
+    expect(reject.className).toContain("h-11")
+    expect(reject.className).toContain("w-11")
+  })
 })

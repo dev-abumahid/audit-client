@@ -102,7 +102,7 @@ export default function RoleScopedRegisterWidget() {
               tabIndex={isActive ? 0 : -1}
               onClick={() => setRole(r)}
               onKeyDown={(e) => handleKeyDown(e, index)}
-              className={`focus-ring rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 ease-out active:scale-95 motion-reduce:active:scale-100 ${
+              className={`focus-ring flex min-h-11 items-center rounded-full px-4 text-xs font-medium transition-all duration-150 ease-out active:scale-95 motion-reduce:active:scale-100 ${
                 isActive
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/70"
@@ -180,24 +180,24 @@ export default function RoleScopedRegisterWidget() {
                         against. */}
                     {canWrite && risk.ref === PENDING_APPROVAL_REF ? (
                       isAdmin ? (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
                             aria-label={t(
                               "home.productDemo.roleRegister.approveButton"
                             )}
-                            className="focus-ring rounded-md border border-risk-low/40 bg-risk-low/10 p-1 text-risk-low hover:bg-risk-low/20"
+                            className="focus-ring flex h-11 w-11 items-center justify-center rounded-md border border-risk-low/40 bg-risk-low/10 text-risk-low hover:bg-risk-low/20"
                           >
-                            <Check className="h-3 w-3" />
+                            <Check className="h-4 w-4" />
                           </button>
                           <button
                             type="button"
                             aria-label={t(
                               "home.productDemo.roleRegister.rejectButton"
                             )}
-                            className="focus-ring rounded-md border border-risk-critical/40 bg-risk-critical/10 p-1 text-risk-critical hover:bg-risk-critical/20"
+                            className="focus-ring flex h-11 w-11 items-center justify-center rounded-md border border-risk-critical/40 bg-risk-critical/10 text-risk-critical hover:bg-risk-critical/20"
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-4 w-4" />
                           </button>
                         </div>
                       ) : (
