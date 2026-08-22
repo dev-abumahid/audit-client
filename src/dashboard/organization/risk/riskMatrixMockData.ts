@@ -15,7 +15,21 @@ export const MOCK_SITES: { id: string; name: string; country?: string }[] = [
   { id: "site-singapore", name: "Singapore Regional HQ", country: "Singapore" },
 ]
 
-function makeRisk(partial: Partial<Risk> & Pick<Risk, "id" | "ref" | "name" | "description" | "category" | "site_id" | "probability" | "inherent_score" | "residual_score">): Risk {
+function makeRisk(
+  partial: Partial<Risk> &
+    Pick<
+      Risk,
+      | "id"
+      | "ref"
+      | "name"
+      | "description"
+      | "category"
+      | "site_id"
+      | "probability"
+      | "inherent_score"
+      | "residual_score"
+    >
+): Risk {
   return {
     org_account_id: "org-demo",
     inherent_is_override: false,
@@ -61,6 +75,22 @@ function makeRisk(partial: Partial<Risk> & Pick<Risk, "id" | "ref" | "name" | "d
   } as Risk
 }
 
+// Rebuilt down to 3 categories -- cyber, operational, supply_chain -- the
+// ones that actually recur for a manufacturing org, instead of the
+// original spread across 12 different categories (one per risk), which
+// made RiskGraphWidget's category legend an unreadable 12-swatch row for
+// no real informational gain. Also deliberately more interlinked now (see
+// MOCK_RISK_LINKS in overviewMockData.ts, the only place those live): 11
+// real correlation edges forming one connected tree, up to 3 hops deep in
+// places, instead of the previous flat star (3 edges, all pointing at one
+// hub with no other structure between the other risks).
+//
+// CYB-014 and SUP-007 (risk-1/risk-2) are kept byte-for-byte identical:
+// both are hard-pinned elsewhere (ConnectedDataModelSection's whole
+// "click a risk, watch it show up everywhere" interaction plus its own
+// mock audit finding/mitigation records, and MOCK_KRIS[0], all key off
+// risk-1 specifically) and both already fit the 3-category set with no
+// content changes needed.
 export const MOCK_RISKS: Risk[] = [
   makeRisk({
     id: "risk-1",
@@ -89,15 +119,15 @@ export const MOCK_RISKS: Risk[] = [
   }),
   makeRisk({
     id: "risk-3",
-    ref: "REG-022",
-    name: "Pending EU deforestation regulation (EUDR) non-compliance",
+    ref: "OPS-018",
+    name: "Deferred preventive maintenance on the Rotterdam Line 3 stamping press",
     description:
-      "Rotterdam plant's palm-derivative inputs are not yet traceable to plot-level origin as EUDR due-diligence requires ahead of the enforcement date.",
-    category: "regulatory",
+      "The plant's highest-throughput stamping press is running past its scheduled service interval to avoid a planned production stop, raising the odds of an unplanned one instead.",
+    category: "operational",
     site_id: "site-rotterdam",
-    probability: 60,
-    inherent_score: 65,
-    residual_score: 52,
+    probability: 58,
+    inherent_score: 62,
+    residual_score: 50,
   }),
   makeRisk({
     id: "risk-4",
@@ -113,35 +143,35 @@ export const MOCK_RISKS: Risk[] = [
   }),
   makeRisk({
     id: "risk-5",
-    ref: "FIN-009",
-    name: "USD/NGN currency exposure on imported spare parts",
+    ref: "SUP-014",
+    name: "No qualified backup supplier for Austin control-panel enclosures",
     description:
-      "Lagos hub sources critical spare parts in USD while revenue is collected in NGN, with no hedging instrument currently in place.",
-    category: "financial",
-    site_id: "site-lagos",
-    probability: 70,
-    inherent_score: 60,
-    residual_score: 55,
+      "The Austin facility's sole enclosure fabricator has an 11-week lead time; a disruption there halts every control-panel build behind it with no second source to fall back on.",
+    category: "supply_chain",
+    site_id: "site-austin",
+    probability: 48,
+    inherent_score: 58,
+    residual_score: 45,
   }),
   makeRisk({
     id: "risk-6",
-    ref: "TEC-018",
-    name: "Austin data center single-utility power feed",
+    ref: "CYB-009",
+    name: "Unsegmented OT network exposes plant-floor PLCs to the office LAN",
     description:
-      "The Austin facility runs on a single utility feed with generator backup rated for 8 hours; a longer outage would exceed failover capacity.",
-    category: "technology",
+      "Austin's production-line PLCs sit on the same flat network as office workstations, so a single compromised laptop can reach the plant-floor control systems directly.",
+    category: "cyber",
     site_id: "site-austin",
-    probability: 30,
-    inherent_score: 72,
-    residual_score: 61,
+    probability: 66,
+    inherent_score: 75,
+    residual_score: 63,
   }),
   makeRisk({
     id: "risk-7",
-    ref: "HR-004",
+    ref: "OPS-004",
     name: "Key-person dependency on sole certified crane operator",
     description:
       "Only one crane operator at the Rotterdam plant holds the required heavy-lift certification; no succession or cross-training plan exists.",
-    category: "hr",
+    category: "operational",
     site_id: "site-rotterdam",
     probability: 40,
     inherent_score: 35,
@@ -149,11 +179,11 @@ export const MOCK_RISKS: Risk[] = [
   }),
   makeRisk({
     id: "risk-8",
-    ref: "EHS-011",
+    ref: "OPS-011",
     name: "Confined-space entry procedure gaps at Lagos hub",
     description:
       "Recent internal audit found confined-space entry permits were not consistently logged for tank-cleaning work at the Lagos site.",
-    category: "ehs",
+    category: "operational",
     site_id: "site-lagos",
     probability: 35,
     inherent_score: 55,
@@ -161,11 +191,11 @@ export const MOCK_RISKS: Risk[] = [
   }),
   makeRisk({
     id: "risk-9",
-    ref: "GEO-003",
-    name: "Port congestion risk on Singapore transshipment lane",
+    ref: "SUP-003",
+    name: "Port congestion on the Singapore transshipment lane delays raw-material receipt",
     description:
-      "Geopolitical tension in a key shipping lane has repeatedly forced rerouting of Singapore-bound transshipments, adding 5-9 days of transit delay.",
-    category: "geopolitical",
+      "Recurring congestion on Singapore-bound transshipments has added 5-9 days of transit delay to the raw-material lane feeding two downstream plants.",
+    category: "supply_chain",
     site_id: "site-singapore",
     probability: 50,
     inherent_score: 45,
@@ -173,23 +203,23 @@ export const MOCK_RISKS: Risk[] = [
   }),
   makeRisk({
     id: "risk-10",
-    ref: "STR-002",
-    name: "Overreliance on top-2 customers for 48% of Austin revenue",
+    ref: "SUP-002",
+    name: "Single qualified vendor for Austin precision-machined components",
     description:
-      "Two enterprise customers together represent 48% of the Austin facility's contracted revenue, with no diversification plan tracked.",
-    category: "strategic",
+      "The tolerances Austin's assembly line requires are only currently qualified with one machining vendor, with no second source in the approved-supplier list.",
+    category: "supply_chain",
     site_id: "site-austin",
-    probability: 25,
-    inherent_score: 68,
-    residual_score: 63,
+    probability: 42,
+    inherent_score: 60,
+    residual_score: 55,
   }),
   makeRisk({
     id: "risk-11",
-    ref: "CMP-006",
-    name: "ISO 27001 surveillance audit finding not yet remediated",
+    ref: "CYB-006",
+    name: "ISO 27001 surveillance audit finding on plant access review not yet remediated",
     description:
-      "A minor nonconformity from the Singapore HQ's last ISO 27001 surveillance audit (access-review cadence) remains open past its committed close date.",
-    category: "compliance",
+      "A minor nonconformity from the Singapore HQ's last ISO 27001 surveillance audit (plant-floor access-review cadence) remains open past its committed close date.",
+    category: "cyber",
     site_id: "site-singapore",
     probability: 20,
     inherent_score: 30,
@@ -197,14 +227,14 @@ export const MOCK_RISKS: Risk[] = [
   }),
   makeRisk({
     id: "risk-12",
-    ref: "REP-001",
-    name: "Social media scrutiny of Lagos hub community relations",
+    ref: "OPS-009",
+    name: "Manual work-order handoffs cause unplanned changeover downtime at Lagos hub",
     description:
-      "Local community groups have raised public concerns over noise levels from the Lagos hub's expanded night-shift operations.",
-    category: "reputational",
+      "Line changeovers at the Lagos hub are still coordinated by handwritten work orders passed between shifts, a common source of missed or duplicated setup steps.",
+    category: "operational",
     site_id: "site-lagos",
     probability: 28,
-    inherent_score: 22,
-    residual_score: 18,
+    inherent_score: 40,
+    residual_score: 33,
   }),
 ]

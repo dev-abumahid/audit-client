@@ -2,7 +2,84 @@ import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MOCK_RISK_LINKS } from "@/dashboard/organization/overview/overviewMockData"
 import { MOCK_RISKS } from "@/dashboard/organization/risk/riskMatrixMockData"
+import {
+  resolveNodeOverlaps,
+  type OverlapNode,
+} from "@/utils/riskGraphNodeOverlap"
 import RiskGraphWidget from "./RiskGraphWidget"
+
+// Review finding on PR #1044: resolveNodeOverlaps' own bounded-pass
+// convergence, coincident-point handling, and post-resolution bounds
+// clamp were only ever verified by a one-time manual live-browser check,
+// which doesn't run in CI. Builds a minimal 2-node fixture per test
+// rather than depending on the real 12-node graph's exact layout, so
+// these assert the function's own contract directly. The function itself
+// lives in src/utils/riskGraphNodeOverlap.ts, not this widget's own file
+// -- exporting a plain function alongside a component trips
+// react-refresh's only-export-components rule.
+function makeNode(overrides: Partial<OverlapNode>): OverlapNode {
+  return {
+    x: 0,
+    y: 0,
+    radius: 10,
+    ...overrides,
+  }
+}
+
+describe("resolveNodeOverlaps", () => {
+  it("pushes two overlapping nodes apart to at least radius+radius+margin", () => {
+    const nodes = [
+      makeNode({ x: 100, y: 100, radius: 10 }),
+      makeNode({ x: 105, y: 100, radius: 10 }),
+    ]
+    resolveNodeOverlaps(nodes, 4, 320)
+    const dist = Math.hypot(nodes[0].x - nodes[1].x, nodes[0].y - nodes[1].y)
+    expect(dist).toBeGreaterThanOrEqual(24 - 0.01)
+  })
+
+  it("handles two exactly-coincident nodes without producing NaN", () => {
+    const nodes = [
+      makeNode({ x: 50, y: 50, radius: 10 }),
+      makeNode({ x: 50, y: 50, radius: 10 }),
+    ]
+    resolveNodeOverlaps(nodes, 4, 320)
+    expect(Number.isFinite(nodes[0].x)).toBe(true)
+    expect(Number.isFinite(nodes[0].y)).toBe(true)
+    expect(Number.isFinite(nodes[1].x)).toBe(true)
+    expect(Number.isFinite(nodes[1].y)).toBe(true)
+    const dist = Math.hypot(nodes[0].x - nodes[1].x, nodes[0].y - nodes[1].y)
+    expect(dist).toBeGreaterThanOrEqual(24 - 0.01)
+  })
+
+  it("leaves already-separated nodes untouched", () => {
+    const nodes = [
+      makeNode({ x: 20, y: 20, radius: 8 }),
+      makeNode({ x: 200, y: 200, radius: 8 }),
+    ]
+    resolveNodeOverlaps(nodes, 4, 320)
+    expect(nodes[0].x).toBe(20)
+    expect(nodes[0].y).toBe(20)
+    expect(nodes[1].x).toBe(200)
+    expect(nodes[1].y).toBe(200)
+  })
+
+  it("clamps a node pushed toward the edge back inside the viewBox bounds", () => {
+    // Two overlapping nodes seeded right at the boundary -- the push-apart
+    // pass alone would move one of them past 0 or past `bounds` if nothing
+    // reclamped afterward.
+    const nodes = [
+      makeNode({ x: 2, y: 160, radius: 15 }),
+      makeNode({ x: 6, y: 160, radius: 15 }),
+    ]
+    resolveNodeOverlaps(nodes, 4, 320)
+    for (const n of nodes) {
+      expect(n.x - n.radius).toBeGreaterThanOrEqual(-0.01)
+      expect(n.x + n.radius).toBeLessThanOrEqual(320.01)
+      expect(n.y - n.radius).toBeGreaterThanOrEqual(-0.01)
+      expect(n.y + n.radius).toBeLessThanOrEqual(320.01)
+    }
+  })
+})
 
 // User request: this widget now reads the same real risk set
 // LandingRiskMatrixWidget does (riskMatrixMockData's MOCK_RISKS, 12 risks),
@@ -81,13 +158,14 @@ describe("RiskGraphWidget", () => {
       expect(sup007Node).toHaveAttribute("aria-pressed", "true")
       expect(sup007Node).toHaveAttribute("opacity", "1")
 
-      // REG-022 has no real link to SUP-007 or to CYB-014 -- it should
-      // dim once SUP-007 is selected.
-      const reg022Text = Array.from(container.querySelectorAll("text")).find(
-        (el) => el.textContent === "REG-022"
+      // OPS-004 sits in a totally separate branch of the graph (its only
+      // real link is to OPS-009, nowhere near SUP-007/CYB-014) -- it
+      // should dim once SUP-007 is selected.
+      const ops004Text = Array.from(container.querySelectorAll("text")).find(
+        (el) => el.textContent === "OPS-004"
       )
-      const reg022Node = reg022Text?.closest('[role="button"]')
-      expect(reg022Node).toHaveAttribute("opacity", "0.3")
+      const ops004Node = ops004Text?.closest('[role="button"]')
+      expect(ops004Node).toHaveAttribute("opacity", "0.3")
 
       // CYB-014 IS linked to SUP-007 (SUP-007 amplifies CYB-014) -- it
       // should stay at full opacity, not dim.
@@ -113,11 +191,11 @@ describe("RiskGraphWidget", () => {
       await user.click(sup007Node!)
       expect(sup007Node).toHaveAttribute("aria-pressed", "false")
 
-      const reg022Text = Array.from(container.querySelectorAll("text")).find(
-        (el) => el.textContent === "REG-022"
+      const ops004Text = Array.from(container.querySelectorAll("text")).find(
+        (el) => el.textContent === "OPS-004"
       )
-      const reg022Node = reg022Text?.closest('[role="button"]')
-      expect(reg022Node).toHaveAttribute("opacity", "1")
+      const ops004Node = ops004Text?.closest('[role="button"]')
+      expect(ops004Node).toHaveAttribute("opacity", "1")
     })
   })
 })

@@ -124,9 +124,18 @@ function makeRisk(
   } as Risk
 }
 
-// 9 risks, 7 open / 2 closed -- the "Active Risks" KPI card reads
-// risks.filter(r => r.status === "open").length, so this set is what makes
-// that card show 7, not a hand-typed number living somewhere else.
+// 12 risks (mirrors riskMatrixMockData.ts's own MOCK_RISKS exactly -- same
+// real records, not a second independently-authored set, so the landing
+// page's matrix/graph widgets and this file's own Overview KPI cards/
+// correlation preview all agree on the same risks), 10 open / 2 closed --
+// the "Active Risks" KPI card reads risks.filter(r => r.status ===
+// "open").length, so this set is what makes that card show 10, not a
+// hand-typed number living somewhere else.
+//
+// Rebuilt down to 3 categories -- cyber, operational, supply_chain -- see
+// riskMatrixMockData.ts's own comment on MOCK_RISKS for the full reasoning
+// (was 12 different categories, one per risk, which made the landing
+// page's category legend an unreadable 12-swatch row).
 export const MOCK_RISKS: Risk[] = [
   makeRisk({
     id: "risk-1",
@@ -157,15 +166,15 @@ export const MOCK_RISKS: Risk[] = [
   }),
   makeRisk({
     id: "risk-3",
-    ref: "REG-022",
-    name: "Pending EU deforestation regulation (EUDR) non-compliance",
+    ref: "OPS-018",
+    name: "Deferred preventive maintenance on the Rotterdam Line 3 stamping press",
     description:
-      "Rotterdam plant's palm-derivative inputs are not yet traceable to plot-level origin as EUDR due-diligence requires ahead of the enforcement date.",
-    category: "regulatory",
+      "The plant's highest-throughput stamping press is running past its scheduled service interval to avoid a planned production stop, raising the odds of an unplanned one instead.",
+    category: "operational",
     site_id: "site-rotterdam",
-    probability: 60,
-    inherent_score: 65,
-    residual_score: 52,
+    probability: 58,
+    inherent_score: 62,
+    residual_score: 50,
     status: "open",
   }),
   makeRisk({
@@ -183,37 +192,37 @@ export const MOCK_RISKS: Risk[] = [
   }),
   makeRisk({
     id: "risk-5",
-    ref: "FIN-009",
-    name: "USD/NGN currency exposure on imported spare parts",
+    ref: "SUP-014",
+    name: "No qualified backup supplier for Austin control-panel enclosures",
     description:
-      "Lagos hub sources critical spare parts in USD while revenue is collected in NGN, with no hedging instrument currently in place.",
-    category: "financial",
-    site_id: "site-lagos",
-    probability: 70,
-    inherent_score: 60,
-    residual_score: 55,
+      "The Austin facility's sole enclosure fabricator has an 11-week lead time; a disruption there halts every control-panel build behind it with no second source to fall back on.",
+    category: "supply_chain",
+    site_id: "site-austin",
+    probability: 48,
+    inherent_score: 58,
+    residual_score: 45,
     status: "open",
   }),
   makeRisk({
     id: "risk-6",
-    ref: "TEC-018",
-    name: "Austin data center single-utility power feed",
+    ref: "CYB-009",
+    name: "Unsegmented OT network exposes plant-floor PLCs to the office LAN",
     description:
-      "The Austin facility runs on a single utility feed with generator backup rated for 8 hours; a longer outage would exceed failover capacity.",
-    category: "technology",
+      "Austin's production-line PLCs sit on the same flat network as office workstations, so a single compromised laptop can reach the plant-floor control systems directly.",
+    category: "cyber",
     site_id: "site-austin",
-    probability: 30,
-    inherent_score: 72,
-    residual_score: 61,
+    probability: 66,
+    inherent_score: 75,
+    residual_score: 63,
     status: "open",
   }),
   makeRisk({
     id: "risk-7",
-    ref: "HR-004",
+    ref: "OPS-004",
     name: "Key-person dependency on sole certified crane operator",
     description:
       "Only one crane operator at the Rotterdam plant holds the required heavy-lift certification; no succession or cross-training plan exists.",
-    category: "hr",
+    category: "operational",
     site_id: "site-rotterdam",
     probability: 40,
     inherent_score: 35,
@@ -222,11 +231,11 @@ export const MOCK_RISKS: Risk[] = [
   }),
   makeRisk({
     id: "risk-8",
-    ref: "EHS-011",
+    ref: "OPS-011",
     name: "Confined-space entry procedure gaps at Lagos hub",
     description:
       "Recent internal audit found confined-space entry permits were not consistently logged for tank-cleaning work at the Lagos site.",
-    category: "ehs",
+    category: "operational",
     site_id: "site-lagos",
     probability: 35,
     inherent_score: 55,
@@ -235,27 +244,87 @@ export const MOCK_RISKS: Risk[] = [
   }),
   makeRisk({
     id: "risk-9",
-    ref: "GEO-003",
-    name: "Port congestion risk on Singapore transshipment lane",
+    ref: "SUP-003",
+    name: "Port congestion on the Singapore transshipment lane delays raw-material receipt",
     description:
-      "Geopolitical tension in a key shipping lane has repeatedly forced rerouting of Singapore-bound transshipments, adding 5-9 days of transit delay.",
-    category: "geopolitical",
+      "Recurring congestion on Singapore-bound transshipments has added 5-9 days of transit delay to the raw-material lane feeding two downstream plants.",
+    category: "supply_chain",
     site_id: "site-singapore",
     probability: 50,
     inherent_score: 45,
     residual_score: 38,
     status: "closed",
   }),
+  makeRisk({
+    id: "risk-10",
+    ref: "SUP-002",
+    name: "Single qualified vendor for Austin precision-machined components",
+    description:
+      "The tolerances Austin's assembly line requires are only currently qualified with one machining vendor, with no second source in the approved-supplier list.",
+    category: "supply_chain",
+    site_id: "site-austin",
+    probability: 42,
+    inherent_score: 60,
+    residual_score: 55,
+    status: "open",
+  }),
+  makeRisk({
+    id: "risk-11",
+    ref: "CYB-006",
+    name: "ISO 27001 surveillance audit finding on plant access review not yet remediated",
+    description:
+      "A minor nonconformity from the Singapore HQ's last ISO 27001 surveillance audit (plant-floor access-review cadence) remains open past its committed close date.",
+    category: "cyber",
+    site_id: "site-singapore",
+    probability: 20,
+    inherent_score: 30,
+    residual_score: 22,
+    status: "open",
+  }),
+  makeRisk({
+    id: "risk-12",
+    ref: "OPS-009",
+    name: "Manual work-order handoffs cause unplanned changeover downtime at Lagos hub",
+    description:
+      "Line changeovers at the Lagos hub are still coordinated by handwritten work orders passed between shifts, a common source of missed or duplicated setup steps.",
+    category: "operational",
+    site_id: "site-lagos",
+    probability: 28,
+    inherent_score: 40,
+    residual_score: 33,
+    status: "open",
+  }),
 ]
 
-// RiskLink edges feeding the Tipping Points / PageRank section. CYB-014 is
-// the deliberate hub here (three risks point at it via CAUSES/AMPLIFIES),
-// matching the earlier-remediated-first item's own real-world plausibility
-// (a VPN compromise plausibly amplifies supply-chain and financial risk at
-// the sites it touches).
+// RiskLink edges feeding the Tipping Points / PageRank section, and the
+// landing page's own correlation graph (RiskGraphWidget.tsx). Rebuilt
+// alongside MOCK_RISKS above for real correlation depth -- 11 edges
+// forming one connected tree (three real multi-hop chains, up to 3 hops
+// deep) that all eventually feed into CYB-014, instead of the previous
+// flat 3-edge star.
+//
+// Deliberately NOT built as several small islands (e.g. an isolated pair
+// of risks correlating only with each other): PageRank concentrates a
+// disconnected pair's rank between just those two nodes with nothing
+// leaking out, which -- verified by computing this fixture's actual
+// scores before settling on this shape -- let a same-site correlated
+// PAIR outrank the real hub. Every risk here is reachable from CYB-014
+// via at least one directed edge, keeping it the unambiguous top-
+// PageRank node (real computed value ~0.20 vs. the runner-up's ~0.15,
+// not a close call). CYB-014 itself still has zero outgoing edges --
+// it's the graph's sink, matching how a systemic risk should accumulate
+// rank rather than pass it along.
 export const MOCK_RISK_LINKS: RiskLink[] = [
   {
     id: "link-1",
+    org_account_id: "org-demo",
+    source_ref: "CYB-009",
+    target_ref: "CYB-014",
+    link_type: "CAUSES",
+    createdAt: "2026-06-14T00:00:00.000Z",
+  },
+  {
+    id: "link-2",
     org_account_id: "org-demo",
     source_ref: "SUP-007",
     target_ref: "CYB-014",
@@ -263,20 +332,76 @@ export const MOCK_RISK_LINKS: RiskLink[] = [
     createdAt: "2026-06-15T00:00:00.000Z",
   },
   {
-    id: "link-2",
+    id: "link-3",
     org_account_id: "org-demo",
-    source_ref: "FIN-009",
+    source_ref: "CYB-006",
     target_ref: "CYB-014",
-    link_type: "CAUSES",
+    link_type: "AMPLIFIES",
     createdAt: "2026-06-16T00:00:00.000Z",
   },
   {
-    id: "link-3",
+    id: "link-4",
     org_account_id: "org-demo",
-    source_ref: "GEO-003",
+    source_ref: "OPS-018",
     target_ref: "CYB-014",
-    link_type: "CORRELATES",
+    link_type: "AMPLIFIES",
     createdAt: "2026-06-17T00:00:00.000Z",
+  },
+  {
+    id: "link-5",
+    org_account_id: "org-demo",
+    source_ref: "SUP-014",
+    target_ref: "OPS-018",
+    link_type: "CAUSES",
+    createdAt: "2026-06-18T00:00:00.000Z",
+  },
+  {
+    id: "link-6",
+    org_account_id: "org-demo",
+    source_ref: "OPS-031",
+    target_ref: "OPS-011",
+    link_type: "CORRELATES",
+    createdAt: "2026-06-19T00:00:00.000Z",
+  },
+  {
+    id: "link-7",
+    org_account_id: "org-demo",
+    source_ref: "OPS-011",
+    target_ref: "CYB-006",
+    link_type: "AMPLIFIES",
+    createdAt: "2026-06-20T00:00:00.000Z",
+  },
+  {
+    id: "link-8",
+    org_account_id: "org-demo",
+    source_ref: "SUP-003",
+    target_ref: "SUP-002",
+    link_type: "CORRELATES",
+    createdAt: "2026-06-21T00:00:00.000Z",
+  },
+  {
+    id: "link-9",
+    org_account_id: "org-demo",
+    source_ref: "SUP-002",
+    target_ref: "SUP-007",
+    link_type: "AMPLIFIES",
+    createdAt: "2026-06-22T00:00:00.000Z",
+  },
+  {
+    id: "link-10",
+    org_account_id: "org-demo",
+    source_ref: "OPS-004",
+    target_ref: "OPS-009",
+    link_type: "CORRELATES",
+    createdAt: "2026-06-23T00:00:00.000Z",
+  },
+  {
+    id: "link-11",
+    org_account_id: "org-demo",
+    source_ref: "OPS-009",
+    target_ref: "OPS-018",
+    link_type: "CORRELATES",
+    createdAt: "2026-06-24T00:00:00.000Z",
   },
 ]
 
@@ -328,14 +453,18 @@ export const MOCK_KRIS: KRI[] = [
   {
     id: "kri-3",
     org_account_id: "org-demo",
+    // Rebuilt to match risk-5's own rebuilt content (SUP-014, no
+    // qualified backup enclosure supplier) -- was "USD/NGN hedge
+    // coverage ratio," a theme that no longer exists anywhere in
+    // MOCK_RISKS after the 3-category manufacturing rebuild.
     risk_id: "risk-5",
-    name: "USD/NGN hedge coverage ratio",
-    owner: "Treasury",
-    unit: "%",
-    current_value: 12,
-    alert_threshold: 30,
-    target_value: 60,
-    frequency: "monthly",
+    name: "Qualified backup suppliers for critical enclosures",
+    owner: "Procurement",
+    unit: "count",
+    current_value: 0,
+    alert_threshold: 1,
+    target_value: 2,
+    frequency: "quarterly",
     createdAt: "2025-09-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
     status: "ALERT",
@@ -346,17 +475,25 @@ export const MOCK_KRIS: KRI[] = [
   {
     id: "kri-4",
     org_account_id: "org-demo",
+    // Rebuilt to match risk-6's own rebuilt content (CYB-009,
+    // unsegmented OT network) -- was "Austin generator failover test
+    // pass rate," a facilities theme that no longer exists anywhere in
+    // MOCK_RISKS after the 3-category manufacturing rebuild.
     risk_id: "risk-6",
-    name: "Austin generator failover test pass rate",
-    owner: "Facilities",
+    name: "OT/IT network segmentation coverage",
+    owner: "IT Security",
     unit: "%",
-    current_value: 96,
-    alert_threshold: 90,
-    target_value: 100,
+    current_value: 65,
+    alert_threshold: 50,
+    target_value: 90,
     frequency: "quarterly",
     createdAt: "2025-09-01T00:00:00.000Z",
     updatedAt: "2026-07-20T00:00:00.000Z",
-    status: "OK",
+    // Review finding on PR #1044: higher-is-better here (target 90 >
+    // alert 50, matching computeKriStatus's own direction convention in
+    // src/utils/kriStatus.ts) -- 65 is neither >= target(90) nor
+    // <= alert(50), so it's WARNING, not OK.
+    status: "WARNING",
     line_of_defense: "FIRST",
     last_measured_at: "2026-07-20T00:00:00.000Z",
     overdue: false,
@@ -406,7 +543,8 @@ export const MOCK_ALERTS: Alert[] = [
     source: "KRI Monitor",
     type: "threshold",
     severity: "critical",
-    title: "USD/NGN hedge coverage fell to 12%, below the 30% threshold",
+    title:
+      "Qualified backup enclosure suppliers fell to 0, below the 1-supplier threshold",
     description: null,
     is_read: false,
     ai_generated: false,
@@ -448,7 +586,7 @@ export const MOCK_ALERTS: Alert[] = [
     source: "Compliance Monitor",
     type: "obligation_due",
     severity: "medium",
-    title: "EUDR traceability obligation due in 30 days",
+    title: "Backup enclosure supplier qualification review due in 30 days",
     description: null,
     is_read: true,
     ai_generated: false,
@@ -510,7 +648,8 @@ export const MOCK_FINDINGS: IAction[] = [
   }),
   makeFinding({
     id: "action-3",
-    actionTitle: "Draft EUDR plot-level traceability plan",
+    actionTitle:
+      "Qualify second-source vendor for Austin control-panel enclosures",
     status: "TO_DO",
     priority: "Medium",
   }),
@@ -522,13 +661,13 @@ export const MOCK_FINDINGS: IAction[] = [
   }),
   makeFinding({
     id: "action-5",
-    actionTitle: "Set up USD/NGN forward contract hedge",
+    actionTitle: "Segment plant-floor PLCs from the Austin office LAN",
     status: "IN_PROGRESS",
     priority: "High",
   }),
   makeFinding({
     id: "action-6",
-    actionTitle: "Cross-train second Austin facilities engineer",
+    actionTitle: "Complete OT/IT network segmentation rollout at Austin plant",
     status: "COMPLETE",
     priority: "Low",
   }),
@@ -605,8 +744,12 @@ export const MOCK_INSPECTIONS: InspectionSummary[] = [
   },
 ]
 
-// EBITDA-at-risk distribution: 7 of the 9 mock risks (risksWithData) carry
-// a computed value, matching MOCK_RISKS' own 9-risk total (risksTotal).
+// EBITDA-at-risk distribution: 10 of the 12 mock risks (risksWithData) carry
+// a computed value, matching MOCK_RISKS' own 12-risk total (risksTotal).
+// Review finding: this stayed at the old 9-risk total after MOCK_RISKS grew
+// to 12 during the manufacturing-categories rebuild -- risksTotal renders
+// directly on the dashboard (OverviewView.tsx), so it would have visibly
+// disagreed with the Active Risks KPI card right next to it.
 export const MOCK_EBITDA_SUMMARY: EbitdaAtRiskSummary = {
   data: [
     { name: "P5", value: 14_200_000 },
@@ -620,6 +763,6 @@ export const MOCK_EBITDA_SUMMARY: EbitdaAtRiskSummary = {
   p5: 14_200_000,
   p50: 20_800_000,
   totalEstimatedEbitda: 22_000_000,
-  risksWithData: 7,
-  risksTotal: 9,
+  risksWithData: 10,
+  risksTotal: 12,
 }

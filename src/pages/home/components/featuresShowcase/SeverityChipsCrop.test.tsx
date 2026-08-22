@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import { MOCK_RISKS } from "@/dashboard/organization/risk/riskMatrixMockData"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
 import SeverityChipsCrop from "./SeverityChipsCrop"
@@ -15,8 +15,15 @@ describe("SeverityChipsCrop", () => {
       (r) => getRiskSeverityLevel(r.residual_score) === "critical"
     ).length
 
-    expect(screen.getByText("riskLevel.critical")).toBeInTheDocument()
-    expect(screen.getByText(String(criticalCount))).toBeInTheDocument()
+    // Scoped to the critical chip's own container, not a bare getByText --
+    // the fixture's real distribution can put the same count on more than
+    // one severity level (e.g. critical and low both landing on 1), which
+    // a plain getByText(String(count)) can't disambiguate between.
+    const criticalChip = screen.getByText("riskLevel.critical").closest("span")
+    expect(criticalChip).not.toBeNull()
+    expect(
+      within(criticalChip!).getByText(String(criticalCount))
+    ).toBeInTheDocument()
   })
 
   it("renders all four severity levels", () => {

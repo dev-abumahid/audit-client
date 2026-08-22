@@ -30,8 +30,7 @@ vi.mock("@/redux/apis/auth.api", () => ({
 }))
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
-  useGetAllRisksQuery: (...args: unknown[]) =>
-    mockUseGetAllRisksQuery(...args),
+  useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
   useGetEbitdaAtRiskSummaryQuery: (...args: unknown[]) =>
     mockUseGetEbitdaAtRiskSummaryQuery(...args),
 }))
@@ -61,8 +60,7 @@ vi.mock("@/redux/apis/organization/inspection.api", () => ({
 }))
 
 vi.mock("@/redux/apis/organization/sites.api", () => ({
-  useGetAllSitesQuery: (...args: unknown[]) =>
-    mockUseGetAllSitesQuery(...args),
+  useGetAllSitesQuery: (...args: unknown[]) => mockUseGetAllSitesQuery(...args),
 }))
 
 // assertPreviewOnly() genuinely throws when import.meta.env.DEV is true
@@ -118,7 +116,10 @@ describe("OverviewPreview", () => {
     // destructuring undefined -- the hook IS still called (skip:true
     // doesn't prevent the call itself), but must never be relied on for
     // data; see the "skip: true" assertion below for what actually matters.
-    mockUseGetAllAlertsQuery.mockReturnValue({ data: undefined, isError: false })
+    mockUseGetAllAlertsQuery.mockReturnValue({
+      data: undefined,
+      isError: false,
+    })
   })
 
   it("never calls any of the 7 live query hooks or useGetMeQuery, and calls the alerts hook only with skip: true", () => {
@@ -159,9 +160,7 @@ describe("OverviewPreview", () => {
   it("renders the dashboard title and subtitle sourced from mock data (no i18n resources loaded in this test env, so raw keys render, same fallback other test files in this directory rely on)", () => {
     renderPreview()
 
-    expect(
-      screen.getByText("organization.overview.title")
-    ).toBeInTheDocument()
+    expect(screen.getByText("organization.overview.title")).toBeInTheDocument()
     expect(
       screen.getByText("organization.overview.description")
     ).toBeInTheDocument()
@@ -170,11 +169,11 @@ describe("OverviewPreview", () => {
   it("renders real-looking mock KPI numbers, not an all-zero dashboard", () => {
     renderPreview()
 
-    // 7 of MOCK_RISKS' 9 risks are status "open".
+    // 10 of MOCK_RISKS' 12 risks are status "open".
     expect(
       screen.getByText("organization.overview.activeRisk").parentElement
         ?.textContent
-    ).toContain("7")
+    ).toContain("10")
   })
 
   it("renders the EBITDA chart with mock data, not the empty/error state", () => {

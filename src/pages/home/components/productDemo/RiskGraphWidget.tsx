@@ -6,6 +6,7 @@ import { MOCK_RISKS } from "@/dashboard/organization/risk/riskMatrixMockData"
 import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
 import { buildRiskCorrelationEdges, computePageRank } from "@/utils/pageRank"
 import { computeRiskGraphLayout } from "@/utils/riskGraphLayout"
+import { resolveNodeOverlaps } from "@/utils/riskGraphNodeOverlap"
 import type { RiskLink } from "@/types/organization"
 
 // User request: this graph now shows the SAME risk set
@@ -13,9 +14,8 @@ import type { RiskLink } from "@/types/organization"
 // mock risks), not a separate smaller fixture -- a click on either widget
 // cross-highlights the other. Real correlation links (MOCK_RISK_LINKS,
 // still sourced from overviewMockData.ts, the only place they're defined)
-// only exist between 4 of the 12; the other 8 render as real, honestly-
-// unlinked nodes rather than hiding them or inventing connections that
-// don't exist in the mock data.
+// form one connected tree spanning all 12 risks, several hops deep in
+// places -- not a flat star.
 const LINK_TYPE_COLOR: Record<string, string> = {
   CAUSES: "hsl(var(--risk-critical))",
   AMPLIFIES: "hsl(var(--risk-high))",
@@ -112,6 +112,11 @@ function buildGraph(): {
       pageRankDisplay,
     }
   })
+
+  // See resolveNodeOverlaps' own comment: guarantees no two circles touch
+  // using THIS widget's real radii, independent of whatever separation
+  // assumption computeRiskGraphLayout's own raw-unit constants made.
+  resolveNodeOverlaps(nodes, 4, VIEW_SIZE)
 
   return { nodes, nodeByRef: new Map(nodes.map((n) => [n.ref, n])) }
 }
