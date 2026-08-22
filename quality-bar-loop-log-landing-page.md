@@ -214,3 +214,52 @@ Fix: reordered `FeaturesSection.tsx`'s render order (content/copy unchanged) so 
 New regression test asserting neither 3-card row is all-crop or all-icon-only, negative-control-verified (reverted to the old clustered order, confirmed the test fails; restored, confirmed it passes).
 
 QA gate: typecheck clean, 0 lint errors, 156 files / 2534 tests passing. Live-verified via DOM: row 1 = crop/no-crop/crop, row 2 = no-crop/crop/crop, exactly as designed. Console clean.
+
+## Final report
+
+### Scores over time
+
+| Axis | R1 | R2 | R4 | R6 |
+|---|---|---|---|---|
+| Industry-standards | 6 | 7 | 7 | 7 |
+| UX | 8 | 8 | 8 | 8 |
+| Efficiency | 8 | 8 | 8 | 8 |
+| Accessibility | 9 | 9 | 9 | 9 |
+| Visual/design polish | 7 | 8 | 8 | 8 |
+| Resilience & edge cases | 8 | 8 | 8 | 8 |
+| Code quality/maintainability | 6 | 6 | 8 | 8 |
+| Cross-view integration | 7 | 9 | 9 | 9 |
+| Mobile/responsive | 8 | 8 | 8 | 8 |
+| **Average** | **7.44** | **7.89** | **8.11** | **8.11** |
+
+(Round 7 shipped a fix but the loop stopped before a re-score; the FeaturesSection balance fix is live and verified but not reflected in a 9th judged average.)
+
+### What was fixed, one line each
+
+1. **Round 1** ([#1029](https://github.com/Qiyrix/aexa-frontend/pull/1029)): widened the demo-moments column to match established page convention; restored the risk-matrix's always-visible severity legend (a same-day capability regression).
+2. **Round 2** ([#1030](https://github.com/Qiyrix/aexa-frontend/pull/1030), user-directed): made the static 3-widget rail's cards equal height without reintroducing the dead-space bug that motivated the prior uneven-height fix.
+3. **Round 3** ([#1031](https://github.com/Qiyrix/aexa-frontend/pull/1031)): trimmed comment-cruft to terse what+why across 4 files; corrected two factual errors (a false "React Compiler auto-memoizes this" claim, a stale "mounts twice" claim).
+4. **Round 5** ([#1032](https://github.com/Qiyrix/aexa-frontend/pull/1032)): removed star ratings from illustrative testimonials (odd pairing with the honesty badge; not a category-standard pattern).
+5. **Round 7** ([#1033](https://github.com/Qiyrix/aexa-frontend/pull/1033), user-directed, final): balanced the FeaturesSection module-showcase grid so illustrated and icon-only cards interleave across both rows.
+
+### Still open
+
+**Large-scope** (need real assets/infrastructure this loop can't produce):
+- Customer-logo "trusted by" strip beneath the hero — no real customers to show yet.
+- Testimonial photos/avatars — same constraint.
+
+**Contained** (a future round could pick these up):
+- Comment-cruft pattern ("Review finding on PR #XXXX") still present in ~12 files outside the 4 fixed in round 3 (`ConnectedDataModelSection.tsx`, `FinalCTASection.tsx`, `RoleScopedRegisterWidget.tsx`, the `featuresShowcase/*Crop.tsx` files, several test files).
+- Shared `WidgetProps` type extraction across the rail's sibling widgets — judged not worth forcing (the three widgets' `animate` shapes differ for real reasons), but could be revisited if a 4th sibling widget is ever added.
+- `ConnectedDataModelSection.tsx`'s own moment uses `max-w-3xl` (768px), narrower than the now-consistent `max-w-4xl`/`max-w-5xl` used elsewhere — flagged as low-urgency (visually fine today, a compact node diagram not a text/card block).
+
+### Why the loop stopped here
+
+Stagnation guardrail: round 4's average (8.11) and round 6's average (8.11) were identical. Diagnosis at the time (confirmed correct in hindsight): not the loop spinning uselessly — both intervening fixes were independently verified as clean, real improvements — but industry-standards' remaining gaps being genuinely large-scope while visual-polish's one remaining contained finding hadn't yet won mechanical priority. User chose to spend one more round closing that specific contained finding, then stop by design rather than let the loop pick a 8th round on its own.
+
+## Lessons learned (skill self-review)
+
+- **The stagnation guardrail did its job correctly.** It caught a real flat-average situation and forced an honest diagnosis (large-scope vs. contained-but-not-yet-prioritized) instead of continuing to loop or silently declaring success. No change needed here.
+- **A self-inflicted regression pattern is worth naming explicitly.** Round 1's own legend-restoration fix introduced a "see PR #1028" comment — exactly the pattern code quality was simultaneously being penalized for elsewhere in the same file. This happened because a fix shipped under one axis's banner (cross-view integration) used this codebase's established comment convention (cite the review finding) without checking whether that specific convention was itself under another axis's active fire. **Real gap, worth fixing in the skill**: when multiple axes are below floor simultaneously, a fix for one axis should get a quick sanity check against any *other* currently-open finding whose subject is "how this code is written" (code quality, in practice) before it ships, not just against its own axis's goal. Applying this now.
+- **Narrow-scoping worked as designed and saved real cost.** Rounds 4 and 6 each re-ran only 1-2 judges instead of the full 9, correctly carrying forward axes with zero code overlap. This is the first real multi-round confirmation in this project's quality-bar-loop history that the narrow-scoping rule holds up in practice, not just in theory.
+- **A genuinely contained finding (FeaturesSection parallelism) went unaddressed for 3 consecutive scored rounds (1, 2, 6) purely because of priority-ordering, not because it was hard.** The mechanical priority order (data-correctness/security first, then stuck_streak, then regression, then furthest-below-target) has no mechanism to promote an old, repeatedly-reconfirmed, cheap, contained finding ahead of whatever axis happens to be lowest-scored *this round* — even when the lowest-scored axis's remaining gap is provably large-scope and can't actually be moved by another round. **Real gap, worth fixing in the skill**: when computing round-selection priority, an axis whose *entire* remaining open-finding set is tagged `large-scope` should drop out of the "furthest below target" comparison entirely (not just be excluded from the scope-exhaustion check, which only looks at the aggregate across all axes) — priority should fall through to the next-furthest-below-target axis that still has a `contained` finding available, rather than repeatedly re-selecting an axis that literally cannot move this round. Applying this now.

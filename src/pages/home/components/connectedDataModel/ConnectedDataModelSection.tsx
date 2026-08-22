@@ -75,7 +75,7 @@ export default function ConnectedDataModelSection() {
           <span className="text-xs font-semibold tracking-wide text-teal-700 uppercase dark:text-primary">
             {t("home.connectedDataModel.eyebrow")}
           </span>
-          <h2 className="mt-3 font-heading text-2xl font-bold text-balance text-foreground sm:text-3xl md:text-4xl">
+          <h2 className="mt-3 font-heading text-2xl font-semibold text-balance text-foreground sm:text-3xl md:text-4xl">
             {t("home.connectedDataModel.title")}
           </h2>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
@@ -98,163 +98,185 @@ export default function ConnectedDataModelSection() {
             role="group"
             aria-label={t("home.connectedDataModel.groupLabel")}
           >
-          {/* Center: the risk itself */}
-          <button
-            type="button"
-            onClick={toggleHighlight}
-            className={`focus-ring mx-auto flex max-w-sm flex-col items-center gap-2 rounded-xl border border-border bg-card p-5 text-center shadow-lg shadow-foreground/[0.03] transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
-              revealVisible
-                ? "translate-y-0 opacity-100"
-                : "translate-y-3 opacity-0"
-            }`}
-          >
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase ${severityBadgeClasses(severity)}`}
+            {/* Center: the risk itself */}
+            <button
+              type="button"
+              onClick={toggleHighlight}
+              className={`focus-ring mx-auto flex max-w-sm flex-col items-center gap-2 rounded-xl border border-border bg-card p-5 text-center shadow-lg shadow-foreground/[0.03] transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
+                revealVisible
+                  ? "translate-y-0 opacity-100"
+                  : "translate-y-3 opacity-0"
+              }`}
             >
               <span
-                className={`h-1.5 w-1.5 rounded-full ${SEVERITY_STYLES[severity].dot}`}
-              />
-              {t(`riskLevel.${severity}`)}
-            </span>
-            <span className="font-mono-data text-sm font-bold text-foreground">
-              {RISK.ref}
-            </span>
-            <h3 className="text-sm font-semibold text-foreground">
-              {RISK.name}
-            </h3>
-            <span className="text-xs text-muted-foreground">
-              {riskCategoryLabel(t, RISK.category)}
-            </span>
-          </button>
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase ${severityBadgeClasses(severity)}`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${SEVERITY_STYLES[severity].dot}`}
+                />
+                {t(`riskLevel.${severity}`)}
+              </span>
+              <span className="font-mono-data text-sm font-bold text-foreground">
+                {RISK.ref}
+              </span>
+              <h3 className="text-sm font-semibold text-foreground">
+                {RISK.name}
+              </h3>
+              <span className="text-xs text-muted-foreground">
+                {riskCategoryLabel(t, RISK.category)}
+              </span>
+            </button>
 
-          {/* Fan-out connector: only where the 4 satellites render in one
+            {/* Fan-out connector: only where the 4 satellites render in one
               row (sm+, grid-cols-4 below) -- hidden on mobile where they
               stack, same precedent as the other rails in this codebase
               skipping grid states they can't cleanly represent. */}
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 100 20"
-            preserveAspectRatio="none"
-            // Review finding on PR #1021: at the old h-6 (24px) against a
-            // max-w-3xl (768px) container, preserveAspectRatio="none"'s
-            // non-uniform scale (~7.7x horizontal vs ~1.2x vertical)
-            // flattened the fan toward near-horizontal, close to a single
-            // smear instead of a visible V. Taller box narrows that gap
-            // without touching the coordinate math.
-            className="mx-auto hidden h-14 w-full max-w-3xl sm:block"
-          >
-            {[12.5, 37.5, 62.5, 87.5].map((x, i) => (
-              <line
-                key={x}
-                x1="50"
-                y1="0"
-                x2={x}
-                y2="20"
-                pathLength={1}
-                className={`stroke-primary/40 transition-[stroke-dashoffset] duration-700 ease-out motion-reduce:transition-none ${
-                  revealVisible ? "[stroke-dashoffset:0]" : "[stroke-dashoffset:1]"
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 100 20"
+              preserveAspectRatio="none"
+              // Review finding on PR #1021: at the old h-6 (24px) against a
+              // max-w-3xl (768px) container, preserveAspectRatio="none"'s
+              // non-uniform scale (~7.7x horizontal vs ~1.2x vertical)
+              // flattened the fan toward near-horizontal, close to a single
+              // smear instead of a visible V. Taller box narrows that gap
+              // without touching the coordinate math.
+              className="mx-auto hidden h-14 w-full max-w-3xl sm:block"
+            >
+              {[12.5, 37.5, 62.5, 87.5].map((x, i) => (
+                <line
+                  key={x}
+                  x1="50"
+                  y1="0"
+                  x2={x}
+                  y2="20"
+                  pathLength={1}
+                  className={`stroke-primary/40 transition-[stroke-dashoffset] duration-700 ease-out motion-reduce:transition-none ${
+                    revealVisible
+                      ? "[stroke-dashoffset:0]"
+                      : "[stroke-dashoffset:1]"
+                  }`}
+                  style={
+                    revealVisible
+                      ? { transitionDelay: `${200 + i * 120}ms` }
+                      : undefined
+                  }
+                  strokeWidth={0.5}
+                  strokeDasharray={1}
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </svg>
+
+            <div className="mx-auto grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
+              {/* Register row */}
+              <button
+                type="button"
+                onClick={toggleHighlight}
+                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
+                  revealVisible
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-2 opacity-0"
+                }`}
+                style={revealVisible ? { transitionDelay: "700ms" } : undefined}
+              >
+                <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                  {t("home.connectedDataModel.cards.register")}
+                </span>
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <span
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_STYLES[severity].dot}`}
+                  />
+                  <span className="font-mono-data text-[11px] text-muted-foreground">
+                    {RISK.ref}
+                  </span>
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs text-foreground">
+                  {RISK.name}
+                </p>
+              </button>
+
+              {/* KRI */}
+              <button
+                type="button"
+                onClick={toggleHighlight}
+                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
+                  revealVisible
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-2 opacity-0"
+                }`}
+                style={revealVisible ? { transitionDelay: "820ms" } : undefined}
+              >
+                <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                  {t("home.connectedDataModel.cards.kri")}
+                </span>
+                <p className="mt-1.5 line-clamp-1 text-xs text-foreground">
+                  {KRI.name}
+                </p>
+                <span
+                  className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase ${severityBadgeClasses(kriMeta.severityLevel)}`}
+                >
+                  {t(kriMeta.labelKey)}
+                </span>
+              </button>
+
+              {/* Audit finding */}
+              <button
+                type="button"
+                onClick={toggleHighlight}
+                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
+                  revealVisible
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-2 opacity-0"
+                }`}
+                style={revealVisible ? { transitionDelay: "940ms" } : undefined}
+              >
+                <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                  {t("home.connectedDataModel.cards.finding")}
+                </span>
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <span className="font-mono-data text-[11px] text-muted-foreground">
+                    {FINDING.ref}
+                  </span>
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs text-foreground">
+                  {FINDING.title}
+                </p>
+              </button>
+
+              {/* Mitigation */}
+              <button
+                type="button"
+                onClick={toggleHighlight}
+                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
+                  revealVisible
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-2 opacity-0"
                 }`}
                 style={
-                  revealVisible ? { transitionDelay: `${200 + i * 120}ms` } : undefined
+                  revealVisible ? { transitionDelay: "1060ms" } : undefined
                 }
-                strokeWidth={0.5}
-                strokeDasharray={1}
-                vectorEffect="non-scaling-stroke"
-              />
-            ))}
-          </svg>
-
-          <div className="mx-auto grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
-            {/* Register row */}
-            <button
-              type="button"
-              onClick={toggleHighlight}
-              className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
-                revealVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
-              }`}
-              style={revealVisible ? { transitionDelay: "700ms" } : undefined}
-            >
-              <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                {t("home.connectedDataModel.cards.register")}
-              </span>
-              <div className="mt-1.5 flex items-center gap-1.5">
-                <span
-                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_STYLES[severity].dot}`}
-                />
-                <span className="font-mono-data text-[11px] text-muted-foreground">
-                  {RISK.ref}
-                </span>
-              </div>
-              <p className="mt-1 line-clamp-2 text-xs text-foreground">{RISK.name}</p>
-            </button>
-
-            {/* KRI */}
-            <button
-              type="button"
-              onClick={toggleHighlight}
-              className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
-                revealVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
-              }`}
-              style={revealVisible ? { transitionDelay: "820ms" } : undefined}
-            >
-              <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                {t("home.connectedDataModel.cards.kri")}
-              </span>
-              <p className="mt-1.5 line-clamp-1 text-xs text-foreground">{KRI.name}</p>
-              <span
-                className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase ${severityBadgeClasses(kriMeta.severityLevel)}`}
               >
-                {t(kriMeta.labelKey)}
-              </span>
-            </button>
-
-            {/* Audit finding */}
-            <button
-              type="button"
-              onClick={toggleHighlight}
-              className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
-                revealVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
-              }`}
-              style={revealVisible ? { transitionDelay: "940ms" } : undefined}
-            >
-              <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                {t("home.connectedDataModel.cards.finding")}
-              </span>
-              <div className="mt-1.5 flex items-center gap-1.5">
-                <span className="font-mono-data text-[11px] text-muted-foreground">
-                  {FINDING.ref}
+                <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                  {t("home.connectedDataModel.cards.mitigation")}
                 </span>
-              </div>
-              <p className="mt-1 line-clamp-2 text-xs text-foreground">{FINDING.title}</p>
-            </button>
-
-            {/* Mitigation */}
-            <button
-              type="button"
-              onClick={toggleHighlight}
-              className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
-                revealVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
-              }`}
-              style={revealVisible ? { transitionDelay: "1060ms" } : undefined}
-            >
-              <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                {t("home.connectedDataModel.cards.mitigation")}
-              </span>
-              <p className="mt-1.5 line-clamp-2 text-xs text-foreground">
-                {MITIGATION.title}
-              </p>
-              <span className="mt-1.5 inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
-                {MITIGATION.mitigation_type}
-              </span>
-            </button>
-          </div>
+                <p className="mt-1.5 line-clamp-2 text-xs text-foreground">
+                  {MITIGATION.title}
+                </p>
+                <span className="mt-1.5 inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase">
+                  {MITIGATION.mitigation_type}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Single announcement instead of 5 per-button aria-pressed
               toggles -- fires once when the shared state actually changes,
               not on every unrelated focus move. */}
           <span role="status" aria-live="polite" className="sr-only">
-            {highlighted ? t("home.connectedDataModel.highlightAnnouncement") : ""}
+            {highlighted
+              ? t("home.connectedDataModel.highlightAnnouncement")
+              : ""}
           </span>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">

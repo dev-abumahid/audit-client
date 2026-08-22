@@ -132,7 +132,7 @@ const ProductDemoSection: React.FC = () => {
           <span className="text-xs font-semibold tracking-wide text-teal-700 uppercase dark:text-primary">
             {t("home.productDemo.eyebrow")}
           </span>
-          <h2 className="mt-3 font-heading text-2xl font-bold text-balance text-foreground sm:text-3xl md:text-4xl">
+          <h2 className="mt-3 font-heading text-2xl font-semibold text-balance text-foreground sm:text-3xl md:text-4xl">
             {t("home.productDemo.title")}
           </h2>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">

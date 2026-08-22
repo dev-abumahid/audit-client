@@ -67,7 +67,7 @@ const FinalCTASection = () => {
   return (
     <section className="border-t border-border bg-muted px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
       <div className="mx-auto max-w-3xl text-center">
-        <h2 className="font-heading text-2xl font-bold text-balance text-foreground sm:text-3xl md:text-4xl">
+        <h2 className="font-heading text-2xl font-semibold text-balance text-foreground sm:text-3xl md:text-4xl">
           {t("home.finalCta.title")}
         </h2>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">

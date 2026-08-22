@@ -78,7 +78,11 @@ const FeaturesSection: React.FC = () => {
   return (
     <section
       id="features"
-      className="scroll-mt-16 bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20"
+      // border-t: this and ProductDemoSection above share the same
+      // bg-background/padding scale with no visual break between them --
+      // the exact "wall" ConnectedDataModelSection's own border-t was
+      // added to prevent, just never applied to this seam.
+      className="scroll-mt-16 border-t border-border bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20"
     >
       <div className="mx-auto max-w-7xl">
         {/* Header - plain (no italic accent): that treatment is reserved for
@@ -97,10 +101,17 @@ const FeaturesSection: React.FC = () => {
           </p>
         </div>
 
-        {/* Feature Grid */}
+        {/* Feature Grid. items-start, not the grid default items-stretch:
+            unlike the product-demo rail's widgets, these cards have no
+            closing footer/legend element to pin to a stretched bottom, so
+            a shorter icon-only card next to a crop-bearing card was left
+            with a real empty gap below its content once stretched to
+            match. Letting each card end at its own height is the same
+            fix already applied to the demo rail, adapted for cards that
+            have nothing to pin. */}
         <div
           ref={revealRef}
-          className="grid grid-cols-1 gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-12"
+          className="grid grid-cols-1 items-start gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-12"
         >
           {features.map((feature, index) => (
             <div
@@ -110,7 +121,9 @@ const FeaturesSection: React.FC = () => {
                   ? "translate-y-0 opacity-100"
                   : "translate-y-4 opacity-0"
               }`}
-              style={{ transitionDelay: revealVisible ? `${index * 70}ms` : "0ms" }}
+              style={{
+                transitionDelay: revealVisible ? `${index * 70}ms` : "0ms",
+              }}
             >
               {/* Asymmetric corner-rounding + accent underline, not a plain
                   filled rounded-square: that shape is the default "feature
@@ -123,7 +136,10 @@ const FeaturesSection: React.FC = () => {
                   them, and a hover-triggered style implies clickability
                   that doesn't exist (aexa-frontend#510). */}
               <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-tr-xl rounded-bl-xl border-b-2 border-primary bg-primary/10">
-                <feature.icon className="h-5 w-5 text-primary" strokeWidth={2} />
+                <feature.icon
+                  className="h-5 w-5 text-primary"
+                  strokeWidth={2}
+                />
               </div>
               <h3 className="mb-2 text-lg font-semibold text-foreground sm:text-xl">
                 {feature.title}

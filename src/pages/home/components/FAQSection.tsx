@@ -49,8 +49,7 @@ const FAQSection: React.FC = () => {
             {t("home.faq.eyebrow")}
           </span>
           <h2 className="mt-3 mb-4 font-heading text-2xl leading-tight font-semibold text-balance text-foreground sm:text-3xl md:text-4xl">
-            {t("home.faq.title1")}{" "}
-            <span>{t("home.faq.title2")}</span>
+            {t("home.faq.title1")} <span>{t("home.faq.title2")}</span>
           </h2>
           <p className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
             {t("home.faq.description")}
@@ -71,7 +70,7 @@ const FAQSection: React.FC = () => {
                 aria-expanded={openIndex === index}
                 aria-controls={`faq-answer-${index}`}
                 id={`faq-question-${index}`}
-                className="focus-ring group flex w-full items-center justify-between px-6 py-5 text-left transition-colors hover:bg-accent/10 sm:px-8 sm:py-6"
+                className="focus-ring group flex w-full items-center justify-between px-6 py-5 text-left transition-colors hover:bg-muted/40 sm:px-8 sm:py-6"
               >
                 <span className="pr-4 text-base font-semibold text-foreground sm:text-lg">
                   {faq.question}
@@ -127,7 +126,11 @@ const FAQSection: React.FC = () => {
                 hidden={openIndex !== index}
                 className="px-6 pb-5 sm:px-8 sm:pb-6"
               >
-                <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
+                {/* max-w-[65ch] -- every other body paragraph on this page
+                    is capped at 65-75 characters per line; this was the one
+                    left unconstrained, running well past 100ch at desktop
+                    width. */}
+                <p className="max-w-[65ch] text-sm leading-relaxed text-muted-foreground sm:text-base">
                   {faq.answer}
                 </p>
               </div>
