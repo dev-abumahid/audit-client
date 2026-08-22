@@ -111,7 +111,15 @@
         "sliderLabel": "Mesure actuelle de {{name}}",
         "targetLabel": "Cible : {{value}}",
         "thresholdLabel": "Alerte : {{value}}",
-        "caption": "La même formule de statut que le tableau de bord des KRI — faites glisser la mesure et regardez-la franchir les seuils réels de cible et d'alerte."
+        "caption": "La même formule de statut que le tableau de bord des KRI — faites glisser la mesure et regardez-la franchir les seuils réels de cible et d'alerte.",
+        "eyebrow": "ICR · {{category}}",
+        "zoneOkLabel": "OK {{symbol}} {{value}}",
+        "zoneWarningLabel": "Avertissement {{min}}–{{max}}",
+        "zoneAlertLabel": "Alerte {{symbol}} {{value}}",
+        "reviewedLabel": "Revu {{frequency}}",
+        "explanationOk": "Dans la cible. Aucune action requise — la mesure actuelle est à la cible ou en dessous.",
+        "explanationWarning": "Au-delà de la cible, dans la tolérance. Ceci apparaîtrait sur la liste de surveillance ICR de {{owner}} mais ne déclenche pas encore d'escalade.",
+        "explanationAlert": "Dépassement. Ceci ouvrirait automatiquement une action liée pour {{owner}} et serait signalé dans le prochain rapport au conseil."
       },
       "riskMatrixClick": {
         "title": "Cliquez sur une cellule",

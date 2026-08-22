@@ -56,8 +56,12 @@ describe("ProductDemoSection", () => {
   // moment was removed, see the previous test's comment.
   it("renders both remaining interactive demo moments simultaneously, no tabs", () => {
     renderSection()
+    // kriSlider.title was the widget's own "Drag the reading" label,
+    // removed when KriThresholdSliderWidget was reworked to the two-column
+    // reading/status-card layout -- kriSlider.eyebrow ("KRI · {{category}}")
+    // is the widget's own unique text now, same proof-of-mount intent.
     expect(
-      screen.getByText("home.productDemo.kriSlider.title")
+      screen.getByText("home.productDemo.kriSlider.eyebrow")
     ).toBeInTheDocument()
     expect(
       screen.getByText("home.productDemo.roleRegister.title")
