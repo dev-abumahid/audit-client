@@ -118,6 +118,34 @@ describe("RiskGraphWidget", () => {
     expect(lines.length).toBe(MOCK_RISK_LINKS.length)
   })
 
+  // Live-verified finding (post-#1046): scaling node positions against
+  // computeRiskGraphLayout's own declared CANVAS size (reserved for a
+  // worst-case category-ring spread) instead of the real bounding box of
+  // where this sparse 12-node tree's nodes actually landed left most of
+  // the card's real box empty -- the fix was correct-box-size but
+  // wrong-content-scale. Confirms the rendered spread of node x/y
+  // coordinates actually approaches the box's real usable width/height
+  // (box minus padding on both sides), not just a fraction of it -- the
+  // box is 320x320 (DEFAULT_BOX, since the ResizeObserver stub never
+  // fires in tests) and PADDING is 28 per side, so full use of the box
+  // means a spread approaching 320-28*2=264 on each axis.
+  it("spreads real node positions to use most of the box, not a corner of it", () => {
+    const { container } = render(<RiskGraphWidget animate={false} />)
+    const circles = Array.from(
+      container.querySelectorAll("svg > g > circle")
+    ).filter((c) => c.getAttribute("fill") !== "none")
+    const xs = circles.map((c) => Number(c.getAttribute("cx")))
+    const ys = circles.map((c) => Number(c.getAttribute("cy")))
+    const spreadX = Math.max(...xs) - Math.min(...xs)
+    const spreadY = Math.max(...ys) - Math.min(...ys)
+    // At least 90% of the theoretical max spread (264) -- generous enough
+    // to tolerate resolveNodeOverlaps' own small push-apart adjustments,
+    // but would have failed outright against the pre-fix behavior (which
+    // left the real cluster spanning well under half the box).
+    expect(spreadX).toBeGreaterThan(264 * 0.9)
+    expect(spreadY).toBeGreaterThan(264 * 0.9)
+  })
+
   // The real RiskGraphPage labels every node with its own ref, highest-
   // ranked node included -- CYB-014 is still the real highest-PageRank
   // node (3 real inbound links, more than any other risk in the fixture),

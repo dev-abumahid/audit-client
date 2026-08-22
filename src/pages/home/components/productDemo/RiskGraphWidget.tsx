@@ -69,8 +69,6 @@ function connectedRefs(ref: string, links: RiskLink[]): Set<string> {
 
 interface GraphTopology {
   positions: Record<string, { x: number; y: number }>
-  width: number
-  height: number
   pageRankByRef: Record<string, number>
 }
 
@@ -109,28 +107,49 @@ function buildTopology(): GraphTopology | null {
 
   return {
     positions: layout.positions,
-    width: layout.width,
-    height: layout.height,
     pageRankByRef,
   }
 }
 
-// Rescales the topology's own raw coordinate space (sized for a full
-// dashboard canvas, e.g. up to ~900x600+) into `box` -- the card's real
-// measured width/height, not a fixed square -- so the graph actually uses
-// whatever room the two-column rail's `items-stretch` gives it. scaleX/
-// scaleY are independent (not a single uniform min() scale) so the graph
-// fills a non-square box completely rather than letterboxing to whichever
-// axis is tighter; node radii stay circular (only positions stretch), so
-// this doesn't visibly distort individual nodes, just their spacing.
+// Rescales the topology's own raw coordinate space into `box` -- the
+// card's real measured width/height, not a fixed square -- so the graph
+// actually uses whatever room the two-column rail's `items-stretch`
+// gives it. scaleX/scaleY are independent (not a single uniform min()
+// scale) so the graph fills a non-square box completely rather than
+// letterboxing to whichever axis is tighter; node radii stay circular
+// (only positions stretch), so this doesn't visibly distort individual
+// nodes, just their spacing.
+//
+// Live-verified finding (post-#1046): scaling against topology.width/
+// height (computeRiskGraphLayout's own declared CANVAS size, reserved for
+// a worst-case category-ring spread) left the box itself correctly sized
+// but most of it empty -- this sparse 12-node tree's real node positions
+// only occupy a fraction of that reserved canvas, so scaling by the full
+// canvas just moved the same small cluster into a corner of a bigger box
+// instead of spreading it to fill that box. Scaling against the actual
+// bounding box of where the nodes ended up (minX/maxX/minY/maxY across
+// topology.positions) fixes this regardless of how much canvas margin the
+// layout algorithm reserved.
 function layoutNodesInBox(
   topology: GraphTopology,
   box: { width: number; height: number }
 ): { nodes: GraphNode[]; nodeByRef: Map<string, GraphNode> } {
-  const scaleX = (box.width - PADDING * 2) / topology.width
-  const scaleY = (box.height - PADDING * 2) / topology.height
-  const offsetX = (box.width - topology.width * scaleX) / 2
-  const offsetY = (box.height - topology.height * scaleY) / 2
+  const xs = MOCK_RISKS.map((r) => topology.positions[r.ref].x)
+  const ys = MOCK_RISKS.map((r) => topology.positions[r.ref].y)
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+  // A single node (or several coincident ones) has zero content width/
+  // height -- falls back to 1 so scale/offset stay finite instead of
+  // dividing by zero.
+  const contentWidth = maxX - minX || 1
+  const contentHeight = maxY - minY || 1
+
+  const scaleX = (box.width - PADDING * 2) / contentWidth
+  const scaleY = (box.height - PADDING * 2) / contentHeight
+  const offsetX = (box.width - contentWidth * scaleX) / 2 - minX * scaleX
+  const offsetY = (box.height - contentHeight * scaleY) / 2 - minY * scaleY
 
   const nodes: GraphNode[] = MOCK_RISKS.map((risk) => {
     const pos = topology.positions[risk.ref]
