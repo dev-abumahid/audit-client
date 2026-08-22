@@ -5,11 +5,11 @@ import {
 import { MOCK_AUDIT_FINDINGS, MOCK_MITIGATIONS } from "./connectedDataModelMockData"
 import { CONNECTED_DEMO_RISKS } from "./connectedDataModelDemoData"
 
-// Locks in the two things that matter for this file's whole reason for
-// existing: (1) every connection is found via the real foreign key, not a
-// hand-picked index, and (2) the asymmetry across the 4 demo risks is real
-// -- not every risk has a finding/mitigation, and this file must not paper
-// over that.
+// Locks in what this file's whole reason for existing rests on: every
+// connection is found via the real foreign key, not a hand-picked index --
+// if connectedDataModelMockData.ts's authored rows ever drift (a risk_id
+// typo, a removed row), this catches it as a mismatch rather than silently
+// rendering the wrong record or a false empty state.
 describe("connectedDataModelDemoData", () => {
   it("selects exactly the 4 intended risks, each a real MOCK_RISKS entry", () => {
     expect(CONNECTED_DEMO_RISKS).toHaveLength(4)
@@ -38,15 +38,33 @@ describe("connectedDataModelDemoData", () => {
     })
   })
 
-  it("does not fabricate uniformity -- at least one demo risk has no finding/mitigation", () => {
-    const withoutFinding = CONNECTED_DEMO_RISKS.filter((e) => e.finding === null)
-    const withoutMitigation = CONNECTED_DEMO_RISKS.filter(
-      (e) => e.mitigation === null
-    )
-    expect(withoutFinding.length).toBeGreaterThan(0)
-    expect(withoutMitigation.length).toBeGreaterThan(0)
-    // ...but every demo risk does have a KRI -- that's the one relationship
-    // real enough in the mock data to guarantee for all 4.
-    CONNECTED_DEMO_RISKS.forEach((entry) => expect(entry.kri).not.toBeNull())
+  it("gives every demo risk a real KRI, finding, and mitigation -- none fall back to null", () => {
+    // Each connection above is found via the record's own real FK, so this
+    // isn't asserting 4 hardcoded truths -- it's asserting
+    // connectedDataModelMockData.ts actually authored a row for every one
+    // of the 4 demo risk ids, not just the original CYB-014.
+    CONNECTED_DEMO_RISKS.forEach((entry) => {
+      expect(entry.kri).not.toBeNull()
+      expect(entry.finding).not.toBeNull()
+      expect(entry.mitigation).not.toBeNull()
+    })
+  })
+
+  it("keeps each finding's own content grounded in that specific risk's real description, not interchangeable filler", () => {
+    // A word from each risk's own real MOCK_RISKS description should show
+    // up somewhere in that risk's own finding -- catches an accidental
+    // copy-paste (e.g. every finding text ends up about the VPN
+    // concentrator) that toEqual/FK checks above wouldn't.
+    const topicWords: Record<string, string> = {
+      "risk-1": "VPN",
+      "risk-6": "segmentation",
+      "risk-2": "resin",
+      "risk-7": "crane",
+    }
+    CONNECTED_DEMO_RISKS.forEach((entry) => {
+      const word = topicWords[entry.risk.id]
+      const haystack = `${entry.finding!.title} ${entry.finding!.condition} ${entry.finding!.cause}`
+      expect(haystack.toLowerCase()).toContain(word.toLowerCase())
+    })
   })
 })

@@ -197,13 +197,15 @@
     "connectedDataModel": {
       "eyebrow": "Enregistrements liés",
       "title": "Un risque. Du contexte lié dans tout Qiyrix.",
-      "description": "Sélectionnez un risque pour voir les enregistrements qui lui sont liés ailleurs sur la plateforme — son KRI, et lorsqu'ils existent, un constat d'audit et une mesure d'atténuation. Chacun est un enregistrement distinct, relié au même risque.",
+      "description": "Sélectionnez un risque pour voir les enregistrements qui lui sont liés ailleurs sur la plateforme — son entrée de registre, son KRI, un constat d'audit et une mesure d'atténuation. Chacun est un enregistrement distinct, relié au même risque.",
       "hint": "Sélectionnez un risque ci-dessus, ou utilisez les flèches — les cartes ci-dessous affichent ce qui lui est réellement lié.",
       "selectorLabel": "Choisissez un risque pour voir ses enregistrements liés",
       "hubLabel": "Risque sélectionné",
+      "panelTitle": "Enregistrements liés à",
       "selectionAnnouncement": "Affichage des enregistrements liés à {{ref}}, {{name}}.",
       "linkedToRisk": "Lié à {{ref}}",
       "cards": {
+        "register": "Entrée du registre",
         "kri": "KRI",
         "finding": "Constat d'audit",
         "mitigation": "Mesure d'atténuation",
@@ -211,8 +213,14 @@
         "mitigationEmpty": "Aucune mesure d'atténuation liée à ce risque pour l'instant",
         "kriEmpty": "Aucun KRI lié à ce risque pour l'instant"
       },
+      "register": {
+        "status": "Statut",
+        "line": "Ligne de défense",
+        "updated": "Dernière mise à jour"
+      },
       "kri": {
-        "valueLine": "{{current}}{{unit}} · cible {{target}}{{unit}}"
+        "current": "Actuel",
+        "target": "Cible"
       },
       "mitigation": {
         "riskReduction": "{{percent}} % de réduction du risque"

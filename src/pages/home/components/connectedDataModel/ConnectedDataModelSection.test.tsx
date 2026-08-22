@@ -38,9 +38,14 @@ describe("ConnectedDataModelSection", () => {
     ).toHaveAttribute("aria-checked", "true")
   })
 
-  it("has no 4th 'Register entry' card and no 'Control' card -- only KRI/finding/mitigation slots", () => {
+  it("has a Register entry card (different fields than the hub) but no 'Control' card", () => {
     render(<ConnectedDataModelSection />)
-    expect(screen.queryByText(/register entry/i)).not.toBeInTheDocument()
+    expect(
+      screen.getByText("home.connectedDataModel.cards.register")
+    ).toBeInTheDocument()
+    // No standalone Control entity exists in this data model -- confirmed
+    // via source inspection (control_design_eff/control_operating_eff live
+    // directly on Risk) -- so there's deliberately no Control card here.
     expect(screen.queryByText(/^control$/i)).not.toBeInTheDocument()
   })
 
@@ -72,40 +77,40 @@ describe("ConnectedDataModelSection", () => {
     ).toBeInTheDocument()
   })
 
-  it("switching to a risk with no linked finding/mitigation shows the truthful empty states, not fabricated cards", async () => {
+  it("renders the register card's own real fields (status, line of defense) -- not a duplicate of the hub", () => {
+    render(<ConnectedDataModelSection />)
+    const defaultRisk = CONNECTED_DEMO_RISKS[0].risk
+    // Real Risk.status value, not a re-labeled/invented one.
+    expect(screen.getByText(defaultRisk.status, { exact: false })).toBeInTheDocument()
+  })
+
+  it("switching risk swaps every card's content -- register, KRI, finding, and mitigation all update together", async () => {
     const user = userEvent.setup()
     const { container } = render(<ConnectedDataModelSection />)
 
-    const partialEntry = CONNECTED_DEMO_RISKS.find(
-      (e) => e.finding === null && e.mitigation === null
-    )
-    expect(partialEntry).toBeDefined()
-    expect(partialEntry!.kri).not.toBeNull()
-
-    await user.click(screen.getByText(partialEntry!.risk.ref))
-
-    // Only the KRI slot has a real link now -> only 1 connector line, not 3
-    // -- the connector is semantic (a real relationship), not decoration.
-    expect(container.querySelectorAll("svg line")).toHaveLength(1)
-
-    expect(
-      screen.getByText("home.connectedDataModel.cards.findingEmpty")
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText("home.connectedDataModel.cards.mitigationEmpty")
-    ).toBeInTheDocument()
-    // The KRI slot, unlike finding/mitigation, is real for every demo risk
-    // -- confirms the empty state is genuinely per-record, not a global
-    // "nothing selected" fallback.
-    expect(screen.getByText(partialEntry!.kri!.name)).toBeInTheDocument()
-
-    // The previously-shown default risk's finding/mitigation content is
-    // gone, not just visually hidden -- the layout stayed the same 3-slot
-    // grid (no 4th slot appeared/disappeared) but the content genuinely
-    // changed.
     const defaultEntry = CONNECTED_DEMO_RISKS[0]
+    const nextEntry = CONNECTED_DEMO_RISKS[1]
+    // Every demo risk now has a real KRI/finding/mitigation -- all 4
+    // connector paths draw for any selection, not a variable count.
+    const connectorPaths = () =>
+      container.querySelectorAll(".animate-cdm-draw")
+    expect(connectorPaths()).toHaveLength(4)
+
+    await user.click(screen.getByText(nextEntry.risk.ref))
+
+    expect(connectorPaths()).toHaveLength(4)
+    expect(screen.getByText(nextEntry.kri!.name)).toBeInTheDocument()
+    expect(screen.getByText(nextEntry.finding!.ref)).toBeInTheDocument()
+    expect(screen.getByText(nextEntry.mitigation!.title)).toBeInTheDocument()
+
+    // The previously-shown default risk's content is gone, not just
+    // visually hidden -- the layout stayed the same 4-slot grid but the
+    // content genuinely changed.
     expect(
       screen.queryByText(defaultEntry.finding!.title)
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(defaultEntry.mitigation!.title)
     ).not.toBeInTheDocument()
   })
 
@@ -163,9 +168,14 @@ describe("ConnectedDataModelSection", () => {
     expect(first).toHaveFocus()
   })
 
-  it("only draws a connector line to slots that have a genuinely linked record", () => {
+  it("renders a KRI current-value trend sparkline without asserting specific dates", () => {
+    // The sparkline is illustrative motion toward the real current_value
+    // (KRI has no historical-value field anywhere in the schema/mock
+    // data) -- confirms it renders as an undated polyline, not something
+    // that could misread as a real dated history.
     const { container } = render(<ConnectedDataModelSection />)
-    // Default selection (CYB-014) has all 3 linked -> 3 lines.
-    expect(container.querySelectorAll("svg line")).toHaveLength(3)
+    const sparkline = container.querySelector("svg polyline")
+    expect(sparkline).toBeInTheDocument()
+    expect(screen.queryByText(/jan|feb|mar|apr|may|jun/i)).not.toBeInTheDocument()
   })
 })
