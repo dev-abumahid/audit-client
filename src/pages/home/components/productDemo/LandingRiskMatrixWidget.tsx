@@ -119,13 +119,8 @@ export default function LandingRiskMatrixWidget({
   return (
     <div className="flex h-full flex-col rounded-[11px] bg-card p-5">
       <div className="mb-1 flex items-center justify-between">
-        {/* Quality-bar-loop finding (accessibility judge, round 1): this was
-            a <p>, on the claim that a parent <h3> above this rail already
-            covered it -- no such heading exists (the section's own heading
-            here is an <h2> well above the rail, with aria-hidden labels in
-            between), so a screen-reader user navigating by heading could
-            reach RiskGraphWidget's own <h3> title but not this widget's.
-            Matches RiskGraphWidget's own real <h3> pattern now. */}
+        {/* Real heading, not <p> -- no parent heading covers this rail
+            (matches RiskGraphWidget's own <h3> right next to it). */}
         <h3 className="text-sm font-semibold text-foreground">
           {t("home.productDemo.riskMatrixClick.title")}
         </h3>

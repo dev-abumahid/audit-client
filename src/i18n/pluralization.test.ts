@@ -462,11 +462,8 @@ describe("locale resource pluralization/interpolation", () => {
     }
   })
 
-  // Quality-bar-loop round 1 (accessibility judge, landing page): the risk
-  // matrix demo's cell aria-label was a single hardcoded string with no
-  // plural forms -- every occupied/empty cell announced "1 risks in this
-  // cell" / "0 risks in this cell" to a screen reader, on 24 of the grid's
-  // 25 cells. Same _one/_other fix as the other counts in this file.
+  // Same _one/_other fix as the other counts in this file -- was a single
+  // hardcoded string, announcing "1 risks in this cell" to screen readers.
   it("pluralizes the landing page risk-matrix cell label correctly, including zero, in English and French", async () => {
     expect(
       t("home.productDemo.riskMatrixClick.cellLabel", { count: 0 })

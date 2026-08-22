@@ -164,9 +164,6 @@ describe("RoleScopedRegisterWidget", () => {
     ).toBeInTheDocument()
   })
 
-  // Quality-bar-loop round 1 (mobile + UX judges, independently confirmed):
-  // the role-picker pills were 28px tall and the Approve/Reject icon
-  // buttons were ~22x22px, both under the 44px touch-target guideline.
   it("gives the role-picker buttons a real 44px touch target", () => {
     render(<RoleScopedRegisterWidget />)
     const admin = screen.getByRole("radio", {
@@ -183,5 +180,14 @@ describe("RoleScopedRegisterWidget", () => {
     expect(approve.className).toContain("w-11")
     expect(reject.className).toContain("h-11")
     expect(reject.className).toContain("w-11")
+  })
+
+  // Round 2 finding: the resized Approve/Reject/role-picker controls made
+  // the plain Edit button (unchanged height) look like a visual outlier in
+  // the same Action column. Same min-h-11 as the others now.
+  it("gives the Edit button the same row height as the resized touch targets", () => {
+    render(<RoleScopedRegisterWidget />)
+    const edits = screen.getAllByText(EDIT_KEY)
+    edits.forEach((edit) => expect(edit.className).toContain("min-h-11"))
   })
 })

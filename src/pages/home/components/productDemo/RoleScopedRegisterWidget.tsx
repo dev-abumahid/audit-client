@@ -209,7 +209,7 @@ export default function RoleScopedRegisterWidget() {
                       canWrite && (
                         <button
                           type="button"
-                          className="focus-ring rounded-md border border-border px-2 py-1 text-[10px] text-foreground hover:bg-muted"
+                          className="focus-ring inline-flex min-h-11 items-center rounded-md border border-border px-2 text-[10px] text-foreground hover:bg-muted"
                         >
                           {t("home.productDemo.roleRegister.editButton")}
                         </button>
