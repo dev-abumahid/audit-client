@@ -45,6 +45,14 @@ export default function KriThresholdSliderWidget() {
   // Small 2-3px vertical dip on the status label, on top of the shared
   // value-flash background, so a threshold crossing never reads as a hard
   // snap -- a cheap approximation of a full crossfade.
+  //
+  // Design-team finding: the CSS transition below was duration-150 while
+  // this hold timer was 140ms -- shorter than the rAF delay (~16ms) plus
+  // the transition's own 150ms, so the timer fired and reversed the dip
+  // mid-animation on every crossing, producing a visible stutter instead
+  // of a clean down-then-up motion. Widened the hold to 160ms (paired with
+  // the CSS transition dropping to duration-100 below) so the down phase
+  // always finishes (~116ms) before the up phase starts.
   const [labelDipping, setLabelDipping] = useState(false)
   const prevStatusRef = useRef(status)
   useEffect(() => {
@@ -54,7 +62,7 @@ export default function KriThresholdSliderWidget() {
     // body, avoiding a synchronous cascading render (same pattern
     // useCountUp.ts uses).
     const frame = requestAnimationFrame(() => setLabelDipping(true))
-    const timer = setTimeout(() => setLabelDipping(false), 140)
+    const timer = setTimeout(() => setLabelDipping(false), 160)
     return () => {
       cancelAnimationFrame(frame)
       clearTimeout(timer)
@@ -73,7 +81,7 @@ export default function KriThresholdSliderWidget() {
           className={`value-flash rounded-full px-1 ${isFlashing ? "is-flashing" : ""}`}
         >
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase transition-all duration-150 ease-out motion-reduce:transition-none ${severityBadgeClasses(
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase transition-all duration-100 ease-out motion-reduce:transition-none ${severityBadgeClasses(
               meta.severityLevel
             )} ${labelDipping ? "translate-y-0.5 opacity-70" : "translate-y-0 opacity-100"}`}
           >

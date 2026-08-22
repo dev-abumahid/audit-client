@@ -69,6 +69,11 @@ export default function RoleScopedRegisterWidget() {
         {ROLES.map((r, index) => {
           const isActive = r === role
           return (
+            // active:scale-95 -- design-team finding: a color-only
+            // transition on click gave no tactile "this was pressed" cue,
+            // unlike the FAQ accordion's icon or the CDM cards' hover
+            // state elsewhere on the page. motion-reduce override keeps
+            // the reduced-motion opt-out intact.
             <button
               key={r}
               ref={(el) => {
@@ -80,7 +85,7 @@ export default function RoleScopedRegisterWidget() {
               tabIndex={isActive ? 0 : -1}
               onClick={() => setRole(r)}
               onKeyDown={(e) => handleKeyDown(e, index)}
-              className={`focus-ring rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-150 ease-out ${
+              className={`focus-ring rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 ease-out active:scale-95 motion-reduce:active:scale-100 ${
                 isActive
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/70"

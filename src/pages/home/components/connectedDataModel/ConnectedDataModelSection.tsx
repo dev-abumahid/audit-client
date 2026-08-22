@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
   MOCK_KRIS,
@@ -60,6 +60,20 @@ export default function ConnectedDataModelSection() {
     ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
     : ""
 
+  // Design-team finding: each card's inline transitionDelay style (used to
+  // stagger the entrance reveal) stayed applied forever once revealVisible
+  // flipped true -- so a hover months after page load still inherited the
+  // same up-to-450ms delay meant for the entrance animation, making hover
+  // feedback feel laggy. entranceSettled clears those inline delay styles
+  // once the (now-compressed, see below) reveal has actually finished, so
+  // hover/click transitions run at full speed afterward.
+  const [entranceSettled, setEntranceSettled] = useState(false)
+  useEffect(() => {
+    if (!revealVisible) return
+    const timer = setTimeout(() => setEntranceSettled(true), 800)
+    return () => clearTimeout(timer)
+  }, [revealVisible])
+
   return (
     // Landing overhaul PR11 (density/rhythm pass): a real border-t here --
     // ProductDemoSection, FeaturesSection, and this section were three
@@ -107,11 +121,16 @@ export default function ConnectedDataModelSection() {
             role="group"
             aria-label={t("home.connectedDataModel.groupLabel")}
           >
-            {/* Center: the risk itself */}
+            {/* Center: the risk itself. duration-300, down from 500ms --
+                design-team finding: this whole reveal (center -> lines ->
+                4 satellites) took ~1.5s to fully settle, well past what a
+                "reveal" needs before it starts feeling slow rather than
+                deliberate. Compressed alongside the rest of this
+                interaction's timings below to finish under 900ms. */}
             <button
               type="button"
               onClick={toggleHighlight}
-              className={`focus-ring mx-auto flex max-w-sm flex-col items-center gap-2 rounded-xl border border-border bg-card p-5 text-center shadow-lg shadow-foreground/[0.03] transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
+              className={`focus-ring mx-auto flex max-w-sm flex-col items-center gap-2 rounded-xl border border-border bg-card p-5 text-center shadow-lg shadow-foreground/[0.03] transition-all duration-300 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
                 revealVisible
                   ? "translate-y-0 opacity-100"
                   : "translate-y-3 opacity-0"
@@ -160,14 +179,14 @@ export default function ConnectedDataModelSection() {
                   x2={x}
                   y2="20"
                   pathLength={1}
-                  className={`stroke-primary/40 transition-[stroke-dashoffset] duration-700 ease-out motion-reduce:transition-none ${
+                  className={`stroke-primary/40 transition-[stroke-dashoffset] duration-400 ease-out motion-reduce:transition-none ${
                     revealVisible
                       ? "[stroke-dashoffset:0]"
                       : "[stroke-dashoffset:1]"
                   }`}
                   style={
                     revealVisible
-                      ? { transitionDelay: `${200 + i * 120}ms` }
+                      ? { transitionDelay: `${150 + i * 60}ms` }
                       : undefined
                   }
                   strokeWidth={0.5}
@@ -182,12 +201,16 @@ export default function ConnectedDataModelSection() {
               <button
                 type="button"
                 onClick={toggleHighlight}
-                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
+                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-300 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
                   revealVisible
                     ? "translate-y-0 opacity-100"
                     : "translate-y-2 opacity-0"
                 }`}
-                style={revealVisible ? { transitionDelay: "700ms" } : undefined}
+                style={
+                  revealVisible && !entranceSettled
+                    ? { transitionDelay: "300ms" }
+                    : undefined
+                }
               >
                 <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
                   {t("home.connectedDataModel.cards.register")}
@@ -209,12 +232,16 @@ export default function ConnectedDataModelSection() {
               <button
                 type="button"
                 onClick={toggleHighlight}
-                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
+                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-300 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
                   revealVisible
                     ? "translate-y-0 opacity-100"
                     : "translate-y-2 opacity-0"
                 }`}
-                style={revealVisible ? { transitionDelay: "820ms" } : undefined}
+                style={
+                  revealVisible && !entranceSettled
+                    ? { transitionDelay: "350ms" }
+                    : undefined
+                }
               >
                 <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
                   {t("home.connectedDataModel.cards.kri")}
@@ -233,12 +260,16 @@ export default function ConnectedDataModelSection() {
               <button
                 type="button"
                 onClick={toggleHighlight}
-                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
+                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-300 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
                   revealVisible
                     ? "translate-y-0 opacity-100"
                     : "translate-y-2 opacity-0"
                 }`}
-                style={revealVisible ? { transitionDelay: "940ms" } : undefined}
+                style={
+                  revealVisible && !entranceSettled
+                    ? { transitionDelay: "400ms" }
+                    : undefined
+                }
               >
                 <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
                   {t("home.connectedDataModel.cards.finding")}
@@ -257,13 +288,15 @@ export default function ConnectedDataModelSection() {
               <button
                 type="button"
                 onClick={toggleHighlight}
-                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-500 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
+                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-300 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
                   revealVisible
                     ? "translate-y-0 opacity-100"
                     : "translate-y-2 opacity-0"
                 }`}
                 style={
-                  revealVisible ? { transitionDelay: "1060ms" } : undefined
+                  revealVisible && !entranceSettled
+                    ? { transitionDelay: "450ms" }
+                    : undefined
                 }
               >
                 <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
