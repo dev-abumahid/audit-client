@@ -153,3 +153,28 @@ Trimmed comment-cruft (multi-line "Review finding on PR #XXXX" / "Phase E redesi
 Deliberately out of scope: the comment-cruft pattern is pervasive across ~12 more files in `src/pages/home/` (`ConnectedDataModelSection.tsx`, `FinalCTASection.tsx`, the `featuresShowcase/*Crop.tsx` files, etc.) that this round's judge never named -- not swept, per this loop's own rule against inventing scope beyond what a judge actually flagged. The shared `WidgetProps` type gap is also still open: the three rail widgets' `animate` prop shapes differ intentionally (two required, one optional with a default that's no longer serving a second mount point but still a reasonable fallback), so a forced single shared type wouldn't cleanly fit without either loosening real constraints or unnecessary test churn -- judged not worth forcing this round.
 
 QA gate: typecheck clean, 0 lint errors, 156 files / 2533 tests passing unmodified (comment-only diff, zero logic changes).
+
+## Round 4
+
+Diff confined to 4 comment-only edits with zero behavior change (full pre-existing suite passed unmodified) -- narrow-scoped per the skill's cost-saving rule: only re-ran **code quality**, the axis this round's diff was meant to address. All other 8 axes carried forward unchanged (zero code overlap with this round's diff): industry-standards (7), UX (8), efficiency (8), accessibility (9), visual/design polish (8), resilience (8), cross-view integration (9), mobile/responsive (8).
+
+| Axis | Score | Δ |
+|---|---|---|
+| Code quality/maintainability | 8/10 | +2 |
+| (all others) | carried forward | — |
+
+**Average: 8.11/10** (up from 7.89) — not converged (average < 9), but **every axis now clears the floor for the first time this loop**. stuck_streak resets to 0 across the board.
+
+### Judge findings
+
+**Code quality (6→8):** all 4 flagged files confirmed clean of comment-cruft on direct read -- what survives is terse, genuinely useful WHY-context, not history theater. Both factual corrections independently re-verified against the real codebase (no React Compiler plugin exists anywhere in the build; `LandingRiskMatrixWidget` really does mount exactly once now). Objective signal clean. Fresh full-tree scan confirms the known ~13-location comment-cruft backlog outside the 4 fixed files is real and unswept, but correctly not counted against this round's score (deliberate, logged scope boundary, not silently ignored).
+
+### Fix selected for round 5
+
+No axis below floor, no axis with a live stuck_streak. Priority falls to "furthest below target (9)": **industry-standards** (7) is the lowest score of any axis, ahead of the five axes tied at 8. Its most concrete still-open, contained finding: round 2's industry-standards judge flagged that testimonial cards pair 5-star ratings with quotes explicitly badged "ILLUSTRATIVE EXAMPLE" -- an odd combination (a rating implies a real measured opinion; category-reference sites like Vanta/Drata/Secureframe don't use star ratings on testimonials at all). Dropping the stars while keeping the quote + honesty badge is a small, contained, Tier 1 fix. The logo-wall and testimonial-photo findings remain open and large-scope (no real customers/photos to show yet).
+
+## Round 5
+
+Fix: removed the 5-star rating row from `TestimonialsSection.tsx`'s testimonial cards (the `Star` icon import, the `rating` field on the `Testimonial` interface/mock data, and the rendered star row) -- a rating implies a real measured opinion, at odds with the "ILLUSTRATIVE EXAMPLE" badge directly above it on the same card, and no reference site in the category (Vanta/Drata/Secureframe) uses star ratings on testimonials.
+
+QA gate: typecheck clean, 0 lint errors, 156 files / 2533 tests passing (5/5 in `TestimonialsSection.test.tsx`, no test depended on the removed rating). Live-verified: 0 star SVGs remain in the testimonials section, all 4 cards intact, console clean.

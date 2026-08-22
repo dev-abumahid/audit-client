@@ -1,11 +1,10 @@
 import { useRevealOnScroll } from "@/hooks/useRevealOnScroll"
 import { useRevealStagger } from "@/hooks/useRevealStagger"
-import { Quote, Star } from "lucide-react"
+import { Quote } from "lucide-react"
 import React from "react"
 import { useTranslation } from "react-i18next"
 
 interface Testimonial {
-  rating: number
   quote: string
   title: string
   company: string
@@ -16,7 +15,6 @@ const TestimonialsSection: React.FC = () => {
   const [revealRef, revealVisible] = useRevealOnScroll<HTMLDivElement>()
   const settled = useRevealStagger(revealVisible, 4)
   const testimonials: Testimonial[] = [0, 1, 2, 3].map((i) => ({
-    rating: 5,
     quote: t(`home.testimonials.reviews.${i}.quote`),
     title: t(`home.testimonials.reviews.${i}.name`),
     company: t(`home.testimonials.reviews.${i}.position`),
@@ -94,18 +92,10 @@ const TestimonialsSection: React.FC = () => {
                 {closeQuote}
               </p>
 
-              {/* Stars in primary teal, not amber: amber is used elsewhere
-                  on the page (risk matrix, compliance status chips) to
-                  specifically mean caution/medium-severity, so reusing it
-                  here as a generic "positive rating" signal would work
-                  against that established vocabulary. */}
-              <div className="mb-5 flex gap-1">
-                {[...Array(testimonial.rating)].map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-primary text-primary" />
-                ))}
-              </div>
-
-              {/* Author Info */}
+              {/* No star rating -- a 5-star score reads as a real measured
+                  opinion, at odds with the illustrative-example badge right
+                  above it. Reference sites (Vanta, Drata, Secureframe)
+                  don't put star ratings on testimonials either. */}
               <div className="border-t border-border pt-5">
                 <h3 className="text-base font-semibold text-foreground sm:text-lg">
                   {testimonial.title}
