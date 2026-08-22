@@ -40,8 +40,14 @@ const INTERACTIVE_DEMOS = [
   },
 ] as const
 
-// One numbered "moment" section: eyebrow number, heading, description,
-// illustrative-data pill, then the real widget in its glow-border shell.
+// One numbered "moment": eyebrow number, heading, description, pill, and
+// the real widget, laid out as two columns at lg+ (copy left, widget
+// right) rather than stacked -- design-team finding: centering each
+// moment in a narrow max-w-4xl column left ~270px of empty canvas on both
+// sides while the text sat entirely above the widget, making the section
+// that best proves the product real (live interactivity, not a static
+// screenshot) the emptiest-feeling one on the page. Mirrors HeroSection's
+// own copy-left/visual-right rhythm instead of inventing a third pattern.
 // Its own useRevealOnScroll (not the parent's) so each moment animates in
 // as the visitor actually scrolls to it, rather than all three firing
 // together the instant the section's top edge is reached.
@@ -64,26 +70,26 @@ function DemoMoment({
   return (
     <div
       ref={revealRef}
-      className={`border-t border-border pt-10 transition-all duration-700 ease-out first:border-t-0 first:pt-0 motion-reduce:transition-none ${
+      className={`border-t border-border pt-10 transition-all duration-700 ease-out first:border-t-0 first:pt-0 motion-reduce:transition-none lg:grid lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:gap-12 ${
         revealVisible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
       }`}
     >
-      <span className="font-heading text-sm text-muted-foreground italic">
-        {String(index + 1).padStart(2, "0")}
-      </span>
-      <h3 className="mt-2 font-heading text-xl font-bold text-balance text-foreground sm:text-2xl">
-        {t(headingKey)}
-      </h3>
-      <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-        {t(descriptionKey)}
-      </p>
-      <span className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-        {t(pillKey)}
-      </span>
+      <div>
+        <span className="font-heading text-sm text-muted-foreground italic">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        <h3 className="mt-2 font-heading text-xl font-bold text-balance text-foreground sm:text-2xl">
+          {t(headingKey)}
+        </h3>
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+          {t(descriptionKey)}
+        </p>
+        <span className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+          {t(pillKey)}
+        </span>
+      </div>
 
-      {/* w-full, not a narrower max-w cap -- FAQSection's own accordion
-          items fill their max-w-4xl container the same way. */}
-      <div className="mt-6 w-full rounded-xl bg-gradient-to-br from-accent/50 to-border/60 p-px shadow-lg shadow-foreground/[0.03]">
+      <div className="mt-6 w-full rounded-xl bg-gradient-to-br from-accent/50 to-border/60 p-px shadow-lg shadow-foreground/[0.03] lg:mt-0">
         <Widget />
       </div>
     </div>
@@ -233,11 +239,14 @@ const ProductDemoSection: React.FC = () => {
             ))}
           </div>
 
-          {/* Numbered moments (register -> KRI), centered rather than
-              spanning the section's full max-w-7xl. max-w-4xl matches
-              FAQSection's own centered-column width, not the narrower
-              max-w-3xl an earlier pass used. */}
-          <div className="mx-auto mt-16 max-w-4xl space-y-10 sm:mt-20">
+          {/* Numbered moments (register -> KRI). No max-w-4xl cap here
+              anymore -- design-team finding: centering each moment in a
+              narrow column while its own copy sat above the widget left
+              ~270px of dead space on both sides, twice. Now that
+              DemoMoment lays out copy+widget side by side, the moments
+              use the same full width as the rail above them instead of
+              shrinking into an island within it. */}
+          <div className="mt-16 space-y-14 sm:mt-20">
             {INTERACTIVE_DEMOS.map((demo, i) => (
               <DemoMoment
                 key={demo.id}
