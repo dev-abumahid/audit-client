@@ -410,6 +410,23 @@
   .stagger-4 { animation-delay: 240ms; }
   .stagger-5 { animation-delay: 300ms; }
   .stagger-6 { animation-delay: 360ms; }
+
+  /* Connected Data Model redesign: content-swap on risk selection --
+     deliberately lighter/faster than .animate-slide-up above (no blur,
+     6px not 16px, 200ms not 600ms) since this plays on every selection
+     change a visitor makes, not once on scroll-in. Applied via a React
+     `key` remount rather than a manually-toggled boolean, so it autoplays
+     without extra timer state (and without the react-hooks/set-state-in-
+     effect lint violation a JS-driven toggle would trip). */
+  .animate-cdm-swap {
+    animation: cdmSwap 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Same remount-driven approach as .animate-cdm-swap above, for the
+     connector lines' own "redraw" on selection change. */
+  .animate-cdm-draw {
+    animation: cdmDraw 300ms ease-out forwards;
+  }
 }
 
 /* =========================
@@ -435,15 +452,31 @@
   to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes cdmSwap {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cdmDraw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-up,
   .animate-slide-in-left,
-  .animate-scale-in {
+  .animate-scale-in,
+  .animate-cdm-swap {
     animation: none;
     opacity: 1;
     transform: none;
     filter: none;
+  }
+
+  .animate-cdm-draw {
+    animation: none;
+    stroke-dashoffset: 0;
   }
 }
 

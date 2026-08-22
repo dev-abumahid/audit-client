@@ -1,98 +1,90 @@
-import { useEffect, useState } from "react"
+import type { KeyboardEvent } from "react"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import {
-  MOCK_KRIS,
-  MOCK_RISKS,
-} from "@/dashboard/organization/overview/overviewMockData"
+import { kriStatusMeta, formatKriNumber } from "@/dashboard/organization/kri/kriConfig"
 import { useRevealOnScroll } from "@/hooks/useRevealOnScroll"
-import { kriStatusMeta } from "@/dashboard/organization/kri/kriConfig"
-import { riskCategoryLabel } from "@/utils/riskConfig"
 import { computeKriStatus } from "@/utils/kriStatus"
+import { riskCategoryLabel } from "@/utils/riskConfig"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
-import {
-  MOCK_AUDIT_FINDINGS,
-  MOCK_MITIGATIONS,
-} from "./connectedDataModelMockData"
+import { CONNECTED_DEMO_RISKS } from "./connectedDataModelDemoData"
 
-// Landing overhaul PR9 (theme-improvement-initiative): the signature
-// interaction. Replaces a paragraph-only "one data model underlies every
-// module" claim with something a visitor can click through -- the same
-// risk object (CYB-014 / "risk-1", already the hub RiskGraphWidget and the
-// KRI slider use) appears as a real register row, a real KRI, a real audit
-// finding, and a real mitigation. Real Risk->KRI is already-wired mock
-// data; Risk->AuditFinding/Mitigation use the PR8 mock rows authored
-// specifically to fill in a real, previously-empty field -- see that
-// file's own comment for the honesty breakdown. No "Control" hop: no
-// standalone Control entity exists in this data model (the closest
-// equivalent, control_design_eff/control_operating_eff, lives directly on
-// Risk), so it's dropped rather than invented.
+// Landing overhaul (connected-data-model redesign, replaces the PR9
+// single-risk fan-out): a visitor picks one of 4 real risks and sees the
+// records genuinely connected to it elsewhere in Qiyrix -- a KRI always
+// (every demo risk has one), an audit finding and a mitigation only where
+// one is actually linked (only CYB-014 has both; see
+// connectedDataModelDemoData.ts's own comment on why that's not fabricated
+// for symmetry). No "Register entry" card -- the hub below already shows
+// everything that card would (ref/name/category/severity), so it would be
+// a pure duplicate. No "Control" card -- no standalone Control entity
+// exists in this data model; control_design_eff/control_operating_eff live
+// directly on Risk instead.
 //
-// Deliberately deferred: a "pulse travels from center to related object"
-// animation layer. This reveal (center appears -> lines draw outward ->
-// satellites fade in) plus the click-driven simultaneous highlight is the
-// full scope for this first ship; the pulse is a stretch enhancement for
-// a later pass, not blocking here.
-const RISK = MOCK_RISKS[0]
-const KRI = MOCK_KRIS[0]
-const FINDING = MOCK_AUDIT_FINDINGS[0]
-const MITIGATION = MOCK_MITIGATIONS[0]
+// Copy correction: the PR9 copy claimed "the same risk object underlies...
+// updating one updates what everyone else sees" / "because it's the same
+// record" -- that's not what's actually happening. KRI/AuditFinding/
+// Mitigation are distinct records, each linked back to Risk by its own
+// foreign key (risk_id / linked_risk_id). The new copy says "connected
+// records," not "the same record."
+const DEFAULT_RISK_ID = CONNECTED_DEMO_RISKS[0].risk.id
 
 export default function ConnectedDataModelSection() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [revealRef, revealVisible] = useRevealOnScroll<HTMLDivElement>()
-  const [highlighted, setHighlighted] = useState(false)
+  const [selectedId, setSelectedId] = useState(DEFAULT_RISK_ID)
 
-  const severity = getRiskSeverityLevel(RISK.residual_score)
-  const kriStatus = computeKriStatus(
-    KRI.current_value,
-    KRI.alert_threshold,
-    KRI.target_value
+  const selectedIndex = CONNECTED_DEMO_RISKS.findIndex(
+    (entry) => entry.risk.id === selectedId
   )
-  const kriMeta = kriStatusMeta(kriStatus)
+  const selected = CONNECTED_DEMO_RISKS[selectedIndex]
+  const { risk, kri, finding, mitigation } = selected
+  const severity = getRiskSeverityLevel(risk.residual_score)
 
-  const toggleHighlight = () => setHighlighted((h) => !h)
+  const handleSelectorKeyDown = (
+    e: KeyboardEvent<HTMLButtonElement>,
+    index: number
+  ) => {
+    let nextIndex: number | null = null
+    if (e.key === "ArrowRight" || e.key === "ArrowDown")
+      nextIndex = (index + 1) % CONNECTED_DEMO_RISKS.length
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp")
+      nextIndex =
+        (index - 1 + CONNECTED_DEMO_RISKS.length) % CONNECTED_DEMO_RISKS.length
+    else if (e.key === "Home") nextIndex = 0
+    else if (e.key === "End") nextIndex = CONNECTED_DEMO_RISKS.length - 1
+    if (nextIndex === null) return
 
-  // Shared highlight ring applied identically to all 5 cards -- the
-  // simultaneity across every card is the point of the interaction, not a
-  // sequential cascade.
-  const highlightClass = highlighted
-    ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-    : ""
+    e.preventDefault()
+    const nextId = CONNECTED_DEMO_RISKS[nextIndex].risk.id
+    setSelectedId(nextId)
+    document.getElementById(`cdm-risk-${nextId}`)?.focus()
+  }
 
-  // Design-team finding: each card's inline transitionDelay style (used to
-  // stagger the entrance reveal) stayed applied forever once revealVisible
-  // flipped true -- so a hover months after page load still inherited the
-  // same up-to-450ms delay meant for the entrance animation, making hover
-  // feedback feel laggy. entranceSettled clears those inline delay styles
-  // once the (now-compressed, see below) reveal has actually finished, so
-  // hover/click transitions run at full speed afterward.
-  const [entranceSettled, setEntranceSettled] = useState(false)
-  useEffect(() => {
-    if (!revealVisible) return
-    const timer = setTimeout(() => setEntranceSettled(true), 800)
-    return () => clearTimeout(timer)
-  }, [revealVisible])
+  // 3 fixed slots regardless of what's actually connected -- keeps the
+  // layout from jumping when switching between a risk with all 3 records
+  // and one with only a KRI. Each slot renders either its real card or a
+  // genuinely-empty state; there's no 4th "Register entry" slot (dropped,
+  // see file header) so this is 3 wide, not 4.
+  const kriStatus = kri
+    ? computeKriStatus(kri.current_value, kri.alert_threshold, kri.target_value)
+    : null
+  const kriMeta = kriStatus ? kriStatusMeta(kriStatus) : null
+
+  // AuditFinding.severity is a plain `string` on the real type, not a
+  // SeverityLevel union -- `in` would walk SEVERITY_STYLES' prototype
+  // chain (e.g. a severity value of "toString" would incorrectly match),
+  // so this checks the object's own keys via hasOwnProperty instead.
+  const findingHasKnownSeverity = Boolean(
+    finding &&
+      Object.prototype.hasOwnProperty.call(SEVERITY_STYLES, finding.severity)
+  )
+  const findingSeverity = findingHasKnownSeverity
+    ? (finding!.severity as keyof typeof SEVERITY_STYLES)
+    : "neutral"
 
   return (
-    // Landing overhaul PR11 (density/rhythm pass): a real border-t here --
-    // ProductDemoSection, FeaturesSection, and this section were three
-    // consecutive bg-background, same-padding-scale sections in a row with
-    // no visual break, exactly the "wall" risk the v3 motion plan's
-    // density section warned about. Same thin-delineation technique
-    // already established (HeroFeatures' border-y, FinalCTASection's
-    // border-t) rather than a heavier background-color change, since this
-    // section's own content already carries plenty of visual weight.
     <section className="scroll-mt-16 border-t border-border bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-      {/* max-w-4xl -- matches FAQSection's own centered-column width.
-          Design-team finding: this section, FAQSection, and FinalCTASection
-          each picked a different max-w (5xl/4xl/3xl) independently, so their
-          left edges crept progressively narrower down the page with no
-          visual signal why. Standardized to the width FAQSection already
-          used; this section's own interactive grid already caps itself
-          tighter internally (max-w-3xl), so this only moves the header's
-          and card-row's shared centering point, not their real content
-          width. */}
       <div className="mx-auto max-w-4xl">
         <div className="mb-10 max-w-2xl sm:mb-14">
           <span className="text-xs font-semibold tracking-wide text-teal-700 uppercase dark:text-primary">
@@ -106,36 +98,86 @@ export default function ConnectedDataModelSection() {
           </p>
         </div>
 
-        <div ref={revealRef} className="relative">
-          {/* Review finding on PR #1021: aria-pressed on 5 buttons sharing
-              one boolean is a real ARIA misuse -- that attribute means "this
-              control's own state," not "an unrelated global flag happens to
-              be true." Replaced with a role="group" wrapper (these 5 cards
-              are simultaneous views of one record, not mutually-exclusive
-              tabs/radios -- DemoTabs'/RoleScopedRegisterWidget's own
-              tablist/radiogroup patterns don't fit) plus a single aria-live
-              region below announcing the outcome once, instead of 5
-              per-button "pressed"/"not pressed" toggles with no explanation
-              of why they're linked. */}
+        <div
+          ref={revealRef}
+          className={`transition-all duration-500 ease-out motion-reduce:transition-none ${
+            revealVisible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+          }`}
+        >
+          {/* Risk selector: a real radiogroup (exactly one risk selected at
+              a time), roving tabindex + arrow-key nav -- same established
+              pattern as RoleScopedRegisterWidget's role picker. */}
           <div
-            role="group"
-            aria-label={t("home.connectedDataModel.groupLabel")}
+            role="radiogroup"
+            aria-label={t("home.connectedDataModel.selectorLabel")}
+            className="grid grid-cols-2 gap-3 sm:grid-cols-4"
           >
-            {/* Center: the risk itself. duration-300, down from 500ms --
-                design-team finding: this whole reveal (center -> lines ->
-                4 satellites) took ~1.5s to fully settle, well past what a
-                "reveal" needs before it starts feeling slow rather than
-                deliberate. Compressed alongside the rest of this
-                interaction's timings below to finish under 900ms. */}
-            <button
-              type="button"
-              onClick={toggleHighlight}
-              className={`focus-ring mx-auto flex max-w-sm flex-col items-center gap-2 rounded-xl border border-border bg-card p-5 text-center shadow-lg shadow-foreground/[0.03] transition-all duration-300 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
-                revealVisible
-                  ? "translate-y-0 opacity-100"
-                  : "translate-y-3 opacity-0"
-              }`}
-            >
+            {CONNECTED_DEMO_RISKS.map((entry, index) => {
+              const isActive = entry.risk.id === selectedId
+              const entrySeverity = getRiskSeverityLevel(entry.risk.residual_score)
+              return (
+                <button
+                  key={entry.risk.id}
+                  id={`cdm-risk-${entry.risk.id}`}
+                  type="button"
+                  role="radio"
+                  aria-checked={isActive}
+                  tabIndex={isActive ? 0 : -1}
+                  onClick={(e) => {
+                    setSelectedId(entry.risk.id)
+                    // Review finding: Safari doesn't reliably focus a
+                    // <button> on mouse click, so roving tabindex (driven
+                    // purely by React state, not real DOM focus) could
+                    // leave a Safari mouse user's next Tab press landing
+                    // somewhere unpredictable. Force it explicitly, same
+                    // as the keyboard path below already does implicitly.
+                    e.currentTarget.focus()
+                  }}
+                  onKeyDown={(e) => handleSelectorKeyDown(e, index)}
+                  className={`focus-ring flex flex-col items-start gap-1.5 rounded-lg border bg-card p-3 text-left transition-all duration-150 ease-out motion-reduce:transition-none ${
+                    isActive
+                      ? "border-primary shadow-md shadow-primary/10"
+                      : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${severityBadgeClasses(entrySeverity)}`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${SEVERITY_STYLES[entrySeverity].dot}`}
+                    />
+                    {t(`riskLevel.${entrySeverity}`)}
+                  </span>
+                  <span className="font-mono-data text-xs font-bold text-foreground">
+                    {entry.risk.ref}
+                  </span>
+                  <p className="line-clamp-2 text-xs text-foreground">
+                    {entry.risk.name}
+                  </p>
+                  <span className="text-[10px] text-muted-foreground">
+                    {riskCategoryLabel(t, entry.risk.category)} ·{" "}
+                    {t("organization.riskRegister.residualScoreLabel")}{" "}
+                    {entry.risk.residual_score}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <span role="status" aria-live="polite" className="sr-only">
+            {t("home.connectedDataModel.selectionAnnouncement", {
+              ref: risk.ref,
+              name: risk.name,
+            })}
+          </span>
+
+          {/* Hub: compact summary of the selected risk, not a duplicate of
+              the selector card above -- single line of identity plus
+              severity/score, nothing else. key={selectedId} remounts on
+              every selection so .animate-cdm-swap actually replays. */}
+          <div key={selectedId} className="mt-6">
+            <h3 className="sr-only">{t("home.connectedDataModel.hubLabel")}</h3>
+            <div className="animate-cdm-swap mx-auto flex max-w-md flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-xl border border-primary/30 bg-card px-5 py-3 text-center shadow-lg shadow-foreground/[0.03]">
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase ${severityBadgeClasses(severity)}`}
               >
@@ -145,181 +187,167 @@ export default function ConnectedDataModelSection() {
                 {t(`riskLevel.${severity}`)}
               </span>
               <span className="font-mono-data text-sm font-bold text-foreground">
-                {RISK.ref}
+                {risk.ref}
               </span>
-              <h3 className="text-base font-semibold text-foreground sm:text-lg">
-                {RISK.name}
-              </h3>
+              <span className="text-sm font-medium text-foreground">
+                {risk.name}
+              </span>
               <span className="text-xs text-muted-foreground">
-                {riskCategoryLabel(t, RISK.category)}
+                {riskCategoryLabel(t, risk.category)}
               </span>
-            </button>
+            </div>
 
-            {/* Fan-out connector: only where the 4 satellites render in one
-              row (sm+, grid-cols-4 below) -- hidden on mobile where they
-              stack, same precedent as the other rails in this codebase
-              skipping grid states they can't cleanly represent. */}
+            {/* Connector: one line per slot that actually has a connected
+                record -- semantic (this record is related to this risk),
+                not decorative, so an empty slot gets no line. Hidden on
+                mobile where the cards stack, same precedent as PR9. */}
             <svg
               aria-hidden="true"
               viewBox="0 0 100 20"
               preserveAspectRatio="none"
-              // Review finding on PR #1021: at the old h-6 (24px) against a
-              // max-w-3xl (768px) container, preserveAspectRatio="none"'s
-              // non-uniform scale (~7.7x horizontal vs ~1.2x vertical)
-              // flattened the fan toward near-horizontal, close to a single
-              // smear instead of a visible V. Taller box narrows that gap
-              // without touching the coordinate math.
-              className="mx-auto hidden h-14 w-full max-w-3xl sm:block"
+              className="mx-auto hidden h-14 w-full max-w-2xl sm:block"
             >
-              {[12.5, 37.5, 62.5, 87.5].map((x, i) => (
-                <line
-                  key={x}
-                  x1="50"
-                  y1="0"
-                  x2={x}
-                  y2="20"
-                  pathLength={1}
-                  className={`stroke-primary/40 transition-[stroke-dashoffset] duration-400 ease-out motion-reduce:transition-none ${
-                    revealVisible
-                      ? "[stroke-dashoffset:0]"
-                      : "[stroke-dashoffset:1]"
-                  }`}
-                  style={
-                    revealVisible
-                      ? { transitionDelay: `${150 + i * 60}ms` }
-                      : undefined
-                  }
-                  strokeWidth={0.5}
-                  strokeDasharray={1}
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))}
+              {[
+                { x: 16.67, present: Boolean(kri) },
+                { x: 50, present: Boolean(finding) },
+                { x: 83.33, present: Boolean(mitigation) },
+              ]
+                .filter((slot) => slot.present)
+                .map((slot) => (
+                  <line
+                    key={slot.x}
+                    x1="50"
+                    y1="0"
+                    x2={slot.x}
+                    y2="20"
+                    pathLength={1}
+                    className="animate-cdm-draw stroke-primary/40"
+                    strokeWidth={0.5}
+                    strokeDasharray={1}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
             </svg>
 
-            <div className="mx-auto grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
-              {/* Register row */}
-              <button
-                type="button"
-                onClick={toggleHighlight}
-                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-300 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
-                  revealVisible
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-2 opacity-0"
-                }`}
-                style={
-                  revealVisible && !entranceSettled
-                    ? { transitionDelay: "300ms" }
-                    : undefined
-                }
-              >
-                <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                  {t("home.connectedDataModel.cards.register")}
-                </span>
-                <div className="mt-1.5 flex items-center gap-1.5">
-                  <span
-                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_STYLES[severity].dot}`}
-                  />
-                  <span className="font-mono-data text-[11px] text-muted-foreground">
-                    {RISK.ref}
-                  </span>
-                </div>
-                <p className="mt-1 line-clamp-2 text-xs text-foreground">
-                  {RISK.name}
-                </p>
-              </button>
-
-              {/* KRI */}
-              <button
-                type="button"
-                onClick={toggleHighlight}
-                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-300 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
-                  revealVisible
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-2 opacity-0"
-                }`}
-                style={
-                  revealVisible && !entranceSettled
-                    ? { transitionDelay: "350ms" }
-                    : undefined
-                }
+            <div className="mx-auto grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
+              {/* KRI -- always present for these 4 demo risks. */}
+              <div
+                className="animate-cdm-swap rounded-lg border border-border bg-card p-3 text-left"
+                style={{ animationDelay: "40ms" }}
               >
                 <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
                   {t("home.connectedDataModel.cards.kri")}
                 </span>
-                <p className="mt-1.5 line-clamp-1 text-xs text-foreground">
-                  {KRI.name}
-                </p>
-                <span
-                  className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase ${severityBadgeClasses(kriMeta.severityLevel)}`}
-                >
-                  {t(kriMeta.labelKey)}
-                </span>
-              </button>
+                {kri && kriMeta && kriStatus ? (
+                  <>
+                    <p className="mt-1.5 line-clamp-1 text-xs text-foreground">
+                      {kri.name}
+                    </p>
+                    <p className="mt-1 font-mono-data text-[11px] text-muted-foreground">
+                      {t("home.connectedDataModel.kri.valueLine", {
+                        current: formatKriNumber(kri.current_value, i18n.language),
+                        unit: kri.unit === "%" ? "%" : ` ${kri.unit}`,
+                        target: formatKriNumber(kri.target_value, i18n.language),
+                      })}
+                    </p>
+                    <span
+                      className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase ${severityBadgeClasses(kriMeta.severityLevel)}`}
+                    >
+                      {t(kriMeta.labelKey)}
+                    </span>
+                  </>
+                ) : (
+                  // Not reachable with today's 4 demo risks (all 4 have a
+                  // real KRI) -- kept for the same reason the finding/
+                  // mitigation slots have one: this component shouldn't
+                  // silently render a bare label if the underlying mock
+                  // data ever changes out from under it.
+                  <p className="mt-2 rounded border border-dashed border-border/70 px-2 py-2 text-[11px] text-muted-foreground/80">
+                    {t("home.connectedDataModel.cards.kriEmpty")}
+                  </p>
+                )}
+              </div>
 
-              {/* Audit finding */}
-              <button
-                type="button"
-                onClick={toggleHighlight}
-                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-300 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
-                  revealVisible
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-2 opacity-0"
-                }`}
-                style={
-                  revealVisible && !entranceSettled
-                    ? { transitionDelay: "400ms" }
-                    : undefined
-                }
+              {/* Audit finding -- only when linked_risk_id genuinely
+                  points at the selected risk. */}
+              <div
+                className="animate-cdm-swap rounded-lg border border-border bg-card p-3 text-left"
+                style={{ animationDelay: "90ms" }}
               >
                 <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
                   {t("home.connectedDataModel.cards.finding")}
                 </span>
-                <div className="mt-1.5 flex items-center gap-1.5">
-                  <span className="font-mono-data text-[11px] text-muted-foreground">
-                    {FINDING.ref}
-                  </span>
-                </div>
-                <p className="mt-1 line-clamp-2 text-xs text-foreground">
-                  {FINDING.title}
-                </p>
-              </button>
+                {finding ? (
+                  <>
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase ${severityBadgeClasses(findingSeverity)}`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${SEVERITY_STYLES[findingSeverity].dot}`}
+                        />
+                        {findingHasKnownSeverity
+                          ? t(`riskLevel.${finding.severity}`)
+                          : finding.severity}
+                      </span>
+                      <span className="font-mono-data text-[11px] text-muted-foreground">
+                        {finding.ref}
+                      </span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs text-foreground">
+                      {finding.title}
+                    </p>
+                    <span className="mt-1.5 inline-block rounded bg-muted px-1.5 py-0.5 font-mono-data text-[10px] text-muted-foreground">
+                      {t("home.connectedDataModel.linkedToRisk", {
+                        ref: risk.ref,
+                      })}
+                    </span>
+                  </>
+                ) : (
+                  <p className="mt-2 rounded border border-dashed border-border/70 px-2 py-2 text-[11px] text-muted-foreground/80">
+                    {t("home.connectedDataModel.cards.findingEmpty")}
+                  </p>
+                )}
+              </div>
 
-              {/* Mitigation */}
-              <button
-                type="button"
-                onClick={toggleHighlight}
-                className={`focus-ring rounded-lg border border-border bg-card p-3 text-left transition-all duration-300 ease-out hover:border-primary/40 hover:shadow-md motion-reduce:transition-none ${highlightClass} ${
-                  revealVisible
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-2 opacity-0"
-                }`}
-                style={
-                  revealVisible && !entranceSettled
-                    ? { transitionDelay: "450ms" }
-                    : undefined
-                }
+              {/* Mitigation -- only when risk_id genuinely points at the
+                  selected risk. */}
+              <div
+                className="animate-cdm-swap rounded-lg border border-border bg-card p-3 text-left"
+                style={{ animationDelay: "140ms" }}
               >
                 <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
                   {t("home.connectedDataModel.cards.mitigation")}
                 </span>
-                <p className="mt-1.5 line-clamp-2 text-xs text-foreground">
-                  {MITIGATION.title}
-                </p>
-                <span className="mt-1.5 inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase">
-                  {MITIGATION.mitigation_type}
-                </span>
-              </button>
+                {mitigation ? (
+                  <>
+                    <p className="mt-1.5 line-clamp-2 text-xs text-foreground">
+                      {mitigation.title}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <span className="inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase">
+                        {mitigation.status.replace(/_/g, " ")}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {t("home.connectedDataModel.mitigation.riskReduction", {
+                          percent: Math.round(mitigation.risk_reduction * 100),
+                        })}
+                      </span>
+                    </div>
+                    <span className="mt-1.5 inline-block rounded bg-muted px-1.5 py-0.5 font-mono-data text-[10px] text-muted-foreground">
+                      {t("home.connectedDataModel.linkedToRisk", {
+                        ref: risk.ref,
+                      })}
+                    </span>
+                  </>
+                ) : (
+                  <p className="mt-2 rounded border border-dashed border-border/70 px-2 py-2 text-[11px] text-muted-foreground/80">
+                    {t("home.connectedDataModel.cards.mitigationEmpty")}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-
-          {/* Single announcement instead of 5 per-button aria-pressed
-              toggles -- fires once when the shared state actually changes,
-              not on every unrelated focus move. */}
-          <span role="status" aria-live="polite" className="sr-only">
-            {highlighted
-              ? t("home.connectedDataModel.highlightAnnouncement")
-              : ""}
-          </span>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
             {t("home.connectedDataModel.hint")}

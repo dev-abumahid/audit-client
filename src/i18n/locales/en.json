@@ -195,17 +195,27 @@
       ]
     },
     "connectedDataModel": {
-      "eyebrow": "One shared record",
-      "title": "Click a risk. Watch it show up everywhere.",
-      "description": "The same risk object underlies its register entry, its KRI, an audit finding, and a mitigation — updating one updates what everyone else sees.",
-      "hint": "Click any card — the same risk reference highlights across all five, because it's the same record.",
-      "groupLabel": "Risk CYB-014 shown across the register, a KRI, an audit finding, and a mitigation",
-      "highlightAnnouncement": "Highlighting the same risk across all 5 linked records.",
+      "eyebrow": "Connected records",
+      "title": "One risk. Connected context across Qiyrix.",
+      "description": "Select a risk to see the records connected to it elsewhere in the platform — its KRI, and where they exist, an audit finding and a mitigation. Each is its own record, linked back to the same risk.",
+      "hint": "Select a risk above, or use the arrow keys — the cards below update to show what's genuinely connected to it.",
+      "selectorLabel": "Choose a risk to see its connected records",
+      "hubLabel": "Selected risk",
+      "selectionAnnouncement": "Showing records connected to {{ref}}, {{name}}.",
+      "linkedToRisk": "Linked to {{ref}}",
       "cards": {
-        "register": "Register entry",
         "kri": "KRI",
         "finding": "Audit finding",
-        "mitigation": "Mitigation"
+        "mitigation": "Mitigation",
+        "findingEmpty": "No audit finding linked to this risk yet",
+        "mitigationEmpty": "No mitigation linked to this risk yet",
+        "kriEmpty": "No KRI linked to this risk yet"
+      },
+      "kri": {
+        "valueLine": "{{current}}{{unit}} · target {{target}}{{unit}}"
+      },
+      "mitigation": {
+        "riskReduction": "{{percent}}% risk reduction"
       }
     },
     "testimonials": {

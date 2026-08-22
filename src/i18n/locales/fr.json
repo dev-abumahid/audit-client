@@ -195,17 +195,27 @@
       ]
     },
     "connectedDataModel": {
-      "eyebrow": "Un enregistrement partagé",
-      "title": "Cliquez sur un risque. Regardez-le apparaître partout.",
-      "description": "Le même objet risque sous-tend son entrée dans le registre, son KRI, un constat d'audit et une mesure d'atténuation — en mettre un à jour met à jour ce que tous les autres voient.",
-      "hint": "Cliquez sur une carte — la même référence de risque s'illumine sur les cinq, car c'est le même enregistrement.",
-      "groupLabel": "Risque CYB-014 présenté dans le registre, un KRI, un constat d'audit et une mesure d'atténuation",
-      "highlightAnnouncement": "Mise en évidence du même risque sur les 5 enregistrements liés.",
+      "eyebrow": "Enregistrements liés",
+      "title": "Un risque. Du contexte lié dans tout Qiyrix.",
+      "description": "Sélectionnez un risque pour voir les enregistrements qui lui sont liés ailleurs sur la plateforme — son KRI, et lorsqu'ils existent, un constat d'audit et une mesure d'atténuation. Chacun est un enregistrement distinct, relié au même risque.",
+      "hint": "Sélectionnez un risque ci-dessus, ou utilisez les flèches — les cartes ci-dessous affichent ce qui lui est réellement lié.",
+      "selectorLabel": "Choisissez un risque pour voir ses enregistrements liés",
+      "hubLabel": "Risque sélectionné",
+      "selectionAnnouncement": "Affichage des enregistrements liés à {{ref}}, {{name}}.",
+      "linkedToRisk": "Lié à {{ref}}",
       "cards": {
-        "register": "Entrée du registre",
         "kri": "KRI",
         "finding": "Constat d'audit",
-        "mitigation": "Mesure d'atténuation"
+        "mitigation": "Mesure d'atténuation",
+        "findingEmpty": "Aucun constat d'audit lié à ce risque pour l'instant",
+        "mitigationEmpty": "Aucune mesure d'atténuation liée à ce risque pour l'instant",
+        "kriEmpty": "Aucun KRI lié à ce risque pour l'instant"
+      },
+      "kri": {
+        "valueLine": "{{current}}{{unit}} · cible {{target}}{{unit}}"
+      },
+      "mitigation": {
+        "riskReduction": "{{percent}} % de réduction du risque"
       }
     },
     "testimonials": {
