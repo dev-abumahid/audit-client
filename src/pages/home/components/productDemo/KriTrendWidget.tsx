@@ -4,26 +4,17 @@ import { KRI_STATUS_META } from "@/dashboard/organization/kri/kriConfig"
 import { useCountUp } from "@/hooks/useCountUp"
 import { SEVERITY_STYLES } from "@/utils/severityStyles"
 
-// Phase E redesign: KRI unit is "count", the current_value is real mock
-// data (MOCK_KRIS[0]), but there's no historical time-series in the mock
-// fixtures to plot a real trend line from -- KRIs only ever store a single
-// current_value snapshot. This hand-authored point sequence is an
-// illustrative trend SHAPE (rising toward the real current_value, crossing
-// the real alert_threshold partway through), not derived data -- same
-// "real endpoint, illustrative path" approach as HeroProductVisual's own
-// CATEGORY_BARS heights.
+// KRI unit is "count", current_value is real mock data, but KRIs only
+// store a single snapshot -- no historical time-series exists to plot a
+// real trend from. This point sequence is an illustrative SHAPE (rising
+// toward the real current_value, crossing the real alert_threshold), not
+// derived data.
 const KRI = MOCK_KRIS[0]
 const TREND_POINTS = [4, 5, 6, 6, 9, 11, 12, KRI.current_value]
 
-// Review finding: this card was the only one of the 3-widget rail with no
-// closing border-t legend/caption row (the rail's risk-matrix card has its
-// own selected-risks result panel, RiskGraphWidget has a caption), so the
-// CSS grid's default
-// items-stretch left a large blank block below its shorter content once
-// stretched to match its taller siblings' height. Real content, not
-// padding: the same KRI_STATUS_META the live KRI dashboard uses for its
-// own status badges, keyed the same OK/WARNING/ALERT order the threshold
-// slider demo's own target/alert copy already implies.
+// Same KRI_STATUS_META the live KRI dashboard uses for its own status
+// badges, OK/WARNING/ALERT order matching the slider demo's own
+// target/alert copy.
 const STATUS_LEGEND_ORDER = ["OK", "WARNING", "ALERT"] as const
 
 const CHART_WIDTH = 280

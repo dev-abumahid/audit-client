@@ -9,17 +9,11 @@ import {
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
 import { SEVERITY_STYLES, type SeverityLevel } from "@/utils/severityStyles"
 
-// Landing overhaul PR3: the clickable risk-matrix demo, built on top of
-// riskMatrixCalc.ts's extraction so cell placement and color are the exact
-// same real logic RiskMatrixView.tsx uses -- not a second hand-copied
-// implementation like the deleted static RiskMatrixWidget used to (buckets
-// by its own bucketIndex() and colors by top-risk-severity, a different,
-// also-real, but different approach; see PR #1028's own removal note).
-// Fixed size=5, no URL sync, no size toggle, no group-by-category, no site
-// filter, no Escape handling -- a marketing demo doesn't need
-// RiskMatrixPage's full chrome, and forking those out here (rather than
-// threading them as optional props into the real page) avoids adding dead
-// conditional branches to production code for a landing-only use case.
+// The clickable risk-matrix demo, built on riskMatrixCalc.ts's extraction
+// so cell placement and color are the exact same real logic
+// RiskMatrixView.tsx uses. Fixed size=5, no URL sync, no size toggle, no
+// group-by-category, no site filter, no Escape handling -- a marketing
+// demo doesn't need RiskMatrixPage's full chrome.
 const GRID_SIZE = 5
 const LABELS = LABEL_KEYS[GRID_SIZE]
 // Longest per-cell entrance delay (last cell, see delayMs below) plus the
@@ -54,11 +48,10 @@ function buildGrid(): number[][][] {
   return grid
 }
 
-// This widget mounts twice: once animated (the static 3-widget rail, which
-// passes `animate={revealVisible}` for a staggered cell entrance) and once
-// static (DemoMoment's "register"/"KRI" moments below, no animate prop --
-// DemoMoment's own ancestor fade already handles that mount's reveal).
-// Default true keeps the second mount at full visibility immediately.
+// Mounts in ProductDemoSection's static rail, which passes
+// `animate={revealVisible}` for a staggered cell entrance. `animate`
+// defaults to true so cells render at full visibility if the prop is
+// ever omitted.
 export default function LandingRiskMatrixWidget({
   animate = true,
 }: {
@@ -69,15 +62,10 @@ export default function LandingRiskMatrixWidget({
     null
   )
 
-  // Review finding on PR #1028: the per-cell `transitionDelay` below is
-  // only meaningful for the one-time staggered entrance -- without this,
-  // `animate` (true for the rest of this component's life once the rail's
-  // reveal fires, and true from the very first render in the DemoMoment
-  // mount) kept the delay applied forever, so every later hover on a cell
-  // inherited up to ENTERED_AFTER_MS of lag from `transition-all` covering
-  // the hover scale/brightness too. `entered` flips once, after the
-  // longest cell's entrance finishes, and from then on no cell gets an
-  // inline transitionDelay regardless of `animate`.
+  // `entered` flips once, after the longest cell's staggered-entrance
+  // delay finishes -- past that point no cell gets an inline
+  // transitionDelay, so `transition-all` (which also covers hover
+  // scale/brightness) never inherits a stale entrance delay on hover.
   const [entered, setEntered] = useState(animate)
   useEffect(() => {
     if (!animate || entered) return
@@ -96,11 +84,8 @@ export default function LandingRiskMatrixWidget({
   return (
     <div className="flex h-full flex-col rounded-[11px] bg-card p-5">
       <div className="mb-1 flex items-center justify-between">
-        {/* Review finding on PR #1025: demoted from <h3> -- this widget only
-            mounts under ProductDemoSection's DemoMoment, which already
-            supplies the real section <h3> right above it. See
-            KriThresholdSliderWidget's identical fix for the full
-            reasoning. */}
+        {/* <p>, not <h3> -- a card label, not a document heading; the
+            section's own <h3> above this rail already carries that role. */}
         <p className="text-sm font-semibold text-foreground">
           {t("home.productDemo.riskMatrixClick.title")}
         </p>
@@ -157,14 +142,11 @@ export default function LandingRiskMatrixWidget({
                       : "translate-y-1 scale-90 opacity-0"
                   } ${isSelected ? "ring-2 ring-primary ring-offset-1" : ""} ${
                     hasRisks
-                      ? // Review finding on PR #1016: getMatrixColor's contract
-                        // expects row 0 = lowest likelihood (same convention
-                        // mapRiskToCell returns), but `rowIdx` here is the
-                        // DISPLAY row (flipped so row 0 renders at the top =
-                        // highest likelihood). Passing it straight through
-                        // inverted the color ramp on the likelihood axis.
-                        // RiskMatrixView.tsx un-flips the same way before its
-                        // own getMatrixColor call (matrixSize - 1 - reversedRow).
+                      ? // getMatrixColor expects row 0 = lowest likelihood
+                        // (mapRiskToCell's convention), but `rowIdx` here is
+                        // the flipped DISPLAY row (row 0 = highest
+                        // likelihood) -- un-flip before calling it, same as
+                        // RiskMatrixView.tsx does.
                         `${getMatrixColor(GRID_SIZE - 1 - rowIdx, colIdx, GRID_SIZE)} text-foreground`
                       : "bg-muted/30 text-muted-foreground"
                   }`}

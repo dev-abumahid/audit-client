@@ -1,44 +1,40 @@
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { MOCK_KRIS } from "@/dashboard/organization/overview/overviewMockData"
-import { formatKriNumber, kriStatusMeta } from "@/dashboard/organization/kri/kriConfig"
+import {
+  formatKriNumber,
+  kriStatusMeta,
+} from "@/dashboard/organization/kri/kriConfig"
 import { useValueChangeFlash } from "@/hooks/useValueChangeFlash"
 import { computeKriStatus } from "@/utils/kriStatus"
 import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
 
-// Landing overhaul PR2 (theme-improvement-initiative): the plan describes
-// this as "drag a threshold." Built it as dragging the CURRENT READING
-// instead, against the KRI's real fixed target/alert_threshold -- with
-// target_value(0) < alert_threshold(5) < current_value(14) all fixed,
-// dragging only alert_threshold can never reach OK (current > target
-// always, and OK depends solely on current vs target, not the threshold).
-// Dragging the reading is also the more realistic product moment: watching
-// a live value cross configured thresholds, not watching the thresholds
-// themselves move.
+// Drags the CURRENT READING, not the threshold -- with target_value(0) <
+// alert_threshold(5) < current_value(14) all fixed, dragging only the
+// threshold could never reach OK (current > target always). Also the more
+// realistic product moment: watching a live value cross configured
+// thresholds, not watching the thresholds themselves move.
 const KRI = MOCK_KRIS[0]
 const SLIDER_MAX = 20
 
 // Same two-phase background flash as the real KRI dashboard
-// (useValueChangeFlash + .value-flash / .is-flashing in index.css) --
-// reused as a single-item list (this hook's documented shape is "any list
-// of items keyed by id with a comparable value," and one status counts).
+// (useValueChangeFlash + .value-flash/.is-flashing), reused as a
+// single-item list -- the hook's shape is "items keyed by id with a
+// comparable value," and one status counts.
 export default function KriThresholdSliderWidget() {
   const { t, i18n } = useTranslation()
   const [currentValue, setCurrentValue] = useState(KRI.current_value)
-  const status = computeKriStatus(currentValue, KRI.alert_threshold, KRI.target_value)
+  const status = computeKriStatus(
+    currentValue,
+    KRI.alert_threshold,
+    KRI.target_value
+  )
   const meta = kriStatusMeta(status)
 
-  // Review finding on PR #1014: useValueChangeFlash's own doc comment says
-  // `items` should be a referentially-stable array so a new reference alone
-  // doesn't trigger the hook's "check for changes" diff. An explicit
-  // useMemo here conflicts with this codebase's React Compiler (it flags
-  // "existing manual memoization could not be preserved" and skips
-  // optimizing the component) -- the compiler already auto-memoizes this
-  // array literal by its `status` dependency, same as every other inline
-  // array/object in this codebase relies on it for. Not a functional bug
-  // either way: the hook diffs by value internally, so a non-memoized
-  // reference just means the diff effect re-runs redundantly, never
-  // incorrectly.
+  // useValueChangeFlash wants a referentially-stable `items` array; this
+  // inline array literal isn't memoized. Not a functional bug -- the hook
+  // diffs by value internally, so an unstable reference just re-runs the
+  // diff effect redundantly, never incorrectly.
   const { flashingKeys } = useValueChangeFlash(
     [{ key: "kri-slider-status", status }],
     (item) => item.key,
@@ -46,22 +42,17 @@ export default function KriThresholdSliderWidget() {
   )
   const isFlashing = flashingKeys.has("kri-slider-status")
 
-  // Small 2-3px vertical dip on the status label itself, on top of the
-  // shared value-flash background -- v3 motion plan: "the status text does
-  // a tiny 2-3px vertical swap ... while the chip background softly
-  // changes," so a threshold crossing never reads as a hard snap. A true
-  // crossfade would need the old and new label mounted simultaneously;
-  // this dip-and-settle is the cheap, honest approximation of that same
-  // "not a hard snap" intent.
+  // Small 2-3px vertical dip on the status label, on top of the shared
+  // value-flash background, so a threshold crossing never reads as a hard
+  // snap -- a cheap approximation of a full crossfade.
   const [labelDipping, setLabelDipping] = useState(false)
   const prevStatusRef = useRef(status)
   useEffect(() => {
     if (prevStatusRef.current === status) return
     prevStatusRef.current = status
-    // Deferred via requestAnimationFrame rather than called synchronously in
-    // the effect body -- same React Compiler cascading-render rule
-    // (react-hooks/set-state-in-effect) useCountUp.ts's own effect runs
-    // into, same fix.
+    // requestAnimationFrame defers the state update out of the effect
+    // body, avoiding a synchronous cascading render (same pattern
+    // useCountUp.ts uses).
     const frame = requestAnimationFrame(() => setLabelDipping(true))
     const timer = setTimeout(() => setLabelDipping(false), 140)
     return () => {
@@ -73,13 +64,8 @@ export default function KriThresholdSliderWidget() {
   return (
     <div className="rounded-[11px] bg-card p-5">
       <div className="mb-1 flex items-center justify-between gap-3">
-        {/* Review finding on PR #1025: this widget only ever mounts under
-            ProductDemoSection's DemoMoment, which already renders the real
-            <h3> section heading right above it -- an inner <h3> here put
-            two headings back-to-back in the screen-reader outline with no
-            structural distinction between them. Demoted to a <p> with the
-            same visual weight; the section heading now carries the actual
-            heading semantics. */}
+        {/* <p>, not <h3> -- this widget only mounts under DemoMoment, which
+            already supplies the real <h3> section heading above it. */}
         <p className="text-sm font-semibold text-foreground">
           {t("home.productDemo.kriSlider.title")}
         </p>
@@ -91,7 +77,9 @@ export default function KriThresholdSliderWidget() {
               meta.severityLevel
             )} ${labelDipping ? "translate-y-0.5 opacity-70" : "translate-y-0 opacity-100"}`}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${SEVERITY_STYLES[meta.severityLevel].dot}`} />
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${SEVERITY_STYLES[meta.severityLevel].dot}`}
+            />
             {t(meta.labelKey)}
           </span>
         </div>

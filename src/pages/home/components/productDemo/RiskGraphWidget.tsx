@@ -7,23 +7,13 @@ import {
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { buildRiskCorrelationEdges, computePageRank } from "@/utils/pageRank"
 
-// Phase E redesign: a simplified, statically-laid-out stand-in for the real
-// RiskGraphPage (force-simulated, draggable, zoomable -- far more than a
-// marketing visual needs). Nodes/edges are the SAME real mock data
-// (MOCK_RISK_LINKS/MOCK_RISKS) the real Overview/Correlation-Matrix pages
-// use for their own "Tipping Points" panel: CYB-014 is the deliberate hub
-// three other risks link to (AMPLIFIES/CAUSES/CORRELATES), so this graph's
-// "most-connected node" claim is real, not staged for this widget alone.
-//
-// Visual-fidelity pass: the first version used solid-fill circles colored
-// by SEVERITY with no PageRank score and one flat edge color -- the real
-// RiskGraphPage rings its nodes (fill+stroke both the node's CATEGORY
-// color), labels each with its actual computed PageRank score, and colors
-// edges by link_type (CAUSES/AMPLIFIES/CORRELATES, three different
-// colors + a legend). This version borrows all of that, including running
-// the SAME computePageRank algorithm (src/utils/pageRank.ts) the real
-// Overview/RiskGraph pages use, on this widget's own small node/edge set --
-// a real (if tiny) PageRank result, not a fabricated "PR:100" label.
+// A simplified, statically-laid-out stand-in for the real RiskGraphPage
+// (force-simulated/draggable -- unnecessary for a marketing visual). Real
+// mock data (MOCK_RISK_LINKS/MOCK_RISKS) and the same computePageRank
+// algorithm the real Overview/RiskGraph pages use -- a real, if tiny,
+// PageRank result, not a fabricated label. CYB-014 is the real hub three
+// other risks link to. Node rings, PageRank labels, and edge-type legend
+// colors match RiskGraphPage's own rendering.
 const HUB_REF = "CYB-014"
 
 const LINK_TYPE_COLOR: Record<string, string> = {
@@ -46,10 +36,8 @@ const VIEW_SIZE = 280
 const CENTER = VIEW_SIZE / 2
 
 function buildNodes(): { hub: GraphNode; satellites: GraphNode[] } | null {
-  // Review finding (round 1): a non-null assertion on this lookup would
-  // crash the entire public homepage if a future mock-data edit ever
-  // removed the hub risk. Returns null and the component renders nothing
-  // instead.
+  // Returns null (renders nothing) rather than asserting -- a future
+  // mock-data edit removing the hub risk shouldn't crash the homepage.
   const hubRisk = MOCK_RISKS.find((r) => r.ref === HUB_REF)
   if (!hubRisk) return null
 
@@ -57,11 +45,8 @@ function buildNodes(): { hub: GraphNode; satellites: GraphNode[] } | null {
     MOCK_RISKS.find((r) => r.ref === link.source_ref)
   ).filter((r): r is NonNullable<typeof r> => !!r)
 
-  // Review finding on PR #1011: on this specific 4-node/3-edge fixture,
-  // two of the three satellites (SUP-007, FIN-009) genuinely tie at the
-  // same normalized score -- both have zero inbound edges, so PageRank
-  // correctly gives them equal rank. Confirmed correct by hand-solving the
-  // fixed point, not a bug or a placeholder value repeating by accident.
+  // SUP-007 and FIN-009 tie at the same normalized score on this fixture
+  // (both have zero inbound edges) -- correct PageRank output, not a bug.
   const allRefs = [hubRisk.ref, ...satelliteRisks.map((r) => r.ref)]
   const edges = buildRiskCorrelationEdges(MOCK_RISK_LINKS)
   const rawScores = computePageRank(allRefs, edges)
@@ -148,10 +133,8 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
                 animate ? "[stroke-dashoffset:0]" : "[stroke-dashoffset:1]"
               }`}
               style={animate ? { transitionDelay: `${i * 150}ms` } : undefined}
-              // Review finding on PR #1011: strokeWidth/strokeOpacity are
-              // now the same values RiskGraphPage.tsx's own unselected-edge
-              // rendering uses (RiskGraphLinkLine's `color`/isCascade=false
-              // branch), not an approximation.
+              // strokeWidth/strokeOpacity match RiskGraphPage's own
+              // unselected-edge rendering.
               strokeWidth={3}
               strokeOpacity={0.35}
               strokeDasharray={1}
@@ -223,11 +206,9 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
             className="fill-none stroke-risk-critical/40 motion-safe:animate-ping"
             style={{ animationDuration: "2.5s" }}
           />
-          {/* fillOpacity 0.25 is a deliberate in-between value, not a real-
-              page match: RiskGraphPage's own node has an unselected state
-              (0.15) and a selected/cascaded state (0.35), but this hub has
-              no click-driven selection state to map to -- it's always the
-              visual focus by design. Sits between the two intentionally. */}
+          {/* fillOpacity 0.25 sits between RiskGraphPage's unselected
+              (0.15) and selected (0.35) states -- this hub has no
+              selection state of its own, it's always the visual focus. */}
           <circle
             cx={hub.x}
             cy={hub.y}

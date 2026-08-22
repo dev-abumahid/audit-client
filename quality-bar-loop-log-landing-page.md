@@ -139,3 +139,17 @@ User reviewed a reference mockup of the static 3-widget rail (equal-height cards
 Per this loop's own principle of responding immediately to user redirection, this took priority over the mechanical round-3 pick (which would have been code quality, per stuck_streak). Root-cause fix, not a re-introduction of the old bug: each of the three rail widgets became its own `flex h-full flex-col` with its closing legend/results-panel wrapped in `mt-auto`, so when the grid returns to `items-stretch` (equal heights), the extra stretched space is absorbed by the flex gap pushing the footer down — not left as a trailing empty rectangle. Verified live via `getBoundingClientRect()`: all three cards now measure exactly 529.35px (equal), and the gap between each card's last element and its bottom edge is exactly 20px everywhere (the shell's own `p-5` padding, not dead space).
 
 Code quality's fix (the comment-cruft sweep) is deferred to round 3.
+
+## Round 3
+
+Selected fix per mechanical priority: code quality is the only axis below floor (6/10, stuck_streak=1 after round 2) -- its own remaining findings are the fix.
+
+Trimmed comment-cruft (multi-line "Review finding on PR #XXXX" / "Phase E redesign" blocks) to terse what+why in the 4 files the judge explicitly named:
+- `RiskGraphWidget.tsx` -- 5 blocks trimmed (top-of-file, non-null-assertion rationale, PageRank-tie rationale, strokeWidth-match rationale, fillOpacity-match rationale).
+- `KriThresholdSliderWidget.tsx` -- 4 blocks trimmed, including a real factual correction: one comment claimed "this codebase's React Compiler" auto-memoizes an array literal at runtime -- false (no `babel-plugin-react-compiler` anywhere in this build, confirmed in round 1's efficiency judge findings). Corrected to state the array simply isn't memoized (harmless, since the hook diffs by value). Cross-checked `useRevealOnScroll.ts`/`useCountUp.ts`'s similar-sounding comments -- both correctly scope the claim to the real `eslint-plugin-react-hooks` v7 lint rule, not a runtime transform, so left unchanged.
+- `KriTrendWidget.tsx` -- 2 blocks trimmed.
+- `LandingRiskMatrixWidget.tsx` -- 5 blocks trimmed, including round 2's own self-inflicted "see PR #1028" regression, plus two comments that had gone stale after round 1's matrix-consolidation (one claimed this widget "mounts twice," including under DemoMoment -- it no longer does, DemoMoment's matrix moment was removed in round 1; fixed to describe the actual single (rail) mount point).
+
+Deliberately out of scope: the comment-cruft pattern is pervasive across ~12 more files in `src/pages/home/` (`ConnectedDataModelSection.tsx`, `FinalCTASection.tsx`, the `featuresShowcase/*Crop.tsx` files, etc.) that this round's judge never named -- not swept, per this loop's own rule against inventing scope beyond what a judge actually flagged. The shared `WidgetProps` type gap is also still open: the three rail widgets' `animate` prop shapes differ intentionally (two required, one optional with a default that's no longer serving a second mount point but still a reasonable fallback), so a forced single shared type wouldn't cleanly fit without either loosening real constraints or unnecessary test churn -- judged not worth forcing this round.
+
+QA gate: typecheck clean, 0 lint errors, 156 files / 2533 tests passing unmodified (comment-only diff, zero logic changes).
