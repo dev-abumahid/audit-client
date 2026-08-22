@@ -32,7 +32,7 @@ describe("resolveNodeOverlaps", () => {
       makeNode({ x: 100, y: 100, radius: 10 }),
       makeNode({ x: 105, y: 100, radius: 10 }),
     ]
-    resolveNodeOverlaps(nodes, 4, 320)
+    resolveNodeOverlaps(nodes, 4, 320, 320)
     const dist = Math.hypot(nodes[0].x - nodes[1].x, nodes[0].y - nodes[1].y)
     expect(dist).toBeGreaterThanOrEqual(24 - 0.01)
   })
@@ -42,7 +42,7 @@ describe("resolveNodeOverlaps", () => {
       makeNode({ x: 50, y: 50, radius: 10 }),
       makeNode({ x: 50, y: 50, radius: 10 }),
     ]
-    resolveNodeOverlaps(nodes, 4, 320)
+    resolveNodeOverlaps(nodes, 4, 320, 320)
     expect(Number.isFinite(nodes[0].x)).toBe(true)
     expect(Number.isFinite(nodes[0].y)).toBe(true)
     expect(Number.isFinite(nodes[1].x)).toBe(true)
@@ -56,7 +56,7 @@ describe("resolveNodeOverlaps", () => {
       makeNode({ x: 20, y: 20, radius: 8 }),
       makeNode({ x: 200, y: 200, radius: 8 }),
     ]
-    resolveNodeOverlaps(nodes, 4, 320)
+    resolveNodeOverlaps(nodes, 4, 320, 320)
     expect(nodes[0].x).toBe(20)
     expect(nodes[0].y).toBe(20)
     expect(nodes[1].x).toBe(200)
@@ -71,12 +71,31 @@ describe("resolveNodeOverlaps", () => {
       makeNode({ x: 2, y: 160, radius: 15 }),
       makeNode({ x: 6, y: 160, radius: 15 }),
     ]
-    resolveNodeOverlaps(nodes, 4, 320)
+    resolveNodeOverlaps(nodes, 4, 320, 320)
     for (const n of nodes) {
       expect(n.x - n.radius).toBeGreaterThanOrEqual(-0.01)
       expect(n.x + n.radius).toBeLessThanOrEqual(320.01)
       expect(n.y - n.radius).toBeGreaterThanOrEqual(-0.01)
       expect(n.y + n.radius).toBeLessThanOrEqual(320.01)
+    }
+  })
+
+  // CEO feedback: RiskGraphWidget now sizes its viewBox to the card's real
+  // measured (non-square) height via ResizeObserver, so boundsX/boundsY can
+  // legitimately differ -- confirms each axis clamps to its OWN bound, not
+  // the other axis's (a single square `bounds` would have silently clamped
+  // the taller axis too tight, undoing the whole point of the resize).
+  it("clamps x and y to their own independent bound on a non-square box", () => {
+    const nodes = [
+      makeNode({ x: 2, y: 2, radius: 15 }),
+      makeNode({ x: 6, y: 6, radius: 15 }),
+    ]
+    resolveNodeOverlaps(nodes, 4, 200, 500)
+    for (const n of nodes) {
+      expect(n.x - n.radius).toBeGreaterThanOrEqual(-0.01)
+      expect(n.x + n.radius).toBeLessThanOrEqual(200.01)
+      expect(n.y - n.radius).toBeGreaterThanOrEqual(-0.01)
+      expect(n.y + n.radius).toBeLessThanOrEqual(500.01)
     }
   })
 })
@@ -176,6 +195,45 @@ describe("RiskGraphWidget", () => {
       expect(cyb014Node).toHaveAttribute("opacity", "1")
     })
 
+    // CEO feedback: dimming everyone else wasn't itself a visible "these
+    // are correlated" signal -- the clicked node gets a primary ring
+    // (unchanged), and its real correlated neighbor now gets its own
+    // destructive-colored dashed ring too, same two-ring distinction
+    // RiskGraphPage's own isSelected/isCascaded split renders, so clicking
+    // a node on THIS graph reads the same as clicking a matrix cell.
+    it("gives a directly-selected node a primary ring and its correlated neighbor a destructive ring", async () => {
+      const user = userEvent.setup()
+      const { container } = render(<RiskGraphWidget animate={false} />)
+
+      const sup007Text = Array.from(container.querySelectorAll("text")).find(
+        (el) => el.textContent === "SUP-007"
+      )
+      const sup007Node = sup007Text?.closest('[role="button"]')
+      await user.click(sup007Node!)
+
+      const ringStroke = (node: Element | null | undefined) =>
+        node
+          ?.querySelector("circle animate")
+          ?.closest("circle")
+          ?.getAttribute("stroke")
+
+      expect(ringStroke(sup007Node)).toBe("hsl(var(--primary))")
+
+      const cyb014Text = Array.from(container.querySelectorAll("text")).find(
+        (el) => el.textContent === "CYB-014"
+      )
+      const cyb014Node = cyb014Text?.closest('[role="button"]')
+      expect(ringStroke(cyb014Node)).toBe("hsl(var(--destructive))")
+
+      // OPS-004 isn't correlated to SUP-007 at all -- no ring of either
+      // color.
+      const ops004Text = Array.from(container.querySelectorAll("text")).find(
+        (el) => el.textContent === "OPS-004"
+      )
+      const ops004Node = ops004Text?.closest('[role="button"]')
+      expect(ringStroke(ops004Node)).toBeUndefined()
+    })
+
     it("deselects and clears dimming when the same node is clicked again", async () => {
       const user = userEvent.setup()
       const { container } = render(<RiskGraphWidget animate={false} />)
@@ -197,6 +255,32 @@ describe("RiskGraphWidget", () => {
       const ops004Node = ops004Text?.closest('[role="button"]')
       expect(ops004Node).toHaveAttribute("opacity", "1")
     })
+  })
+
+  // CEO feedback: a previous attempt at motion on this graph left a
+  // pulsing "appears and expands and disappears" ring on the hub node
+  // (Tailwind's animate-ping) that nothing else on this card does --
+  // removed outright, not tuned. Regression guard: no element in this
+  // graph opts into that Tailwind utility class anymore.
+  it("does not render the removed pulsing hub-ring animation", () => {
+    const { container } = render(<RiskGraphWidget animate={false} />)
+    expect(container.querySelector(".animate-ping")).not.toBeInTheDocument()
+  })
+
+  // CEO feedback: the real dashboard graph (RiskGraphPage.tsx) draws real
+  // arrowhead markers on its directed CAUSES/AMPLIFIES edges -- this
+  // widget's lines used to be plain, arrowless strokes regardless of
+  // link_type. Confirms a real CAUSES link in the fixture (CYB-009 causes
+  // CYB-014, per riskMatrixMockData) now carries one of the two
+  // marker-end ids this widget defines.
+  it("marks a real CAUSES edge with an arrowhead marker", () => {
+    const causesLink = MOCK_RISK_LINKS.find((l) => l.link_type === "CAUSES")
+    expect(causesLink).toBeDefined()
+    const { container } = render(<RiskGraphWidget animate={false} />)
+    const line = container.querySelector(
+      `line[marker-end="url(#riskGraphWidgetArrowCauses)"]`
+    )
+    expect(line).not.toBeNull()
   })
 })
 

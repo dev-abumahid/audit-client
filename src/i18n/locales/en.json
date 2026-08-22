@@ -151,8 +151,12 @@
           "action": "Action"
         },
         "editButton": "Edit",
+        "approveButton": "Approve",
+        "rejectButton": "Reject",
+        "pendingBadge": "Pending approval",
         "captionReadOnly": "Light User can view the register but can't edit it — the Action column disappears.",
-        "captionSameGate": "Admin and Lead Auditor share this specific access gate today; finer per-row access exists server-side."
+        "captionAdmin": "This risk was submitted for approval — as Admin you can approve or reject it, a Lead Auditor can't.",
+        "captionLeadAuditor": "You submitted this risk for approval — only an Admin can approve or reject it from here."
       }
     },
     "featureSection": {

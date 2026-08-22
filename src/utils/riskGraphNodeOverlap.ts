@@ -22,10 +22,15 @@ export interface OverlapNode {
 // resolveOverlaps uses, just run a second time here against the caller's
 // actual per-node radii, which are the real ground truth for what counts
 // as "touching."
+// boundsX/boundsY (not a single square `bounds`): RiskGraphWidget now
+// sizes its viewBox to the card's real measured width/height (a
+// ResizeObserver-driven rectangle, not a fixed square), so the two axes
+// can legitimately clamp to different limits.
 export function resolveNodeOverlaps<T extends OverlapNode>(
   nodes: T[],
   margin: number,
-  bounds: number
+  boundsX: number,
+  boundsY: number
 ) {
   const maxPasses = 10
   for (let pass = 0; pass < maxPasses; pass++) {
@@ -61,7 +66,7 @@ export function resolveNodeOverlaps<T extends OverlapNode>(
   // (center +/- radius) to stay fully inside [0, bounds] as a final pass,
   // after topology-driven separation has already settled.
   for (const n of nodes) {
-    n.x = Math.min(Math.max(n.x, n.radius), bounds - n.radius)
-    n.y = Math.min(Math.max(n.y, n.radius), bounds - n.radius)
+    n.x = Math.min(Math.max(n.x, n.radius), boundsX - n.radius)
+    n.y = Math.min(Math.max(n.y, n.radius), boundsY - n.radius)
   }
 }

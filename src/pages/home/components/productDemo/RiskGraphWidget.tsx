@@ -1,5 +1,5 @@
 import { Zap } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { MOCK_RISK_LINKS } from "@/dashboard/organization/overview/overviewMockData"
 import { MOCK_RISKS } from "@/dashboard/organization/risk/riskMatrixMockData"
@@ -32,7 +32,15 @@ interface GraphNode {
   pageRankDisplay: number
 }
 
-const VIEW_SIZE = 320
+// CEO feedback (round after #1045): the graph used a fixed square viewBox
+// (320x320), so on the two-column rail -- where `items-stretch` (default)
+// makes this card match LandingRiskMatrixWidget's own, often-taller,
+// height -- the svg stayed a small square pinned to the top, leaving a
+// large dead gap above the bottom-pinned legend/caption. DEFAULT_BOX is
+// only the size used until the ResizeObserver below reports the card's
+// real rendered dimensions (including in tests, where the stub observer
+// never fires -- see src/test/setup.ts).
+const DEFAULT_BOX = { width: 320, height: 320 }
 const PADDING = 28
 const MIN_RADIUS = 8
 const MAX_RADIUS = 20
@@ -59,10 +67,17 @@ function connectedRefs(ref: string, links: RiskLink[]): Set<string> {
   return set
 }
 
-function buildGraph(): {
-  nodes: GraphNode[]
-  nodeByRef: Map<string, GraphNode>
-} | null {
+interface GraphTopology {
+  positions: Record<string, { x: number; y: number }>
+  width: number
+  height: number
+  pageRankByRef: Record<string, number>
+}
+
+// The topology/PageRank/force-layout math never depends on the card's
+// rendered size -- only the final rescale into a viewBox does (see
+// layoutNodesInBox below). Split out so a resize doesn't re-run d3-force.
+function buildTopology(): GraphTopology | null {
   if (MOCK_RISKS.length === 0) return null
 
   const refs = MOCK_RISKS.map((r) => r.ref)
@@ -71,6 +86,10 @@ function buildGraph(): {
   const maxScore = Math.max(...Object.values(rawScores), 0)
   const normalize = (ref: string) =>
     maxScore > 0 ? Math.round((rawScores[ref] / maxScore) * 100) : 0
+  const pageRankByRef: Record<string, number> = {}
+  refs.forEach((ref) => {
+    pageRankByRef[ref] = normalize(ref)
+  })
 
   // Same real force-directed layout RiskGraphPage.tsx (the authenticated
   // dashboard) uses -- d3-force seeded from a deterministic category-ring
@@ -88,26 +107,40 @@ function buildGraph(): {
     }))
   )
 
-  // Rescales the layout's own raw coordinate space (sized for a full
-  // dashboard canvas, e.g. up to ~900x600+) down into this compact card's
-  // fixed VIEW_SIZE, preserving relative spacing/topology exactly --
-  // uniform scale on both axes, centered.
-  const scale = Math.min(
-    (VIEW_SIZE - PADDING * 2) / layout.width,
-    (VIEW_SIZE - PADDING * 2) / layout.height
-  )
-  const offsetX = (VIEW_SIZE - layout.width * scale) / 2
-  const offsetY = (VIEW_SIZE - layout.height * scale) / 2
+  return {
+    positions: layout.positions,
+    width: layout.width,
+    height: layout.height,
+    pageRankByRef,
+  }
+}
+
+// Rescales the topology's own raw coordinate space (sized for a full
+// dashboard canvas, e.g. up to ~900x600+) into `box` -- the card's real
+// measured width/height, not a fixed square -- so the graph actually uses
+// whatever room the two-column rail's `items-stretch` gives it. scaleX/
+// scaleY are independent (not a single uniform min() scale) so the graph
+// fills a non-square box completely rather than letterboxing to whichever
+// axis is tighter; node radii stay circular (only positions stretch), so
+// this doesn't visibly distort individual nodes, just their spacing.
+function layoutNodesInBox(
+  topology: GraphTopology,
+  box: { width: number; height: number }
+): { nodes: GraphNode[]; nodeByRef: Map<string, GraphNode> } {
+  const scaleX = (box.width - PADDING * 2) / topology.width
+  const scaleY = (box.height - PADDING * 2) / topology.height
+  const offsetX = (box.width - topology.width * scaleX) / 2
+  const offsetY = (box.height - topology.height * scaleY) / 2
 
   const nodes: GraphNode[] = MOCK_RISKS.map((risk) => {
-    const pos = layout.positions[risk.ref]
-    const pageRankDisplay = normalize(risk.ref)
+    const pos = topology.positions[risk.ref]
+    const pageRankDisplay = topology.pageRankByRef[risk.ref] ?? 0
     return {
       ref: risk.ref,
       name: risk.name,
       category: risk.category,
-      x: pos.x * scale + offsetX,
-      y: pos.y * scale + offsetY,
+      x: pos.x * scaleX + offsetX,
+      y: pos.y * scaleY + offsetY,
       radius: MIN_RADIUS + (pageRankDisplay / 100) * (MAX_RADIUS - MIN_RADIUS),
       pageRankDisplay,
     }
@@ -116,7 +149,7 @@ function buildGraph(): {
   // See resolveNodeOverlaps' own comment: guarantees no two circles touch
   // using THIS widget's real radii, independent of whatever separation
   // assumption computeRiskGraphLayout's own raw-unit constants made.
-  resolveNodeOverlaps(nodes, 4, VIEW_SIZE)
+  resolveNodeOverlaps(nodes, 4, box.width, box.height)
 
   return { nodes, nodeByRef: new Map(nodes.map((n) => [n.ref, n])) }
 }
@@ -135,7 +168,32 @@ export default function RiskGraphWidget({
   onSelectionChange?: (refs: Set<string>) => void
 }) {
   const { t } = useTranslation()
-  const built = useMemo(() => buildGraph(), [])
+  const topology = useMemo(() => buildTopology(), [])
+
+  // Measures the svg's own wrapper div -- see DEFAULT_BOX's comment on why
+  // this starts square and only becomes the card's real rectangle once the
+  // observer fires (immediately after mount in a real browser; never, in a
+  // test environment that stubs ResizeObserver as a no-op).
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [box, setBox] = useState(DEFAULT_BOX)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      const { width, height } = entry.contentRect
+      if (width > 0 && height > 0) setBox({ width, height })
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  const built = useMemo(
+    () => (topology ? layoutNodesInBox(topology, box) : null),
+    [topology, box]
+  )
+
   const [localSelectedRefs, setLocalSelectedRefs] = useState<Set<string>>(
     new Set()
   )
@@ -145,9 +203,9 @@ export default function RiskGraphWidget({
   const { nodes, nodeByRef } = built
   const prLabel = t("organization.riskGraph.pagerankAbbrLabel")
 
-  // The highest-PageRank node gets the hub's visual treatment (ping ring,
-  // Zap icon) -- computed from the real score rather than a hardcoded ref,
-  // so this stays correct if the mock data or link set ever changes.
+  // The highest-PageRank node gets the hub's visual treatment (Zap icon)
+  // -- computed from the real score rather than a hardcoded ref, so this
+  // stays correct if the mock data or link set ever changes.
   const hubRef = nodes.reduce((best, n) =>
     n.pageRankDisplay > best.pageRankDisplay ? n : best
   ).ref
@@ -173,15 +231,33 @@ export default function RiskGraphWidget({
     return hasSelection && !highlighted.has(ref)
   }
 
-  // An edge only stays bright when it touches an actually-selected ref
-  // directly -- not just "somewhere in the highlighted set" -- so
-  // selecting a node doesn't light up an edge between two of its OTHER
-  // neighbors that has nothing to do with the click itself.
-  function isEdgeDimmed(link: RiskLink): boolean {
-    if (!hasSelection) return false
+  // CEO feedback: clicking a node on this graph directly already selected
+  // it and dimmed unrelated nodes (isNodeDimmed above) -- but nothing
+  // marked the CORRELATED nodes as visibly highlighted the way
+  // RiskGraphPage's own cascade ring does, so the effect read as "everyone
+  // else got dimmer" rather than "these are correlated." isNodeCascaded is
+  // every highlighted node except the one actually clicked/selected --
+  // same distinction RiskGraphPage's own isSelected/isCascaded split
+  // makes, just against this widget's broader bidirectional
+  // connectedRefs() (any link direction/type) rather than that page's
+  // downstream-only cascade, since this demo is showing "what's related,"
+  // not simulating a specific impact cascade.
+  function isNodeCascaded(ref: string): boolean {
+    return hasSelection && highlighted.has(ref) && !selectedRefs.has(ref)
+  }
+
+  // An edge only brightens/stays undimmed when it touches an actually-
+  // selected ref directly -- not just "somewhere in the highlighted set"
+  // -- so selecting a node doesn't light up an edge between two of its
+  // OTHER neighbors that has nothing to do with the click itself.
+  function isEdgeHighlighted(link: RiskLink): boolean {
     return (
-      !selectedRefs.has(link.source_ref) && !selectedRefs.has(link.target_ref)
+      hasSelection &&
+      (selectedRefs.has(link.source_ref) || selectedRefs.has(link.target_ref))
     )
+  }
+  function isEdgeDimmed(link: RiskLink): boolean {
+    return hasSelection && !isEdgeHighlighted(link)
   }
 
   const selectedNode = nodes.find((n) => selectedRefs.has(n.ref)) ?? null
@@ -202,149 +278,259 @@ export default function RiskGraphWidget({
         </span>
       </div>
 
-      <svg
-        viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`}
-        className="w-full"
-        role="img"
-        aria-label={t("home.productDemo.riskGraph.chartLabel", {
-          name: nodeByRef.get(hubRef)?.name ?? hubRef,
-          count: linksToHub.length,
-        })}
-      >
-        {MOCK_RISK_LINKS.map((link, i) => {
-          const source = nodeByRef.get(link.source_ref)
-          const target = nodeByRef.get(link.target_ref)
-          if (!source || !target) return null
-          const dimmed = isEdgeDimmed(link)
-          return (
-            <line
-              key={link.id}
-              x1={source.x}
-              y1={source.y}
-              x2={target.x}
-              y2={target.y}
-              pathLength={1}
-              stroke={LINK_TYPE_COLOR[link.link_type] ?? "hsl(var(--primary))"}
-              className={`transition-[stroke-dashoffset,stroke-opacity] duration-700 ease-out motion-reduce:transition-none ${
-                animate ? "[stroke-dashoffset:0]" : "[stroke-dashoffset:1]"
-              }`}
-              style={animate ? { transitionDelay: `${i * 150}ms` } : undefined}
-              // strokeWidth/strokeOpacity match RiskGraphPage's own
-              // unselected-edge rendering; dimmed drops opacity further,
-              // same floor RiskGraphPage's own cascade-dim uses.
-              strokeWidth={dimmed ? 2 : 3}
-              strokeOpacity={dimmed ? 0.15 : 0.35}
-              strokeDasharray={1}
-            />
-          )
-        })}
-
-        {nodes.map((node, i) => {
-          const color = categoryColor(node.category)
-          const dimmed = isNodeDimmed(node.ref)
-          const isSelected = selectedRefs.has(node.ref)
-          const isHub = node.ref === hubRef
-          return (
-            <g
-              key={node.ref}
-              tabIndex={0}
-              role="button"
-              aria-pressed={isSelected}
-              aria-label={t("home.productDemo.riskGraph.nodeAriaLabel", {
-                ref: node.ref,
-                name: node.name,
-              })}
-              onClick={() => selectRef(node.ref)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault()
-                  selectRef(node.ref)
-                }
-              }}
-              className={`focus-ring-svg origin-center cursor-pointer transition-all duration-500 ease-out motion-reduce:transition-none ${
-                animate ? "scale-100 opacity-100" : "scale-50 opacity-0"
-              }`}
-              style={
-                animate
-                  ? { transitionDelay: `${i * 60}ms`, transformBox: "fill-box" }
-                  : { transformBox: "fill-box" }
-              }
-              opacity={dimmed ? 0.3 : 1}
+      {/* CEO feedback: this used to be a fixed-square svg directly in flow,
+          so on the two-column rail (items-stretch makes this card match
+          LandingRiskMatrixWidget's often-taller height) it stayed a small
+          square pinned to the top, leaving a dead gap before the
+          mt-auto-pinned legend below. flex-1 grows this wrapper to fill
+          that gap; the ResizeObserver above reports its real box, which
+          layoutNodesInBox uses so the graph actually fills it. */}
+      <div ref={containerRef} className="min-h-[200px] w-full flex-1">
+        <svg
+          viewBox={`0 0 ${box.width} ${box.height}`}
+          className="h-full w-full"
+          role="img"
+          aria-label={t("home.productDemo.riskGraph.chartLabel", {
+            name: nodeByRef.get(hubRef)?.name ?? hubRef,
+            count: linksToHub.length,
+          })}
+        >
+          {/* Arrowhead markers for the two directed link types (CAUSES/
+              AMPLIFIES) -- CORRELATES has no inherent direction, same as
+              RiskGraphPage.tsx, so it stays arrowless. A dimmed variant per
+              type (not just the line's own strokeOpacity) because a shared
+              <marker> can't itself react to one particular line's dimmed
+              state -- same reasoning and markerUnits="userSpaceOnUse" (so
+              the arrowhead's size doesn't also multiply with the line's own
+              strokeWidth change) as RiskGraphPage's own defs. */}
+          <defs>
+            <marker
+              id="riskGraphWidgetArrowCauses"
+              viewBox="0 0 10 7"
+              refX="9"
+              refY="3.5"
+              markerUnits="userSpaceOnUse"
+              markerWidth="6"
+              markerHeight="4.2"
+              orient="auto"
             >
-              {isHub && (
-                <circle
-                  cx={node.x}
-                  cy={node.y}
-                  r={node.radius + 6}
-                  className="fill-none stroke-risk-critical/40 motion-safe:animate-ping"
-                  style={{ animationDuration: "2.5s" }}
-                />
-              )}
-              {/* Selected-node highlight ring, same dashed/animated
-                  treatment RiskGraphPage's own cascade circle uses. */}
-              {isSelected && (
-                <circle
-                  cx={node.x}
-                  cy={node.y}
-                  r={node.radius + 5}
-                  fill="none"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  strokeDasharray="4 2"
-                >
-                  <animate
-                    attributeName="stroke-dashoffset"
-                    values="0;12"
-                    dur="1s"
-                    repeatCount="indefinite"
-                  />
-                </circle>
-              )}
-              {/* fillOpacity/strokeOpacity match RiskGraphPage.tsx's own
-                  unselected-node ring exactly (RiskGraphNode's base
-                  circle) for a linked node; the hub gets a brighter fill
-                  (0.25, between RiskGraphPage's unselected/selected
-                  states) since it's always at least the visual focus. */}
-              <circle
-                cx={node.x}
-                cy={node.y}
-                r={node.radius}
-                fill={color}
-                fillOpacity={isHub ? 0.25 : 0.15}
-                stroke={color}
-                strokeWidth={isHub ? 2.5 : 2}
-                strokeOpacity={isHub ? 1 : 0.7}
+              <polygon points="0 0, 10 3.5, 0 7" fill={LINK_TYPE_COLOR.CAUSES} />
+            </marker>
+            <marker
+              id="riskGraphWidgetArrowCausesDimmed"
+              viewBox="0 0 10 7"
+              refX="9"
+              refY="3.5"
+              markerUnits="userSpaceOnUse"
+              markerWidth="6"
+              markerHeight="4.2"
+              orient="auto"
+            >
+              <polygon
+                points="0 0, 10 3.5, 0 7"
+                fill={LINK_TYPE_COLOR.CAUSES}
+                fillOpacity={0.08}
               />
-              {isHub && (
-                <Zap
-                  x={node.x + node.radius * 0.4}
-                  y={node.y - node.radius - 8}
-                  width={13}
-                  height={13}
-                  className="fill-accent text-accent"
+            </marker>
+            <marker
+              id="riskGraphWidgetArrowAmplifies"
+              viewBox="0 0 10 7"
+              refX="9"
+              refY="3.5"
+              markerUnits="userSpaceOnUse"
+              markerWidth="6"
+              markerHeight="4.2"
+              orient="auto"
+            >
+              <polygon
+                points="0 0, 10 3.5, 0 7"
+                fill={LINK_TYPE_COLOR.AMPLIFIES}
+              />
+            </marker>
+            <marker
+              id="riskGraphWidgetArrowAmplifiesDimmed"
+              viewBox="0 0 10 7"
+              refX="9"
+              refY="3.5"
+              markerUnits="userSpaceOnUse"
+              markerWidth="6"
+              markerHeight="4.2"
+              orient="auto"
+            >
+              <polygon
+                points="0 0, 10 3.5, 0 7"
+                fill={LINK_TYPE_COLOR.AMPLIFIES}
+                fillOpacity={0.08}
+              />
+            </marker>
+          </defs>
+
+          {MOCK_RISK_LINKS.map((link, i) => {
+            const source = nodeByRef.get(link.source_ref)
+            const target = nodeByRef.get(link.target_ref)
+            if (!source || !target) return null
+            const dimmed = isEdgeDimmed(link)
+            const edgeHighlighted = isEdgeHighlighted(link)
+
+            // Shortens the line so its head lands on the target node's own
+            // edge instead of its center -- otherwise the arrowhead below
+            // renders hidden under the node circle, same fix and reasoning
+            // as RiskGraphPage's own line-clip.
+            const dx = target.x - source.x
+            const dy = target.y - source.y
+            const len = Math.hypot(dx, dy) || 1
+            const ratio = len > target.radius ? (len - target.radius) / len : 1
+            const ex = source.x + dx * ratio
+            const ey = source.y + dy * ratio
+
+            return (
+              <line
+                key={link.id}
+                x1={source.x}
+                y1={source.y}
+                x2={ex}
+                y2={ey}
+                pathLength={1}
+                stroke={LINK_TYPE_COLOR[link.link_type] ?? "hsl(var(--primary))"}
+                className={`transition-[stroke-dashoffset,stroke-opacity] duration-700 ease-out motion-reduce:transition-none ${
+                  animate ? "[stroke-dashoffset:0]" : "[stroke-dashoffset:1]"
+                }`}
+                style={animate ? { transitionDelay: `${i * 150}ms` } : undefined}
+                // CEO feedback: strokeWidth/strokeOpacity now match
+                // RiskGraphPage's own real 3-state contrast (normal/
+                // highlighted/dimmed), not a flat 0.35/0.15 regardless of
+                // whether this specific edge touches the selection --
+                // that flat range read as "everything faded slightly,"
+                // not "these specific links are the correlation."
+                strokeWidth={edgeHighlighted ? 5 : dimmed ? 2 : 3}
+                strokeOpacity={edgeHighlighted ? 0.8 : dimmed ? 0.08 : 0.35}
+                strokeDasharray={1}
+                markerEnd={
+                  link.link_type === "CAUSES"
+                    ? dimmed
+                      ? "url(#riskGraphWidgetArrowCausesDimmed)"
+                      : "url(#riskGraphWidgetArrowCauses)"
+                    : link.link_type === "AMPLIFIES"
+                      ? dimmed
+                        ? "url(#riskGraphWidgetArrowAmplifiesDimmed)"
+                        : "url(#riskGraphWidgetArrowAmplifies)"
+                      : undefined
+                }
+              />
+            )
+          })}
+
+          {nodes.map((node, i) => {
+            const color = categoryColor(node.category)
+            const dimmed = isNodeDimmed(node.ref)
+            const isSelected = selectedRefs.has(node.ref)
+            const isCascaded = isNodeCascaded(node.ref)
+            const isHub = node.ref === hubRef
+            return (
+              <g
+                key={node.ref}
+                tabIndex={0}
+                role="button"
+                aria-pressed={isSelected}
+                aria-label={t("home.productDemo.riskGraph.nodeAriaLabel", {
+                  ref: node.ref,
+                  name: node.name,
+                })}
+                onClick={() => selectRef(node.ref)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    selectRef(node.ref)
+                  }
+                }}
+                className={`focus-ring-svg origin-center cursor-pointer transition-all duration-500 ease-out motion-reduce:transition-none ${
+                  animate ? "scale-100 opacity-100" : "scale-50 opacity-0"
+                }`}
+                style={
+                  animate
+                    ? {
+                        transitionDelay: `${i * 60}ms`,
+                        transformBox: "fill-box",
+                      }
+                    : { transformBox: "fill-box" }
+                }
+                opacity={dimmed ? 0.3 : 1}
+              >
+                {/* Selected-node ring (primary) vs. correlated-but-not-
+                    selected ring (destructive) -- same dashed/animated
+                    treatment and same two-color distinction RiskGraphPage's
+                    own isSelected/isCascaded rings use, so a click on this
+                    graph visibly marks its correlated risks the same way
+                    clicking a matrix cell already does, not just dim
+                    everyone else. */}
+                {(isSelected || isCascaded) && (
+                  <circle
+                    cx={node.x}
+                    cy={node.y}
+                    r={node.radius + 5}
+                    fill="none"
+                    stroke={
+                      isSelected
+                        ? "hsl(var(--primary))"
+                        : "hsl(var(--destructive))"
+                    }
+                    strokeWidth={2}
+                    strokeDasharray="4 2"
+                  >
+                    <animate
+                      attributeName="stroke-dashoffset"
+                      values="0;12"
+                      dur="1s"
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                )}
+                {/* fillOpacity/strokeOpacity match RiskGraphPage.tsx's own
+                    unselected-node ring exactly (RiskGraphNode's base
+                    circle) for a linked node; the hub gets a brighter fill
+                    (0.25, between RiskGraphPage's unselected/selected
+                    states) since it's always at least the visual focus. */}
+                <circle
+                  cx={node.x}
+                  cy={node.y}
+                  r={node.radius}
+                  fill={color}
+                  fillOpacity={isHub ? 0.25 : 0.15}
+                  stroke={color}
+                  strokeWidth={isHub ? 2.5 : 2}
+                  strokeOpacity={isHub ? 1 : 0.7}
                 />
-              )}
-              <text
-                x={node.x}
-                y={node.y - 2}
-                textAnchor="middle"
-                className="fill-foreground text-[7px] font-bold select-none"
-              >
-                {node.ref}
-              </text>
-              <text
-                x={node.x}
-                y={node.y + 8}
-                textAnchor="middle"
-                className="font-mono-data fill-muted-foreground text-[6px] select-none"
-              >
-                {prLabel}
-                {node.pageRankDisplay}
-              </text>
-            </g>
-          )
-        })}
-      </svg>
+                {isHub && (
+                  <Zap
+                    x={node.x + node.radius * 0.4}
+                    y={node.y - node.radius - 8}
+                    width={13}
+                    height={13}
+                    className="fill-accent text-accent"
+                  />
+                )}
+                <text
+                  x={node.x}
+                  y={node.y - 2}
+                  textAnchor="middle"
+                  className="fill-foreground text-[7px] font-bold select-none"
+                >
+                  {node.ref}
+                </text>
+                <text
+                  x={node.x}
+                  y={node.y + 8}
+                  textAnchor="middle"
+                  className="font-mono-data fill-muted-foreground text-[6px] select-none"
+                >
+                  {prLabel}
+                  {node.pageRankDisplay}
+                </text>
+              </g>
+            )
+          })}
+        </svg>
+      </div>
 
       {/* One announcement per selection change, same pattern
           ConnectedDataModelSection's own single aria-live region uses
@@ -359,9 +545,11 @@ export default function RiskGraphWidget({
           : ""}
       </span>
 
-      {/* mt-auto wraps both trailing blocks -- pushes them to the bottom of
-          the card's stretched height as one unit. */}
-      <div className="mt-auto">
+      {/* No longer mt-auto: the svg's own flex-1 wrapper above now consumes
+          the card's stretched extra height directly, so this trailing
+          block just follows in normal flow instead of needing to be
+          pushed to the bottom itself. */}
+      <div>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3">
           {(["CAUSES", "AMPLIFIES", "CORRELATES"] as const).map((type) => (
             <span

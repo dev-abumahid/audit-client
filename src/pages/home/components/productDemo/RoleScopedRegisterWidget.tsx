@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from "react"
 import { useRef, useState } from "react"
+import { Check, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { MOCK_RISKS } from "@/dashboard/organization/risk/riskMatrixMockData"
 import { canWriteOrgResource } from "@/hooks/useMyOrgRole"
@@ -22,10 +23,26 @@ import { SEVERITY_STYLES } from "@/utils/severityStyles"
 const ROLES: OrgRole[] = ["ADMIN", "LEAD_AUDITOR", "LIGHT_USER"]
 const DEMO_RISKS = MOCK_RISKS.slice(0, 5)
 
+// CEO feedback: canWriteOrgResource alone (ADMIN || LEAD_AUDITOR) made
+// these two roles render identically -- every row showed the same Edit
+// button for both. The real app's own maker-checker gate
+// (RiskApprovalControls.tsx: `canSubmit = ADMIN || LEAD_AUDITOR`, but
+// `isAdmin = role === "ADMIN"` gates the actual approve/reject decision)
+// is a real, already-shipped distinction between these two roles -- one
+// demo row is flagged as pending approval to surface it: Lead Auditor
+// (who submitted it) sees a read-only "Pending" badge, Admin sees real
+// Approve/Reject controls. Every other row is unaffected, same Edit
+// button either role already had.
+const PENDING_APPROVAL_REF = DEMO_RISKS[1]?.ref
+
 export default function RoleScopedRegisterWidget() {
   const { t } = useTranslation()
   const [role, setRole] = useState<OrgRole>("ADMIN")
   const canWrite = canWriteOrgResource(role)
+  // Same real distinction RiskApprovalControls.tsx's own `isAdmin` gates:
+  // ADMIN and LEAD_AUDITOR share canWriteOrgResource, but only ADMIN can
+  // decide (approve/reject) a pending risk.
+  const isAdmin = role === "ADMIN"
   const roleRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
   // Review finding on PR #1017: role="radiogroup"/role="radio" implies the
@@ -149,7 +166,11 @@ export default function RoleScopedRegisterWidget() {
                   </td>
                   <td
                     className={`overflow-hidden py-2 pr-2 transition-all duration-200 ease-out motion-reduce:transition-none ${
-                      canWrite ? "w-16 opacity-100" : "w-0 opacity-0"
+                      canWrite
+                        ? risk.ref === PENDING_APPROVAL_REF
+                          ? "w-32 opacity-100"
+                          : "w-16 opacity-100"
+                        : "w-0 opacity-0"
                     }`}
                   >
                     {/* No conditional tabIndex needed here -- the
@@ -157,13 +178,42 @@ export default function RoleScopedRegisterWidget() {
                         button only exists in the DOM when canWrite is true,
                         so it's never reachable in a hidden state to guard
                         against. */}
-                    {canWrite && (
-                      <button
-                        type="button"
-                        className="focus-ring rounded-md border border-border px-2 py-1 text-[10px] text-foreground hover:bg-muted"
-                      >
-                        {t("home.productDemo.roleRegister.editButton")}
-                      </button>
+                    {canWrite && risk.ref === PENDING_APPROVAL_REF ? (
+                      isAdmin ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            aria-label={t(
+                              "home.productDemo.roleRegister.approveButton"
+                            )}
+                            className="focus-ring rounded-md border border-risk-low/40 bg-risk-low/10 p-1 text-risk-low hover:bg-risk-low/20"
+                          >
+                            <Check className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={t(
+                              "home.productDemo.roleRegister.rejectButton"
+                            )}
+                            className="focus-ring rounded-md border border-risk-critical/40 bg-risk-critical/10 p-1 text-risk-critical hover:bg-risk-critical/20"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {t("home.productDemo.roleRegister.pendingBadge")}
+                        </span>
+                      )
+                    ) : (
+                      canWrite && (
+                        <button
+                          type="button"
+                          className="focus-ring rounded-md border border-border px-2 py-1 text-[10px] text-foreground hover:bg-muted"
+                        >
+                          {t("home.productDemo.roleRegister.editButton")}
+                        </button>
+                      )
                     )}
                   </td>
                 </tr>
@@ -176,7 +226,9 @@ export default function RoleScopedRegisterWidget() {
       <p className="mt-3 text-[11px] text-muted-foreground">
         {role === "LIGHT_USER"
           ? t("home.productDemo.roleRegister.captionReadOnly")
-          : t("home.productDemo.roleRegister.captionSameGate")}
+          : isAdmin
+            ? t("home.productDemo.roleRegister.captionAdmin")
+            : t("home.productDemo.roleRegister.captionLeadAuditor")}
       </p>
     </div>
   )

@@ -151,8 +151,12 @@
           "action": "Action"
         },
         "editButton": "Modifier",
+        "approveButton": "Approuver",
+        "rejectButton": "Rejeter",
+        "pendingBadge": "En attente d'approbation",
         "captionReadOnly": "L'utilisateur limité peut consulter le registre mais pas le modifier — la colonne Action disparaît.",
-        "captionSameGate": "Admin et Auditeur principal partagent cette barrière d'accès aujourd'hui ; un accès plus fin par ligne existe côté serveur."
+        "captionAdmin": "Ce risque a été soumis pour approbation — en tant qu'Admin, vous pouvez l'approuver ou le rejeter, un Auditeur principal ne le peut pas.",
+        "captionLeadAuditor": "Vous avez soumis ce risque pour approbation — seul un Admin peut l'approuver ou le rejeter depuis ici."
       }
     },
     "featureSection": {
