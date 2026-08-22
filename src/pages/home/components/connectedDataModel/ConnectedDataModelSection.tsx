@@ -362,7 +362,14 @@ export default function ConnectedDataModelSection() {
                     .map((slot) => (
                       <path
                         key={slot.x}
-                        d={`M50,2 L50,16 Q50,20 46,20 L${slot.x + (slot.x < 50 ? 4 : -4)},20 Q${slot.x},20 ${slot.x},24 L${slot.x},38`}
+                        // Branch point (54 for right-side slots, 46 for
+                        // left) was hardcoded to 46 for every slot -- the
+                        // 2 right-side paths (finding/mitigation) curved
+                        // left toward 46 first, then had to backtrack all
+                        // the way right to their actual x, crossing back
+                        // over the left-side paths and rendering as a
+                        // tangled loop right where they all met at top.
+                        d={`M50,2 L50,16 Q50,20 ${slot.x < 50 ? 46 : 54},20 L${slot.x + (slot.x < 50 ? 4 : -4)},20 Q${slot.x},20 ${slot.x},24 L${slot.x},38`}
                         fill="none"
                         pathLength={1}
                         className={`animate-cdm-draw ${accent.stroke}`}
