@@ -414,3 +414,84 @@ existing comment proving it doesn't need the re-render) and
 (touches animation/layout timing, wants its own focused round) and a full
 memoization sweep of all 4 `ProductDemoSection` children to a later round if
 efficiency still needs work after this.
+
+---
+
+## Round 5 — 2026-08-22
+
+Focused re-verification panel: efficiency (the axis round 4's fix targeted),
+code-quality and cross-view-integration (round 4 restructured shared prop
+wiring in `ProductDemoSection.tsx`, worth re-checking for regressions). The
+other 6 axes carried forward unchanged -- round 4's diff didn't touch their
+surface.
+
+| Axis | Round 4 | Round 5 | Δ | Stuck streak |
+|---|---|---|---|---|
+| Industry-standards conformance | 8 | 8 (carried forward) | 0 | 0 |
+| UX / interaction friction | 7.5 | 7.5 (carried forward) | 0 | 0 |
+| Efficiency | 7 | **8** | **+1** | 0 |
+| Accessibility (a11y) | 7.8 | 7.8 (carried forward) | 0 | 0 |
+| Visual/design polish | 7 | 7 (carried forward) | 0 | 0 |
+| Resilience & edge cases | 9 | 9 (carried forward) | 0 | 0 |
+| Code quality/maintainability | 8.5 | **8.7** | +0.2 | 0 |
+| Cross-view integration | 9 | 9 | 0 | 0 |
+| Mobile/responsive | 7.8 | 7.8 (carried forward) | 0 | 0 |
+| **Average** | **7.96** | **8.09** | **+0.13** | |
+
+**Convergence check:** 8.09 < 8.5 target. Not converged. All axes ≥ 6.5
+floor (lowest is 7, on UX/Visual-polish). No regressions, no guardrail trips.
+
+### Judge findings (trimmed)
+
+**Efficiency (8, +1):** Both round-4 fixes confirmed working, live and in
+code. `RoleScopedRegisterWidget` receives zero selection props and is
+`memo()`'d -- live-verified: selected Lead Auditor, churned the shared
+selection state via two matrix clicks, role stayed Lead Auditor across both.
+`buildGrid()` confirmed genuinely called once at module load, zero per-render
+invocations remain. The two still-open findings (undebounced `ResizeObserver`
+in `RiskGraphWidget`, redundant sparkline min/max in `ConnectedDataModel-
+Section`) confirmed unchanged, not re-litigated.
+
+**Code quality (8.7, +0.2):** The `usesSelection` flag judged "the correct-
+shaped fix, not prop-drilling avoidance dressed up as one" -- derived per
+`INTERACTIVE_DEMOS` entry, not hardcoded in `DemoMoment`. Both new comments
+(the ternary's rationale, `RoleScopedRegisterWidget`'s memo rationale) judged
+terse and causal, not narrated history -- does not repeat the anti-pattern
+flagged in rounds 1/2. `const GRID = buildGrid()` confirmed to match this
+directory's own existing idiom for hoisting pure derivations (same pattern
+already used in `KriThresholdSliderWidget.tsx`). New test judged well-scoped
+(asserts the real user-facing guarantee, not an implementation detail).
+Minor unscored nit: `usesSelection` is enforced only at runtime, not by the
+type system -- pre-existing looseness, not new this round.
+
+**Cross-view integration (9, unchanged):** Confirmed `LandingRiskMatrixWidget`
+and `RiskGraphWidget` (wired directly in `ProductDemoSection.tsx`, outside
+`DemoMoment` entirely) are untouched by round 4's refactor. Live-verified the
+full graph↔matrix↔KRI-slider cross-highlight chain still works end-to-end.
+Confirmed via an earlier commit's own code comment that
+`RoleScopedRegisterWidget` "doesn't declare either prop, so React just
+ignores them there" -- losing those props in round 4 was dead-weight cleanup,
+not a real capability loss.
+
+### Round 5 fix selection
+
+No regressions, no axis both stuck and at-or-below floor. Falls to rule 4:
+furthest below target. Visual-polish (7, 1.5 below target) is furthest below
+among axes with `contained` findings available -- its 3 original findings
+(from round 1) have never actually been the subject of a fix yet (round 3's
+fix was collateral cleanup of a regression it happened to cause, not these
+findings themselves). Selected all 3, same file
+(`ConnectedDataModelSection.tsx`), one coherent round:
+
+1. **Panel border contrast**: `border-border` against `bg-card/40` computed
+   to a very low-contrast hairline -- strengthen for a real visible boundary.
+2. **Connector/accent color harmonization**: connector line and every card's
+   top-accent stay hardcoded brand-teal regardless of the hub's severity
+   color (a red hub reading as "red hub, teal everything else").
+3. **Cramped record-card text**: `text-[9px]`-`text-[11px]` throughout reads
+   cramped next to the more spacious `ProductDemoSection` widgets in the same
+   rail -- bump up a size tier.
+
+Deferred: the role-picker-vs-dense-table tonal mismatch (round 2 finding,
+more subjective/inherent design tension, different file -- can be its own
+round if visual-polish still needs work after this).

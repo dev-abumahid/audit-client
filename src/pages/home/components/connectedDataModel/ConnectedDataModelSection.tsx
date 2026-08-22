@@ -39,6 +39,43 @@ function formatDate(iso: string, language: string) {
   )
 }
 
+// Quality-bar-loop finding: the connector line, its link-icon anchor, and
+// every card's top accent stayed hardcoded brand-teal regardless of the
+// hub's own severity color -- a critical (red) hub reading as "red hub,
+// teal everything else." Ties the connector/accent treatment to the same
+// --risk-* colors the hub's own severity badge already uses. Static
+// per-key strings, not a template-interpolated class name -- Tailwind's
+// JIT only picks up classes it can find literally in source.
+const SEVERITY_ACCENT: Record<
+  "critical" | "high" | "medium" | "low",
+  { border: string; text: string; borderTop: string; stroke: string }
+> = {
+  critical: {
+    border: "border-risk-critical",
+    text: "text-risk-critical",
+    borderTop: "border-t-risk-critical",
+    stroke: "stroke-risk-critical/70",
+  },
+  high: {
+    border: "border-risk-high",
+    text: "text-risk-high",
+    borderTop: "border-t-risk-high",
+    stroke: "stroke-risk-high/70",
+  },
+  medium: {
+    border: "border-risk-medium",
+    text: "text-risk-medium",
+    borderTop: "border-t-risk-medium",
+    stroke: "stroke-risk-medium/70",
+  },
+  low: {
+    border: "border-risk-low",
+    text: "text-risk-low",
+    borderTop: "border-t-risk-low",
+    stroke: "stroke-risk-low/70",
+  },
+}
+
 export default function ConnectedDataModelSection() {
   const { t, i18n } = useTranslation()
   const [revealRef, revealVisible] = useRevealOnScroll<HTMLDivElement>()
@@ -50,6 +87,7 @@ export default function ConnectedDataModelSection() {
   const selected = CONNECTED_DEMO_RISKS[selectedIndex]
   const { risk, kri, finding, mitigation } = selected
   const severity = getRiskSeverityLevel(risk.residual_score)
+  const accent = SEVERITY_ACCENT[severity]
 
   const handleSelectorKeyDown = (
     e: KeyboardEvent<HTMLButtonElement>,
@@ -205,8 +243,13 @@ export default function ConnectedDataModelSection() {
               bordered panel, headed by which risk it's currently showing --
               design-team finding: without this wrapper, the hub/connector/
               cards read as loose floating pieces with no visual boundary
-              tying them together as "this is one connected view." */}
-          <div className="mt-6 rounded-2xl border border-border bg-card/40 p-5 sm:p-7">
+              tying them together as "this is one connected view." A
+              thicker border + solid (not transparent) card background,
+              not just border-border/bg-card/40 -- the transparent
+              background blended toward the page's own bg-background,
+              leaving too little contrast against the border to read as a
+              real boundary. */}
+          <div className="mt-6 rounded-2xl border-2 border-border bg-card p-5 sm:p-7">
             <p className="mb-5 text-sm font-semibold text-foreground">
               {t("home.connectedDataModel.panelTitle")}{" "}
               <span className="font-mono-data text-primary">{risk.ref}</span>
@@ -278,7 +321,7 @@ export default function ConnectedDataModelSection() {
                         d={`M50,2 L50,16 Q50,20 46,20 L${slot.x + (slot.x < 50 ? 4 : -4)},20 Q${slot.x},20 ${slot.x},24 L${slot.x},38`}
                         fill="none"
                         pathLength={1}
-                        className="animate-cdm-draw stroke-primary/70"
+                        className={`animate-cdm-draw ${accent.stroke}`}
                         strokeWidth={1.25}
                         strokeDasharray="3 2.5"
                         strokeLinecap="round"
@@ -286,8 +329,10 @@ export default function ConnectedDataModelSection() {
                       />
                     ))}
                 </svg>
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary bg-background p-1.5">
-                  <Link2 aria-hidden="true" className="h-3.5 w-3.5 text-primary" />
+                <span
+                  className={`absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-background p-1.5 ${accent.border}`}
+                >
+                  <Link2 aria-hidden="true" className={`h-3.5 w-3.5 ${accent.text}`} />
                 </span>
               </div>
 
@@ -298,17 +343,17 @@ export default function ConnectedDataModelSection() {
                     ref/name/category/severity, so this card earns its own
                     place instead of duplicating the hub. */}
                 <div
-                  className="animate-cdm-swap rounded-lg border border-t-2 border-border border-t-primary bg-card p-4 text-left shadow-sm shadow-foreground/[0.03]"
+                  className={`animate-cdm-swap rounded-lg border border-t-2 border-border bg-card p-4 text-left shadow-sm shadow-foreground/[0.03] ${accent.borderTop}`}
                   style={{ animationDelay: "40ms" }}
                 >
-                  <div className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                     <FileText aria-hidden="true" className="h-3.5 w-3.5" />
                     {t("home.connectedDataModel.cards.register")}
                   </div>
                   <p className="mt-2 line-clamp-2 text-xs font-medium text-foreground">
                     {risk.name}
                   </p>
-                  <dl className="mt-2.5 space-y-1 text-[11px] text-muted-foreground">
+                  <dl className="mt-2.5 space-y-1 text-xs text-muted-foreground">
                     <div className="flex items-center justify-between gap-2">
                       <dt>{t("home.connectedDataModel.register.status")}</dt>
                       <dd className="font-medium text-foreground capitalize">
@@ -334,19 +379,19 @@ export default function ConnectedDataModelSection() {
                 <div
                   className={`animate-cdm-swap rounded-lg border p-4 text-left transition-colors ${
                     kri
-                      ? "border-t-2 border-border border-t-primary bg-card shadow-sm shadow-foreground/[0.03]"
+                      ? `border-t-2 border-border ${accent.borderTop} bg-card shadow-sm shadow-foreground/[0.03]`
                       : "border-border/70 bg-card/60"
                   }`}
                   style={{ animationDelay: "80ms" }}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                       <TrendingUp aria-hidden="true" className="h-3.5 w-3.5" />
                       {t("home.connectedDataModel.cards.kri")}
                     </div>
                     {kriMeta && (
                       <span
-                        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase ${severityBadgeClasses(kriMeta.severityLevel)}`}
+                        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase ${severityBadgeClasses(kriMeta.severityLevel)}`}
                       >
                         {t(kriMeta.labelKey)}
                       </span>
@@ -359,7 +404,7 @@ export default function ConnectedDataModelSection() {
                       </p>
                       <div className="mt-2 flex items-end justify-between gap-3">
                         <div>
-                          <span className="block text-[9px] tracking-wide text-muted-foreground uppercase">
+                          <span className="block text-[10px] tracking-wide text-muted-foreground uppercase">
                             {t("home.connectedDataModel.kri.current")}
                           </span>
                           <span className="font-mono-data text-base font-bold text-foreground">
@@ -399,7 +444,7 @@ export default function ConnectedDataModelSection() {
                           />
                         </svg>
                         <div className="text-right">
-                          <span className="block text-[9px] tracking-wide text-muted-foreground uppercase">
+                          <span className="block text-[10px] tracking-wide text-muted-foreground uppercase">
                             {t("home.connectedDataModel.kri.target")}
                           </span>
                           <span className="font-mono-data text-xs text-muted-foreground">
@@ -414,7 +459,7 @@ export default function ConnectedDataModelSection() {
                     // real KRI) -- kept so this component doesn't silently
                     // render a bare label if the underlying mock data ever
                     // changes out from under it.
-                    <p className="mt-2 rounded border border-dashed border-border/70 px-2 py-2 text-[11px] text-muted-foreground/80">
+                    <p className="mt-2 rounded border border-dashed border-border/70 px-2 py-2 text-xs text-muted-foreground/80">
                       {t("home.connectedDataModel.cards.kriEmpty")}
                     </p>
                   )}
@@ -425,12 +470,12 @@ export default function ConnectedDataModelSection() {
                 <div
                   className={`animate-cdm-swap rounded-lg border p-4 text-left transition-colors ${
                     finding
-                      ? "border-t-2 border-border border-t-primary bg-card shadow-sm shadow-foreground/[0.03]"
+                      ? `border-t-2 border-border ${accent.borderTop} bg-card shadow-sm shadow-foreground/[0.03]`
                       : "border-border/70 bg-card/60"
                   }`}
                   style={{ animationDelay: "120ms" }}
                 >
-                  <div className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                     <Search aria-hidden="true" className="h-3.5 w-3.5" />
                     {t("home.connectedDataModel.cards.finding")}
                   </div>
@@ -438,7 +483,7 @@ export default function ConnectedDataModelSection() {
                     <>
                       <div className="mt-2 flex items-center gap-1.5">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase ${severityBadgeClasses(findingSeverity)}`}
+                          className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold uppercase ${severityBadgeClasses(findingSeverity)}`}
                         >
                           <span
                             className={`h-1.5 w-1.5 rounded-full ${SEVERITY_STYLES[findingSeverity].dot}`}
@@ -447,14 +492,14 @@ export default function ConnectedDataModelSection() {
                             ? t(`riskLevel.${finding.severity}`)
                             : finding.severity}
                         </span>
-                        <span className="font-mono-data text-[11px] text-muted-foreground">
+                        <span className="font-mono-data text-xs text-muted-foreground">
                           {finding.ref}
                         </span>
                       </div>
                       <p className="mt-1.5 line-clamp-2 text-xs font-medium text-foreground">
                         {finding.title}
                       </p>
-                      <span className="mt-2 inline-block rounded bg-muted px-1.5 py-0.5 font-mono-data text-[10px] text-muted-foreground">
+                      <span className="mt-2 inline-block rounded bg-muted px-1.5 py-0.5 font-mono-data text-[11px] text-muted-foreground">
                         {t("home.connectedDataModel.linkedToRisk", {
                           ref: risk.ref,
                         })}
@@ -466,7 +511,7 @@ export default function ConnectedDataModelSection() {
                         aria-hidden="true"
                         className="h-4 w-4 text-muted-foreground/50"
                       />
-                      <p className="text-[11px] text-muted-foreground/80">
+                      <p className="text-xs text-muted-foreground/80">
                         {t("home.connectedDataModel.cards.findingEmpty")}
                       </p>
                     </div>
@@ -478,12 +523,12 @@ export default function ConnectedDataModelSection() {
                 <div
                   className={`animate-cdm-swap rounded-lg border p-4 text-left transition-colors ${
                     mitigation
-                      ? "border-t-2 border-border border-t-primary bg-card shadow-sm shadow-foreground/[0.03]"
+                      ? `border-t-2 border-border ${accent.borderTop} bg-card shadow-sm shadow-foreground/[0.03]`
                       : "border-border/70 bg-card/60"
                   }`}
                   style={{ animationDelay: "160ms" }}
                 >
-                  <div className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                     <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5" />
                     {t("home.connectedDataModel.cards.mitigation")}
                   </div>
@@ -493,16 +538,16 @@ export default function ConnectedDataModelSection() {
                         {mitigation.title}
                       </p>
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <span className="inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase">
+                        <span className="inline-block rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground uppercase">
                           {mitigation.status.replace(/_/g, " ")}
                         </span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[11px] text-muted-foreground">
                           {t("home.connectedDataModel.mitigation.riskReduction", {
                             percent: Math.round(mitigation.risk_reduction * 100),
                           })}
                         </span>
                       </div>
-                      <span className="mt-2 inline-block rounded bg-muted px-1.5 py-0.5 font-mono-data text-[10px] text-muted-foreground">
+                      <span className="mt-2 inline-block rounded bg-muted px-1.5 py-0.5 font-mono-data text-[11px] text-muted-foreground">
                         {t("home.connectedDataModel.linkedToRisk", {
                           ref: risk.ref,
                         })}
@@ -514,7 +559,7 @@ export default function ConnectedDataModelSection() {
                         aria-hidden="true"
                         className="h-4 w-4 text-muted-foreground/50"
                       />
-                      <p className="text-[11px] text-muted-foreground/80">
+                      <p className="text-xs text-muted-foreground/80">
                         {t("home.connectedDataModel.cards.mitigationEmpty")}
                       </p>
                     </div>

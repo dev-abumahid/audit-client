@@ -168,6 +168,43 @@ describe("ConnectedDataModelSection", () => {
     expect(first).toHaveFocus()
   })
 
+  // Quality-bar-loop round 5 (visual-polish finding): the connector and
+  // every card's top accent used to stay hardcoded brand-teal regardless
+  // of the hub's own severity -- a critical (red) hub reading as "red hub,
+  // teal everything else." Confirms the accent now actually tracks
+  // severity, and changes when a different-severity risk is selected.
+  it("colors the connector and card accents to match the selected risk's own severity, not a fixed color", async () => {
+    const user = userEvent.setup()
+    const { container } = render(<ConnectedDataModelSection />)
+
+    const criticalEntry = CONNECTED_DEMO_RISKS[0]
+    const mediumEntry = CONNECTED_DEMO_RISKS.find(
+      (e) => e.risk.residual_score > 25 && e.risk.residual_score <= 50
+    )
+    expect(mediumEntry).toBeDefined()
+    expect(criticalEntry.risk.residual_score).toBeGreaterThan(75)
+
+    const registerLabel = screen.getByText(
+      "home.connectedDataModel.cards.register"
+    )
+    const registerCard = registerLabel.closest("div")!.parentElement!
+    expect(registerCard.className).toContain("border-t-risk-critical")
+
+    await user.click(screen.getByText(mediumEntry!.risk.ref))
+
+    const registerLabelAfter = screen.getByText(
+      "home.connectedDataModel.cards.register"
+    )
+    const registerCardAfter = registerLabelAfter.closest("div")!.parentElement!
+    expect(registerCardAfter.className).toContain("border-t-risk-medium")
+    expect(registerCardAfter.className).not.toContain("border-t-risk-critical")
+
+    const connectorPath = container.querySelector("svg path.animate-cdm-draw")
+    expect(connectorPath?.getAttribute("class")).toContain(
+      "stroke-risk-medium"
+    )
+  })
+
   it("renders a KRI current-value trend sparkline without asserting specific dates", () => {
     // The sparkline is illustrative motion toward the real current_value
     // (KRI has no historical-value field anywhere in the schema/mock
