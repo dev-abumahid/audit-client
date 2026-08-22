@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next"
 import { MOCK_KRIS } from "@/dashboard/organization/overview/overviewMockData"
+import { KRI_STATUS_META } from "@/dashboard/organization/kri/kriConfig"
 import { useCountUp } from "@/hooks/useCountUp"
+import { SEVERITY_STYLES } from "@/utils/severityStyles"
 
 // Phase E redesign: KRI unit is "count", the current_value is real mock
 // data (MOCK_KRIS[0]), but there's no historical time-series in the mock
@@ -12,6 +14,16 @@ import { useCountUp } from "@/hooks/useCountUp"
 // CATEGORY_BARS heights.
 const KRI = MOCK_KRIS[0]
 const TREND_POINTS = [4, 5, 6, 6, 9, 11, 12, KRI.current_value]
+
+// Review finding: this card was the only one of the 3-widget rail with no
+// closing border-t legend/caption row (RiskMatrixWidget has a severity
+// legend, RiskGraphWidget has a caption), so the CSS grid's default
+// items-stretch left a large blank block below its shorter content once
+// stretched to match its taller siblings' height. Real content, not
+// padding: the same KRI_STATUS_META the live KRI dashboard uses for its
+// own status badges, keyed the same OK/WARNING/ALERT order the threshold
+// slider demo's own target/alert copy already implies.
+const STATUS_LEGEND_ORDER = ["OK", "WARNING", "ALERT"] as const
 
 const CHART_WIDTH = 280
 const CHART_HEIGHT = 120
@@ -116,6 +128,23 @@ export default function KriTrendWidget({ animate }: { animate: boolean }) {
             value: KRI.alert_threshold,
           })}
         </span>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3">
+        {STATUS_LEGEND_ORDER.map((status) => {
+          const meta = KRI_STATUS_META[status]
+          return (
+            <span
+              key={status}
+              className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${SEVERITY_STYLES[meta.severityLevel].dot}`}
+              />
+              {t(meta.labelKey)}
+            </span>
+          )
+        })}
       </div>
     </div>
   )

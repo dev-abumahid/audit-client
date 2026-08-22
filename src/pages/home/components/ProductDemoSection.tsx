@@ -200,7 +200,15 @@ const ProductDemoSection: React.FC = () => {
             <span>{t("home.productDemo.rail.triggers")}</span>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+          {/* items-start, not the grid default items-stretch: even after
+              giving KriTrendWidget its own closing legend row (see that
+              file's own comment), its natural content height still falls
+              short of RiskGraphWidget's (graph + legend + a caption
+              paragraph) -- stretch was forcing a real but still-too-tall
+              blank remainder into the shorter card. Letting each card end
+              at its own content's height reads as normal, common card-grid
+              behavior, not a bug. */}
+          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
             {[
               { Widget: RiskMatrixWidget, glow: "from-risk-info/50" },
               { Widget: RiskGraphWidget, glow: "from-risk-critical/50" },
