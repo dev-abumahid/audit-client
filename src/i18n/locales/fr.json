@@ -97,11 +97,14 @@
       },
       "riskGraph": {
         "title": "Corrélation des risques",
+        "intro": "Les risques surviennent rarement isolément — la défaillance d'un contrôle peut en déclencher ou en aggraver d'autres. Ce graphe cartographie ces relations réelles dans votre registre des risques : cliquez sur un risque pour voir à quoi il est lié.",
+        "linkTypeExplanation": "Cause : un risque déclenche directement un autre. Amplifie : un risque en aggrave un autre, sans le déclencher directement. Corrèle : des risques qui ont tendance à évoluer ensemble, sans relation de cause à effet claire.",
         "nodeCount": "{{count}} nœuds",
         "chartLabel": "Graphe de corrélation des risques, {{count}} risques liés à {{name}}",
         "caption": "{{count}} risques sont liés à « {{name}} » — le nœud de plus haute centralité du graphe.",
         "nodeAriaLabel": "{{ref}} : {{name}}",
-        "highlightAnnouncement": "Mise en évidence des risques liés à {{ref}}."
+        "highlightAnnouncement": "Mise en évidence des risques liés à {{ref}}.",
+        "legendHub": "Risque de plus haute centralité"
       },
       "rail": {
         "plots": "Positionne le risque",

@@ -146,8 +146,31 @@ function layoutNodesInBox(
   const contentWidth = maxX - minX || 1
   const contentHeight = maxY - minY || 1
 
-  const scaleX = (box.width - PADDING * 2) / contentWidth
-  const scaleY = (box.height - PADDING * 2) / contentHeight
+  // CEO feedback: MIN_RADIUS/MAX_RADIUS were absolute SVG units tuned for
+  // the old fixed 320x320 viewBox, which usually rendered at a larger CSS
+  // size than its own 320-unit coordinate space (so 1 unit > 1 physical
+  // pixel -- an implicit zoom-in). Now that the viewBox matches the card's
+  // real measured box directly (no implicit zoom), those same absolute
+  // radii render literally 8-20 physical pixels, visibly smaller than
+  // before. Scaling both by the box's own size relative to that original
+  // 320 reference restores the same relative node size the design always
+  // intended, without hardcoding a new guess at "how much CSS zoom used
+  // to happen" for every possible card height.
+  const radiusScale = Math.min(box.width, box.height) / DEFAULT_BOX.width
+  const minRadius = MIN_RADIUS * radiusScale
+  const maxRadius = MAX_RADIUS * radiusScale
+
+  // CEO feedback (live-verified, screenshot): a node near the content's
+  // edge could still spill its selection ring (rendered at radius+
+  // RING_MARGIN, see the r={node.radius + 5} below) past the card's own
+  // border -- the fixed PADDING (28) was tuned for the old, much smaller
+  // MAX_RADIUS (20) and never accounted for the ring at all. Reserving at
+  // least maxRadius+RING_MARGIN of padding guarantees even the biggest
+  // node's ring fits inside the box before any node is placed.
+  const RING_MARGIN = 5
+  const effectivePadding = Math.max(PADDING, maxRadius + RING_MARGIN)
+  const scaleX = (box.width - effectivePadding * 2) / contentWidth
+  const scaleY = (box.height - effectivePadding * 2) / contentHeight
   const offsetX = (box.width - contentWidth * scaleX) / 2 - minX * scaleX
   const offsetY = (box.height - contentHeight * scaleY) / 2 - minY * scaleY
 
@@ -160,7 +183,7 @@ function layoutNodesInBox(
       category: risk.category,
       x: pos.x * scaleX + offsetX,
       y: pos.y * scaleY + offsetY,
-      radius: MIN_RADIUS + (pageRankDisplay / 100) * (MAX_RADIUS - MIN_RADIUS),
+      radius: minRadius + (pageRankDisplay / 100) * (maxRadius - minRadius),
       pageRankDisplay,
     }
   })
@@ -168,7 +191,22 @@ function layoutNodesInBox(
   // See resolveNodeOverlaps' own comment: guarantees no two circles touch
   // using THIS widget's real radii, independent of whatever separation
   // assumption computeRiskGraphLayout's own raw-unit constants made.
-  resolveNodeOverlaps(nodes, 4, box.width, box.height)
+  //
+  // Runs against radius+RING_MARGIN (not each node's plain radius) so its
+  // own final bounds-clamp reserves room for the selection ring too --
+  // any node can end up selected/cascaded, so every node needs that
+  // clearance, not just whichever one happens to be selected right now.
+  // Restored to the real radius afterward so the rendered circles below
+  // aren't drawn inflated.
+  const nodesForOverlap = nodes.map((n) => ({
+    ...n,
+    radius: n.radius + RING_MARGIN,
+  }))
+  resolveNodeOverlaps(nodesForOverlap, 4, box.width, box.height)
+  nodesForOverlap.forEach((n, i) => {
+    nodes[i].x = n.x
+    nodes[i].y = n.y
+  })
 
   return { nodes, nodeByRef: new Map(nodes.map((n) => [n.ref, n])) }
 }
@@ -288,7 +326,7 @@ export default function RiskGraphWidget({
 
   return (
     <div className="flex h-full flex-col rounded-[11px] bg-card p-5">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between">
         <h3 className="text-base font-semibold text-foreground sm:text-lg">
           {t("home.productDemo.riskGraph.title")}
         </h3>
@@ -296,6 +334,15 @@ export default function RiskGraphWidget({
           {t("home.productDemo.riskGraph.nodeCount", { count: nodes.length })}
         </span>
       </div>
+
+      {/* CEO feedback: a visitor unfamiliar with risk correlation had no
+          way to know what this graph is even for before clicking around
+          in it -- the type/category legends below only labeled the marks,
+          they never explained the underlying idea. One plain-language
+          sentence up front, before any interaction. */}
+      <p className="mb-3 text-xs text-muted-foreground">
+        {t("home.productDemo.riskGraph.intro")}
+      </p>
 
       {/* CEO feedback: this used to be a fixed-square svg directly in flow,
           so on the two-column rail (items-stretch makes this card match
@@ -569,7 +616,14 @@ export default function RiskGraphWidget({
           block just follows in normal flow instead of needing to be
           pushed to the bottom itself. */}
       <div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3">
+        {/* CEO feedback: "Causes"/"Amplifies"/"Correlates" as single-word
+            chips assumed the reader already knew what those distinctions
+            mean for a risk register -- this line defines each one in
+            plain terms right above the chips it's explaining. */}
+        <p className="border-t border-border pt-3 text-[11px] text-muted-foreground">
+          {t("home.productDemo.riskGraph.linkTypeExplanation")}
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
           {(["CAUSES", "AMPLIFIES", "CORRELATES"] as const).map((type) => (
             <span
               key={type}
@@ -584,6 +638,14 @@ export default function RiskGraphWidget({
               )}
             </span>
           ))}
+          {/* CEO feedback: the hub node's Zap icon (rendered below, per
+              isHub) had no explanation anywhere on this card -- added to
+              the same row as the link-type legend since it's the same
+              kind of "what does this mark mean" glossary entry. */}
+          <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <Zap className="h-3 w-3 fill-accent text-accent" />
+            {t("home.productDemo.riskGraph.legendHub")}
+          </span>
         </div>
 
         {/* Category legend: node color-coding (categoryColor above)

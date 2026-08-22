@@ -97,11 +97,14 @@
       },
       "riskGraph": {
         "title": "Risk Correlation",
+        "intro": "Risks rarely happen in isolation — one control failure can trigger or worsen several others. This graph maps those real relationships across your risk register: click any risk to see what it's connected to.",
+        "linkTypeExplanation": "Causes: one risk directly triggers another. Amplifies: one risk makes another worse, without causing it outright. Correlates: risks that tend to move together, without a clear cause-and-effect direction.",
         "nodeCount": "{{count}} nodes",
         "chartLabel": "Risk correlation graph, {{count}} risks linked to {{name}}",
         "caption": "{{count}} risks link to \"{{name}}\" — the graph's highest-centrality node.",
         "nodeAriaLabel": "{{ref}}: {{name}}",
-        "highlightAnnouncement": "Highlighting risks connected to {{ref}}."
+        "highlightAnnouncement": "Highlighting risks connected to {{ref}}.",
+        "legendHub": "Highest-centrality risk"
       },
       "rail": {
         "plots": "Plots risk",

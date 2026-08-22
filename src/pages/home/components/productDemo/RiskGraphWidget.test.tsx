@@ -262,6 +262,52 @@ describe("RiskGraphWidget", () => {
       expect(ringStroke(ops004Node)).toBeUndefined()
     })
 
+    // CEO feedback (live-verified, screenshot): nodes near the content's
+    // edge had their selection ring (rendered at radius+5, wider than the
+    // node's own base circle) visibly cut off by the card's border --
+    // resolveNodeOverlaps' own bounds-clamp only reserved room for each
+    // node's plain radius, not the wider ring around it. Clicks the hub
+    // (CYB-014, whose 4 real links mean several rings render at once) and
+    // confirms every ring circle -- not just the base node circles --
+    // stays fully inside the box. NOTE: this specific bug only manifested
+    // at box sizes bigger than DEFAULT_BOX (320x320, what tests always run
+    // at since the ResizeObserver stub never fires) -- MAX_RADIUS(20) +
+    // RING_MARGIN(5) already fit inside PADDING(28) at exactly 320, so this
+    // test doesn't fail against the pre-fix code at that box size (verified
+    // directly). Still a real regression guard for the general invariant
+    // (rings must stay in bounds) at any box size a future change might
+    // introduce, even though it can't reproduce the original bug's own
+    // trigger condition (a box larger than 320) without also mocking a
+    // resize, which the ResizeObserver stub doesn't support.
+    it("keeps every selection/cascade ring fully inside the box, not just the base node circles", async () => {
+      const user = userEvent.setup()
+      const { container } = render(<RiskGraphWidget animate={false} />)
+
+      const hubText = Array.from(container.querySelectorAll("text")).find(
+        (el) => el.textContent === "CYB-014"
+      )
+      const hubNode = hubText?.closest('[role="button"]')
+      await user.click(hubNode!)
+
+      const ringCircles = Array.from(
+        container.querySelectorAll("circle")
+      ).filter((c) => c.querySelector("animate"))
+      // The hub itself plus every risk it links to should each contribute
+      // one ring -- confirms this test actually exercises multiple rings,
+      // not accidentally just one.
+      expect(ringCircles.length).toBeGreaterThan(1)
+
+      for (const ring of ringCircles) {
+        const cx = Number(ring.getAttribute("cx"))
+        const cy = Number(ring.getAttribute("cy"))
+        const r = Number(ring.getAttribute("r"))
+        expect(cx - r).toBeGreaterThanOrEqual(-0.5)
+        expect(cx + r).toBeLessThanOrEqual(320.5)
+        expect(cy - r).toBeGreaterThanOrEqual(-0.5)
+        expect(cy + r).toBeLessThanOrEqual(320.5)
+      }
+    })
+
     it("deselects and clears dimming when the same node is clicked again", async () => {
       const user = userEvent.setup()
       const { container } = render(<RiskGraphWidget animate={false} />)
