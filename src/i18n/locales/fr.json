@@ -96,7 +96,9 @@
         "title": "Corrélation des risques",
         "nodeCount": "{{count}} nœuds",
         "chartLabel": "Graphe de corrélation des risques, {{count}} risques liés à {{name}}",
-        "caption": "{{count}} risques sont liés à « {{name}} » — le nœud de plus haute centralité du graphe."
+        "caption": "{{count}} risques sont liés à « {{name}} » — le nœud de plus haute centralité du graphe.",
+        "nodeAriaLabel": "{{ref}} : {{name}}",
+        "highlightAnnouncement": "Mise en évidence des risques liés à {{ref}}."
       },
       "rail": {
         "plots": "Positionne le risque",

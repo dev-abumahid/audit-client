@@ -96,7 +96,9 @@
         "title": "Risk Correlation",
         "nodeCount": "{{count}} nodes",
         "chartLabel": "Risk correlation graph, {{count}} risks linked to {{name}}",
-        "caption": "{{count}} risks link to \"{{name}}\" — the graph's highest-centrality node."
+        "caption": "{{count}} risks link to \"{{name}}\" — the graph's highest-centrality node.",
+        "nodeAriaLabel": "{{ref}}: {{name}}",
+        "highlightAnnouncement": "Highlighting risks connected to {{ref}}."
       },
       "rail": {
         "plots": "Plots risk",
