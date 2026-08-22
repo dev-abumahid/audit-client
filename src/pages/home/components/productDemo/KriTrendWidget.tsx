@@ -46,7 +46,7 @@ export default function KriTrendWidget({ animate }: { animate: boolean }) {
   return (
     <div className="flex h-full flex-col rounded-[11px] bg-card p-5">
       <div className="mb-1 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">
+        <h3 className="text-base font-semibold text-foreground sm:text-lg">
           {t("home.productDemo.kriTrend.title")}
         </h3>
         <span className="rounded-full bg-risk-critical/15 px-2 py-0.5 text-[10px] font-semibold text-red-700 uppercase dark:text-red-400">

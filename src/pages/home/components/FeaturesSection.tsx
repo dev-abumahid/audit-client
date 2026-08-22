@@ -141,7 +141,7 @@ const FeaturesSection: React.FC = () => {
                   strokeWidth={2}
                 />
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-foreground sm:text-xl">
+              <h3 className="mb-2 text-base font-semibold text-foreground sm:text-lg">
                 {feature.title}
               </h3>
               <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">

@@ -119,7 +119,7 @@ export default function ConnectedDataModelSection() {
               <span className="font-mono-data text-sm font-bold text-foreground">
                 {RISK.ref}
               </span>
-              <h3 className="text-sm font-semibold text-foreground">
+              <h3 className="text-base font-semibold text-foreground sm:text-lg">
                 {RISK.name}
               </h3>
               <span className="text-xs text-muted-foreground">

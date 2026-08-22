@@ -98,7 +98,7 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
   return (
     <div className="flex h-full flex-col rounded-[11px] bg-card p-5">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">
+        <h3 className="text-base font-semibold text-foreground sm:text-lg">
           {t("home.productDemo.riskGraph.title")}
         </h3>
         <span className="font-mono-data text-[10px] text-muted-foreground">
