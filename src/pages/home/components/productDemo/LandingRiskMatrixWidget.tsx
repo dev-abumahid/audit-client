@@ -7,7 +7,7 @@ import {
   mapRiskToCell,
 } from "@/utils/riskMatrixCalc"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
-import { SEVERITY_STYLES } from "@/utils/severityStyles"
+import { SEVERITY_STYLES, type SeverityLevel } from "@/utils/severityStyles"
 
 // Landing overhaul PR3: the clickable risk-matrix demo, built on top of
 // riskMatrixCalc.ts's extraction so cell placement and color are the exact
@@ -34,6 +34,7 @@ const ENTERED_AFTER_MS = (GRID_SIZE * GRID_SIZE - 1) * 25 + 150
 // convention the deleted static RiskMatrixWidget's own LIKELIHOOD_KEYS
 // comment used to document.
 const LIKELIHOOD_DISPLAY_KEYS = [...LABELS.likelihood].reverse()
+const LEGEND_LEVELS: SeverityLevel[] = ["critical", "high", "medium", "low"]
 
 // Each cell holds the MOCK_RISKS array indices of the risks that land in
 // it -- not {row, col} pairs, which would confusingly overload the same
@@ -53,16 +54,11 @@ function buildGrid(): number[][][] {
   return grid
 }
 
-// Live audit finding: this widget now also mounts in ProductDemoSection's
-// static 3-widget rail (replacing the old, separate, non-interactive
-// RiskMatrixWidget -- see that file's own removal comment), which passes
-// every widget an `animate` prop gating a staggered cell entrance. Default
-// true keeps this widget's other mount point (the standalone "register"/
-// "KRI" moments' matrix predecessor, now just this component alone under
-// DemoMoment) rendering cells at full visibility immediately, same as
-// before this prop existed -- DemoMoment's own ancestor fade already
-// handles that mount's reveal, so the cells themselves don't need a
-// second, redundant animate gate there.
+// This widget mounts twice: once animated (the static 3-widget rail, which
+// passes `animate={revealVisible}` for a staggered cell entrance) and once
+// static (DemoMoment's "register"/"KRI" moments below, no animate prop --
+// DemoMoment's own ancestor fade already handles that mount's reveal).
+// Default true keeps the second mount at full visibility immediately.
 export default function LandingRiskMatrixWidget({
   animate = true,
 }: {
@@ -188,7 +184,26 @@ export default function LandingRiskMatrixWidget({
         ))}
       </div>
 
-      <div className="mt-4 border-t border-border pt-3" aria-live="polite">
+      {/* Always-visible color legend -- this widget also stands in for the
+          static rail's old non-interactive matrix (deleted in favor of this
+          one, see PR #1028), which had its own always-visible severity
+          legend. Without this, a visitor who never clicks a cell has no way
+          to read what the color ramp means. */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3">
+        {LEGEND_LEVELS.map((level) => (
+          <span
+            key={level}
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${SEVERITY_STYLES[level].dot}`}
+            />
+            {t(`riskLevel.${level}`)}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-3 border-t border-border pt-3" aria-live="polite">
         {selected === null ? (
           <p className="text-xs text-muted-foreground">
             {t("home.productDemo.riskMatrixClick.emptyHint")}

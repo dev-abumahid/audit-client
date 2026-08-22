@@ -88,6 +88,19 @@ describe("LandingRiskMatrixWidget", () => {
     ).toBeInTheDocument()
   })
 
+  // Quality-bar-loop round 1 (cross-view integration finding): this widget
+  // replaced the deleted static RiskMatrixWidget in the rail, which had an
+  // always-visible severity legend -- without it, a visitor who never
+  // clicks a cell has no way to read the color ramp. Legend must render
+  // regardless of selection state, not just after a click.
+  it("always shows a Critical/High/Medium/Low legend, even before any cell is clicked", () => {
+    render(<LandingRiskMatrixWidget />)
+    expect(screen.getByText("riskLevel.critical")).toBeInTheDocument()
+    expect(screen.getByText("riskLevel.high")).toBeInTheDocument()
+    expect(screen.getByText("riskLevel.medium")).toBeInTheDocument()
+    expect(screen.getByText("riskLevel.low")).toBeInTheDocument()
+  })
+
   // Regression test (review finding on PR #1028): this widget also mounts
   // in ProductDemoSection's static rail now, which drives an `animate`
   // prop for a staggered cell entrance. The first version of that fix left
