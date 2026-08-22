@@ -88,11 +88,13 @@ export default function LandingRiskMatrixWidget({
   const grid = buildGrid()
   const selectedRisks =
     selected !== null
-      ? grid[selected.row][selected.col].map((riskIndex) => MOCK_RISKS[riskIndex])
+      ? grid[selected.row][selected.col].map(
+          (riskIndex) => MOCK_RISKS[riskIndex]
+        )
       : []
 
   return (
-    <div className="rounded-[11px] bg-card p-5">
+    <div className="flex h-full flex-col rounded-[11px] bg-card p-5">
       <div className="mb-1 flex items-center justify-between">
         {/* Review finding on PR #1025: demoted from <h3> -- this widget only
             mounts under ProductDemoSection's DemoMoment, which already
@@ -138,7 +140,9 @@ export default function LandingRiskMatrixWidget({
                   key={`${rowIdx}-${colIdx}`}
                   type="button"
                   onClick={() =>
-                    setSelected(isSelected ? null : { row: rowIdx, col: colIdx })
+                    setSelected(
+                      isSelected ? null : { row: rowIdx, col: colIdx }
+                    )
                   }
                   aria-pressed={isSelected}
                   aria-label={t("home.productDemo.riskMatrixClick.cellLabel", {
@@ -147,7 +151,7 @@ export default function LandingRiskMatrixWidget({
                   style={
                     entered ? undefined : { transitionDelay: `${delayMs}ms` }
                   }
-                  className={`focus-ring flex aspect-square items-center justify-center rounded-md text-xs font-bold transition-all duration-150 ease-out motion-reduce:transition-none hover:scale-105 hover:brightness-110 ${
+                  className={`focus-ring flex aspect-square items-center justify-center rounded-md text-xs font-bold transition-all duration-150 ease-out hover:scale-105 hover:brightness-110 motion-reduce:transition-none ${
                     animate
                       ? "translate-y-0 scale-100 opacity-100"
                       : "translate-y-1 scale-90 opacity-0"
@@ -184,57 +188,59 @@ export default function LandingRiskMatrixWidget({
         ))}
       </div>
 
-      {/* Always-visible color legend -- this widget also stands in for the
-          static rail's old non-interactive matrix (deleted in favor of this
-          one, see PR #1028), which had its own always-visible severity
-          legend. Without this, a visitor who never clicks a cell has no way
-          to read what the color ramp means. */}
-      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3">
-        {LEGEND_LEVELS.map((level) => (
-          <span
-            key={level}
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
-          >
+      {/* mt-auto wraps both trailing blocks together -- pushes them to the
+          bottom of the card's stretched height as one unit, so the legend
+          and results panel stay adjacent to each other instead of the
+          legend alone floating mid-card. Legend: always-visible, so a
+          visitor who never clicks a cell can still read the color ramp. */}
+      <div className="mt-auto">
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3">
+          {LEGEND_LEVELS.map((level) => (
             <span
-              className={`h-2 w-2 rounded-full ${SEVERITY_STYLES[level].dot}`}
-            />
-            {t(`riskLevel.${level}`)}
-          </span>
-        ))}
-      </div>
+              key={level}
+              className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${SEVERITY_STYLES[level].dot}`}
+              />
+              {t(`riskLevel.${level}`)}
+            </span>
+          ))}
+        </div>
 
-      <div className="mt-3 border-t border-border pt-3" aria-live="polite">
-        {selected === null ? (
-          <p className="text-xs text-muted-foreground">
-            {t("home.productDemo.riskMatrixClick.emptyHint")}
-          </p>
-        ) : selectedRisks.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {t("home.productDemo.riskMatrixClick.noRisks")}
-          </p>
-        ) : (
-          <ul className="space-y-1.5">
-            {selectedRisks.map((risk) => {
-              const severity = getRiskSeverityLevel(risk.residual_score)
-              return (
-                <li
-                  key={risk.id}
-                  className="flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-1.5"
-                >
-                  <span
-                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_STYLES[severity].dot}`}
-                  />
-                  <span className="font-mono-data text-[10px] text-muted-foreground">
-                    {risk.ref}
-                  </span>
-                  <span className="truncate text-xs text-foreground">
-                    {risk.name}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+        <div className="mt-3 border-t border-border pt-3" aria-live="polite">
+          {selected === null ? (
+            <p className="text-xs text-muted-foreground">
+              {t("home.productDemo.riskMatrixClick.emptyHint")}
+            </p>
+          ) : selectedRisks.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {t("home.productDemo.riskMatrixClick.noRisks")}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {selectedRisks.map((risk) => {
+                const severity = getRiskSeverityLevel(risk.residual_score)
+                return (
+                  <li
+                    key={risk.id}
+                    className="flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-1.5"
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_STYLES[severity].dot}`}
+                    />
+                    <span className="font-mono-data text-[10px] text-muted-foreground">
+                      {risk.ref}
+                    </span>
+                    <span className="truncate text-xs text-foreground">
+                      {risk.name}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -53,7 +53,7 @@ export default function KriTrendWidget({ animate }: { animate: boolean }) {
   const currentValue = useCountUp(KRI.current_value, animate, 1400)
 
   return (
-    <div className="rounded-[11px] bg-card p-5">
+    <div className="flex h-full flex-col rounded-[11px] bg-card p-5">
       <div className="mb-1 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">
           {t("home.productDemo.kriTrend.title")}
@@ -62,9 +62,7 @@ export default function KriTrendWidget({ animate }: { animate: boolean }) {
           {t("home.productDemo.kriTrend.alertBadge")}
         </span>
       </div>
-      <p className="mb-3 truncate text-xs text-muted-foreground">
-        {KRI.name}
-      </p>
+      <p className="mb-3 truncate text-xs text-muted-foreground">{KRI.name}</p>
 
       <svg
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
@@ -120,9 +118,7 @@ export default function KriTrendWidget({ animate }: { animate: boolean }) {
           <span className="font-mono-data text-2xl font-bold text-foreground">
             {currentValue}
           </span>
-          <span className="ml-1 text-xs text-muted-foreground">
-            {KRI.unit}
-          </span>
+          <span className="ml-1 text-xs text-muted-foreground">{KRI.unit}</span>
         </div>
         <span className="text-[11px] text-muted-foreground">
           {t("home.productDemo.kriTrend.thresholdLabel", {
@@ -131,7 +127,11 @@ export default function KriTrendWidget({ animate }: { animate: boolean }) {
         </span>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3">
+      {/* mt-auto -- pushes the legend to the bottom of the card's stretched
+          height (the rail grid uses items-stretch, so this card is often
+          taller than its own content), instead of leaving a trailing gap
+          below it. */}
+      <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3">
         {STATUS_LEGEND_ORDER.map((status) => {
           const meta = KRI_STATUS_META[status]
           return (

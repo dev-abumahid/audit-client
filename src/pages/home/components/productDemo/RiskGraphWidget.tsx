@@ -5,10 +5,7 @@ import {
   MOCK_RISKS,
 } from "@/dashboard/organization/overview/overviewMockData"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
-import {
-  buildRiskCorrelationEdges,
-  computePageRank,
-} from "@/utils/pageRank"
+import { buildRiskCorrelationEdges, computePageRank } from "@/utils/pageRank"
 
 // Phase E redesign: a simplified, statically-laid-out stand-in for the real
 // RiskGraphPage (force-simulated, draggable, zoomable -- far more than a
@@ -114,7 +111,7 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
   const prLabel = t("organization.riskGraph.pagerankAbbrLabel")
 
   return (
-    <div className="rounded-[11px] bg-card p-5">
+    <div className="flex h-full flex-col rounded-[11px] bg-card p-5">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">
           {t("home.productDemo.riskGraph.title")}
@@ -150,9 +147,7 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
               className={`transition-[stroke-dashoffset] duration-700 ease-out motion-reduce:transition-none ${
                 animate ? "[stroke-dashoffset:0]" : "[stroke-dashoffset:1]"
               }`}
-              style={
-                animate ? { transitionDelay: `${i * 150}ms` } : undefined
-              }
+              style={animate ? { transitionDelay: `${i * 150}ms` } : undefined}
               // Review finding on PR #1011: strokeWidth/strokeOpacity are
               // now the same values RiskGraphPage.tsx's own unselected-edge
               // rendering uses (RiskGraphLinkLine's `color`/isCascade=false
@@ -269,29 +264,35 @@ export default function RiskGraphWidget({ animate }: { animate: boolean }) {
         </g>
       </svg>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3">
-        {(["CAUSES", "AMPLIFIES", "CORRELATES"] as const).map((type) => (
-          <span
-            key={type}
-            className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
-          >
+      {/* mt-auto wraps both trailing blocks -- pushes them to the bottom of
+          the card's stretched height as one unit (this is the rail's
+          tallest card today, but the wrapper keeps behavior consistent if
+          that ever changes). */}
+      <div className="mt-auto">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3">
+          {(["CAUSES", "AMPLIFIES", "CORRELATES"] as const).map((type) => (
             <span
-              className="h-0.5 w-3 rounded-full"
-              style={{ backgroundColor: LINK_TYPE_COLOR[type] }}
-            />
-            {t(
-              `organization.riskGraph.legend${type.charAt(0)}${type.slice(1).toLowerCase()}`
-            )}
-          </span>
-        ))}
-      </div>
+              key={type}
+              className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+            >
+              <span
+                className="h-0.5 w-3 rounded-full"
+                style={{ backgroundColor: LINK_TYPE_COLOR[type] }}
+              />
+              {t(
+                `organization.riskGraph.legend${type.charAt(0)}${type.slice(1).toLowerCase()}`
+              )}
+            </span>
+          ))}
+        </div>
 
-      <p className="mt-2 text-xs text-muted-foreground">
-        {t("home.productDemo.riskGraph.caption", {
-          name: hub.name,
-          count: satellites.length,
-        })}
-      </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t("home.productDemo.riskGraph.caption", {
+            name: hub.name,
+            count: satellites.length,
+          })}
+        </p>
+      </div>
     </div>
   )
 }

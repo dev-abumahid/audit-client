@@ -96,3 +96,46 @@ Lowest-scored axes (tied at 6, below floor): industry-standards, code quality. R
 Batched with a second, non-file-overlapping Tier 1/2 fix: cross-view integration's real capability-regression finding (missing color legend on the now-interactive rail matrix widget), touching `LandingRiskMatrixWidget.tsx` only — disjoint from `ProductDemoSection.tsx`, safe to batch per the skill's same-round batching rule.
 
 Code quality's comment-cruft cleanup is real and will be picked next round — it touches `ProductDemoSection.tsx`, which this round's fix also touches, so batching it now would risk merge conflicts within the same round.
+
+**Shipped as [PR #1029](https://github.com/Qiyrix/aexa-frontend/pull/1029)**, merged, deployed, live-verified on qiyrix.com (legend text + max-w-4xl class confirmed via DOM).
+
+### Round 2 scoping
+
+Diff confined to 2 files (`ProductDemoSection.tsx`, `LandingRiskMatrixWidget.tsx`), no existing test assertions changed (only new tests added), full pre-existing suite passed unmodified. Narrow-scoped per the skill's cost-saving rule: re-running only the axes whose findings this round's diff was meant to address —
+**industry-standards, visual/design polish, cross-view integration** (all three cited this exact section), plus **code quality** (this round's diff also fixed 2 of its flagged stale comments, though the broader comment-cruft sweep across `RiskGraphWidget.tsx`/`KriThresholdSliderWidget.tsx`/`KriTrendWidget.tsx` remains untouched).
+
+Carried forward unchanged (zero code overlap with this round's diff): UX (8), efficiency (8), accessibility (9), resilience & edge cases (8), mobile/responsive (8).
+
+## Round 2
+
+| Axis | Score | Δ | stuck_streak |
+|---|---|---|---|
+| Industry-standards | 7/10 | +1 | 0 |
+| UX | 8/10 (carried forward) | — | 0 |
+| Efficiency | 8/10 (carried forward) | — | 0 |
+| Accessibility | 9/10 (carried forward) | — | 0 |
+| Visual/design polish | 8/10 | +1 | 0 |
+| Resilience & edge cases | 8/10 (carried forward) | — | 0 |
+| Code quality/maintainability | 6/10 | 0 | 1 |
+| Cross-view integration | 9/10 | +2 | 0 |
+| Mobile/responsive | 8/10 (carried forward) | — | 0 |
+
+**Average: 7.89/10** (up from 7.44) — not converged (code quality 6, below floor of 7; every other axis now clears the floor).
+
+### Judge findings (re-scored axes only)
+
+**Industry-standards (6→7):** width fix confirmed live and correct (896px column matching FAQSection exactly). New observation: `ConnectedDataModelSection.tsx` uses an even narrower `max-w-3xl` (768px) inside its own `max-w-5xl` outer container — a third width value in play across the page's "moment" sections; visually fine today (compact node diagram, not a text/card block) but worth a follow-up width-rhythm pass if pursued further. Logo wall and testimonial-photo findings still open, unchanged.
+
+**Visual/design polish (7→8):** width fix verified via `getBoundingClientRect()` — 896px matching FAQSection exactly, centered correctly (269px/275px margins, 6px delta is scrollbar width). Inner card now genuinely fills the column (894px vs 896px shell, the 2px gap is the intentional 1px gradient border each side) — round 1's "widened outer, still-narrow inner" failure mode does not recur. No new stretching/sparseness introduced in the register table or KRI slider at the wider width. FeaturesSection card-parallelism finding re-confirmed, still open.
+
+**Cross-view integration (7→9):** legend fix verified live — always visible, no click needed, colors confirmed matching between legend dots and matrix cells (both sourced from the same `SEVERITY_STYLES`). Hunted for other capabilities dropped by the same-day matrix-consolidation commit — grepped for all deleted i18n keys, confirmed zero dangling references anywhere in `src/`. All three cross-view consistency checks (risk-matrix coloring, KRI status, role gating) re-confirmed intact.
+
+**Code quality (6, unchanged, stuck_streak=1):** the two comment trims from round 1 (`ProductDemoSection.tsx`, `LandingRiskMatrixWidget.tsx`) confirmed as genuine readability improvements, not just relocation. The bulk of the flagged comment-cruft — `RiskGraphWidget.tsx` (~31 lines across 4 blocks), `KriThresholdSliderWidget.tsx` (3 blocks), `KriTrendWidget.tsx` (2 blocks) — remains completely untouched. **New finding**: the round-1 legend fix's own comment in `LandingRiskMatrixWidget.tsx` ("...deleted in favor of this one, see PR #1028...") reintroduced the exact "see PR #NNNN" forensic-citation pattern the round was meant to reduce — a small, self-inflicted regression in the same session. Shared `WidgetProps` type gap still open.
+
+### Mid-loop user feedback — reprioritized ahead of the mechanical pick
+
+User reviewed a reference mockup of the static 3-widget rail (equal-height cards, no dead space) and gave direct feedback: doesn't like that the three rail cards (Risk Matrix / Risk Correlation / KRI Trend) are different heights. This is a direct consequence of the `items-start` fix shipped days before this loop started (chosen specifically to eliminate a real dead-space bug in the KRI Trend card, at the cost of uneven bottom edges).
+
+Per this loop's own principle of responding immediately to user redirection, this took priority over the mechanical round-3 pick (which would have been code quality, per stuck_streak). Root-cause fix, not a re-introduction of the old bug: each of the three rail widgets became its own `flex h-full flex-col` with its closing legend/results-panel wrapped in `mt-auto`, so when the grid returns to `items-stretch` (equal heights), the extra stretched space is absorbed by the flex gap pushing the footer down — not left as a trailing empty rectangle. Verified live via `getBoundingClientRect()`: all three cards now measure exactly 529.35px (equal), and the gap between each card's last element and its bottom edge is exactly 20px everywhere (the shell's own `p-5` padding, not dead space).
+
+Code quality's fix (the comment-cruft sweep) is deferred to round 3.
