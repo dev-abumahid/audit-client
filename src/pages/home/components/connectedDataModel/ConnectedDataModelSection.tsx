@@ -15,7 +15,11 @@ import { computeKriStatus } from "@/utils/kriStatus"
 import { LINE_OF_DEFENSE_LABEL_KEY } from "@/utils/lineOfDefense"
 import { riskCategoryLabel } from "@/utils/riskConfig"
 import { getRiskSeverityLevel } from "@/utils/riskScoring"
-import { SEVERITY_STYLES, severityBadgeClasses } from "@/utils/severityStyles"
+import {
+  SEVERITY_STYLES,
+  severityBadgeClasses,
+  type SeverityLevel,
+} from "@/utils/severityStyles"
 import { CONNECTED_DEMO_RISKS } from "./connectedDataModelDemoData"
 
 // Landing overhaul (connected-data-model redesign, replaces the PR9
@@ -78,6 +82,18 @@ const SEVERITY_ACCENT: Record<
   },
 }
 
+// Mitigation.status is a plain `string` on the real type (no enum), but
+// this demo data only ever produces "planned"/"in_progress"/"completed" --
+// the same 3-state vocabulary AuditPage.tsx's own STATUS_CONFIG colors via
+// info/medium/low. Reused here rather than inventing new colors, with a
+// neutral fallback for any value outside that vocabulary (same pattern as
+// AllFindingsPage.tsx's NEUTRAL_BADGE).
+const MITIGATION_STATUS_LEVEL: Record<string, SeverityLevel> = {
+  planned: "info",
+  in_progress: "medium",
+  completed: "low",
+}
+
 export default function ConnectedDataModelSection() {
   const { t, i18n } = useTranslation()
   const [revealRef, revealVisible] = useRevealOnScroll<HTMLDivElement>()
@@ -122,16 +138,37 @@ export default function ConnectedDataModelSection() {
   // Illustrative trend toward the KRI's real current_value -- KRI has no
   // historical-value field anywhere in the schema or mock data, so this is
   // NOT a real time series (no dates are shown, deliberately, so it never
-  // reads as one). It's a smooth, deterministic interpolation from a worse
-  // starting point toward the real current_value, giving the card visual
-  // motion without asserting Qiyrix stores KRI history today.
+  // reads as one). An eased (not linear) interpolation from a worse
+  // starting point toward the real current_value -- a plain lerp produces
+  // perfectly collinear points, which render as a single straight diagonal
+  // segment (looks like a rendering bug, not a trend line).
   const kriTrendPoints = kri
     ? Array.from({ length: 6 }, (_, i) => {
         const t = i / 5
+        const eased = 1 - (1 - t) * (1 - t)
         const start = kri.current_value + (kri.alert_threshold - kri.current_value) * 0.7
-        return start + (kri.current_value - start) * t
+        return start + (kri.current_value - start) * eased
       })
     : []
+
+  // SVG coordinates for the sparkline above, computed once (not per-point
+  // inside the render map, which recomputed the same min/max on every
+  // iteration) so the polyline, its area fill, and the current-value dot
+  // marker all read off the same point set.
+  const kriSparklineMin = kriTrendPoints.length ? Math.min(...kriTrendPoints) : 0
+  const kriSparklineMax = kriTrendPoints.length
+    ? Math.max(...kriTrendPoints) || 1
+    : 1
+  const kriSparklinePoints = kriTrendPoints.map((v, i) => {
+    const norm =
+      kriSparklineMax === kriSparklineMin
+        ? 0.5
+        : (v - kriSparklineMin) / (kriSparklineMax - kriSparklineMin)
+    return {
+      x: (i / (kriTrendPoints.length - 1)) * 58 + 1,
+      y: 18 - norm * 16,
+    }
+  })
 
   // AuditFinding.severity is a plain `string` on the real type, not a
   // SeverityLevel union -- `in` would walk SEVERITY_STYLES' prototype
@@ -221,10 +258,10 @@ export default function ConnectedDataModelSection() {
                   <span className="font-mono-data text-xs font-bold text-foreground">
                     {entry.risk.ref}
                   </span>
-                  <p className="line-clamp-2 text-xs text-foreground">
+                  <p className="line-clamp-3 text-xs text-foreground">
                     {entry.risk.name}
                   </p>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="block w-full truncate text-[10px] text-muted-foreground">
                     {riskCategoryLabel(t, entry.risk.category)} ·{" "}
                     {t("organization.riskRegister.residualScoreLabel")}{" "}
                     {entry.risk.residual_score}
@@ -301,9 +338,14 @@ export default function ConnectedDataModelSection() {
               {/* Connector: a link icon anchors the hub, with one dashed
                   line per slot that actually has a connected record --
                   semantic (this object is related to this risk), not
-                  decorative, so an empty slot gets no line. Hidden on
-                  mobile where the cards stack. */}
-              <div className="relative mx-auto hidden h-10 max-w-3xl sm:block">
+                  decorative, so an empty slot gets no line. The 4 paths'
+                  x-positions (12.5/37.5/62.5/87.5) assume 4 equal columns,
+                  which only actually exist at the lg: breakpoint (the card
+                  grid below is 1 col on mobile, 2 cols at sm:, 4 only at
+                  lg:) -- showing this at sm: pointed 2 of the 4 lines at
+                  gaps between wrapped rows instead of at their cards, so
+                  it's hidden until lg: where the geometry is correct. */}
+              <div className="relative mx-auto hidden h-10 max-w-3xl lg:block">
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 100 40"
@@ -357,20 +399,26 @@ export default function ConnectedDataModelSection() {
                   </p>
                   <dl className="mt-2.5 space-y-1 text-xs text-muted-foreground">
                     <div className="flex items-center justify-between gap-2">
-                      <dt>{t("home.connectedDataModel.register.status")}</dt>
-                      <dd className="font-medium text-foreground capitalize">
+                      <dt className="shrink-0">
+                        {t("home.connectedDataModel.register.status")}
+                      </dt>
+                      <dd className="min-w-0 truncate font-medium text-foreground capitalize">
                         {risk.status}
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <dt>{t("home.connectedDataModel.register.line")}</dt>
-                      <dd className="font-medium text-foreground">
+                      <dt className="shrink-0">
+                        {t("home.connectedDataModel.register.line")}
+                      </dt>
+                      <dd className="min-w-0 truncate font-medium text-foreground">
                         {t(LINE_OF_DEFENSE_LABEL_KEY[risk.line_of_defense])}
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <dt>{t("home.connectedDataModel.register.updated")}</dt>
-                      <dd className="font-medium text-foreground">
+                      <dt className="shrink-0">
+                        {t("home.connectedDataModel.register.updated")}
+                      </dt>
+                      <dd className="min-w-0 truncate font-medium text-foreground">
                         {formatDate(risk.updatedAt, i18n.language)}
                       </dd>
                     </div>
@@ -418,32 +466,57 @@ export default function ConnectedDataModelSection() {
                           aria-hidden="true"
                           viewBox="0 0 60 20"
                           preserveAspectRatio="none"
-                          className="h-5 w-16 shrink-0"
+                          className={`h-5 w-16 shrink-0 ${
+                            // kriStatusMeta() only ever returns
+                            // critical/medium/low (never "high") -- reuses
+                            // the same AA-verified shade severityStyles.ts
+                            // already defines (its own header comment
+                            // documents the raw --risk-* tokens failing
+                            // WCAG contrast in light mode), applied once
+                            // here via `currentColor` for the fill/stroke/
+                            // dot marker below.
+                            (
+                              SEVERITY_ACCENT[
+                                kriMeta.severityLevel as keyof typeof SEVERITY_ACCENT
+                              ] ?? SEVERITY_ACCENT.low
+                            ).text
+                          }`}
                         >
-                          <polyline
-                            points={kriTrendPoints
-                              .map((v, i) => {
-                                const values = kriTrendPoints
-                                const min = Math.min(...values)
-                                const max = Math.max(...values) || 1
-                                const norm =
-                                  max === min ? 0.5 : (v - min) / (max - min)
-                                const x = (i / (kriTrendPoints.length - 1)) * 58 + 1
-                                const y = 18 - norm * 16
-                                return `${x},${y}`
-                              })
-                              .join(" ")}
-                            fill="none"
-                            className={
-                              kriMeta.severityLevel === "critical" ||
-                              kriMeta.severityLevel === "high"
-                                ? "stroke-risk-critical"
-                                : "stroke-risk-low"
-                            }
-                            strokeWidth={1.5}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
+                          {kriSparklinePoints.length > 1 && (
+                            <>
+                              {/* Area fill under the line -- an unadorned
+                                  1px stroke with nothing else around it
+                                  read as a stray/broken line rather than a
+                                  deliberate chart element; the fill plus
+                                  the end-value dot below both tie it back
+                                  to the CURRENT number it's illustrating. */}
+                              <polygon
+                                points={`${kriSparklinePoints[0].x},20 ${kriSparklinePoints
+                                  .map((p) => `${p.x},${p.y}`)
+                                  .join(" ")} ${
+                                  kriSparklinePoints[kriSparklinePoints.length - 1].x
+                                },20`}
+                                fill="currentColor"
+                                fillOpacity={0.15}
+                              />
+                              <polyline
+                                points={kriSparklinePoints
+                                  .map((p) => `${p.x},${p.y}`)
+                                  .join(" ")}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={1.5}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                              <circle
+                                cx={kriSparklinePoints[kriSparklinePoints.length - 1].x}
+                                cy={kriSparklinePoints[kriSparklinePoints.length - 1].y}
+                                r={1.75}
+                                fill="currentColor"
+                              />
+                            </>
+                          )}
                         </svg>
                         <div className="text-right">
                           <span className="block text-[10px] tracking-wide text-muted-foreground uppercase">
@@ -540,7 +613,11 @@ export default function ConnectedDataModelSection() {
                         {mitigation.title}
                       </p>
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <span className="inline-block rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground uppercase">
+                        <span
+                          className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase ${severityBadgeClasses(
+                            MITIGATION_STATUS_LEVEL[mitigation.status] ?? "neutral"
+                          )}`}
+                        >
                           {mitigation.status.replace(/_/g, " ")}
                         </span>
                         <span className="text-[11px] text-muted-foreground">
