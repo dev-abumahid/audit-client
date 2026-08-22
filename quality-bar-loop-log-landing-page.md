@@ -178,3 +178,39 @@ No axis below floor, no axis with a live stuck_streak. Priority falls to "furthe
 Fix: removed the 5-star rating row from `TestimonialsSection.tsx`'s testimonial cards (the `Star` icon import, the `rating` field on the `Testimonial` interface/mock data, and the rendered star row) -- a rating implies a real measured opinion, at odds with the "ILLUSTRATIVE EXAMPLE" badge directly above it on the same card, and no reference site in the category (Vanta/Drata/Secureframe) uses star ratings on testimonials.
 
 QA gate: typecheck clean, 0 lint errors, 156 files / 2533 tests passing (5/5 in `TestimonialsSection.test.tsx`, no test depended on the removed rating). Live-verified: 0 star SVGs remain in the testimonials section, all 4 cards intact, console clean.
+
+## Round 6
+
+Narrow-scoped: re-ran industry-standards and visual/design polish (the two axes round 5's fix touched or targeted). Carried forward unchanged: UX (8), efficiency (8), accessibility (9), resilience (8), code quality (8), cross-view integration (9), mobile/responsive (8).
+
+| Axis | Score | Δ | stuck_streak |
+|---|---|---|---|
+| Industry-standards | 7/10 | 0 | 1 |
+| Visual/design polish | 8/10 | 0 | 0 (above floor, doesn't count as stuck) |
+| (all others) | carried forward | — | 0 |
+
+**Average: 8.11/10 -- identical to round 4's average.**
+
+### Judge findings
+
+**Industry-standards (7, unchanged):** star-removal fix verified live and in source -- clean, no regression, no orphaned gap. The two remaining findings (no customer-logo strip, no testimonial photos) are unchanged and both explicitly large-scope (no real customer assets exist yet to show honestly). Fresh full-page pass found nothing new; this axis's honesty-badge discipline ("Not verified customer quotes," "ILLUSTRATIVE DATA" labels throughout) was called out as unusually transparent versus the category norm.
+
+**Visual/design polish (8, unchanged):** star-removal verified clean via `getBoundingClientRect()` -- consistent 24px gap in all 4 cards, no leftover margin artifact, row-paired cards match heights exactly. The `FeaturesSection.tsx` card-parallelism finding (row 1: 3/3 cards with rich crops; row 2: 1/3) is confirmed still open -- this is now its **third** consecutive scored round flagged without ever being selected as a fix, because every prior round's mechanical priority routed to a lower-scoring or more-urgent axis first.
+
+### Guardrail check: STAGNATION
+
+Round 4's average (8.11) and round 6's average (8.11) are identical -- two consecutive scored rounds with zero net improvement, tripping this loop's stagnation guardrail. **Stopping the loop here to escalate, per the skill's explicit instruction, rather than continuing silently.**
+
+Diagnosis: this is not the loop spinning without progress -- both of the last two fixes (round 3's comment cleanup, round 5's star removal) were independently verified as clean, correct, real improvements with no regressions. The flat average instead reflects two separate real dynamics converging at the same time:
+1. Industry-standards' only remaining findings (customer-logo wall, testimonial photos) are both explicitly large-scope -- blocked on real customer assets that don't exist yet, not fixable by another contained round.
+2. Visual/design polish's one remaining finding (`FeaturesSection.tsx` card-parallelism) is genuinely contained -- but has been flagged and re-confirmed in 3 consecutive scored rounds (1, 2, 6) without ever winning mechanical priority, because rounds 1-4 always had a lower-scoring or newly-regressed axis to address first. Now that every other axis is comfortably above floor, this finding is next in line but the loop stopped for stagnation before it could be selected.
+
+## Round 7 (final, per user direction after the stagnation escalation)
+
+User chose: fix the FeaturesSection parallelism finding, then stop the loop regardless of the outcome.
+
+Fix: reordered `FeaturesSection.tsx`'s render order (content/copy unchanged) so the 4 cropped and 2 icon-only cards interleave across both grid rows instead of clustering 4-then-2. Row 1 now carries 2/3 cropped cards, row 2 carries 2/3 -- no row reads as categorically less finished than the other. Named the 6 feature objects individually (compliance/audits/tracked-actions/board-ready-reporting/site-wide-risk-view/highest-exposure-risks) so the render-order array reads as an intentional interleave, not an opaque reshuffle.
+
+New regression test asserting neither 3-card row is all-crop or all-icon-only, negative-control-verified (reverted to the old clustered order, confirmed the test fails; restored, confirmed it passes).
+
+QA gate: typecheck clean, 0 lint errors, 156 files / 2534 tests passing. Live-verified via DOM: row 1 = crop/no-crop/crop, row 2 = no-crop/crop/crop, exactly as designed. Console clean.

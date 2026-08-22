@@ -14,53 +14,65 @@ import ComplianceHeatmapCrop from "./featuresShowcase/ComplianceHeatmapCrop"
 import FindingsOverdueCrop from "./featuresShowcase/FindingsOverdueCrop"
 import SeverityChipsCrop from "./featuresShowcase/SeverityChipsCrop"
 
-// Landing overhaul PR7: 4 of the 6 cards below now embed a compact real
-// crop of that module's own distinctive UI (see featuresShowcase/*.tsx for
-// each crop's real source page/line) instead of icon+text alone -- the
-// single highest-fidelity win the plan called for. The other 2 (templates,
+// 4 of the 6 cards embed a compact real crop of that module's own
+// distinctive UI (see featuresShowcase/*.tsx for each crop's real source
+// page/line) instead of icon+text alone. The other 2 (templates,
 // board-ready reporting) stay icon+text: not every card needs a crop, and
-// a report/export card in particular doesn't have a small-scale visual
-// moment worth compressing into this space.
+// a report/export card doesn't have a small-scale visual moment worth
+// compressing into this space.
+//
+// Render order (not content order) interleaves the cropped and icon-only
+// cards across both grid rows -- quality-bar-loop finding: clustering all
+// 4 crops in row 1 and both icon-only cards in row 2 made row 2 read as
+// the "unfinished" half of an otherwise-parallel 3x2 grid. Each row now
+// carries 2 of 3 cards with a crop, so no row reads as categorically less
+// polished than the other.
 const FeaturesSection: React.FC = () => {
   const { t } = useTranslation()
   const [revealRef, revealVisible] = useRevealOnScroll<HTMLDivElement>()
+  const complianceTemplates = {
+    icon: FileText,
+    title: t("home.featureSection.features.0.title"),
+    description: t("home.featureSection.features.0.description"),
+    Visual: ComplianceHeatmapCrop,
+  }
+  const audits = {
+    icon: ClipboardCheck,
+    title: t("home.featureSection.features.1.title"),
+    description: t("home.featureSection.features.1.description"),
+    Visual: AuditEngagementCrop,
+  }
+  const trackedActions = {
+    icon: ListChecks,
+    title: t("home.featureSection.features.2.title"),
+    description: t("home.featureSection.features.2.description"),
+    Visual: FindingsOverdueCrop,
+  }
+  const boardReadyReporting = {
+    icon: BarChart3,
+    title: t("home.featureSection.features.3.title"),
+    description: t("home.featureSection.features.3.description"),
+    Visual: null,
+  }
+  const siteWideRiskView = {
+    icon: MapPin,
+    title: t("home.featureSection.features.4.title"),
+    description: t("home.featureSection.features.4.description"),
+    Visual: null,
+  }
+  const highestExposureRisks = {
+    icon: Target,
+    title: t("home.featureSection.features.5.title"),
+    description: t("home.featureSection.features.5.description"),
+    Visual: SeverityChipsCrop,
+  }
   const features = [
-    {
-      icon: FileText,
-      title: t("home.featureSection.features.0.title"),
-      description: t("home.featureSection.features.0.description"),
-      Visual: ComplianceHeatmapCrop,
-    },
-    {
-      icon: ClipboardCheck,
-      title: t("home.featureSection.features.1.title"),
-      description: t("home.featureSection.features.1.description"),
-      Visual: AuditEngagementCrop,
-    },
-    {
-      icon: ListChecks,
-      title: t("home.featureSection.features.2.title"),
-      description: t("home.featureSection.features.2.description"),
-      Visual: FindingsOverdueCrop,
-    },
-    {
-      icon: BarChart3,
-      title: t("home.featureSection.features.3.title"),
-      description: t("home.featureSection.features.3.description"),
-      Visual: null,
-    },
-    {
-      icon: MapPin,
-      title: t("home.featureSection.features.4.title"),
-      description: t("home.featureSection.features.4.description"),
-      Visual: null,
-    },
-    {
-      icon: Target,
-      title: t("home.featureSection.features.5.title"),
-      description: t("home.featureSection.features.5.description"),
-      Visual: SeverityChipsCrop,
-    },
+    complianceTemplates,
+    boardReadyReporting,
+    audits,
+    siteWideRiskView,
+    highestExposureRisks,
+    trackedActions,
   ]
 
   return (

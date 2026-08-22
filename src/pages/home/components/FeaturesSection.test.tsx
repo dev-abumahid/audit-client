@@ -52,4 +52,24 @@ describe("FeaturesSection", () => {
     // SeverityChipsCrop
     expect(screen.getByText("riskLevel.critical")).toBeInTheDocument()
   })
+
+  // Quality-bar-loop finding: clustering all 4 crops in the grid's first
+  // row and both icon-only cards in the second made the second row read as
+  // categorically less finished than the first. Render order now
+  // interleaves them -- guard that no 3-card grid row (lg:grid-cols-3) is
+  // either all-crop or all-icon-only.
+  it("distributes crops across both grid rows, not clustered in one", () => {
+    const { container } = render(<FeaturesSection />)
+    const cards = container.querySelectorAll(
+      ".grid.grid-cols-1.gap-x-10 > div"
+    )
+    expect(cards).toHaveLength(6)
+    const hasCrop = [...cards].map((card) => card.children.length > 3)
+    const row1CropCount = hasCrop.slice(0, 3).filter(Boolean).length
+    const row2CropCount = hasCrop.slice(3, 6).filter(Boolean).length
+    expect(row1CropCount).toBeGreaterThan(0)
+    expect(row1CropCount).toBeLessThan(3)
+    expect(row2CropCount).toBeGreaterThan(0)
+    expect(row2CropCount).toBeLessThan(3)
+  })
 })
