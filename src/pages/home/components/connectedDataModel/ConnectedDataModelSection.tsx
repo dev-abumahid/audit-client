@@ -70,7 +70,16 @@ export default function ConnectedDataModelSection() {
     // border-t) rather than a heavier background-color change, since this
     // section's own content already carries plenty of visual weight.
     <section className="scroll-mt-16 border-t border-border bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-      <div className="mx-auto max-w-5xl">
+      {/* max-w-4xl -- matches FAQSection's own centered-column width.
+          Design-team finding: this section, FAQSection, and FinalCTASection
+          each picked a different max-w (5xl/4xl/3xl) independently, so their
+          left edges crept progressively narrower down the page with no
+          visual signal why. Standardized to the width FAQSection already
+          used; this section's own interactive grid already caps itself
+          tighter internally (max-w-3xl), so this only moves the header's
+          and card-row's shared centering point, not their real content
+          width. */}
+      <div className="mx-auto max-w-4xl">
         <div className="mb-10 max-w-2xl sm:mb-14">
           <span className="text-xs font-semibold tracking-wide text-teal-700 uppercase dark:text-primary">
             {t("home.connectedDataModel.eyebrow")}
