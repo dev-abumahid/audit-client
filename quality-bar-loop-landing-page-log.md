@@ -495,3 +495,76 @@ findings themselves). Selected all 3, same file
 Deferred: the role-picker-vs-dense-table tonal mismatch (round 2 finding,
 more subjective/inherent design tension, different file -- can be its own
 round if visual-polish still needs work after this).
+
+---
+
+## Round 6 — 2026-08-22
+
+Focused re-verification: visual-polish (full re-check, the axis round 5's
+fix targeted), plus light re-checks from accessibility (color-contrast
+implications of the new severity-accent colors) and mobile (text-size
+bumps at 375px) -- both flagged as worth a light look given the specific
+surface round 5 touched, without re-running their full panels.
+
+| Axis | Round 5 | Round 6 | Δ | Stuck streak |
+|---|---|---|---|---|
+| Industry-standards conformance | 8 | 8 (carried forward) | 0 | 0 |
+| UX / interaction friction | 7.5 | 7.5 (carried forward) | 0 | 0 |
+| Efficiency | 8 | 8 (carried forward) | 0 | 0 |
+| Accessibility (a11y) | 7.8 | **7** | **-0.8** | 0 (regressed, at/above floor) |
+| Visual/design polish | 7 | **8** | **+1** | 0 |
+| Resilience & edge cases | 9 | 9 (carried forward) | 0 | 0 |
+| Code quality/maintainability | 8.7 | 8.7 (carried forward) | 0 | 0 |
+| Cross-view integration | 9 | 9 (carried forward) | 0 | 0 |
+| Mobile/responsive | 7.8 | 7.8 | 0 | 0 |
+| **Average** | **8.09** | **8.11** | **+0.02** | |
+
+**Convergence check:** 8.11 < 8.5 target. Not converged. All axes ≥ 6.5
+floor (lowest is 7, accessibility) -- **no below-floor regression**, so no
+hard-stop guardrail. Net average barely moved (+0.02) because a real gain
+(visual-polish +1) was offset almost exactly by a real regression
+(accessibility -0.8) round 5's own fix introduced.
+
+### Judge findings (trimmed)
+
+**Visual polish (8, +1):** All 3 round-1 findings confirmed genuinely
+fixed, not just technically present: panel border/background now reads as
+a real boundary; connector/accent color now consistently severity-aware
+across the connector stroke, link-icon anchor, and all 4 cards; record-card
+text no longer cramped, correctly scoped (selector cards/hub untouched, as
+the original finding intended). Round 2's separate `RoleScopedRegisterWidget`
+tonal-mismatch finding confirmed still open, unchanged, different file.
+
+**Accessibility (7, -0.8, regressed at/above floor):** Real, confirmed
+regression -- round 5's new `SEVERITY_ACCENT` lookup applied the raw
+`--risk-critical/high/medium/low` tokens directly as `text-risk-*`/
+`border-risk-*` for the connector's link-icon and every card's accent
+border. `src/utils/severityStyles.ts`'s own header comment documents
+exactly why this fails: those raw tokens measure 2.60:1/1.99:1/2.15:1 in
+light mode for high/medium/low (all under the 3:1 WCAG 1.4.11 non-text
+floor) -- `SEVERITY_ACCENT` was hand-rolled as a separate map instead of
+reusing the same file's already AA-verified Tailwind-shade wrappers
+(`text-red-700`/`text-orange-700`/etc.), which the fix's own PR even
+imports for other purposes. Dark mode is fine (3.86-9.08:1). Severity
+capped at moderate: every affected element is non-text UI (an
+`aria-hidden` icon, decorative/structural borders), not body text, so this
+is a 1.4.11 (3:1) issue in light mode only, not a 1.4.3 failure. Roving-
+tabindex finding (matrix grid) confirmed still open, unchanged.
+
+**Mobile (7.8, unchanged):** No new overflow/clipping from the text-size
+bumps or thicker panel border, confirmed via a full `scrollWidth`/
+`clientWidth` overflow scan across all 4 record cards at 375px width
+across 3 different risks' content lengths. `RiskGraphWidget`'s still-partial
+touch-target gap unchanged, not re-litigated.
+
+### Round 6 fix selection
+
+Accessibility regressed this round (at/above floor) -- carries one round's
+selection priority per the skill's tiered-regression rule, ahead of the
+normal furthest-below-target fallback. The fix is well-understood and
+low-risk (not a design judgment call): replace `SEVERITY_ACCENT`'s raw
+`--risk-*` tokens with the exact same AA-verified Tailwind shades
+`severityStyles.ts` already defines and this same file already imports
+for other purposes (`text-red-700 dark:text-red-400`, etc.), adding only
+the `border-t-*`/`stroke-*` variants that shared file doesn't provide --
+same color values, so the same verified contrast numbers apply.

@@ -39,40 +39,42 @@ function formatDate(iso: string, language: string) {
   )
 }
 
-// Quality-bar-loop finding: the connector line, its link-icon anchor, and
-// every card's top accent stayed hardcoded brand-teal regardless of the
-// hub's own severity color -- a critical (red) hub reading as "red hub,
-// teal everything else." Ties the connector/accent treatment to the same
-// --risk-* colors the hub's own severity badge already uses. Static
-// per-key strings, not a template-interpolated class name -- Tailwind's
-// JIT only picks up classes it can find literally in source.
+// Ties the connector line, its link-icon anchor, and every card's top
+// accent to the selected risk's own severity color, instead of a fixed
+// brand teal. Reuses the exact same Tailwind shades severityStyles.ts
+// already verified pass AA contrast (see that file's own header comment
+// for the measured ratios) -- the raw --risk-critical/high/medium/low
+// tokens fail 3:1 for 3 of 4 levels in light mode, so this deliberately
+// does NOT use those directly. severityStyles.ts has no border-t-*/
+// stroke-* variants of its own, so those are added here using the same
+// verified color values, not new ones.
 const SEVERITY_ACCENT: Record<
   "critical" | "high" | "medium" | "low",
   { border: string; text: string; borderTop: string; stroke: string }
 > = {
   critical: {
-    border: "border-risk-critical",
-    text: "text-risk-critical",
-    borderTop: "border-t-risk-critical",
-    stroke: "stroke-risk-critical/70",
+    border: "border-red-700 dark:border-red-400",
+    text: "text-red-700 dark:text-red-400",
+    borderTop: "border-t-red-700 dark:border-t-red-400",
+    stroke: "stroke-red-700/70 dark:stroke-red-400/70",
   },
   high: {
-    border: "border-risk-high",
-    text: "text-risk-high",
-    borderTop: "border-t-risk-high",
-    stroke: "stroke-risk-high/70",
+    border: "border-orange-700 dark:border-orange-400",
+    text: "text-orange-700 dark:text-orange-400",
+    borderTop: "border-t-orange-700 dark:border-t-orange-400",
+    stroke: "stroke-orange-700/70 dark:stroke-orange-400/70",
   },
   medium: {
-    border: "border-risk-medium",
-    text: "text-risk-medium",
-    borderTop: "border-t-risk-medium",
-    stroke: "stroke-risk-medium/70",
+    border: "border-amber-800 dark:border-amber-400",
+    text: "text-amber-800 dark:text-amber-400",
+    borderTop: "border-t-amber-800 dark:border-t-amber-400",
+    stroke: "stroke-amber-800/70 dark:stroke-amber-400/70",
   },
   low: {
-    border: "border-risk-low",
-    text: "text-risk-low",
-    borderTop: "border-t-risk-low",
-    stroke: "stroke-risk-low/70",
+    border: "border-emerald-700 dark:border-emerald-400",
+    text: "text-emerald-700 dark:text-emerald-400",
+    borderTop: "border-t-emerald-700 dark:border-t-emerald-400",
+    stroke: "stroke-emerald-700/70 dark:stroke-emerald-400/70",
   },
 }
 

@@ -188,7 +188,7 @@ describe("ConnectedDataModelSection", () => {
       "home.connectedDataModel.cards.register"
     )
     const registerCard = registerLabel.closest("div")!.parentElement!
-    expect(registerCard.className).toContain("border-t-risk-critical")
+    expect(registerCard.className).toContain("border-t-red-700")
 
     await user.click(screen.getByText(mediumEntry!.risk.ref))
 
@@ -196,13 +196,24 @@ describe("ConnectedDataModelSection", () => {
       "home.connectedDataModel.cards.register"
     )
     const registerCardAfter = registerLabelAfter.closest("div")!.parentElement!
-    expect(registerCardAfter.className).toContain("border-t-risk-medium")
-    expect(registerCardAfter.className).not.toContain("border-t-risk-critical")
+    expect(registerCardAfter.className).toContain("border-t-amber-800")
+    expect(registerCardAfter.className).not.toContain("border-t-red-700")
 
     const connectorPath = container.querySelector("svg path.animate-cdm-draw")
-    expect(connectorPath?.getAttribute("class")).toContain(
-      "stroke-risk-medium"
-    )
+    expect(connectorPath?.getAttribute("class")).toContain("stroke-amber-800")
+  })
+
+  // Quality-bar-loop round 6 (accessibility finding): the first version of
+  // the severity-accent colors used the raw --risk-* tokens directly,
+  // which severityStyles.ts's own header comment documents as failing
+  // WCAG contrast in light mode for 3 of 4 levels. Confirms the fix
+  // reuses that file's already AA-verified shades instead.
+  it("uses the same AA-verified severity shades as severityStyles.ts, not the raw --risk-* tokens", () => {
+    const { container } = render(<ConnectedDataModelSection />)
+    const connectorPath = container.querySelector("svg path.animate-cdm-draw")
+    const classes = connectorPath?.getAttribute("class") ?? ""
+    expect(classes).not.toMatch(/stroke-risk-(critical|high|medium|low)\b/)
+    expect(classes).toMatch(/stroke-(red|orange|amber|emerald)-\d{3}/)
   })
 
   it("renders a KRI current-value trend sparkline without asserting specific dates", () => {
