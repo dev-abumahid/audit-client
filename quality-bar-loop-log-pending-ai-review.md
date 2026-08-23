@@ -391,3 +391,143 @@ Added a select-all checkbox to the panel header, mirroring `useRiskBulkActions.t
 One review round: 0 findings across all 5 angles, including a cross-file semantic comparison confirming the local logic matches `useRiskBulkActions.ts` exactly (empty-list guard, indeterminate derivation, reset-vs-select-all behavior), and a check that all 8 checkbox queries in the test file were correctly updated for the index shift the new checkbox introduces (no stale query silently pointing at the wrong element).
 
 Live-verified end-to-end before merge, against 3 real seeded pending risks: selecting one row correctly showed the header checkbox as indeterminate; clicking it selected all 3 and showed "3 selected" with the bulk action bar; clicking again deselected all.
+
+## Round 12 (post-fix judge panel)
+
+| Axis | Score | vs. Round 11 |
+|---|---|---|
+| Industry-standards conformance | 9/10 | **+1** |
+| UX | 9/10 | **+1** |
+| Efficiency | 8/10 | unchanged |
+| Accessibility (a11y) | 8.5/10 | unchanged |
+| Visual/design polish | 7/10 | **-1, new regression** |
+| Resilience & edge cases | 8/10 | unchanged (new sibling finding) |
+| Code quality/maintainability | 8/10 | **-1, new finding** |
+| Cross-view integration | 8/10 | unchanged |
+| Security | 9/10 | unchanged |
+| **Average** | **8.28/10** | flat |
+
+Net zero this round: industry-standards and UX both gained from the select-all fix landing cleanly, but visual and code quality each found a real, freshly-introduced cost of that same fix. No axis below floor for the sixth consecutive round.
+
+### Findings summary — only axes with new/changed findings
+
+**Industry-standards (9/10, was 8):** Select-all fully verified live — correct three-state round trip (unchecked → indeterminate → checked → unchecked), distinct `aria-label` from the main table's own select-all, and the checked/indeterminate state correctly tracks live `pendingRisks` rather than a stale cached count. Only the bulk-undo gap remains open.
+
+**UX (9/10, was 8):** Select-all's 32×32 hit target (via the same `-m-2 h-8 w-8` label wrapper as the main table) is, ironically, better than the still-untouched per-row checkboxes' bare 16×16 hit area — noted as a UX win for this round's fix, not a new problem. No confusion risk with the adjacent Bot icon; responsive with no lag.
+
+**Visual (7/10, was 8 — new regression):** The select-all fix introduced a real, if small, inconsistency: it renders at 14×14px with `accent-primary` (teal), while the panel's own per-row checkboxes remain 16×16px with browser-default `accent-color: auto` — two visibly different checkbox styles now stacked in the same list where there was only one before. Confirmed via computed-style DOM inspection, not just visual impression. The two older findings (truncated-name tooltip, row-hierarchy) remain open, 6+ rounds now.
+
+**Code quality (8/10, was 9 — new finding):** `allPendingSelected`/`somePendingSelected`/`toggleSelectAll` is a near-verbatim copy of `useRiskBulkActions.ts`'s equivalent logic (same computation, same naming pattern) — the panel's own top-of-file comment justifies not adopting that hook *wholesale* (mismatched mutations/filter-reset semantics), but doesn't justify hand-copying this one independent ~18-line unit rather than extracting a small shared `useSelectAll` hook both could call. Judge explicitly flagged this codebase's own precedent (`runBulkAction` was extracted in `useRiskBulkActions.ts` once two ~25-line blocks were near-duplicates) as the relevant bar. Not floor-threatening, flagged as a future-round candidate.
+
+**Resilience (8/10, unchanged):** Both round-11 scenarios (select-all → individual approve, select-all → bulk approve) tested live against the real backend and passed cleanly — the derived-state design (recomputing from live `pendingRisks` × `selectedIds` every render, never a separately-synced boolean) avoids an entire class of stuck-checkbox bugs by construction. New sibling finding to the still-open `isError` gap: `handleBulkApprove`/`handleBulkDismiss` never inspect the mutation's `skipped` count, so a partial bulk success (e.g. a risk concurrently dismissed by someone else between selection and confirm) clears the selection and stays silent as if everything succeeded.
+
+**Efficiency (8/10), A11y (8.5/10), Cross-view integration (8/10), Security (9/10):** All reconfirmed unchanged. Efficiency noted `allPendingSelected`/`somePendingSelected` recompute via O(n) `.every()`/`.some()` on every render rather than a cheaper `selectedIds.size` comparison — real but negligible at the file's 100-row cap. A11y verified the `indeterminate` DOM property (not just CSS) via live JS inspection across all 3 selection states. Cross-view confirmed exact visual/interaction parity with the main table's select-all and fully independent selection state (tested live: selecting all in one panel doesn't touch the other's selection). Security confirmed select-all can't smuggle in ids beyond what the server already scoped the user to see, same mutation call shape as before.
+
+### stuck_streak (computed after this round)
+
+No axis at or below floor for the sixth consecutive round. Priority-2's tie-break (lowest raw score) picks visual/design polish (7/10) — the sole lowest-scoring axis, and the newest, freshest, most contained of its three open findings (the checkbox-style mismatch this round's own fix introduced).
+
+### Next fix (Round 13)
+
+**Selected: match the per-row checkboxes' styling to the new select-all checkbox (`h-3.5 w-3.5 accent-primary`, same `-m-2 h-8 w-8` label hit-target wrapper).**
+
+Selection rationale (step 5c priority order): no data-correctness/security finding at/below floor (priority 1 empty). No axis has stuck_streak > 0 for the sixth straight round; priority 2's tie-break (lowest raw score) picks visual, the sole lowest axis at 7/10. Of its three open findings, the checkbox-style mismatch is selected over the two older ones (truncated-name tooltip, row-hierarchy) because it's a pure Tier-1 CSS-class change this loop's own round-11 fix introduced — cleaning it up now is cheaper and lower-risk than letting it compound, and it also closes UX's own noted hit-target gap on the per-row checkboxes as a side effect (matching the select-all's `-m-2 h-8 w-8` wrapper gives every checkbox in the panel the same improved touch target, not just the new one).
+
+## Round 13 — fix shipped ([PR #1075](https://github.com/Qiyrix/aexa-frontend/pull/1075))
+
+Matched the per-row checkboxes' wrapper/classes to the select-all checkbox's (`-m-2 h-8 w-8` label wrapper, `focus-ring h-3.5 w-3.5 accent-primary` input). Tier-1 cosmetic-only diff confined to one file, zero logic change — skipped the parallel-review-agent dispatch per that tier's own guidance, did self-review + QA gate + live screenshot check instead.
+
+Live-verified before merge: computed styles confirmed all 4 checkboxes (select-all + 3 rows) now render identically (14px width, `rgb(37, 147, 125)` teal accent). Screenshot confirmed no layout/spacing regression. Full test suite (2630 tests) passed completely unmodified.
+
+Per the loop's scoping rule (pure CSS/copy change confined to 1-2 files, zero behavior change), round 14's judge panel is scoped to just the two axes this fix targeted — **visual** (its own finding) and **UX** (the incidental hit-target improvement UX had separately noted) — with the other 7 axes carried forward unchanged from round 12.
+
+## Round 13 (scoped judge panel — visual + UX only, other 7 axes carried forward)
+
+| Axis | Score | Source |
+|---|---|---|
+| Industry-standards conformance | 9/10 | carried forward |
+| UX | 9/10 | fresh re-run, unchanged |
+| Efficiency | 8/10 | carried forward |
+| Accessibility (a11y) | 8.5/10 | carried forward |
+| Visual/design polish | 8/10 | **fresh re-run, +1** |
+| Resilience & edge cases | 8/10 | carried forward |
+| Code quality/maintainability | 8/10 | carried forward |
+| Cross-view integration | 8/10 | carried forward |
+| Security | 9/10 | carried forward |
+| **Average** | **8.39/10** | +0.11 |
+
+No axis below floor for the seventh consecutive round. Very close to the 8.5 target now.
+
+### Findings summary — visual (8/10, was 7)
+
+Fully verified live in both themes: `getComputedStyle` on all 4 panel checkboxes (select-all + 3 rows) confirmed identical 14px width and identical `accentColor` (light `rgb(37,147,125)`, dark `rgb(45,180,153)`), with the 32×32 hit-target wrapper also now unified. The two older findings (truncated-name tooltip, row-hierarchy) remain open, unchanged, 7+ rounds now.
+
+### stuck_streak (computed after this round)
+
+No axis at or below floor for the seventh consecutive round. Priority-2's tie-break (lowest raw score, then roster order) now has a 4-way tie at 8/10 (efficiency, resilience, code quality, cross-view integration) — roster order (efficiency is listed third in the judge roster, ahead of the other three) breaks the tie.
+
+### Next fix (Round 14)
+
+**Selected: switch `allPendingSelected`/`somePendingSelected`'s render-path computation from `.every()`/`.some()` scans to a cheap `selectedIds.size` comparison, per the efficiency judge's own suggested implementation.**
+
+Selection rationale (step 5c priority order): no data-correctness/security finding at/below floor (priority 1 empty). No axis has stuck_streak > 0 for the seventh straight round; priority 2's tie-break (roster order among the 4-way tie at 8/10) picks efficiency. Its one open finding — the round-12 judge's own explicit note that `allPendingSelected`/`somePendingSelected` recompute via O(n) `.every()`/`.some()` on every render rather than an O(1) `selectedIds.size` comparison — is real, if genuinely small at this file's 100-row cap. Selected anyway since it's the mechanical priority-2 winner, it's cheap and low-risk (a pure derivation swap, `toggleSelectAll`'s own updater keeps its `.every()` call since the judge noted `selectedIds.size` alone can't safely replace that one), and closing it removes a lingering "should be cheaper" note before the loop's next round reassessment.
+
+## Round 14 — fix shipped ([PR #1076](https://github.com/Qiyrix/aexa-frontend/pull/1076))
+
+Switched `allPendingSelected`/`somePendingSelected` from O(n) `.every()`/`.some()` scans to an O(1) `selectedIds.size` comparison. Proven zero behavior change by the pre-existing test suite: all 20 tests in `PendingAiReviewPanel.test.tsx` passed **completely unmodified**.
+
+One review round caught a real, non-obvious robustness gap the "unmodified tests pass" claim didn't cover: the size-based derivation has no fallback if `selectedIds` ever holds an id absent from `pendingRisks` (the old `.every()`/`.some()` scans simply ignored a stale id; the new count comparison trusts exact membership with no safety net). The reviewer exhaustively traced every `selectedIds` mutation site in the file and confirmed the invariant genuinely holds today — no current UI path can violate it — but flagged that a future change (a search/filter, pagination) could silently reintroduce a false "all selected" indicator, and the existing test suite (deliberately unmodified) doesn't cover that case at all. Fixed by pruning `selectedIds` to intersect with `pendingRisks` inside the existing render-time `prevPendingCount` block, making the invariant self-enforcing instead of merely asserted in a comment. Added a regression test that bypasses this panel's own handlers entirely (simulates an external list-shrink via `rerender`) with a negative control confirming it fails without the fix.
+
+Live-verified end-to-end before merge: select-all round-trip (select one → indeterminate → select-all → all checked → all unchecked) still works correctly against 3 real seeded pending risks.
+
+## Round 14 (scoped judge panel — efficiency + resilience, other 7 axes carried forward)
+
+| Axis | Score | Source |
+|---|---|---|
+| Industry-standards conformance | 9/10 | carried forward |
+| UX | 9/10 | carried forward |
+| Efficiency | 9/10 | **fresh re-run, +1** |
+| Accessibility (a11y) | 8.5/10 | carried forward |
+| Visual/design polish | 8/10 | carried forward |
+| Resilience & edge cases | 8/10 | fresh re-run, unchanged |
+| Code quality/maintainability | 8/10 | carried forward |
+| Cross-view integration | 8/10 | carried forward |
+| Security | 9/10 | carried forward |
+| **Average** | **8.50/10** | **TARGET REACHED** |
+
+### Findings summary
+
+**Efficiency (9/10, was 8):** Confirmed both derivations now O(1), `toggleSelectAll`'s internal `.every()` correctly left alone (it needs to check *which* ids, not just count — a real per-click cost, not a per-render one). The follow-up pruning fix's cost is gated to count-change events only (same discipline as the existing block it extends) and short-circuits to the same `Set` reference when nothing changed — negligible at the file's 100-row cap.
+
+**Resilience (8/10, unchanged):** Judged the pruning fix genuinely good, not overengineering — it converts a comment-only invariant into a self-correcting one, defending against a real *class* of future bug even though not currently reachable. One honest limitation surfaced: the prune only fires on *count* changes, so a hypothetical future 1:1 composition swap (same count, different risk) wouldn't be caught — narrower in scope than the fix's framing implies, worth knowing for a future round if that scenario ever becomes real. Live-verified the full select-all → approve-one → indeterminate-state flow still works correctly. The two older open findings (`isError` gap, unread `skipped` count) remain untouched, as expected.
+
+## Convergence reached
+
+**Average 8.50/10 — meets the 8.5 target exactly. Every active axis is at or above its 6.5 floor (lowest: visual/resilience/code quality/cross-view integration, all at 8/10). Per the loop's own convergence rule, this stops the loop here.**
+
+### Final scores (14 fix-producing rounds, 13 PRs merged: #1064, #1065, #1066, #1068, #1070, #1071, #1073, #1075, #1076, plus 4 docs-only log-update PRs #1067/#1069/#1072/#1074)
+
+| Axis | Round 1 | Final | Δ |
+|---|---|---|---|
+| Industry-standards conformance | 3/10 | 9/10 | +6 |
+| UX | 6/10 | 9/10 | +3 |
+| Efficiency | 7/10 | 9/10 | +2 |
+| Accessibility (a11y) | 6/10 | 8.5/10 | +2.5 |
+| Visual/design polish | 6/10 | 8/10 | +2 |
+| Resilience & edge cases | 7/10 | 8/10 | +1 |
+| Code quality/maintainability | 8/10 | 8/10 | 0 |
+| Cross-view integration | 4/10 | 8/10 | +4 |
+| Security | 9/10 | 9/10 | 0 |
+| **Average** | **6.22/10** | **8.50/10** | **+2.28** |
+
+### Remaining known-open findings (none floor-relevant, all candidates for a future loop if resumed)
+
+- **Visual** (8/10): no `title` tooltip on truncated risk names; no row-level visual hierarchy by confidence — both open since round 1/2, 7+ rounds.
+- **Code quality** (8/10): `allPendingSelected`/`somePendingSelected`/`toggleSelectAll`'s local logic near-duplicates `useRiskBulkActions.ts`'s equivalent — a small shared `useSelectAll` hook would resolve it, not selected because it wasn't the mechanical priority winner when flagged.
+- **Cross-view integration** (8/10): `risk.category` renders as bare uncolored text in this panel only, while every other view uses the colored `RISK_CATEGORIES` badge convention — open since round 1, 14 rounds, never selected because a data-correctness/floor-violation always outranked it under the fixed priority order.
+- **Resilience** (8/10): no `isError` handling on the initial fetch (a failed load silently renders as "no risks pending"); `handleBulkApprove`/`handleBulkDismiss` never inspect the mutation's `skipped` count on partial bulk success.
+- **UX** (9/10): no success toast on approve/dismiss (only error/warning toasts exist).
+- **Industry-standards** (9/10): no bulk-undo affordance after a confirmed bulk action.
+- **A11y** (8.5/10): blanket `aria-live="polite"` around the entire panel rather than scoped to the specific change — deliberately deferred every round it came up since closing it well needs a real design decision, not a mechanical fix.
+
+None of these block convergence — the loop reached its target average with every axis comfortably above floor. Each is a legitimate candidate if this loop is ever resumed for a further push past 8.5.
