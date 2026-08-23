@@ -295,7 +295,7 @@ export default function SuppliersEntities() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 p-4 lg:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
@@ -317,7 +317,7 @@ export default function SuppliersEntities() {
       <SupplierDiscoveryPanel canWrite={canWrite} />
 
       <div className="rounded-xl border border-border bg-card">
-        <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-3">
           {/* quality-bar-loop round 12 (cross-view integration, round-2
               finding): shared Input defaults to h-7, well under the 44px
               touch-target guideline, same bug class fixed on 9+ pages this
@@ -331,58 +331,64 @@ export default function SuppliersEntities() {
             aria-label={t("organization.suppliers.searchPlaceholder")}
             className="h-11 w-full max-w-xs"
           />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as "" | SupplierStatus)}
-            aria-label={t("organization.suppliers.statusFilterLabel")}
-            className="h-11 rounded-md border border-input bg-background px-2 text-xs"
-          >
-            <option value="">{t("organization.suppliers.allStatuses")}</option>
-            <option value="ACTIVE">{t("organization.suppliers.statusActive")}</option>
-            <option value="UNDER_REVIEW">
-              {t("organization.suppliers.statusUnderReview")}
-            </option>
-            <option value="INACTIVE">
-              {t("organization.suppliers.statusInactive")}
-            </option>
-          </select>
-          <select
-            value={riskTierFilter}
-            onChange={(e) =>
-              setRiskTierFilter(e.target.value as "" | SupplierRiskTier)
-            }
-            aria-label={t("organization.suppliers.riskTierFilterLabel")}
-            className="h-11 rounded-md border border-input bg-background px-2 text-xs"
-          >
-            <option value="">{t("organization.suppliers.allRiskTiers")}</option>
-            <option value="LOW">{t("organization.suppliers.riskLow")}</option>
-            <option value="MEDIUM">{t("organization.suppliers.riskMedium")}</option>
-            <option value="HIGH">{t("organization.suppliers.riskHigh")}</option>
-          </select>
-          <select
-            value={`${sortBy}:${sortOrder}`}
-            onChange={(e) => {
-              const [field, order] = e.target.value.split(":") as [
-                SupplierSortableField,
-                "asc" | "desc",
-              ]
-              setSortBy(field)
-              setSortOrder(order)
-            }}
-            aria-label={t("organization.suppliers.sortLabel")}
-            className="h-11 rounded-md border border-input bg-background px-2 text-xs"
-          >
-            <option value="createdAt:desc">
-              {t("organization.suppliers.sortNewest")}
-            </option>
-            <option value="name:asc">{t("organization.suppliers.sortNameAsc")}</option>
-            <option value="risk_tier:desc">
-              {t("organization.suppliers.sortRiskTierDesc")}
-            </option>
-            <option value="next_review_date:asc">
-              {t("organization.suppliers.sortNextReviewDate")}
-            </option>
-          </select>
+          {/* Filter/sort controls grouped together and pushed to the far
+              side of the row (rather than left-stacked next to search),
+              so this bar doesn't read as unbalanced dead space at wider
+              viewports. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as "" | SupplierStatus)}
+              aria-label={t("organization.suppliers.statusFilterLabel")}
+              className="h-11 rounded-md border border-input bg-background px-2 text-xs"
+            >
+              <option value="">{t("organization.suppliers.allStatuses")}</option>
+              <option value="ACTIVE">{t("organization.suppliers.statusActive")}</option>
+              <option value="UNDER_REVIEW">
+                {t("organization.suppliers.statusUnderReview")}
+              </option>
+              <option value="INACTIVE">
+                {t("organization.suppliers.statusInactive")}
+              </option>
+            </select>
+            <select
+              value={riskTierFilter}
+              onChange={(e) =>
+                setRiskTierFilter(e.target.value as "" | SupplierRiskTier)
+              }
+              aria-label={t("organization.suppliers.riskTierFilterLabel")}
+              className="h-11 rounded-md border border-input bg-background px-2 text-xs"
+            >
+              <option value="">{t("organization.suppliers.allRiskTiers")}</option>
+              <option value="LOW">{t("organization.suppliers.riskLow")}</option>
+              <option value="MEDIUM">{t("organization.suppliers.riskMedium")}</option>
+              <option value="HIGH">{t("organization.suppliers.riskHigh")}</option>
+            </select>
+            <select
+              value={`${sortBy}:${sortOrder}`}
+              onChange={(e) => {
+                const [field, order] = e.target.value.split(":") as [
+                  SupplierSortableField,
+                  "asc" | "desc",
+                ]
+                setSortBy(field)
+                setSortOrder(order)
+              }}
+              aria-label={t("organization.suppliers.sortLabel")}
+              className="h-11 rounded-md border border-input bg-background px-2 text-xs"
+            >
+              <option value="createdAt:desc">
+                {t("organization.suppliers.sortNewest")}
+              </option>
+              <option value="name:asc">{t("organization.suppliers.sortNameAsc")}</option>
+              <option value="risk_tier:desc">
+                {t("organization.suppliers.sortRiskTierDesc")}
+              </option>
+              <option value="next_review_date:asc">
+                {t("organization.suppliers.sortNextReviewDate")}
+              </option>
+            </select>
+          </div>
         </div>
 
         {/* Bulk-action toolbar: only rendered once at least one row on the
@@ -436,7 +442,11 @@ export default function SuppliersEntities() {
           </div>
         )}
 
-        {canWrite && suppliers.length > 0 && (
+        {/* Only worth its own row once there's more than one supplier to
+            select -- with exactly one row, "select all" is redundant with
+            that row's own checkbox, and rendering it anyway left a bar
+            with nothing beside it (visual-polish finding). */}
+        {canWrite && suppliers.length > 1 && (
           <div className="flex items-center gap-2 border-b border-border px-3 py-2">
             <label className="relative -m-2 flex h-8 w-8 cursor-pointer items-center justify-center">
               <input
