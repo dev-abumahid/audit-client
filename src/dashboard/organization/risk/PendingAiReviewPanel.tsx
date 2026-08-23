@@ -113,6 +113,19 @@ export default function PendingAiReviewPanel({
   if (pendingRisks.length !== prevPendingCount) {
     setPrevPendingCount(pendingRisks.length)
     if (pendingRisks.length === 0) setPendingBulkAction(null)
+    // Round-14 review finding (PR #1076): allPendingSelected/
+    // somePendingSelected now derive from selectedIds.size, which only
+    // stays correct if selectedIds never holds an id absent from
+    // pendingRisks. Every mutation path in this file already keeps that
+    // invariant, but nothing enforced it -- pruning here on every count
+    // change makes it self-correcting instead of merely assumed, so a
+    // future change to how pendingRisks can shrink (filtering, pagination)
+    // can't silently produce a false "all selected" indicator.
+    setSelectedIds((prev) => {
+      const validIds = new Set(pendingRisks.map((r) => r.id))
+      const next = new Set([...prev].filter((id) => validIds.has(id)))
+      return next.size === prev.size ? prev : next
+    })
   }
 
   const [approveRisk, { isLoading: isApproving }] = useApproveRiskMutation()
@@ -137,10 +150,18 @@ export default function PendingAiReviewPanel({
   // which offer a single header control. Mirrors that hook's shape --
   // this panel is deliberately self-contained (see top-of-file comment),
   // not a useRiskBulkActions caller, so the equivalent logic is local.
+  // Round-14 quality-bar-loop finding (efficiency): these two booleans
+  // recomputed via .every()/.some() scans over pendingRisks on every
+  // render. Safe to derive from selectedIds.size instead: selectedIds is
+  // only ever populated with ids drawn from the current pendingRisks (via
+  // toggleSelect/toggleSelectAll) and pruned on approve/dismiss, so it's
+  // always a subset -- size alone is enough to know "all" vs "some".
+  // toggleSelectAll's own updater below keeps its .every() call, since
+  // that's the one place actually verifying WHICH ids are selected, not
+  // just how many.
   const allPendingSelected =
-    pendingRisks.length > 0 &&
-    pendingRisks.every((r) => selectedIds.has(r.id))
-  const somePendingSelected = pendingRisks.some((r) => selectedIds.has(r.id))
+    pendingRisks.length > 0 && selectedIds.size === pendingRisks.length
+  const somePendingSelected = selectedIds.size > 0
   const toggleSelectAll = () => {
     setSelectedIds((prev) => {
       const allSelected =

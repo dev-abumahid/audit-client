@@ -593,6 +593,45 @@ describe("PendingAiReviewPanel", () => {
     expect(document.getElementById(idTwo!)).not.toHaveAttribute("hidden")
   })
 
+  // Review finding (PR #1076): allPendingSelected/somePendingSelected now
+  // derive from selectedIds.size instead of scanning pendingRisks, which
+  // only stays correct if selectedIds never holds an id absent from
+  // pendingRisks. Every mutation path in THIS file keeps that invariant,
+  // but if a risk ever left pendingRisks through some other path (a future
+  // filter/pagination feature, not this panel's own approve/dismiss),
+  // selectedIds would go stale and size-based comparison could report a
+  // false "all selected." Simulates that external-shrink case directly via
+  // rerender (bypassing this panel's own handlers entirely) to prove the
+  // render-time pruning genuinely self-corrects rather than merely being
+  // asserted safe in a comment.
+  it("prunes stale ids from selectedIds if a selected risk leaves the list through an external change", async () => {
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([
+        makePendingRisk({ id: "risk-1", name: "Risk one" }),
+        makePendingRisk({ id: "risk-2", name: "Risk two" }),
+      ])
+    )
+
+    const { rerender } = render(<PendingAiReviewPanel canWrite={true} />)
+    const [selectAll, rowOne] = screen.getAllByRole("checkbox")
+    await userEvent.click(rowOne)
+    await userEvent.click(selectAll)
+    expect(selectAll).toBeChecked()
+
+    // risk-1 disappears from the server response without going through
+    // handleApprove/handleDismiss/handleBulkApprove/handleBulkDismiss --
+    // the exact case those handlers' own cleanup can't cover.
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([makePendingRisk({ id: "risk-2", name: "Risk two" })])
+    )
+    rerender(<PendingAiReviewPanel canWrite={true} />)
+
+    const remainingCheckbox = screen.getAllByRole("checkbox")[1]
+    expect(remainingCheckbox).toBeChecked()
+    expect(selectAll).toBeChecked()
+    expect(selectAll).not.toBePartiallyChecked()
+  })
+
   // Review finding (PR #1066): the empty-state early return unmounts the
   // dialog without closing it if the pending list empties while it's still
   // open -- without the fix, a later re-render with fresh pending risks
