@@ -12,6 +12,12 @@ export interface SupplierFormState {
   name: string
   country: string
   notes: string
+  risk_tier: "" | "LOW" | "MEDIUM" | "HIGH"
+  next_review_date: string
+  primary_contact_name: string
+  primary_contact_email: string
+  contract_status: "" | "ACTIVE" | "EXPIRED" | "PENDING"
+  status: "ACTIVE" | "UNDER_REVIEW" | "INACTIVE"
 }
 
 interface SupplierFormModalProps {
@@ -122,6 +128,156 @@ export default function SupplierFormModal({
               value={form.notes}
               onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
             />
+          </div>
+
+          {/* Vendor-risk fields (quality-bar-loop feature scoping, 2026-08-22):
+              risk tier, review cadence, primary contact, contract status and
+              lifecycle status -- all optional except status (which defaults
+              to ACTIVE server-side), same "enrichment, not gating" posture
+              as country/notes above. */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label
+                htmlFor="supplier-form-risk-tier"
+                className="mb-1 text-xs font-medium text-muted-foreground"
+              >
+                {t("organization.suppliers.form.riskTier")}
+              </Label>
+              <select
+                id="supplier-form-risk-tier"
+                value={form.risk_tier}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    risk_tier: e.target.value as SupplierFormState["risk_tier"],
+                  }))
+                }
+                className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">{t("organization.suppliers.form.notSet")}</option>
+                <option value="LOW">{t("organization.suppliers.riskLow")}</option>
+                <option value="MEDIUM">
+                  {t("organization.suppliers.riskMedium")}
+                </option>
+                <option value="HIGH">{t("organization.suppliers.riskHigh")}</option>
+              </select>
+            </div>
+
+            <div>
+              <Label
+                htmlFor="supplier-form-status"
+                className="mb-1 text-xs font-medium text-muted-foreground"
+              >
+                {t("organization.suppliers.form.status")}
+              </Label>
+              <select
+                id="supplier-form-status"
+                value={form.status}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    status: e.target.value as SupplierFormState["status"],
+                  }))
+                }
+                className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="ACTIVE">
+                  {t("organization.suppliers.statusActive")}
+                </option>
+                <option value="UNDER_REVIEW">
+                  {t("organization.suppliers.statusUnderReview")}
+                </option>
+                <option value="INACTIVE">
+                  {t("organization.suppliers.statusInactive")}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <Label
+              htmlFor="supplier-form-next-review-date"
+              className="mb-1 text-xs font-medium text-muted-foreground"
+            >
+              {t("organization.suppliers.form.nextReviewDate")}
+            </Label>
+            <Input
+              id="supplier-form-next-review-date"
+              type="date"
+              value={form.next_review_date}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, next_review_date: e.target.value }))
+              }
+              className="h-11 w-full"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label
+                htmlFor="supplier-form-contact-name"
+                className="mb-1 text-xs font-medium text-muted-foreground"
+              >
+                {t("organization.suppliers.form.primaryContactName")}
+              </Label>
+              <Input
+                id="supplier-form-contact-name"
+                value={form.primary_contact_name}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, primary_contact_name: e.target.value }))
+                }
+                className="h-11 w-full"
+              />
+            </div>
+            <div>
+              <Label
+                htmlFor="supplier-form-contact-email"
+                className="mb-1 text-xs font-medium text-muted-foreground"
+              >
+                {t("organization.suppliers.form.primaryContactEmail")}
+              </Label>
+              <Input
+                id="supplier-form-contact-email"
+                type="email"
+                value={form.primary_contact_email}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, primary_contact_email: e.target.value }))
+                }
+                className="h-11 w-full"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label
+              htmlFor="supplier-form-contract-status"
+              className="mb-1 text-xs font-medium text-muted-foreground"
+            >
+              {t("organization.suppliers.form.contractStatus")}
+            </Label>
+            <select
+              id="supplier-form-contract-status"
+              value={form.contract_status}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  contract_status: e.target
+                    .value as SupplierFormState["contract_status"],
+                }))
+              }
+              className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">{t("organization.suppliers.form.notSet")}</option>
+              <option value="ACTIVE">
+                {t("organization.suppliers.contractStatusActive")}
+              </option>
+              <option value="EXPIRED">
+                {t("organization.suppliers.contractStatusExpired")}
+              </option>
+              <option value="PENDING">
+                {t("organization.suppliers.contractStatusPending")}
+              </option>
+            </select>
           </div>
         </div>
 

@@ -75,12 +75,22 @@ export interface Site {
 // (aexa-frontend#<supplier-discovery>) and the user accepted it, so the
 // list can visually distinguish manually-entered suppliers from
 // AI-discovered ones.
+export type SupplierRiskTier = "LOW" | "MEDIUM" | "HIGH"
+export type SupplierStatus = "ACTIVE" | "UNDER_REVIEW" | "INACTIVE"
+export type SupplierContractStatus = "ACTIVE" | "EXPIRED" | "PENDING"
+
 export interface Supplier {
   id: string
   org_account_id?: string
   name: string
   country?: string | null
   notes?: string | null
+  risk_tier?: SupplierRiskTier | null
+  next_review_date?: string | null
+  primary_contact_name?: string | null
+  primary_contact_email?: string | null
+  contract_status?: SupplierContractStatus | null
+  status: SupplierStatus
   ai_generated: boolean
   source_info?: string | null
   createdAt: string

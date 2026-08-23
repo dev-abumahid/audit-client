@@ -29,6 +29,8 @@ const mockCreateNewSupplier = vi.fn()
 const mockUpdateSupplier = vi.fn()
 const mockDeleteSupplier = vi.fn()
 const mockDiscoverSuppliers = vi.fn()
+const mockBulkUpdateStatus = vi.fn()
+const mockBulkDeleteSuppliers = vi.fn()
 
 vi.mock("@/redux/apis/organization/supplier.api", () => ({
   useGetAllSuppliersQuery: (...args: unknown[]) => mockUseGetAllSuppliersQuery(...args),
@@ -36,6 +38,11 @@ vi.mock("@/redux/apis/organization/supplier.api", () => ({
   useUpdateSupplierMutation: () => [mockUpdateSupplier, { isLoading: false }],
   useDeleteSupplierMutation: () => [mockDeleteSupplier, { isLoading: false }],
   useDiscoverSuppliersMutation: () => [mockDiscoverSuppliers, { isLoading: false }],
+  useBulkUpdateSupplierStatusMutation: () => [
+    mockBulkUpdateStatus,
+    { isLoading: false },
+  ],
+  useBulkDeleteSuppliersMutation: () => [mockBulkDeleteSuppliers, { isLoading: false }],
 }))
 
 const SUPPLIER = {
@@ -43,6 +50,12 @@ const SUPPLIER = {
   name: "Acme Steel",
   country: "France",
   notes: null,
+  risk_tier: "HIGH",
+  next_review_date: null,
+  primary_contact_name: null,
+  primary_contact_email: null,
+  contract_status: null,
+  status: "ACTIVE",
   ai_generated: false,
   createdAt: "2026-01-01",
   updatedAt: "2026-01-01",
@@ -203,6 +216,159 @@ describe("SuppliersEntities", () => {
     expect(
       screen.queryByText("organization.suppliers.discovery.title")
     ).not.toBeInTheDocument()
+  })
+
+  it("shows the risk tier badge for a supplier that has one", () => {
+    render(<SuppliersEntities />)
+    // The same label also appears as a <option> in the risk-tier filter
+    // select, so this can't be a single-match getByText.
+    expect(
+      screen.getAllByText("organization.suppliers.riskHigh").length
+    ).toBeGreaterThan(1)
+  })
+
+  it("re-queries with the status filter when changed", async () => {
+    const user = userEvent.setup()
+    render(<SuppliersEntities />)
+    mockUseGetAllSuppliersQuery.mockClear()
+
+    await user.selectOptions(
+      screen.getByLabelText("organization.suppliers.statusFilterLabel"),
+      "UNDER_REVIEW"
+    )
+
+    await waitFor(() => {
+      expect(mockUseGetAllSuppliersQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "UNDER_REVIEW", page: 1 })
+      )
+    })
+  })
+
+  it("re-queries with the risk tier filter when changed", async () => {
+    const user = userEvent.setup()
+    render(<SuppliersEntities />)
+    mockUseGetAllSuppliersQuery.mockClear()
+
+    await user.selectOptions(
+      screen.getByLabelText("organization.suppliers.riskTierFilterLabel"),
+      "LOW"
+    )
+
+    await waitFor(() => {
+      expect(mockUseGetAllSuppliersQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ risk_tier: "LOW", page: 1 })
+      )
+    })
+  })
+
+  it("re-queries with the chosen sort when changed", async () => {
+    const user = userEvent.setup()
+    render(<SuppliersEntities />)
+    mockUseGetAllSuppliersQuery.mockClear()
+
+    await user.selectOptions(
+      screen.getByLabelText("organization.suppliers.sortLabel"),
+      "name:asc"
+    )
+
+    await waitFor(() => {
+      expect(mockUseGetAllSuppliersQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "name", sortOrder: "asc" })
+      )
+    })
+  })
+
+  describe("bulk actions", () => {
+    it("shows the bulk toolbar once a row is selected, and hides it again once cleared", async () => {
+      const user = userEvent.setup()
+      render(<SuppliersEntities />)
+      expect(
+        screen.queryByText("organization.suppliers.selectedCount")
+      ).not.toBeInTheDocument()
+
+      await user.click(
+        screen.getByLabelText("organization.suppliers.selectFor Acme Steel")
+      )
+      expect(
+        screen.getByText("organization.suppliers.selectedCount")
+      ).toBeInTheDocument()
+
+      await user.click(
+        screen.getByRole("button", { name: "organization.suppliers.clearSelection" })
+      )
+      expect(
+        screen.queryByText("organization.suppliers.selectedCount")
+      ).not.toBeInTheDocument()
+    })
+
+    it("bulk-updates the status of every selected supplier", async () => {
+      const user = userEvent.setup()
+      mockUnwrap(mockBulkUpdateStatus, { data: { updated: 1, skipped: 0 } })
+      render(<SuppliersEntities />)
+
+      await user.click(
+        screen.getByLabelText("organization.suppliers.selectFor Acme Steel")
+      )
+      await user.selectOptions(
+        screen.getByLabelText("organization.suppliers.bulkChangeStatusLabel"),
+        "INACTIVE"
+      )
+
+      await waitFor(() => {
+        expect(mockBulkUpdateStatus).toHaveBeenCalledWith({
+          supplierIds: ["s1"],
+          status: "INACTIVE",
+        })
+      })
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        "organization.suppliers.bulkStatusSuccess"
+      )
+    })
+
+    it("bulk-deletes every selected supplier after confirming", async () => {
+      const user = userEvent.setup()
+      mockUnwrap(mockBulkDeleteSuppliers, { data: { updated: 1, skipped: 0 } })
+      render(<SuppliersEntities />)
+
+      await user.click(
+        screen.getByLabelText("organization.suppliers.selectFor Acme Steel")
+      )
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.suppliers.bulkDeleteSelected",
+        })
+      )
+      await user.click(
+        screen.getByRole("button", { name: "common.deleteAlertModal.delete" })
+      )
+
+      await waitFor(() => {
+        expect(mockBulkDeleteSuppliers).toHaveBeenCalledWith(["s1"])
+      })
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        "organization.suppliers.bulkDeleteSuccess"
+      )
+    })
+
+    it("shows an error toast when the bulk status change fails", async () => {
+      const user = userEvent.setup()
+      mockUnwrapRejects(mockBulkUpdateStatus)
+      render(<SuppliersEntities />)
+
+      await user.click(
+        screen.getByLabelText("organization.suppliers.selectFor Acme Steel")
+      )
+      await user.selectOptions(
+        screen.getByLabelText("organization.suppliers.bulkChangeStatusLabel"),
+        "INACTIVE"
+      )
+
+      await waitFor(() => {
+        expect(mockToastError).toHaveBeenCalledWith(
+          "organization.suppliers.bulkStatusFailed"
+        )
+      })
+    })
   })
 
   describe("AI discovery panel", () => {
@@ -465,6 +631,88 @@ describe("SuppliersEntities", () => {
           "organization.suppliers.discovery.missingCompanyName"
         )
       })
+    })
+
+    it("bulk-accepts every selected candidate", async () => {
+      const user = userEvent.setup()
+      mockUnwrap(mockDiscoverSuppliers, {
+        data: {
+          suppliers_information: [
+            {
+              supplier_name: "Discovered Co",
+              supplier_country: "Germany",
+              relationship: null,
+              source_url: null,
+            },
+            {
+              supplier_name: "Second Co",
+              supplier_country: null,
+              relationship: null,
+              source_url: null,
+            },
+          ],
+        },
+      })
+      mockUnwrap(mockCreateNewSupplier, { data: SUPPLIER })
+      render(<SuppliersEntities />)
+
+      await user.click(
+        screen.getByRole("button", { name: "organization.suppliers.discovery.checkButton" })
+      )
+      await screen.findByText("Discovered Co")
+
+      await user.click(
+        screen.getByLabelText("organization.suppliers.discovery.selectFor Discovered Co")
+      )
+      await user.click(
+        screen.getByLabelText("organization.suppliers.discovery.selectFor Second Co")
+      )
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.suppliers.discovery.bulkAcceptLabel",
+        })
+      )
+
+      await waitFor(() => {
+        expect(mockCreateNewSupplier).toHaveBeenCalledTimes(2)
+      })
+      expect(mockCreateNewSupplier).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Discovered Co" })
+      )
+      expect(mockCreateNewSupplier).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Second Co" })
+      )
+      await waitFor(() => {
+        expect(mockToastSuccess).toHaveBeenCalledWith(
+          "organization.suppliers.discovery.bulkAcceptSuccess"
+        )
+      })
+    })
+
+    it("does not offer a bulk-select checkbox for a candidate already added", async () => {
+      const user = userEvent.setup()
+      mockUnwrap(mockDiscoverSuppliers, {
+        data: {
+          suppliers_information: [
+            {
+              supplier_name: "Acme Steel",
+              supplier_country: "France",
+              relationship: null,
+              source_url: null,
+            },
+          ],
+        },
+      })
+      render(<SuppliersEntities />)
+
+      await user.click(
+        screen.getByRole("button", { name: "organization.suppliers.discovery.checkButton" })
+      )
+      await screen.findAllByText("Acme Steel")
+
+      expect(
+        screen.queryByLabelText("organization.suppliers.discovery.selectFor Acme Steel")
+      ).not.toBeInTheDocument()
     })
   })
 })

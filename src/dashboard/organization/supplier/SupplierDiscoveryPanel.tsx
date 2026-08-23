@@ -42,6 +42,25 @@ export default function SupplierDiscoveryPanel({
   const [createNewSupplier, { isLoading: isAdding }] =
     useCreateNewSupplierMutation()
 
+  // "Bulk-accept reviewed candidates" (quality-bar-loop feature scoping,
+  // 2026-08-22): a checkbox per candidate, independent of the per-row
+  // Add/Dismiss buttons, lets the user review several suggestions and
+  // accept them all in one action instead of clicking Add on each. No
+  // scope/domain input -- just the candidates already surfaced by the last
+  // discovery run.
+  const [selectedForBulk, setSelectedForBulk] = useState<Set<number>>(
+    () => new Set()
+  )
+  const [isBulkAccepting, setIsBulkAccepting] = useState(false)
+  const toggleBulkSelect = (index: number) => {
+    setSelectedForBulk((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
+    })
+  }
+
   // No dedup between this panel's AI-accept flow and the manual-add flow
   // (or a candidate re-offered across page visits) meant "Add" could
   // silently create a second row for a supplier that already exists.
@@ -80,6 +99,7 @@ export default function SupplierDiscoveryPanel({
   const runDiscovery = async () => {
     setCandidates(null)
     setStatus(new Map())
+    setSelectedForBulk(new Set())
     try {
       const res = await discoverSuppliers().unwrap()
       setCandidates(res.data.suppliers_information)
@@ -100,14 +120,24 @@ export default function SupplierDiscoveryPanel({
     }
   }
 
-  const acceptCandidate = async (candidate: SuggestedSupplier, index: number) => {
-    if (!candidate.supplier_name) return
+  // silent skips the per-candidate toast -- used by acceptSelected below,
+  // which shows one summary toast instead of firing N of them at once.
+  // Returns whether the candidate ended up added -- acceptSelected's
+  // success count reads this return value rather than the `status` state,
+  // since setStatus's update wouldn't be visible yet on the very next loop
+  // iteration (React batches the re-render, it doesn't apply synchronously).
+  const acceptCandidate = async (
+    candidate: SuggestedSupplier,
+    index: number,
+    silent = false
+  ): Promise<boolean> => {
+    if (!candidate.supplier_name) return false
     // Defense in depth against the Add button's own disabled state being
     // stale for a moment (e.g. a race with the existingNames refetch) --
     // never actually re-create a supplier that already exists.
     if (existingNames.has(candidate.supplier_name.trim().toLowerCase())) {
       setStatus((prev) => new Map(prev).set(index, "added"))
-      return
+      return true
     }
     try {
       await createNewSupplier({
@@ -118,7 +148,8 @@ export default function SupplierDiscoveryPanel({
         source_info: candidate.source_url ?? undefined,
       }).unwrap()
       setStatus((prev) => new Map(prev).set(index, "added"))
-      toast.success(t("organization.suppliers.discovery.added"))
+      if (!silent) toast.success(t("organization.suppliers.discovery.added"))
+      return true
     } catch (err: unknown) {
       // A race the client-side existingNames check above didn't catch (the
       // dedup query hadn't refetched yet, a second tab, etc.) still hits
@@ -129,11 +160,33 @@ export default function SupplierDiscoveryPanel({
         typeof err === "object" && err !== null && "status" in err && err.status === 409
       if (isDuplicate) {
         setStatus((prev) => new Map(prev).set(index, "added"))
-        toast.error(t("organization.suppliers.discovery.addDuplicate"))
-      } else {
-        toast.error(t("organization.suppliers.discovery.addFailed"))
+        if (!silent) toast.error(t("organization.suppliers.discovery.addDuplicate"))
+        return true
       }
+      if (!silent) toast.error(t("organization.suppliers.discovery.addFailed"))
+      return false
     }
+  }
+
+  const acceptSelected = async () => {
+    if (selectedForBulk.size === 0) return
+    setIsBulkAccepting(true)
+    // Sequential, not Promise.all -- these all invalidate the same
+    // dedup query (existingNames) and share a per-org unique-name
+    // constraint server-side, so running them concurrently would let two
+    // candidates with colliding names both pass the stale client-side
+    // dedup check before either's create had landed.
+    let succeeded = 0
+    for (const index of selectedForBulk) {
+      const entry = usableCandidates.find((c) => c.index === index)
+      if (!entry) continue
+      if (await acceptCandidate(entry.candidate, index, true)) succeeded += 1
+    }
+    setIsBulkAccepting(false)
+    setSelectedForBulk(new Set())
+    toast.success(
+      t("organization.suppliers.discovery.bulkAcceptSuccess", { count: succeeded })
+    )
   }
 
   // Candidates with no supplier_name are never shown as actionable rows --
@@ -210,8 +263,46 @@ export default function SupplierDiscoveryPanel({
               {t("organization.suppliers.discovery.allDismissed")}
             </p>
           ) : (
-            <ul className="flex flex-col gap-2">
-              {visibleCandidates.map(({ candidate, index }) => {
+            <>
+              {selectedForBulk.size > 0 && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="mb-2 flex flex-wrap items-center gap-3 rounded-lg border border-input bg-muted/30 px-3 py-2 text-xs"
+                >
+                  <span className="font-medium">
+                    {t("organization.suppliers.discovery.selectedCount", {
+                      count: selectedForBulk.size,
+                    })}
+                  </span>
+                  <Button
+                    type="button"
+                    size="touch"
+                    onClick={acceptSelected}
+                    disabled={isBulkAccepting}
+                    aria-busy={isBulkAccepting}
+                  >
+                    {isBulkAccepting ? (
+                      <Loader2 className="animate-spin" aria-hidden="true" />
+                    ) : (
+                      <CircleCheck aria-hidden="true" />
+                    )}
+                    {t("organization.suppliers.discovery.bulkAcceptLabel", {
+                      count: selectedForBulk.size,
+                    })}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="touch"
+                    onClick={() => setSelectedForBulk(new Set())}
+                  >
+                    {t("organization.suppliers.discovery.clearSelection")}
+                  </Button>
+                </div>
+              )}
+              <ul className="flex flex-col gap-2">
+                {visibleCandidates.map(({ candidate, index }) => {
                 const isAdded =
                   status.get(index) === "added" ||
                   (!!candidate.supplier_name &&
@@ -222,7 +313,22 @@ export default function SupplierDiscoveryPanel({
                     className="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/30 p-3"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
+                      <div className="flex min-w-0 items-start gap-2">
+                        {!isAdded && (
+                          <label className="relative -m-2 mt-0.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedForBulk.has(index)}
+                              onChange={() => toggleBulkSelect(index)}
+                              aria-label={t(
+                                "organization.suppliers.discovery.selectFor",
+                                { name: candidate.supplier_name }
+                              )}
+                              className="h-4 w-4"
+                            />
+                          </label>
+                        )}
+                        <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-xs font-semibold text-foreground">
                             {candidate.supplier_name}
@@ -252,6 +358,7 @@ export default function SupplierDiscoveryPanel({
                             </span>
                           </a>
                         )}
+                        </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <button
@@ -279,6 +386,12 @@ export default function SupplierDiscoveryPanel({
                           type="button"
                           onClick={() => {
                             setStatus((prev) => new Map(prev).set(index, "dismissed"))
+                            setSelectedForBulk((prev) => {
+                              if (!prev.has(index)) return prev
+                              const next = new Set(prev)
+                              next.delete(index)
+                              return next
+                            })
                             headingRef.current?.focus()
                           }}
                           aria-label={t(
@@ -293,8 +406,9 @@ export default function SupplierDiscoveryPanel({
                     </div>
                   </li>
                 )
-              })}
-            </ul>
+                })}
+              </ul>
+            </>
           ))}
       </div>
     </div>

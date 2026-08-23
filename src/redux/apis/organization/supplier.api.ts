@@ -1,12 +1,27 @@
 import { buildQueryString } from "@/redux/apis/buildQueryString"
 import { baseApi } from "@/redux/baseApi"
 import type { ApiResponse, PaginatedApiResponse } from "@/types/api"
-import type { Supplier } from "@/types/organization"
+import type {
+  Supplier,
+  SupplierContractStatus,
+  SupplierRiskTier,
+  SupplierStatus,
+} from "@/types/organization"
+
+// sortBy is allow-listed server-side (supplier.service.ts's
+// SUPPLIER_SORTABLE_FIELDS) -- kept as a matching literal union here so an
+// invalid value is a compile-time error, not a silent server-side fallback
+// discovered at runtime.
+export type SupplierSortableField = "name" | "risk_tier" | "next_review_date" | "createdAt"
 
 interface GetAllSuppliersArgs {
   page: number
   limit: number
   searchTerm: string
+  status?: SupplierStatus
+  risk_tier?: SupplierRiskTier
+  sortBy?: SupplierSortableField
+  sortOrder?: "asc" | "desc"
 }
 
 // create/update payloads mirror supplier.validation.ts's create_supplier/
@@ -16,8 +31,19 @@ interface SupplierFormPayload {
   name: string
   country?: string
   notes?: string
+  risk_tier?: SupplierRiskTier
+  next_review_date?: string
+  primary_contact_name?: string
+  primary_contact_email?: string
+  contract_status?: SupplierContractStatus
+  status?: SupplierStatus
   ai_generated?: boolean
   source_info?: string
+}
+
+interface BulkSupplierOutcome {
+  updated: number
+  skipped: number
 }
 
 // A candidate proposed by aexa-ai's /company-suppliers (via aexa-server's
@@ -47,8 +73,16 @@ const supplierApi = baseApi.injectEndpoints({
       PaginatedApiResponse<Supplier>,
       GetAllSuppliersArgs
     >({
-      query: ({ page, limit, searchTerm }) => ({
-        url: `/supplier?${buildQueryString({ page, limit, searchTerm })}`,
+      query: ({ page, limit, searchTerm, status, risk_tier, sortBy, sortOrder }) => ({
+        url: `/supplier?${buildQueryString({
+          page,
+          limit,
+          searchTerm,
+          status,
+          risk_tier,
+          sortBy,
+          sortOrder,
+        })}`,
         method: "GET",
       }),
       providesTags: ["SUPPLIER"],
@@ -93,6 +127,25 @@ const supplierApi = baseApi.injectEndpoints({
         body: body ?? {},
       }),
     }),
+    bulkUpdateSupplierStatus: builder.mutation<
+      ApiResponse<BulkSupplierOutcome>,
+      { supplierIds: string[]; status: SupplierStatus }
+    >({
+      query: (body) => ({
+        url: `/supplier/bulk-status`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["SUPPLIER"],
+    }),
+    bulkDeleteSuppliers: builder.mutation<ApiResponse<BulkSupplierOutcome>, string[]>({
+      query: (supplierIds) => ({
+        url: `/supplier/bulk-delete`,
+        method: "POST",
+        body: { supplierIds },
+      }),
+      invalidatesTags: ["SUPPLIER"],
+    }),
   }),
 })
 
@@ -102,4 +155,6 @@ export const {
   useUpdateSupplierMutation,
   useDeleteSupplierMutation,
   useDiscoverSuppliersMutation,
+  useBulkUpdateSupplierStatusMutation,
+  useBulkDeleteSuppliersMutation,
 } = supplierApi
