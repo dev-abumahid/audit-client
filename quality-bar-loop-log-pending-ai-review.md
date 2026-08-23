@@ -350,3 +350,44 @@ Added `aria-controls={evidenceContentId}` on the evidence toggle button and a ma
 One review round caught a real gap the initial implementation missed: the content `<div>` was still only mounted while `hasEvidence && isExpanded`, so `aria-controls` pointed at a nonexistent id whenever a row was collapsed — the exact ARIA reference violation this codebase already caught and fixed in `src/pages/home/components/FAQSection.tsx` ("the answer panel was previously only mounted while open... an ARIA reference violation regardless of open/closed state"). Fixed by applying FAQSection's own established pattern: always render the content, toggle visibility via the `hidden` attribute instead of conditional mounting, plus `role="region"`/`aria-labelledby` back to the toggle, mirroring FAQSection exactly. Also closed a second reviewer-flagged gap: the original test only ever rendered one risk, so it couldn't prove `evidenceContentId` was genuinely keyed by `risk.id` rather than a hardcoded string — added a multi-row test expanding two risks simultaneously and asserting distinct, correctly-toggled `aria-controls`/`id` pairs per row, verified with a negative control.
 
 Live-verified end-to-end before merge: confirmed the collapsed toggle's `aria-controls` target genuinely exists in the DOM (hidden via attribute, not absent), and expanding correctly removes `hidden` and reveals the right content.
+
+## Round 10 (post-fix judge panel)
+
+| Axis | Score | vs. Round 9 |
+|---|---|---|
+| Industry-standards conformance | 8/10 | unchanged |
+| UX | 8/10 | unchanged |
+| Efficiency | 8/10 | unchanged |
+| Accessibility (a11y) | 8.5/10 | **+1** |
+| Visual/design polish | 8/10 | unchanged |
+| Resilience & edge cases | 8/10 | unchanged |
+| Code quality/maintainability | 9/10 | unchanged |
+| Cross-view integration | 8/10 | unchanged |
+| Security | 9/10 | unchanged |
+| **Average** | **8.28/10** | +0.11 |
+
+No axis below floor for the fifth consecutive round. Getting close to the 8.5 target.
+
+### Findings summary — accessibility (8.5/10, was 7.5)
+
+The round-9 fix (including its review-round correction) was verified thoroughly live: while collapsed, both evidence toggles' `aria-controls` resolve to real, present elements carrying `hidden` — not dangling references. Expanded one row: `hidden` removed, `aria-expanded` flips to `"true"`, `role="region"`/`aria-labelledby` correctly wired. Expanded both evidence-bearing rows simultaneously and confirmed each toggle's `aria-controls` target is genuinely distinct, resolving to its own content with the correct text — proving per-row uniqueness live, not just from the diff. The one remaining open finding (blanket `aria-live="polite"` around the entire panel) is unchanged, correctly deferred, and is what keeps this from a 9+.
+
+All other axes reconfirmed unchanged — round 9's diff was fully scoped to a11y-internal DOM wiring with zero cross-axis effect, as expected: efficiency confirmed the always-mounted content adds negligible DOM footprint even at 100-row scale; visual confirmed pixel-identical rendering in both themes; resilience confirmed the always-mounted div cleans up correctly on approve (no orphaned nodes) and is if anything slightly more robust than the old conditional-mount version; security confirmed `risk.id` is a server-generated UUID with zero injection surface; code quality praised the exact pattern-fidelity match to `FAQSection.tsx`.
+
+### stuck_streak (computed after this round)
+
+No axis at or below floor for the fifth consecutive round. Priority-2's tie-break (lowest raw score, then roster order) now has a 6-way tie at 8/10 (industry-standards, UX, efficiency, visual, resilience, cross-view) — roster order (industry-standards is listed first in the judge roster) breaks the tie.
+
+### Next fix (Round 11)
+
+**Selected: add a "select all" checkbox to the pending-review panel's header, matching the main register table's existing convention.**
+
+Selection rationale (step 5c priority order): no data-correctness/security finding at/below floor (priority 1 empty). No axis has stuck_streak > 0 for the fifth straight round; priority 2's tie-break (lowest raw score, then roster order among the 6-way tie at 8/10) picks industry-standards. Of its two remaining open findings — no select-all control, no bulk-undo affordance — select-all is selected: it's the cheaper, more contained fix (a single header checkbox toggling the existing `selectedIds` state against the currently-visible `pendingRisks`), it directly mirrors a convention this same codebase's main register table already implements (`RiskRegisterPage.tsx`'s "Select all risks on this page"), and it's been independently named by 3+ rounds of industry-standards judges as a real gap against every reference tool (GitHub, Jira, Linear). Bulk-undo remains open, deferred — it would need either a new backend endpoint or a time-limited client-side undo window, larger scope than this round's pick.
+
+## Round 11 — fix shipped ([PR #1073](https://github.com/Qiyrix/aexa-frontend/pull/1073))
+
+Added a select-all checkbox to the panel header, mirroring `useRiskBulkActions.ts`'s `allVisibleSelected`/`someVisibleSelected`/`toggleSelectAll` shape (used by the main register table) but implemented locally rather than via that shared hook, matching this panel's deliberate self-contained design. Same indeterminate-state pattern and markup/styling convention as the main table's own select-all checkbox.
+
+One review round: 0 findings across all 5 angles, including a cross-file semantic comparison confirming the local logic matches `useRiskBulkActions.ts` exactly (empty-list guard, indeterminate derivation, reset-vs-select-all behavior), and a check that all 8 checkbox queries in the test file were correctly updated for the index shift the new checkbox introduces (no stale query silently pointing at the wrong element).
+
+Live-verified end-to-end before merge, against 3 real seeded pending risks: selecting one row correctly showed the header checkbox as indeterminate; clicking it selected all 3 and showed "3 selected" with the bulk action bar; clicking again deselected all.
