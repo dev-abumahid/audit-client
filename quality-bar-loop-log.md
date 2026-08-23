@@ -2064,3 +2064,82 @@ system (which would be large-scope, matching Risk Register's full
 per-category saturated coding). Mobile's contained finding (touch target
 sizing on SuppliersEntities.tsx's edit/delete buttons) shares this same
 file, so it's not batched this round -- stays in the pool for round 3.
+
+## Round 3
+
+Narrow-scope round again: round 2's fix (PR #1079) was pure-CSS confined to
+2 files, zero logic change, 18/18 tests unmodified -- only visual/design
+polish (the axis it targeted) re-judged; other 9 axes carried forward.
+
+| Axis | Score | Δ |
+|---|---|---|
+| Industry-standards | 4/10 | carried forward |
+| UX | 7/10 | carried forward |
+| Efficiency | 8/10 | carried forward |
+| Accessibility | 7/10 | carried forward |
+| Visual/design polish | 7/10 | +1 |
+| Resilience & edge cases | 7/10 | carried forward |
+| Code quality/maintainability | 8/10 | carried forward |
+| Cross-view integration | 5/10 | carried forward |
+| Mobile/responsive | 6/10 | carried forward |
+| Security | 8/10 | carried forward |
+
+**Average: 6.7/10** — not converged. Below floor (7): industry-standards (4),
+cross-view integration (5), mobile (6). Visual polish now at floor, no
+longer below.
+
+**stuck_streak after round 3**: industry-standards=2, mobile=2, UX=2,
+accessibility=2, resilience=2. Cross-view integration=1 (unchanged this
+round, but only 1 round since it last moved). Visual polish=0 (moved this
+round). Efficiency/code-quality/security excluded (above floor).
+
+### Visual polish re-judge findings
+
+- Round 2's `bordered` fix confirmed live: added a test supplier, the
+  country pill now shows a visible border, primary/AI-discovered variant's
+  border reads clearly (teal-green border + colored text). Cleaned up
+  afterward.
+- Honest assessment: the fix is **asymmetric** -- it gives the
+  primary/AI-provenance signal real visual weight, but the secondary
+  (country) pill's border is nearly invisible in dark mode (`rgb(33,38,48)`
+  fill vs `rgb(38,43,54)` border, ~5-unit-per-channel delta) -- it reads as
+  a shape mainly from contrast against the card background, not the
+  border itself. A small, real, honestly-scoped improvement, not a full
+  fix of "under-differentiated pills."
+- Bonus: round 2's PR also fixed a real latent bug independent of this
+  page -- `bordered` previously silently no-op'd on all 4 generic Badge
+  variants (only severity variants had compound classes), which would
+  have made `bordered` invisible on exactly the pills this feature uses.
+  Structurally sound now via `genericBorderedVariantClasses`.
+- No new regressions; stats-strip gap (large-scope) confirmed still open,
+  not re-litigated.
+
+### Round 4 fix selection
+
+Highest stuck_streak (2) is a 5-way tie: industry-standards(4), mobile(6),
+UX(7), accessibility(7), resilience(7) -- tie-break by lowest raw score:
+industry-standards(4) wins the tie but its finding set remains fully
+large-scope (unchanged from rounds 1-2), so it's skipped again per the
+scope-exhaustion carve-out. Next-lowest tied score: **mobile(6) selected**.
+
+Mobile's round-1 findings (never re-judged since, still standing): row
+edit/delete buttons in SuppliersEntities.tsx are `h-9 w-9` (36px), under
+the 44px HIG/WCAG touch-target minimum; the discovery panel's Add/Dismiss
+buttons in SupplierDiscoveryPanel.tsx are ~22-24px tall, same gap. Both
+CONTAINED (a Tailwind sizing bump, no logic change), touch 2 disjoint
+files -- batched into one round since it's the same underlying fix
+applied to both.
+
+**Scope correction before implementing:** the discovery panel's Add/Dismiss
+buttons (`px-2 py-1 text-[11px]`, no min-height) are a deliberately
+mirrored pattern -- `SupplierDiscoveryPanel.tsx:16-29`'s own header
+comment says it copies `RegulatoryCoverageSuggestions.tsx`'s exact shape,
+and `RegulatoryCoverageSuggestions.tsx:297,318` has byte-identical sizing.
+Fixing only the Supplier copy would deviate from an explicitly-documented
+shared convention and make the two features inconsistent with each other
+-- the right fix touches both files together, which is a bigger,
+cross-cutting change than this round's Tier 1 scope. Narrowed round 4 to
+just the row edit/delete buttons in SuppliersEntities.tsx:213,223 (confirmed
+via grep: this exact className string is unique to this file, not shared),
+and logging the discovery-panel/RegulatoryCoverageSuggestions touch-target
+gap as a proper follow-up rather than fixing it inconsistently here.

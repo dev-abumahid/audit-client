@@ -210,7 +210,7 @@ export default function SuppliersEntities() {
                       aria-label={t("organization.suppliers.editFor", {
                         name: supplier.name,
                       })}
-                      className="focus-ring flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                      className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                       <Pencil className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -220,7 +220,7 @@ export default function SuppliersEntities() {
                       aria-label={t("organization.suppliers.deleteFor", {
                         name: supplier.name,
                       })}
-                      className="focus-ring flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </button>
