@@ -2444,3 +2444,59 @@ Bonus: `size="touch"` also gives this button a real 44px touch target it
 didn't explicitly have before (it was `h-10`/40px) -- not the mobile
 axis's own selected fix, but a welcome side effect of reusing the
 component built for that exact purpose.
+
+## Round 11
+
+Narrow-scope round: round 10's fix (PR #1083) was a pure component swap
+confined to 1 file, zero logic change, 21/21 tests unmodified -- only
+cross-view integration (the axis it targeted) re-judged.
+
+| Axis | Score | Δ |
+|---|---|---|
+| Industry-standards | 4/10 | carried forward |
+| UX | 7/10 | carried forward |
+| Efficiency | 7/10 | carried forward |
+| Accessibility | 7/10 | carried forward |
+| Visual/design polish | 7/10 | carried forward |
+| Resilience & edge cases | 8/10 | carried forward |
+| Code quality/maintainability | 8/10 | carried forward |
+| Cross-view integration | 6/10 | +1 |
+| Mobile/responsive | 7/10 | carried forward |
+| Security | 9/10 | carried forward |
+
+**Average: 7.0/10** — not converged. Below floor (7): industry-standards
+(4), cross-view integration (6).
+
+### Cross-view integration re-judge findings
+
+- Button fix (round 10) confirmed live in code, and confirmed consistent
+  with how other pages (TemplatesPage.tsx) use `Button size="touch"` for
+  their own primary actions -- no new inconsistency introduced.
+- Findings 1/2 (no supplier<->risk linkage, Sites & Entities blind to
+  suppliers) and the Card-wrapper half of finding 3 all confirmed still
+  open, as previously scoped.
+- **New finding**: the search input is a raw `<input>` (h-10/40px)
+  instead of the shared `Input` component. Other pages (TemplatesPage.tsx,
+  InspectionTable.tsx) already migrated their own search inputs to
+  `Input` with an explicit `h-11` override, with an inline comment
+  noting this exact class of bug was "fixed on 9+ pages this session" --
+  a 4th shared-component reuse gap (Badge/Card/Button/Input), not
+  previously on the radar across 10 rounds.
+
+### Round 12 fix selection
+
+Industry-standards remains the highest stuck_streak axis but stays fully
+large-scope-exhausted (unchanged across every round). Falls to cross-view
+integration (6/10, below floor) again -- its new Input-adoption finding
+is genuinely contained and directly precedented (same `h-11` override
+pattern already used on 9+ other pages, most directly TemplatesPage.tsx's
+own search input). Selected.
+
+## Round 12
+
+Adopted the shared `Input` component for the search box
+(SuppliersEntities.tsx), matching TemplatesPage.tsx's established
+`h-11` override pattern exactly. Tier 1 -- typecheck clean, lint 0
+errors, 21/21 tests pass unmodified, live-verified (confirmed the real
+Input component renders at data-slot="input", 44px height, typing and
+the debounced search filter both still work correctly).

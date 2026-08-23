@@ -6,6 +6,7 @@ import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import Pagination from "@/components/shared/Pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
@@ -158,12 +159,18 @@ export default function SuppliersEntities() {
 
       <div className="rounded-xl border border-border bg-card">
         <div className="border-b border-border p-3">
-          <input
+          {/* quality-bar-loop round 12 (cross-view integration, round-2
+              finding): shared Input defaults to h-7, well under the 44px
+              touch-target guideline, same bug class fixed on 9+ pages this
+              session (e.g. TemplatesPage.tsx's own search input). `h-11`
+              overrides the component default via tailwind-merge, same
+              pattern used everywhere else. */}
+          <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t("organization.suppliers.searchPlaceholder")}
             aria-label={t("organization.suppliers.searchPlaceholder")}
-            className="focus-ring h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 text-sm"
+            className="h-11 w-full max-w-xs"
           />
         </div>
 
