@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import Pagination from "@/components/shared/Pagination"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
@@ -146,14 +147,10 @@ export default function SuppliersEntities() {
           </p>
         </div>
         {canWrite && (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="focus-ring flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
+          <Button type="button" size="touch" onClick={openCreate}>
+            <Plus aria-hidden="true" />
             {t("organization.suppliers.addSupplier")}
-          </button>
+          </Button>
         )}
       </div>
 
