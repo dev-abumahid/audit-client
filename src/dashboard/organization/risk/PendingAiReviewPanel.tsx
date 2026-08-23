@@ -6,6 +6,7 @@
 // (delete/status-update) and reset-on-filter-change semantics don't match
 // approve/dismiss's much simpler, filter-independent shape.
 import CitationConfidenceBadge from "@/components/dashboard/organization/CitationConfidenceBadge"
+import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import {
   useApproveRiskMutation,
   useBulkApproveRisksMutation,
@@ -47,6 +48,13 @@ export default function PendingAiReviewPanel({
   // (not a single id) so more than one row can stay expanded while
   // comparing several pending suggestions.
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  // Round-3 quality-bar-loop finding (industry-standards + UX, 3 judges):
+  // bulk approve/dismiss fired their mutation on click with zero
+  // confirmation -- irreversible for a whole selection at once. Gate both
+  // behind a shared confirm dialog rather than firing directly.
+  const [pendingBulkAction, setPendingBulkAction] = useState<
+    "approve" | "dismiss" | null
+  >(null)
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev)
@@ -91,6 +99,21 @@ export default function PendingAiReviewPanel({
     )
   }, [pendingData])
   const dismissedRisks = dismissedData?.data ?? []
+
+  // Review finding (PR #1066): the empty-state early return below unmounts
+  // the confirm dialog without ever calling setOpen(false) if the list
+  // empties while it's still open -- resetting here (not just on confirm/
+  // cancel) means a later non-empty render can't reopen it against a stale
+  // selection. Adjusting state during render (React's documented pattern
+  // for "reset when a value changes"), not in an effect, since an effect
+  // body would call setState after commit and cause an extra render pass.
+  const [prevPendingCount, setPrevPendingCount] = useState(
+    pendingRisks.length
+  )
+  if (pendingRisks.length !== prevPendingCount) {
+    setPrevPendingCount(pendingRisks.length)
+    if (pendingRisks.length === 0) setPendingBulkAction(null)
+  }
 
   const [approveRisk, { isLoading: isApproving }] = useApproveRiskMutation()
   const [dismissRisk, { isLoading: isDismissing }] = useDismissRiskMutation()
@@ -173,6 +196,7 @@ export default function PendingAiReviewPanel({
     try {
       await bulkApproveRisks(Array.from(selectedIds)).unwrap()
       setSelectedIds(new Set())
+      setPendingBulkAction(null)
     } catch (err) {
       toast.error(
         extractErrorMessage(
@@ -187,6 +211,7 @@ export default function PendingAiReviewPanel({
     try {
       await bulkDismissRisks(Array.from(selectedIds)).unwrap()
       setSelectedIds(new Set())
+      setPendingBulkAction(null)
     } catch (err) {
       toast.error(
         extractErrorMessage(
@@ -240,7 +265,7 @@ export default function PendingAiReviewPanel({
                 </span>
                 <button
                   type="button"
-                  onClick={handleBulkApprove}
+                  onClick={() => setPendingBulkAction("approve")}
                   disabled={anyReviewActionInFlight}
                   className="focus-ring flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
                 >
@@ -253,7 +278,7 @@ export default function PendingAiReviewPanel({
                 </button>
                 <button
                   type="button"
-                  onClick={handleBulkDismiss}
+                  onClick={() => setPendingBulkAction("dismiss")}
                   disabled={anyReviewActionInFlight}
                   className="focus-ring flex items-center gap-1 rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
                 >
@@ -402,6 +427,43 @@ export default function PendingAiReviewPanel({
           </ul>
         )}
       </div>
+      <DeleteAlertModal
+        open={pendingBulkAction !== null}
+        setOpen={(value) => {
+          if (!value) setPendingBulkAction(null)
+        }}
+        loading={
+          pendingBulkAction === "approve" ? isBulkApproving : isBulkDismissing
+        }
+        title={
+          pendingBulkAction === "approve"
+            ? t(
+                "organization.riskRegister.pendingReview.confirmBulkApproveTitle"
+              )
+            : t(
+                "organization.riskRegister.pendingReview.confirmBulkDismissTitle"
+              )
+        }
+        description={
+          pendingBulkAction === "approve"
+            ? t(
+                "organization.riskRegister.pendingReview.confirmBulkApproveDescription",
+                { count: selectedIds.size }
+              )
+            : t(
+                "organization.riskRegister.pendingReview.confirmBulkDismissDescription",
+                { count: selectedIds.size }
+              )
+        }
+        confirmLabel={
+          pendingBulkAction === "approve"
+            ? t("organization.riskRegister.pendingReview.approveAll")
+            : t("organization.riskRegister.pendingReview.dismissAll")
+        }
+        onConfirm={
+          pendingBulkAction === "approve" ? handleBulkApprove : handleBulkDismiss
+        }
+      />
     </div>
   )
 }

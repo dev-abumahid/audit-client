@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import PendingAiReviewPanel from "./PendingAiReviewPanel"
 
@@ -321,7 +321,7 @@ describe("PendingAiReviewPanel", () => {
     expect(toast.warning).toHaveBeenCalled()
   })
 
-  it("selecting rows shows the bulk action bar, and Approve all calls bulkApproveRisks with the selected ids", async () => {
+  it("selecting rows shows the bulk action bar, and confirming Approve all calls bulkApproveRisks with the selected ids", async () => {
     mockUseGetAllRisksQuery.mockImplementation(
       routeByReviewStatus([
         makePendingRisk({ id: "risk-1", name: "Risk one" }),
@@ -346,7 +346,112 @@ describe("PendingAiReviewPanel", () => {
       })
     )
 
+    // Round-3 quality-bar-loop finding (industry-standards + UX): bulk
+    // actions used to mutate on click with zero confirmation -- clicking
+    // the trigger must open a dialog, not fire the mutation directly.
+    expect(mockBulkApproveRisks).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole("alertdialog")
+    await userEvent.click(
+      within(dialog).getByRole("button", {
+        name: "organization.riskRegister.pendingReview.approveAll",
+      })
+    )
+
     expect(mockBulkApproveRisks).toHaveBeenCalledWith(["risk-1", "risk-2"])
+  })
+
+  it("confirming Dismiss all calls bulkDismissRisks with the selected ids", async () => {
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([
+        makePendingRisk({ id: "risk-1", name: "Risk one" }),
+        makePendingRisk({ id: "risk-2", name: "Risk two" }),
+      ])
+    )
+
+    render(<PendingAiReviewPanel canWrite={true} />)
+    const checkboxes = screen.getAllByRole("checkbox")
+    await userEvent.click(checkboxes[0])
+    await userEvent.click(checkboxes[1])
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.pendingReview.dismissAll",
+      })
+    )
+
+    expect(mockBulkDismissRisks).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole("alertdialog")
+    await userEvent.click(
+      within(dialog).getByRole("button", {
+        name: "organization.riskRegister.pendingReview.dismissAll",
+      })
+    )
+
+    expect(mockBulkDismissRisks).toHaveBeenCalledWith(["risk-1", "risk-2"])
+  })
+
+  it("cancelling the bulk-approve confirmation dialog leaves the mutation uncalled and the selection intact", async () => {
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([
+        makePendingRisk({ id: "risk-1", name: "Risk one" }),
+        makePendingRisk({ id: "risk-2", name: "Risk two" }),
+      ])
+    )
+
+    render(<PendingAiReviewPanel canWrite={true} />)
+    const checkboxes = screen.getAllByRole("checkbox")
+    await userEvent.click(checkboxes[0])
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.pendingReview.approveAll",
+      })
+    )
+    const dialog = await screen.findByRole("alertdialog")
+    await userEvent.click(
+      within(dialog).getByRole("button", {
+        name: "common.deleteAlertModal.cancel",
+      })
+    )
+
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
+    )
+    expect(mockBulkApproveRisks).not.toHaveBeenCalled()
+    expect(checkboxes[0]).toBeChecked()
+  })
+
+  // Review finding (PR #1066): the empty-state early return unmounts the
+  // dialog without closing it if the pending list empties while it's still
+  // open -- without the fix, a later re-render with fresh pending risks
+  // would reopen the stale dialog unprompted.
+  it("resets the pending bulk-confirm dialog if the pending list empties while it's open", async () => {
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([makePendingRisk({ id: "risk-1", name: "Risk one" })])
+    )
+
+    const { rerender } = render(<PendingAiReviewPanel canWrite={true} />)
+    await userEvent.click(screen.getByRole("checkbox"))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.pendingReview.approveAll",
+      })
+    )
+    await screen.findByRole("alertdialog")
+
+    mockUseGetAllRisksQuery.mockImplementation(routeByReviewStatus([]))
+    rerender(<PendingAiReviewPanel canWrite={true} />)
+
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
+    )
+
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([makePendingRisk({ id: "risk-2", name: "Risk two" })])
+    )
+    rerender(<PendingAiReviewPanel canWrite={true} />)
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
   })
 
   // Round-1 review finding: a per-row action and a bulk action for the
