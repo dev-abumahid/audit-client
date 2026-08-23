@@ -222,6 +222,49 @@ export default function PendingAiReviewPanel({
     }
   }
 
+  // Round-8 quality-bar-loop finding (code quality): the same
+  // pendingBulkAction === "approve" ? ... : ... discriminant was repeated
+  // 7 times across the DeleteAlertModal props below -- collapsing it into
+  // one lookup means adding a new field only touches one place instead of
+  // both branches of every ternary.
+  const bulkActionConfig: Record<
+    "approve" | "dismiss",
+    {
+      loading: boolean
+      title: string
+      description: string
+      confirmLabel: string
+      loadingLabel: string
+      onConfirm: () => void
+      variant: "default" | "destructive"
+    }
+  > = {
+    approve: {
+      loading: isBulkApproving,
+      title: t("organization.riskRegister.pendingReview.confirmBulkApproveTitle"),
+      description: t(
+        "organization.riskRegister.pendingReview.confirmBulkApproveDescription",
+        { count: selectedIds.size }
+      ),
+      confirmLabel: t("organization.riskRegister.pendingReview.approveAll"),
+      loadingLabel: t("organization.riskRegister.pendingReview.approvingAll"),
+      onConfirm: handleBulkApprove,
+      variant: "default",
+    },
+    dismiss: {
+      loading: isBulkDismissing,
+      title: t("organization.riskRegister.pendingReview.confirmBulkDismissTitle"),
+      description: t(
+        "organization.riskRegister.pendingReview.confirmBulkDismissDescription",
+        { count: selectedIds.size }
+      ),
+      confirmLabel: t("organization.riskRegister.pendingReview.dismissAll"),
+      loadingLabel: t("organization.riskRegister.pendingReview.dismissingAll"),
+      onConfirm: handleBulkDismiss,
+      variant: "destructive",
+    },
+  }
+
   if (pendingLoading) return null
   if (pendingRisks.length === 0 && !showDismissed) {
     return (
@@ -427,48 +470,19 @@ export default function PendingAiReviewPanel({
           </ul>
         )}
       </div>
+      {/* Review finding (PR #1070): falling back to {} while the dialog's
+          ~100ms close animation still has it mounted snapped every prop to
+          DeleteAlertModal's generic defaults (red icon, "Delete" copy) for
+          that duration -- the old per-prop ternaries never had this gap,
+          since any non-"approve" value (including null) fell through to the
+          dismiss branch. Falling back to "dismiss" here restores that exact
+          behavior instead of a bare empty object. */}
       <DeleteAlertModal
         open={pendingBulkAction !== null}
         setOpen={(value) => {
           if (!value) setPendingBulkAction(null)
         }}
-        loading={
-          pendingBulkAction === "approve" ? isBulkApproving : isBulkDismissing
-        }
-        title={
-          pendingBulkAction === "approve"
-            ? t(
-                "organization.riskRegister.pendingReview.confirmBulkApproveTitle"
-              )
-            : t(
-                "organization.riskRegister.pendingReview.confirmBulkDismissTitle"
-              )
-        }
-        description={
-          pendingBulkAction === "approve"
-            ? t(
-                "organization.riskRegister.pendingReview.confirmBulkApproveDescription",
-                { count: selectedIds.size }
-              )
-            : t(
-                "organization.riskRegister.pendingReview.confirmBulkDismissDescription",
-                { count: selectedIds.size }
-              )
-        }
-        confirmLabel={
-          pendingBulkAction === "approve"
-            ? t("organization.riskRegister.pendingReview.approveAll")
-            : t("organization.riskRegister.pendingReview.dismissAll")
-        }
-        loadingLabel={
-          pendingBulkAction === "approve"
-            ? t("organization.riskRegister.pendingReview.approvingAll")
-            : t("organization.riskRegister.pendingReview.dismissingAll")
-        }
-        onConfirm={
-          pendingBulkAction === "approve" ? handleBulkApprove : handleBulkDismiss
-        }
-        variant={pendingBulkAction === "approve" ? "default" : "destructive"}
+        {...bulkActionConfig[pendingBulkAction ?? "dismiss"]}
       />
     </div>
   )
