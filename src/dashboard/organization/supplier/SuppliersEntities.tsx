@@ -185,12 +185,12 @@ export default function SuppliersEntities() {
                       {supplier.name}
                     </span>
                     {supplier.country && (
-                      <Badge variant="secondary" size="xs">
+                      <Badge variant="secondary" size="xs" bordered>
                         {supplier.country}
                       </Badge>
                     )}
                     {supplier.ai_generated && (
-                      <Badge variant="primary" size="xs">
+                      <Badge variant="primary" size="xs" bordered>
                         <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
                         {t("organization.suppliers.aiDiscovered")}
                       </Badge>

@@ -1994,3 +1994,73 @@ finding stands.
 - Org-scoping cannot be confirmed from the frontend alone -- no explicit
   org_id in any supplier.api.ts call; presumably session/JWT-derived
   server-side, consistent with other modules, unverified from here.
+
+## Round 2
+
+Narrow-scope round per the skill's carve-out: round 1's fix (PR #1078) was a
+pure markup swap confined to 2 files with zero logic/behavior change (18/18
+existing tests passed unmodified) -- only the axis round 1's fix targeted
+(cross-view integration) was re-judged; all other 9 axes carried forward
+unchanged with zero code overlap with this round's diff.
+
+| Axis | Score | Δ |
+|---|---|---|
+| Industry-standards | 4/10 | carried forward |
+| UX | 7/10 | carried forward |
+| Efficiency | 8/10 | carried forward |
+| Accessibility | 7/10 | carried forward |
+| Visual/design polish | 6/10 | carried forward |
+| Resilience & edge cases | 7/10 | carried forward |
+| Code quality/maintainability | 8/10 | carried forward |
+| Cross-view integration | 5/10 | +1 |
+| Mobile/responsive | 6/10 | carried forward |
+| Security | 8/10 | carried forward |
+
+**Average: 6.6/10** — not converged. Below floor (7): industry-standards (4),
+visual polish (6), cross-view integration (5), mobile (6).
+
+**stuck_streak after round 2** (unchanged AND at/below floor across the last
+2 rounds): industry-standards=2, visual polish=2, mobile=2, UX=2,
+accessibility=2, resilience=2. Cross-view integration=0 (moved this round).
+Efficiency/code-quality/security excluded (above floor).
+
+### Cross-view integration re-judge findings
+
+- Badge adoption (round 1's fix) confirmed fixed both statically and live:
+  added a real test supplier, inspected the rendered pill's `className`,
+  confirmed the shared `Badge` component's exact classes are present, not
+  hand-rolled markup. Cleaned up the test supplier afterward.
+- Still open, not re-litigated: no supplier<->risk linkage, Sites &
+  Entities page's zero supplier visibility (both large-scope, unchanged).
+- New this round: the same hand-rolled-instead-of-shared-component pattern
+  recurs twice more in the same file -- `SuppliersEntities.tsx:152`
+  hand-replicates the shared `Card` component instead of importing it, and
+  `SuppliersEntities.tsx:139-146`'s "Add Supplier" button hand-rolls
+  classes that imperfectly duplicate the shared `Button` component's
+  `default` variant (`h-10`/`px-4` don't match any defined `buttonVariants`
+  size). Round 1's Badge fix was a spot-fix, not a full pass.
+
+### Round 2 fix selection
+
+Priority order: no data-correctness/security findings at/below floor (skip
+tier 1). Highest stuck_streak (2) is a 6-way tie: industry-standards(4),
+visual(6), mobile(6), UX(7), accessibility(7), resilience(7) -- tie-break
+by lowest raw score first (industry-standards), but industry-standards'
+entire remaining finding set is large-scope (thin schema, no bulk actions,
+AI-discovery scope, bulk import, status field -- confirmed unchanged from
+round 1), so per the scope-exhaustion carve-out it's skipped and priority
+falls to the next-lowest-score tie: visual polish and mobile both at 6,
+broken by roster order (visual polish is axis #5, mobile is axis #9) ->
+**visual polish selected**.
+
+Within visual polish, the single highest-leverage CONTAINED fix (its other
+finding, a stats/summary strip matching Sites & Entities, is large-scope):
+the two pills "under-differentiate two semantically different signals
+(provenance vs. location)... near-identical low-emphasis grey/tinted
+chips" at 10px. `Badge`'s own `bordered` prop (badge.tsx:80-107) exists
+specifically to add a variant-matched border for extra visual weight --
+using it is a minimal, established-API fix, not an invented new color
+system (which would be large-scope, matching Risk Register's full
+per-category saturated coding). Mobile's contained finding (touch target
+sizing on SuppliersEntities.tsx's edit/delete buttons) shares this same
+file, so it's not batched this round -- stays in the pool for round 3.

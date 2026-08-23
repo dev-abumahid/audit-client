@@ -174,7 +174,7 @@ export default function SupplierDiscoveryPanel({
                             {candidate.supplier_name}
                           </span>
                           {candidate.supplier_country && (
-                            <Badge variant="secondary" size="xs">
+                            <Badge variant="secondary" size="xs" bordered>
                               {candidate.supplier_country}
                             </Badge>
                           )}
