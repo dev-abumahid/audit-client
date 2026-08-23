@@ -460,9 +460,15 @@ export default function PendingAiReviewPanel({
             ? t("organization.riskRegister.pendingReview.approveAll")
             : t("organization.riskRegister.pendingReview.dismissAll")
         }
+        loadingLabel={
+          pendingBulkAction === "approve"
+            ? t("organization.riskRegister.pendingReview.approvingAll")
+            : t("organization.riskRegister.pendingReview.dismissingAll")
+        }
         onConfirm={
           pendingBulkAction === "approve" ? handleBulkApprove : handleBulkDismiss
         }
+        variant={pendingBulkAction === "approve" ? "default" : "destructive"}
       />
     </div>
   )

@@ -13,6 +13,8 @@ const mockBulkApproveRisks = vi.fn()
 const mockBulkDismissRisks = vi.fn()
 let mockIsApproving = false
 let mockIsDismissing = false
+let mockIsBulkApproving = false
+let mockIsBulkDismissing = false
 
 vi.mock("@/redux/apis/organization/risk.api", () => ({
   useGetAllRisksQuery: (...args: unknown[]) => mockUseGetAllRisksQuery(...args),
@@ -26,11 +28,11 @@ vi.mock("@/redux/apis/organization/risk.api", () => ({
   ],
   useBulkApproveRisksMutation: () => [
     mockBulkApproveRisks,
-    { isLoading: false },
+    { isLoading: mockIsBulkApproving },
   ],
   useBulkDismissRisksMutation: () => [
     mockBulkDismissRisks,
-    { isLoading: false },
+    { isLoading: mockIsBulkDismissing },
   ],
 }))
 
@@ -76,6 +78,8 @@ describe("PendingAiReviewPanel", () => {
     mockBulkDismissRisks.mockReset()
     mockIsApproving = false
     mockIsDismissing = false
+    mockIsBulkApproving = false
+    mockIsBulkDismissing = false
     mockApproveRisk.mockReturnValue({
       unwrap: () => Promise.resolve({ success: true, data: {} }),
     })
@@ -419,6 +423,74 @@ describe("PendingAiReviewPanel", () => {
     )
     expect(mockBulkApproveRisks).not.toHaveBeenCalled()
     expect(checkboxes[0]).toBeChecked()
+  })
+
+  // Round-6 quality-bar-loop finding (visual + UX, 2 judges independently):
+  // the bulk-approve confirm dialog reused the shared component's
+  // destructive red styling and "Deleting..." fallback loading label, even
+  // though approving is a safe, additive action -- not a delete.
+  it("uses non-destructive emerald styling and an Approving label for the Approve-all dialog", async () => {
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([makePendingRisk({ id: "risk-1", name: "Risk one" })])
+    )
+
+    const { rerender } = render(<PendingAiReviewPanel canWrite={true} />)
+    await userEvent.click(screen.getByRole("checkbox"))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.pendingReview.approveAll",
+      })
+    )
+
+    const dialog = await screen.findByRole("alertdialog")
+    const confirmButton = within(dialog).getByRole("button", {
+      name: "organization.riskRegister.pendingReview.approveAll",
+    })
+    expect(confirmButton.className).toContain("bg-emerald-600")
+    expect(confirmButton.className).not.toContain("bg-destructive")
+
+    // Simulate the mutation now being in flight (real timing: clicking
+    // confirm fires an async mutation and only resolves after this render
+    // pass, so re-rendering with the mock's isLoading flipped is what
+    // actually exercises the loadingLabel wiring, not a real click here).
+    mockIsBulkApproving = true
+    rerender(<PendingAiReviewPanel canWrite={true} />)
+
+    expect(
+      within(dialog).getByRole("button", {
+        name: "organization.riskRegister.pendingReview.approvingAll",
+      })
+    ).toBeInTheDocument()
+  })
+
+  it("keeps destructive red styling and a Dismissing label for the Dismiss-all dialog", async () => {
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([makePendingRisk({ id: "risk-1", name: "Risk one" })])
+    )
+
+    const { rerender } = render(<PendingAiReviewPanel canWrite={true} />)
+    await userEvent.click(screen.getByRole("checkbox"))
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "organization.riskRegister.pendingReview.dismissAll",
+      })
+    )
+
+    const dialog = await screen.findByRole("alertdialog")
+    const confirmButton = within(dialog).getByRole("button", {
+      name: "organization.riskRegister.pendingReview.dismissAll",
+    })
+    expect(confirmButton.className).toContain("bg-destructive")
+    expect(confirmButton.className).not.toContain("bg-emerald")
+
+    mockIsBulkDismissing = true
+    rerender(<PendingAiReviewPanel canWrite={true} />)
+
+    expect(
+      within(dialog).getByRole("button", {
+        name: "organization.riskRegister.pendingReview.dismissingAll",
+      })
+    ).toBeInTheDocument()
   })
 
   // Review finding (PR #1066): the empty-state early return unmounts the

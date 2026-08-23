@@ -213,6 +213,31 @@ describe("DeleteAlertModal", () => {
   // starts -- live-verified this dropped focus to <body> instead of a
   // meaningful control. Moving focus to the still-enabled Cancel button
   // keeps it inside the dialog.
+  // quality-bar-loop round 6 (visual + UX finding, pending-AI-review loop):
+  // every caller before the bulk-approve flow genuinely destroyed/removed
+  // something, so the red icon/button were right for them -- but a bulk
+  // APPROVE is safe and additive, and the destructive look made the one
+  // non-risky action in that panel visually read as an alarm.
+  it("defaults to the destructive red styling when variant is not provided", () => {
+    render(<DeleteAlertModal open onConfirm={vi.fn()} />)
+
+    const confirmButton = screen.getByRole("button", {
+      name: "common.deleteAlertModal.delete",
+    })
+    expect(confirmButton.className).toContain("bg-destructive")
+    expect(confirmButton.className).not.toContain("bg-emerald")
+  })
+
+  it("uses non-destructive emerald styling when variant is default", () => {
+    render(<DeleteAlertModal open onConfirm={vi.fn()} variant="default" />)
+
+    const confirmButton = screen.getByRole("button", {
+      name: "common.deleteAlertModal.delete",
+    })
+    expect(confirmButton.className).toContain("bg-emerald-600")
+    expect(confirmButton.className).not.toContain("bg-destructive")
+  })
+
   it("moves focus to Cancel when the focused Delete button becomes disabled", async () => {
     const { rerender } = render(
       <DeleteAlertModal open onConfirm={vi.fn()} />

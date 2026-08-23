@@ -1281,6 +1281,8 @@
         "dismiss": "Dismiss",
         "approveAll": "Approve all",
         "dismissAll": "Dismiss all",
+        "approvingAll": "Approving...",
+        "dismissingAll": "Dismissing...",
         "confirmBulkApproveTitle": "Approve selected risks?",
         "confirmBulkApproveDescription_one": "This will approve {{count}} selected risk and add it to the confirmed register.",
         "confirmBulkApproveDescription_other": "This will approve {{count}} selected risks and add them to the confirmed register.",

@@ -1281,6 +1281,8 @@
         "dismiss": "Rejeter",
         "approveAll": "Tout approuver",
         "dismissAll": "Tout rejeter",
+        "approvingAll": "Approbation en cours...",
+        "dismissingAll": "Rejet en cours...",
         "confirmBulkApproveTitle": "Approuver les risques sélectionnés ?",
         "confirmBulkApproveDescription_one": "Cela approuvera {{count}} risque sélectionné et l'ajoutera au registre confirmé.",
         "confirmBulkApproveDescription_other": "Cela approuvera {{count}} risques sélectionnés et les ajoutera au registre confirmé.",
