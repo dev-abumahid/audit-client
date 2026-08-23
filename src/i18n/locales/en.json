@@ -1072,6 +1072,7 @@
       "searchPlaceholder": "Search suppliers",
       "loadError": "Failed to load suppliers.",
       "empty": "No suppliers yet. Add one manually or try AI discovery above.",
+      "noMatches": "No suppliers match your search or filters.",
       "aiDiscovered": "AI discovered",
       "editFor": "Edit {{name}}",
       "deleteFor": "Delete {{name}}",

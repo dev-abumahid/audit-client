@@ -2751,3 +2751,76 @@ Per this skill's own guardrail, a below-floor regression triggers a hard
 stop and user escalation even with the average having risen (7.2 -> 7.8).
 Escalating now with the corrected diagnosis above rather than the raw
 judge score, since the dominant finding behind the raw 5/10 was disproven.
+
+## Round 17 resolution (accessibility guardrail cleared)
+
+PR #1089 (aria-live persistence, badge contrast, row-checkbox alignment,
+right-aligned edit/delete buttons on wrap) and PR #1090 (44px touch
+target for the Add/Dismiss buttons in SupplierDiscoveryPanel.tsx and
+RegulatoryCoverageSuggestions.tsx -- the task_4d9734c5 fix deferred since
+round 4/PR #1080) both merged. A narrow-scope re-judge (pure CSS/markup
+diff, zero logic change) confirmed all fixes live and independently:
+
+- Modal focus trap re-tested in an isolated single-tab session (closed a
+  stray leftover tab first) -- genuinely holds forward and backward.
+  Round 17's original finding does not reproduce; confirms the
+  concurrent-session-interference diagnosis.
+- Bulk-toolbar aria-live region confirmed to be the same DOM node
+  before/after selection (mutates in place, not a fresh populated mount).
+- "High risk" badge contrast independently re-measured via canvas
+  compositing: 6.24:1 (even better than the 5.90:1 measured during the
+  fix itself).
+- Touch-target fix confirmed via source (min-h-11 present in both files).
+
+**Accessibility: 8/10** (was 5/10 raw / 6/10 corrected in round 17's
+panel, 7/10 at round 15).
+
+| Axis | Score |
+|---|---|
+| Industry-standards | 8/10 |
+| UX | 7/10 |
+| Efficiency | 8/10 |
+| Accessibility | 8/10 |
+| Visual/design polish | 7/10 |
+| Resilience & edge cases | 8/10 |
+| Code quality/maintainability | 8/10 |
+| Cross-view integration | 8/10 |
+| Mobile/responsive | 9/10 |
+| Security | 9/10 |
+
+**Average: 8.0/10** (target 9, floor 7). Every axis clears its floor --
+no guardrail active. Not converged (average below target).
+
+### Round 18 fix selection
+
+stuck_streak: UX and visual-polish are both at their floor (7) and both
+furthest below target (gap of 2, tied with each other, ahead of every
+other axis's gap of 1). Per priority order, one of these should be
+selected -- but reviewing their actual open findings from round 17 first
+(per this loop's own "verify before trusting" discipline):
+
+- **UX finding "bulk status applies instantly, no confirmation, unlike
+  bulk delete"**: verified against precedent -- RiskRegisterPage.tsx's
+  own bulk-status control makes the identical design choice (immediate
+  effect, no confirmation modal) specifically BECAUSE status changes are
+  non-destructive/reversible, unlike delete. Supplier's bulk-status
+  behavior already matches this established codebase convention. Not a
+  real defect -- reviewed and excluded, no fix needed.
+- **UX finding "bulk-status select always resets to placeholder, no
+  persistent feedback"**: the existing success/partial toast already
+  gives several seconds of visible confirmation of what changed. Judged
+  adequate as-is; the marginal gain from a second, redundant feedback
+  mechanism doesn't justify a round. Reviewed and excluded.
+- **Visual-polish's one round-17 item** was explicitly not a defect --
+  the judge could not verify a multi-badge-crowded row due to shared-
+  session interference and said so directly ("not an observed product
+  defect, environment limitation"). Nothing to fix.
+
+With UX and visual-polish's actual findings resolved to "no fix
+warranted" on inspection, falling through to the next real, verified,
+contained finding regardless of its axis's exact ranking: **resilience's
+misleading filtered-to-zero empty state** (confirmed twice live by the
+round-17 resilience judge) -- filtering to a status/risk-tier combination
+with zero matches shows the same "No suppliers yet" copy as a genuinely
+empty org, which is misleading. Contained, Tier 1 (i18n + a boolean
+branch, no new logic).

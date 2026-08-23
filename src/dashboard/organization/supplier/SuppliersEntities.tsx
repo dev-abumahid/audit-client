@@ -493,7 +493,16 @@ export default function SuppliersEntities() {
           </p>
         ) : suppliers.length === 0 ? (
           <p className="p-8 text-center text-sm text-muted-foreground">
-            {t("organization.suppliers.empty")}
+            {/* Round-17 resilience finding: a status/risk-tier filter (or
+                search) narrowing the list to zero matches showed the same
+                copy as a genuinely empty org, misleadingly implying no
+                suppliers exist at all rather than "none match your
+                filters." */}
+            {t(
+              debouncedSearch || statusFilter || riskTierFilter
+                ? "organization.suppliers.noMatches"
+                : "organization.suppliers.empty"
+            )}
           </p>
         ) : (
           <ul className="divide-y divide-border">

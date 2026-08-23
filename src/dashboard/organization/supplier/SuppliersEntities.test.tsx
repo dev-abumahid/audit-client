@@ -96,6 +96,28 @@ describe("SuppliersEntities", () => {
     expect(screen.getByText("organization.suppliers.empty")).toBeInTheDocument()
   })
 
+  it("shows a distinct 'no matches' state when a filter narrows the list to zero, instead of the true-empty-org copy", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllSuppliersQuery.mockReturnValue({
+      data: { data: [], meta: { page: 1, limit: 20, total: 0, totalPage: 0 } },
+      isLoading: false,
+      error: undefined,
+    })
+    render(<SuppliersEntities />)
+
+    await user.selectOptions(
+      screen.getByLabelText("organization.suppliers.statusFilterLabel"),
+      "INACTIVE"
+    )
+
+    expect(
+      screen.getByText("organization.suppliers.noMatches")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.suppliers.empty")
+    ).not.toBeInTheDocument()
+  })
+
   it("shows a load error", () => {
     mockUseGetAllSuppliersQuery.mockReturnValue({
       data: undefined,

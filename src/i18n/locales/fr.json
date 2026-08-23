@@ -1072,6 +1072,7 @@
       "searchPlaceholder": "Rechercher des fournisseurs",
       "loadError": "Échec du chargement des fournisseurs.",
       "empty": "Aucun fournisseur pour le moment. Ajoutez-en un manuellement ou essayez la découverte IA ci-dessus.",
+      "noMatches": "Aucun fournisseur ne correspond à votre recherche ou à vos filtres.",
       "aiDiscovered": "Découvert par IA",
       "editFor": "Modifier {{name}}",
       "deleteFor": "Supprimer {{name}}",
