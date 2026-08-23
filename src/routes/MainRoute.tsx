@@ -19,6 +19,7 @@ import RiskMatrixPage from "@/dashboard/organization/risk/RiskMatrixPage"
 import RiskDetails from "@/dashboard/organization/risk/RiskDetails"
 import RiskRegisterPage from "@/dashboard/organization/risk/RiskRegisterPage"
 import SitesEntities from "@/dashboard/organization/site/SitesEntities"
+import SuppliersEntities from "@/dashboard/organization/supplier/SuppliersEntities"
 import CreateTemplatePage from "@/dashboard/organization/templates/create/CreateTemplatePage"
 import EditTemplatePage from "@/dashboard/organization/templates/edit/EditTemplatePage"
 import TemplateReportPage from "@/dashboard/organization/templates/TemplateReportPage"
@@ -84,6 +85,7 @@ export const mainRoute = createBrowserRouter([
     children: [
       { index: true, element: <Overview /> },
       { path: "sites", element: <SitesEntities /> },
+      { path: "suppliers", element: <SuppliersEntities /> },
       { path: "risks", element: <RiskRegisterPage /> },
       { path: "risks/:id", element: <RiskDetails /> },
       { path: "findings", element: <AllFindingsPage /> },

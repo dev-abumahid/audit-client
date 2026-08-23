@@ -69,6 +69,24 @@ export interface Site {
 // it (useLazyGetSiteByIdQuery) before showing the edit modal so site_type's
 // pre-fill reflects the real stored value instead of always falling back to
 // "production" (aexa-frontend#401).
+// Org-scoped, not site-scoped -- mirrors aexa-server's Supplier Prisma
+// model (prisma/schema/supplier.prisma). `ai_generated`/`source_info` are
+// set when a candidate came from the /supplier/discover AI-discovery flow
+// (aexa-frontend#<supplier-discovery>) and the user accepted it, so the
+// list can visually distinguish manually-entered suppliers from
+// AI-discovered ones.
+export interface Supplier {
+  id: string
+  org_account_id?: string
+  name: string
+  country?: string | null
+  notes?: string | null
+  ai_generated: boolean
+  source_info?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface SiteSummary {
   id: string
   name: string

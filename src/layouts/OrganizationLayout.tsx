@@ -25,6 +25,7 @@ import {
   Settings,
   Shield,
   ShieldCheck,
+  Truck,
   X,
 } from "lucide-react"
 import { useState } from "react"
@@ -86,6 +87,11 @@ export default function OrganizationLayout() {
           path: "/organization/sites",
           label: t("organization.nav.sitesEntities"),
           icon: Building,
+        },
+        {
+          path: "/organization/suppliers",
+          label: t("organization.nav.suppliers"),
+          icon: Truck,
         },
         {
           path: "/organization/risks",
