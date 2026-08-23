@@ -262,3 +262,91 @@ Added an optional `variant?: "destructive" | "default"` prop to the shared `Dele
 One review round (Tier 2): 0 findings across all 6 review angles, including the critical backward-compatibility check (grepped and confirmed all 13 other `DeleteAlertModal` callers still render identically since none pass `variant`) and the i18n-diff-shape check (a deliberate callback to an earlier incident this same session where a Python JSON round-trip silently collapsed a pre-existing duplicate key elsewhere in the locale file — this diff was confirmed to be exactly 2 clean insertions per file).
 
 Live-verified end-to-end before merge, against real seeded data (not mocks): opened the Approve-all dialog, confirmed via DOM inspection it renders `circle-check`/`bg-emerald-600` (not `circle-alert`/`bg-destructive`), screenshotted it, confirmed it fires the real bulk-approve mutation. Re-seeded a pending risk and confirmed Dismiss-all still renders `circle-alert`/`bg-destructive` unchanged.
+
+## Round 7 (post-fix judge panel)
+
+| Axis | Score | vs. Round 6 |
+|---|---|---|
+| Industry-standards conformance | 8/10 | unchanged |
+| UX | 8/10 | unchanged |
+| Efficiency | 8/10 | unchanged |
+| Accessibility (a11y) | 7.5/10 | unchanged |
+| Visual/design polish | 8/10 | **+1, styling mismatch fully resolved** |
+| Resilience & edge cases | 8/10 | unchanged |
+| Code quality/maintainability | 7/10 | **-1, regressed (stayed above floor)** |
+| Cross-view integration | 8/10 | unchanged (loadingLabel fix independently reconfirmed live) |
+| Security | 9/10 | unchanged |
+| **Average** | **7.94/10** | flat (visual's gain offset by code quality's regression) |
+
+No axis below floor (6.5) for the third consecutive round. Not yet converged (target 8.5).
+
+### Findings summary (verbatim, lightly trimmed) — only axes with new/changed findings
+
+**Visual (8/10, was 7):** Round 6's fix fully verified live in dark mode — the Approve-all dialog now shows a calm emerald checkmark and emerald button, genuinely distinct from Dismiss-all's still-red treatment. Confirmed the emerald tone isn't ad-hoc: it's the identical `bg-emerald-600`/`hover:bg-emerald-700` pair already used by this panel's own per-row and header Approve buttons. Two older findings remain open (truncated-name tooltip, row-hierarchy by confidence), now 3+ rounds.
+
+**Code quality (7/10, was 8 — new regression, stayed above floor):** The `variant` prop itself and its 2-way ternary in `DeleteAlertModal.tsx` are clean, appropriately scoped (round-5's "should this be a lookup object" question doesn't apply here — that was about a 4x-repeated ternary, this is two independent 2-way branches). But in `PendingAiReviewPanel.tsx`, the `pendingBulkAction === "approve" ? ... : ...` discriminant is now repeated 7 times (loading/title/description/confirmLabel/loadingLabel/onConfirm/variant) — round 5 flagged 4 repetitions as borderline-not-worth-fixing; the judge's own explicit reassessment this round is that 7 crosses the threshold into a real, actionable finding: a `bulkActionConfig` lookup keyed by `"approve" | "dismiss"` would collapse ~40 lines into one object literal.
+
+**Cross-view integration (8/10, unchanged):** Round 5's `loadingLabel` regression independently reconfirmed fixed — live-verified both dialogs show the correct "Approving.../Dismissing..." text, not the generic "Deleting...". Spot-checked one of the 13 other `DeleteAlertModal` callers (AlertsPage's dismiss flow) live and confirmed it still renders the original red/destructive treatment unchanged — no capability regression from the shared-component change. `risk.category` bare-text gap still open, unchanged.
+
+**Industry-standards (8/10, unchanged):** Explicitly assessed round 6's severity-differentiated dialog styling against reference tools (GitHub's green "Merge" vs red "Delete branch") — judged a legitimate, recognized pattern, not overkill. Noted (not a deduction) that Dismiss's still-red styling is arguably slightly over-alarming given the copy itself says it's reversible — a candidate for a future look, not selected this round.
+
+**UX (8/10, unchanged), Efficiency (8/10, unchanged), Resilience (8/10, unchanged), A11y (7.5/10, unchanged), Security (9/10, unchanged):** All reconfirmed; round 6's diff judged purely cosmetic/copy with zero effect on any of these axes' underlying logic. UX's missing-success-toast and resilience's missing-`isError`-handling findings remain open, untouched by round 6, as expected.
+
+### stuck_streak (computed after this round)
+
+No axis at or below floor for the third consecutive round — still nothing to track. Priority-2's tie-break (lowest raw score) picks code quality (7/10), the sole lowest-scoring axis this round.
+
+### Next fix (Round 8)
+
+**Selected: extract the 7x-repeated `pendingBulkAction === "approve" ? ... : ...` ternary in `PendingAiReviewPanel.tsx` into a small `bulkActionConfig` lookup object.**
+
+Selection rationale (step 5c priority order): no data-correctness/security finding at/below floor (priority 1 empty). No axis has stuck_streak > 0 for the third straight round (priority 2's tie-break — lowest raw score — applies), and code quality (7/10) is now the sole lowest-scoring axis, having dropped from 8 specifically because this round's own fix (round 6) pushed the same-discriminant repetition from 4 (round 5's "not yet worth it" call) to 7 (this round's judge explicit reassessment: "crosses the threshold"). This is a pure refactor — extracting duplicated logic into a lookup keyed by `pendingBulkAction`, with identical rendered output — so it qualifies for the loop's "structural refactor, zero behavior change" scoping rule if the full pre-existing test suite passes unmodified, meaning next round's judge panel can likely be scoped to just code-quality plus a light sanity pass rather than the full 9-judge dispatch.
+
+## Round 8 — fix shipped ([PR #1070](https://github.com/Qiyrix/aexa-frontend/pull/1070))
+
+Extracted a `bulkActionConfig: Record<"approve" | "dismiss", {...}>` lookup in `PendingAiReviewPanel.tsx`, spread onto `<DeleteAlertModal {...bulkActionConfig[...]} />`, collapsing the 7x-repeated `pendingBulkAction === "approve" ? ... : ...` discriminant into one object literal. Proven zero behavior change by the pre-existing test suite: all 18 tests in `PendingAiReviewPanel.test.tsx` passed **completely unmodified**.
+
+One review round caught a real, genuinely subtle correctness gap the "18 unmodified tests pass" claim didn't actually prove: the initial `{...(pendingBulkAction ? bulkActionConfig[pendingBulkAction] : {})}` fell back to a bare `{}` once `pendingBulkAction` became `null` (on close/confirm), which — because `DeleteAlertModal`'s Radix dialog stays mounted for its ~100ms close animation rather than unmounting instantly — meant every prop (icon, title, copy, button color) snapped to the shared component's generic destructive defaults for that duration. The old per-prop ternaries never had this gap, since any non-`"approve"` value (including `null`) fell through to the dismiss branch. jsdom doesn't run real CSS transitions, so none of the 18 tests could have caught this — a real instance of "tests pass" not meaning "zero behavior change" for anything animation-timing-dependent. Fixed by falling back to the `"dismiss"` config entry instead of `{}`, restoring the exact old fallback behavior; live-verified by opening the dialog, clicking Cancel, and inspecting the DOM at the instant it's still mounted mid-close — correctly still shows the approve-specific copy, not the generic fallback.
+
+Given this fix's diff is fully scoped to a self-contained refactor of `PendingAiReviewPanel.tsx`'s bulk-dialog wiring, with the fix itself later confirmed live end-to-end and the pre-existing test suite proving no behavior drift for anything jsdom can observe, this round's judge panel is scoped per the loop's own rule: full re-run for **code quality** only (the axis this round targeted), one-line carry-forward for the other 8 axes.
+
+Deliberately not selected: visual's truncated-tooltip/row-hierarchy pair (still open, 3+ rounds, good next-round candidate); UX's missing-success-toast (minor, same file, could batch with a future round); resilience's missing `isError` handling (real, different code path than this round's pick); industry-standards' select-all/bulk-undo gaps (larger, deferred).
+
+## Round 8 (scoped judge panel — code quality only, other 8 axes carried forward)
+
+| Axis | Score | Source |
+|---|---|---|
+| Industry-standards conformance | 8/10 | carried forward from round 7 (not touched by round 8's diff) |
+| UX | 8/10 | carried forward |
+| Efficiency | 8/10 | carried forward |
+| Accessibility (a11y) | 7.5/10 | carried forward |
+| Visual/design polish | 8/10 | carried forward |
+| Resilience & edge cases | 8/10 | carried forward |
+| Code quality/maintainability | 9/10 | **fresh re-run, +2** |
+| Cross-view integration | 8/10 | carried forward |
+| Security | 9/10 | carried forward |
+| **Average** | **8.17/10** | +0.23 |
+
+No axis below floor (fourth consecutive round). Not yet converged (target 8.5).
+
+### Findings summary — code quality (9/10, was 7)
+
+The 7x-repeated ternary is fully collapsed, no leftover duplication anywhere in the render path. The flicker-fix comment (from the review-round fix) was singled out as "exactly the kind of comment that earns its keep" — names the concrete symptom, the mechanism, and explicitly guards against a future reader "simplifying" the `?? "dismiss"` fallback back to `?? {}`. One minor, non-blocking nit: the inline `Record<"approve" | "dismiss", {...}>` type (12 lines) would read better extracted as a named type — not selected as this round's fix, noted as a cheap future candidate if this file gets touched again.
+
+### stuck_streak (computed after this round)
+
+No axis at or below floor for the fourth consecutive round. Priority-2's tie-break (lowest raw score) now picks accessibility (7.5/10) — the sole lowest-scoring axis, since code quality's jump to 9 removed it from lowest-place contention.
+
+### Next fix (Round 9)
+
+**Selected: pair the evidence-toggle button's `aria-expanded` with a real `aria-controls` pointing at the expanded content region, giving that content a stable `id` via `useId()`.**
+
+Selection rationale (step 5c priority order): no data-correctness/security finding at/below floor (priority 1 empty). No axis has stuck_streak > 0 for the fourth straight round (priority 2's tie-break — lowest raw score — applies), and accessibility (7.5/10) is now the sole lowest-scoring axis. Of its two open findings — the blanket `aria-live="polite"` wrapping the entire panel, and the evidence-toggle's missing `aria-controls` — the `aria-controls` fix is selected: it's small, mechanical, and directly closes a WCAG 4.1.2 partial-conformance gap flagged unchanged for 4+ rounds (`round-3` fix introduced the toggle, `round-5`/`round-7`/`round-8` a11y write-ups all reconfirmed the same gap without it being selected). The blanket-`aria-live` finding is deliberately deferred — closing it well requires a real design decision about what specifically should announce on a row-level mutation (the row's new state? a summary count? nothing, relying on the visible list re-render?), which is a bigger question than this round's mechanical pairing fix and risks either under- or over-announcing if rushed.
+
+## Round 9 — fix shipped ([PR #1071](https://github.com/Qiyrix/aexa-frontend/pull/1071))
+
+Added `aria-controls={evidenceContentId}` on the evidence toggle button and a matching `id` on the expanded content, using `risk.id` (already stable/unique) as the key instead of `useId()` (which can't be called inside a `.map()`).
+
+One review round caught a real gap the initial implementation missed: the content `<div>` was still only mounted while `hasEvidence && isExpanded`, so `aria-controls` pointed at a nonexistent id whenever a row was collapsed — the exact ARIA reference violation this codebase already caught and fixed in `src/pages/home/components/FAQSection.tsx` ("the answer panel was previously only mounted while open... an ARIA reference violation regardless of open/closed state"). Fixed by applying FAQSection's own established pattern: always render the content, toggle visibility via the `hidden` attribute instead of conditional mounting, plus `role="region"`/`aria-labelledby` back to the toggle, mirroring FAQSection exactly. Also closed a second reviewer-flagged gap: the original test only ever rendered one risk, so it couldn't prove `evidenceContentId` was genuinely keyed by `risk.id` rather than a hardcoded string — added a multi-row test expanding two risks simultaneously and asserting distinct, correctly-toggled `aria-controls`/`id` pairs per row, verified with a negative control.
+
+Live-verified end-to-end before merge: confirmed the collapsed toggle's `aria-controls` target genuinely exists in the DOM (hidden via attribute, not absent), and expanding correctly removes `hidden` and reveals the right content.
